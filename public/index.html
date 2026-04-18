@@ -482,11 +482,25 @@ function openAvatarModal() {
       <div class="modal">
         <h2>🎨 アバターを作る</h2>
         <div class="tag">あなたの写真を漫画風に変換します。元の写真はサーバーに保存されません。</div>
-        <div class="photo-picker" onclick="document.getElementById('avatar-file').click()">
-          <div id="photo-placeholder">📷 タップして写真を選ぶ</div>
+        <div class="photo-picker" id="photo-picker-area">
+          <div id="photo-placeholder">
+            <div style="margin-bottom:10px;color:rgba(255,255,255,0.7);font-size:13px;">写真を用意</div>
+            <button class="btn-primary btn-small" style="width:auto;padding:8px 14px;margin:4px;" onclick="openCamera()">📷 カメラで撮る</button>
+            <button class="btn-ghost btn-small" style="margin:4px;" onclick="document.getElementById('avatar-file').click()">📁 ファイルから</button>
+          </div>
+          <video id="camera-video" style="display:none;width:100%;max-height:220px;border-radius:10px;background:#000;" autoplay playsinline></video>
+          <div id="camera-controls" style="display:none;margin-top:10px;">
+            <button class="btn-primary btn-small" style="width:auto;padding:8px 14px;" onclick="takePhoto()">📸 撮影</button>
+            <button class="btn-ghost btn-small" onclick="switchCamera()">🔄 切替</button>
+            <button class="btn-ghost btn-small" onclick="closeCamera()">キャンセル</button>
+          </div>
           <img id="photo-preview" style="display:none;">
+          <div id="photo-actions" style="display:none;margin-top:8px;">
+            <button class="btn-ghost btn-small" onclick="retakePhoto()">🔁 撮り直し</button>
+          </div>
         </div>
-        <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="onPhotoPick(this)">
+        <canvas id="camera-canvas" style="display:none;"></canvas>
+        <input type="file" id="avatar-file" accept="image/*" capture="user" style="display:none;" onchange="onPhotoPick(this)">
         <div style="font-size:12px;color:rgba(255,255,255,0.7);margin:10px 0 4px;">スタイル選択</div>
         <div class="style-grid" id="style-grid">${styleGrid}</div>
         <div style="display:flex;gap:8px;">
@@ -503,6 +517,7 @@ function openAvatarModal() {
 }
 
 function closeAvatarModal() {
+  if (cameraStream) closeCamera();
   document.getElementById('avatar-modal').style.display = 'none';
 }
 
@@ -522,16 +537,100 @@ function selectStyle(key) {
 
 function onPhotoPick(input) {
   if (!input.files || !input.files[0]) return;
-  avatarPhoto = input.files[0];
+  setPhoto(input.files[0]);
+}
+
+function setPhoto(fileOrBlob) {
+  avatarPhoto = fileOrBlob;
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = document.getElementById('photo-preview');
     img.src = e.target.result;
     img.style.display = 'inline-block';
     document.getElementById('photo-placeholder').style.display = 'none';
+    document.getElementById('photo-actions').style.display = 'block';
     document.getElementById('avatar-gen-btn').disabled = false;
   };
-  reader.readAsDataURL(avatarPhoto);
+  reader.readAsDataURL(fileOrBlob);
+}
+
+// ===== カメラ撮影 =====
+let cameraStream = null;
+let cameraFacing = 'user'; // user=インカメラ, environment=アウトカメラ
+
+async function openCamera() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('お使いのブラウザはカメラに対応していません');
+      return;
+    }
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: cameraFacing, width: { ideal: 720 }, height: { ideal: 720 } },
+      audio: false
+    });
+    const video = document.getElementById('camera-video');
+    video.srcObject = cameraStream;
+    video.style.display = 'block';
+    document.getElementById('camera-controls').style.display = 'block';
+    document.getElementById('photo-placeholder').style.display = 'none';
+    document.getElementById('photo-preview').style.display = 'none';
+    document.getElementById('photo-actions').style.display = 'none';
+  } catch (e) {
+    console.error('camera error', e);
+    alert('カメラにアクセスできません: ' + (e.message || e.name));
+  }
+}
+
+async function switchCamera() {
+  cameraFacing = cameraFacing === 'user' ? 'environment' : 'user';
+  closeCamera();
+  await openCamera();
+}
+
+function takePhoto() {
+  const video = document.getElementById('camera-video');
+  const canvas = document.getElementById('camera-canvas');
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // 正方形にトリミング（中央）
+  const sx = (video.videoWidth - size) / 2;
+  const sy = (video.videoHeight - size) / 2;
+  // インカメラは鏡像反転するのが自然
+  if (cameraFacing === 'user') {
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, sx, sy, size, size, -size, 0, size, size);
+    ctx.restore();
+  } else {
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+  }
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'camera_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    closeCamera();
+    setPhoto(file);
+  }, 'image/jpeg', 0.9);
+}
+
+function closeCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('camera-video');
+  video.srcObject = null;
+  video.style.display = 'none';
+  document.getElementById('camera-controls').style.display = 'none';
+  document.getElementById('photo-placeholder').style.display = 'block';
+}
+
+function retakePhoto() {
+  avatarPhoto = null;
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-actions').style.display = 'none';
+  document.getElementById('photo-placeholder').style.display = 'block';
+  document.getElementById('avatar-gen-btn').disabled = true;
 }
 
 async function doGenerateAvatar() {
