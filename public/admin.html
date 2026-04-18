@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoHub Express 管理</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f1f5f9; color: #0f172a; }
+header { background: #0f172a; color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+header h1 { margin: 0; font-size: 16px; }
+header .spacer { flex: 1; }
+header a { color: #94a3b8; text-decoration: none; font-size: 13px; }
+main { max-width: 1000px; margin: 0 auto; padding: 20px; }
+.card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.card h2 { margin: 0 0 12px; font-size: 15px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.row input, .row select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; min-width: 140px; }
+.btn { padding: 8px 16px; background: #06b6d4; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger { background: #ef4444; }
+.btn-ghost { background: #e2e8f0; color: #0f172a; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+th { background: #f8fafc; font-weight: 600; color: #475569; }
+.chip { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.chip-std { background: #e2e8f0; color: #1e293b; }
+.chip-kbc { background: #dbeafe; color: #1e3a8a; }
+.chip-sze { background: #d1fae5; color: #065f46; }
+.chip-admin { background: #fef3c7; color: #92400e; }
+textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 12px; min-height: 120px; }
+.err { color: #dc2626; font-size: 12px; margin-top: 6px; }
+.ok { color: #059669; font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏢 CoHub Express 管理</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:13px;"></div>
+  <a href="/" style="margin-left:16px;">空間へ戻る</a>
+  <a href="javascript:doLogout()" style="margin-left:12px;">ログアウト</a>
+</header>
+<main>
+
+<div id="login-box" class="card" style="max-width:420px;margin:40px auto;">
+  <h2>管理者ログイン</h2>
+  <div class="row"><input type="text" id="adm-id" placeholder="ログインID"></div>
+  <div class="row"><input type="password" id="adm-pw" placeholder="パスワード"></div>
+  <button class="btn" onclick="doAdminLogin()">ログイン</button>
+  <div class="err" id="adm-err"></div>
+</div>
+
+<div id="panel" style="display:none;">
+  <div class="card">
+    <h2>ユーザー追加（1件）</h2>
+    <div class="row">
+      <input type="text" id="new-login" placeholder="ログインID">
+      <input type="text" id="new-name" placeholder="表示名">
+      <select id="new-company">
+        <option value="STD">スタンダード運輸</option>
+        <option value="KBC">関東BC</option>
+        <option value="SZE">スズエ電機</option>
+      </select>
+      <input type="text" id="new-pass" placeholder="初期パスワード">
+      <select id="new-role">
+        <option value="member">一般</option>
+        <option value="admin">管理者</option>
+      </select>
+      <button class="btn" onclick="addUser()">追加</button>
+    </div>
+    <div id="add-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>CSV一括登録</h2>
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
+      形式: <code>login_id,display_name,company_code,password,role(省略可)</code><br>
+      例: <code>taro,山田太郎,STD,Pass1234</code> / <code>hanako,鈴木花子,KBC,Init2026,admin</code>
+    </div>
+    <textarea id="csv-input" placeholder="taro,山田太郎,STD,Pass1234"></textarea>
+    <div style="margin-top:8px;"><button class="btn" onclick="bulkAdd()">一括登録</button></div>
+    <div id="bulk-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>ユーザー一覧 <span id="user-count" style="color:#64748b;font-weight:400;font-size:13px;"></span></h2>
+    <table>
+      <thead><tr><th>ID</th><th>表示名</th><th>所属</th><th>権限</th><th>状態</th><th>操作</th></tr></thead>
+      <tbody id="user-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<script>
+let token = localStorage.getItem('cohub_admin_token') || '';
+
+async function doAdminLogin() {
+  const id = document.getElementById('adm-id').value.trim();
+  const pw = document.getElementById('adm-pw').value;
+  const err = document.getElementById('adm-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ login_id: id, password: pw })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg; return; }
+    if (d.user.role !== 'admin') { err.textContent = '管理者権限がありません'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_admin_token', token);
+    localStorage.setItem('cohub_admin_user', JSON.stringify(d.user));
+    showPanel(d.user);
+  } catch(e) { err.textContent = '通信エラー'; }
+}
+
+function doLogout() {
+  localStorage.removeItem('cohub_admin_token');
+  localStorage.removeItem('cohub_admin_user');
+  location.reload();
+}
+
+function showPanel(user) {
+  document.getElementById('login-box').style.display = 'none';
+  document.getElementById('panel').style.display = 'block';
+  document.getElementById('who').textContent = user.display_name + '（管理者）';
+  loadUsers();
+}
+
+async function loadUsers() {
+  const r = await fetch('/api/admin/users', { headers:{'Authorization':'Bearer '+token} });
+  const d = await r.json();
+  if (!d.success) return;
+  const tb = document.getElementById('user-tbody');
+  tb.innerHTML = '';
+  for (const u of d.users) {
+    const cClass = 'chip-' + u.company_code.toLowerCase();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(u.login_id)}</td>
+      <td>${escapeHtml(u.display_name)}</td>
+      <td><span class="chip ${cClass}">${escapeHtml(u.company_code)}</span></td>
+      <td>${u.role === 'admin' ? '<span class="chip chip-admin">管理者</span>' : '一般'}</td>
+      <td>${u.status || 'offline'}</td>
+      <td>
+        <button class="btn btn-ghost" onclick="resetPass('${u.id}','${escapeHtml(u.display_name)}')">PWリセット</button>
+        <button class="btn btn-danger" onclick="delUser('${u.id}','${escapeHtml(u.display_name)}')">削除</button>
+      </td>`;
+    tb.appendChild(tr);
+  }
+  document.getElementById('user-count').textContent = `（${d.users.length}名）`;
+}
+
+async function addUser() {
+  const body = {
+    login_id: document.getElementById('new-login').value.trim(),
+    display_name: document.getElementById('new-name').value.trim(),
+    company_code: document.getElementById('new-company').value,
+    password: document.getElementById('new-pass').value,
+    role: document.getElementById('new-role').value,
+  };
+  const msg = document.getElementById('add-msg');
+  const r = await fetch('/api/admin/users', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  if (!d.success) { msg.className = 'err'; msg.textContent = d.msg; return; }
+  msg.className = 'ok'; msg.textContent = '追加しました';
+  document.getElementById('new-login').value = '';
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-pass').value = '';
+  loadUsers();
+}
+
+async function bulkAdd() {
+  const csv = document.getElementById('csv-input').value;
+  const msg = document.getElementById('bulk-msg');
+  const r = await fetch('/api/admin/users/bulk', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify({ csv })
+  });
+  const d = await r.json();
+  if (!d.success) { msg.className = 'err'; msg.textContent = d.msg || '失敗'; return; }
+  msg.className = 'ok';
+  msg.textContent = `追加: ${d.created}件 / スキップ: ${d.skipped}件` + (d.errors.length ? ` / エラー: ${d.errors.join(', ')}` : '');
+  loadUsers();
+}
+
+async function resetPass(id, name) {
+  const pw = prompt(`${name}さんの新しいパスワードを入力`);
+  if (!pw) return;
+  const r = await fetch('/api/admin/users/' + id + '/password', {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify({ password: pw })
+  });
+  const d = await r.json();
+  alert(d.success ? 'リセット完了' : '失敗');
+}
+
+async function delUser(id, name) {
+  if (!confirm(`${name}さんを削除しますか？`)) return;
+  await fetch('/api/admin/users/' + id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} });
+  loadUsers();
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 自動ログイン
+(function() {
+  if (!token) return;
+  try {
+    const user = JSON.parse(localStorage.getItem('cohub_admin_user') || '{}');
+    if (user && user.role === 'admin') showPanel(user);
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

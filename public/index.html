@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CoHub Express</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='80' font-size='90'%3E%F0%9F%8F%A2%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #0f172a; color: #fff; overflow: hidden; height: 100vh; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ===== Login ===== */
+#login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+.login-card { background: #fff; color: #0f172a; border-radius: 16px; padding: 32px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.login-card h1 { margin: 0 0 4px; font-size: 22px; text-align: center; }
+.login-card .tag { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 24px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: #475569; margin-bottom: 4px; }
+.field input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+.btn-primary { width: 100%; padding: 12px; background: linear-gradient(135deg, #06b6d4, #0891b2); border: none; border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; }
+.btn-primary:disabled { opacity: 0.6; cursor: wait; }
+.err { color: #dc2626; font-size: 12px; margin-top: 8px; text-align: center; min-height: 16px; }
+
+/* ===== Space ===== */
+#space-screen { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #0f172a; }
+#space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; }
+#topbar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; padding: 10px 14px; background: linear-gradient(180deg, rgba(15,23,42,0.85), rgba(15,23,42,0)); z-index: 10; pointer-events: none; }
+#topbar > * { pointer-events: auto; }
+#topbar .title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+#topbar .spacer { flex: 1; }
+.chip { padding: 6px 10px; border-radius: 20px; background: rgba(15,23,42,0.7); border: 1px solid rgba(255,255,255,0.15); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #fff; }
+.chip:hover { background: rgba(15,23,42,0.9); }
+
+#chat-bar { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; display: flex; gap: 8px; background: linear-gradient(0deg, rgba(15,23,42,0.9), rgba(15,23,42,0)); z-index: 10; }
+#chat-input { flex: 1; padding: 12px 14px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; font-size: 14px; backdrop-filter: blur(8px); }
+#chat-input::placeholder { color: rgba(255,255,255,0.5); }
+#chat-send { padding: 12px 18px; border-radius: 24px; border: none; background: #06b6d4; color: #fff; font-weight: 700; cursor: pointer; }
+
+#status-menu { position: absolute; top: 56px; right: 12px; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 6px; display: none; z-index: 20; min-width: 120px; }
+#status-menu.show { display: block; }
+#status-menu button { display: block; width: 100%; padding: 8px 12px; background: none; border: none; color: #fff; text-align: left; cursor: pointer; border-radius: 6px; font-size: 13px; }
+#status-menu button:hover { background: rgba(255,255,255,0.08); }
+
+/* ===== Avatar Setup Modal ===== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal h2 { margin: 0 0 6px; font-size: 18px; }
+.modal .tag { color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 16px; }
+.style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 16px; }
+.style-card { padding: 12px; background: rgba(255,255,255,0.05); border: 2px solid transparent; border-radius: 10px; cursor: pointer; text-align: center; }
+.style-card.active { border-color: #06b6d4; background: rgba(6,182,212,0.15); }
+.style-card .emoji { font-size: 24px; }
+.style-card .label { font-size: 12px; margin-top: 4px; }
+.photo-picker { border: 2px dashed rgba(255,255,255,0.25); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 12px; }
+.photo-picker img { max-height: 160px; border-radius: 10px; margin-top: 10px; }
+.btn-ghost { padding: 8px 14px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; font-size: 13px; }
+.btn-small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+
+/* ===== Chat bubble ===== */
+.chat-bubble { position: absolute; background: #fff; color: #0f172a; padding: 6px 12px; border-radius: 14px; font-size: 13px; box-shadow: 0 6px 16px rgba(0,0,0,0.3); pointer-events: none; max-width: 220px; word-break: break-word; animation: bubbleIn 0.2s ease; }
+.chat-bubble::after { content: ''; position: absolute; bottom: -6px; left: 14px; width: 12px; height: 12px; background: #fff; transform: rotate(45deg); }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.95); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+</style>
+</head>
+<body>
+
+<!-- ログイン -->
+<div id="login-screen" class="screen active">
+  <div class="login-card">
+    <h1>🏢 CoHub Express</h1>
+    <div class="tag">グループ統合バーチャルオフィス</div>
+    <div class="field"><label>ログインID</label><input type="text" id="login-id" autocomplete="username"></div>
+    <div class="field"><label>パスワード</label><input type="password" id="login-pw" autocomplete="current-password"></div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">ログイン</button>
+    <div class="err" id="login-err"></div>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:#94a3b8;">
+      <a href="/admin" style="color:#64748b;">管理画面</a>
+    </div>
+  </div>
+</div>
+
+<!-- 空間 -->
+<div id="space-screen" class="screen">
+  <canvas id="space-canvas"></canvas>
+  <div id="topbar">
+    <div class="title">🏢 CoHub Express</div>
+    <div class="spacer"></div>
+    <div class="chip" id="status-chip" onclick="toggleStatusMenu()">
+      <span id="status-dot" style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
+      <span id="status-label">在席中</span>
+    </div>
+    <div class="chip" onclick="openAvatarModal()" style="margin-left:8px;">🎨 アバター</div>
+    <div class="chip" onclick="location.href='/mylog'" style="margin-left:8px;">📜 ログ</div>
+    <div class="chip" onclick="doLogout()" style="margin-left:8px;">ログアウト</div>
+  </div>
+  <div id="status-menu">
+    <button onclick="setStatus('online')">🟢 在席中</button>
+    <button onclick="setStatus('退席中')">🟡 退席中</button>
+    <button onclick="setStatus('会議中')">🔴 会議中</button>
+  </div>
+  <div id="chat-bar">
+    <input type="text" id="chat-input" placeholder="近くの人に話しかける…（Enterで送信）" maxlength="500">
+    <button id="chat-send" onclick="sendChat()">送信</button>
+  </div>
+</div>
+
+<!-- アバター設定モーダル -->
+<div id="avatar-modal" style="display:none;"></div>
+
+<script>
+let currentUser = null;
+let token = localStorage.getItem('cohub_token') || '';
+let userData = null;
+try { userData = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch(e) {}
+
+const STYLES = [
+  { key: 'shonen', emoji: '🔥', label: '少年漫画' },
+  { key: 'anime', emoji: '🌸', label: 'アニメ' },
+  { key: 'pixar', emoji: '✨', label: 'ピクサー風' },
+  { key: 'watercolor', emoji: '🎨', label: '水彩' },
+];
+
+// ===== 認証 =====
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  err.textContent = '';
+  if (!id || !pw) { err.textContent = 'IDとパスワードを入力してください'; return; }
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ login_id: id, password: pw })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg; btn.disabled = false; btn.textContent = 'ログイン'; return; }
+    token = d.token;
+    userData = d.user;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(userData));
+    enterSpace();
+  } catch(e) {
+    err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
+  }
+}
+
+function doLogout() {
+  fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} });
+  localStorage.removeItem('cohub_token');
+  localStorage.removeItem('cohub_user');
+  location.reload();
+}
+
+// ===== 空間 =====
+let socket = null;
+let users = {};
+let me = null;
+let myX = 600, myY = 400;
+let proximityRadius = 220;
+let canvas, ctx;
+let bgImage = null;
+let avatarImages = {}; // uid → Image
+const bubbles = []; // { uid, content, at }
+
+function enterSpace() {
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('space-screen').classList.add('active');
+  currentUser = userData;
+  initCanvas();
+  loadBackground();
+  connectSocket();
+  // 初回ログインでアバター未設定なら促す
+  if (!currentUser.avatar_url) {
+    setTimeout(openAvatarModal, 600);
+  }
+}
+
+function initCanvas() {
+  canvas = document.getElementById('space-canvas');
+  ctx = canvas.getContext('2d');
+  resize();
+  window.addEventListener('resize', resize);
+  canvas.addEventListener('click', onCanvasClick);
+  canvas.addEventListener('touchstart', onCanvasTouch, { passive: false });
+  document.getElementById('chat-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendChat();
+  });
+  requestAnimationFrame(render);
+}
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  canvas.width = r.width * window.devicePixelRatio;
+  canvas.height = r.height * window.devicePixelRatio;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
+function loadBackground() {
+  bgImage = new Image();
+  bgImage.src = '/assets/office_bg.svg';
+}
+
+function connectSocket() {
+  socket = io({ auth: { token } });
+  socket.on('connect_error', (e) => console.warn('socket err', e.message));
+  socket.on('snapshot', (data) => {
+    me = data.me;
+    proximityRadius = data.proximity || 220;
+    users = {};
+    for (const u of data.users) {
+      users[u.uid] = u;
+      if (u.uid === me) { myX = u.x || 600; myY = u.y || 400; }
+      if (u.avatar && !avatarImages[u.uid]) loadAvatar(u);
+    }
+  });
+  socket.on('user:update', (u) => {
+    if (!users[u.uid]) users[u.uid] = { uid: u.uid, name: '...', ring: '#333' };
+    users[u.uid].x = u.x;
+    users[u.uid].y = u.y;
+    users[u.uid].status = u.status;
+    if (u.uid === me) { myX = u.x; myY = u.y; }
+  });
+  socket.on('chat:msg', (m) => {
+    bubbles.push({ uid: m.uid, content: m.content, at: Date.now() });
+    while (bubbles.length > 40) bubbles.shift();
+  });
+}
+
+function loadAvatar(u) {
+  if (!u.avatar) return;
+  const img = new Image();
+  img.src = u.avatar;
+  avatarImages[u.uid] = img;
+}
+
+function onCanvasClick(e) {
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+  moveTo(x, y);
+}
+
+function onCanvasTouch(e) {
+  if (!e.touches || !e.touches[0]) return;
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const x = e.touches[0].clientX - r.left;
+  const y = e.touches[0].clientY - r.top;
+  moveTo(x, y);
+}
+
+function moveTo(x, y) {
+  myX = Math.max(30, Math.min(canvas.clientWidth - 30, x));
+  myY = Math.max(60, Math.min(canvas.clientHeight - 100, y));
+  if (users[me]) { users[me].x = myX; users[me].y = myY; }
+  socket.emit('move', { x: myX, y: myY });
+}
+
+function render() {
+  if (!ctx) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  // 背景
+  if (bgImage && bgImage.complete) {
+    // cover
+    const ar = bgImage.width / bgImage.height;
+    const cAR = w / h;
+    let dw, dh, dx, dy;
+    if (cAR > ar) { dw = w; dh = w / ar; dx = 0; dy = (h - dh) / 2; }
+    else { dh = h; dw = h * ar; dx = (w - dw) / 2; dy = 0; }
+    ctx.drawImage(bgImage, dx, dy, dw, dh);
+  } else {
+    // フォールバック
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#fef3c7');
+    g.addColorStop(1, '#fde68a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // 近接範囲（自分中心）をうっすら
+  if (me && users[me]) {
+    const u = users[me];
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, proximityRadius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(6,182,212,0.08)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(6,182,212,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // アバター群
+  for (const uid in users) {
+    const u = users[uid];
+    if (!u.x || !u.y) continue;
+    if (u.status === 'offline') continue;
+    drawAvatar(u);
+  }
+
+  // チャット吹き出し（5秒で消える）
+  const now = Date.now();
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    if (now - b.at > 5000) { bubbles.splice(i, 1); continue; }
+    const u = users[b.uid];
+    if (!u || !u.x || !u.y) continue;
+    drawBubble(u.x, u.y - 50, b.content, Math.max(0, 1 - (now - b.at) / 5000));
+  }
+
+  requestAnimationFrame(render);
+}
+
+function drawAvatar(u) {
+  const r = 28;
+  ctx.save();
+  // ステータスリング
+  ctx.beginPath();
+  ctx.arc(u.x, u.y, r + 3, 0, Math.PI * 2);
+  ctx.fillStyle = u.ring || '#333';
+  ctx.fill();
+
+  // ステータスドット色
+  const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
+
+  // アバター画像
+  const img = avatarImages[u.uid];
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, u.x - r, u.y - r, r * 2, r * 2);
+    ctx.restore();
+  } else {
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '600 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(u.name ? u.name.slice(0, 2) : '?', u.x, u.y);
+  }
+
+  // 名前バッジ
+  ctx.font = '600 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const label = (u.name || '') + ' ' + (u.status === 'online' ? '' : '(' + u.status + ')');
+  const tw = ctx.measureText(label).width + 12;
+  ctx.fillStyle = 'rgba(15,23,42,0.85)';
+  ctx.fillRect(u.x - tw/2, u.y + r + 4, tw, 18);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(label, u.x, u.y + r + 13);
+
+  // ステータスドット
+  ctx.beginPath();
+  ctx.arc(u.x + r - 4, u.y - r + 4, 5, 0, Math.PI * 2);
+  ctx.fillStyle = dotColor;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBubble(x, y, text, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = '13px sans-serif';
+  const maxW = 200;
+  const lines = wrapText(text, maxW);
+  const lineH = 16;
+  const padding = 8;
+  let bubbleW = 0;
+  for (const l of lines) bubbleW = Math.max(bubbleW, ctx.measureText(l).width);
+  bubbleW += padding * 2;
+  const bubbleH = lines.length * lineH + padding * 2;
+  const bx = x - bubbleW / 2;
+  const by = y - bubbleH;
+  // 枠
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 1;
+  roundRect(bx, by, bubbleW, bubbleH, 10);
+  ctx.fill();
+  ctx.stroke();
+  // 尻尾
+  ctx.beginPath();
+  ctx.moveTo(x - 6, by + bubbleH);
+  ctx.lineTo(x, by + bubbleH + 8);
+  ctx.lineTo(x + 6, by + bubbleH);
+  ctx.closePath();
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  // テキスト
+  ctx.fillStyle = '#0f172a';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + padding, by + padding + i * lineH);
+  ctx.restore();
+}
+
+function wrapText(text, maxW) {
+  const out = [];
+  let cur = '';
+  for (const ch of text) {
+    const test = cur + ch;
+    if (ctx.measureText(test).width > maxW && cur) {
+      out.push(cur);
+      cur = ch;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ===== チャット =====
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const content = input.value.trim();
+  if (!content || !socket) return;
+  socket.emit('chat', { content });
+  input.value = '';
+}
+
+// ===== ステータス =====
+function toggleStatusMenu() {
+  document.getElementById('status-menu').classList.toggle('show');
+}
+function setStatus(s) {
+  socket.emit('status', { status: s });
+  const label = s === 'online' ? '在席中' : s;
+  document.getElementById('status-label').textContent = label;
+  document.getElementById('status-dot').style.background = s === '会議中' ? '#ef4444' : s === '退席中' ? '#eab308' : '#10b981';
+  document.getElementById('status-menu').classList.remove('show');
+}
+
+// ===== アバター設定 =====
+let avatarStyle = 'shonen';
+let avatarPhoto = null;
+
+function openAvatarModal() {
+  const modal = document.getElementById('avatar-modal');
+  let styleGrid = '';
+  for (const s of STYLES) {
+    styleGrid += `<div class="style-card ${s.key === avatarStyle ? 'active' : ''}" onclick="selectStyle('${s.key}')"><div class="emoji">${s.emoji}</div><div class="label">${s.label}</div></div>`;
+  }
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeAvatarModal()">
+      <div class="modal">
+        <h2>🎨 アバターを作る</h2>
+        <div class="tag">あなたの写真を漫画風に変換します。元の写真はサーバーに保存されません。</div>
+        <div class="photo-picker" onclick="document.getElementById('avatar-file').click()">
+          <div id="photo-placeholder">📷 タップして写真を選ぶ</div>
+          <img id="photo-preview" style="display:none;">
+        </div>
+        <input type="file" id="avatar-file" accept="image/*" style="display:none;" onchange="onPhotoPick(this)">
+        <div style="font-size:12px;color:rgba(255,255,255,0.7);margin:10px 0 4px;">スタイル選択</div>
+        <div class="style-grid" id="style-grid">${styleGrid}</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-primary" id="avatar-gen-btn" onclick="doGenerateAvatar()" disabled>変換する (30秒程度)</button>
+          <button class="btn-ghost" onclick="closeAvatarModal()">閉じる</button>
+        </div>
+        <div id="avatar-err" class="err"></div>
+        <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.5);text-align:center;">
+          <a href="javascript:removeAvatar()" style="color:rgba(252,165,165,0.8);">アバターを削除</a>
+        </div>
+      </div>
+    </div>`;
+  modal.style.display = 'block';
+}
+
+function closeAvatarModal() {
+  document.getElementById('avatar-modal').style.display = 'none';
+}
+
+function selectStyle(key) {
+  avatarStyle = key;
+  const grid = document.getElementById('style-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (const s of STYLES) {
+    const el = document.createElement('div');
+    el.className = 'style-card' + (s.key === avatarStyle ? ' active' : '');
+    el.onclick = () => selectStyle(s.key);
+    el.innerHTML = `<div class="emoji">${s.emoji}</div><div class="label">${s.label}</div>`;
+    grid.appendChild(el);
+  }
+}
+
+function onPhotoPick(input) {
+  if (!input.files || !input.files[0]) return;
+  avatarPhoto = input.files[0];
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = document.getElementById('photo-preview');
+    img.src = e.target.result;
+    img.style.display = 'inline-block';
+    document.getElementById('photo-placeholder').style.display = 'none';
+    document.getElementById('avatar-gen-btn').disabled = false;
+  };
+  reader.readAsDataURL(avatarPhoto);
+}
+
+async function doGenerateAvatar() {
+  const btn = document.getElementById('avatar-gen-btn');
+  const err = document.getElementById('avatar-err');
+  if (!avatarPhoto) return;
+  btn.disabled = true; btn.textContent = '変換中... (最大60秒)'; err.textContent = '';
+  const fd = new FormData();
+  fd.append('photo', avatarPhoto);
+  fd.append('style', avatarStyle);
+  try {
+    const r = await fetch('/api/avatar/generate', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '変換に失敗しました'; btn.disabled = false; btn.textContent = '変換する (30秒程度)'; return; }
+    currentUser.avatar_url = d.avatar_url;
+    userData.avatar_url = d.avatar_url;
+    localStorage.setItem('cohub_user', JSON.stringify(userData));
+    if (users[me]) users[me].avatar = d.avatar_url;
+    loadAvatar({ uid: me, avatar: d.avatar_url });
+    closeAvatarModal();
+    showToast('アバター完成！');
+  } catch(e) {
+    err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = '変換する (30秒程度)';
+  }
+}
+
+async function removeAvatar() {
+  if (!confirm('アバターを削除しますか？')) return;
+  await fetch('/api/avatar/remove', { method:'POST', headers:{'Authorization':'Bearer '+token} });
+  currentUser.avatar_url = '';
+  userData.avatar_url = '';
+  localStorage.setItem('cohub_user', JSON.stringify(userData));
+  if (users[me]) users[me].avatar = '';
+  delete avatarImages[me];
+  closeAvatarModal();
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// 自動ログイン
+if (token && userData) {
+  enterSpace();
+}
+</script>
+</body>
+</html>

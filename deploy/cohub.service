@@ -1,0 +1,18 @@
+[Unit]
+Description=CoHub Express
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/cohub
+ExecStart=/usr/bin/node /opt/cohub/server/index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/cohub/.env
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoHub Express 会話ログ (24h)</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #0f172a; color: #fff; }
+header { padding: 14px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+header h1 { margin: 0; font-size: 16px; }
+header a { color: #94a3b8; text-decoration: none; font-size: 13px; margin-left: auto; }
+main { max-width: 680px; margin: 0 auto; padding: 20px; }
+.note { background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #bae6fd; margin-bottom: 18px; }
+.msg { padding: 10px 14px; background: rgba(255,255,255,0.04); border-radius: 10px; margin-bottom: 8px; border-left: 3px solid transparent; }
+.msg.mine { border-left-color: #06b6d4; background: rgba(6,182,212,0.08); }
+.msg .who { font-size: 11px; color: #94a3b8; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+.msg .who .company { background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+.msg .content { font-size: 14px; line-height: 1.5; }
+.msg .time { color: rgba(255,255,255,0.4); font-size: 11px; margin-left: auto; }
+.empty { text-align: center; color: rgba(255,255,255,0.4); padding: 40px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📜 会話ログ（過去24時間）</h1>
+  <a href="/">空間へ戻る</a>
+</header>
+<main>
+  <div class="note">
+    過去24時間以内のあなたの近接チャット履歴を表示します。<br>
+    これはあなた自身にしか見えません。管理者も他の社員も読むことはできません。24時間経過で自動削除されます。
+  </div>
+  <div id="list"></div>
+</main>
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+if (!token) location.href = '/';
+let myUid = '';
+try { myUid = JSON.parse(localStorage.getItem('cohub_user') || '{}').uid || ''; } catch(e) {}
+
+async function load() {
+  const r = await fetch('/api/chat/history', { headers:{'Authorization':'Bearer '+token} });
+  const d = await r.json();
+  const list = document.getElementById('list');
+  if (!d.success || !d.messages.length) {
+    list.innerHTML = '<div class="empty">まだ会話ログはありません</div>';
+    return;
+  }
+  list.innerHTML = d.messages.map(m => {
+    const mine = m.sender_id === myUid;
+    return `<div class="msg ${mine ? 'mine' : ''}">
+      <div class="who">
+        <span>${escapeHtml(m.sender_name || '不明')}</span>
+        <span class="company">${escapeHtml(m.sender_company || '')}</span>
+        <span class="time">${formatTime(m.created_at)}</span>
+      </div>
+      <div class="content">${escapeHtml(m.content)}</div>
+    </div>`;
+  }).join('');
+}
+
+function formatTime(s) {
+  if (!s) return '';
+  const d = new Date(s + 'Z');
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return 'たった今';
+  if (diff < 3600000) return Math.floor(diff/60000) + '分前';
+  if (diff < 86400000) return Math.floor(diff/3600000) + '時間前';
+  return d.toLocaleString('ja-JP');
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+load();
+</script>
+</body>
+</html>
