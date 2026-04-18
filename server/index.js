@@ -25,7 +25,10 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "blob:"],
+      mediaSrc: ["'self'", "blob:", "data:"],
       connectSrc: ["'self'", "wss:", "ws:"],
+      workerSrc: ["'self'", "blob:"],
+      childSrc: ["'self'", "blob:"],
     }
   },
   crossOriginEmbedderPolicy: false,
