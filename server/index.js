@@ -11,7 +11,7 @@ const { getDb } = require('./services/db');
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 
 app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
