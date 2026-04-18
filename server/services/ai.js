@@ -15,7 +15,7 @@ async function generateAvatar(photoBase64, mimeType, style) {
 人物の特徴（髪型、メガネの有無、服装の雰囲気）は保ちつつ、イラスト調に変換してください。
 重要: 正方形フレーム、人物は中央、顔がはっきり見える構図。`;
 
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=' + apiKey;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey;
   const body = {
     contents: [{
       parts: [
