@@ -20,11 +20,12 @@ async function generateAvatar(photoBase64, mimeType, style) {
     contents: [{
       parts: [
         { text: prompt },
-        { inline_data: { mime_type: mimeType, data: photoBase64 } }
+        { inlineData: { mimeType: mimeType, data: photoBase64 } }
       ]
     }],
     generationConfig: {
       responseModalities: ['IMAGE', 'TEXT'],
+      temperature: 1.0,
     }
   };
   const resp = await fetch(url, {
@@ -38,12 +39,18 @@ async function generateAvatar(photoBase64, mimeType, style) {
   }
   const data = await resp.json();
   const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-  if (!parts) throw new Error('Gemini応答に画像が含まれていません');
+  if (!parts) {
+    console.error('[Gemini] no parts:', JSON.stringify(data).slice(0, 800));
+    throw new Error('Gemini応答に画像が含まれていません');
+  }
   for (const p of parts) {
-    if (p.inline_data && p.inline_data.data) {
-      return { data: p.inline_data.data, mime_type: p.inline_data.mime_type || 'image/png' };
+    // camelCase (inlineData) も snake_case (inline_data) も両対応
+    const inline = p.inlineData || p.inline_data;
+    if (inline && inline.data) {
+      return { data: inline.data, mime_type: inline.mimeType || inline.mime_type || 'image/png' };
     }
   }
+  console.error('[Gemini] no image in parts:', JSON.stringify(parts).slice(0, 800));
   throw new Error('画像生成に失敗しました');
 }
 
