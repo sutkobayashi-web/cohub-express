@@ -1738,46 +1738,34 @@ function render() {
     ctx.restore();
   }
 
-  // 🛗 エレベーターゾーン (左壁中央、全office棟フロア共通位置)
+  // 🛗 エレベーターホットスポット (薄い枠 + 小さなラベル、部屋背景を遮らない)
   if (elevatorZone) {
     const z = elevatorZone;
     const w = z.x2 - z.x1, h = z.y2 - z.y1;
-    // ドア風のグラデ + 真鍮枠
-    const grad = ctx.createLinearGradient(z.x1, 0, z.x2, 0);
-    grad.addColorStop(0, 'rgba(71,85,105,0.92)');
-    grad.addColorStop(0.5, 'rgba(15,23,42,0.92)');
-    grad.addColorStop(1, 'rgba(71,85,105,0.92)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(z.x1, z.y1, w, h);
-    // ドアセンターライン
-    ctx.strokeStyle = 'rgba(251,191,36,0.6)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(z.x1 + w / 2, z.y1 + 8);
-    ctx.lineTo(z.x1 + w / 2, z.y2 - 8);
-    ctx.stroke();
-    // 真鍮枠
-    ctx.strokeStyle = 'rgba(251,191,36,0.85)';
-    ctx.lineWidth = 3;
+    // 床面ゾーン: ごく淡い黄色の点線枠だけ
+    ctx.strokeStyle = 'rgba(251,191,36,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 5]);
     ctx.strokeRect(z.x1, z.y1, w, h);
-    // 上部にフロアインジケーター
-    ctx.fillStyle = 'rgba(251,191,36,0.95)';
-    roundRect(z.x1 + w / 2 - 22, z.y1 - 24, 44, 18, 4);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '700 11px sans-serif';
+    ctx.setLineDash([]);
+    // 中央に小さな🛗マーカー
+    ctx.font = '700 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('▼ ▲', z.x1 + w / 2, z.y1 - 15);
-    // ラベル
-    ctx.font = '700 12px sans-serif';
-    const labelTxt = '🛗 エレベーター';
-    const tw = ctx.measureText(labelTxt).width + 16;
-    ctx.fillStyle = 'rgba(15,23,42,0.85)';
-    roundRect(z.x1 + w / 2 - tw / 2, z.y2 + 6, tw, 18, 9);
+    ctx.fillStyle = 'rgba(251,191,36,0.95)';
+    roundRect(z.x1 + w / 2 - 18, z.y1 + h / 2 - 16, 36, 32, 8);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText('🛗', z.x1 + w / 2, z.y1 + h / 2 + 1);
+    // 下部に小さなラベル
+    ctx.font = '600 10px sans-serif';
+    const lbl = 'エレベーター';
+    const tw = ctx.measureText(lbl).width + 12;
+    ctx.fillStyle = 'rgba(15,23,42,0.7)';
+    roundRect(z.x1 + w / 2 - tw / 2, z.y2 + 4, tw, 14, 7);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.fillText(labelTxt, z.x1 + w / 2, z.y2 + 15);
+    ctx.fillText(lbl, z.x1 + w / 2, z.y2 + 11);
   }
 
   // ハドルゾーン (紫枠 + ラベル)
@@ -2890,9 +2878,17 @@ function renderRailFloors() {
   host.innerHTML = html;
 }
 
-function switchFloor(code, password) {
+function switchFloor(code, password, fromElevator) {
   if (!socket) return;
   if (currentFloor && currentFloor.code === code) return;
+  // 事務所棟の階間移動はエレベーター必須
+  if (!fromElevator && password == null && currentFloor &&
+      ELEVATOR_DEST_FLOORS.includes(currentFloor.code) &&
+      ELEVATOR_DEST_FLOORS.includes(code)) {
+    showToast('🛗 エレベーターで移動してください');
+    openElevatorModal();
+    return;
+  }
   const payload = { code };
   if (password != null) payload.password = password;
   socket.emit('floor:switch', payload);
@@ -4447,7 +4443,7 @@ function closeElevatorModal() {
 }
 function elevatorGoto(code) {
   closeElevatorModal();
-  switchFloor(code);
+  switchFloor(code, null, true); // fromElevator=true でガード回避
 }
 
 // ===== 🎙️ ハドルゾーン =====
