@@ -209,7 +209,7 @@ const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたき�
 // zone内のユーザーは独立した音声グループを形成 (フロア外の人には聞こえない)
 const HUDDLE_ZONES = {
   office: [
-    { code: 'huddle_a', name: '🎙️ ハドル席', x1: 1050, y1: 30, x2: 1300, y2: 220 },
+    { code: 'huddle_a', name: '🎙️ ハドル席', x1: 1050, y1: 70, x2: 1300, y2: 260 },
   ],
 };
 
