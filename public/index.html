@@ -113,13 +113,17 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .modal { background: #fff; color: #0f172a; border: 1px solid rgba(15,23,42,0.08); border-radius: 16px; padding: 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
 .modal h2 { margin: 0 0 6px; font-size: 18px; }
 .modal .tag { color: #64748b; font-size: 12px; margin-bottom: 16px; }
-.style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 16px; }
-.style-card { padding: 12px; background: #f1f5f9; border: 2px solid transparent; border-radius: 10px; cursor: pointer; text-align: center; }
-.style-card.active { border-color: #06b6d4; background: rgba(6,182,212,0.1); }
-.style-card .emoji { font-size: 24px; }
-.style-card .label { font-size: 12px; margin-top: 4px; color: #334155; }
-.photo-picker { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 12px; }
-.photo-picker img { max-height: 160px; border-radius: 10px; margin-top: 10px; }
+.photo-picker { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 12px; position: relative; }
+.photo-picker img { max-height: 240px; border-radius: 10px; margin-top: 10px; }
+.photo-frame { position: relative; display: inline-block; }
+.photo-frame .guide { position: absolute; inset: 0; pointer-events: none; }
+.cand-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0 14px; }
+.cand-card { background: #f1f5f9; border: 3px solid transparent; border-radius: 12px; padding: 8px; cursor: pointer; text-align: center; transition: all 0.15s; position: relative; }
+.cand-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
+.cand-card.active { border-color: #06b6d4; background: rgba(6,182,212,0.12); }
+.cand-card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 8px; background: #e2e8f0; }
+.cand-card .lbl { font-size: 11px; margin-top: 4px; color: #334155; font-weight: 600; }
+.cand-card.active::after { content: '✓'; position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(6,182,212,0.4); }
 .btn-ghost { padding: 8px 14px; background: transparent; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; cursor: pointer; font-size: 13px; }
 .btn-small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
 
@@ -260,13 +264,6 @@ let currentUser = null;
 let token = localStorage.getItem('cohub_token') || '';
 let userData = null;
 try { userData = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch(e) {}
-
-const STYLES = [
-  { key: 'shonen', emoji: '🔥', label: '少年漫画' },
-  { key: 'anime', emoji: '🌸', label: 'アニメ' },
-  { key: 'pixar', emoji: '✨', label: 'ピクサー風' },
-  { key: 'watercolor', emoji: '🎨', label: '水彩' },
-];
 
 const COMPANY_NAMES = { STD: 'スタンダード運輸', KBC: '関東BC', SZE: 'スズエ電機' };
 
@@ -970,43 +967,59 @@ function setStatus(s) {
 }
 
 // ===== アバター設定 =====
-let avatarStyle = 'shonen';
 let avatarPhoto = null;
+let currentCandidates = [];
+let selectedCandidate = null;
+
+// 顔+胴体ガイドSVG（カメラ/プレビューに重ねる）
+const GUIDE_SVG = `<svg class="guide" viewBox="0 0 100 100" preserveAspectRatio="none">
+  <ellipse cx="50" cy="32" rx="20" ry="23" fill="none" stroke="#06b6d4" stroke-width="0.8" stroke-dasharray="2 2"/>
+  <path d="M 22 70 Q 22 58 35 55 L 65 55 Q 78 58 78 70 L 78 98 L 22 98 Z" fill="none" stroke="#06b6d4" stroke-width="0.8" stroke-dasharray="2 2"/>
+  <text x="50" y="35" text-anchor="middle" font-size="4.5" fill="#06b6d4" font-weight="700" opacity="0.85">顔</text>
+  <text x="50" y="82" text-anchor="middle" font-size="4.5" fill="#06b6d4" font-weight="700" opacity="0.85">肩・胴体</text>
+</svg>`;
 
 function openAvatarModal() {
   const modal = document.getElementById('avatar-modal');
-  let styleGrid = '';
-  for (const s of STYLES) {
-    styleGrid += `<div class="style-card ${s.key === avatarStyle ? 'active' : ''}" onclick="selectStyle('${s.key}')"><div class="emoji">${s.emoji}</div><div class="label">${s.label}</div></div>`;
-  }
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeAvatarModal()">
       <div class="modal">
         <h2>🎨 アバターを作る</h2>
-        <div class="tag">あなたの写真を漫画風に変換します。元の写真はサーバーに保存されません。</div>
+        <div class="tag">アニメ調に3パターン自動生成し、お気に入りを選べます。元の写真はサーバーに保存されません。</div>
         <div class="photo-picker" id="photo-picker-area">
           <div id="photo-placeholder">
-            <div style="margin-bottom:10px;color:#64748b;font-size:13px;">写真を用意</div>
+            <div style="margin-bottom:10px;color:#64748b;font-size:13px;">顔と胴体がガイドの点線に収まるように撮影してください</div>
             <button class="btn-primary btn-small" style="width:auto;padding:8px 14px;margin:4px;" onclick="openCamera()">📷 カメラで撮る</button>
             <button class="btn-ghost btn-small" style="margin:4px;" onclick="document.getElementById('avatar-file').click()">📁 ファイルから</button>
           </div>
-          <video id="camera-video" style="display:none;width:100%;max-height:220px;border-radius:10px;background:#000;" autoplay playsinline></video>
+          <div id="camera-frame" class="photo-frame" style="display:none;width:100%;max-width:320px;margin:0 auto;">
+            <video id="camera-video" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#000;display:block;" autoplay playsinline></video>
+            ${GUIDE_SVG}
+          </div>
           <div id="camera-controls" style="display:none;margin-top:10px;">
             <button class="btn-primary btn-small" style="width:auto;padding:8px 14px;" onclick="takePhoto()">📸 撮影</button>
             <button class="btn-ghost btn-small" onclick="switchCamera()">🔄 切替</button>
             <button class="btn-ghost btn-small" onclick="closeCamera()">キャンセル</button>
           </div>
-          <img id="photo-preview" style="display:none;">
+          <div id="preview-frame" class="photo-frame" style="display:none;max-width:240px;margin:0 auto;">
+            <img id="photo-preview" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;border-radius:10px;">
+            ${GUIDE_SVG}
+          </div>
           <div id="photo-actions" style="display:none;margin-top:8px;">
             <button class="btn-ghost btn-small" onclick="retakePhoto()">🔁 撮り直し</button>
           </div>
         </div>
         <canvas id="camera-canvas" style="display:none;"></canvas>
         <input type="file" id="avatar-file" accept="image/*" capture="user" style="display:none;" onchange="onPhotoPick(this)">
-        <div style="font-size:12px;color:#64748b;margin:10px 0 4px;">スタイル選択</div>
-        <div class="style-grid" id="style-grid">${styleGrid}</div>
+
+        <div id="cand-section" style="display:none;">
+          <div style="font-size:12px;color:#64748b;margin:10px 0 4px;">3パターンから選択</div>
+          <div class="cand-grid" id="cand-grid"></div>
+        </div>
+
         <div style="display:flex;gap:8px;">
-          <button class="btn-primary" id="avatar-gen-btn" onclick="doGenerateAvatar()" disabled>変換する (30秒程度)</button>
+          <button class="btn-primary" id="avatar-gen-btn" onclick="doGenerateSet()" disabled>3パターン自動生成 (約40秒)</button>
+          <button class="btn-primary" id="avatar-confirm-btn" onclick="doConfirmAvatar()" style="display:none;">これにする</button>
           <button class="btn-ghost" onclick="closeAvatarModal()">閉じる</button>
         </div>
         <div id="avatar-err" class="err"></div>
@@ -1018,23 +1031,22 @@ function openAvatarModal() {
   modal.style.display = 'block';
 }
 
-function closeAvatarModal() {
+async function closeAvatarModal() {
   if (cameraStream) closeCamera();
-  document.getElementById('avatar-modal').style.display = 'none';
-}
-
-function selectStyle(key) {
-  avatarStyle = key;
-  const grid = document.getElementById('style-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  for (const s of STYLES) {
-    const el = document.createElement('div');
-    el.className = 'style-card' + (s.key === avatarStyle ? ' active' : '');
-    el.onclick = () => selectStyle(s.key);
-    el.innerHTML = `<div class="emoji">${s.emoji}</div><div class="label">${s.label}</div>`;
-    grid.appendChild(el);
+  // 未確定候補が残っていればサーバー側を掃除
+  if (currentCandidates && currentCandidates.length && !selectedCandidate) {
+    try {
+      await fetch('/api/avatar/discard', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidates: currentCandidates })
+      });
+    } catch (e) {}
   }
+  currentCandidates = [];
+  selectedCandidate = null;
+  avatarPhoto = null;
+  document.getElementById('avatar-modal').style.display = 'none';
 }
 
 function onPhotoPick(input) {
@@ -1048,7 +1060,7 @@ function setPhoto(fileOrBlob) {
   reader.onload = (e) => {
     const img = document.getElementById('photo-preview');
     img.src = e.target.result;
-    img.style.display = 'inline-block';
+    document.getElementById('preview-frame').style.display = 'block';
     document.getElementById('photo-placeholder').style.display = 'none';
     document.getElementById('photo-actions').style.display = 'block';
     document.getElementById('avatar-gen-btn').disabled = false;
@@ -1072,10 +1084,10 @@ async function openCamera() {
     });
     const video = document.getElementById('camera-video');
     video.srcObject = cameraStream;
-    video.style.display = 'block';
+    document.getElementById('camera-frame').style.display = 'block';
     document.getElementById('camera-controls').style.display = 'block';
     document.getElementById('photo-placeholder').style.display = 'none';
-    document.getElementById('photo-preview').style.display = 'none';
+    document.getElementById('preview-frame').style.display = 'none';
     document.getElementById('photo-actions').style.display = 'none';
   } catch (e) {
     console.error('camera error', e);
@@ -1119,47 +1131,103 @@ function closeCamera() {
     cameraStream = null;
   }
   const video = document.getElementById('camera-video');
-  video.srcObject = null;
-  video.style.display = 'none';
-  document.getElementById('camera-controls').style.display = 'none';
-  document.getElementById('photo-placeholder').style.display = 'block';
+  if (video) video.srcObject = null;
+  const frame = document.getElementById('camera-frame');
+  if (frame) frame.style.display = 'none';
+  const ctrl = document.getElementById('camera-controls');
+  if (ctrl) ctrl.style.display = 'none';
+  const ph = document.getElementById('photo-placeholder');
+  if (ph) ph.style.display = 'block';
 }
 
 function retakePhoto() {
   avatarPhoto = null;
-  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('preview-frame').style.display = 'none';
   document.getElementById('photo-actions').style.display = 'none';
   document.getElementById('photo-placeholder').style.display = 'block';
   document.getElementById('avatar-gen-btn').disabled = true;
+  document.getElementById('cand-section').style.display = 'none';
+  document.getElementById('avatar-confirm-btn').style.display = 'none';
+  document.getElementById('avatar-gen-btn').style.display = 'inline-block';
+  currentCandidates = [];
+  selectedCandidate = null;
 }
 
-async function doGenerateAvatar() {
+async function doGenerateSet() {
   const btn = document.getElementById('avatar-gen-btn');
   const err = document.getElementById('avatar-err');
   if (!avatarPhoto) return;
-  btn.disabled = true; btn.textContent = '変換中... (最大60秒)'; err.textContent = '';
+  btn.disabled = true; btn.textContent = '3パターン生成中... (最大60秒)'; err.textContent = '';
   const fd = new FormData();
   fd.append('photo', avatarPhoto);
-  fd.append('style', avatarStyle);
   try {
-    const r = await fetch('/api/avatar/generate', {
+    const r = await fetch('/api/avatar/generate-set', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token },
       body: fd
     });
     const d = await r.json();
-    if (!d.success) { err.textContent = d.msg || '変換に失敗しました'; btn.disabled = false; btn.textContent = '変換する (30秒程度)'; return; }
+    if (!d.success || !d.candidates || !d.candidates.length) {
+      err.textContent = d.msg || '生成に失敗しました';
+      btn.disabled = false; btn.textContent = '3パターン自動生成 (約40秒)';
+      return;
+    }
+    currentCandidates = d.candidates;
+    selectedCandidate = d.candidates[0];
+    renderCandidates();
+    document.getElementById('cand-section').style.display = 'block';
+    btn.style.display = 'none';
+    document.getElementById('avatar-confirm-btn').style.display = 'inline-block';
+  } catch(e) {
+    err.textContent = '通信エラー';
+    btn.disabled = false; btn.textContent = '3パターン自動生成 (約40秒)';
+  }
+}
+
+function renderCandidates() {
+  const grid = document.getElementById('cand-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (const c of currentCandidates) {
+    const el = document.createElement('div');
+    const isActive = selectedCandidate && selectedCandidate.avatar_url === c.avatar_url;
+    el.className = 'cand-card' + (isActive ? ' active' : '');
+    el.onclick = () => { selectedCandidate = c; renderCandidates(); };
+    el.innerHTML = `<img src="${c.avatar_url}" alt=""><div class="lbl">${c.label || c.variant}</div>`;
+    grid.appendChild(el);
+  }
+}
+
+async function doConfirmAvatar() {
+  if (!selectedCandidate) return;
+  const btn = document.getElementById('avatar-confirm-btn');
+  const err = document.getElementById('avatar-err');
+  btn.disabled = true; btn.textContent = '確定中...'; err.textContent = '';
+  try {
+    const r = await fetch('/api/avatar/select', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        avatar_url: selectedCandidate.avatar_url,
+        candidates: currentCandidates
+      })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '確定に失敗しました'; btn.disabled = false; btn.textContent = 'これにする'; return; }
     currentUser.avatar_url = d.avatar_url;
     userData.avatar_url = d.avatar_url;
     localStorage.setItem('cohub_user', JSON.stringify(userData));
     if (users[me]) users[me].avatar = d.avatar_url;
     delete avatarImages[me];
     loadAvatar({ uid: me, avatar: d.avatar_url });
+    // 掃除済みなので closeAvatarModal の discard はスキップ
+    currentCandidates = [];
+    selectedCandidate = { avatar_url: d.avatar_url }; // discard回避
     closeAvatarModal();
     renderMemberList();
     showToast('アバター完成！');
   } catch(e) {
-    err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = '変換する (30秒程度)';
+    err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'これにする';
   }
 }
 

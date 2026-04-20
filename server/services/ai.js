@@ -1,19 +1,27 @@
-// Gemini 画像生成（漫画風アバター変換）
+// Gemini 画像生成（アニメ風アバター変換・3バリエーション）
 
-const STYLE_PROMPTS = {
-  shonen: '少年漫画風のキャラクターイラストに変換してください。明瞭で太めの線、ダイナミックな陰影、親しみやすい表情、肩から上のポートレート、背景は白または透明。',
-  anime: '柔らかいアニメ調のキャラクターイラストに変換してください。優しい線、明るい色調、大きめの瞳、穏やかな表情、肩から上のポートレート、背景は白または透明。',
-  pixar: 'ピクサー風の3Dキャラクターイラストに変換してください。立体的で温かみのあるレンダリング、親しみやすい表情、肩から上のポートレート、背景は白または透明。',
-  watercolor: '水彩スケッチ風のキャラクターイラストに変換してください。柔らかい線と透明感のある色、親しみやすい表情、肩から上のポートレート、背景は白または透明。',
+const ANIME_VARIANTS = {
+  bright: {
+    label: '明るめアニメ',
+    prompt: '明るく親しみやすい日本アニメ調のキャラクターイラスト。クリアな線、鮮やかで温かみのある色調、大きめの瞳、優しい笑顔。'
+  },
+  cool: {
+    label: 'クールアニメ',
+    prompt: 'シャープでスタイリッシュな現代アニメ調のキャラクターイラスト。細めの線、引き締まった陰影、落ち着いた色調、知的な表情。'
+  },
+  soft: {
+    label: 'ソフトアニメ',
+    prompt: '柔らかく穏やかな日常系アニメ調のキャラクターイラスト。淡いパステルの配色、ふんわりした塗り、リラックスした表情。'
+  },
 };
 
-async function generateAvatar(photoBase64, mimeType, style) {
+async function generateAvatarOne(photoBase64, mimeType, variantKey) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
-  const stylePrompt = STYLE_PROMPTS[style] || STYLE_PROMPTS.shonen;
-  const prompt = `以下の写真の人物を、${stylePrompt}
-人物の特徴（髪型、メガネの有無、服装の雰囲気）は保ちつつ、イラスト調に変換してください。
-重要: 正方形フレーム、人物は中央、顔がはっきり見える構図。`;
+  const v = ANIME_VARIANTS[variantKey] || ANIME_VARIANTS.bright;
+  const prompt = `以下の写真の人物を、${v.prompt}
+人物の特徴（髪型、メガネの有無、服装の雰囲気、性別、年齢感）は保ちつつ、イラスト調に変換してください。
+重要: 正方形フレーム、人物は中央、顔と肩から上の胸までが入る構図。背景は白または透明。`;
 
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey;
   const body = {
@@ -39,19 +47,27 @@ async function generateAvatar(photoBase64, mimeType, style) {
   }
   const data = await resp.json();
   const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-  if (!parts) {
-    console.error('[Gemini] no parts:', JSON.stringify(data).slice(0, 800));
-    throw new Error('Gemini応答に画像が含まれていません');
-  }
+  if (!parts) throw new Error('Gemini応答に画像が含まれていません');
   for (const p of parts) {
-    // camelCase (inlineData) も snake_case (inline_data) も両対応
     const inline = p.inlineData || p.inline_data;
     if (inline && inline.data) {
-      return { data: inline.data, mime_type: inline.mimeType || inline.mime_type || 'image/png' };
+      return { data: inline.data, mime_type: inline.mimeType || inline.mime_type || 'image/png', variant: variantKey, label: v.label };
     }
   }
-  console.error('[Gemini] no image in parts:', JSON.stringify(parts).slice(0, 800));
   throw new Error('画像生成に失敗しました');
 }
 
-module.exports = { generateAvatar };
+// 3バリエーション並列生成
+async function generateAvatarSet(photoBase64, mimeType) {
+  const keys = Object.keys(ANIME_VARIANTS);
+  const results = await Promise.allSettled(keys.map(k => generateAvatarOne(photoBase64, mimeType, k)));
+  const ok = [];
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].status === 'fulfilled') ok.push(results[i].value);
+    else console.error('[avatar variant fail]', keys[i], results[i].reason && results[i].reason.message);
+  }
+  if (ok.length === 0) throw new Error('すべてのバリエーション生成に失敗しました');
+  return ok;
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS };
