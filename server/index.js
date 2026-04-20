@@ -145,6 +145,7 @@ function floorUserList(floorCode) {
       x: inFloor ? p.x : null,
       y: inFloor ? p.y : null,
       status: inFloor ? p.status : 'offline',
+      voice: !!(inFloor && p.voiceOn),
       floor: p ? p.floor : null,
     };
   });
@@ -201,6 +202,11 @@ io.on('connection', (socket) => {
     if (!p) return;
     if (p.floor === target.code) return;
     const oldFloor = p.floor;
+    // 音声参加中なら旧フロアから脱退扱い (クライアントはフロア切替時にdisableVoiceする)
+    if (p.voiceOn) {
+      p.voiceOn = false;
+      io.to('floor:' + oldFloor).emit('voice:state', { uid, on: false });
+    }
     // 旧フロアから leave、旧メンバーに「退室」を通知
     socket.leave('floor:' + oldFloor);
     io.to('floor:' + oldFloor).emit('user:leave', { uid });
@@ -280,9 +286,58 @@ io.on('connection', (socket) => {
     if (s) s.emit('chat:read-receipt', { reader: uid, at: new Date().toISOString() });
   });
 
+  // ===== 音声モード (WebRTC近接メッシュ) =====
+  // 音声参加開始: 同フロアの他の音声参加者に通知
+  socket.on('voice:join', () => {
+    const p = presence.get(uid);
+    if (!p) return;
+    p.voiceOn = true;
+    io.to('floor:' + p.floor).emit('voice:state', { uid, on: true });
+    // 既に参加中の同フロアメンバー一覧を本人に返す (本人がofferを作る)
+    const peers = [];
+    for (const [u, v] of presence) {
+      if (u === uid) continue;
+      if (v.voiceOn && v.floor === p.floor && v.status !== 'offline') peers.push(u);
+    }
+    socket.emit('voice:peers', { peers });
+  });
+
+  socket.on('voice:leave', () => {
+    const p = presence.get(uid);
+    if (!p) return;
+    p.voiceOn = false;
+    io.to('floor:' + p.floor).emit('voice:state', { uid, on: false });
+  });
+
+  // シグナリング: offer / answer / ice を指定peerへ転送
+  socket.on('voice:signal', (data) => {
+    if (!data || !data.to) return;
+    const target = presence.get(data.to);
+    if (!target) return;
+    const s = io.sockets.sockets.get(target.socketId);
+    if (!s) return;
+    s.emit('voice:signal', {
+      from: uid,
+      type: data.type,
+      payload: data.payload,
+    });
+  });
+
+  // 話者インジケータ (発話検知時)
+  socket.on('voice:speaking', (data) => {
+    const p = presence.get(uid);
+    if (!p) return;
+    io.to('floor:' + p.floor).emit('voice:speaking', { uid, on: !!(data && data.on) });
+  });
+
   socket.on('disconnect', () => {
     const p = presence.get(uid);
     if (!p) return;
+    // 音声参加中なら切断通知
+    if (p.voiceOn) {
+      p.voiceOn = false;
+      io.to('floor:' + p.floor).emit('voice:state', { uid, on: false });
+    }
     p.status = 'offline';
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
     io.emit('floor:counts', floorCountMap());

@@ -100,6 +100,10 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dock-btn:active { transform: translateY(0); }
 .dock-btn.on { background: #06b6d4; color: #fff; }
 .dock-btn.off { background: #fef2f2; color: #dc2626; }
+.dock-btn.speaking { box-shadow: 0 0 0 4px rgba(16,185,129,0.55), 0 4px 12px rgba(16,185,129,0.3); animation: dockPulse 1s ease-in-out infinite; }
+@keyframes dockPulse { 0%,100% { box-shadow: 0 0 0 4px rgba(16,185,129,0.55); } 50% { box-shadow: 0 0 0 8px rgba(16,185,129,0.15); } }
+.dock-btn .vol-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 40px; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; }
+.dock-btn .vol-bar i { display: block; height: 100%; width: 0%; background: #10b981; transition: width 0.06s linear; }
 .dock-btn .sub { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #64748b; font-weight: 600; white-space: nowrap; }
 .dock-sep { width: 1px; height: 36px; background: rgba(15,23,42,0.1); margin: 0 4px; }
 #dock-chat-wrap { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px; background: #f1f5f9; border-radius: 28px; padding: 6px 8px 6px 16px; }
@@ -555,7 +559,12 @@ function connectSocket() {
     proximityRadius = data.proximity || 220;
     // フロア情報
     if (data.floor) {
+      const prevCode = currentFloor && currentFloor.code;
       currentFloor = data.floor;
+      // フロアが変わったら音声は自動OFF(改めてマイクONで再参加)
+      if (prevCode && prevCode !== data.floor.code && voice.enabled) {
+        disableVoice();
+      }
       WORLD_W = data.floor.world_w || 1344;
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
@@ -589,6 +598,56 @@ function connectSocket() {
       delete targets[u.uid];
       renderMemberList();
     }
+  });
+
+  // ===== 音声シグナリング =====
+  socket.on('voice:peers', async (data) => {
+    // 自分が join した時、既に参加中の同フロアユーザー一覧 → 自分から offer を送る
+    if (!voice.enabled || !Array.isArray(data.peers)) return;
+    for (const peerUid of data.peers) {
+      if (peerUid !== me) await callPeerAsOfferer(peerUid);
+    }
+  });
+
+  socket.on('voice:state', (data) => {
+    if (!data || !data.uid) return;
+    if (users[data.uid]) users[data.uid].voice = !!data.on;
+    // 相手が leave した -> peer を閉じる
+    if (!data.on) {
+      const peer = voice.peers.get(data.uid);
+      if (peer) {
+        try { peer.pc.close(); } catch (e) {}
+        try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; } } catch (e) {}
+        voice.peers.delete(data.uid);
+      }
+      if (users[data.uid]) users[data.uid].speaking = false;
+    }
+  });
+
+  socket.on('voice:signal', async (data) => {
+    if (!voice.enabled || !data) return;
+    const { from, type, payload } = data;
+    if (!from) return;
+    try {
+      if (type === 'offer') {
+        const peer = await getOrCreatePeer(from);
+        await peer.pc.setRemoteDescription(payload);
+        const answer = await peer.pc.createAnswer();
+        await peer.pc.setLocalDescription(answer);
+        socket.emit('voice:signal', { to: from, type: 'answer', payload: peer.pc.localDescription });
+      } else if (type === 'answer') {
+        const peer = voice.peers.get(from);
+        if (peer) await peer.pc.setRemoteDescription(payload);
+      } else if (type === 'ice') {
+        const peer = voice.peers.get(from);
+        if (peer && payload) await peer.pc.addIceCandidate(payload).catch(() => {});
+      }
+    } catch (e) { console.warn('voice signal err', type, e); }
+  });
+
+  socket.on('voice:speaking', (data) => {
+    if (!data || !data.uid) return;
+    if (users[data.uid]) users[data.uid].speaking = !!data.on;
   });
 
   socket.on('floor:counts', (counts) => {
@@ -837,6 +896,21 @@ function drawAvatar(u) {
   const cx = Math.round(u.cx);
   const cy = Math.round(u.cy);
   ctx.save();
+  // 話者パルスリング (voice.speaking時)
+  if (u.speaking) {
+    const phase = (Date.now() % 900) / 900;
+    const prr = r + 8 + phase * 12;
+    ctx.beginPath();
+    ctx.arc(cx, cy, prr, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(16,185,129,' + (0.6 * (1 - phase)) + ')';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(16,185,129,0.7)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
   // ステータスリング
   ctx.beginPath();
   ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
@@ -892,6 +966,21 @@ function drawAvatar(u) {
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.stroke();
+  // マイクON マーク (voice=true)
+  if (u.voice) {
+    ctx.beginPath();
+    ctx.arc(cx - r + 4, cy - r + 4, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#10b981';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🎤', cx - r + 4, cy - r + 5);
+  }
   ctx.restore();
 }
 
@@ -1479,22 +1568,200 @@ function toggleReactions(e) {
   e.stopPropagation();
 }
 
-// ===== マイク/スピーカー（今はプレースホルダー） =====
-let micOn = false;
+// ===== マイク/スピーカー =====
 let speakerOn = true;
-function toggleMic() {
-  micOn = !micOn;
-  const btn = document.getElementById('dock-mic');
-  btn.classList.toggle('on', micOn);
-  btn.classList.toggle('off', false);
-  btn.innerHTML = (micOn ? '🎤' : '🎙️') + '<div class="sub">' + (micOn ? 'マイクON' : 'マイク') + '</div>';
-  showToast(micOn ? 'マイク機能は準備中です' : 'マイクをオフにしました');
-}
 function toggleSpeaker() {
   speakerOn = !speakerOn;
   const btn = document.getElementById('dock-speaker');
   btn.classList.toggle('off', !speakerOn);
   btn.innerHTML = (speakerOn ? '🔊' : '🔇') + '<div class="sub">' + (speakerOn ? '音量' : 'ミュート') + '</div>';
+  // 音声通話のマスタ音量にも反映
+  if (voice.masterGain) voice.masterGain.gain.value = speakerOn ? 1 : 0;
+}
+
+// ===== 音声モード (WebRTC 近接メッシュ) =====
+const voice = {
+  enabled: false,
+  localStream: null,
+  audioContext: null,
+  masterGain: null,
+  analyser: null,
+  analyserData: null,
+  peers: new Map(),      // uid => { pc, audio, gain, src }
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+  speakingSent: false,
+};
+
+function updateMicUI() {
+  const btn = document.getElementById('dock-mic');
+  if (!btn) return;
+  btn.classList.toggle('on', voice.enabled);
+  btn.classList.toggle('off', false);
+  btn.innerHTML = (voice.enabled ? '🎤' : '🎙️') +
+    '<div class="sub">' + (voice.enabled ? 'マイクON' : 'マイク') + '</div>' +
+    '<div class="vol-bar"><i id="mic-volbar-fill"></i></div>';
+}
+
+async function toggleMic() {
+  if (voice.enabled) await disableVoice();
+  else await enableVoice();
+}
+
+async function enableVoice() {
+  try {
+    voice.localStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    });
+  } catch (e) {
+    showToast('マイクの許可が必要です');
+    return;
+  }
+  if (!voice.audioContext) {
+    voice.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    voice.masterGain = voice.audioContext.createGain();
+    voice.masterGain.gain.value = speakerOn ? 1 : 0;
+    voice.masterGain.connect(voice.audioContext.destination);
+    voice.analyser = voice.audioContext.createAnalyser();
+    voice.analyser.fftSize = 512;
+    voice.analyserData = new Uint8Array(voice.analyser.frequencyBinCount);
+  }
+  if (voice.audioContext.state === 'suspended') { try { await voice.audioContext.resume(); } catch (e) {} }
+  try {
+    const src = voice.audioContext.createMediaStreamSource(voice.localStream);
+    src.connect(voice.analyser);
+  } catch (e) {}
+  voice.enabled = true;
+  updateMicUI();
+  if (socket) socket.emit('voice:join');
+  startVoiceLoops();
+  showToast('マイクON (近接音声)');
+}
+
+async function disableVoice() {
+  voice.enabled = false;
+  stopVoiceLoops();
+  for (const [, peer] of voice.peers) {
+    try { peer.pc.close(); } catch (e) {}
+    try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; } } catch (e) {}
+  }
+  voice.peers.clear();
+  if (voice.localStream) {
+    try { voice.localStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+    voice.localStream = null;
+  }
+  if (socket) socket.emit('voice:leave');
+  if (users[me]) users[me].voice = false;
+  updateMicUI();
+}
+
+async function getOrCreatePeer(peerUid) {
+  if (voice.peers.has(peerUid)) return voice.peers.get(peerUid);
+  const pc = new RTCPeerConnection({ iceServers: voice.iceServers });
+  // 自分のストリームを送信
+  if (voice.localStream) {
+    for (const t of voice.localStream.getTracks()) pc.addTrack(t, voice.localStream);
+  }
+  const audio = document.createElement('audio');
+  audio.autoplay = true;
+  audio.muted = true; // Web Audioで再生するので要素側は無音
+  const gain = voice.audioContext.createGain();
+  gain.gain.value = 1;
+  gain.connect(voice.masterGain);
+  let src = null;
+  pc.ontrack = (e) => {
+    const stream = e.streams[0];
+    audio.srcObject = stream;
+    try {
+      if (src) try { src.disconnect(); } catch (err) {}
+      src = voice.audioContext.createMediaStreamSource(stream);
+      src.connect(gain);
+    } catch (err) {
+      // フォールバック: audio要素で直接再生
+      audio.muted = false;
+    }
+  };
+  pc.onicecandidate = (e) => {
+    if (e.candidate && socket) socket.emit('voice:signal', { to: peerUid, type: 'ice', payload: e.candidate });
+  };
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed'].includes(pc.connectionState)) {
+      const p = voice.peers.get(peerUid);
+      if (p) {
+        try { p.pc.close(); } catch (e) {}
+        try { if (p.audio) { p.audio.pause(); p.audio.srcObject = null; } } catch (e) {}
+        voice.peers.delete(peerUid);
+      }
+    }
+  };
+  const obj = { pc, audio, gain, uid: peerUid };
+  voice.peers.set(peerUid, obj);
+  return obj;
+}
+
+async function callPeerAsOfferer(peerUid) {
+  if (!voice.enabled || !voice.localStream) return;
+  const peer = await getOrCreatePeer(peerUid);
+  try {
+    const offer = await peer.pc.createOffer();
+    await peer.pc.setLocalDescription(offer);
+    socket.emit('voice:signal', { to: peerUid, type: 'offer', payload: peer.pc.localDescription });
+  } catch (e) { console.warn('offer error', e); }
+}
+
+// 距離減衰ループ + 自分の音量検知
+let _voiceLoopTimer = null;
+let _voiceVolTimer = null;
+function startVoiceLoops() {
+  if (!_voiceLoopTimer) _voiceLoopTimer = setInterval(updateVoiceDistance, 220);
+  if (!_voiceVolTimer) _voiceVolTimer = setInterval(updateMicVolume, 120);
+}
+function stopVoiceLoops() {
+  if (_voiceLoopTimer) { clearInterval(_voiceLoopTimer); _voiceLoopTimer = null; }
+  if (_voiceVolTimer) { clearInterval(_voiceVolTimer); _voiceVolTimer = null; }
+  const fill = document.getElementById('mic-volbar-fill'); if (fill) fill.style.width = '0%';
+}
+
+function updateVoiceDistance() {
+  if (!voice.enabled) return;
+  const myU = users[me];
+  if (!myU || myU.cx == null) return;
+  const nearR = proximityRadius || 220;
+  const farR = nearR * 2;
+  for (const [peerUid, peer] of voice.peers) {
+    const u = users[peerUid];
+    let g = 0;
+    if (u && u.cx != null && u.status !== 'offline' && u.floor === (currentFloor && currentFloor.code)) {
+      const dx = u.cx - myU.cx, dy = u.cy - myU.cy;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d <= nearR) g = 1;
+      else if (d >= farR) g = 0;
+      else g = 1 - (d - nearR) / (farR - nearR);
+    }
+    try { peer.gain.gain.value = g; } catch (e) {}
+  }
+}
+
+function updateMicVolume() {
+  if (!voice.enabled || !voice.analyser) return;
+  voice.analyser.getByteFrequencyData(voice.analyserData);
+  let sum = 0;
+  for (let i = 0; i < voice.analyserData.length; i++) sum += voice.analyserData[i];
+  const avg = sum / voice.analyserData.length;  // 0..255
+  const vol = Math.min(1, avg / 80);
+  const fill = document.getElementById('mic-volbar-fill');
+  if (fill) fill.style.width = Math.round(vol * 100) + '%';
+  const btn = document.getElementById('dock-mic');
+  const speaking = avg > 22;
+  if (speaking !== voice.speakingSent) {
+    voice.speakingSent = speaking;
+    if (btn) btn.classList.toggle('speaking', speaking);
+    if (socket) socket.emit('voice:speaking', { on: speaking });
+    if (users[me]) users[me].speaking = speaking;
+  }
 }
 
 // ===== ステータス =====
