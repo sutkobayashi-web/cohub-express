@@ -17,22 +17,23 @@ WIDE 16:9 horizontal rectangular canvas.`;
 const PROMPTS = {
   lobby: `${COMMON}
 
-Layout: 1F ENTRANCE LOBBY of a modern Japanese corporate office, focused on visitor reception.
+Layout: 1F ENTRANCE LOBBY of a modern Japanese corporate office, focused on visitor reception. PREMIUM MARBLE FLOORING throughout (NOT wood — override the default wood floor).
 
 **IMPORTANT**: NO TEXT, NO LETTERS, NO LOGOS, NO SIGNS, NO WRITTEN WORDS, NO ALPHABET CHARACTERS ANYWHERE. Completely blank walls and blank floor (no writing of any kind).
 
-- Lower wall: MAIN ENTRANCE double glass automatic sliding door with plain red welcome mat (no text on mat)
-- Upper-center: LARGE RECEPTION COUNTER (long curved desk) with 2 reception chairs behind it (no sign, no text plate)
-- Upper-left: visitor waiting area - two L-shaped grey sofas facing each other, rectangular wooden coffee table, floor lamp
-- Upper-right: second waiting area - 3 individual lounge chairs around a round coffee table, tall potted palm
-- Left-middle wall: elevator bank (3 plain elevator doors) and stairs going up
+- Floor: LARGE-FORMAT POLISHED WHITE MARBLE TILES with subtle warm grey veining (Calacatta / Carrara style), highly reflective glossy finish, you can see soft reflections of the ceiling lights and furniture on the floor. Tile grout lines subtly visible as a 4×3 large rectangular grid pattern. NO wood floor.
+- Lower wall: MAIN ENTRANCE double glass automatic sliding door with plain dark navy welcome mat (no text on mat)
+- Upper-center: LARGE RECEPTION COUNTER (long curved desk in dark wood with marble inset top) with 2 reception chairs behind it (no sign, no text plate)
+- Upper-left: visitor waiting area - two L-shaped charcoal grey leather sofas facing each other, rectangular dark wood coffee table, brass floor lamp
+- Upper-right: second waiting area - 3 individual lounge chairs (dark grey) around a round dark wood coffee table, tall potted palm
+- Left-middle wall: elevator bank (3 plain elevator doors with brushed brass frames) and stairs going up
 - Right-middle: plain shelf with magazines (no signs)
-- Center floor: OPEN WALKING AREA with plain wooden flooring (NO logo, NO letters on floor)
+- Center floor: OPEN WALKING AREA with the polished marble visible (NO logo, NO letters on floor)
 - Left-bottom: security guard booth (small counter) with chair
 - Right-bottom: small standing pole
-- Four corners: lush potted plants (green circles)
+- Four corners: lush potted plants (green circles) in dark planters
 
-Style: welcoming, spacious, bright, corporate entrance hall feeling. Polished wood floor. Empty of people AND empty of any written/printed text or logos.`,
+Style: welcoming, spacious, bright, premium corporate entrance hall feeling. POLISHED WHITE MARBLE FLOOR (absolutely no wood) with subtle reflections. Empty of people AND empty of any written/printed text or logos.`,
 
   office: `${COMMON}
 
