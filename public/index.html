@@ -1637,32 +1637,46 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
-// ===== メンバーリスト =====
+// ===== メンバーリスト (棟別+役職で3区分) =====
 function renderMemberList() {
   const list = document.getElementById('member-list');
   if (!list) return;
 
-  const online = [];
-  const offline = [];
+  const groups = {
+    admin: { title: '👔 管理職', color: '#ca8a04', bg: 'rgba(234,179,8,0.08)', members: [] },
+    office: { title: '🏢 事務所棟', color: '#0891b2', bg: 'rgba(6,182,212,0.08)', members: [] },
+    field: { title: '🚚 現場棟', color: '#c2410c', bg: 'rgba(249,115,22,0.08)', members: [] },
+  };
+  let onlineCount = 0;
   for (const uid in users) {
     const u = users[uid];
-    if (u.status === 'offline') offline.push(u);
-    else online.push(u);
+    if (u.role === 'admin' || u.employee_type === 'admin') groups.admin.members.push(u);
+    else if (u.employee_type === 'field') groups.field.members.push(u);
+    else groups.office.members.push(u);
+    if (u.status && u.status !== 'offline') onlineCount++;
   }
-  online.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  offline.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  // 各グループ内: オンライン → 退席/会議中 → オフライン の順、以降名前
+  const sorter = (a, b) => {
+    const oa = (a.status && a.status !== 'offline') ? 0 : 1;
+    const ob = (b.status && b.status !== 'offline') ? 0 : 1;
+    if (oa !== ob) return oa - ob;
+    return (a.name || '').localeCompare(b.name || '', 'ja');
+  };
+  Object.values(groups).forEach(g => g.members.sort(sorter));
 
-  document.getElementById('member-count').textContent = online.length;
-  document.getElementById('online-count').textContent = online.length;
+  document.getElementById('member-count').textContent = onlineCount;
+  document.getElementById('online-count').textContent = onlineCount;
 
   let html = '';
-  if (online.length > 0) {
-    html += '<div class="member-group">オンライン</div>';
-    for (const u of online) html += memberRowHtml(u);
-  }
-  if (offline.length > 0) {
-    html += '<div class="member-group">オフライン</div>';
-    for (const u of offline) html += memberRowHtml(u);
+  for (const key of ['admin', 'office', 'field']) {
+    const g = groups[key];
+    if (!g.members.length) continue;
+    const onlineN = g.members.filter(m => m.status && m.status !== 'offline').length;
+    html += '<div class="member-group" style="background:' + g.bg + ';color:' + g.color + ';border-radius:6px;padding:6px 10px;margin:6px 4px 2px;display:flex;align-items:center;justify-content:space-between;">' +
+            '<span>' + g.title + ' (' + g.members.length + ')</span>' +
+            '<span style="font-size:9px;opacity:0.7;">オンライン ' + onlineN + '</span>' +
+            '</div>';
+    for (const u of g.members) html += memberRowHtml(u);
   }
   list.innerHTML = html;
 }

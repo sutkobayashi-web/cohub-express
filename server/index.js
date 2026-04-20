@@ -244,7 +244,7 @@ function floorCountMap() {
 // 指定フロアに居るメンバー（+オフライン全員のメタ情報）
 function floorUserList(floorCode) {
   const db = getDb();
-  const users = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, c.ring_color
+  const users = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, u.employee_type, u.role, c.ring_color
     FROM users u LEFT JOIN companies c ON c.code = u.company_code`).all();
   return users.map(u => {
     const p = presence.get(u.id);
@@ -255,6 +255,8 @@ function floorUserList(floorCode) {
       company: u.company_code,
       avatar: u.avatar_url,
       ring: u.ring_color || '#333',
+      employee_type: u.employee_type || 'office',
+      role: u.role,
       x: inFloor ? p.x : null,
       y: inFloor ? p.y : null,
       status: inFloor ? p.status : 'offline',
