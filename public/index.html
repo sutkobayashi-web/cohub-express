@@ -42,12 +42,30 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 /* 右サイドバー（メンバーリスト） */
 #right-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 280px; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); z-index: 18; display: flex; flex-direction: column; border-left: 1px solid rgba(15,23,42,0.08); box-shadow: -4px 0 16px rgba(15,23,42,0.08); transition: transform 0.25s ease; }
 #right-panel.hidden { transform: translateX(100%); }
-.panel-head { padding: 16px 16px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(15,23,42,0.08); }
-.panel-head .ttl { font-weight: 700; font-size: 14px; flex: 1; color: #0f172a; }
-.panel-head .count { background: #06b6d4; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
-.panel-head .close { width: 28px; height: 28px; border-radius: 6px; background: transparent; border: none; cursor: pointer; color: #64748b; font-size: 18px; }
+.panel-head { padding: 6px 4px 0 8px; display: flex; align-items: stretch; gap: 4px; border-bottom: 1px solid rgba(15,23,42,0.08); }
+.panel-head .panel-tabs { flex: 1; display: flex; gap: 2px; }
+.ptab { flex: 1; padding: 12px 6px; background: none; border: none; color: #64748b; font-weight: 700; cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 4px; transition: color 0.12s; }
+.ptab:hover { color: #334155; }
+.ptab.active { color: #06b6d4; border-bottom-color: #06b6d4; }
+.ptab .count { background: #cbd5e1; color: #475569; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 700; min-width: 18px; text-align: center; }
+.ptab.active .count { background: #06b6d4; color: #fff; }
+.ptab .badge { background: #ef4444; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; }
+.panel-head .close { width: 32px; border-radius: 6px; background: transparent; border: none; cursor: pointer; color: #64748b; font-size: 18px; align-self: center; height: 32px; }
 .panel-head .close:hover { background: rgba(15,23,42,0.06); }
 .panel-body { flex: 1; overflow-y: auto; padding: 8px 8px 16px; }
+.panel-body.hidden { display: none; }
+
+/* チャットログ */
+.chat-list { padding: 12px 12px 20px; }
+.chat-empty { text-align: center; color: #94a3b8; font-size: 12px; padding: 40px 0; }
+.chat-msg { margin-bottom: 10px; display: flex; flex-direction: column; }
+.chat-msg.self { align-items: flex-end; }
+.chat-msg .meta { font-size: 10px; color: #94a3b8; margin-bottom: 2px; padding: 0 4px; display: flex; gap: 4px; align-items: center; }
+.chat-msg .meta .nm { font-weight: 700; color: #475569; }
+.chat-msg .bubble { max-width: 85%; padding: 7px 12px; border-radius: 14px; background: #f1f5f9; font-size: 13px; color: #0f172a; word-break: break-word; line-height: 1.4; }
+.chat-msg.self .bubble { background: #06b6d4; color: #fff; }
+.chat-msg .read-mark { font-size: 10px; color: #06b6d4; margin-top: 2px; padding: 0 4px; }
+.chat-msg.self .read-mark { text-align: right; }
 .member-group { padding: 10px 12px 4px; font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; }
 .member-row { padding: 8px 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 0.12s; }
 .member-row:hover { background: rgba(6,182,212,0.08); }
@@ -191,11 +209,14 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
   <!-- 右サイドバー -->
   <div id="right-panel">
     <div class="panel-head">
-      <div class="ttl">メンバー</div>
-      <div class="count" id="member-count">0</div>
+      <div class="panel-tabs">
+        <button class="ptab active" id="tab-members" onclick="switchTab('members')">👥 メンバー <span class="count" id="member-count">0</span></button>
+        <button class="ptab" id="tab-chat" onclick="switchTab('chat')">💬 チャット <span class="badge" id="chat-badge" style="display:none;">0</span></button>
+      </div>
       <button class="close" onclick="togglePanel()" title="閉じる">×</button>
     </div>
     <div class="panel-body" id="member-list"></div>
+    <div class="panel-body chat-list hidden" id="chat-list"></div>
   </div>
 
   <!-- キャンバス領域 -->
@@ -314,6 +335,21 @@ let canvas, ctx, mmCanvas, mmCtx;
 let bgImage = null;
 let avatarImages = {}; // uid → Image
 const bubbles = []; // { uid, content, at, isEmoji }
+
+// チャットログ (受信したメッセージを永続化)
+let chatLog = [];          // { id, uid, name, content, at, self, isEmoji, readBy[] }
+let chatUnread = 0;
+let currentTab = 'members'; // 'members' | 'chat'
+try { chatLog = JSON.parse(localStorage.getItem('cohub_chat_log') || '[]'); } catch(e) { chatLog = []; }
+// 72時間より古いログは自動削除
+const CHAT_LOG_TTL = 72 * 3600 * 1000;
+{
+  const now = Date.now();
+  chatLog = chatLog.filter(m => now - (new Date(m.at).getTime() || 0) < CHAT_LOG_TTL);
+}
+function saveChatLog() {
+  try { localStorage.setItem('cohub_chat_log', JSON.stringify(chatLog.slice(-300))); } catch(e) {}
+}
 
 // ワールド座標系: 1024 × 1024 (AI生成オフィス画像に合わせる)
 const WORLD_W = 1024;
@@ -466,6 +502,47 @@ function connectSocket() {
     const isEmoji = isSingleEmoji(m.content);
     bubbles.push({ uid: m.uid, content: m.content, at: Date.now(), isEmoji });
     while (bubbles.length > 40) bubbles.shift();
+
+    // チャットログに追加
+    const entry = {
+      id: (m.at || new Date().toISOString()) + '_' + m.uid,
+      uid: m.uid,
+      name: (users[m.uid] && users[m.uid].name) || '',
+      content: m.content,
+      at: m.at || new Date().toISOString(),
+      self: m.uid === me,
+      isEmoji,
+      readBy: m.uid === me ? [] : undefined,
+    };
+    chatLog.push(entry);
+    while (chatLog.length > 300) chatLog.shift();
+    saveChatLog();
+
+    if (m.uid !== me) {
+      if (speakerOn) playBeep();
+      if (currentTab !== 'chat' || document.getElementById('right-panel').classList.contains('hidden')) {
+        chatUnread++;
+        updateChatBadge();
+      } else {
+        // チャットタブを開いている→即座に既読通知を送信者へ
+        if (socket) socket.emit('chat:read', { from: m.uid });
+      }
+    }
+    if (currentTab === 'chat') renderChatLog();
+  });
+
+  socket.on('chat:read-receipt', (r) => {
+    // 自分の送信メッセージを、r.reader が読んだ
+    let changed = false;
+    for (const m of chatLog) {
+      if (!m.self) continue;
+      if (!m.readBy) m.readBy = [];
+      if (!m.readBy.includes(r.reader)) { m.readBy.push(r.reader); changed = true; }
+    }
+    if (changed) {
+      saveChatLog();
+      if (currentTab === 'chat') renderChatLog();
+    }
   });
 }
 
@@ -602,7 +679,7 @@ function render() {
 
   // 吹き出し
   const now = Date.now();
-  const bubbleLife = 5000;
+  const bubbleLife = 10000;
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i];
     if (now - b.at > bubbleLife) { bubbles.splice(i, 1); continue; }
@@ -849,6 +926,92 @@ function memberRowHtml(u) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ===== チャットログ描画 =====
+function renderChatLog() {
+  const list = document.getElementById('chat-list');
+  if (!list) return;
+  if (!chatLog.length) {
+    list.innerHTML = '<div class="chat-empty">近くの人のチャットがここに表示されます</div>';
+    return;
+  }
+  let html = '';
+  let prevAuthor = null;
+  let prevTime = 0;
+  for (const m of chatLog) {
+    const t = new Date(m.at);
+    const hhmm = (t.getHours() + '').padStart(2,'0') + ':' + (t.getMinutes() + '').padStart(2,'0');
+    const showMeta = prevAuthor !== m.uid || (t.getTime() - prevTime) > 3 * 60 * 1000;
+    const nm = m.self ? '自分' : (m.name || (users[m.uid] && users[m.uid].name) || '誰か');
+    const readStr = m.self && m.readBy && m.readBy.length
+      ? '既読 ' + m.readBy.length
+      : '';
+    html += '<div class="chat-msg ' + (m.self ? 'self' : '') + '">';
+    if (showMeta) html += '<div class="meta"><span class="nm">' + escapeHtml(nm) + '</span><span>' + hhmm + '</span></div>';
+    html += '<div class="bubble">' + escapeHtml(m.content) + '</div>';
+    if (readStr) html += '<div class="read-mark">' + readStr + '</div>';
+    html += '</div>';
+    prevAuthor = m.uid;
+    prevTime = t.getTime();
+  }
+  list.innerHTML = html;
+  list.scrollTop = list.scrollHeight;
+}
+
+// タブ切替
+function switchTab(name) {
+  currentTab = name;
+  document.getElementById('tab-members').classList.toggle('active', name === 'members');
+  document.getElementById('tab-chat').classList.toggle('active', name === 'chat');
+  document.getElementById('member-list').classList.toggle('hidden', name !== 'members');
+  document.getElementById('chat-list').classList.toggle('hidden', name !== 'chat');
+  if (name === 'chat') {
+    // 未読クリア + 全送信者に既読通知
+    if (chatUnread > 0) {
+      const senders = new Set();
+      for (const m of chatLog) {
+        if (!m.self && m.uid !== me) senders.add(m.uid);
+      }
+      for (const from of senders) {
+        if (socket) socket.emit('chat:read', { from });
+      }
+    }
+    chatUnread = 0;
+    updateChatBadge();
+    renderChatLog();
+  }
+}
+
+function updateChatBadge() {
+  const b = document.getElementById('chat-badge');
+  if (!b) return;
+  if (chatUnread > 0) { b.style.display = 'inline-block'; b.textContent = chatUnread > 99 ? '99+' : chatUnread; }
+  else b.style.display = 'none';
+}
+
+// 通知音（Web Audio でビープ2連）
+let _audioCtx = null;
+function playBeep() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    const beep = (freq, startOffset, dur) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t0 = ctx.currentTime + startOffset;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    };
+    beep(880, 0, 0.15);
+    beep(1175, 0.12, 0.18);
+  } catch (e) {}
 }
 
 // メンバーをクリック → その人の近くに歩いていく

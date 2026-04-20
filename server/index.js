@@ -187,6 +187,16 @@ io.on('connection', (socket) => {
     }
   });
 
+  // 既読通知を送信者に転送
+  socket.on('chat:read', (data) => {
+    const from = (data && data.from || '').toString();
+    if (!from) return;
+    const target = presence.get(from);
+    if (!target) return;
+    const s = io.sockets.sockets.get(target.socketId);
+    if (s) s.emit('chat:read-receipt', { reader: uid, at: new Date().toISOString() });
+  });
+
   socket.on('disconnect', () => {
     const p = presence.get(uid);
     if (p) p.status = 'offline';
