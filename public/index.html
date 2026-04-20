@@ -678,9 +678,6 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 <!-- アバター設定モーダル -->
 <div id="avatar-modal" style="display:none;"></div>
 
-<!-- 🛗 エレベーター行先モーダル -->
-<div id="elevator-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;"></div>
-
 <!-- 🔑 パスワード変更モーダル -->
 <div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 24px 60px rgba(15,23,42,0.4);">
@@ -1007,7 +1004,6 @@ let allFloors = [];
 let floorCounts = {};
 let huddleZones = [];      // [{ code, name, x1, y1, x2, y2 }]
 let myHuddleCode = null;   // 現在自分が居るハドルゾーンcode (なければnull)
-let elevatorZone = null;   // { x1, y1, x2, y2, name } or null
 let viewScale = 1; // 実表示に対するスケール
 
 // ドラッグ状態
@@ -1200,8 +1196,6 @@ function connectSocket() {
     if (Array.isArray(data.floors)) allFloors = data.floors;
     if (data.floor_counts) floorCounts = data.floor_counts;
     huddleZones = Array.isArray(data.huddle_zones) ? data.huddle_zones : [];
-    elevatorZone = data.elevator || null;
-    _elevatorState = { in: false, lastAt: 0 };
     myHuddleCode = null; // フロア切替で再判定
     renderRailFloors();
     // ユーザー
@@ -1694,8 +1688,6 @@ function render() {
 
   // 受付bot 近接自動トリガー (近づくと話しかけてくる)
   checkBotProximity();
-  // 🛗 エレベーター近接トリガー
-  checkElevatorProximity();
 
   const r = canvas.getBoundingClientRect();
   const w = r.width, h = r.height;
@@ -1736,36 +1728,6 @@ function render() {
     }
     ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
     ctx.restore();
-  }
-
-  // 🛗 エレベーターホットスポット (薄い枠 + 小さなラベル、部屋背景を遮らない)
-  if (elevatorZone) {
-    const z = elevatorZone;
-    const w = z.x2 - z.x1, h = z.y2 - z.y1;
-    // 床面ゾーン: ごく淡い黄色の点線枠だけ
-    ctx.strokeStyle = 'rgba(251,191,36,0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 5]);
-    ctx.strokeRect(z.x1, z.y1, w, h);
-    ctx.setLineDash([]);
-    // 中央に小さな🛗マーカー
-    ctx.font = '700 22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(251,191,36,0.95)';
-    roundRect(z.x1 + w / 2 - 18, z.y1 + h / 2 - 16, 36, 32, 8);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.fillText('🛗', z.x1 + w / 2, z.y1 + h / 2 + 1);
-    // 下部に小さなラベル
-    ctx.font = '600 10px sans-serif';
-    const lbl = 'エレベーター';
-    const tw = ctx.measureText(lbl).width + 12;
-    ctx.fillStyle = 'rgba(15,23,42,0.7)';
-    roundRect(z.x1 + w / 2 - tw / 2, z.y2 + 4, tw, 14, 7);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillText(lbl, z.x1 + w / 2, z.y2 + 11);
   }
 
   // ハドルゾーン (紫枠 + ラベル)
@@ -2878,17 +2840,9 @@ function renderRailFloors() {
   host.innerHTML = html;
 }
 
-function switchFloor(code, password, fromElevator) {
+function switchFloor(code, password) {
   if (!socket) return;
   if (currentFloor && currentFloor.code === code) return;
-  // 事務所棟の階間移動はエレベーター必須
-  if (!fromElevator && password == null && currentFloor &&
-      ELEVATOR_DEST_FLOORS.includes(currentFloor.code) &&
-      ELEVATOR_DEST_FLOORS.includes(code)) {
-    showToast('🛗 エレベーターで移動してください');
-    openElevatorModal();
-    return;
-  }
   const payload = { code };
   if (password != null) payload.password = password;
   socket.emit('floor:switch', payload);
@@ -2896,7 +2850,7 @@ function switchFloor(code, password, fromElevator) {
 
 // 承認制トグル (会議室内のメンバー)
 function toggleApproval() {
-  if (!currentFloor || !/^meeting/.test(currentFloor.code)) return;
+  if (!currentFloor || !/^(meeting|exec)/.test(currentFloor.code)) return;
   const on = !currentFloor.approval_mode;
   socket.emit('room:set-approval', { on });
 }
@@ -2941,7 +2895,7 @@ function cancelWaiting() {
 function updateApprovalUI() {
   const btn = document.getElementById('dock-approval');
   const headBadge = document.getElementById('floor-head-approval');
-  const isMeeting = currentFloor && /^meeting/.test(currentFloor.code);
+  const isMeeting = currentFloor && /^(meeting|exec)/.test(currentFloor.code);
   if (btn) {
     btn.style.display = isMeeting ? 'flex' : 'none';
     if (isMeeting) {
@@ -2966,7 +2920,7 @@ function updateApprovalUI() {
 
 // 鍵をかける / 外す (会議室内のメンバーのみ)
 function toggleRoomLock() {
-  if (!currentFloor || !/^meeting/.test(currentFloor.code)) return;
+  if (!currentFloor || !/^(meeting|exec)/.test(currentFloor.code)) return;
   if (currentFloor.locked) {
     if (!confirm('この部屋の鍵を外しますか？')) return;
     socket.emit('room:unlock');
@@ -2987,7 +2941,7 @@ function updateHandCountUI() {
   let el = document.getElementById('hand-count');
   const head = document.getElementById('floor-head');
   if (!head) return;
-  if (count > 0 && currentFloor && /^meeting/.test(currentFloor.code)) {
+  if (count > 0 && currentFloor && /^(meeting|exec)/.test(currentFloor.code)) {
     if (!el) {
       el = document.createElement('span');
       el.id = 'hand-count';
@@ -3003,7 +2957,7 @@ function updateHandCountUI() {
 function updateLockUI() {
   const btn = document.getElementById('dock-lock');
   const headBadge = document.getElementById('floor-head-lock');
-  const isMeeting = currentFloor && /^meeting/.test(currentFloor.code);
+  const isMeeting = currentFloor && /^(meeting|exec)/.test(currentFloor.code);
   if (btn) {
     btn.style.display = isMeeting ? 'flex' : 'none';
     if (isMeeting) {
@@ -4050,7 +4004,7 @@ function wbClearConfirm() {
 
 // ===== フロア種別で画面レイアウト切替 =====
 function applyFloorLayout(floor) {
-  const isMeeting = floor && /^meeting/i.test(floor.code);
+  const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
   document.body.classList.toggle('layout-meeting', !!isMeeting);
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
@@ -4393,57 +4347,6 @@ function checkBotProximity() {
     }
     _botProximity[uid] = st;
   }
-}
-
-// ===== 🛗 エレベーター近接 =====
-let _elevatorState = { in: false, lastAt: 0 };
-function checkElevatorProximity() {
-  if (!elevatorZone || !me || !users[me] || users[me].cx == null) return;
-  const z = elevatorZone;
-  const x = users[me].cx, y = users[me].cy;
-  const inside = (x >= z.x1 - 30 && x <= z.x2 + 30 && y >= z.y1 - 30 && y <= z.y2 + 30);
-  const now = Date.now();
-  if (inside && !_elevatorState.in && now - _elevatorState.lastAt > 8000) {
-    _elevatorState.in = true;
-    _elevatorState.lastAt = now;
-    openElevatorModal();
-  } else if (!inside && _elevatorState.in) {
-    _elevatorState.in = false;
-  }
-}
-
-const ELEVATOR_DEST_FLOORS = ['lobby', 'office', 'meeting_a', 'meeting_b', 'meeting_c'];
-function openElevatorModal() {
-  const m = document.getElementById('elevator-modal');
-  if (!m) return;
-  const cur = currentFloor && currentFloor.code;
-  const list = (allFloors || []).filter(f => ELEVATOR_DEST_FLOORS.includes(f.code) && f.code !== cur);
-  let html = '<div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(15,23,42,0.4);">' +
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' +
-    '<div style="font-size:18px;font-weight:800;color:#0f172a;flex:1;">🛗 行先フロア</div>' +
-    '<button onclick="closeElevatorModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>' +
-    '</div>' +
-    '<div style="font-size:11px;color:#64748b;margin-bottom:14px;">移動するフロアを選択してください</div>' +
-    '<div style="display:flex;flex-direction:column;gap:8px;">';
-  for (const f of list) {
-    const cnt = (typeof floorCounts !== 'undefined' && floorCounts[f.code]) ? floorCounts[f.code] : 0;
-    html += '<button onclick="elevatorGoto(\'' + f.code + '\')" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:14px;color:#0f172a;text-align:left;transition:all 0.15s;" onmouseover="this.style.background=\'#ecfeff\';this.style.borderColor=\'#06b6d4\';" onmouseout="this.style.background=\'#f8fafc\';this.style.borderColor=\'#e2e8f0\';">' +
-            '<span style="font-size:24px;">' + (f.icon || '🏢') + '</span>' +
-            '<span style="flex:1;font-weight:600;">' + escapeHtml(f.name) + '</span>' +
-            (cnt ? '<span style="background:#06b6d4;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;">' + cnt + '人</span>' : '') +
-            '</button>';
-  }
-  html += '</div></div>';
-  m.innerHTML = html;
-  m.style.display = 'flex';
-}
-function closeElevatorModal() {
-  const m = document.getElementById('elevator-modal');
-  if (m) m.style.display = 'none';
-}
-function elevatorGoto(code) {
-  closeElevatorModal();
-  switchFloor(code, null, true); // fromElevator=true でガード回避
 }
 
 // ===== 🎙️ ハドルゾーン =====

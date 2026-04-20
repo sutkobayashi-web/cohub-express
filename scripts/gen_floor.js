@@ -123,6 +123,22 @@ Layout: FIELD TEAM MEETING ROOM (現場ミーティング室) - for driver brief
 - Corners: 2 potted plants
 Colors: utilitarian beige walls + dark wood table + orange safety accents. Functional meeting space.`,
 
+  exec_4f: `${COMMON}
+
+Layout: 4F EXECUTIVE ROOM (役員室) - private exclusive boardroom for the C-suite executives, EXACTLY 8 seats, ultra premium.
+- Walls: 4 solid walls in soft warm champagne color with subtle vertical dark wood paneling on the upper wall
+- Floor: dark herringbone hardwood with reflective sheen
+- Center: ELEGANT OVAL EXECUTIVE TABLE made of HIGHLY POLISHED DARK WALNUT (you can see rich grain and reflection from above), seats EXACTLY 8 (count carefully: 8 chairs total, no more no less)
+- Around table: 8 high-back executive chairs in BLACK SOFT LEATHER (slightly larger circles than normal, suggesting premium size). Arrange: 3 on top side, 3 on bottom side, 1 head chair at left end, 1 head chair at right end (=8 total).
+- Center of table: ONE single sleek BLACK CONFERENCE SPEAKER PHONE (round, dark) at the geometric center. Small leather portfolio at each seat. ABSOLUTELY NO other round objects on the table.
+- Upper wall: VERY LARGE wall-mounted PRESENTATION DISPLAY (long dark rectangle, premium thin bezel) with slim CONFERENCE CAMERA BAR mounted just below
+- Right wall: low SLEEK CREDENZA in dark wood with neat row of crystal water carafes, glasses, leather notebooks, brushed brass desk lamp
+- Left wall: tall vertical accent panel with one large abstract framed art piece, brushed brass wall sconces (no text)
+- Lower wall: solid dark wood door with brushed brass handle, no mat
+- Ceiling (viewed top-down): inset RECESSED LIGHTING strip over the table + 2 elegant pendant lights
+- Corners: minimal — just one tall sculptural potted plant in upper-right corner only (skip other corners for premium minimalist look)
+Colors: dark walnut + black leather + warm champagne walls + brushed brass accents. Subdued, prestigious, expensive private executive boardroom feel — even higher-end than the 3F meeting rooms.`,
+
   meeting_c: `${COMMON}
 
 Layout: 3F PREMIUM LARGE CONFERENCE HALL - prestigious corporate all-hands hall seating ~30 people.

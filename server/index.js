@@ -237,9 +237,6 @@ const HUDDLE_ZONES = {
   ],
 };
 
-// 🛗 エレベーターゾーン (事務所棟の各フロアで同位置 = 左壁中央)
-const ELEVATOR_ZONE = { x1: 30, y1: 290, x2: 140, y2: 490, name: '🛗 エレベーター' };
-const ELEVATOR_FLOORS = ['lobby', 'office', 'meeting_a', 'meeting_b', 'meeting_c'];
 
 function getVoiceGroup(p) {
   if (!p) return '';
@@ -352,7 +349,6 @@ io.on('connection', (socket) => {
       floors: allFloors(),
       floor_counts: floorCountMap(),
       huddle_zones: HUDDLE_ZONES[floor.code] || [],
-      elevator: ELEVATOR_FLOORS.includes(floor.code) ? ELEVATOR_ZONE : null,
     });
   };
   sendSnapshot();
@@ -481,7 +477,6 @@ io.on('connection', (socket) => {
       floors: allFloors(),
       floor_counts: floorCountMap(),
       huddle_zones: HUDDLE_ZONES[target.code] || [],
-      elevator: ELEVATOR_FLOORS.includes(target.code) ? ELEVATOR_ZONE : null,
     });
     io.emit('floor:counts', floorCountMap());
     io.emit('user:floor', { uid, floor: target.code });
@@ -833,7 +828,7 @@ io.on('connection', (socket) => {
   // 部屋の施錠/解錠 (会議室のみ、室内の人だけ可)
   socket.on('room:lock', (data) => {
     const p = presence.get(uid); if (!p) return;
-    if (!/^meeting/.test(p.floor)) return;
+    if (!/^(meeting|exec)/.test(p.floor)) return;
     const pw = (data && data.password || '').toString();
     if (pw.length < 4 || pw.length > 30) {
       socket.emit('room:lock-result', { ok: false, msg: 'パスワードは4〜30文字' });
@@ -847,7 +842,7 @@ io.on('connection', (socket) => {
 
   socket.on('room:unlock', () => {
     const p = presence.get(uid); if (!p) return;
-    if (!/^meeting/.test(p.floor)) return;
+    if (!/^(meeting|exec)/.test(p.floor)) return;
     getDb().prepare("UPDATE floors SET locked=0, lock_pw_hash=NULL, locked_by=NULL, locked_at=NULL WHERE code=?").run(p.floor);
     io.emit('room:lockstate', { code: p.floor, locked: false });
   });
@@ -855,7 +850,7 @@ io.on('connection', (socket) => {
   // 承認制ON/OFF (会議室内メンバーのみ)
   socket.on('room:set-approval', (data) => {
     const p = presence.get(uid); if (!p) return;
-    if (!/^meeting/.test(p.floor)) return;
+    if (!/^(meeting|exec)/.test(p.floor)) return;
     const on = !!(data && data.on);
     getDb().prepare('UPDATE floors SET approval_mode=? WHERE code=?').run(on ? 1 : 0, p.floor);
     io.emit('room:approval-state', { code: p.floor, on });
