@@ -930,7 +930,8 @@ function initCanvas() {
     if (!e.target.closest('#rail-menu') && !e.target.closest('#left-rail')) {
       document.getElementById('rail-menu').classList.remove('show');
     }
-    if (!e.target.closest('#peer-menu')) hidePeerMenu();
+    // 開いた直後の click でいきなり閉じるのを防ぐ (pointerdown→click 連鎖)
+    if (!e.target.closest('#peer-menu') && Date.now() - _peerMenuOpenAt > 250) hidePeerMenu();
   });
 
   requestAnimationFrame(render);
@@ -4065,9 +4066,11 @@ function userHuddleCode(u) {
 }
 
 // ===== 👋 ピアアクション (肩たたき) =====
+let _peerMenuOpenAt = 0;
 function showPeerMenu(peer, screenX, screenY) {
   const menu = document.getElementById('peer-menu');
   if (!menu) return;
+  _peerMenuOpenAt = Date.now();
   const isFocus = peer.status === '集中中';
   const isBot = peer.role === 'bot';
   const myU = users[me];
