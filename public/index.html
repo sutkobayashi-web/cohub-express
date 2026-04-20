@@ -464,17 +464,17 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
 <!-- ログイン -->
 <div id="login-screen" class="screen active">
-  <div class="login-card">
+  <form class="login-card" id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
     <h1>🏢 CoHub Express</h1>
     <div class="tag">グループ統合バーチャルオフィス</div>
-    <div class="field"><label>ログインID</label><input type="text" id="login-id" autocomplete="username"></div>
-    <div class="field"><label>パスワード</label><input type="password" id="login-pw" autocomplete="current-password"></div>
-    <button class="btn-primary" id="login-btn" onclick="doLogin()">ログイン</button>
+    <div class="field"><label for="login-id">ログインID</label><input type="text" id="login-id" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label for="login-pw">パスワード</label><input type="password" id="login-pw" name="password" autocomplete="current-password"></div>
+    <button type="submit" class="btn-primary" id="login-btn">ログイン</button>
     <div class="err" id="login-err"></div>
     <div style="text-align:center;margin-top:14px;font-size:11px;color:#94a3b8;">
       <a href="/admin" style="color:#64748b;">管理画面</a>
     </div>
-  </div>
+  </form>
 </div>
 
 <!-- 空間 -->
@@ -779,6 +779,7 @@ async function doLogin() {
     userData = d.user;
     localStorage.setItem('cohub_token', token);
     localStorage.setItem('cohub_user', JSON.stringify(userData));
+    localStorage.setItem('cohub_login_id', id); // 次回プリフィル用
     enterSpace();
   } catch(e) {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
@@ -4590,9 +4591,15 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2000);
 }
 
-// 自動ログイン
+// 自動ログイン or ログインIDをプリフィル
 if (token && userData) {
   enterSpace();
+} else {
+  const savedId = localStorage.getItem('cohub_login_id');
+  if (savedId) {
+    const idEl = document.getElementById('login-id');
+    if (idEl) idEl.value = savedId;
+  }
 }
 </script>
 </body>
