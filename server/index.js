@@ -281,8 +281,11 @@ io.on('connection', (socket) => {
   const uid = socket.uid;
   const db = getDb();
   const saved = db.prepare('SELECT x, y, floor_code, status_text FROM positions WHERE user_id = ?').get(uid);
-  const floorCode = (saved && saved.floor_code) || 'lobby';
-  const floor = getFloor(floorCode) || getFloor('lobby');
+  const userInfo = db.prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
+  // 初回ログイン時のデフォルトフロア: 現場社員は乗務員詰所、その他はロビー
+  const defaultFloor = (userInfo && userInfo.employee_type === 'field') ? 'field_rest' : 'lobby';
+  const floorCode = (saved && saved.floor_code) || defaultFloor;
+  const floor = getFloor(floorCode) || getFloor(defaultFloor) || getFloor('lobby');
   const pos = clampForFloor(floor, saved && saved.x, saved && saved.y);
 
   presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id });
