@@ -6,19 +6,32 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-const PROMPT = `Top-down aerial view of a modern Japanese IT company open-plan office, photorealistic architectural visualization. Features from top to bottom:
-- 3 large floor-to-ceiling windows on the upper wall with soft morning daylight streaming in
-- Warm oak hardwood flooring throughout
-- Left side: a lounge area with grey L-shaped sofa, wooden coffee table with cups and books, floor lamp, potted plants
-- Center top: long meeting table with 6 chairs, laptops and documents on surface
-- Right top: two personal work desks with dual monitors, ergonomic chairs
-- Right middle: large whiteboard with markers
-- Right bottom: tall wooden bookshelf filled with colorful books and files
-- Center bottom: round meeting table with 4 chairs on a soft rug
-- Left bottom: modern cafe counter with espresso machine, sink, mini fridge, wooden bar stools
-- Corners: many lush green potted plants
-- Bottom center: entrance door with welcome mat
-No people visible. Warm lighting, soft realistic shadows, clean modern interior design, ultra high detail, photorealistic materials, professional interior rendering.`;
+const PROMPT = `STRICT ORTHOGRAPHIC TOP-DOWN FLOOR PLAN VIEW of a modern Japanese IT company office.
+CRITICAL: Pure overhead view at exactly 90 degrees from above. Roof removed. NO perspective distortion. NO isometric projection. NO 3D tilt. Everything seen as a perfectly flat 2D plan-view from directly above, like an architectural floor plan rendered with realistic photographic textures.
+
+All furniture appears as their top surfaces:
+- Desks and tables appear as rectangles/circles (tops visible only, no sides)
+- Chairs appear as small circles or rounded squares
+- Sofas appear as L-shaped or rectangular cushion tops
+- Monitors appear as small dark rectangles on desk tops
+- Plants appear as clusters of green circles (leaves from above)
+- People NOT VISIBLE (office is empty)
+
+Layout (square 1024x1024 canvas, walls on 4 sides):
+- Upper wall: 3 large windows letting in warm morning daylight
+- Lower wall: entrance door with red welcome mat
+- Left-top quadrant: lounge zone with L-shaped grey sofa, wooden coffee table, floor lamp, potted plant
+- Center-top: long rectangular meeting table with 6 chairs
+- Right-top: 2 personal desks with monitors and chairs
+- Right-middle: whiteboard mounted on right wall
+- Right-bottom: tall bookshelf along right wall (colorful book spines visible from above)
+- Center-bottom: circular meeting table with 4 chairs on a soft area rug
+- Left-bottom: cafe counter with espresso machine, sink, barstools
+- Four corners: lush potted plants
+- Floor: warm oak hardwood with visible plank lines
+
+Soft realistic lighting and subtle shadows DIRECTLY BENEATH furniture (no long cast shadows - that would imply angle). Colors: warm beige/cream walls, natural wood tones, grey fabric, green plants.
+Style: architectural top-view plan rendering with photorealistic textures, clean and professional.`;
 
 (async () => {
   const apiKey = process.env.GEMINI_API_KEY;
