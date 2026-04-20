@@ -1124,7 +1124,7 @@ document.addEventListener('visibilitychange', () => {
 function parseMentions(content) {
   const out = new Set();
   if (!content) return [];
-  if (/@(全員|everyone|all)\b?/.test(content)) {
+  if (/@(全員|everyone|all)/.test(content)) {
     for (const uid in users) if (uid !== me && users[uid].status !== 'offline') out.add(uid);
   }
   for (const uid in users) {
