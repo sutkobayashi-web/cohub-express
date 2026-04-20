@@ -52,31 +52,35 @@ Colors: beige/white desks, dark grey monitors, grey chairs, green plants. Organi
 
   meeting_a: `${COMMON}
 
-Layout: 3F MEETING ROOM A - formal executive meeting room, BLUE accent color.
-- Walls: 4 solid walls making an enclosed room (this is a single meeting room view, the whole canvas IS the room)
-- Center: LARGE OVAL/RECTANGULAR MEETING TABLE made of dark polished wood, seats 10-12
-- Around table: 12 executive chairs (rounded dark blue upholstery, seen from above as small circles)
-- Upper wall: large whiteboard OR mounted presentation screen (big rectangle), small name plate "MEETING A" above
-- Right wall: sideboard cabinet with water pitcher, glasses, notebooks
-- Lower wall: entrance door with red mat
-- Table top: water bottles, notepads, pens, a laptop at the head chair
-- Corners: 2 potted plants
-- Ceiling (viewed top-down): pendant light rectangle over table
-Colors: deep navy blue + warm oak wood + cream walls. Professional, executive feeling.`,
+Layout: 3F EXECUTIVE BOARDROOM - high-end formal executive boardroom for board members and senior management.
+- Walls: 4 solid walls in soft warm taupe / champagne color, premium feel
+- Floor: dark herringbone hardwood (instead of standard plank)
+- Center: LARGE BOAT-SHAPED conference table made of HIGHLY POLISHED DARK MAHOGANY (you can see the rich grain and reflective sheen from above), seats 12
+- Around table: 12 high-back executive chairs in BLACK SOFT LEATHER (slightly larger circles than normal chairs to suggest premium size), seen from directly above
+- Center of table: a sleek BLACK CONFERENCE SPEAKER PHONE (round, dark) and small leather portfolio at each seat
+- Upper wall: VERY LARGE wall-mounted PRESENTATION DISPLAY (a long dark rectangle, premium thin bezel) with a slim CONFERENCE CAMERA BAR mounted just below it
+- Right wall: low SLEEK CREDENZA in dark wood with neat row of crystal water carafes, glasses, leather notebooks
+- Left wall: tall vertical accent panel with subtle decoration (no text)
+- Lower wall: solid wood door with brushed metal handle, no mat
+- Ceiling (viewed top-down): inset RECESSED LIGHTING strip over the table + 2 elegant pendant lights
+- Corners: minimal — just one tall sculptural potted plant in upper-right and lower-left corners (skip the other 2 corners for a less cluttered, more premium look)
+Colors: deep mahogany + black leather + champagne taupe walls + brushed brass accents. Subdued, prestigious, expensive board-room atmosphere.`,
 
   meeting_b: `${COMMON}
 
-Layout: 3F MEETING ROOM B - casual brainstorm meeting room, GREEN accent color.
-- Walls: 4 solid walls making an enclosed room
-- Center: MEDIUM ROUND MEETING TABLE (light birch wood, circular), seats 6
-- Around table: 6 casual chairs (soft green fabric, circles from above)
-- Upper wall: LARGE WHITEBOARD with colorful sticky notes all over it, multicolor markers on tray
-- Left wall: TWO bean-bag chairs + small side table with coffee cups (informal corner)
-- Right wall: vertical plant shelf with many small plants, small standing desk
-- Lower wall: entrance door
-- Table top: sketch pad, pens, coffee cups
-- Corners: 2 tall potted plants
-Colors: fresh green + birch wood + cream. Creative, collaborative brainstorm atmosphere.`,
+Layout: 3F MEETING ROOM B - small modern corporate conference room (NOT casual, NOT a brainstorm space).
+- Walls: 4 solid walls in cool light grey, clean modern feel
+- Floor: light grey-toned engineered wood plank
+- Center: MEDIUM OVAL/PILL-SHAPED meeting table (polished walnut wood with subtle dark grain, crisp clean edge), seats 6
+- Around table: 6 modern mid-century executive chairs in CHARCOAL GREY LEATHER (small dark circles from above)
+- Center of table: a small black conference speaker phone, neat row of water glasses, slim leather portfolios
+- Upper wall: large wall-mounted PRESENTATION SCREEN (clean dark rectangle, thin bezel) with small camera bar
+- Right wall: low minimalist credenza in matte dark wood with a single decorative vase
+- Left wall: clean accent panel with one large abstract framed print (no text), brushed brass wall sconce
+- Lower wall: glass entrance door with brushed metal frame
+- Ceiling (viewed top-down): inset LED light strip over the table
+- Corners: 1 small modern potted plant (only one corner — keep mostly minimal)
+Colors: walnut wood + charcoal grey leather + cool grey walls + soft brass accents. Sleek, modern, professional corporate meeting space.`,
 
   field_rest: `${COMMON}
 
@@ -119,24 +123,26 @@ Colors: utilitarian beige walls + dark wood table + orange safety accents. Funct
 
   meeting_c: `${COMMON}
 
-Layout: 3F LARGE CONFERENCE HALL - corporate all-hands meeting room seating ~30 people.
-- Walls: 4 solid walls making a large enclosed hall
-- Upper wall: HUGE presentation SCREEN mounted prominently (large dark rectangle), speaker podium just below it
-- Layout: U-SHAPED arrangement of 3 long rectangular meeting tables:
-  - Top horizontal table (below screen): seats 10 chairs facing the screen
+Layout: 3F PREMIUM LARGE CONFERENCE HALL - prestigious corporate all-hands hall seating ~30 people.
+- Walls: 4 solid walls in warm champagne tone with subtle vertical wood paneling on upper and side walls (premium feel)
+- Floor: dark polished hardwood with very faint herringbone pattern
+- Upper wall: VERY LARGE wall-mounted PRESENTATION DISPLAY (huge dark rectangle, thin premium bezel) flanked by 2 narrow vertical accent strips, slim conference camera bar just below the display
+- Layout: U-SHAPED arrangement of 3 long rectangular conference tables:
+  - Top horizontal table (below display): seats 10 chairs facing the display
   - Left vertical table: seats 8 chairs facing right
   - Right vertical table: seats 8 chairs facing left
   - Additional row of 4 loose chairs at the bottom-center (observer seats)
-- All chairs visible as small circles (navy blue), approximately 30 chairs total
-- Each seat has a small water glass and notebook
-- Tables: dark polished mahogany wood (long rectangles)
-- Left wall: sideboard with water pitcher, microphones, notebook stack
-- Right wall: projector control console + bookshelf with binders
-- Lower wall: DOUBLE entrance doors with welcome mat
-- 4 corners: tall potted palm plants
-- Ceiling (hinted top-down): pendant lights rectangle over central area
-Colors: dark mahogany wood + navy blue chairs + cream walls + subtle gold accents.
-Style: formal, large corporate conference hall, prestigious, suited for all-hands or board-wide meetings.`,
+- All chairs visible as small circles in BLACK LEATHER (approximately 30 chairs total)
+- Each seat has a small crystal water glass and slim leather portfolio
+- Tables: HIGHLY POLISHED DARK MAHOGANY wood with reflective sheen, brushed brass edge trim
+- Center of U-shape (interior open floor): subtle inset rectangular accent rug in deep charcoal
+- Left wall: sleek dark credenza with crystal water carafes, microphones lined up neatly, brushed brass desk lamp
+- Right wall: AV control console (black panel) and shelf with leather-bound binders
+- Lower wall: DOUBLE solid wood entrance doors with brushed brass handles (no mat)
+- Ceiling (hinted top-down): inset RECESSED LIGHTING strip running along the U-shape + 2 elegant rectangular pendant lights over the U interior
+- Corners: just 2 minimal sculptural plants in upper-left and lower-right (skip the other 2 corners for a cleaner premium look)
+Colors: dark mahogany + black leather + champagne walls + brushed brass accents.
+Style: highly formal, prestigious, board-of-directors-grade conference hall, expensive premium feeling, no casual elements.`,
 };
 
 (async () => {
