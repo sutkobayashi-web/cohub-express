@@ -26,7 +26,7 @@ Layout: 1F ENTRANCE LOBBY of a modern Japanese corporate office, focused on visi
 - Upper-center: LARGE RECEPTION COUNTER (long curved desk in dark wood with marble inset top) with 2 reception chairs behind it (no sign, no text plate)
 - Upper-left: visitor waiting area - two L-shaped charcoal grey leather sofas facing each other, rectangular dark wood coffee table, brass floor lamp
 - Upper-right: second waiting area - 3 individual lounge chairs (dark grey) around a round dark wood coffee table, tall potted palm
-- Left-middle wall: elevator bank (3 plain elevator doors with brushed brass frames) and stairs going up
+- Left-middle wall: ELEVATOR BANK of 3 elevators built INTO the left wall. CRITICAL: in top-down view, the elevator door openings must face RIGHT into the lobby (the door slits visible as thin vertical lines on the wall surface, with each elevator showing as a recessed dark rectangle flush against the left wall). Brushed brass frame around each door. Do NOT show elevator cars as freestanding boxes in the room. Stairs going up are also along the left wall just below the elevator bank, with steps oriented so a person walks UPWARD toward the upper edge of the canvas.
 - Right-middle: plain shelf with magazines (no signs)
 - Center floor: OPEN WALKING AREA with the polished marble visible (NO logo, NO letters on floor)
 - Left-bottom: security guard booth (small counter) with chair
