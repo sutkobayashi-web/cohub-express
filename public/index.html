@@ -530,7 +530,7 @@ function onMinimapClick(e) {
 function render() {
   if (!ctx) return;
 
-  // 補間: targets → users[uid].cx/cy に近づける
+  // 補間: targets → users[uid].cx/cy に近づける (ease-out、ゴール付近スナップで発振防止)
   for (const uid in targets) {
     if (!users[uid]) continue;
     const t = targets[uid];
@@ -539,11 +539,12 @@ function render() {
     const dx = t.x - u.cx;
     const dy = t.y - u.cy;
     const dist = Math.sqrt(dx*dx + dy*dy);
-    if (dist < 0.5) { u.cx = t.x; u.cy = t.y; continue; }
-    // 最大速度 20px/frame 程度、距離に応じたeasing
-    const speed = Math.min(Math.max(dist * 0.2, 2), 20);
-    u.cx += (dx / dist) * speed;
-    u.cy += (dy / dist) * speed;
+    if (dist < 0.4) { u.cx = t.x; u.cy = t.y; continue; }
+    const step = Math.min(dist * 0.22, 22);
+    // step >= dist なら通り越すので直接スナップ
+    if (step >= dist) { u.cx = t.x; u.cy = t.y; continue; }
+    u.cx += (dx / dist) * step;
+    u.cy += (dy / dist) * step;
   }
 
   const r = canvas.getBoundingClientRect();
@@ -612,10 +613,13 @@ function render() {
 
 function drawAvatar(u) {
   const r = 28;
+  // 描画座標は整数化してサブピクセルのにじみを防ぐ
+  const cx = Math.round(u.cx);
+  const cy = Math.round(u.cy);
   ctx.save();
   // ステータスリング
   ctx.beginPath();
-  ctx.arc(u.cx, u.cy, r + 3, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
   ctx.fillStyle = u.ring || '#333';
   ctx.fill();
 
@@ -629,13 +633,13 @@ function drawAvatar(u) {
   if (img && img.complete && img.naturalWidth > 0) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(u.cx, u.cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(img, u.cx - r, u.cy - r, r * 2, r * 2);
+    ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
     ctx.restore();
   } else {
     ctx.beginPath();
-    ctx.arc(u.cx, u.cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.shadowColor = 'transparent';
@@ -643,7 +647,7 @@ function drawAvatar(u) {
     ctx.font = '600 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(u.name ? u.name.slice(0, 2) : '?', u.cx, u.cy);
+    ctx.fillText(u.name ? u.name.slice(0, 2) : '?', cx, cy);
   }
   ctx.shadowColor = 'transparent';
 
@@ -652,17 +656,17 @@ function drawAvatar(u) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const label = (u.name || '') + (u.status && u.status !== 'online' ? ' (' + u.status + ')' : '');
-  const tw = ctx.measureText(label).width + 14;
+  const tw = Math.round(ctx.measureText(label).width + 14);
   ctx.fillStyle = 'rgba(15,23,42,0.85)';
-  roundRect(u.cx - tw/2, u.cy + r + 4, tw, 20, 10);
+  roundRect(cx - Math.round(tw / 2), cy + r + 4, tw, 20, 10);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.fillText(label, u.cx, u.cy + r + 14);
+  ctx.fillText(label, cx, cy + r + 14);
 
   // ステータスドット
   const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
   ctx.beginPath();
-  ctx.arc(u.cx + r - 4, u.cy - r + 4, 6, 0, Math.PI * 2);
+  ctx.arc(cx + r - 4, cy - r + 4, 6, 0, Math.PI * 2);
   ctx.fillStyle = dotColor;
   ctx.fill();
   ctx.strokeStyle = '#fff';
