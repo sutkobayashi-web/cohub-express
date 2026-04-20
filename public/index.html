@@ -4066,8 +4066,8 @@ function setStatus(s) {
 // ===== 🤖 BOT 近接自動会話 =====
 // botの半径以内に入ると自動で肩たたき発火 → bot挨拶 + DM自動オープン
 const _botProximity = {}; // botUid → { in: bool, lastTrigger: ts }
-const BOT_TRIGGER_R = 180;   // この距離内で発動
-const BOT_RESET_R = 280;     // この距離超で再武装
+const BOT_TRIGGER_R = 100;   // この距離内で発動 (受付台に立つ近さ)
+const BOT_RESET_R = 200;     // この距離超で再武装
 const BOT_REARM_MS = 60000;  // 発動後60秒は再発動しない (DM閉じてから接近)
 function checkBotProximity() {
   if (!socket) return;
