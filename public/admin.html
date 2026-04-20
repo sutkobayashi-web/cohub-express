@@ -461,41 +461,54 @@ let chatOffset = 0;
 const chatLimit = 200;
 
 async function loadChatLog(offset, append) {
-  chatOffset = offset;
-  const q = document.getElementById('chat-q').value.trim();
-  const senderId = document.getElementById('chat-sender').value;
-  const room = document.getElementById('chat-room').value;
-  const since = document.getElementById('chat-since').value;
-  const until = document.getElementById('chat-until').value;
-  const onlyMention = document.getElementById('chat-mention-only').checked ? '1' : '';
-  const params = new URLSearchParams({ limit: chatLimit, offset });
-  if (q) params.set('q', q);
-  if (senderId) params.set('sender_id', senderId);
-  if (room) params.set('room', room);
-  if (since) params.set('since', since);
-  if (until) params.set('until', until);
-  if (onlyMention) params.set('mention', '1');
-
-  const r = await fetch('/api/chat/admin/search?' + params.toString(), { headers:{'Authorization':'Bearer '+token} });
-  const d = await r.json();
   const tb = document.getElementById('chat-tbody');
-  if (!d.success) { tb.innerHTML = '<tr><td colspan="4" style="color:#dc2626;">取得に失敗しました</td></tr>'; return; }
-  if (!append) tb.innerHTML = '';
-  for (const m of d.messages) {
-    const ts = new Date(m.created_at + 'Z');
-    const dstr = ts.toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    const sender = (m.sender_name || '(不明)') + ' / ' + (m.sender_login || '');
-    const mention = m.has_mention ? '<span style="color:#dc2626;font-weight:700;">@</span>' : '';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td style="font-size:11px;color:#64748b;white-space:nowrap;">${dstr}</td>
-                    <td style="font-size:12px;">${escapeHtml(sender)}</td>
-                    <td style="font-size:11px;color:#475569;">${escapeHtml(m.room_code || '')}</td>
-                    <td style="font-size:13px;word-break:break-word;">${escapeHtml(m.content)}</td>
-                    <td style="text-align:center;">${mention}</td>`;
-    tb.appendChild(tr);
+  try {
+    chatOffset = offset;
+    const q = document.getElementById('chat-q').value.trim();
+    const senderId = document.getElementById('chat-sender').value;
+    const room = document.getElementById('chat-room').value;
+    const since = document.getElementById('chat-since').value;
+    const until = document.getElementById('chat-until').value;
+    const onlyMention = document.getElementById('chat-mention-only').checked ? '1' : '';
+    const params = new URLSearchParams({ limit: chatLimit, offset });
+    if (q) params.set('q', q);
+    if (senderId) params.set('sender_id', senderId);
+    if (room) params.set('room', room);
+    if (since) params.set('since', since);
+    if (until) params.set('until', until);
+    if (onlyMention) params.set('mention', '1');
+
+    const r = await fetch('/api/chat/admin/search?' + params.toString(), { headers:{'Authorization':'Bearer '+token} });
+    if (r.status === 401 || r.status === 403) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:#dc2626;padding:12px;">認証エラー (' + r.status + ')。一度ログアウトしてログインし直してください。</td></tr>';
+      return;
+    }
+    const d = await r.json();
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="5" style="color:#dc2626;padding:12px;">取得に失敗しました: ' + escapeHtml(d.msg || '') + '</td></tr>'; return; }
+    if (!d.messages || d.messages.length === 0) {
+      if (!append) tb.innerHTML = '<tr><td colspan="5" style="color:#94a3b8;padding:12px;">該当する発言がありません</td></tr>';
+    } else {
+      if (!append) tb.innerHTML = '';
+      for (const m of d.messages) {
+        const ts = new Date(m.created_at + 'Z');
+        const dstr = ts.toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const sender = (m.sender_name || '(不明)') + ' / ' + (m.sender_login || '');
+        const mention = m.has_mention ? '<span style="color:#dc2626;font-weight:700;">@</span>' : '';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="font-size:11px;color:#64748b;white-space:nowrap;">${dstr}</td>
+                        <td style="font-size:12px;">${escapeHtml(sender)}</td>
+                        <td style="font-size:11px;color:#475569;">${escapeHtml(m.room_code || '')}</td>
+                        <td style="font-size:13px;word-break:break-word;">${escapeHtml(m.content)}</td>
+                        <td style="text-align:center;">${mention}</td>`;
+        tb.appendChild(tr);
+      }
+    }
+    document.getElementById('chat-meta').textContent = `${d.total}件中 ${Math.min(d.total, offset + d.messages.length)} 件表示`;
+    document.getElementById('chat-more-btn').style.display = (offset + d.messages.length < d.total) ? 'inline-block' : 'none';
+  } catch (e) {
+    console.error('loadChatLog error', e);
+    if (tb) tb.innerHTML = '<tr><td colspan="5" style="color:#dc2626;padding:12px;">通信エラー: ' + escapeHtml(e.message || 'unknown') + '</td></tr>';
   }
-  document.getElementById('chat-meta').textContent = `${d.total}件中 ${Math.min(d.total, offset + d.messages.length)} 件表示`;
-  document.getElementById('chat-more-btn').style.display = (offset + d.messages.length < d.total) ? 'inline-block' : 'none';
 }
 
 async function exportChatCsv() {
