@@ -12,6 +12,25 @@ const bcrypt = require('bcryptjs');
 let webpush = null;
 try { webpush = require('web-push'); } catch (e) { console.warn('web-push未インストール'); }
 const { getDb } = require('./services/db');
+const { chatBot } = require('./services/ai');
+
+// ===== 受付AI案内員(BOT) 定義 =====
+const CONCIERGE_BOTS = [
+  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 640, y: 110 },
+  { id: 'bot_yui', login_id: 'bot_yui', name: '結衣', avatar: '/assets/concierge_yui.png', floor: 'lobby', x: 760, y: 110 },
+];
+function ensureConciergeBots() {
+  const db = getDb();
+  for (const b of CONCIERGE_BOTS) {
+    const exists = db.prepare('SELECT id FROM users WHERE id = ?').get(b.id);
+    if (!exists) {
+      db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, avatar_url, employee_type)
+                  VALUES (?, ?, '!disabled', ?, 'ADMIN', 'bot', ?, 'office')`).run(b.id, b.login_id, b.name, b.avatar);
+    } else {
+      db.prepare(`UPDATE users SET display_name=?, avatar_url=?, role='bot', company_code='ADMIN' WHERE id = ?`).run(b.name, b.avatar, b.id);
+    }
+  }
+}
 
 // TURN サーバー認証情報を起動時に読み込み
 let TURN_PASSWORD = '';
@@ -648,11 +667,47 @@ io.on('connection', (socket) => {
     };
     socket.emit('dm:msg', payload);
     const tp = presence.get(to);
-    if (tp) {
+    if (tp && !tp.isBot) {
       const s = io.sockets.sockets.get(tp.socketId);
       if (s) s.emit('dm:msg', payload);
     }
-    // Pushプッシュ通知 (相手が非アクティブでも届く)
+    // bot宛ならGeminiに転送して返答を生成
+    if (tp && tp.isBot && content) {
+      (async () => {
+        try {
+          // 直近10件の履歴 (本人↔bot)
+          const histRows = getDb().prepare(`
+            SELECT sender_id, content, created_at FROM messages
+            WHERE room_code='dm'
+              AND ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?))
+              AND content IS NOT NULL AND content <> ''
+            ORDER BY created_at DESC LIMIT 11
+          `).all(uid, to, to, uid);
+          const history = histRows.reverse().slice(0, -1).map(r => ({
+            role: r.sender_id === to ? 'bot' : 'user',
+            text: r.content,
+          }));
+          const replyText = await chatBot(to, content, history);
+          const ins2 = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
+            .run(to, uid, replyText);
+          const replyPayload = {
+            id: ins2.lastInsertRowid,
+            from: to,
+            to: uid,
+            content: replyText,
+            at: new Date().toISOString(),
+            attach: null,
+          };
+          socket.emit('dm:msg', replyPayload);
+        } catch (e) {
+          console.error('[bot reply error]', e.message);
+          const errMsg = '⚠️ すみません、ただいま応答できません。少し時間を置いてからもう一度お試しください。';
+          socket.emit('dm:msg', { id: 0, from: to, to: uid, content: errMsg, at: new Date().toISOString(), attach: null });
+        }
+      })();
+      return;
+    }
+    // Pushプッシュ通知 (相手が非アクティブでも届く、bot宛は不要)
     const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
     sendPushToUser(to, {
       title: 'DM: ' + senderName,
@@ -861,6 +916,12 @@ setInterval(() => {
     getDb().prepare("DELETE FROM messages WHERE created_at < datetime('now', '-60 days')").run();
   } catch (e) {}
 }, 60 * 60 * 1000);
+
+// 受付AI案内員(BOT) を初期化 + presenceに常駐
+ensureConciergeBots();
+for (const b of CONCIERGE_BOTS) {
+  presence.set(b.id, { x: b.x, y: b.y, status: 'online', statusText: '案内係です。話しかけてください', floor: b.floor, socketId: null, voiceOn: false, isBot: true });
+}
 
 server.listen(PORT, () => {
   console.log('CoHub Express サーバー起動: http://localhost:' + PORT);

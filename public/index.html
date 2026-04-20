@@ -1636,6 +1636,16 @@ function drawAvatar(u) {
     ctx.lineWidth = 2.5;
     ctx.stroke();
   }
+  // BOT(受付AI)外周リング (シアンの呼吸パルス)
+  if (u.role === 'bot') {
+    const phase = (Date.now() % 1800) / 1800;
+    const glowR = r + 6 + Math.sin(phase * Math.PI * 2) * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(6,182,212,0.85)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
   // 話者パルスリング (voice.speaking時)
   if (u.speaking) {
     const phase = (Date.now() % 900) / 900;
@@ -1712,6 +1722,18 @@ function drawAvatar(u) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('🎯', cx, cy - r - 6);
+  }
+  // BOT(受付AI) ラベル (頭上)
+  if (u.role === 'bot') {
+    ctx.font = '700 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lw = 50;
+    ctx.fillStyle = 'rgba(6,182,212,0.95)';
+    roundRect(cx - lw / 2, cy - r - 22, lw, 16, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText('🤖 BOT', cx, cy - r - 14);
   }
   // マイクON マーク (voice=true)
   if (u.voice) {

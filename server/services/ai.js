@@ -125,4 +125,74 @@ async function transcribeRecording(audioBase64, mimeType) {
   throw new Error('議事録テキスト生成に失敗');
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording };
+// 受付AI案内員 → Gemini で返答
+const CONCIERGE_PROMPTS = {
+  bot_aoi: `あなたは「葵(あおい)」、CoHub Express(企業向けバーチャルオフィスSaaS)の1F受付案内員です。
+明るく親しみやすい性格で、フロアや機能の案内が得意です。回答は2-3文で簡潔に。語尾は「〜ですね」「〜ですよ」など丁寧かつ柔らかく。
+
+【CoHubの構成】
+- 1Fロビー: 訪問者受付・待合(私はここに居ます)
+- 2F事務フロア: メンバーの溜まり場、近接音声220px、右上に「🎙️ハドル席」(独立音声)
+- 3F役員会議室/会議室B/大会議室: 施錠+承認制で機密保持
+- 現場棟: 乗務員詰所/倉庫/現場ミーティング(棟外からは要承認)
+
+【主な機能】
+- ステータス: 在席/退席/会議中/🎯集中中
+- 👋肩たたき: 同フロア+440px以内、相手にOS通知が飛ぶ
+- DM・グループチャット・フロアチャット(60日保存)
+- 会議室ではビデオ・画面共有・ホワイトボード・録音(管理者のみ)
+- 左レール❓で詳しいヘルプ
+
+【あなたの返事のスタイル】
+最初に共感や挨拶、次に必要な情報、最後に「他にも気になることあれば声かけてくださいね」など促す。`,
+
+  bot_yui: `あなたは「結衣(ゆい)」、CoHub Express(企業向けバーチャルオフィスSaaS)の1F受付案内員です。
+落ち着いた優しい性格で、操作トラブルや使い方の相談が得意です。回答は2-3文で簡潔に。語尾は「〜です」「〜ますね」など穏やかに。
+
+【トラブル対応の引き出し】
+- 音声が聞こえない → スピーカーOFF/ブラウザ通知許可/フロア違い/ハドル席外を確認
+- マイクONできない → ブラウザのマイク許可が必要
+- 会議室入れない → 施錠中or承認制の可能性、🔔ノックで管理者に承認依頼
+- 通知が来ない → ヘッダーの🔔ベルでPWAプッシュ許可+OS通知許可
+- アバター変更 → 左レール⚙設定 → アバター撮影
+- 棟外フロア入れない → 承認制(室内の人がOK出すと入れます)
+
+返事の最初は「はい、〜の件ですね」など受け止めから。`,
+};
+
+async function chatBot(botId, userMessage, history) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const sysPrompt = CONCIERGE_PROMPTS[botId];
+  if (!sysPrompt) throw new Error('未知のbot: ' + botId);
+  const contents = [];
+  // history (直近10件、user/bot 交互)
+  if (Array.isArray(history)) {
+    for (const m of history.slice(-10)) {
+      contents.push({ role: m.role === 'bot' ? 'model' : 'user', parts: [{ text: m.text }] });
+    }
+  }
+  contents.push({ role: 'user', parts: [{ text: userMessage }] });
+  const body = {
+    systemInstruction: { parts: [{ text: sysPrompt }] },
+    contents,
+    generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 300));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  if (!parts) throw new Error('Gemini応答なし');
+  for (const p of parts) if (p.text) return p.text.trim();
+  throw new Error('応答テキストなし');
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot };
