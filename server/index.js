@@ -139,7 +139,10 @@ io.on('connection', (socket) => {
 
   // 初期スナップショット
   socket.emit('snapshot', { users: currentUserList(), me: uid, proximity: PROXIMITY_RADIUS });
-  socket.broadcast.emit('user:update', { uid, x: pos.x, y: pos.y, status: 'online' });
+  // 新規接続者のフル情報を既存接続者に通知（名前・会社・リング色・アバター付き）
+  const fullUser = currentUserList().find(u => u.uid === uid);
+  if (fullUser) socket.broadcast.emit('user:join', fullUser);
+  else socket.broadcast.emit('user:update', { uid, x: pos.x, y: pos.y, status: 'online' });
 
   // 移動
   socket.on('move', (data) => {

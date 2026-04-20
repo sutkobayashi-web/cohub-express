@@ -445,6 +445,15 @@ function connectSocket() {
     }
     renderMemberList();
   });
+  socket.on('user:join', (u) => {
+    // 新規接続者のフル情報（name, company, ring, avatar 付き）
+    users[u.uid] = u;
+    users[u.uid].cx = u.x != null ? u.x : WORLD_W / 2;
+    users[u.uid].cy = u.y != null ? u.y : WORLD_H / 2;
+    targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
+    if (u.avatar) loadAvatar(u);
+    renderMemberList();
+  });
   socket.on('user:update', (u) => {
     if (!users[u.uid]) users[u.uid] = { uid: u.uid, name: '...', ring: '#333', cx: u.x, cy: u.y };
     targets[u.uid] = { x: u.x, y: u.y };
