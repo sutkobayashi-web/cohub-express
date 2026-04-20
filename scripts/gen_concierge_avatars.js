@@ -16,7 +16,7 @@ Clean white background. Soft warm studio lighting. Bright, welcoming, polished c
 Square 1:1 frame. NO text, NO logos, NO writing.`,
   },
   {
-    file: 'concierge_yui.png',
+    file: 'concierge_misaki.png',
     prompt: `Professional Japanese corporate receptionist illustration, anime style.
 Young woman, 25-30 years old, calm gentle smile, light brown long straight hair with side swept bangs,
 wearing an elegant LIGHT GREY BLAZER over a soft pink blouse, small gold name pin, refined natural makeup.

@@ -17,10 +17,16 @@ const { chatBot } = require('./services/ai');
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
   { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 640, y: 110 },
-  { id: 'bot_yui', login_id: 'bot_yui', name: '結衣', avatar: '/assets/concierge_yui.png', floor: 'lobby', x: 760, y: 110 },
+  { id: 'bot_misaki', login_id: 'bot_misaki', name: '美咲', avatar: '/assets/concierge_misaki.png', floor: 'lobby', x: 760, y: 110 },
 ];
+const OLD_BOT_IDS = ['bot_yui']; // 廃止bot
 function ensureConciergeBots() {
   const db = getDb();
+  // 廃止botを削除 (関連メッセージも掃除)
+  for (const oldId of OLD_BOT_IDS) {
+    db.prepare("DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?").run(oldId, oldId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(oldId);
+  }
   for (const b of CONCIERGE_BOTS) {
     const exists = db.prepare('SELECT id FROM users WHERE id = ?').get(b.id);
     if (!exists) {
