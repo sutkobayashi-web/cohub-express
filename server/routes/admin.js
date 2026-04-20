@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authAdmin } = require('../middleware/auth');
+const { transcribeRecording } = require('../services/ai');
 
 const recDir = path.join(__dirname, '..', '..', 'uploads', 'recordings');
 if (!fs.existsSync(recDir)) fs.mkdirSync(recDir, { recursive: true });
@@ -101,8 +102,38 @@ router.post('/recording/upload', authAdmin, recUpload.single('file'), (req, res)
 
 router.get('/recording', authAdmin, (req, res) => {
   const rows = getDb().prepare(`SELECT r.id, r.filename, r.size, r.duration_ms, r.floor_code, r.recorded_by, r.note, r.created_at,
+    r.transcript_at,
+    CASE WHEN r.transcript IS NOT NULL AND length(r.transcript) > 0 THEN 1 ELSE 0 END AS has_transcript,
     u.display_name AS recorded_by_name FROM recordings r LEFT JOIN users u ON u.id = r.recorded_by ORDER BY r.created_at DESC LIMIT 500`).all();
   res.json({ success: true, recordings: rows });
+});
+
+// AI議事録 生成 (録音ファイル → Gemini)
+router.post('/recording/:id/transcribe', authAdmin, async (req, res) => {
+  const row = getDb().prepare('SELECT filename, transcript FROM recordings WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ success: false, msg: '録音が見つかりません' });
+  const fp = path.join(recDir, row.filename);
+  if (!fs.existsSync(fp)) return res.status(404).json({ success: false, msg: 'ファイル不在' });
+  const stat = fs.statSync(fp);
+  if (stat.size > 30 * 1024 * 1024) {
+    return res.status(400).json({ success: false, msg: 'ファイルが30MBを超えます (長すぎる会議は分割必要)' });
+  }
+  try {
+    const buf = fs.readFileSync(fp);
+    const b64 = buf.toString('base64');
+    const text = await transcribeRecording(b64, 'audio/webm');
+    getDb().prepare("UPDATE recordings SET transcript=?, transcript_at=datetime('now') WHERE id=?").run(text, req.params.id);
+    res.json({ success: true, transcript: text });
+  } catch (e) {
+    console.error('[transcribe]', e);
+    res.status(500).json({ success: false, msg: e.message });
+  }
+});
+
+router.get('/recording/:id/transcript', authAdmin, (req, res) => {
+  const row = getDb().prepare('SELECT transcript, transcript_at FROM recordings WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ success: false });
+  res.json({ success: true, transcript: row.transcript || '', transcript_at: row.transcript_at });
 });
 
 router.get('/recording/:id', authAdmin, (req, res) => {

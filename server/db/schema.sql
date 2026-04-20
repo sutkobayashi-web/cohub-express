@@ -94,6 +94,8 @@ CREATE TABLE IF NOT EXISTS recordings (
   floor_code TEXT,
   recorded_by TEXT,
   note TEXT,
+  transcript TEXT,
+  transcript_at TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

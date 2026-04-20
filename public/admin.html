@@ -144,6 +144,18 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 
 </main>
 
+<!-- 議事録モーダル -->
+<div id="transcript-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;display:flex;align-items:center;gap:10px;">
+      <div style="font-weight:800;font-size:15px;flex:1;">📝 AI議事録</div>
+      <button onclick="copyTranscript()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;">📋 コピー</button>
+      <button onclick="closeTranscript()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div id="transcript-body" style="flex:1;overflow-y:auto;padding:20px 24px;font-size:13px;line-height:1.7;color:#334155;white-space:pre-wrap;font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;"></div>
+  </div>
+</div>
+
 <script>
 let token = localStorage.getItem('cohub_admin_token') || '';
 
@@ -238,6 +250,9 @@ async function loadRecordings() {
       const dtime = new Date(r.created_at + 'Z').toLocaleString('ja-JP', { year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit' });
       const dur = Math.round((r.duration_ms || 0) / 1000);
       const kb = Math.round((r.size || 0) / 1024);
+      const transBtn = r.has_transcript
+        ? `<button class="btn btn-ghost" onclick="viewTranscript(${r.id})" style="background:#ecfeff;color:#0891b2;">📝 議事録</button>`
+        : `<button class="btn btn-ghost" onclick="makeTranscript(${r.id}, this)">✨ AI議事録</button>`;
       html += `<tr>
         <td style="font-size:11px;color:#64748b;">${dtime}</td>
         <td style="font-size:12px;">${escapeHtml(r.recorded_by_name || '')}</td>
@@ -247,6 +262,7 @@ async function loadRecordings() {
         <td>
           <button class="btn btn-ghost" onclick="playRec(${r.id})">▶ 再生</button>
           <button class="btn btn-ghost" onclick="downloadRec(${r.id})">⬇</button>
+          ${transBtn}
           <button class="btn btn-danger" onclick="deleteRec(${r.id})">削除</button>
         </td>
       </tr>`;
@@ -285,6 +301,46 @@ async function deleteRec(id) {
   if (!confirm('この録音を削除しますか？復元できません。')) return;
   await fetch('/api/admin/recording/' + id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} });
   loadRecordings();
+}
+
+async function makeTranscript(id, btn) {
+  if (!confirm('AI議事録を生成します。1〜3分ほどかかります。\n(Gemini 2.5 Flashが録音内容を文字起こし+要約)')) return;
+  if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+  try {
+    const r = await fetch('/api/admin/recording/' + id + '/transcribe', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const d = await r.json();
+    if (!d.success) { alert('生成失敗: ' + (d.msg || '')); if (btn) { btn.disabled = false; btn.textContent = '✨ AI議事録'; } return; }
+    showTranscript(d.transcript);
+    loadRecordings();
+  } catch (e) { alert('通信エラー'); if (btn) { btn.disabled = false; btn.textContent = '✨ AI議事録'; } }
+}
+
+async function viewTranscript(id) {
+  try {
+    const r = await fetch('/api/admin/recording/' + id + '/transcript', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.success && d.transcript) showTranscript(d.transcript);
+    else alert('議事録がありません');
+  } catch (e) { alert('通信エラー'); }
+}
+
+function showTranscript(text) {
+  const modal = document.getElementById('transcript-modal');
+  document.getElementById('transcript-body').textContent = text;
+  modal.style.display = 'flex';
+}
+
+function closeTranscript() {
+  document.getElementById('transcript-modal').style.display = 'none';
+}
+
+async function copyTranscript() {
+  const body = document.getElementById('transcript-body').textContent;
+  try { await navigator.clipboard.writeText(body); alert('クリップボードにコピーしました'); }
+  catch (e) { alert('コピー失敗'); }
 }
 
 async function loadFloors() {

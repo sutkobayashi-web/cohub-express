@@ -70,4 +70,59 @@ async function generateAvatarSet(photoBase64, mimeType) {
   return ok;
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS };
+// 会議録音 → AI議事録 (Gemini 2.5 Flash マルチモーダル)
+async function transcribeRecording(audioBase64, mimeType) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const prompt = `以下の音声は日本企業内の会議録音です。以下の形式で **日本語のマークダウン** で議事録を作成してください。
+
+# 議事録
+
+## 参加者
+- (話者の数・特徴から推測。氏名不明なら「参加者A/B/C」)
+
+## 議題
+- (箇条書き3〜5項目)
+
+## 主な発言・議論
+(発言者ごとに要約。話が聞き取れない部分は省略)
+
+## 決定事項
+- (決定1)
+- (決定2)
+
+## 次回アクション (誰が何をいつまで)
+- (アクション項目)
+
+## 所感・補足
+(会議の雰囲気、未解決論点など一段落)
+
+※**事実でない推測は避ける**。不明瞭な箇所は「(聞き取り不能)」と明記。話者氏名が音声から分からない場合は「参加者A」等で統一。`;
+
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const body = {
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: mimeType || 'audio/webm', data: audioBase64 } },
+      ]
+    }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 6000 },
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 400));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  if (!parts) throw new Error('Gemini応答なし');
+  for (const p of parts) if (p.text) return p.text;
+  throw new Error('議事録テキスト生成に失敗');
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording };
