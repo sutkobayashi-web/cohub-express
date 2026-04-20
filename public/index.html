@@ -617,7 +617,7 @@ function connectSocket() {
       const peer = voice.peers.get(data.uid);
       if (peer) {
         try { peer.pc.close(); } catch (e) {}
-        try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; } } catch (e) {}
+        try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; peer.audio.remove(); } } catch (e) {}
         voice.peers.delete(data.uid);
       }
       if (users[data.uid]) users[data.uid].speaking = false;
@@ -1575,8 +1575,10 @@ function toggleSpeaker() {
   const btn = document.getElementById('dock-speaker');
   btn.classList.toggle('off', !speakerOn);
   btn.innerHTML = (speakerOn ? '🔊' : '🔇') + '<div class="sub">' + (speakerOn ? '音量' : 'ミュート') + '</div>';
-  // 音声通話のマスタ音量にも反映
-  if (voice.masterGain) voice.masterGain.gain.value = speakerOn ? 1 : 0;
+  // 全ピアの音声出力をミュート/解除
+  for (const [, peer] of voice.peers) {
+    if (peer.audio) peer.audio.muted = !speakerOn;
+  }
 }
 
 // ===== 音声モード (WebRTC 近接メッシュ) =====
@@ -1646,7 +1648,7 @@ async function disableVoice() {
   stopVoiceLoops();
   for (const [, peer] of voice.peers) {
     try { peer.pc.close(); } catch (e) {}
-    try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; } } catch (e) {}
+    try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; peer.audio.remove(); } } catch (e) {}
   }
   voice.peers.clear();
   if (voice.localStream) {
@@ -1665,39 +1667,36 @@ async function getOrCreatePeer(peerUid) {
   if (voice.localStream) {
     for (const t of voice.localStream.getTracks()) pc.addTrack(t, voice.localStream);
   }
+  // 受信用 <audio> を DOM に追加 (Chromeはこの方法でないとストリームが active にならない)
   const audio = document.createElement('audio');
   audio.autoplay = true;
-  audio.muted = true; // Web Audioで再生するので要素側は無音
-  const gain = voice.audioContext.createGain();
-  gain.gain.value = 1;
-  gain.connect(voice.masterGain);
-  let src = null;
+  audio.playsInline = true;
+  audio.setAttribute('playsinline', '');
+  audio.volume = 1;
+  audio.muted = !speakerOn;
+  audio.style.display = 'none';
+  document.body.appendChild(audio);
   pc.ontrack = (e) => {
-    const stream = e.streams[0];
+    const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
     audio.srcObject = stream;
-    try {
-      if (src) try { src.disconnect(); } catch (err) {}
-      src = voice.audioContext.createMediaStreamSource(stream);
-      src.connect(gain);
-    } catch (err) {
-      // フォールバック: audio要素で直接再生
-      audio.muted = false;
-    }
+    const p = audio.play();
+    if (p && p.catch) p.catch(err => console.warn('audio.play blocked', err));
   };
   pc.onicecandidate = (e) => {
     if (e.candidate && socket) socket.emit('voice:signal', { to: peerUid, type: 'ice', payload: e.candidate });
   };
   pc.onconnectionstatechange = () => {
+    console.log('[voice] peer', peerUid, 'state=', pc.connectionState);
     if (['failed', 'closed'].includes(pc.connectionState)) {
       const p = voice.peers.get(peerUid);
       if (p) {
         try { p.pc.close(); } catch (e) {}
-        try { if (p.audio) { p.audio.pause(); p.audio.srcObject = null; } } catch (e) {}
+        try { if (p.audio) { p.audio.pause(); p.audio.srcObject = null; p.audio.remove(); } } catch (e) {}
         voice.peers.delete(peerUid);
       }
     }
   };
-  const obj = { pc, audio, gain, uid: peerUid };
+  const obj = { pc, audio, uid: peerUid };
   voice.peers.set(peerUid, obj);
   return obj;
 }
@@ -1734,14 +1733,14 @@ function updateVoiceDistance() {
   for (const [peerUid, peer] of voice.peers) {
     const u = users[peerUid];
     let g = 0;
-    if (u && u.cx != null && u.status !== 'offline' && u.floor === (currentFloor && currentFloor.code)) {
+    if (u && u.cx != null && u.status !== 'offline') {
       const dx = u.cx - myU.cx, dy = u.cy - myU.cy;
       const d = Math.sqrt(dx*dx + dy*dy);
       if (d <= nearR) g = 1;
       else if (d >= farR) g = 0;
       else g = 1 - (d - nearR) / (farR - nearR);
     }
-    try { peer.gain.gain.value = g; } catch (e) {}
+    try { peer.audio.volume = g; } catch (e) {}
   }
 }
 
