@@ -141,14 +141,14 @@ body.layout-meeting #meeting-panel { display: flex; }
 body.layout-meeting #space-canvas-wrap { right: calc(46% + 280px); }
 body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 46%; }
 .mp-head { padding: 10px 14px; border-bottom: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; font-size: 13px; background: #fff; }
-#video-grid { flex: 1; min-height: 160px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px; padding: 6px; overflow-y: auto; background: #0f172a; align-content: start; }
+#video-grid { flex: 0 0 30%; min-height: 120px; max-height: 32%; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 4px; padding: 6px; overflow-y: auto; background: #0f172a; align-content: start; }
 .v-tile { position: relative; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
 .v-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .v-tile .v-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.4); font-size: 28px; }
 .v-tile .v-name { position: absolute; bottom: 4px; left: 6px; color: #fff; font-size: 10px; background: rgba(0,0,0,0.55); padding: 2px 8px; border-radius: 10px; font-weight: 600; }
 .v-tile.self .v-name { background: rgba(6,182,212,0.9); }
 .v-grid-empty { color: rgba(255,255,255,0.5); padding: 40px 20px; text-align: center; font-size: 12px; grid-column: 1 / -1; }
-#whiteboard { height: 44%; min-height: 180px; background: #fff; border-top: 1px solid rgba(15,23,42,0.08); padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+#whiteboard { flex: 1 1 auto; min-height: 280px; background: #fff; border-top: 1px solid rgba(15,23,42,0.08); padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 #whiteboard .wb-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 1px; }
 #whiteboard textarea { flex: 1; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 13px; resize: none; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; line-height: 1.5; outline: none; background: #fffef5; }
 #whiteboard textarea:focus { border-color: #06b6d4; background: #fff; }
@@ -755,13 +755,20 @@ function connectSocket() {
     }
   });
 
-  // ホワイトボード同期
+  // ホワイトボード同期 (カーソル位置を保持しつつ常に反映、直近500ms以内の自分の編集中は受信スキップ)
   socket.on('wb:update', (m) => {
     const ta = document.getElementById('wb-text');
     if (!ta) return;
-    if (document.activeElement === ta) return; // 自分が編集中なら上書きしない
+    if (Date.now() - wbLastEdit < 500) return;
+    const selStart = ta.selectionStart || 0;
+    const selEnd = ta.selectionEnd || 0;
+    const wasFocused = document.activeElement === ta;
     wbApplyingRemote = true;
     ta.value = m.content || '';
+    if (wasFocused) {
+      const max = ta.value.length;
+      try { ta.setSelectionRange(Math.min(selStart, max), Math.min(selEnd, max)); } catch (e) {}
+    }
     const st = document.getElementById('wb-status');
     if (st) st.textContent = '更新: ' + new Date(m.at).toLocaleTimeString('ja-JP');
     setTimeout(() => { wbApplyingRemote = false; }, 50);
@@ -1989,11 +1996,13 @@ function removeVideoTile(peerUid) {
 // ===== ホワイトボード =====
 let wbTimer = null;
 let wbApplyingRemote = false;
+let wbLastEdit = 0;
 function initWhiteboard() {
   const ta = document.getElementById('wb-text');
   if (!ta) return;
   ta.addEventListener('input', () => {
     if (wbApplyingRemote) return;
+    wbLastEdit = Date.now();
     if (wbTimer) clearTimeout(wbTimer);
     wbTimer = setTimeout(() => {
       if (!socket) return;
