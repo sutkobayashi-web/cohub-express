@@ -37,6 +37,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #left-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 #left-rail .brand { width: 56px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 6px; color: #fff; font-weight: 800; }
 #left-rail .rail-section { width: 100%; padding: 6px 0 2px; font-size: 9px; color: rgba(255,255,255,0.45); font-weight: 800; letter-spacing: 1.5px; text-align: center; text-transform: uppercase; }
+#left-rail .rail-subsection { width: 90%; padding: 4px 0; font-size: 9px; color: rgba(255,255,255,0.5); font-weight: 700; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); margin: 2px auto 2px; }
 #left-rail .rail-btn { width: 82px; min-height: 52px; border-radius: 10px; background: transparent; border: none; color: rgba(255,255,255,0.75); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 18px; transition: all 0.12s; position: relative; padding: 6px 4px; }
 #left-rail .rail-btn .lbl { font-size: 10px; line-height: 1.1; text-align: center; font-weight: 600; }
 #left-rail .rail-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
@@ -2356,10 +2357,13 @@ function togglePanel(forceHide) {
 function renderRailFloors() {
   const host = document.getElementById('rail-floors');
   if (!host || !allFloors) return;
-  host.innerHTML = allFloors.map(f => {
+  // 棟別にグループ化
+  const officeFloors = allFloors.filter(f => !f.building || f.building === 'office');
+  const fieldFloors = allFloors.filter(f => f.building === 'field');
+  const renderBtn = (f) => {
     const isCur = currentFloor && currentFloor.code === f.code;
     const count = floorCounts[f.code] || 0;
-    const m = f.name.match(/^(\d+F)\s*(.*)$/);
+    const m = f.name.match(/^(\d+F|現場)\s*(.*)$/);
     const tag = m ? m[1] : '';
     const short = m ? m[2] : f.name;
     const lockMark = f.locked ? '<span style="color:#fbbf24;margin-left:2px;">🔒</span>' : (f.approval_mode ? '<span style="color:#06b6d4;margin-left:2px;">🔔</span>' : '');
@@ -2368,7 +2372,17 @@ function renderRailFloors() {
       <span class="lbl">${escapeHtml(short)}</span>
       ${count ? `<span class="cnt">${count}</span>` : ''}
     </button>`;
-  }).join('');
+  };
+  let html = '';
+  if (officeFloors.length) {
+    html += '<div class="rail-subsection">🏢 事務所棟</div>';
+    html += officeFloors.map(renderBtn).join('');
+  }
+  if (fieldFloors.length) {
+    html += '<div class="rail-subsection" style="margin-top:6px;">🚚 現場棟</div>';
+    html += fieldFloors.map(renderBtn).join('');
+  }
+  host.innerHTML = html;
 }
 
 function switchFloor(code, password) {

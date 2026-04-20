@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   display_name TEXT NOT NULL,
   company_code TEXT NOT NULL DEFAULT 'SU_HQ',  -- SU_HQ/SU_SAITAMA/SU_MKANTO/SU_ZAMA/IBA_KASHIMA/IBA_SANWA/SUZUE/ADMIN
+  employee_type TEXT DEFAULT 'office',  -- office=事務職員 / field=現場 / admin=管理職
   role TEXT DEFAULT 'member',  -- member | admin
   avatar_url TEXT DEFAULT '',
   avatar_style TEXT DEFAULT '',  -- shonen | anime | pixar | watercolor
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS floors (
   bg_image TEXT NOT NULL,
   world_w INTEGER NOT NULL DEFAULT 1344,
   world_h INTEGER NOT NULL DEFAULT 768,
-  entry_x INTEGER,  -- 入口座標 (NULL時はワールド中央下部)
+  entry_x INTEGER,
   entry_y INTEGER,
   sort_order INTEGER DEFAULT 0,
   icon TEXT DEFAULT '',
@@ -55,14 +56,18 @@ CREATE TABLE IF NOT EXISTS floors (
   lock_pw_hash TEXT,
   locked_by TEXT,
   locked_at TEXT,
-  approval_mode INTEGER DEFAULT 0  -- 1=入室に承認が必要
+  approval_mode INTEGER DEFAULT 0,
+  building TEXT DEFAULT 'office'  -- office=事務所棟 / field=現場棟
 );
-INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order, icon) VALUES
-  ('lobby',     '1F 玄関ロビー',     '/assets/floor_lobby.png',     1344, 768, 1, '🚪'),
-  ('office',    '2F 事務フロア',     '/assets/floor_office.png',    1344, 768, 2, '💼'),
-  ('meeting_a', '3F 役員会議室',      '/assets/floor_meeting_a.png', 1344, 768, 3, '👔'),
-  ('meeting_b', '3F 会議室B',        '/assets/floor_meeting_b.png', 1344, 768, 4, '🅱'),
-  ('meeting_c', '3F 大会議室',       '/assets/floor_meeting_c.png', 1344, 768, 5, '🏛');
+INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order, icon, building) VALUES
+  ('lobby',      '1F 玄関ロビー',     '/assets/floor_lobby.png',      1344, 768, 1, '🚪',  'office'),
+  ('office',     '2F 事務フロア',     '/assets/floor_office.png',     1344, 768, 2, '💼',  'office'),
+  ('meeting_a',  '3F 役員会議室',     '/assets/floor_meeting_a.png',  1344, 768, 3, '👔',  'office'),
+  ('meeting_b',  '3F 会議室B',        '/assets/floor_meeting_b.png',  1344, 768, 4, '🅱',  'office'),
+  ('meeting_c',  '3F 大会議室',       '/assets/floor_meeting_c.png',  1344, 768, 5, '🏛',  'office'),
+  ('field_rest', '現場 乗務員詰所',    '/assets/floor_field_rest.png', 1344, 768, 10, '☕', 'field'),
+  ('field_work', '現場 倉庫作業室',    '/assets/floor_field_work.png', 1344, 768, 11, '📦', 'field'),
+  ('field_meet', '現場 ミーティング',  '/assets/floor_field_meet.png', 1344, 768, 12, '📋', 'field');
 
 -- グループチャット (管理者作成・メンバー制)
 CREATE TABLE IF NOT EXISTS chat_groups (

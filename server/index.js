@@ -205,16 +205,21 @@ io.use((socket, next) => {
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 
 function allFloors() {
-  const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, approval_mode FROM floors ORDER BY sort_order').all();
+  const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, approval_mode, building FROM floors ORDER BY sort_order').all();
   return rows.map(r => ({ ...r, locked: !!r.locked, approval_mode: !!r.approval_mode }));
 }
 
 function getFloor(code) {
-  const r = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, lock_pw_hash, locked_by, approval_mode FROM floors WHERE code = ?').get(code);
+  const r = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, lock_pw_hash, locked_by, approval_mode, building FROM floors WHERE code = ?').get(code);
   if (!r) return null;
   r.locked = !!r.locked;
   r.approval_mode = !!r.approval_mode;
   return r;
+}
+
+function getUserEmployeeType(uid) {
+  const r = getDb().prepare('SELECT employee_type, role FROM users WHERE id = ?').get(uid);
+  return r || { employee_type: 'office', role: 'member' };
 }
 
 // 承認待ちキュー: targetFloor -> Map<uid, timer>
@@ -312,6 +317,40 @@ io.on('connection', (socket) => {
     const p = presence.get(uid);
     if (!p) return;
     if (p.floor === target.code) return;
+    // 棟アクセス判定: 自分の所属棟と違う場合、承認制扱い (admin/lobbyは免除)
+    if (socket.role !== 'admin' && target.code !== 'lobby') {
+      const me = getUserEmployeeType(uid);
+      // office社員 → field棟 進入不可 (要承認)
+      // field社員 → office棟 進入不可 (要承認)
+      const mismatch = (me.employee_type === 'office' && target.building === 'field')
+                    || (me.employee_type === 'field' && target.building === 'office');
+      if (mismatch && !data.approved) {
+        // 室内に人が居なければ素通り (最初の1人は許容)
+        let hasOccupant = false;
+        for (const [, vv] of presence) {
+          if (vv.floor === target.code && vv.status !== 'offline') { hasOccupant = true; break; }
+        }
+        if (hasOccupant) {
+          const u = getDb().prepare('SELECT display_name, avatar_url FROM users WHERE id = ?').get(uid);
+          const payload = { uid, name: (u && u.display_name) || '', avatar: (u && u.avatar_url) || '', targetFloor: target.code, reason: '棟外からの入室' };
+          io.to('floor:' + target.code).emit('room:knock', payload);
+          socket.emit('room:waiting', { code: target.code, name: target.name });
+          let map = pendingKnocks.get(target.code);
+          if (!map) { map = new Map(); pendingKnocks.set(target.code, map); }
+          if (map.has(uid)) clearTimeout(map.get(uid).timer);
+          const timer = setTimeout(() => {
+            const m = pendingKnocks.get(target.code);
+            if (m && m.has(uid)) {
+              m.delete(uid);
+              const tgt = presence.get(uid) && io.sockets.sockets.get(presence.get(uid).socketId);
+              if (tgt) tgt.emit('room:knock-result', { ok: false, msg: 'タイムアウト' });
+            }
+          }, 60000);
+          map.set(uid, { timer, targetFloor: target.code, socketId: socket.id });
+          return;
+        }
+      }
+    }
     // ロック中ならPWチェック (admin は免除)
     if (target.locked && target.lock_pw_hash && socket.role !== 'admin') {
       const pw = (data.password || '').toString();

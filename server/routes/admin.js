@@ -28,7 +28,7 @@ router.get('/users', authAdmin, (req, res) => {
 
 // ユーザー作成（1件）
 router.post('/users', authAdmin, (req, res) => {
-  const { login_id, display_name, company_code, password, role } = req.body;
+  const { login_id, display_name, company_code, password, role, employee_type } = req.body;
   if (!login_id || !display_name || !company_code || !password) {
     return res.status(400).json({ success: false, msg: '必須項目が不足しています' });
   }
@@ -37,8 +37,9 @@ router.post('/users', authAdmin, (req, res) => {
   if (exists) return res.status(400).json({ success: false, msg: 'このログインIDは既に使われています' });
   const id = crypto.randomUUID();
   const hash = bcrypt.hashSync(password, 10);
-  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role)
-    VALUES (?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member');
+  const etype = (employee_type === 'field' || employee_type === 'admin') ? employee_type : 'office';
+  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype);
   res.json({ success: true, id });
 });
 

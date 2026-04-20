@@ -78,6 +78,45 @@ Layout: 3F MEETING ROOM B - casual brainstorm meeting room, GREEN accent color.
 - Corners: 2 tall potted plants
 Colors: fresh green + birch wood + cream. Creative, collaborative brainstorm atmosphere.`,
 
+  field_rest: `${COMMON}
+
+Layout: DRIVER/STAFF REST ROOM (乗務員詰所) - cozy break room for truck drivers and warehouse workers.
+- Walls: 4 solid walls enclosed room
+- Main area: L-shaped grey sofa + 2 armchairs around a rectangular low table, casual seating for 8 people
+- Upper wall: large TV screen mounted on wall, clock
+- Right wall: kitchenette with coffee maker, microwave, small sink, vending machine
+- Left wall: lockers (row of tall rectangles), noticeboard
+- Corner: small round table with 4 chairs for eating
+- Floor: easy-clean vinyl in warm grey, door at bottom
+- Corners: a couple of potted plants
+Colors: warm grey + beige + wood tones. Utilitarian but comfortable, working-class rest space.`,
+
+  field_work: `${COMMON}
+
+Layout: WAREHOUSE WORKSHOP FLOOR (倉庫作業室) - packing and sorting area.
+- Walls: concrete warehouse style, 4 solid walls
+- Main area: 3 long stainless steel work tables arranged in a U-shape, each with packaging supplies, boxes, tape dispensers, labels
+- Right wall: tall metal shelving with cardboard boxes stacked
+- Left wall: pallet stacking area, forklift charging station, hand trucks
+- Upper wall: roll-up shutter door (big grey rectangle) leading to loading bay
+- Floor: polished concrete with yellow safety line markings (but NO TEXT or letters)
+- 2 small standing desks with computers for inventory
+- A few potted plants near entrance
+Colors: industrial grey + yellow safety accents. Organized warehouse environment.`,
+
+  field_meet: `${COMMON}
+
+Layout: FIELD TEAM MEETING ROOM (現場ミーティング室) - for driver briefings and safety meetings.
+- Walls: 4 solid walls making an enclosed meeting room
+- Center: long rectangular table with 10-12 chairs around it (sturdy, simple chairs)
+- Upper wall: large whiteboard with route maps and schedules (NO TEXT visible, just abstract marks)
+- Right wall: safety notice board (plain corkboard), helmet/vest storage rack
+- Left wall: simple pinboard, clock
+- Lower wall: entrance door
+- Table top: notebooks, clipboards, water bottles, a tablet
+- Corners: 2 potted plants
+Colors: utilitarian beige walls + dark wood table + orange safety accents. Functional meeting space.`,
+
   meeting_c: `${COMMON}
 
 Layout: 3F LARGE CONFERENCE HALL - corporate all-hands meeting room seating ~30 people.
