@@ -1904,6 +1904,7 @@ function renderMemberList() {
   let onlineCount = 0;
   for (const uid in users) {
     const u = users[uid];
+    if (u.role === 'bot') continue; // BOT(受付AI)はリストに入れない
     if (u.role === 'admin' || u.employee_type === 'admin') groups.admin.members.push(u);
     else if (u.employee_type === 'field') groups.field.members.push(u);
     else groups.office.members.push(u);

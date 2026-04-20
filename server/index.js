@@ -280,6 +280,7 @@ function floorCountMap() {
   const map = {};
   for (const [, p] of presence) {
     if (p.status === 'offline') continue;
+    if (p.isBot) continue; // BOT(受付AI)は人数に含めない
     map[p.floor] = (map[p.floor] || 0) + 1;
   }
   return map;
