@@ -86,6 +86,30 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
+    <h2>🔍 チャットログ（内部統制モニタリング）<span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">全社員のフロア発言・直近60日</span></h2>
+    <div class="row">
+      <input type="text" id="chat-q" placeholder="キーワード検索">
+      <select id="chat-sender"><option value="">送信者すべて</option></select>
+      <input type="date" id="chat-since">
+      <input type="date" id="chat-until">
+      <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="chat-mention-only"> メンションのみ</label>
+      <button class="btn" onclick="loadChatLog(0)">検索</button>
+      <button class="btn btn-ghost" onclick="exportChatCsv()">CSV出力</button>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:6px;" id="chat-meta"></div>
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr><th style="width:140px;">日時</th><th style="width:160px;">送信者</th><th>内容</th><th style="width:60px;">メンション</th></tr></thead>
+        <tbody id="chat-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-ghost" id="chat-more-btn" onclick="loadChatLog(chatOffset + chatLimit, true)" style="display:none;">もっと読む</button>
+      <span style="font-size:11px;color:#94a3b8;">※この画面の閲覧履歴は監査対象です。検索・ダウンロード操作は記録されます。</span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>ユーザー一覧 <span id="user-count" style="color:#64748b;font-weight:400;font-size:13px;"></span></h2>
     <table>
       <thead><tr><th>ID</th><th>表示名</th><th>所属</th><th>権限</th><th>状態</th><th>操作</th></tr></thead>
@@ -141,12 +165,24 @@ function showPanel(user) {
   document.getElementById('panel').style.display = 'block';
   document.getElementById('who').textContent = user.display_name + '（管理者）';
   loadUsers();
+  loadChatLog(0);
 }
+
+let cachedUsers = [];
 
 async function loadUsers() {
   const r = await fetch('/api/admin/users', { headers:{'Authorization':'Bearer '+token} });
   const d = await r.json();
   if (!d.success) return;
+  cachedUsers = d.users;
+  // チャットログ検索の送信者セレクトも同期
+  const sel = document.getElementById('chat-sender');
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">送信者すべて</option>' +
+      d.users.map(u => `<option value="${u.id}">${escapeHtml(u.display_name)} (${escapeHtml(u.login_id)})</option>`).join('');
+    sel.value = cur;
+  }
   const tb = document.getElementById('user-tbody');
   tb.innerHTML = '';
   for (const u of d.users) {
@@ -224,6 +260,73 @@ async function delUser(id, name) {
 
 function escapeHtml(s) {
   return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ===== チャットログ（管理者向け） =====
+let chatOffset = 0;
+const chatLimit = 200;
+
+async function loadChatLog(offset, append) {
+  chatOffset = offset;
+  const q = document.getElementById('chat-q').value.trim();
+  const senderId = document.getElementById('chat-sender').value;
+  const since = document.getElementById('chat-since').value;
+  const until = document.getElementById('chat-until').value;
+  const onlyMention = document.getElementById('chat-mention-only').checked ? '1' : '';
+  const params = new URLSearchParams({ limit: chatLimit, offset });
+  if (q) params.set('q', q);
+  if (senderId) params.set('sender_id', senderId);
+  if (since) params.set('since', since);
+  if (until) params.set('until', until);
+  if (onlyMention) params.set('mention', '1');
+
+  const r = await fetch('/api/chat/admin/search?' + params.toString(), { headers:{'Authorization':'Bearer '+token} });
+  const d = await r.json();
+  const tb = document.getElementById('chat-tbody');
+  if (!d.success) { tb.innerHTML = '<tr><td colspan="4" style="color:#dc2626;">取得に失敗しました</td></tr>'; return; }
+  if (!append) tb.innerHTML = '';
+  for (const m of d.messages) {
+    const ts = new Date(m.created_at + 'Z');
+    const dstr = ts.toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const sender = (m.sender_name || '(不明)') + ' / ' + (m.sender_login || '');
+    const mention = m.has_mention ? '<span style="color:#dc2626;font-weight:700;">@</span>' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-size:11px;color:#64748b;white-space:nowrap;">${dstr}</td>
+                    <td style="font-size:12px;">${escapeHtml(sender)}</td>
+                    <td style="font-size:13px;word-break:break-word;">${escapeHtml(m.content)}</td>
+                    <td style="text-align:center;">${mention}</td>`;
+    tb.appendChild(tr);
+  }
+  document.getElementById('chat-meta').textContent = `${d.total}件中 ${Math.min(d.total, offset + d.messages.length)} 件表示`;
+  document.getElementById('chat-more-btn').style.display = (offset + d.messages.length < d.total) ? 'inline-block' : 'none';
+}
+
+async function exportChatCsv() {
+  const q = document.getElementById('chat-q').value.trim();
+  const senderId = document.getElementById('chat-sender').value;
+  const since = document.getElementById('chat-since').value;
+  const until = document.getElementById('chat-until').value;
+  const onlyMention = document.getElementById('chat-mention-only').checked ? '1' : '';
+  const params = new URLSearchParams({ limit: 10000, offset: 0 });
+  if (q) params.set('q', q);
+  if (senderId) params.set('sender_id', senderId);
+  if (since) params.set('since', since);
+  if (until) params.set('until', until);
+  if (onlyMention) params.set('mention', '1');
+  const r = await fetch('/api/chat/admin/search?' + params.toString(), { headers:{'Authorization':'Bearer '+token} });
+  const d = await r.json();
+  if (!d.success) { alert('取得失敗'); return; }
+  const rows = [['日時UTC','送信者ID','送信者名','ログインID','所属','メンション','内容']];
+  for (const m of d.messages) {
+    rows.push([m.created_at, m.sender_id, m.sender_name || '', m.sender_login || '', m.sender_company || '', m.has_mention ? '1' : '0', (m.content || '').replace(/[\r\n]+/g, ' ')]);
+  }
+  const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cohub_chatlog_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // 自動ログイン

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../services/db');
-const { authUser } = require('../middleware/auth');
+const { authUser, authAdmin } = require('../middleware/auth');
 
-// 自分の24h以内の会話履歴（本人のみ閲覧）
+// 自分の60日以内の会話履歴（本人のみ閲覧）
 router.get('/history', authUser, (req, res) => {
   const db = getDb();
   const rows = db.prepare(`
@@ -14,11 +14,64 @@ router.get('/history', authUser, (req, res) => {
     LEFT JOIN users us ON us.id = m.sender_id
     LEFT JOIN users ur ON ur.id = m.receiver_id
     WHERE (m.sender_id = ? OR m.receiver_id = ? OR m.receiver_id IS NULL)
-      AND m.created_at > datetime('now', '-24 hours')
+      AND m.created_at > datetime('now', '-60 days')
     ORDER BY m.created_at DESC
     LIMIT 500
   `).all(req.uid, req.uid);
   res.json({ success: true, messages: rows });
+});
+
+// フロア全体のチャット履歴 直近100件（全ユーザー）
+router.get('/recent', authUser, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT m.id, m.sender_id, m.content, m.has_mention, m.created_at,
+           u.display_name AS sender_name
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.sender_id
+    WHERE m.room_code = 'public' AND m.created_at > datetime('now', '-60 days')
+    ORDER BY m.created_at DESC
+    LIMIT ?
+  `).all(limit);
+  res.json({ success: true, messages: rows.reverse() });
+});
+
+// 管理者向け全文検索（内部統制モニタリング）
+router.get('/admin/search', authAdmin, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+  const q = (req.query.q || '').toString().trim();
+  const senderId = (req.query.sender_id || '').toString().trim();
+  const since = (req.query.since || '').toString().trim();
+  const until = (req.query.until || '').toString().trim();
+  const onlyMention = req.query.mention === '1';
+
+  let sql = `SELECT m.id, m.sender_id, m.content, m.room_code, m.has_mention, m.created_at,
+             u.display_name AS sender_name, u.login_id AS sender_login, u.company_code AS sender_company
+             FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE 1=1`;
+  const params = [];
+  if (q) { sql += ' AND m.content LIKE ?'; params.push('%' + q + '%'); }
+  if (senderId) { sql += ' AND m.sender_id = ?'; params.push(senderId); }
+  if (since) { sql += ' AND m.created_at >= ?'; params.push(since); }
+  if (until) { sql += " AND m.created_at <= ? || ' 23:59:59'"; params.push(until); }
+  if (onlyMention) { sql += ' AND m.has_mention = 1'; }
+  sql += ' ORDER BY m.created_at DESC LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+
+  const rows = getDb().prepare(sql).all(...params);
+
+  // 合計件数も返す
+  let countSql = 'SELECT COUNT(*) as c FROM messages m WHERE 1=1';
+  const countParams = [];
+  if (q) { countSql += ' AND m.content LIKE ?'; countParams.push('%' + q + '%'); }
+  if (senderId) { countSql += ' AND m.sender_id = ?'; countParams.push(senderId); }
+  if (since) { countSql += ' AND m.created_at >= ?'; countParams.push(since); }
+  if (until) { countSql += " AND m.created_at <= ? || ' 23:59:59'"; countParams.push(until); }
+  if (onlyMention) { countSql += ' AND m.has_mention = 1'; }
+  const totalRow = getDb().prepare(countSql).get(...countParams);
+
+  res.json({ success: true, messages: rows, total: totalRow.c });
 });
 
 module.exports = router;

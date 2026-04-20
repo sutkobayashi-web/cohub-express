@@ -27,16 +27,20 @@ CREATE TABLE IF NOT EXISTS positions (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- 近接チャット履歴（24h保持、本人のみ閲覧可）
+-- チャット履歴（60日保持、管理者は全文閲覧可）
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sender_id TEXT NOT NULL,
-  receiver_id TEXT,  -- NULL=近接全員、値あり=特定相手
+  receiver_id TEXT,       -- NULL=フロア全員、値あり=DM
   content TEXT NOT NULL,
+  room_code TEXT DEFAULT 'public',  -- public / private_xxx / dm
+  has_mention INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_code, created_at DESC);
 
 -- 会社マスタ
 CREATE TABLE IF NOT EXISTS companies (

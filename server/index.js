@@ -165,7 +165,7 @@ io.on('connection', (socket) => {
     io.emit('user:update', { uid, x: p.x, y: p.y, status: s });
   });
 
-  // 近接チャット（半径内にブロードキャスト、メンションは近接外でも届く）
+  // フロアチャット（全員配信。ログは60日保存、管理者閲覧可）
   socket.on('chat', (data) => {
     const content = (data.content || '').toString().trim().slice(0, 500);
     if (!content) return;
@@ -175,20 +175,19 @@ io.on('connection', (socket) => {
       ? data.mentions.filter(x => typeof x === 'string').slice(0, 50)
       : [];
 
-    // DB保存（本人のみ閲覧）
-    db.prepare('INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, NULL, ?)').run(uid, content);
+    // DB保存（全員閲覧可、管理者が内部統制モニタリング）
+    const hasMention = mentions.length > 0 ? 1 : 0;
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention) VALUES (?, NULL, ?, 'public', ?)").run(uid, content, hasMention);
 
-    const payload = { uid, content, x: sender.x, y: sender.y, at: new Date().toISOString(), mentions };
-    const mentionSet = new Set(mentions);
-    for (const [targetUid, p] of presence) {
-      if (targetUid === uid) { socket.emit('chat:msg', payload); continue; }
-      const dx = p.x - sender.x, dy = p.y - sender.y;
-      const inProximity = dx * dx + dy * dy <= PROXIMITY_RADIUS * PROXIMITY_RADIUS;
-      const isMentioned = mentionSet.has(targetUid);
-      if (!inProximity && !isMentioned) continue;
-      const s = io.sockets.sockets.get(p.socketId);
-      if (s) s.emit('chat:msg', payload);
-    }
+    const payload = {
+      id: ins.lastInsertRowid,
+      uid, content,
+      x: sender.x, y: sender.y,
+      at: new Date().toISOString(),
+      mentions
+    };
+    // フロア全員に配信
+    io.emit('chat:msg', payload);
   });
 
   // 既読通知を送信者に転送
@@ -212,10 +211,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// 24h より古いメッセージの自動削除（毎時）
+// 60日より古いメッセージの自動削除（毎時）
 setInterval(() => {
   try {
-    getDb().prepare("DELETE FROM messages WHERE created_at < datetime('now', '-24 hours')").run();
+    getDb().prepare("DELETE FROM messages WHERE created_at < datetime('now', '-60 days')").run();
   } catch (e) {}
 }, 60 * 60 * 1000);
 

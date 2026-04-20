@@ -251,6 +251,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
       <span class="dot"></span>
       <span>Main Floor</span>
       <span style="color:#94a3b8;font-weight:500;">・<span id="online-count">0</span>人オンライン</span>
+      <span style="font-weight:500;color:#64748b;font-size:11px;margin-left:4px;" title="フロア発言は60日保存され、管理者の内部統制モニタリング対象です">🔍 公開会話・ログ60日</span>
     </div>
     <div id="minimap">
       <canvas id="minimap-canvas"></canvas>
@@ -394,6 +395,7 @@ function enterSpace() {
   initCanvas();
   loadBackground();
   connectSocket();
+  loadRecentChat();
   // 初回ログインでアバター未設定なら促す
   if (!currentUser.avatar_url) {
     setTimeout(openAvatarModal, 600);
@@ -403,6 +405,27 @@ function enterSpace() {
   // OS通知の許可取得 (ユーザージェスチャー直後)
   requestNotifPermission();
   updateFaviconBadge(0);
+}
+
+// サーバーからフロアの直近100件を取得
+async function loadRecentChat() {
+  try {
+    const r = await fetch('/api/chat/recent?limit=100', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success || !Array.isArray(d.messages)) return;
+    const myUid = (currentUser && currentUser.uid) || me;
+    chatLog = d.messages.map(m => ({
+      id: 's_' + m.id,
+      uid: m.sender_id,
+      name: m.sender_name || '',
+      content: m.content,
+      at: m.created_at + 'Z',
+      self: m.sender_id === myUid,
+      mention: !!m.has_mention,
+    }));
+    saveChatLog();
+    if (currentTab === 'chat') renderChatLog();
+  } catch (e) {}
 }
 
 function initCanvas() {
