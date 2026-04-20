@@ -157,7 +157,30 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 </div>
 
 <script>
-let token = localStorage.getItem('cohub_admin_token') || '';
+let token = localStorage.getItem('cohub_admin_token') || localStorage.getItem('cohub_token') || '';
+
+// グローバル fetch wrap: /api/ で 401/403 時に自動ログアウト
+(function() {
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = async function(url, opts) {
+    const r = await _origFetch(url, opts);
+    try {
+      if ((r.status === 401 || r.status === 403) && typeof url === 'string' && url.indexOf('/api/') === 0) {
+        localStorage.removeItem('cohub_admin_token');
+        localStorage.removeItem('cohub_admin_user');
+        const lb = document.getElementById('login-box');
+        const pn = document.getElementById('panel');
+        if (lb) lb.style.display = 'block';
+        if (pn) pn.style.display = 'none';
+        const err = document.getElementById('adm-err');
+        if (err && !err.textContent.includes('セッション')) {
+          err.textContent = 'セッションが切れています (' + r.status + ')。再ログインしてください';
+        }
+      }
+    } catch (e) {}
+    return r;
+  };
+})();
 
 const COMPANY_MAP = {
   'SU_HQ':       { name: 'SU本社',   color: '#1f2937' },
@@ -186,6 +209,9 @@ async function doAdminLogin() {
     token = d.token;
     localStorage.setItem('cohub_admin_token', token);
     localStorage.setItem('cohub_admin_user', JSON.stringify(d.user));
+    // メイン画面とトークン共有 (別タブ/別画面でも有効)
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
     showPanel(d.user);
   } catch(e) { err.textContent = '通信エラー'; }
 }
