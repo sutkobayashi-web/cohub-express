@@ -205,6 +205,25 @@ io.use((socket, next) => {
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
 
+// ハドルゾーン定義 (フロア毎・座標は world 座標)
+// zone内のユーザーは独立した音声グループを形成 (フロア外の人には聞こえない)
+const HUDDLE_ZONES = {
+  office: [
+    { code: 'huddle_a', name: '🎙️ ハドル席', x1: 1050, y1: 30, x2: 1300, y2: 220 },
+  ],
+};
+
+function getVoiceGroup(p) {
+  if (!p) return '';
+  const zones = HUDDLE_ZONES[p.floor] || [];
+  for (const z of zones) {
+    if (p.x >= z.x1 && p.x <= z.x2 && p.y >= z.y1 && p.y <= z.y2) {
+      return p.floor + ':' + z.code;
+    }
+  }
+  return p.floor + ':open';
+}
+
 function allFloors() {
   const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, approval_mode, building FROM floors ORDER BY sort_order').all();
   return rows.map(r => ({ ...r, locked: !!r.locked, approval_mode: !!r.approval_mode }));
@@ -303,6 +322,7 @@ io.on('connection', (socket) => {
       floor,
       floors: allFloors(),
       floor_counts: floorCountMap(),
+      huddle_zones: HUDDLE_ZONES[floor.code] || [],
     });
   };
   sendSnapshot();
@@ -428,6 +448,7 @@ io.on('connection', (socket) => {
       floor: target,
       floors: allFloors(),
       floor_counts: floorCountMap(),
+      huddle_zones: HUDDLE_ZONES[target.code] || [],
     });
     io.emit('floor:counts', floorCountMap());
   });
@@ -438,10 +459,33 @@ io.on('connection', (socket) => {
     if (!p) return;
     const f = getFloor(p.floor) || floor;
     const np = clampForFloor(f, data.x, data.y);
+    const oldGroup = p.voiceOn ? getVoiceGroup(p) : null;
     p.x = np.x; p.y = np.y;
     db.prepare(`INSERT INTO positions (user_id, x, y, floor_code) VALUES (?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, floor_code=excluded.floor_code, updated_at=datetime('now')`).run(uid, p.x, p.y, p.floor);
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: p.status });
+    // ハドルゾーン跨ぎ判定 (音声ON時のみ)
+    if (p.voiceOn) {
+      const newGroup = getVoiceGroup(p);
+      if (oldGroup !== newGroup) {
+        // 旧グループの音声参加者にピア切断指示 (mic状態は変えない)
+        for (const [u, v] of presence) {
+          if (u === uid) continue;
+          if (v.floor !== p.floor || !v.voiceOn) continue;
+          if (getVoiceGroup(v) === oldGroup) {
+            const s = io.sockets.sockets.get(v.socketId);
+            if (s) s.emit('voice:peer-drop', { uid });
+          }
+        }
+        // 本人にピア再構築指示 (新グループのpeer一覧)
+        const peers = [];
+        for (const [u, v] of presence) {
+          if (u === uid) continue;
+          if (v.voiceOn && v.floor === p.floor && v.status !== 'offline' && getVoiceGroup(v) === newGroup) peers.push(u);
+        }
+        socket.emit('voice:regroup', { peers, group: newGroup });
+      }
+    }
   });
 
   // ステータス + 自由文
@@ -636,11 +680,12 @@ io.on('connection', (socket) => {
     if (!p) return;
     p.voiceOn = true;
     io.to('floor:' + p.floor).emit('voice:state', { uid, on: true });
-    // 既に参加中の同フロアメンバー一覧を本人に返す (本人がofferを作る)
+    // 既に参加中の同フロア+同グループメンバー一覧を本人に返す (本人がofferを作る)
+    const myGroup = getVoiceGroup(p);
     const peers = [];
     for (const [u, v] of presence) {
       if (u === uid) continue;
-      if (v.voiceOn && v.floor === p.floor && v.status !== 'offline') peers.push(u);
+      if (v.voiceOn && v.floor === p.floor && v.status !== 'offline' && getVoiceGroup(v) === myGroup) peers.push(u);
     }
     socket.emit('voice:peers', { peers });
   });
@@ -652,11 +697,13 @@ io.on('connection', (socket) => {
     io.to('floor:' + p.floor).emit('voice:state', { uid, on: false });
   });
 
-  // シグナリング: offer / answer / ice を指定peerへ転送
+  // シグナリング: offer / answer / ice を指定peerへ転送 (異グループ間はブロック)
   socket.on('voice:signal', (data) => {
     if (!data || !data.to) return;
+    const sender = presence.get(uid);
     const target = presence.get(data.to);
-    if (!target) return;
+    if (!sender || !target) return;
+    if (getVoiceGroup(sender) !== getVoiceGroup(target)) return; // 異グループは中継しない
     const s = io.sockets.sockets.get(target.socketId);
     if (!s) return;
     s.emit('voice:signal', {
@@ -666,11 +713,18 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 話者インジケータ (発話検知時)
+  // 話者インジケータ (発話検知時) ※ 同グループのみに伝播 (ハドルプライバシー)
   socket.on('voice:speaking', (data) => {
     const p = presence.get(uid);
     if (!p) return;
-    io.to('floor:' + p.floor).emit('voice:speaking', { uid, on: !!(data && data.on) });
+    const myGroup = getVoiceGroup(p);
+    for (const [u, v] of presence) {
+      if (u === uid) continue;
+      if (v.floor !== p.floor) continue;
+      if (getVoiceGroup(v) !== myGroup) continue;
+      const s = io.sockets.sockets.get(v.socketId);
+      if (s) s.emit('voice:speaking', { uid, on: !!(data && data.on) });
+    }
   });
 
   // 画面共有 状態通知 (情報表示のみ)

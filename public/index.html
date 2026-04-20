@@ -823,6 +823,8 @@ let WORLD_H = 768;
 let currentFloor = null;   // { code, name, bg_image, world_w, world_h, icon }
 let allFloors = [];
 let floorCounts = {};
+let huddleZones = [];      // [{ code, name, x1, y1, x2, y2 }]
+let myHuddleCode = null;   // 現在自分が居るハドルゾーンcode (なければnull)
 let viewScale = 1; // 実表示に対するスケール
 
 // ドラッグ状態
@@ -1013,6 +1015,8 @@ function connectSocket() {
     }
     if (Array.isArray(data.floors)) allFloors = data.floors;
     if (data.floor_counts) floorCounts = data.floor_counts;
+    huddleZones = Array.isArray(data.huddle_zones) ? data.huddle_zones : [];
+    myHuddleCode = null; // フロア切替で再判定
     renderRailFloors();
     // ユーザー
     users = {};
@@ -1064,6 +1068,35 @@ function connectSocket() {
       }
       removeVideoTile(data.uid);
       if (users[data.uid]) users[data.uid].speaking = false;
+    }
+  });
+
+  // ハドルゾーン跨ぎでピア1件のみ切断 (相手のmic状態は変えない)
+  socket.on('voice:peer-drop', (data) => {
+    if (!data || !data.uid) return;
+    const peer = voice.peers.get(data.uid);
+    if (peer) {
+      try { peer.pc.close(); } catch (e) {}
+      try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; peer.audio.remove(); } } catch (e) {}
+      voice.peers.delete(data.uid);
+    }
+    if (users[data.uid]) users[data.uid].speaking = false;
+  });
+
+  // 自分がゾーン跨ぎした → 全ピア破棄して新グループpeerに再オファー
+  socket.on('voice:regroup', async (data) => {
+    if (!voice.enabled) return;
+    // 全ピア破棄
+    for (const [, peer] of voice.peers) {
+      try { peer.pc.close(); } catch (e) {}
+      try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; peer.audio.remove(); } } catch (e) {}
+    }
+    voice.peers.clear();
+    // 新グループpeerにoffer
+    if (Array.isArray(data.peers)) {
+      for (const peerUid of data.peers) {
+        if (peerUid !== me) await callPeerAsOfferer(peerUid);
+      }
     }
   });
 
@@ -1494,6 +1527,28 @@ function render() {
     ctx.restore();
   }
 
+  // ハドルゾーン (紫枠 + ラベル)
+  for (const z of huddleZones) {
+    const w = z.x2 - z.x1, h = z.y2 - z.y1;
+    ctx.fillStyle = 'rgba(139,92,246,0.07)';
+    ctx.fillRect(z.x1, z.y1, w, h);
+    ctx.strokeStyle = 'rgba(139,92,246,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(z.x1, z.y1, w, h);
+    ctx.setLineDash([]);
+    // ラベル
+    ctx.font = '600 13px sans-serif';
+    const tw = ctx.measureText(z.name).width + 16;
+    ctx.fillStyle = 'rgba(139,92,246,0.95)';
+    roundRect(z.x1 + 8, z.y1 + 8, tw, 22, 11);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(z.name, z.x1 + 16, z.y1 + 19);
+  }
+
   // 近接範囲（自分中心）
   if (me && users[me]) {
     const u = users[me];
@@ -1506,6 +1561,20 @@ function render() {
     ctx.setLineDash([6, 6]);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  // 自分のハドルゾーン在籍判定 + 入退場トースト
+  if (me && users[me]) {
+    const cur = userHuddleCode(users[me]);
+    if (cur !== myHuddleCode) {
+      if (cur && !myHuddleCode) {
+        const z = huddleZones.find(z => z.code === cur);
+        if (z) showToast('🎙️ ハドル席に入りました — 外には聞こえません');
+      } else if (!cur && myHuddleCode) {
+        showToast('オープンフロアに戻りました');
+      }
+      myHuddleCode = cur;
+    }
   }
 
   // アバター群
@@ -1549,6 +1618,14 @@ function drawAvatar(u) {
   ctx.save();
   // フェードイン不透明度
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
+  // ハドル所属外周リング (紫)
+  if (huddleZones.length && userHuddleCode(u)) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 7, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(139,92,246,0.85)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
   // 話者パルスリング (voice.speaking時)
   if (u.speaking) {
     const phase = (Date.now() % 900) / 900;
@@ -3914,6 +3991,15 @@ function setStatus(s) {
   dot.style.boxShadow = '0 0 0 1px ' + color;
   document.getElementById('status-menu').classList.remove('show');
   if (users[me]) users[me].status = s;
+}
+
+// ===== 🎙️ ハドルゾーン =====
+function userHuddleCode(u) {
+  if (!u || u.cx == null) return null;
+  for (const z of huddleZones) {
+    if (u.cx >= z.x1 && u.cx <= z.x2 && u.cy >= z.y1 && u.cy <= z.y2) return z.code;
+  }
+  return null;
 }
 
 // ===== 👋 ピアアクション (肩たたき) =====
