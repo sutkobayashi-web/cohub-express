@@ -165,25 +165,29 @@ io.on('connection', (socket) => {
     io.emit('user:update', { uid, x: p.x, y: p.y, status: s });
   });
 
-  // 近接チャット（半径内にブロードキャスト）
+  // 近接チャット（半径内にブロードキャスト、メンションは近接外でも届く）
   socket.on('chat', (data) => {
     const content = (data.content || '').toString().trim().slice(0, 500);
     if (!content) return;
     const sender = presence.get(uid);
     if (!sender) return;
+    const mentions = Array.isArray(data.mentions)
+      ? data.mentions.filter(x => typeof x === 'string').slice(0, 50)
+      : [];
 
     // DB保存（本人のみ閲覧）
     db.prepare('INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, NULL, ?)').run(uid, content);
 
-    const payload = { uid, content, x: sender.x, y: sender.y, at: new Date().toISOString() };
-    // 近接者にだけ配信
+    const payload = { uid, content, x: sender.x, y: sender.y, at: new Date().toISOString(), mentions };
+    const mentionSet = new Set(mentions);
     for (const [targetUid, p] of presence) {
       if (targetUid === uid) { socket.emit('chat:msg', payload); continue; }
       const dx = p.x - sender.x, dy = p.y - sender.y;
-      if (dx * dx + dy * dy <= PROXIMITY_RADIUS * PROXIMITY_RADIUS) {
-        const s = io.sockets.sockets.get(p.socketId);
-        if (s) s.emit('chat:msg', payload);
-      }
+      const inProximity = dx * dx + dy * dy <= PROXIMITY_RADIUS * PROXIMITY_RADIUS;
+      const isMentioned = mentionSet.has(targetUid);
+      if (!inProximity && !isMentioned) continue;
+      const s = io.sockets.sockets.get(p.socketId);
+      if (s) s.emit('chat:msg', payload);
     }
   });
 
