@@ -9,6 +9,8 @@ const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+let webpush = null;
+try { webpush = require('web-push'); } catch (e) { console.warn('web-push未インストール'); }
 const { getDb } = require('./services/db');
 
 // TURN サーバー認証情報を起動時に読み込み
@@ -16,6 +18,36 @@ let TURN_PASSWORD = '';
 try { TURN_PASSWORD = fs.readFileSync(path.join(__dirname, '..', '.turn_password'), 'utf-8').trim(); } catch (e) {}
 const TURN_HOST = process.env.TURN_HOST || '163.44.98.179';
 const TURN_USER = process.env.TURN_USER || 'cohubuser';
+
+// VAPID (Push通知)
+if (webpush && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT || 'mailto:admin@cohub.biz-terrace.org',
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+  } catch (e) { console.warn('VAPID初期化失敗', e.message); }
+}
+
+async function sendPushToUser(uid, payload) {
+  if (!webpush || !process.env.VAPID_PUBLIC_KEY) return;
+  const subs = getDb().prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?').all(uid);
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification({
+        endpoint: s.endpoint,
+        keys: { p256dh: s.p256dh, auth: s.auth }
+      }, JSON.stringify(payload), { TTL: 60 });
+    } catch (e) {
+      if (e.statusCode === 410 || e.statusCode === 404) {
+        getDb().prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(s.endpoint);
+      } else {
+        console.warn('push send err', uid, e.statusCode || e.message);
+      }
+    }
+  }
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -89,6 +121,39 @@ app.post('/api/bootstrap', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// ===== PWAプッシュ通知 =====
+app.get('/api/push/vapid', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || '' });
+});
+
+app.post('/api/push/subscribe', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ success: false });
+  let uid;
+  try { uid = jwt.verify(token, process.env.JWT_SECRET).uid; }
+  catch (e) { return res.status(401).json({ success: false }); }
+  const sub = req.body && req.body.subscription;
+  if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
+    return res.status(400).json({ success: false });
+  }
+  try {
+    getDb().prepare('INSERT OR REPLACE INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)')
+      .run(uid, sub.endpoint, sub.keys.p256dh, sub.keys.auth);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, msg: e.message }); }
+});
+
+app.post('/api/push/unsubscribe', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ success: false });
+  let uid;
+  try { uid = jwt.verify(token, process.env.JWT_SECRET).uid; }
+  catch (e) { return res.status(401).json({ success: false }); }
+  const endpoint = req.body && req.body.endpoint;
+  if (endpoint) getDb().prepare('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?').run(uid, endpoint);
+  res.json({ success: true });
+});
 
 // ICE サーバー情報（認証ユーザーのみ。TURN認証情報を漏洩しない）
 app.get('/api/voice/ice-servers', (req, res) => {
@@ -350,6 +415,20 @@ io.on('connection', (socket) => {
       attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
     };
     io.to('floor:' + sender.floor).emit('chat:msg', payload);
+    // メンション対象には Push (タブ閉じてても届く)
+    if (mentions.length) {
+      const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+      for (const targetUid of mentions) {
+        if (targetUid === uid) continue;
+        sendPushToUser(targetUid, {
+          title: '[メンション] ' + senderName,
+          body: content.slice(0, 120),
+          tag: 'mention-' + uid,
+          mention: true,
+          url: '/',
+        }).catch(() => {});
+      }
+    }
   });
 
   // DM (1対1ダイレクトメッセージ、添付対応)
@@ -380,6 +459,15 @@ io.on('connection', (socket) => {
       const s = io.sockets.sockets.get(tp.socketId);
       if (s) s.emit('dm:msg', payload);
     }
+    // Pushプッシュ通知 (相手が非アクティブでも届く)
+    const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+    sendPushToUser(to, {
+      title: 'DM: ' + senderName,
+      body: (content || '').slice(0, 120) || '📎 添付ファイル',
+      tag: 'dm-' + uid,
+      mention: true,
+      url: '/',
+    }).catch(() => {});
   });
 
   // 既読通知を送信者に転送（同フロアのみ意味あり）

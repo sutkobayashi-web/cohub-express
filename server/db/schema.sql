@@ -63,6 +63,18 @@ INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order
   ('meeting_b', '3F 会議室B',        '/assets/floor_meeting_b.png', 1344, 768, 4, '🅱'),
   ('meeting_c', '3F 大会議室',       '/assets/floor_meeting_c.png', 1344, 768, 5, '🏛');
 
+-- PWA プッシュ通知 購読情報
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(user_id, endpoint)
+);
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
+
 -- ホワイトボード (会議室毎に共有テキスト。会議室コード = primary key)
 CREATE TABLE IF NOT EXISTS whiteboards (
   room_code TEXT PRIMARY KEY,
