@@ -650,6 +650,8 @@ function connectSocket() {
       users[u.uid].cx = u.x != null ? u.x : WORLD_W / 2;
       users[u.uid].cy = u.y != null ? u.y : WORLD_H / 2;
       targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
+      // 自分のみフェードインで入場 (他人は既にいた人たち、不透明)
+      users[u.uid].opacity = (u.uid === me) ? 0 : 1;
       if (u.uid === me) { myX = users[u.uid].cx; myY = users[u.uid].cy; }
       if (u.avatar && !avatarImages[u.uid]) loadAvatar(u);
     }
@@ -763,6 +765,8 @@ function connectSocket() {
     users[u.uid].cx = u.x != null ? u.x : WORLD_W / 2;
     users[u.uid].cy = u.y != null ? u.y : WORLD_H / 2;
     targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
+    // 入場者をフェードインで登場
+    users[u.uid].opacity = 0;
     if (u.avatar) loadAvatar(u);
     renderMemberList();
   });
@@ -922,6 +926,13 @@ function render() {
     u.cx += (dx / dist) * step;
     u.cy += (dy / dist) * step;
   }
+  // フェードイン (opacity < 1 を漸増)
+  for (const uid in users) {
+    const u = users[uid];
+    if (u.opacity != null && u.opacity < 1) {
+      u.opacity = Math.min(1, u.opacity + 0.035);
+    }
+  }
 
   const r = canvas.getBoundingClientRect();
   const w = r.width, h = r.height;
@@ -993,6 +1004,8 @@ function drawAvatar(u) {
   const cx = Math.round(u.cx);
   const cy = Math.round(u.cy);
   ctx.save();
+  // フェードイン不透明度
+  if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
   // 話者パルスリング (voice.speaking時)
   if (u.speaking) {
     const phase = (Date.now() % 900) / 900;

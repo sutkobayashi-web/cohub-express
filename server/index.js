@@ -139,11 +139,18 @@ io.use((socket, next) => {
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 
 function allFloors() {
-  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, sort_order, icon FROM floors ORDER BY sort_order').all();
+  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon FROM floors ORDER BY sort_order').all();
 }
 
 function getFloor(code) {
-  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, sort_order, icon FROM floors WHERE code = ?').get(code);
+  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon FROM floors WHERE code = ?').get(code);
+}
+
+// 入口座標 (未設定時はワールド中央下部)
+function entryPoint(floor) {
+  const ex = (floor && floor.entry_x != null) ? floor.entry_x : Math.floor((floor.world_w || 1344) / 2);
+  const ey = (floor && floor.entry_y != null) ? floor.entry_y : ((floor.world_h || 768) - 90);
+  return { x: ex, y: ey };
 }
 
 function floorCountMap() {
@@ -237,9 +244,10 @@ io.on('connection', (socket) => {
     // 旧フロアから leave、旧メンバーに「退室」を通知
     socket.leave('floor:' + oldFloor);
     io.to('floor:' + oldFloor).emit('user:leave', { uid });
-    // 新フロア
+    // 新フロア: 入口位置に配置
     p.floor = target.code;
-    const np = clampForFloor(target, target.world_w / 2, target.world_h / 2);
+    const entry = entryPoint(target);
+    const np = clampForFloor(target, entry.x, entry.y);
     p.x = np.x; p.y = np.y;
     db.prepare(`INSERT INTO positions (user_id, x, y, floor_code) VALUES (?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, floor_code=excluded.floor_code, updated_at=datetime('now')`).run(uid, p.x, p.y, target.code);

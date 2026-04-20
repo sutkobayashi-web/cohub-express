@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS floors (
   bg_image TEXT NOT NULL,
   world_w INTEGER NOT NULL DEFAULT 1344,
   world_h INTEGER NOT NULL DEFAULT 768,
+  entry_x INTEGER,  -- 入口座標 (NULL時はワールド中央下部)
+  entry_y INTEGER,
   sort_order INTEGER DEFAULT 0,
   icon TEXT DEFAULT ''
 );
