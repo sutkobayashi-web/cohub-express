@@ -36,18 +36,19 @@ Style: welcoming, spacious, bright, corporate entrance hall feeling. Polished wo
 
   office: `${COMMON}
 
-Layout: 2F office floor with 30 desks for administrative staff.
+Layout: 2F OPEN OFFICE floor for administrative staff, with SPACIOUS desk layout.
 - Upper wall: 3-4 large windows
 - Lower wall: staircase and elevator entrance
-- Main area: 6 rows × 5 columns = 30 rectangular work desks arranged in a grid (aisles between rows)
-- Each desk top shows: wooden desktop rectangle, 2 dark rectangular monitor tops, a small circle chair behind it, maybe a coffee cup or document
+- Main area: **15 desks total** arranged as **3 ROWS × 5 COLUMNS** grid
+- **WIDE SPACING between desks**: at least one desk-width of empty aisle between rows and between individual desks (enough room for a chair and a person to stand/walk comfortably)
+- Each desk top shows: wooden desktop rectangle (~120x70 pixels apparent), 2 dark rectangular monitor tops, a small circle chair behind it, optional coffee cup or document
 - Right wall: filing cabinets (tall rectangles) and a printer
 - Left wall: whiteboard + notice boards
-- Corners: potted plants
-- Narrow walking aisles (about desk-width apart)
+- 4 corners: large potted plants (green circles)
 - A small breakroom cutout in top-right corner with round table and 2 chairs
+- Plenty of empty floor space between desk clusters - NOT cramped
 
-Colors: beige/white desks, dark grey monitors, grey chairs, green plants. Organized, professional, empty office scene.`,
+Colors: beige/white desks, dark grey monitors, grey chairs, green plants. Organized, professional, empty office scene with comfortable personal space per desk.`,
 
   meeting_a: `${COMMON}
 
