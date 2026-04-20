@@ -47,6 +47,14 @@ INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order
   ('meeting_b', '3F 会議室B',        '/assets/floor_meeting_b.png', 1344, 768, 4, '🅱'),
   ('meeting_c', '3F 会議室C',        '/assets/floor_meeting_c.png', 1344, 768, 5, '🅲');
 
+-- ホワイトボード (会議室毎に共有テキスト。会議室コード = primary key)
+CREATE TABLE IF NOT EXISTS whiteboards (
+  room_code TEXT PRIMARY KEY,
+  content TEXT DEFAULT '',
+  updated_by TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 -- 会議録音 (管理者のみ閲覧)
 CREATE TABLE IF NOT EXISTS recordings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -395,6 +395,16 @@ io.on('connection', (socket) => {
     io.to('floor:' + p.floor).emit('screen:state', { uid, on: !!(data && data.on) });
   });
 
+  // ホワイトボード 共同編集
+  socket.on('wb:update', (data) => {
+    const content = (data && data.content || '').toString().slice(0, 100000);
+    const p = presence.get(uid); if (!p) return;
+    const room = p.floor;
+    getDb().prepare(`INSERT INTO whiteboards (room_code, content, updated_by, updated_at) VALUES (?, ?, ?, datetime('now'))
+      ON CONFLICT(room_code) DO UPDATE SET content=excluded.content, updated_by=excluded.updated_by, updated_at=datetime('now')`).run(room, content, uid);
+    socket.to('floor:' + room).emit('wb:update', { content, from: uid, at: new Date().toISOString() });
+  });
+
   // 録音 状態通知 (管理者のみ、同フロアに通知＝被録音者に開示)
   socket.on('recording:state', (data) => {
     if (socket.role !== 'admin') return;

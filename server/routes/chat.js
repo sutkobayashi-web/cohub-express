@@ -116,4 +116,10 @@ router.get('/floors', authUser, (req, res) => {
   res.json({ success: true, floors: rows });
 });
 
+// ホワイトボード内容取得 (会議室入室時)
+router.get('/wb/:room', authUser, (req, res) => {
+  const row = getDb().prepare('SELECT content, updated_at, updated_by FROM whiteboards WHERE room_code = ?').get(req.params.room);
+  res.json({ success: true, content: row ? row.content : '', updated_at: row ? row.updated_at : null });
+});
+
 module.exports = router;

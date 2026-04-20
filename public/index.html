@@ -138,6 +138,32 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dock-btn .vol-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 40px; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; }
 .dock-btn .vol-bar i { display: block; height: 100%; width: 0%; background: #10b981; transition: width 0.06s linear; }
 
+/* 会議室レイアウト (body.layout-meeting) */
+#meeting-panel { position: absolute; top: 0; right: 280px; bottom: 88px; width: 46%; min-width: 360px; background: #f8fafc; display: none; flex-direction: column; border-left: 1px solid rgba(15,23,42,0.08); z-index: 8; transition: right 0.25s ease; }
+#right-panel.hidden ~ #meeting-panel { right: 0; }
+body.layout-meeting #meeting-panel { display: flex; }
+body.layout-meeting #space-canvas-wrap { right: calc(46% + 280px); }
+body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 46%; }
+.mp-head { padding: 10px 14px; border-bottom: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; font-size: 13px; background: #fff; }
+#video-grid { flex: 1; min-height: 160px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px; padding: 6px; overflow-y: auto; background: #0f172a; align-content: start; }
+.v-tile { position: relative; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+.v-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.v-tile .v-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.4); font-size: 28px; }
+.v-tile .v-name { position: absolute; bottom: 4px; left: 6px; color: #fff; font-size: 10px; background: rgba(0,0,0,0.55); padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.v-tile.self .v-name { background: rgba(6,182,212,0.9); }
+.v-grid-empty { color: rgba(255,255,255,0.5); padding: 40px 20px; text-align: center; font-size: 12px; grid-column: 1 / -1; }
+#whiteboard { height: 44%; min-height: 180px; background: #fff; border-top: 1px solid rgba(15,23,42,0.08); padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+#whiteboard .wb-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 1px; }
+#whiteboard textarea { flex: 1; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 13px; resize: none; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; line-height: 1.5; outline: none; background: #fffef5; }
+#whiteboard textarea:focus { border-color: #06b6d4; background: #fff; }
+#whiteboard .wb-status { font-size: 10px; color: #94a3b8; }
+
+@media (max-width: 1000px) {
+  body.layout-meeting #meeting-panel { right: 0; width: 100%; top: auto; bottom: 88px; height: 50%; }
+  body.layout-meeting #space-canvas-wrap { right: 280px; bottom: calc(50% + 88px); }
+  body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
+}
+
 /* 画面共有受信オーバーレイ */
 .screen-overlay { position: fixed; top: 60px; left: 80px; right: 300px; bottom: 110px; background: #000; border-radius: 12px; overflow: hidden; z-index: 40; box-shadow: 0 20px 60px rgba(0,0,0,0.5); display: flex; }
 .screen-overlay video { width: 100%; height: 100%; object-fit: contain; background: #000; }
@@ -310,6 +336,16 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     <div class="panel-body chat-list hidden" id="chat-list"></div>
   </div>
 
+  <!-- 会議室パネル (ビデオ + ホワイトボード) -->
+  <div id="meeting-panel">
+    <div class="mp-head">📹 ビデオ会議 <span style="color:#94a3b8;font-weight:500;font-size:11px;" id="mp-room-name"></span></div>
+    <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
+    <div id="whiteboard">
+      <div class="wb-head"><span>🖊 ホワイトボード (共同編集)</span><span class="wb-status" id="wb-status"></span></div>
+      <textarea id="wb-text" placeholder="議事メモ・アジェンダ・共有事項を入力… (全員とリアルタイム共有)"></textarea>
+    </div>
+  </div>
+
   <!-- キャンバス領域 -->
   <div id="space-canvas-wrap">
     <canvas id="space-canvas"></canvas>
@@ -329,6 +365,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
   <div id="dock">
     <button class="dock-btn" id="dock-mic" onclick="toggleMic()" title="マイク">🎤<div class="sub">マイク</div></button>
     <button class="dock-btn" id="dock-speaker" onclick="toggleSpeaker()" title="スピーカー">🔊<div class="sub">音量</div></button>
+    <button class="dock-btn" id="dock-camera" onclick="toggleCamera()" title="ビデオ会議" style="display:none;">📹<div class="sub">カメラ</div></button>
     <button class="dock-btn" id="dock-screen" onclick="toggleScreenShare()" title="画面共有">🖥️<div class="sub">画面共有</div></button>
     <button class="dock-btn" id="dock-rec" onclick="toggleRecording()" title="会議録音 (管理者のみ)" style="display:none;">🔴<div class="sub">録音</div></button>
     <div class="dock-sep"></div>
@@ -550,6 +587,7 @@ function initCanvas() {
     }
   });
   setupMentionSuggest();
+  initWhiteboard();
   const dmInput = document.getElementById('dm-input');
   if (dmInput) dmInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDM(); });
 
@@ -642,6 +680,7 @@ function connectSocket() {
       const fname = document.getElementById('floor-name');
       if (fname) fname.textContent = (data.floor.icon ? data.floor.icon + ' ' : '') + data.floor.name;
       loadBackground(data.floor.bg_image);
+      applyFloorLayout(data.floor);
       resize();
     }
     if (Array.isArray(data.floors)) allFloors = data.floors;
@@ -695,6 +734,7 @@ function connectSocket() {
         try { if (peer.audio) { peer.audio.pause(); peer.audio.srcObject = null; peer.audio.remove(); } } catch (e) {}
         voice.peers.delete(data.uid);
       }
+      removeVideoTile(data.uid);
       if (users[data.uid]) users[data.uid].speaking = false;
     }
   });
@@ -736,6 +776,18 @@ function connectSocket() {
     if (data && data.on) {
       showToast('🔴 この会話は管理者により録音されています');
     }
+  });
+
+  // ホワイトボード同期
+  socket.on('wb:update', (m) => {
+    const ta = document.getElementById('wb-text');
+    if (!ta) return;
+    if (document.activeElement === ta) return; // 自分が編集中なら上書きしない
+    wbApplyingRemote = true;
+    ta.value = m.content || '';
+    const st = document.getElementById('wb-status');
+    if (st) st.textContent = '更新: ' + new Date(m.at).toLocaleTimeString('ja-JP');
+    setTimeout(() => { wbApplyingRemote = false; }, 50);
   });
 
   // DM着信
@@ -1884,10 +1936,15 @@ async function getOrCreatePeer(peerUid) {
   pc.ontrack = (e) => {
     const track = e.track;
     if (track.kind === 'video') {
-      // 画面共有
       const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([track]);
-      handleIncomingScreen(peerUid, stream);
-      track.onended = () => removeIncomingScreen(peerUid);
+      // 会議室フロアではビデオタイルに、その他では画面共有オーバーレイに
+      if (document.body.classList.contains('layout-meeting')) {
+        addVideoTile(peerUid, stream, false);
+        track.onended = () => removeVideoTile(peerUid);
+      } else {
+        handleIncomingScreen(peerUid, stream);
+        track.onended = () => removeIncomingScreen(peerUid);
+      }
       return;
     }
     const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([track]);
@@ -1912,6 +1969,152 @@ async function getOrCreatePeer(peerUid) {
   const obj = { pc, audio, uid: peerUid };
   voice.peers.set(peerUid, obj);
   return obj;
+}
+
+// ===== カメラ / ビデオ会議 =====
+const camera = { enabled: false, stream: null };
+
+async function toggleCamera() {
+  if (camera.enabled) { await disableCamera(); return; }
+  if (!voice.enabled) {
+    showToast('先にマイクONにしてください');
+    await enableVoice();
+    if (!voice.enabled) return;
+  }
+  await enableCamera();
+}
+
+async function enableCamera() {
+  try {
+    camera.stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 20 } },
+      audio: false,
+    });
+  } catch (e) { showToast('カメラの許可が必要です'); return; }
+  camera.enabled = true;
+  const track = camera.stream.getVideoTracks()[0];
+  // 全peerに追加 + 再交渉
+  for (const [peerUid, peer] of voice.peers) {
+    try {
+      peer.cameraSender = peer.pc.addTrack(track, camera.stream);
+      const offer = await peer.pc.createOffer();
+      await peer.pc.setLocalDescription(offer);
+      socket.emit('voice:signal', { to: peerUid, type: 'offer', payload: peer.pc.localDescription });
+    } catch (e) { console.warn('camera offer err', e); }
+  }
+  addVideoTile(me, camera.stream, true);
+  track.onended = () => disableCamera();
+  const btn = document.getElementById('dock-camera');
+  if (btn) { btn.classList.add('on'); btn.innerHTML = '🎥<div class="sub">カメラOFF</div>'; }
+}
+
+async function disableCamera() {
+  camera.enabled = false;
+  try { if (camera.stream) camera.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+  camera.stream = null;
+  for (const [peerUid, peer] of voice.peers) {
+    if (peer.cameraSender) {
+      try { peer.pc.removeTrack(peer.cameraSender); } catch (e) {}
+      peer.cameraSender = null;
+      try {
+        const offer = await peer.pc.createOffer();
+        await peer.pc.setLocalDescription(offer);
+        socket.emit('voice:signal', { to: peerUid, type: 'offer', payload: peer.pc.localDescription });
+      } catch (e) {}
+    }
+  }
+  removeVideoTile(me);
+  const btn = document.getElementById('dock-camera');
+  if (btn) { btn.classList.remove('on'); btn.innerHTML = '📹<div class="sub">カメラ</div>'; }
+}
+
+function addVideoTile(peerUid, stream, isSelf) {
+  const grid = document.getElementById('video-grid');
+  if (!grid) return;
+  // 空プレースホルダ除去
+  const ph = grid.querySelector('.v-grid-empty'); if (ph) ph.remove();
+  let tile = document.getElementById('vtile-' + peerUid);
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.id = 'vtile-' + peerUid;
+    tile.className = 'v-tile' + (isSelf ? ' self' : '');
+    const v = document.createElement('video');
+    v.autoplay = true;
+    v.playsInline = true;
+    v.muted = isSelf; // 自分の映像の音はミュート
+    tile.appendChild(v);
+    const nm = document.createElement('div');
+    nm.className = 'v-name';
+    nm.textContent = isSelf ? '自分' : ((users[peerUid] && users[peerUid].name) || '参加者');
+    tile.appendChild(nm);
+    grid.appendChild(tile);
+  }
+  const v = tile.querySelector('video');
+  v.srcObject = stream;
+  const p = v.play();
+  if (p && p.catch) p.catch(err => console.warn('video.play blocked', err));
+}
+
+function removeVideoTile(peerUid) {
+  const tile = document.getElementById('vtile-' + peerUid);
+  if (tile) tile.remove();
+  const grid = document.getElementById('video-grid');
+  if (grid && !grid.children.length) {
+    grid.innerHTML = '<div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div>';
+  }
+}
+
+// ===== ホワイトボード =====
+let wbTimer = null;
+let wbApplyingRemote = false;
+function initWhiteboard() {
+  const ta = document.getElementById('wb-text');
+  if (!ta) return;
+  ta.addEventListener('input', () => {
+    if (wbApplyingRemote) return;
+    if (wbTimer) clearTimeout(wbTimer);
+    wbTimer = setTimeout(() => {
+      if (!socket) return;
+      socket.emit('wb:update', { content: ta.value });
+      const st = document.getElementById('wb-status');
+      if (st) { st.textContent = '保存済 ' + new Date().toLocaleTimeString('ja-JP'); }
+    }, 450);
+  });
+}
+
+async function loadWhiteboard(roomCode) {
+  try {
+    const r = await fetch('/api/chat/wb/' + encodeURIComponent(roomCode), { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    wbApplyingRemote = true;
+    const ta = document.getElementById('wb-text');
+    if (ta && d.success) {
+      ta.value = d.content || '';
+      const st = document.getElementById('wb-status');
+      if (st) st.textContent = d.updated_at ? ('最終更新: ' + new Date(d.updated_at + 'Z').toLocaleString('ja-JP')) : '';
+    }
+    setTimeout(() => { wbApplyingRemote = false; }, 50);
+  } catch (e) {}
+}
+
+// ===== フロア種別で画面レイアウト切替 =====
+function applyFloorLayout(floor) {
+  const isMeeting = floor && /^meeting/i.test(floor.code);
+  document.body.classList.toggle('layout-meeting', !!isMeeting);
+  const camBtn = document.getElementById('dock-camera');
+  if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
+  if (!isMeeting) {
+    // 会議室から出た: カメラOFF、ビデオタイル掃除
+    if (camera.enabled) disableCamera();
+    const grid = document.getElementById('video-grid');
+    if (grid) grid.innerHTML = '<div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div>';
+  } else {
+    // 会議室に入った: ホワイトボード表示
+    const rn = document.getElementById('mp-room-name');
+    if (rn) rn.textContent = floor.name;
+    loadWhiteboard(floor.code);
+  }
+  setTimeout(resize, 280);
 }
 
 // ===== 画面共有 =====
