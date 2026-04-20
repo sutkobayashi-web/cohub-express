@@ -372,6 +372,7 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
     <button class="dock-btn" id="dock-speaker" onclick="toggleSpeaker()" title="スピーカー">🔊<div class="sub">音量</div></button>
     <button class="dock-btn" id="dock-camera" onclick="toggleCamera()" title="ビデオ会議" style="display:none;">📹<div class="sub">カメラ</div></button>
     <button class="dock-btn" id="dock-wb" onclick="toggleWhiteboard()" title="ホワイトボード" style="display:none;">🖊<div class="sub">ボード</div></button>
+    <button class="dock-btn" id="dock-lock" onclick="toggleRoomLock()" title="施錠" style="display:none;">🔒<div class="sub">鍵</div></button>
     <button class="dock-btn" id="dock-screen" onclick="toggleScreenShare()" title="画面共有">🖥️<div class="sub">画面共有</div></button>
     <button class="dock-btn" id="dock-rec" onclick="toggleRecording()" title="会議録音 (管理者のみ)" style="display:none;">🔴<div class="sub">録音</div></button>
     <div class="dock-sep"></div>
@@ -771,6 +772,26 @@ function connectSocket() {
     if (data && data.on) {
       showToast('🔴 この会話は管理者により録音されています');
     }
+  });
+
+  // 部屋の施錠状態
+  socket.on('room:lockstate', (data) => {
+    const f = allFloors.find(fl => fl.code === data.code);
+    if (f) f.locked = !!data.locked;
+    if (currentFloor && currentFloor.code === data.code) currentFloor.locked = !!data.locked;
+    renderRailFloors();
+    updateLockUI();
+    if (currentFloor && currentFloor.code === data.code) {
+      showToast(data.locked ? '🔒 この部屋に鍵がかかりました' : '🔓 この部屋の鍵が外れました');
+    }
+  });
+  socket.on('room:lock-result', (data) => {
+    if (!data.ok) showToast('施錠失敗: ' + (data.msg || ''));
+    else showToast('🔒 施錠しました');
+  });
+  socket.on('floor:locked', (data) => {
+    const pw = prompt('🔒 ' + data.name + ' には鍵がかかっています。\nパスワードを入力してください:');
+    if (pw != null && pw.length > 0) switchFloor(data.code, pw);
   });
 
   // ホワイトボード同期 (カーソル位置を保持しつつ常に反映、直近500ms以内の自分の編集中は受信スキップ)
@@ -1711,22 +1732,49 @@ function renderRailFloors() {
   host.innerHTML = allFloors.map(f => {
     const isCur = currentFloor && currentFloor.code === f.code;
     const count = floorCounts[f.code] || 0;
-    // "1F ロビー" → "1F" と "ロビー" に分割して2行表示
     const m = f.name.match(/^(\d+F)\s*(.*)$/);
     const tag = m ? m[1] : '';
     const short = m ? m[2] : f.name;
-    return `<button class="rail-btn ${isCur ? 'current-floor' : ''}" onclick="switchFloor('${f.code}')" title="${escapeHtml(f.name)}">
-      <span style="font-size:14px;line-height:1;">${f.icon || '🏢'}${tag ? ' ' + escapeHtml(tag) : ''}</span>
+    const lockMark = f.locked ? '<span style="color:#fbbf24;margin-left:2px;">🔒</span>' : '';
+    return `<button class="rail-btn ${isCur ? 'current-floor' : ''}" onclick="switchFloor('${f.code}')" title="${escapeHtml(f.name)}${f.locked ? ' (施錠中)' : ''}">
+      <span style="font-size:14px;line-height:1;">${f.icon || '🏢'}${tag ? ' ' + escapeHtml(tag) : ''}${lockMark}</span>
       <span class="lbl">${escapeHtml(short)}</span>
       ${count ? `<span class="cnt">${count}</span>` : ''}
     </button>`;
   }).join('');
 }
 
-function switchFloor(code) {
+function switchFloor(code, password) {
   if (!socket) return;
   if (currentFloor && currentFloor.code === code) return;
-  socket.emit('floor:switch', { code });
+  const payload = { code };
+  if (password != null) payload.password = password;
+  socket.emit('floor:switch', payload);
+}
+
+// 鍵をかける / 外す (会議室内のメンバーのみ)
+function toggleRoomLock() {
+  if (!currentFloor || !/^meeting/.test(currentFloor.code)) return;
+  if (currentFloor.locked) {
+    if (!confirm('この部屋の鍵を外しますか？')) return;
+    socket.emit('room:unlock');
+    return;
+  }
+  const pw = prompt('🔒 この会議室に鍵をかけます。パスワードを設定してください (4〜30文字):');
+  if (pw == null) return;
+  if (pw.length < 4 || pw.length > 30) { showToast('パスワードは4〜30文字で'); return; }
+  socket.emit('room:lock', { password: pw });
+}
+
+function updateLockUI() {
+  const btn = document.getElementById('dock-lock');
+  if (!btn) return;
+  const isMeeting = currentFloor && /^meeting/.test(currentFloor.code);
+  btn.style.display = isMeeting ? 'flex' : 'none';
+  if (!isMeeting) return;
+  const locked = !!currentFloor.locked;
+  btn.classList.toggle('on', locked);
+  btn.innerHTML = (locked ? '🔐' : '🔒') + '<div class="sub">' + (locked ? '鍵を外す' : '鍵をかける') + '</div>';
 }
 
 function toggleRailMenu(e) {
@@ -2066,6 +2114,7 @@ function applyFloorLayout(floor) {
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
   const wbBtn = document.getElementById('dock-wb');
   if (wbBtn) wbBtn.style.display = isMeeting ? 'flex' : 'none';
+  updateLockUI();
   if (!isMeeting) {
     // 会議室から出た: カメラOFF、ビデオタイル掃除、ホワイトボードも閉じる
     if (camera.enabled) disableCamera();

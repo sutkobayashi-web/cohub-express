@@ -8,6 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { getDb } = require('./services/db');
 
 // TURN サーバー認証情報を起動時に読み込み
@@ -139,11 +140,15 @@ io.use((socket, next) => {
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 
 function allFloors() {
-  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon FROM floors ORDER BY sort_order').all();
+  const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked FROM floors ORDER BY sort_order').all();
+  return rows.map(r => ({ ...r, locked: !!r.locked }));
 }
 
 function getFloor(code) {
-  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon FROM floors WHERE code = ?').get(code);
+  const r = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, lock_pw_hash, locked_by FROM floors WHERE code = ?').get(code);
+  if (!r) return null;
+  r.locked = !!r.locked;
+  return r;
 }
 
 // 入口座標 (未設定時はワールド中央下部)
@@ -235,6 +240,14 @@ io.on('connection', (socket) => {
     const p = presence.get(uid);
     if (!p) return;
     if (p.floor === target.code) return;
+    // ロック中ならPWチェック (admin は免除)
+    if (target.locked && target.lock_pw_hash && socket.role !== 'admin') {
+      const pw = (data.password || '').toString();
+      if (!pw || !bcrypt.compareSync(pw, target.lock_pw_hash)) {
+        socket.emit('floor:locked', { code: target.code, name: target.name });
+        return;
+      }
+    }
     const oldFloor = p.floor;
     // 音声参加中なら旧フロアから脱退扱い (クライアントはフロア切替時にdisableVoiceする)
     if (p.voiceOn) {
@@ -393,6 +406,28 @@ io.on('connection', (socket) => {
     const p = presence.get(uid);
     if (!p) return;
     io.to('floor:' + p.floor).emit('screen:state', { uid, on: !!(data && data.on) });
+  });
+
+  // 部屋の施錠/解錠 (会議室のみ、室内の人だけ可)
+  socket.on('room:lock', (data) => {
+    const p = presence.get(uid); if (!p) return;
+    if (!/^meeting/.test(p.floor)) return;
+    const pw = (data && data.password || '').toString();
+    if (pw.length < 4 || pw.length > 30) {
+      socket.emit('room:lock-result', { ok: false, msg: 'パスワードは4〜30文字' });
+      return;
+    }
+    const hash = bcrypt.hashSync(pw, 10);
+    getDb().prepare("UPDATE floors SET locked=1, lock_pw_hash=?, locked_by=?, locked_at=datetime('now') WHERE code=?").run(hash, uid, p.floor);
+    io.emit('room:lockstate', { code: p.floor, locked: true, locked_by: uid });
+    socket.emit('room:lock-result', { ok: true });
+  });
+
+  socket.on('room:unlock', () => {
+    const p = presence.get(uid); if (!p) return;
+    if (!/^meeting/.test(p.floor)) return;
+    getDb().prepare("UPDATE floors SET locked=0, lock_pw_hash=NULL, locked_by=NULL, locked_at=NULL WHERE code=?").run(p.floor);
+    io.emit('room:lockstate', { code: p.floor, locked: false });
   });
 
   // ホワイトボード 共同編集
