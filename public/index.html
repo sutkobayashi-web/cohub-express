@@ -565,7 +565,6 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <div class="dock-meeting-group" title="会議ツール">
       <button id="dock-meeting-start" onclick="toggleMeetingMode()" title="会議を開始(マイク+カメラ+ボード自動ON)">▶ 会議開始</button>
       <button class="dock-btn" id="dock-camera" onclick="toggleCamera()" title="ビデオ" style="display:none;">📹<div class="sub">ビデオ</div></button>
-      <button class="dock-btn" id="dock-vb" onclick="toggleVbMenu(event)" title="バーチャル背景" style="display:none;">🖼<div class="sub">背景</div></button>
       <button class="dock-btn" id="dock-wb" onclick="toggleWhiteboard()" title="ホワイトボード" style="display:none;">🖊<div class="sub">ボード</div></button>
       <button class="dock-btn" id="dock-hand" onclick="toggleHand()" title="手を挙げる" style="display:none;">✋<div class="sub">挙手</div></button>
       <button class="dock-btn" id="dock-lock" onclick="toggleRoomLock()" title="施錠" style="display:none;">🔒<div class="sub">鍵</div></button>
@@ -865,9 +864,14 @@ function resize() {
   viewScale = Math.min(r.width / WORLD_W, r.height / WORLD_H);
 }
 
+let stdLogo = null;
 function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = (src || '/assets/office_bg.png') + '?v=9';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=10';
+  if (!stdLogo) {
+    stdLogo = new Image();
+    stdLogo.src = '/assets/std_logo.png?v=1';
+  }
 }
 
 // スクリーン座標 → ワールド座標
@@ -1317,11 +1321,21 @@ function render() {
   if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
     ctx.drawImage(bgImage, 0, 0, WORLD_W, WORLD_H);
   } else {
-    // フォールバック
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
+  // 1F ロビー限定: スタンダード運輸ロゴを床の透かしとして描画
+  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
+    const logoW = 310;
+    const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
+    const lx = (WORLD_W - logoW) / 2;
+    const ly = (WORLD_H - logoH) / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
+    ctx.restore();
+  }
 
   // 近接範囲（自分中心）
   if (me && users[me]) {

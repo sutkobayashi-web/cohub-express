@@ -18,18 +18,21 @@ const PROMPTS = {
   lobby: `${COMMON}
 
 Layout: 1F ENTRANCE LOBBY of a modern Japanese corporate office, focused on visitor reception.
-- Lower wall: MAIN ENTRANCE double glass automatic sliding door with red welcome mat and company logo plate
-- Upper-center: LARGE RECEPTION COUNTER (long curved desk) with 2 reception chairs behind it, small sign "RECEPTION"
-- Upper-left: visitor waiting area - two L-shaped grey sofas facing each other, rectangular wooden coffee table with magazines, floor lamp
+
+**IMPORTANT**: NO TEXT, NO LETTERS, NO LOGOS, NO SIGNS, NO WRITTEN WORDS, NO ALPHABET CHARACTERS ANYWHERE. Completely blank walls and blank floor (no writing of any kind).
+
+- Lower wall: MAIN ENTRANCE double glass automatic sliding door with plain red welcome mat (no text on mat)
+- Upper-center: LARGE RECEPTION COUNTER (long curved desk) with 2 reception chairs behind it (no sign, no text plate)
+- Upper-left: visitor waiting area - two L-shaped grey sofas facing each other, rectangular wooden coffee table, floor lamp
 - Upper-right: second waiting area - 3 individual lounge chairs around a round coffee table, tall potted palm
-- Left-middle wall: elevator bank (3 elevator doors as tall rectangles) and stairs going up
-- Right-middle: digital signage board (rectangular screen) on wall, display shelf with brochures
-- Center floor: OPEN WALKING AREA (for visitors and employees to cross), company logo inlaid in the floor
+- Left-middle wall: elevator bank (3 plain elevator doors) and stairs going up
+- Right-middle: plain shelf with magazines (no signs)
+- Center floor: OPEN WALKING AREA with plain wooden flooring (NO logo, NO letters on floor)
 - Left-bottom: security guard booth (small counter) with chair
-- Right-bottom: visitor registration kiosk (small standing tablet on pole)
+- Right-bottom: small standing pole
 - Four corners: lush potted plants (green circles)
 
-Style: welcoming, spacious, bright, corporate entrance hall feeling. Polished marble or light wood floor tone. Empty of people.`,
+Style: welcoming, spacious, bright, corporate entrance hall feeling. Polished wood floor. Empty of people AND empty of any written/printed text or logos.`,
 
   office: `${COMMON}
 
