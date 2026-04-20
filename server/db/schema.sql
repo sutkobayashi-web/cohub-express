@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   login_id TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  company_code TEXT NOT NULL DEFAULT 'STD',  -- STD/KBC/SZE
+  company_code TEXT NOT NULL DEFAULT 'SU_HQ',  -- SU_HQ/SU_SAITAMA/SU_MKANTO/SU_ZAMA/IBA_KASHIMA/IBA_SANWA/SUZUE/ADMIN
   role TEXT DEFAULT 'member',  -- member | admin
   avatar_url TEXT DEFAULT '',
   avatar_style TEXT DEFAULT '',  -- shonen | anime | pixar | watercolor
@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS companies (
   ring_color TEXT DEFAULT '#000000'
 );
 INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES
-  ('STD', 'スタンダード運輸', '#1f2937'),
-  ('KBC', '関東BC', '#2563eb'),
-  ('SZE', 'スズエ電機', '#059669');
+  ('SU_HQ',       'SU本社',   '#1f2937'),
+  ('SU_SAITAMA',  'SU埼玉',   '#dc2626'),
+  ('SU_MKANTO',   'SU南関東', '#7c3aed'),
+  ('SU_ZAMA',     'SU座間',   '#ea580c'),
+  ('IBA_KASHIMA', 'IBA鹿島',  '#0891b2'),
+  ('IBA_SANWA',   'IBA三和',  '#0284c7'),
+  ('SUZUE',       'スズエ',   '#059669'),
+  ('ADMIN',       '管理職',   '#ca8a04');

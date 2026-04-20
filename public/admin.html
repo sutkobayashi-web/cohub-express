@@ -22,11 +22,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 20px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
 th { background: #f8fafc; font-weight: 600; color: #475569; }
-.chip { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.chip-std { background: #e2e8f0; color: #1e293b; }
-.chip-kbc { background: #dbeafe; color: #1e3a8a; }
-.chip-sze { background: #d1fae5; color: #065f46; }
-.chip-admin { background: #fef3c7; color: #92400e; }
+.chip { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; }
+.chip-role-admin { background: #fef3c7; color: #92400e; }
 textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 12px; min-height: 120px; }
 .err { color: #dc2626; font-size: 12px; margin-top: 6px; }
 .ok { color: #059669; font-size: 12px; margin-top: 6px; }
@@ -57,9 +54,14 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <input type="text" id="new-login" placeholder="ログインID">
       <input type="text" id="new-name" placeholder="表示名">
       <select id="new-company">
-        <option value="STD">スタンダード運輸</option>
-        <option value="KBC">関東BC</option>
-        <option value="SZE">スズエ電機</option>
+        <option value="SU_HQ">SU本社</option>
+        <option value="SU_SAITAMA">SU埼玉</option>
+        <option value="SU_MKANTO">SU南関東</option>
+        <option value="SU_ZAMA">SU座間</option>
+        <option value="IBA_KASHIMA">IBA鹿島</option>
+        <option value="IBA_SANWA">IBA三和</option>
+        <option value="SUZUE">スズエ</option>
+        <option value="ADMIN">管理職</option>
       </select>
       <input type="text" id="new-pass" placeholder="初期パスワード">
       <select id="new-role">
@@ -75,9 +77,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <h2>CSV一括登録</h2>
     <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
       形式: <code>login_id,display_name,company_code,password,role(省略可)</code><br>
-      例: <code>taro,山田太郎,STD,Pass1234</code> / <code>hanako,鈴木花子,KBC,Init2026,admin</code>
+      所属コード: SU_HQ / SU_SAITAMA / SU_MKANTO / SU_ZAMA / IBA_KASHIMA / IBA_SANWA / SUZUE / ADMIN<br>
+      例: <code>taro,山田太郎,SU_HQ,Pass1234</code> / <code>hanako,鈴木花子,IBA_KASHIMA,Init2026,admin</code>
     </div>
-    <textarea id="csv-input" placeholder="taro,山田太郎,STD,Pass1234"></textarea>
+    <textarea id="csv-input" placeholder="taro,山田太郎,SU_HQ,Pass1234"></textarea>
     <div style="margin-top:8px;"><button class="btn" onclick="bulkAdd()">一括登録</button></div>
     <div id="bulk-msg"></div>
   </div>
@@ -95,6 +98,17 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 
 <script>
 let token = localStorage.getItem('cohub_admin_token') || '';
+
+const COMPANY_MAP = {
+  'SU_HQ':       { name: 'SU本社',   color: '#1f2937' },
+  'SU_SAITAMA':  { name: 'SU埼玉',   color: '#dc2626' },
+  'SU_MKANTO':   { name: 'SU南関東', color: '#7c3aed' },
+  'SU_ZAMA':     { name: 'SU座間',   color: '#ea580c' },
+  'IBA_KASHIMA': { name: 'IBA鹿島',  color: '#0891b2' },
+  'IBA_SANWA':   { name: 'IBA三和',  color: '#0284c7' },
+  'SUZUE':       { name: 'スズエ',   color: '#059669' },
+  'ADMIN':       { name: '管理職',   color: '#ca8a04' },
+};
 
 async function doAdminLogin() {
   const id = document.getElementById('adm-id').value.trim();
@@ -136,13 +150,13 @@ async function loadUsers() {
   const tb = document.getElementById('user-tbody');
   tb.innerHTML = '';
   for (const u of d.users) {
-    const cClass = 'chip-' + u.company_code.toLowerCase();
+    const c = COMPANY_MAP[u.company_code] || { name: u.company_code, color: '#64748b' };
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(u.login_id)}</td>
       <td>${escapeHtml(u.display_name)}</td>
-      <td><span class="chip ${cClass}">${escapeHtml(u.company_code)}</span></td>
-      <td>${u.role === 'admin' ? '<span class="chip chip-admin">管理者</span>' : '一般'}</td>
+      <td><span class="chip" style="background:${c.color};">${escapeHtml(c.name)}</span></td>
+      <td>${u.role === 'admin' ? '<span class="chip chip-role-admin">管理者</span>' : '一般'}</td>
       <td>${u.status || 'offline'}</td>
       <td>
         <button class="btn btn-ghost" onclick="resetPass('${u.id}','${escapeHtml(u.display_name)}')">PWリセット</button>
