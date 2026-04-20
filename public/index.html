@@ -1394,8 +1394,8 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1F ロビー限定: スタンダード運輸ロゴを床の透かしとして描画
-  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
+  // 1Fロビー・大会議室: スタンダード運輸ロゴを床の透かしとして描画
+  if (currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'meeting_c') && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
     const logoW = 310;
     const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
     const lx = (WORLD_W - logoW) / 2;
