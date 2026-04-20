@@ -814,6 +814,13 @@ function initCanvas() {
   ctx = canvas.getContext('2d');
   resize();
   window.addEventListener('resize', resize);
+  // ラッパー要素のサイズ変化でも自動再計算 (パネル開閉・メディアクエリ対応)
+  try {
+    const wrap = document.getElementById('space-canvas-wrap');
+    if (wrap && window.ResizeObserver) {
+      new ResizeObserver(() => { resize(); }).observe(wrap);
+    }
+  } catch (e) {}
 
   // ポインタ（マウス/タッチ統一）
   canvas.addEventListener('pointerdown', onPointerDown);
@@ -2140,11 +2147,17 @@ function toggleChatPanel(forceHide) {
   const p = document.getElementById('right-panel');
   const btn = document.getElementById('rail-chat');
   if (!p) return;
-  if (forceHide === true) { p.classList.add('hidden'); btn && btn.classList.remove('active'); return; }
+  if (forceHide === true) {
+    p.classList.add('hidden');
+    btn && btn.classList.remove('active');
+    setTimeout(resize, 280);
+    return;
+  }
   p.classList.toggle('hidden');
   if (btn) btn.classList.toggle('active', !p.classList.contains('hidden'));
   // チャット開いたら未読クリア
   if (!p.classList.contains('hidden')) switchTab('chat');
+  setTimeout(resize, 280);
 }
 
 // 👥メンバーパネル (左側、開閉式)
