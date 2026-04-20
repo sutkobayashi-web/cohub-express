@@ -2693,6 +2693,52 @@ const HELP_SECTIONS = [
     <p>1対1DM・グループチャットも管理者によるモニタリング対象。当事者だけのプライベートにはなりません。</p>
     <h4>🔒 鍵 + 🔔 承認制で安全地帯</h4>
     <p>会議室を施錠&承認制にすれば、外部からの侵入を防ぎメンバー以外は入れません(管理者は例外)。</p>
+
+    <h3>🛡️ セキュリティレベル評価 (B+)</h3>
+    <p>現状は<b>中小企業の内部利用に十分な水準</b>です。ISO27001/Pマーク (中小規模) の監査ラインをクリアできる想定。</p>
+    <h4>✅ 実装済み</h4>
+    <ul>
+      <li>bcrypt パスワードハッシュ + JWT + session_token (同時ログイン検出)</li>
+      <li>HTTPS (Cloudflare) + CSP + rate limit (15分/3000req)</li>
+      <li>音声はP2P直通信でサーバー非経由、録音時は全員にバナー告知</li>
+      <li>発言60日保存 + 管理者検索・CSV出力</li>
+      <li>棟別アクセス制御、施錠+承認制で空間隔離</li>
+      <li>管理画面の401自動ログアウト</li>
+      <li>SQLインジェクション対策 (prepared statement)・XSSエスケープ</li>
+      <li>TURN/VAPIDの認証情報は認証済ユーザーにのみ配布</li>
+      <li>国内完結(ConoHa VPS + Cloudflare)</li>
+    </ul>
+    <h4>⚠ 未実装 (将来拡張予定)</h4>
+    <ul>
+      <li><b>2FA</b> (TOTP) — 管理者から順次導入予定</li>
+      <li><b>DB暗号化</b> (sqlcipher移行)</li>
+      <li><b>管理者操作ログ</b> (CSV出力・削除等の記録)</li>
+      <li><b>ログイン連続失敗ロック</b> (現状はrate limitのみ)</li>
+      <li><b>パスワードポリシー強制</b> (現状4文字以上)</li>
+      <li><b>自動バックアップ</b> (暗号化して Box/S3 に退避)</li>
+      <li><b>npm audit 定期監査</b></li>
+    </ul>
+    <h4>📋 運用ルール (推奨)</h4>
+    <ul>
+      <li>パスワードは<b>8文字以上の英数記号混在</b>で設定</li>
+      <li>自動ログインは<b>本人PC限定</b>(共有PCや家族PCは禁止)</li>
+      <li>管理者アカウントの<b>貸与禁止</b>(監査記録が汚れる)</li>
+      <li>機密会議は録音開始前に<b>全員の同意を確認</b></li>
+      <li>退職時は管理画面から<b>即アカウント削除</b></li>
+      <li>LINE業務利用は段階的に CoHub グループへ移行</li>
+    </ul>
+    <div class="warn">⚠ 大企業監査水準 (SOX法/J-SOX対応) には上記「未実装」項目、特に 2FA・管理者操作ログ・DB暗号化 の追加実装が必要です。</div>
+
+    <h4>📊 他ツール比較</h4>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px;">
+      <tr style="background:#f1f5f9;"><th style="text-align:left;padding:4px;">項目</th><th style="padding:4px;">CoHub</th><th style="padding:4px;">LINE業務</th><th style="padding:4px;">Zoom</th><th style="padding:4px;">Teams</th></tr>
+      <tr><td style="padding:4px;">管理者の発言閲覧</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">△</td><td style="text-align:center;">✅</td></tr>
+      <tr><td style="padding:4px;">国内データ完結</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+      <tr><td style="padding:4px;">退職時の記録保全</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">△</td><td style="text-align:center;">✅</td></tr>
+      <tr><td style="padding:4px;">2FA</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td></tr>
+      <tr><td style="padding:4px;">E2E暗号化(DM)</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">有料</td><td style="text-align:center;">有料</td></tr>
+    </table>
+    <p style="font-size:11px;color:#64748b;margin-top:6px;">CoHubは「内部統制重視」でLINEより優位、Teams/Zoomに対しては国内完結・管理者視認性で勝ち、2FA/E2Eで劣る構図。</p>
   ` },
 ];
 
