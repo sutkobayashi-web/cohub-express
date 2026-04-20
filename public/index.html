@@ -118,10 +118,6 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #floor-head { position: absolute; top: 12px; left: 16px; background: rgba(255,255,255,0.85); backdrop-filter: blur(6px); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: #0f172a; box-shadow: 0 4px 12px rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; z-index: 5; }
 #floor-head .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
 
-/* ミニマップ */
-#minimap { position: absolute; right: 12px; bottom: 12px; width: 180px; height: 108px; background: rgba(255,255,255,0.9); border: 1px solid rgba(15,23,42,0.12); border-radius: 10px; box-shadow: 0 8px 20px rgba(15,23,42,0.12); backdrop-filter: blur(6px); overflow: hidden; z-index: 6; cursor: pointer; }
-#minimap canvas { display: block; width: 100%; height: 100%; }
-#minimap .mm-label { position: absolute; top: 4px; left: 8px; font-size: 10px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; }
 
 /* 下部コントロールバー */
 #dock { position: absolute; bottom: 0; left: 96px; right: 0; height: 88px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 20px; z-index: 15; }
@@ -274,7 +270,6 @@ body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 46%; }
   #dock { gap: 8px; padding: 0 10px; }
   .dock-btn { width: 48px; height: 48px; font-size: 20px; }
   #dock-chat-wrap { display: none; }
-  #minimap { width: 140px; height: 84px; }
   #left-rail .rail-btn .lbl { display: none; }
 }
 </style>
@@ -307,9 +302,6 @@ body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 46%; }
     <div class="rail-section">操作</div>
     <button class="rail-btn active" id="rail-members" onclick="togglePanel()" title="メンバー">
       <span>👥</span><span class="lbl">メンバー</span>
-    </button>
-    <button class="rail-btn" id="rail-minimap" onclick="toggleMinimap()" title="ミニマップ">
-      <span>🗺️</span><span class="lbl">マップ</span>
     </button>
     <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
       <span>🎨</span><span class="lbl">アバター</span>
@@ -354,10 +346,6 @@ body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 46%; }
       <span id="floor-name">ロビー</span>
       <span style="color:#94a3b8;font-weight:500;">・<span id="online-count">0</span>人</span>
       <span style="font-weight:500;color:#64748b;font-size:11px;margin-left:4px;" title="フロア発言は60日保存され、管理者の内部統制モニタリング対象です">🔍 公開会話・ログ60日</span>
-    </div>
-    <div id="minimap">
-      <canvas id="minimap-canvas"></canvas>
-      <div class="mm-label">MAP</div>
     </div>
   </div>
 
@@ -481,7 +469,7 @@ let targets = {};          // uid → 補間目標座標 { x, y }
 let me = null;
 let myX = 600, myY = 400;
 let proximityRadius = 220;
-let canvas, ctx, mmCanvas, mmCtx;
+let canvas, ctx;
 let bgImage = null;
 let avatarImages = {}; // uid → Image
 const bubbles = []; // { uid, content, at, isEmoji }
@@ -562,8 +550,6 @@ async function loadRecentChat(roomCode) {
 function initCanvas() {
   canvas = document.getElementById('space-canvas');
   ctx = canvas.getContext('2d');
-  mmCanvas = document.getElementById('minimap-canvas');
-  mmCtx = mmCanvas.getContext('2d');
   resize();
   window.addEventListener('resize', resize);
 
@@ -572,9 +558,6 @@ function initCanvas() {
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerUp);
-
-  // ミニマップクリックで視点/自分移動
-  document.getElementById('minimap').addEventListener('click', onMinimapClick);
 
   document.getElementById('chat-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -614,14 +597,8 @@ function resize() {
   ctx.setTransform(1,0,0,1,0,0);
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  // スケール: ワールド1024×1024 を必ず画面内に収める(contain)、余白は壁外扱い
+  // スケール: ワールド 1344×768 を必ず画面内に収める(contain)、余白は壁外扱い
   viewScale = Math.min(r.width / WORLD_W, r.height / WORLD_H);
-
-  const mmR = mmCanvas.getBoundingClientRect();
-  mmCanvas.width = mmR.width * window.devicePixelRatio;
-  mmCanvas.height = mmR.height * window.devicePixelRatio;
-  mmCtx.setTransform(1,0,0,1,0,0);
-  mmCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
 let stdLogo = null;
@@ -954,15 +931,6 @@ function moveTo(x, y) {
   if (socket) socket.emit('move', { x: cx, y: cy });
 }
 
-function onMinimapClick(e) {
-  const r = mmCanvas.getBoundingClientRect();
-  const mx = e.clientX - r.left;
-  const my = e.clientY - r.top;
-  const wx = (mx / r.width) * WORLD_W;
-  const wy = (my / r.height) * WORLD_H;
-  moveTo(wx, wy);
-}
-
 // ===== レンダリング =====
 function render() {
   if (!ctx) return;
@@ -1060,9 +1028,6 @@ function render() {
   }
 
   ctx.restore();
-
-  // ミニマップ描画
-  drawMinimap();
 
   requestAnimationFrame(render);
 }
@@ -1238,42 +1203,6 @@ function roundRect(x, y, w, h, r) {
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
-}
-
-function drawMinimap() {
-  if (!mmCtx) return;
-  const r = mmCanvas.getBoundingClientRect();
-  const mw = r.width, mh = r.height;
-  mmCtx.clearRect(0, 0, mw, mh);
-
-  // 背景画像の縮小版
-  if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
-    mmCtx.drawImage(bgImage, 0, 0, mw, mh);
-    // 暗化オーバーレイで dot を見やすく
-    mmCtx.fillStyle = 'rgba(255,255,255,0.15)';
-    mmCtx.fillRect(0, 0, mw, mh);
-  } else {
-    mmCtx.fillStyle = '#f1f5f9';
-    mmCtx.fillRect(0, 0, mw, mh);
-  }
-  const sx = mw / WORLD_W;
-  const sy = mh / WORLD_H;
-
-  // ユーザー dot
-  for (const uid in users) {
-    const u = users[uid];
-    if (u.cx == null) continue;
-    if (u.status === 'offline') continue;
-    mmCtx.beginPath();
-    mmCtx.arc(u.cx * sx, u.cy * sy, uid === me ? 4 : 3, 0, Math.PI * 2);
-    mmCtx.fillStyle = uid === me ? '#06b6d4' : (u.ring || '#334155');
-    mmCtx.fill();
-    if (uid === me) {
-      mmCtx.strokeStyle = '#fff';
-      mmCtx.lineWidth = 1.5;
-      mmCtx.stroke();
-    }
-  }
 }
 
 // ===== メンバーリスト =====
@@ -1749,13 +1678,6 @@ function togglePanel(forceHide) {
     btn.classList.add('active');
   }
   setTimeout(resize, 280);
-}
-
-let minimapOn = true;
-function toggleMinimap() {
-  minimapOn = !minimapOn;
-  document.getElementById('minimap').style.display = minimapOn ? 'block' : 'none';
-  document.getElementById('rail-minimap').classList.toggle('active', minimapOn);
 }
 
 function renderRailFloors() {
