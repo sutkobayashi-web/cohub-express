@@ -961,22 +961,16 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1F ロビー限定: スタンダード運輸ロゴをオーバーレイ
+  // 1F ロビー限定: スタンダード運輸ロゴを床の透かし(ウォーターマーク)として描画
   if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    const logoW = 360;
+    const logoW = 440;
     const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
     const lx = (WORLD_W - logoW) / 2;
-    const ly = 70;
-    // 背景クッション (白地パネル) + 薄い影
+    const ly = (WORLD_H - logoH) / 2;
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 3;
-    ctx.fillStyle = '#ffffff';
-    roundRect(lx - 18, ly - 12, logoW + 36, logoH + 24, 14);
-    ctx.fill();
-    ctx.restore();
+    ctx.globalAlpha = 0.12;
     ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
+    ctx.restore();
   }
 
   // 近接範囲（自分中心）
