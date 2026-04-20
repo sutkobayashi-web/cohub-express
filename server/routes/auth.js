@@ -3,7 +3,28 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, authUser } = require('../middleware/auth');
+
+// パスワードポリシー (強度評価)
+function evaluatePassword(pw, loginId, displayName) {
+  const errors = [];
+  if (!pw || pw.length < 10) errors.push('10文字以上にしてください');
+  if (pw && pw.length > 100) errors.push('100文字以下にしてください');
+  if (pw && !/[a-z]/.test(pw)) errors.push('英小文字 (a-z) を含めてください');
+  if (pw && !/[A-Z]/.test(pw)) errors.push('英大文字 (A-Z) を含めてください');
+  if (pw && !/[0-9]/.test(pw)) errors.push('数字 (0-9) を含めてください');
+  if (pw && !/[!-/:-@[-`{-~]/.test(pw)) errors.push('記号 (! @ # $ など) を含めてください');
+  if (pw && /(.)\1{2,}/.test(pw)) errors.push('同じ文字の3連続は禁止 (例: aaa)');
+  if (pw && loginId && pw.toLowerCase().includes(String(loginId).toLowerCase())) errors.push('ログインIDを含めないでください');
+  if (pw && displayName && String(displayName).length >= 2 && pw.toLowerCase().includes(String(displayName).toLowerCase())) errors.push('表示名を含めないでください');
+  // よくある弱いパターン
+  const weak = ['password', '12345', 'qwerty', 'abc123', 'admin', 'letmein', 'cohub', 'welcome'];
+  if (pw) {
+    const lower = pw.toLowerCase();
+    for (const w of weak) if (lower.includes(w)) { errors.push('予測されやすい単語を含んでいます (例: ' + w + ')'); break; }
+  }
+  return errors;
+}
 
 router.post('/login', (req, res) => {
   const { login_id, password } = req.body;
@@ -32,6 +53,42 @@ router.post('/login', (req, res) => {
       avatar_url: user.avatar_url,
     }
   });
+});
+
+// パスワード変更 (本人のみ)
+router.post('/change-password', authUser, express.json(), (req, res) => {
+  const { current_password, new_password } = req.body || {};
+  if (!current_password || !new_password) {
+    return res.status(400).json({ success: false, msg: '現在と新しいパスワードを入力してください' });
+  }
+  const db = getDb();
+  const u = db.prepare('SELECT id, login_id, display_name, password_hash FROM users WHERE id = ?').get(req.uid);
+  if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
+  if (!bcrypt.compareSync(current_password, u.password_hash)) {
+    return res.status(401).json({ success: false, msg: '現在のパスワードが違います' });
+  }
+  if (current_password === new_password) {
+    return res.status(400).json({ success: false, msg: '新しいパスワードは現在と同じにはできません' });
+  }
+  const errors = evaluatePassword(new_password, u.login_id, u.display_name);
+  if (errors.length) {
+    return res.status(400).json({ success: false, msg: errors.join(' / '), errors });
+  }
+  const newHash = bcrypt.hashSync(new_password, 10);
+  // 全セッション無効化(同時ログイン排除) + 新トークン発行
+  const sid = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE users SET password_hash = ?, session_token = ? WHERE id = ?').run(newHash, sid, u.id);
+  const token = generateToken({ uid: u.id, role: (req.user && req.user.role) || 'member', sid });
+  res.json({ success: true, token, msg: 'パスワードを変更しました' });
+});
+
+// ポリシー評価専用 (リアルタイムバー表示用)
+router.post('/check-password', authUser, express.json(), (req, res) => {
+  const { password } = req.body || {};
+  const db = getDb();
+  const u = db.prepare('SELECT login_id, display_name FROM users WHERE id = ?').get(req.uid);
+  const errors = evaluatePassword(password || '', u && u.login_id, u && u.display_name);
+  res.json({ success: errors.length === 0, errors });
 });
 
 router.post('/logout', (req, res) => {

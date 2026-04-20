@@ -678,6 +678,45 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 <!-- アバター設定モーダル -->
 <div id="avatar-modal" style="display:none;"></div>
 
+<!-- 🔑 パスワード変更モーダル -->
+<div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 24px 60px rgba(15,23,42,0.4);">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="font-size:18px;font-weight:800;color:#0f172a;flex:1;">🔑 パスワード変更</div>
+      <button onclick="closePasswordModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:14px;">セキュリティ強化のため、強力なパスワードを設定してください。</div>
+    <form id="pw-form" autocomplete="off" onsubmit="event.preventDefault(); submitPasswordChange();">
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:4px;">現在のパスワード</label>
+        <input type="password" id="pw-current" autocomplete="current-password" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">
+      </div>
+      <div style="margin-bottom:6px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:4px;">新しいパスワード</label>
+        <input type="password" id="pw-new" autocomplete="new-password" oninput="updatePwStrength()" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">
+        <div id="pw-strength-bar" style="height:6px;background:#e2e8f0;border-radius:3px;margin-top:6px;overflow:hidden;"><div id="pw-strength-fill" style="height:100%;width:0;background:#ef4444;transition:all 0.18s;"></div></div>
+        <div id="pw-strength-label" style="font-size:11px;color:#64748b;margin-top:4px;">強度: 未入力</div>
+      </div>
+      <div id="pw-checks" style="font-size:11px;color:#64748b;line-height:1.7;margin:8px 0 12px;padding:10px 12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+        <div data-rule="len">⚪ 10文字以上</div>
+        <div data-rule="upper">⚪ 英大文字 (A-Z)</div>
+        <div data-rule="lower">⚪ 英小文字 (a-z)</div>
+        <div data-rule="num">⚪ 数字 (0-9)</div>
+        <div data-rule="sym">⚪ 記号 (! @ # $ など)</div>
+        <div data-rule="repeat">⚪ 同じ文字3連続なし (例: aaa)</div>
+        <div data-rule="id">⚪ ログインID/表示名を含まない</div>
+        <div data-rule="weak">⚪ 予測されやすい単語を含まない (password, admin など)</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:4px;">新しいパスワード (確認)</label>
+        <input type="password" id="pw-confirm" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">
+      </div>
+      <div id="pw-err" style="color:#dc2626;font-size:12px;margin-bottom:10px;min-height:14px;"></div>
+      <button type="submit" id="pw-submit" style="width:100%;padding:12px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">パスワードを変更</button>
+    </form>
+  </div>
+</div>
+
 <!-- 添付ファイル用input (DM/グループ) -->
 <input type="file" id="dm-file" style="display:none;" onchange="onDmFilePick(this)">
 <input type="file" id="group-file" style="display:none;" onchange="onGroupFilePick(this)">
@@ -815,6 +854,118 @@ function doLogout() {
 function confirmLogout() {
   if (confirm('ログアウトしますか?\n(ログインID/パスワードはブラウザ保存のままです)')) {
     doLogout();
+  }
+}
+
+// ===== 🔑 パスワード変更 =====
+function openPasswordModal() {
+  document.getElementById('rail-menu').classList.remove('show');
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-err').textContent = '';
+  document.getElementById('pw-submit').disabled = false;
+  document.getElementById('pw-submit').textContent = 'パスワードを変更';
+  document.getElementById('pw-modal').style.display = 'flex';
+  updatePwStrength();
+  setTimeout(() => document.getElementById('pw-current').focus(), 80);
+}
+function closePasswordModal() {
+  document.getElementById('pw-modal').style.display = 'none';
+}
+
+function _pwRules(pw) {
+  const u = userData || {};
+  const lid = (u.login_id || '').toLowerCase();
+  const dn = (u.display_name || '').toLowerCase();
+  const lower = (pw || '').toLowerCase();
+  const weak = ['password', '12345', 'qwerty', 'abc123', 'admin', 'letmein', 'cohub', 'welcome'];
+  return {
+    len: pw.length >= 10,
+    upper: /[A-Z]/.test(pw),
+    lower: /[a-z]/.test(pw),
+    num: /[0-9]/.test(pw),
+    sym: /[!-/:-@[-`{-~]/.test(pw),
+    repeat: !/(.)\1{2,}/.test(pw),
+    id: !pw || ((!lid || !lower.includes(lid)) && (!dn || dn.length < 2 || !lower.includes(dn))),
+    weak: !pw || !weak.some(w => lower.includes(w)),
+  };
+}
+
+function updatePwStrength() {
+  const pw = document.getElementById('pw-new').value;
+  const rules = _pwRules(pw);
+  let passed = 0;
+  for (const k of Object.keys(rules)) if (rules[k]) passed++;
+  const total = Object.keys(rules).length;
+  const ratio = pw ? (passed / total) : 0;
+  const fill = document.getElementById('pw-strength-fill');
+  const lbl = document.getElementById('pw-strength-label');
+  fill.style.width = (ratio * 100) + '%';
+  let color = '#ef4444', text = '弱';
+  if (ratio >= 1) { color = '#10b981'; text = '🛡️ 非常に強い'; }
+  else if (ratio >= 0.85) { color = '#22c55e'; text = '強い'; }
+  else if (ratio >= 0.6) { color = '#f59e0b'; text = '普通'; }
+  else if (ratio >= 0.4) { color = '#fb923c'; text = '弱い'; }
+  else { color = '#ef4444'; text = pw ? '非常に弱い' : '未入力'; }
+  fill.style.background = color;
+  lbl.textContent = '強度: ' + text + ' (' + passed + '/' + total + ')';
+  lbl.style.color = color;
+  // 各ルールアイコン更新
+  const checks = document.querySelectorAll('#pw-checks [data-rule]');
+  checks.forEach(el => {
+    const ok = rules[el.getAttribute('data-rule')];
+    const txt = el.textContent.replace(/^[⚪✅] /, '');
+    el.textContent = (ok ? '✅' : '⚪') + ' ' + txt;
+    el.style.color = ok ? '#047857' : '#64748b';
+  });
+}
+
+async function submitPasswordChange() {
+  const cur = document.getElementById('pw-current').value;
+  const next = document.getElementById('pw-new').value;
+  const confirmPw = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-err');
+  const btn = document.getElementById('pw-submit');
+  err.textContent = '';
+  if (!cur || !next || !confirmPw) { err.textContent = 'すべての項目を入力してください'; return; }
+  if (next !== confirmPw) { err.textContent = '新しいパスワードと確認が一致しません'; return; }
+  const rules = _pwRules(next);
+  for (const k of Object.keys(rules)) {
+    if (!rules[k]) { err.textContent = 'パスワードポリシーを満たしていません (各項目をすべて✅にしてください)'; return; }
+  }
+  if (cur === next) { err.textContent = '現在と同じパスワードは使えません'; return; }
+  btn.disabled = true; btn.textContent = '変更中...';
+  try {
+    const r = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ current_password: cur, new_password: next }),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      err.textContent = d.msg || '変更に失敗しました';
+      btn.disabled = false; btn.textContent = 'パスワードを変更';
+      return;
+    }
+    // 新トークン保存
+    if (d.token) { token = d.token; localStorage.setItem('cohub_token', token); }
+    // パスワード保存も更新
+    try {
+      if (window.PasswordCredential && userData) {
+        const cred = new PasswordCredential({
+          id: userData.login_id,
+          password: next,
+          name: userData.display_name || userData.login_id,
+        });
+        navigator.credentials.store(cred).catch(() => {});
+      }
+    } catch (e) {}
+    closePasswordModal();
+    showToast('🔑 パスワードを変更しました');
+  } catch (e) {
+    err.textContent = '通信エラー';
+    btn.disabled = false; btn.textContent = 'パスワードを変更';
   }
 }
 
@@ -2853,6 +3004,7 @@ function renderRailMenu() {
     </div>
     ${isAdmin ? "<button onclick=\"location.href='/admin'\">🛠 管理画面</button>" : ''}
     <button onclick="openAvatarModal()">🎨 アバター作り直し</button>
+    <button onclick="openPasswordModal()">🔑 パスワード変更</button>
     <button onclick="location.href='/mylog'">📜 自分のログ</button>
     <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
   `;
