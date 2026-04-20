@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS floors (
   locked INTEGER DEFAULT 0,
   lock_pw_hash TEXT,
   locked_by TEXT,
-  locked_at TEXT
+  locked_at TEXT,
+  approval_mode INTEGER DEFAULT 0  -- 1=入室に承認が必要
 );
 INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order, icon) VALUES
   ('lobby',     '1F 玄関ロビー',     '/assets/floor_lobby.png',     1344, 768, 1, '🚪'),

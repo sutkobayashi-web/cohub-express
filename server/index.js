@@ -205,16 +205,20 @@ io.use((socket, next) => {
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 
 function allFloors() {
-  const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked FROM floors ORDER BY sort_order').all();
-  return rows.map(r => ({ ...r, locked: !!r.locked }));
+  const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, approval_mode FROM floors ORDER BY sort_order').all();
+  return rows.map(r => ({ ...r, locked: !!r.locked, approval_mode: !!r.approval_mode }));
 }
 
 function getFloor(code) {
-  const r = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, lock_pw_hash, locked_by FROM floors WHERE code = ?').get(code);
+  const r = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, lock_pw_hash, locked_by, approval_mode FROM floors WHERE code = ?').get(code);
   if (!r) return null;
   r.locked = !!r.locked;
+  r.approval_mode = !!r.approval_mode;
   return r;
 }
+
+// 承認待ちキュー: targetFloor -> Map<uid, timer>
+const pendingKnocks = new Map();
 
 // 入口座標 (未設定時はワールド中央下部)
 function entryPoint(floor) {
@@ -313,6 +317,34 @@ io.on('connection', (socket) => {
       const pw = (data.password || '').toString();
       if (!pw || !bcrypt.compareSync(pw, target.lock_pw_hash)) {
         socket.emit('floor:locked', { code: target.code, name: target.name });
+        return;
+      }
+    }
+    // 承認制ON中なら即入室せずノック (admin は免除、事前承認済フラグ付きは通過)
+    if (target.approval_mode && socket.role !== 'admin' && !data.approved) {
+      // 既にその部屋にいる人が誰もいなければ素通り
+      let hasOccupant = false;
+      for (const [, vv] of presence) {
+        if (vv.floor === target.code && vv.status !== 'offline') { hasOccupant = true; break; }
+      }
+      if (hasOccupant) {
+        const u = getDb().prepare('SELECT display_name, avatar_url FROM users WHERE id = ?').get(uid);
+        const payload = { uid, name: (u && u.display_name) || '', avatar: (u && u.avatar_url) || '', targetFloor: target.code };
+        io.to('floor:' + target.code).emit('room:knock', payload);
+        socket.emit('room:waiting', { code: target.code, name: target.name });
+        // 60秒タイムアウト
+        let map = pendingKnocks.get(target.code);
+        if (!map) { map = new Map(); pendingKnocks.set(target.code, map); }
+        if (map.has(uid)) clearTimeout(map.get(uid).timer);
+        const timer = setTimeout(() => {
+          const m = pendingKnocks.get(target.code);
+          if (m && m.has(uid)) {
+            m.delete(uid);
+            const tgtSocket = (presence.get(uid) && io.sockets.sockets.get(presence.get(uid).socketId));
+            if (tgtSocket) tgtSocket.emit('room:knock-result', { ok: false, msg: 'タイムアウト' });
+          }
+        }, 60000);
+        map.set(uid, { timer, targetFloor: target.code, socketId: socket.id });
         return;
       }
     }
@@ -551,6 +583,43 @@ io.on('connection', (socket) => {
     if (!/^meeting/.test(p.floor)) return;
     getDb().prepare("UPDATE floors SET locked=0, lock_pw_hash=NULL, locked_by=NULL, locked_at=NULL WHERE code=?").run(p.floor);
     io.emit('room:lockstate', { code: p.floor, locked: false });
+  });
+
+  // 承認制ON/OFF (会議室内メンバーのみ)
+  socket.on('room:set-approval', (data) => {
+    const p = presence.get(uid); if (!p) return;
+    if (!/^meeting/.test(p.floor)) return;
+    const on = !!(data && data.on);
+    getDb().prepare('UPDATE floors SET approval_mode=? WHERE code=?').run(on ? 1 : 0, p.floor);
+    io.emit('room:approval-state', { code: p.floor, on });
+  });
+
+  // 入室承認
+  socket.on('room:approve', (data) => {
+    const p = presence.get(uid); if (!p) return;
+    const applicantUid = (data && data.uid || '').toString();
+    const map = pendingKnocks.get(p.floor);
+    if (!map || !map.has(applicantUid)) return;
+    const entry = map.get(applicantUid);
+    clearTimeout(entry.timer);
+    map.delete(applicantUid);
+    // 申請者側の socket を取り出して floor:switch を承認済みフラグ付きで実行させる
+    const appSocket = io.sockets.sockets.get(entry.socketId);
+    if (appSocket) appSocket.emit('room:knock-result', { ok: true, code: p.floor });
+  });
+
+  socket.on('room:deny', (data) => {
+    const p = presence.get(uid); if (!p) return;
+    const applicantUid = (data && data.uid || '').toString();
+    const map = pendingKnocks.get(p.floor);
+    if (!map || !map.has(applicantUid)) return;
+    const entry = map.get(applicantUid);
+    clearTimeout(entry.timer);
+    map.delete(applicantUid);
+    const appSocket = io.sockets.sockets.get(entry.socketId);
+    if (appSocket) appSocket.emit('room:knock-result', { ok: false, msg: '入室が拒否されました' });
+    // 室内メンバーにもノック取消を通知
+    io.to('floor:' + p.floor).emit('room:knock-cancel', { uid: applicantUid });
   });
 
   // ホワイトボード 共同編集

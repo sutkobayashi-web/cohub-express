@@ -310,6 +310,28 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
 
 .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.95); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
 
+/* 承認ノックカード */
+.knock-card { background: #fff; border: 2px solid #06b6d4; border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 12px 32px rgba(15,23,42,0.2); display: flex; align-items: center; gap: 10px; animation: notifIn 0.25s ease; }
+.knock-card .k-av { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #334155; }
+.knock-card .k-av img { width: 100%; height: 100%; object-fit: cover; }
+.knock-card .k-body { flex: 1; min-width: 0; }
+.knock-card .k-name { font-size: 13px; font-weight: 700; color: #0f172a; }
+.knock-card .k-sub { font-size: 11px; color: #64748b; }
+.knock-card .k-actions { display: flex; gap: 4px; }
+.knock-card button { padding: 6px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; }
+.knock-card .k-ok { background: #06b6d4; color: #fff; }
+.knock-card .k-no { background: #fef2f2; color: #dc2626; }
+
+/* 承認待ちモーダル */
+#waiting-modal { position: fixed; inset: 0; background: rgba(15,23,42,0.7); z-index: 220; display: none; align-items: center; justify-content: center; padding: 16px; }
+#waiting-modal.show { display: flex; }
+#waiting-modal .w-box { background: #fff; border-radius: 16px; padding: 30px; max-width: 360px; text-align: center; }
+#waiting-modal .w-spin { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #06b6d4; border-radius: 50%; margin: 0 auto 16px; animation: wspin 0.9s linear infinite; }
+#waiting-modal h3 { margin: 0 0 8px; font-size: 16px; color: #0f172a; }
+#waiting-modal p { margin: 0 0 16px; font-size: 12px; color: #64748b; }
+#waiting-modal button { padding: 8px 20px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 13px; color: #475569; }
+@keyframes wspin { to { transform: rotate(360deg); } }
+
 /* ===== カード型メッセージ通知 (画面上部) ===== */
 #notif-stack { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 250; pointer-events: none; max-width: 440px; width: calc(100% - 96px); }
 .notif-card { pointer-events: auto; background: #fff; border-radius: 14px; padding: 10px 14px; display: flex; gap: 10px; align-items: flex-start; box-shadow: 0 12px 32px rgba(15,23,42,0.22); border: 1px solid rgba(15,23,42,0.08); cursor: pointer; animation: notifIn 0.25s ease, notifOut 0.35s 3.4s ease forwards; }
@@ -444,6 +466,7 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
       <button class="dock-btn" id="dock-wb" onclick="toggleWhiteboard()" title="ホワイトボード" style="display:none;">🖊<div class="sub">ボード</div></button>
       <button class="dock-btn" id="dock-hand" onclick="toggleHand()" title="手を挙げる" style="display:none;">✋<div class="sub">挙手</div></button>
       <button class="dock-btn" id="dock-lock" onclick="toggleRoomLock()" title="施錠" style="display:none;">🔒<div class="sub">鍵</div></button>
+      <button class="dock-btn" id="dock-approval" onclick="toggleApproval()" title="入室承認制" style="display:none;">🔔<div class="sub">承認</div></button>
       <button class="dock-btn" id="dock-screen" onclick="toggleScreenShare()" title="画面共有">🖥️<div class="sub">共有</div></button>
       <button class="dock-btn" id="dock-rec" onclick="toggleRecording()" title="録音(管理者)" style="display:none;">🔴<div class="sub">録音</div></button>
     </div>
@@ -491,6 +514,19 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
 
   <!-- ヘルプモーダル -->
   <div id="help-modal"></div>
+
+  <!-- 承認待ちモーダル -->
+  <div id="waiting-modal">
+    <div class="w-box">
+      <div class="w-spin"></div>
+      <h3 id="waiting-title">入室承認を待っています</h3>
+      <p id="waiting-sub">室内の方が承認してくれるまでお待ちください (最大60秒)</p>
+      <button onclick="cancelWaiting()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- ノックスタック (承認要求カード) -->
+  <div id="knock-stack" style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:240;width:calc(100% - 32px);max-width:400px;pointer-events:none;"></div>
 
   <!-- レールメニュー (⚙設定) -->
   <div id="rail-menu">
@@ -888,6 +924,42 @@ function connectSocket() {
   socket.on('floor:locked', (data) => {
     const pw = prompt('🔒 ' + data.name + ' には鍵がかかっています。\nパスワードを入力してください:');
     if (pw != null && pw.length > 0) switchFloor(data.code, pw);
+  });
+
+  // 承認制関連
+  socket.on('room:approval-state', (data) => {
+    const f = allFloors.find(fl => fl.code === data.code);
+    if (f) f.approval_mode = !!data.on;
+    if (currentFloor && currentFloor.code === data.code) {
+      currentFloor.approval_mode = !!data.on;
+      updateApprovalUI();
+      showToast(data.on ? '🔔 入室承認制になりました' : '🔕 承認制を解除しました');
+    }
+  });
+
+  socket.on('room:knock', (data) => {
+    // 室内メンバーに通知: 承認/拒否ダイアログ
+    showKnockCard(data);
+  });
+
+  socket.on('room:knock-cancel', (data) => {
+    const el = document.getElementById('knock-' + data.uid);
+    if (el) el.remove();
+  });
+
+  socket.on('room:waiting', (data) => {
+    // 自分が承認待ち
+    showWaitingDialog(data.name);
+  });
+
+  socket.on('room:knock-result', (data) => {
+    hideWaitingDialog();
+    if (data.ok) {
+      showToast('✅ 承認されました');
+      if (socket) socket.emit('floor:switch', { code: data.code, approved: true });
+    } else {
+      showToast('❌ ' + (data.msg || '入室できませんでした'));
+    }
   });
 
   // ホワイトボード同期 (カーソル位置を保持しつつ常に反映、直近500ms以内の自分の編集中は受信スキップ)
@@ -1953,7 +2025,7 @@ function renderRailFloors() {
     const m = f.name.match(/^(\d+F)\s*(.*)$/);
     const tag = m ? m[1] : '';
     const short = m ? m[2] : f.name;
-    const lockMark = f.locked ? '<span style="color:#fbbf24;margin-left:2px;">🔒</span>' : '';
+    const lockMark = f.locked ? '<span style="color:#fbbf24;margin-left:2px;">🔒</span>' : (f.approval_mode ? '<span style="color:#06b6d4;margin-left:2px;">🔔</span>' : '');
     return `<button class="rail-btn ${isCur ? 'current-floor' : ''}" onclick="switchFloor('${f.code}')" title="${escapeHtml(f.name)}${f.locked ? ' (施錠中)' : ''}">
       <span style="font-size:14px;line-height:1;">${f.icon || '🏢'}${tag ? ' ' + escapeHtml(tag) : ''}${lockMark}</span>
       <span class="lbl">${escapeHtml(short)}</span>
@@ -1968,6 +2040,61 @@ function switchFloor(code, password) {
   const payload = { code };
   if (password != null) payload.password = password;
   socket.emit('floor:switch', payload);
+}
+
+// 承認制トグル (会議室内のメンバー)
+function toggleApproval() {
+  if (!currentFloor || !/^meeting/.test(currentFloor.code)) return;
+  const on = !currentFloor.approval_mode;
+  socket.emit('room:set-approval', { on });
+}
+
+function showKnockCard(data) {
+  const host = document.getElementById('knock-stack');
+  if (!host) return;
+  const card = document.createElement('div');
+  card.className = 'knock-card';
+  card.id = 'knock-' + data.uid;
+  card.style.pointerEvents = 'auto';
+  const av = data.avatar ? '<img src="' + data.avatar + '">' : escapeHtml((data.name || '?').slice(0, 2));
+  card.innerHTML =
+    '<div class="k-av">' + av + '</div>' +
+    '<div class="k-body">' +
+      '<div class="k-name">' + escapeHtml(data.name || '不明') + '</div>' +
+      '<div class="k-sub">入室を希望しています</div>' +
+    '</div>' +
+    '<div class="k-actions">' +
+      '<button class="k-ok" data-uid="' + data.uid + '" data-act="ok">承認</button>' +
+      '<button class="k-no" data-uid="' + data.uid + '" data-act="no">拒否</button>' +
+    '</div>';
+  card.querySelector('[data-act="ok"]').onclick = () => { if (socket) socket.emit('room:approve', { uid: data.uid }); card.remove(); };
+  card.querySelector('[data-act="no"]').onclick = () => { if (socket) socket.emit('room:deny', { uid: data.uid }); card.remove(); };
+  host.appendChild(card);
+  if (speakerOn) playBeep(true);
+  // 60秒で自動消去
+  setTimeout(() => { try { card.remove(); } catch(e) {} }, 60500);
+}
+
+function showWaitingDialog(floorName) {
+  document.getElementById('waiting-title').textContent = floorName + ' へ入室承認を待っています';
+  document.getElementById('waiting-modal').classList.add('show');
+}
+function hideWaitingDialog() {
+  document.getElementById('waiting-modal').classList.remove('show');
+}
+function cancelWaiting() {
+  hideWaitingDialog();
+}
+
+function updateApprovalUI() {
+  const btn = document.getElementById('dock-approval');
+  if (!btn) return;
+  const isMeeting = currentFloor && /^meeting/.test(currentFloor.code);
+  btn.style.display = isMeeting ? 'flex' : 'none';
+  if (!isMeeting) return;
+  const on = !!currentFloor.approval_mode;
+  btn.classList.toggle('on', on);
+  btn.innerHTML = (on ? '🔕' : '🔔') + '<div class="sub">' + (on ? '承認中' : '承認') + '</div>';
 }
 
 // 鍵をかける / 外す (会議室内のメンバーのみ)
@@ -2549,6 +2676,7 @@ function applyFloorLayout(floor) {
   if (socket && !isMeeting) socket.emit('hand', { up: false });
   updateHandCountUI();
   updateLockUI();
+  updateApprovalUI();
   if (!isMeeting) {
     // 会議室から出た: カメラOFF、ビデオタイル掃除、ホワイトボードも閉じる
     if (camera.enabled) disableCamera();
