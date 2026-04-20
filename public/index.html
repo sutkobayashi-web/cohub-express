@@ -1501,6 +1501,9 @@ function render() {
     }
   }
 
+  // 受付bot 近接自動トリガー (近づくと話しかけてくる)
+  checkBotProximity();
+
   const r = canvas.getBoundingClientRect();
   const w = r.width, h = r.height;
   ctx.clearRect(0, 0, w, h);
@@ -4058,6 +4061,35 @@ function setStatus(s) {
   dot.style.boxShadow = '0 0 0 1px ' + color;
   document.getElementById('status-menu').classList.remove('show');
   if (users[me]) users[me].status = s;
+}
+
+// ===== 🤖 BOT 近接自動会話 =====
+// botの半径以内に入ると自動で肩たたき発火 → bot挨拶 + DM自動オープン
+const _botProximity = {}; // botUid → { in: bool, lastTrigger: ts }
+const BOT_TRIGGER_R = 180;   // この距離内で発動
+const BOT_RESET_R = 280;     // この距離超で再武装
+const BOT_REARM_MS = 60000;  // 発動後60秒は再発動しない (DM閉じてから接近)
+function checkBotProximity() {
+  if (!socket) return;
+  if (!me || !users[me] || users[me].cx == null) return;
+  const myU = users[me];
+  for (const uid in users) {
+    const u = users[uid];
+    if (!u || u.role !== 'bot' || u.cx == null) continue;
+    if (currentFloor && u.floor && u.floor !== currentFloor.code) continue;
+    const dx = myU.cx - u.cx, dy = myU.cy - u.cy;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const st = _botProximity[uid] || { in: false, lastTrigger: 0 };
+    const now = Date.now();
+    if (!st.in && d <= BOT_TRIGGER_R && now - st.lastTrigger > BOT_REARM_MS) {
+      st.in = true;
+      st.lastTrigger = now;
+      socket.emit('tap-shoulder', { targetUid: uid });
+    } else if (st.in && d >= BOT_RESET_R) {
+      st.in = false;
+    }
+    _botProximity[uid] = st;
+  }
 }
 
 // ===== 🎙️ ハドルゾーン =====
