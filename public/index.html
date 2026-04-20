@@ -568,6 +568,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       <span id="floor-name">ロビー</span>
       <span style="color:#94a3b8;font-weight:500;">・<span id="online-count">0</span>人</span>
       <span style="font-weight:500;color:#64748b;font-size:11px;margin-left:4px;" title="フロア発言は60日保存され、管理者の内部統制モニタリング対象です">🔍 公開会話・ログ60日</span>
+      <span id="floor-head-lock" onclick="toggleRoomLock()" style="display:none;cursor:pointer;font-weight:700;font-size:11px;margin-left:8px;padding:3px 10px;border-radius:12px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#0f172a;" title="クリックで施錠/解錠"></span>
+      <span id="floor-head-approval" onclick="toggleApproval()" style="display:none;cursor:pointer;font-weight:700;font-size:11px;margin-left:4px;padding:3px 10px;border-radius:12px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#0f172a;" title="クリックで承認制ON/OFF"></span>
     </div>
   </div>
 
@@ -2642,13 +2644,28 @@ function cancelWaiting() {
 
 function updateApprovalUI() {
   const btn = document.getElementById('dock-approval');
-  if (!btn) return;
+  const headBadge = document.getElementById('floor-head-approval');
   const isMeeting = currentFloor && /^meeting/.test(currentFloor.code);
-  btn.style.display = isMeeting ? 'flex' : 'none';
-  if (!isMeeting) return;
-  const on = !!currentFloor.approval_mode;
-  btn.classList.toggle('on', on);
-  btn.innerHTML = (on ? '🔕' : '🔔') + '<div class="sub">' + (on ? '承認中' : '承認') + '</div>';
+  if (btn) {
+    btn.style.display = isMeeting ? 'flex' : 'none';
+    if (isMeeting) {
+      const on = !!currentFloor.approval_mode;
+      btn.classList.toggle('on', on);
+      btn.innerHTML = (on ? '🔕' : '🔔') + '<div class="sub">' + (on ? '承認中' : '承認') + '</div>';
+    }
+  }
+  if (headBadge) {
+    if (!isMeeting) {
+      headBadge.style.display = 'none';
+    } else {
+      headBadge.style.display = 'inline-block';
+      const on = !!currentFloor.approval_mode;
+      headBadge.textContent = on ? '🔕 承認制ON · クリックでOFF' : '🔔 承認制OFF';
+      headBadge.style.background = on ? '#dbeafe' : '#f8fafc';
+      headBadge.style.borderColor = on ? '#3b82f6' : '#cbd5e1';
+      headBadge.style.color = on ? '#1e3a8a' : '#0f172a';
+    }
+  }
 }
 
 // 鍵をかける / 外す (会議室内のメンバーのみ)
@@ -2689,13 +2706,28 @@ function updateHandCountUI() {
 
 function updateLockUI() {
   const btn = document.getElementById('dock-lock');
-  if (!btn) return;
+  const headBadge = document.getElementById('floor-head-lock');
   const isMeeting = currentFloor && /^meeting/.test(currentFloor.code);
-  btn.style.display = isMeeting ? 'flex' : 'none';
-  if (!isMeeting) return;
-  const locked = !!currentFloor.locked;
-  btn.classList.toggle('on', locked);
-  btn.innerHTML = (locked ? '🔐' : '🔒') + '<div class="sub">' + (locked ? '鍵を外す' : '鍵をかける') + '</div>';
+  if (btn) {
+    btn.style.display = isMeeting ? 'flex' : 'none';
+    if (isMeeting) {
+      const locked = !!currentFloor.locked;
+      btn.classList.toggle('on', locked);
+      btn.innerHTML = (locked ? '🔐' : '🔒') + '<div class="sub">' + (locked ? '鍵を外す' : '鍵をかける') + '</div>';
+    }
+  }
+  if (headBadge) {
+    if (!isMeeting) {
+      headBadge.style.display = 'none';
+    } else {
+      headBadge.style.display = 'inline-block';
+      const locked = !!currentFloor.locked;
+      headBadge.textContent = locked ? '🔐 施錠中 · クリックで解錠' : '🔒 鍵をかける';
+      headBadge.style.background = locked ? '#fef3c7' : '#f8fafc';
+      headBadge.style.borderColor = locked ? '#f59e0b' : '#cbd5e1';
+      headBadge.style.color = locked ? '#92400e' : '#0f172a';
+    }
+  }
 }
 
 function toggleRailMenu(e) {
