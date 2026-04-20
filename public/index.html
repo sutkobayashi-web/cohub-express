@@ -315,9 +315,9 @@ let bgImage = null;
 let avatarImages = {}; // uid → Image
 const bubbles = []; // { uid, content, at, isEmoji }
 
-// ワールド座標系: 1200 × 720
-const WORLD_W = 1200;
-const WORLD_H = 720;
+// ワールド座標系: 1024 × 1024 (AI生成オフィス画像に合わせる)
+const WORLD_W = 1024;
+const WORLD_H = 1024;
 let viewScale = 1; // 実表示に対するスケール
 
 // ドラッグ状態
@@ -397,7 +397,7 @@ function resize() {
 
 function loadBackground() {
   bgImage = new Image();
-  bgImage.src = '/assets/office_bg.svg?v=3';
+  bgImage.src = '/assets/office_bg.png?v=4';
 }
 
 // スクリーン座標 → ワールド座標
@@ -505,9 +505,9 @@ function onPointerUp(e) {
   try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
 }
 
-// 壁の内側のみ歩行可（外周70px壁+アバター半径）
-function clampX(x) { return Math.max(105, Math.min(WORLD_W - 105, x)); }
-function clampY(y) { return Math.max(105, Math.min(WORLD_H - 105, y)); }
+// 壁の内側のみ歩行可
+function clampX(x) { return Math.max(90, Math.min(WORLD_W - 90, x)); }
+function clampY(y) { return Math.max(90, Math.min(WORLD_H - 90, y)); }
 
 function moveTo(x, y) {
   const cx = clampX(x), cy = clampY(y);
@@ -758,36 +758,18 @@ function drawMinimap() {
   const mw = r.width, mh = r.height;
   mmCtx.clearRect(0, 0, mw, mh);
 
-  // 壁（外枠） + 床
-  mmCtx.fillStyle = '#c9bca3';
-  mmCtx.fillRect(0, 0, mw, mh);
-  const wall = Math.max(mw, mh) * 0.05;
-  mmCtx.fillStyle = '#f2e4cc';
-  mmCtx.fillRect(wall, wall, mw - wall * 2, mh - wall * 2);
-
-  // 家具の大まかな矩形（SVGのレイアウトに対応）
-  mmCtx.fillStyle = '#c8b48a';
+  // 背景画像の縮小版
+  if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
+    mmCtx.drawImage(bgImage, 0, 0, mw, mh);
+    // 暗化オーバーレイで dot を見やすく
+    mmCtx.fillStyle = 'rgba(255,255,255,0.15)';
+    mmCtx.fillRect(0, 0, mw, mh);
+  } else {
+    mmCtx.fillStyle = '#f1f5f9';
+    mmCtx.fillRect(0, 0, mw, mh);
+  }
   const sx = mw / WORLD_W;
   const sy = mh / WORLD_H;
-  // 応接ソファ(左上)
-  mmCtx.fillRect(110 * sx, 120 * sy, 290 * sx, 160 * sy);
-  // 会議机(中央上)
-  mmCtx.fillRect(440 * sx, 140 * sy, 320 * sx, 120 * sy);
-  // 個人デスク(右上)
-  mmCtx.fillRect(830 * sx, 120 * sy, 240 * sx, 70 * sy);
-  // ホワイトボード(右中)
-  mmCtx.fillRect(830 * sx, 240 * sy, 250 * sx, 16 * sy);
-  // カフェ(左下)
-  mmCtx.fillRect(110 * sx, 470 * sy, 280 * sx, 100 * sy);
-  // 丸テーブル(中央下)
-  mmCtx.beginPath();
-  mmCtx.arc(600 * sx, 510 * sy, 42 * Math.min(sx, sy), 0, Math.PI * 2);
-  mmCtx.fill();
-  // 本棚(右下)
-  mmCtx.fillRect(1030 * sx, 380 * sy, 80 * sx, 230 * sy);
-  // ドア(下中央)
-  mmCtx.fillStyle = '#7b4f2a';
-  mmCtx.fillRect(560 * sx, (mh - wall), 90 * sx, wall);
 
   // ユーザー dot
   for (const uid in users) {

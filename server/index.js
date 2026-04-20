@@ -143,8 +143,9 @@ io.on('connection', (socket) => {
 
   // 移動
   socket.on('move', (data) => {
-    const x = Math.max(20, Math.min(1180, parseInt(data.x) || 400));
-    const y = Math.max(20, Math.min(680, parseInt(data.y) || 300));
+    // ワールド1024×1024、壁の内側のみ
+    const x = Math.max(20, Math.min(1004, parseInt(data.x) || 512));
+    const y = Math.max(20, Math.min(1004, parseInt(data.y) || 512));
     const p = presence.get(uid);
     if (!p) return;
     p.x = x; p.y = y;
