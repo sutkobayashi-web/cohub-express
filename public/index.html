@@ -510,6 +510,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" onclick="openHelp()" title="ヘルプ">
       <span>❓</span><span class="lbl">ヘルプ</span>
     </button>
+    <button class="rail-btn" onclick="confirmLogout()" title="ログアウト" style="color:#dc2626;margin-top:4px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);">
+      <span>🚪</span><span class="lbl">ログアウト</span>
+    </button>
   </div>
 
   <!-- 右サイドバー: チャット専用 (常時表示) -->
@@ -782,6 +785,17 @@ async function doLogin() {
     localStorage.setItem('cohub_token', token);
     localStorage.setItem('cohub_user', JSON.stringify(userData));
     localStorage.setItem('cohub_login_id', id); // 次回プリフィル用
+    // ブラウザのパスワードマネージャーに明示的に保存提案を出す
+    try {
+      if (window.PasswordCredential) {
+        const cred = new PasswordCredential({
+          id: id,
+          password: pw,
+          name: (userData && userData.display_name) || id,
+        });
+        navigator.credentials.store(cred).catch(() => {});
+      }
+    } catch (e) {}
     enterSpace();
   } catch(e) {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
@@ -792,7 +806,16 @@ function doLogout() {
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} });
   localStorage.removeItem('cohub_token');
   localStorage.removeItem('cohub_user');
+  // cohub_login_id は意図的に残す → 次回ログイン画面でプリフィル
+  // ブラウザに自動再ログインを抑止 (パスワード保存は維持)
+  try { if (navigator.credentials && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess(); } catch (e) {}
   location.reload();
+}
+
+function confirmLogout() {
+  if (confirm('ログアウトしますか?\n(ログインID/パスワードはブラウザ保存のままです)')) {
+    doLogout();
+  }
 }
 
 // ===== 空間 =====
