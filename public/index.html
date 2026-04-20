@@ -2013,8 +2013,13 @@ async function enableCamera() {
 
 async function disableCamera() {
   camera.enabled = false;
-  try { if (camera.stream) camera.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
-  camera.stream = null;
+  // 1. 自分のタイル video 要素から srcObject 参照を切る (stream を release)
+  const myTile = document.getElementById('vtile-' + me);
+  if (myTile) {
+    const v = myTile.querySelector('video');
+    if (v) { try { v.pause(); v.srcObject = null; } catch (e) {} }
+  }
+  // 2. peerから removeTrack + 再交渉 (受信側の映像を終了)
   for (const [peerUid, peer] of voice.peers) {
     if (peer.cameraSender) {
       try { peer.pc.removeTrack(peer.cameraSender); } catch (e) {}
@@ -2026,6 +2031,16 @@ async function disableCamera() {
       } catch (e) {}
     }
   }
+  // 3. MediaStreamTrack を完全停止 (カメラLED消灯)
+  if (camera.stream) {
+    try {
+      for (const t of camera.stream.getTracks()) {
+        try { t.enabled = false; } catch (e) {}
+        try { t.stop(); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  camera.stream = null;
   removeVideoTile(me);
   const btn = document.getElementById('dock-camera');
   if (btn) { btn.classList.remove('on'); btn.innerHTML = '📹<div class="sub">カメラ</div>'; }
@@ -2062,7 +2077,11 @@ function addVideoTile(peerUid, stream, isSelf) {
 
 function removeVideoTile(peerUid) {
   const tile = document.getElementById('vtile-' + peerUid);
-  if (tile) tile.remove();
+  if (tile) {
+    const v = tile.querySelector('video');
+    if (v) { try { v.pause(); v.srcObject = null; } catch (e) {} }
+    tile.remove();
+  }
   const grid = document.getElementById('video-grid');
   // タイル数0 なら video-grid を非表示 (cam-open外す)
   if (grid && grid.querySelectorAll('.v-tile').length === 0) {
