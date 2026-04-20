@@ -138,7 +138,15 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dock-btn.on { background: #06b6d4; color: #fff; }
 .dock-btn.off { background: #fef2f2; color: #dc2626; }
 /* 会議ボタン群 (カメラ・ボード・鍵・画面共有・録音・挙手) */
-.dock-meeting-group { display: flex; gap: 6px; padding: 3px 8px; background: rgba(6,182,212,0.06); border-radius: 26px; align-items: center; }
+.dock-meeting-group { display: flex; gap: 6px; padding: 4px 10px; background: linear-gradient(135deg, #bae6fd, #a5f3fc); border-radius: 26px; align-items: center; box-shadow: inset 0 0 0 1px rgba(6,182,212,0.25); }
+.dock-meeting-group .dock-btn { background: #fff; box-shadow: 0 2px 6px rgba(8,145,178,0.2); }
+.dock-meeting-group .dock-btn.on { background: #0891b2; color: #fff; }
+/* 会議開始ボタン (緑=開始 / 赤=終了) */
+#dock-meeting-start { background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 14px; padding: 0 14px; width: auto; height: 44px; border-radius: 22px; border: none; cursor: pointer; display: none; align-items: center; gap: 6px; font-weight: 700; box-shadow: 0 4px 12px rgba(16,185,129,0.35); flex-shrink: 0; transition: all 0.15s; }
+#dock-meeting-start:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,0.45); }
+#dock-meeting-start.active { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 12px rgba(239,68,68,0.35); }
+#dock-meeting-start.active:hover { box-shadow: 0 6px 16px rgba(239,68,68,0.45); }
+body.layout-meeting #dock-meeting-start { display: inline-flex; }
 .dock-btn .sub { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #64748b; font-weight: 600; white-space: nowrap; pointer-events: none; }
 .dock-btn.speaking { box-shadow: 0 0 0 4px rgba(16,185,129,0.55), 0 4px 12px rgba(16,185,129,0.3); animation: dockPulse 1s ease-in-out infinite; }
 .dock-btn.rec-on { background: #dc2626; color: #fff; animation: recBlink 1s ease-in-out infinite; }
@@ -555,6 +563,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
     <!-- 会議ツール群 (グループ化) -->
     <div class="dock-meeting-group" title="会議ツール">
+      <button id="dock-meeting-start" onclick="toggleMeetingMode()" title="会議を開始(マイク+カメラ+ボード自動ON)">▶ 会議開始</button>
       <button class="dock-btn" id="dock-camera" onclick="toggleCamera()" title="ビデオ" style="display:none;">📹<div class="sub">ビデオ</div></button>
       <button class="dock-btn" id="dock-vb" onclick="toggleVbMenu(event)" title="バーチャル背景" style="display:none;">🖼<div class="sub">背景</div></button>
       <button class="dock-btn" id="dock-wb" onclick="toggleWhiteboard()" title="ホワイトボード" style="display:none;">🖊<div class="sub">ボード</div></button>
@@ -2663,6 +2672,29 @@ async function getOrCreatePeer(peerUid) {
   return obj;
 }
 
+// ===== 会議モード ワンタップ開始/終了 =====
+async function toggleMeetingMode() {
+  const btn = document.getElementById('dock-meeting-start');
+  const isActive = btn && btn.classList.contains('active');
+  if (isActive) {
+    // 終了: ビデオOFF + マイクOFF + ホワイトボード閉
+    if (camera.enabled) await disableCamera();
+    if (voice.enabled) await disableVoice();
+    if (document.body.classList.contains('wb-open')) toggleWhiteboard();
+    btn.classList.remove('active');
+    btn.innerHTML = '▶ 会議開始';
+    showToast('会議モードを終了しました');
+  } else {
+    // 開始: マイクON → カメラON → ボード開
+    btn.classList.add('active');
+    btn.innerHTML = '■ 会議終了';
+    showToast('会議を開始します…');
+    if (!voice.enabled) await enableVoice();
+    if (voice.enabled && !camera.enabled) await enableCamera();
+    if (!document.body.classList.contains('wb-open')) toggleWhiteboard();
+  }
+}
+
 // ===== カメラ / ビデオ会議 =====
 const camera = {
   enabled: false,
@@ -3167,6 +3199,9 @@ function applyFloorLayout(floor) {
     document.body.classList.remove('wb-open');
     document.body.classList.remove('cam-open');
     if (wbBtn) wbBtn.classList.remove('on');
+    // 会議開始ボタンもリセット
+    const msBtn = document.getElementById('dock-meeting-start');
+    if (msBtn) { msBtn.classList.remove('active'); msBtn.innerHTML = '▶ 会議開始'; }
     const grid = document.getElementById('video-grid');
     if (grid) grid.innerHTML = '';
   } else {
