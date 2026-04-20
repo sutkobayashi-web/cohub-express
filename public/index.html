@@ -678,6 +678,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 <!-- アバター設定モーダル -->
 <div id="avatar-modal" style="display:none;"></div>
 
+<!-- 🛗 エレベーター行先モーダル -->
+<div id="elevator-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;"></div>
+
 <!-- 🔑 パスワード変更モーダル -->
 <div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 24px 60px rgba(15,23,42,0.4);">
@@ -1004,6 +1007,7 @@ let allFloors = [];
 let floorCounts = {};
 let huddleZones = [];      // [{ code, name, x1, y1, x2, y2 }]
 let myHuddleCode = null;   // 現在自分が居るハドルゾーンcode (なければnull)
+let elevatorZone = null;   // { x1, y1, x2, y2, name } or null
 let viewScale = 1; // 実表示に対するスケール
 
 // ドラッグ状態
@@ -1196,6 +1200,8 @@ function connectSocket() {
     if (Array.isArray(data.floors)) allFloors = data.floors;
     if (data.floor_counts) floorCounts = data.floor_counts;
     huddleZones = Array.isArray(data.huddle_zones) ? data.huddle_zones : [];
+    elevatorZone = data.elevator || null;
+    _elevatorState = { in: false, lastAt: 0 };
     myHuddleCode = null; // フロア切替で再判定
     renderRailFloors();
     // ユーザー
@@ -1688,6 +1694,8 @@ function render() {
 
   // 受付bot 近接自動トリガー (近づくと話しかけてくる)
   checkBotProximity();
+  // 🛗 エレベーター近接トリガー
+  checkElevatorProximity();
 
   const r = canvas.getBoundingClientRect();
   const w = r.width, h = r.height;
@@ -1728,6 +1736,48 @@ function render() {
     }
     ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
     ctx.restore();
+  }
+
+  // 🛗 エレベーターゾーン (左壁中央、全office棟フロア共通位置)
+  if (elevatorZone) {
+    const z = elevatorZone;
+    const w = z.x2 - z.x1, h = z.y2 - z.y1;
+    // ドア風のグラデ + 真鍮枠
+    const grad = ctx.createLinearGradient(z.x1, 0, z.x2, 0);
+    grad.addColorStop(0, 'rgba(71,85,105,0.92)');
+    grad.addColorStop(0.5, 'rgba(15,23,42,0.92)');
+    grad.addColorStop(1, 'rgba(71,85,105,0.92)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(z.x1, z.y1, w, h);
+    // ドアセンターライン
+    ctx.strokeStyle = 'rgba(251,191,36,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(z.x1 + w / 2, z.y1 + 8);
+    ctx.lineTo(z.x1 + w / 2, z.y2 - 8);
+    ctx.stroke();
+    // 真鍮枠
+    ctx.strokeStyle = 'rgba(251,191,36,0.85)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(z.x1, z.y1, w, h);
+    // 上部にフロアインジケーター
+    ctx.fillStyle = 'rgba(251,191,36,0.95)';
+    roundRect(z.x1 + w / 2 - 22, z.y1 - 24, 44, 18, 4);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '700 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('▼ ▲', z.x1 + w / 2, z.y1 - 15);
+    // ラベル
+    ctx.font = '700 12px sans-serif';
+    const labelTxt = '🛗 エレベーター';
+    const tw = ctx.measureText(labelTxt).width + 16;
+    ctx.fillStyle = 'rgba(15,23,42,0.85)';
+    roundRect(z.x1 + w / 2 - tw / 2, z.y2 + 6, tw, 18, 9);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(labelTxt, z.x1 + w / 2, z.y2 + 15);
   }
 
   // ハドルゾーン (紫枠 + ラベル)
@@ -4347,6 +4397,57 @@ function checkBotProximity() {
     }
     _botProximity[uid] = st;
   }
+}
+
+// ===== 🛗 エレベーター近接 =====
+let _elevatorState = { in: false, lastAt: 0 };
+function checkElevatorProximity() {
+  if (!elevatorZone || !me || !users[me] || users[me].cx == null) return;
+  const z = elevatorZone;
+  const x = users[me].cx, y = users[me].cy;
+  const inside = (x >= z.x1 - 30 && x <= z.x2 + 30 && y >= z.y1 - 30 && y <= z.y2 + 30);
+  const now = Date.now();
+  if (inside && !_elevatorState.in && now - _elevatorState.lastAt > 8000) {
+    _elevatorState.in = true;
+    _elevatorState.lastAt = now;
+    openElevatorModal();
+  } else if (!inside && _elevatorState.in) {
+    _elevatorState.in = false;
+  }
+}
+
+const ELEVATOR_DEST_FLOORS = ['lobby', 'office', 'meeting_a', 'meeting_b', 'meeting_c'];
+function openElevatorModal() {
+  const m = document.getElementById('elevator-modal');
+  if (!m) return;
+  const cur = currentFloor && currentFloor.code;
+  const list = (allFloors || []).filter(f => ELEVATOR_DEST_FLOORS.includes(f.code) && f.code !== cur);
+  let html = '<div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(15,23,42,0.4);">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' +
+    '<div style="font-size:18px;font-weight:800;color:#0f172a;flex:1;">🛗 行先フロア</div>' +
+    '<button onclick="closeElevatorModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>' +
+    '</div>' +
+    '<div style="font-size:11px;color:#64748b;margin-bottom:14px;">移動するフロアを選択してください</div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;">';
+  for (const f of list) {
+    const cnt = (typeof floorCounts !== 'undefined' && floorCounts[f.code]) ? floorCounts[f.code] : 0;
+    html += '<button onclick="elevatorGoto(\'' + f.code + '\')" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:14px;color:#0f172a;text-align:left;transition:all 0.15s;" onmouseover="this.style.background=\'#ecfeff\';this.style.borderColor=\'#06b6d4\';" onmouseout="this.style.background=\'#f8fafc\';this.style.borderColor=\'#e2e8f0\';">' +
+            '<span style="font-size:24px;">' + (f.icon || '🏢') + '</span>' +
+            '<span style="flex:1;font-weight:600;">' + escapeHtml(f.name) + '</span>' +
+            (cnt ? '<span style="background:#06b6d4;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;">' + cnt + '人</span>' : '') +
+            '</button>';
+  }
+  html += '</div></div>';
+  m.innerHTML = html;
+  m.style.display = 'flex';
+}
+function closeElevatorModal() {
+  const m = document.getElementById('elevator-modal');
+  if (m) m.style.display = 'none';
+}
+function elevatorGoto(code) {
+  closeElevatorModal();
+  switchFloor(code);
 }
 
 // ===== 🎙️ ハドルゾーン =====

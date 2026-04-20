@@ -237,6 +237,10 @@ const HUDDLE_ZONES = {
   ],
 };
 
+// 🛗 エレベーターゾーン (事務所棟の各フロアで同位置 = 左壁中央)
+const ELEVATOR_ZONE = { x1: 30, y1: 290, x2: 140, y2: 490, name: '🛗 エレベーター' };
+const ELEVATOR_FLOORS = ['lobby', 'office', 'meeting_a', 'meeting_b', 'meeting_c'];
+
 function getVoiceGroup(p) {
   if (!p) return '';
   const zones = HUDDLE_ZONES[p.floor] || [];
@@ -348,6 +352,7 @@ io.on('connection', (socket) => {
       floors: allFloors(),
       floor_counts: floorCountMap(),
       huddle_zones: HUDDLE_ZONES[floor.code] || [],
+      elevator: ELEVATOR_FLOORS.includes(floor.code) ? ELEVATOR_ZONE : null,
     });
   };
   sendSnapshot();
@@ -476,6 +481,7 @@ io.on('connection', (socket) => {
       floors: allFloors(),
       floor_counts: floorCountMap(),
       huddle_zones: HUDDLE_ZONES[target.code] || [],
+      elevator: ELEVATOR_FLOORS.includes(target.code) ? ELEVATOR_ZONE : null,
     });
     io.emit('floor:counts', floorCountMap());
     io.emit('user:floor', { uid, floor: target.code });
