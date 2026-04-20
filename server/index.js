@@ -146,9 +146,9 @@ io.on('connection', (socket) => {
 
   // 移動
   socket.on('move', (data) => {
-    // ワールド1024×1024、壁の内側のみ
-    const x = Math.max(20, Math.min(1004, parseInt(data.x) || 512));
-    const y = Math.max(20, Math.min(1004, parseInt(data.y) || 512));
+    // ワールド1344×768、壁の内側のみ
+    const x = Math.max(20, Math.min(1324, parseInt(data.x) || 672));
+    const y = Math.max(20, Math.min(748, parseInt(data.y) || 384));
     const p = presence.get(uid);
     if (!p) return;
     p.x = x; p.y = y;

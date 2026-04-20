@@ -377,9 +377,9 @@ function saveChatLog() {
   try { localStorage.setItem('cohub_chat_log', JSON.stringify(chatLog.slice(-300))); } catch(e) {}
 }
 
-// ワールド座標系: 1024 × 1024 (AI生成オフィス画像に合わせる)
-const WORLD_W = 1024;
-const WORLD_H = 1024;
+// ワールド座標系: 1344 × 768 (AI生成ワイド背景に合わせる 16:9相当)
+const WORLD_W = 1344;
+const WORLD_H = 768;
 let viewScale = 1; // 実表示に対するスケール
 
 // ドラッグ状態
@@ -492,7 +492,7 @@ function resize() {
 
 function loadBackground() {
   bgImage = new Image();
-  bgImage.src = '/assets/office_bg.png?v=5';
+  bgImage.src = '/assets/office_bg.png?v=6';
 }
 
 // スクリーン座標 → ワールド座標
@@ -664,7 +664,7 @@ function onPointerUp(e) {
   try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
 }
 
-// 壁の内側のみ歩行可
+// 壁の内側のみ歩行可 (壁厚~80px想定)
 function clampX(x) { return Math.max(90, Math.min(WORLD_W - 90, x)); }
 function clampY(y) { return Math.max(90, Math.min(WORLD_H - 90, y)); }
 

@@ -17,7 +17,7 @@ All furniture appears as their top surfaces:
 - Plants appear as clusters of green circles (leaves from above)
 - People NOT VISIBLE (office is empty)
 
-Layout (square 1024x1024 canvas, walls on 4 sides):
+Layout (WIDE 16:10 horizontal rectangular canvas, walls on all 4 sides):
 - Upper wall: 3 large windows letting in warm morning daylight
 - Lower wall: entrance door with red welcome mat
 - Left-top quadrant: lounge zone with L-shaped grey sofa, wooden coffee table, floor lamp, potted plant
@@ -38,7 +38,11 @@ Style: architectural top-view plan rendering with photorealistic textures, clean
   if (!apiKey) { console.error('GEMINI_API_KEY not set'); process.exit(1); }
   const body = {
     contents: [{ parts: [{ text: PROMPT }] }],
-    generationConfig: { responseModalities: ['IMAGE', 'TEXT'], temperature: 0.8 }
+    generationConfig: {
+      responseModalities: ['IMAGE', 'TEXT'],
+      temperature: 0.8,
+      imageConfig: { aspectRatio: '16:9' }
+    }
   };
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey, {
     method: 'POST',
