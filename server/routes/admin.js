@@ -44,32 +44,72 @@ router.post('/users', authAdmin, (req, res) => {
 });
 
 // CSV一括登録
+// フォーマット: login_id,display_name,company_code,password[,role[,employee_type]]
 router.post('/users/bulk', authAdmin, (req, res) => {
   const { csv } = req.body;
   if (!csv) return res.status(400).json({ success: false, msg: 'CSVが空です' });
   const lines = csv.trim().split(/\r?\n/);
   const db = getDb();
   const results = { created: 0, skipped: 0, errors: [] };
-  const insert = db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role)
-    VALUES (?, ?, ?, ?, ?, ?)`);
+  const validRoles = new Set(['member', 'admin']);
+  const validEtypes = new Set(['office', 'field', 'admin']);
+  // 既知の company コード一覧 (UNKNOWN は弾く)
+  const validCompanies = new Set(db.prepare('SELECT code FROM companies').all().map(r => r.code));
+  const insert = db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`);
   const txn = db.transaction(() => {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line || line.startsWith('#')) continue;
-      // フォーマット: login_id,display_name,company_code,password[,role]
       const parts = line.split(',').map(s => s.trim());
-      if (parts.length < 4) { results.errors.push(`行${i+1}: 列不足`); continue; }
-      const [login_id, display_name, company_code, password, role] = parts;
+      if (parts.length < 4) { results.errors.push(`行${i+1}: 列不足 (4列以上必要)`); continue; }
+      const [login_id, display_name, company_code, password, roleRaw, etypeRaw] = parts;
+      if (!login_id || !display_name || !company_code || !password) { results.errors.push(`行${i+1}: 必須項目空欄`); continue; }
+      if (!validCompanies.has(company_code)) { results.errors.push(`行${i+1}: 会社コード '${company_code}' が未定義`); continue; }
+      const role = validRoles.has(roleRaw) ? roleRaw : 'member';
+      const etype = validEtypes.has(etypeRaw) ? etypeRaw : 'office';
+      if (password.length < 8) { results.errors.push(`行${i+1}: パスワード短すぎ (8文字以上)`); continue; }
       const exists = db.prepare('SELECT 1 FROM users WHERE login_id = ?').get(login_id);
       if (exists) { results.skipped++; continue; }
       const id = crypto.randomUUID();
       const hash = bcrypt.hashSync(password, 10);
-      insert.run(id, login_id, hash, display_name, company_code, role || 'member');
+      insert.run(id, login_id, hash, display_name, company_code, role, etype);
       results.created++;
     }
   });
   txn();
   res.json({ success: true, ...results });
+});
+
+// CSVテンプレート (BOM付きUTF-8でExcel/Numbers互換)
+router.get('/users/csv-template', authAdmin, (req, res) => {
+  const db = getDb();
+  const companies = db.prepare('SELECT code, name FROM companies ORDER BY code').all();
+  const compList = companies.map(c => `#   ${c.code.padEnd(14)} = ${c.name}`).join('\n');
+  const tpl = '\uFEFF' + [
+    '# CoHub メンバー一括登録CSV テンプレート',
+    '# ───────────────────────────────────────────────',
+    '# 列: login_id,display_name,company_code,password,role,employee_type',
+    '#  login_id        : ログインID (英数字, 重複不可)',
+    '#  display_name    : 表示名 (日本語OK, 例: 山田太郎)',
+    '#  company_code    : 所属会社コード (下記から選択)',
+    '#  password        : 初期パスワード (8文字以上推奨)',
+    '#  role            : member | admin (省略時 member)',
+    '#  employee_type   : office | field | admin (省略時 office)',
+    '#                    field=現場棟スタッフ(乗務員/倉庫), office=事務所棟',
+    '#',
+    '# 利用可能な会社コード:',
+    compList,
+    '#',
+    '# 「#」で始まる行はコメント。空行は無視されます。',
+    '# サンプル(下の3行は削除して、本データに置き換えてください):',
+    'taro_yamada,山田太郎,SU_HQ,Init#Pass2026,member,office',
+    'hanako_suzuki,鈴木花子,SU_SAITAMA,Init#Pass2026,member,office',
+    'driver_sato,佐藤健一,SU_ZAMA,Init#Pass2026,member,field',
+  ].join('\n') + '\n';
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="cohub_members_template.csv"');
+  res.send(tpl);
 });
 
 // パスワードリセット
