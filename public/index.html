@@ -1859,8 +1859,16 @@ async function disableVoice() {
     try { voice.localStream.getTracks().forEach(t => t.stop()); } catch (e) {}
     voice.localStream = null;
   }
-  if (socket) socket.emit('voice:leave');
-  if (users[me]) users[me].voice = false;
+  if (socket) {
+    // 発話中フラグが残っていれば先に OFF を全員に通知してから離脱
+    if (voice.speakingSent) socket.emit('voice:speaking', { on: false });
+    socket.emit('voice:leave');
+  }
+  voice.speakingSent = false;
+  voice.speakStreak = 0;
+  if (users[me]) { users[me].voice = false; users[me].speaking = false; }
+  const mbtn = document.getElementById('dock-mic');
+  if (mbtn) mbtn.classList.remove('speaking');
   updateMicUI();
 }
 
@@ -2312,8 +2320,15 @@ function updateMicVolume() {
   const vol = Math.min(1, avg / 80);
   const fill = document.getElementById('mic-volbar-fill');
   if (fill) fill.style.width = Math.round(vol * 100) + '%';
+
+  // ヒステリシス付き発話判定 (閾値38、立ち上がり2フレーム・立ち下がり4フレーム)
+  const THRESHOLD = 38;
+  if (typeof voice.speakStreak !== 'number') voice.speakStreak = 0;
+  if (avg > THRESHOLD) voice.speakStreak = Math.min(voice.speakStreak + 1, 10);
+  else voice.speakStreak = Math.max(voice.speakStreak - 1, -4);
+  const speaking = voice.speakingSent ? voice.speakStreak > -3 : voice.speakStreak >= 2;
+
   const btn = document.getElementById('dock-mic');
-  const speaking = avg > 22;
   if (speaking !== voice.speakingSent) {
     voice.speakingSent = speaking;
     if (btn) btn.classList.toggle('speaking', speaking);
