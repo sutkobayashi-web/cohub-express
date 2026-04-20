@@ -1325,6 +1325,10 @@ function connectSocket() {
   socket.on('tap:sent', (data) => {
     const u = users[data && data.targetUid];
     showToast('👋 ' + ((u && u.name) || '相手') + 'に肩たたきを送りました');
+    // bot 宛なら DM パネルを自動オープン
+    if (u && u.role === 'bot') {
+      setTimeout(() => { try { openDmWith(u.uid); } catch (e) {} }, 600);
+    }
   });
   socket.on('chat:msg', (m) => {
     const isEmoji = isSingleEmoji(m.content);
