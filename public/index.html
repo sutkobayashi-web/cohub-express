@@ -586,9 +586,14 @@ function resize() {
   mmCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
+let stdLogo = null;
 function loadBackground(src) {
   bgImage = new Image();
   bgImage.src = (src || '/assets/office_bg.png') + '?v=8';
+  if (!stdLogo) {
+    stdLogo = new Image();
+    stdLogo.src = '/assets/std_logo.png?v=1';
+  }
 }
 
 // スクリーン座標 → ワールド座標
@@ -954,6 +959,24 @@ function render() {
     // フォールバック
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  }
+
+  // 1F ロビー限定: スタンダード運輸ロゴをオーバーレイ
+  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
+    const logoW = 360;
+    const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
+    const lx = (WORLD_W - logoW) / 2;
+    const ly = 70;
+    // 背景クッション (白地パネル) + 薄い影
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = '#ffffff';
+    roundRect(lx - 18, ly - 12, logoW + 36, logoH + 24, 14);
+    ctx.fill();
+    ctx.restore();
+    ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
   }
 
   // 近接範囲（自分中心）
