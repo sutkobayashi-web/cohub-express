@@ -76,18 +76,24 @@ Colors: fresh green + birch wood + cream. Creative, collaborative brainstorm atm
 
   meeting_c: `${COMMON}
 
-Layout: 3F MEETING ROOM C - small private 1-on-1 meeting room, WARM ORANGE accent.
-- Walls: 4 solid walls making a smaller enclosed room
-- Center: SMALL SQUARE MEETING TABLE (4-person), warm oak wood
-- Around table: 4 chairs (soft orange/terracotta fabric)
-- Upper wall: small video conference screen mounted on wall + small sign "MEETING C"
-- Right wall: bookshelf with books and binders, small artwork frame
-- Left wall: tall mirror OR large wall art
-- Lower wall: entrance door
-- Table top: 4 coffee cups, notebooks, pens, a laptop
-- Corners: 1-2 potted plants
-- One comfortable armchair in corner for 1-on-1 casual talk
-Colors: warm terracotta + wood tones + cream walls. Intimate, quiet 1-on-1 discussion atmosphere.`,
+Layout: 3F LARGE CONFERENCE HALL - corporate all-hands meeting room seating ~30 people.
+- Walls: 4 solid walls making a large enclosed hall
+- Upper wall: HUGE presentation SCREEN mounted prominently (large dark rectangle), speaker podium just below it
+- Layout: U-SHAPED arrangement of 3 long rectangular meeting tables:
+  - Top horizontal table (below screen): seats 10 chairs facing the screen
+  - Left vertical table: seats 8 chairs facing right
+  - Right vertical table: seats 8 chairs facing left
+  - Additional row of 4 loose chairs at the bottom-center (observer seats)
+- All chairs visible as small circles (navy blue), approximately 30 chairs total
+- Each seat has a small water glass and notebook
+- Tables: dark polished mahogany wood (long rectangles)
+- Left wall: sideboard with water pitcher, microphones, notebook stack
+- Right wall: projector control console + bookshelf with binders
+- Lower wall: DOUBLE entrance doors with welcome mat
+- 4 corners: tall potted palm plants
+- Ceiling (hinted top-down): pendant lights rectangle over central area
+Colors: dark mahogany wood + navy blue chairs + cream walls + subtle gold accents.
+Style: formal, large corporate conference hall, prestigious, suited for all-hands or board-wide meetings.`,
 };
 
 (async () => {

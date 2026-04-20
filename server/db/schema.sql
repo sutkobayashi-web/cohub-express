@@ -45,7 +45,7 @@ INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order
   ('office',    '2F 事務フロア',     '/assets/floor_office.png',    1344, 768, 2, '💼'),
   ('meeting_a', '3F 役員会議室',      '/assets/floor_meeting_a.png', 1344, 768, 3, '👔'),
   ('meeting_b', '3F 会議室B',        '/assets/floor_meeting_b.png', 1344, 768, 4, '🅱'),
-  ('meeting_c', '3F 会議室C',        '/assets/floor_meeting_c.png', 1344, 768, 5, '🅲');
+  ('meeting_c', '3F 大会議室',       '/assets/floor_meeting_c.png', 1344, 768, 5, '🏛');
 
 -- ホワイトボード (会議室毎に共有テキスト。会議室コード = primary key)
 CREATE TABLE IF NOT EXISTS whiteboards (
