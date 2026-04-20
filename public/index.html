@@ -147,13 +147,15 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .photo-picker img { max-height: 240px; border-radius: 10px; margin-top: 10px; }
 .photo-frame { position: relative; display: inline-block; }
 .photo-frame .guide { position: absolute; inset: 0; pointer-events: none; }
-.cand-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0 14px; }
+.cand-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin: 10px 0 14px; }
 .cand-card { background: #f1f5f9; border: 3px solid transparent; border-radius: 12px; padding: 8px; cursor: pointer; text-align: center; transition: all 0.15s; position: relative; }
 .cand-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
 .cand-card.active { border-color: #06b6d4; background: rgba(6,182,212,0.12); }
 .cand-card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 8px; background: #e2e8f0; }
 .cand-card .lbl { font-size: 11px; margin-top: 4px; color: #334155; font-weight: 600; }
 .cand-card.active::after { content: '✓'; position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(6,182,212,0.4); }
+@keyframes btnPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(6,182,212,0.5); } 50% { box-shadow: 0 0 0 10px rgba(6,182,212,0); } }
+#avatar-confirm-btn.pulse-hint { animation: btnPulse 1.2s ease-in-out 3; }
 .btn-ghost { padding: 8px 14px; background: transparent; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; cursor: pointer; font-size: 13px; }
 .btn-small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
 
@@ -1727,7 +1729,16 @@ async function doGenerateSet() {
     renderCandidates();
     document.getElementById('cand-section').style.display = 'block';
     btn.style.display = 'none';
-    document.getElementById('avatar-confirm-btn').style.display = 'inline-block';
+    const confirmBtn = document.getElementById('avatar-confirm-btn');
+    confirmBtn.style.display = 'inline-block';
+    confirmBtn.textContent = 'これにする (' + d.candidates.length + '枚から選択)';
+    // モーダル内を下までスクロールして候補＆ボタンを見える位置へ
+    setTimeout(() => {
+      const candSec = document.getElementById('cand-section');
+      if (candSec && candSec.scrollIntoView) candSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      confirmBtn.classList.add('pulse-hint');
+      setTimeout(() => confirmBtn.classList.remove('pulse-hint'), 3000);
+    }, 100);
   } catch(e) {
     err.textContent = '通信エラー';
     btn.disabled = false; btn.textContent = '3パターン自動生成 (約40秒)';
