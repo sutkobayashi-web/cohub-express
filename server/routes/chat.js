@@ -78,6 +78,38 @@ router.get('/admin/search', authAdmin, (req, res) => {
   res.json({ success: true, messages: rows, total: totalRow.c });
 });
 
+// DM履歴（自分と指定相手）
+router.get('/dm/:peerId', authUser, (req, res) => {
+  const peerId = req.params.peerId;
+  const rows = getDb().prepare(`
+    SELECT m.id, m.sender_id, m.receiver_id, m.content, m.created_at
+    FROM messages m
+    WHERE m.room_code = 'dm'
+      AND ((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))
+      AND m.created_at > datetime('now', '-60 days')
+    ORDER BY m.created_at DESC
+    LIMIT 200
+  `).all(req.uid, peerId, peerId, req.uid);
+  res.json({ success: true, messages: rows.reverse() });
+});
+
+// DMの相手一覧（最新のやり取り順）
+router.get('/dm', authUser, (req, res) => {
+  const rows = getDb().prepare(`
+    SELECT u.id AS peer_id, u.display_name, u.avatar_url, u.company_code, l.last_at
+    FROM users u
+    JOIN (
+      SELECT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS peer_id,
+             MAX(created_at) AS last_at
+      FROM messages
+      WHERE room_code='dm' AND (sender_id = ? OR receiver_id = ?)
+      GROUP BY peer_id
+    ) l ON l.peer_id = u.id
+    ORDER BY l.last_at DESC LIMIT 50
+  `).all(req.uid, req.uid, req.uid);
+  res.json({ success: true, peers: rows });
+});
+
 // フロア一覧
 router.get('/floors', authUser, (req, res) => {
   const rows = getDb().prepare('SELECT code, name FROM floors ORDER BY sort_order').all();

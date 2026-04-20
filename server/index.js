@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -8,6 +9,12 @@ const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('./services/db');
+
+// TURN サーバー認証情報を起動時に読み込み
+let TURN_PASSWORD = '';
+try { TURN_PASSWORD = fs.readFileSync(path.join(__dirname, '..', '.turn_password'), 'utf-8').trim(); } catch (e) {}
+const TURN_HOST = process.env.TURN_HOST || '163.44.98.179';
+const TURN_USER = process.env.TURN_USER || 'cohubuser';
 
 const app = express();
 const server = http.createServer(app);
@@ -81,6 +88,26 @@ app.post('/api/bootstrap', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// ICE サーバー情報（認証ユーザーのみ。TURN認証情報を漏洩しない）
+app.get('/api/voice/ice-servers', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ success: false });
+  try { jwt.verify(token, process.env.JWT_SECRET); }
+  catch (e) { return res.status(401).json({ success: false }); }
+  const servers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+  if (TURN_PASSWORD) {
+    servers.push({
+      urls: ['turn:' + TURN_HOST + ':3478?transport=udp', 'turn:' + TURN_HOST + ':3478?transport=tcp'],
+      username: TURN_USER,
+      credential: TURN_PASSWORD,
+    });
+  }
+  res.json({ success: true, iceServers: servers });
+});
 
 // SPA fallback
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
@@ -274,6 +301,29 @@ io.on('connection', (socket) => {
       room: sender.floor,
     };
     io.to('floor:' + sender.floor).emit('chat:msg', payload);
+  });
+
+  // DM (1対1ダイレクトメッセージ)
+  socket.on('chat:dm', (data) => {
+    const to = (data && data.to || '').toString();
+    const content = (data && data.content || '').toString().trim().slice(0, 1000);
+    if (!to || !content || to === uid) return;
+    const target = getDb().prepare('SELECT id FROM users WHERE id = ?').get(to);
+    if (!target) return;
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')").run(uid, to, content);
+    const payload = {
+      id: ins.lastInsertRowid,
+      from: uid,
+      to,
+      content,
+      at: new Date().toISOString(),
+    };
+    socket.emit('dm:msg', payload);
+    const tp = presence.get(to);
+    if (tp) {
+      const s = io.sockets.sockets.get(tp.socketId);
+      if (s) s.emit('dm:msg', payload);
+    }
   });
 
   // 既読通知を送信者に転送（同フロアのみ意味あり）
