@@ -463,6 +463,51 @@ io.on('connection', (socket) => {
     }
   });
 
+  // グループチャット
+  socket.on('chat:group', (data) => {
+    const gid = (data && data.group_id || '').toString();
+    const content = (data && data.content || '').toString().trim().slice(0, 2000);
+    if (!gid || (!content && !(data && data.attach))) return;
+    // メンバー確認
+    const isMember = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(gid, uid);
+    if (!isMember) return;
+    const a = data && data.attach && data.attach.url ? data.attach : null;
+    const attachUrl = a ? String(a.url).slice(0, 500) : null;
+    const attachName = a ? String(a.name || '').slice(0, 200) : null;
+    const attachSize = a ? (parseInt(a.size) || 0) : null;
+    const attachType = a ? String(a.type || '').slice(0, 80) : null;
+    const roomCode = 'grp_' + gid;
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, NULL, ?, ?, ?, ?, ?, ?)")
+      .run(uid, content, roomCode, attachUrl, attachName, attachSize, attachType);
+    const payload = {
+      id: ins.lastInsertRowid,
+      from: uid,
+      group_id: gid,
+      content,
+      at: new Date().toISOString(),
+      attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
+    };
+    // メンバー全員に配信 (オンラインは即、オフラインはPush)
+    const members = getDb().prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(gid);
+    const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+    const groupName = (getDb().prepare('SELECT name FROM chat_groups WHERE id = ?').get(gid) || {}).name || 'グループ';
+    for (const m of members) {
+      const tp = presence.get(m.user_id);
+      if (tp) {
+        const s = io.sockets.sockets.get(tp.socketId);
+        if (s) s.emit('group:msg', payload);
+      }
+      if (m.user_id !== uid) {
+        sendPushToUser(m.user_id, {
+          title: '[' + groupName + '] ' + senderName,
+          body: (content || '').slice(0, 120) || '📎 添付ファイル',
+          tag: 'grp-' + gid,
+          url: '/?g=' + gid,
+        }).catch(() => {});
+      }
+    }
+  });
+
   // DM (1対1ダイレクトメッセージ、添付対応)
   socket.on('chat:dm', (data) => {
     const to = (data && data.to || '').toString();

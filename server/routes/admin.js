@@ -153,6 +153,63 @@ router.delete('/recording/:id', authAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// ========== グループチャット管理 ==========
+router.get('/groups', authAdmin, (req, res) => {
+  const rows = getDb().prepare(`
+    SELECT g.id, g.name, g.icon, g.created_by, g.created_at,
+      u.display_name AS created_by_name,
+      (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count
+    FROM chat_groups g LEFT JOIN users u ON u.id = g.created_by
+    ORDER BY g.created_at DESC
+  `).all();
+  res.json({ success: true, groups: rows });
+});
+
+router.post('/groups', authAdmin, (req, res) => {
+  const name = (req.body.name || '').toString().trim().slice(0, 50);
+  const icon = (req.body.icon || '💬').toString().slice(0, 8);
+  const memberIds = Array.isArray(req.body.member_ids) ? req.body.member_ids : [];
+  if (!name) return res.status(400).json({ success: false, msg: 'グループ名必須' });
+  const id = crypto.randomUUID();
+  const db = getDb();
+  db.prepare('INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)').run(id, name, icon, req.uid);
+  const addMember = db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
+  db.transaction(() => {
+    // 作成者も自動参加
+    addMember.run(id, req.uid);
+    for (const uid of memberIds) if (typeof uid === 'string') addMember.run(id, uid);
+  })();
+  res.json({ success: true, id });
+});
+
+router.get('/groups/:gid', authAdmin, (req, res) => {
+  const g = getDb().prepare('SELECT id, name, icon, created_by, created_at FROM chat_groups WHERE id = ?').get(req.params.gid);
+  if (!g) return res.status(404).json({ success: false });
+  const members = getDb().prepare(`SELECT u.id, u.display_name, u.login_id FROM chat_group_members gm
+    JOIN users u ON u.id = gm.user_id WHERE gm.group_id = ? ORDER BY u.display_name`).all(req.params.gid);
+  res.json({ success: true, group: g, members });
+});
+
+router.post('/groups/:gid/members', authAdmin, (req, res) => {
+  const ids = Array.isArray(req.body.user_ids) ? req.body.user_ids : [];
+  const st = getDb().prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
+  for (const uid of ids) if (typeof uid === 'string') st.run(req.params.gid, uid);
+  res.json({ success: true });
+});
+
+router.delete('/groups/:gid/members/:uid', authAdmin, (req, res) => {
+  getDb().prepare('DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?').run(req.params.gid, req.params.uid);
+  res.json({ success: true });
+});
+
+router.delete('/groups/:gid', authAdmin, (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM chat_group_members WHERE group_id = ?').run(req.params.gid);
+  db.prepare("DELETE FROM messages WHERE room_code = ?").run('grp_' + req.params.gid);
+  db.prepare('DELETE FROM chat_groups WHERE id = ?').run(req.params.gid);
+  res.json({ success: true });
+});
+
 // 出席履歴
 router.get('/attendance', authAdmin, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 500, 5000);

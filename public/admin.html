@@ -103,6 +103,21 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
+    <h2>🗨 グループチャット管理 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">LINE代替。作成・メンバー追加は管理者のみ</span></h2>
+    <div class="row">
+      <input type="text" id="grp-name" placeholder="グループ名">
+      <input type="text" id="grp-icon" placeholder="アイコン絵文字 (例: 💼)" maxlength="4" value="💬" style="min-width:80px;">
+      <button class="btn" onclick="createGroup()">グループ作成</button>
+    </div>
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr><th>名前</th><th style="width:100px;">メンバー</th><th style="width:140px;">作成日時</th><th>操作</th></tr></thead>
+        <tbody id="grp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>🎙️ 会議録音 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">管理者が録音開始→自動アップロード</span></h2>
     <div id="rec-list" style="font-size:12px;color:#94a3b8;">読み込み中...</div>
     <audio id="rec-player" controls style="width:100%;margin-top:10px;display:none;"></audio>
@@ -231,6 +246,101 @@ function showPanel(user) {
   loadChatLog(0);
   loadRecordings();
   loadAttendance();
+  loadGroups();
+}
+
+async function loadGroups() {
+  try {
+    const r = await fetch('/api/admin/groups', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    const tb = document.getElementById('grp-tbody');
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="4" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    if (!d.groups.length) { tb.innerHTML = '<tr><td colspan="4" style="color:#94a3b8;padding:12px;">グループがまだありません</td></tr>'; return; }
+    tb.innerHTML = d.groups.map(g => {
+      const dt = new Date(g.created_at + 'Z').toLocaleDateString('ja-JP');
+      return `<tr>
+        <td><span style="font-size:16px;margin-right:4px;">${g.icon || '💬'}</span>${escapeHtml(g.name)}</td>
+        <td>${g.member_count}名</td>
+        <td style="font-size:11px;color:#64748b;">${dt}</td>
+        <td>
+          <button class="btn btn-ghost" onclick="editGroupMembers('${g.id}', '${escapeHtml(g.name)}')">メンバー編集</button>
+          <button class="btn btn-danger" onclick="deleteGroup('${g.id}', '${escapeHtml(g.name)}')">削除</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('grp-tbody').innerHTML = '<tr><td colspan="4">通信エラー</td></tr>';
+  }
+}
+
+async function createGroup() {
+  const name = document.getElementById('grp-name').value.trim();
+  const icon = document.getElementById('grp-icon').value.trim() || '💬';
+  if (!name) { alert('グループ名を入力してください'); return; }
+  if (!cachedUsers.length) { alert('ユーザー一覧取得まで待ってください'); return; }
+  // メンバー選択ダイアログ (簡易版: prompt で CSV)
+  const names = cachedUsers.map(u => u.display_name).join(', ');
+  const sel = prompt('メンバーを選択 (氏名をカンマ区切り、部分一致OK、空白で作成者のみ):\n全ユーザー: ' + names);
+  if (sel === null) return;
+  const memberIds = [];
+  const terms = sel.split(',').map(s => s.trim()).filter(Boolean);
+  for (const t of terms) {
+    const u = cachedUsers.find(u => u.display_name.includes(t) || u.login_id === t);
+    if (u) memberIds.push(u.id);
+  }
+  try {
+    const r = await fetch('/api/admin/groups', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, icon, member_ids: memberIds })
+    });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('grp-name').value = '';
+      document.getElementById('grp-icon').value = '💬';
+      loadGroups();
+    } else alert('作成失敗: ' + (d.msg || ''));
+  } catch (e) { alert('通信エラー'); }
+}
+
+async function editGroupMembers(gid, gname) {
+  const r = await fetch('/api/admin/groups/' + gid, { headers: { 'Authorization': 'Bearer ' + token } });
+  const d = await r.json();
+  if (!d.success) { alert('取得失敗'); return; }
+  const currentIds = new Set(d.members.map(m => m.id));
+  const currentNames = d.members.map(m => m.display_name).join(', ');
+  const sel = prompt(gname + ' のメンバー編集 (氏名カンマ区切り):\n現メンバー: ' + currentNames + '\n全ユーザー: ' + cachedUsers.map(u => u.display_name).join(', '), currentNames);
+  if (sel === null) return;
+  const newIds = new Set();
+  for (const t of sel.split(',').map(s => s.trim()).filter(Boolean)) {
+    const u = cachedUsers.find(u => u.display_name.includes(t) || u.login_id === t);
+    if (u) newIds.add(u.id);
+  }
+  // 追加
+  const toAdd = [...newIds].filter(id => !currentIds.has(id));
+  if (toAdd.length) {
+    await fetch('/api/admin/groups/' + gid + '/members', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_ids: toAdd })
+    });
+  }
+  // 削除
+  for (const id of currentIds) {
+    if (!newIds.has(id)) {
+      await fetch('/api/admin/groups/' + gid + '/members/' + id, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+    }
+  }
+  loadGroups();
+}
+
+async function deleteGroup(gid, gname) {
+  if (!confirm(gname + ' を削除しますか？メッセージ履歴も全て消えます。')) return;
+  await fetch('/api/admin/groups/' + gid, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+  loadGroups();
 }
 
 async function loadAttendance() {
