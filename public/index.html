@@ -656,11 +656,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="knock-stack" style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:240;width:calc(100% - 32px);max-width:400px;pointer-events:none;"></div>
 
   <!-- レールメニュー (⚙設定) -->
-  <div id="rail-menu">
-    <button onclick="location.href='/admin'">🛠 管理画面</button>
-    <button onclick="openAvatarModal()">🎨 アバター作り直し</button>
-    <button onclick="doLogout()">🚪 ログアウト</button>
-  </div>
+  <div id="rail-menu"></div>
 </div>
 
 <!-- アバター設定モーダル -->
@@ -727,6 +723,25 @@ let currentUser = null;
 let token = localStorage.getItem('cohub_token') || '';
 let userData = null;
 try { userData = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch(e) {}
+
+// グローバルfetch wrap: /api/ で 401/403 時に自動復旧 (セッション切れ対応)
+(function() {
+  const _origFetch = window.fetch.bind(window);
+  let logoutInProgress = false;
+  window.fetch = async function(url, opts) {
+    const r = await _origFetch(url, opts);
+    try {
+      if (!logoutInProgress && (r.status === 401 || r.status === 403) && typeof url === 'string' && url.indexOf('/api/') === 0) {
+        logoutInProgress = true;
+        localStorage.removeItem('cohub_token');
+        localStorage.removeItem('cohub_user');
+        try { showToast('セッションが切れました。再ログインしてください'); } catch (e) {}
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (e) {}
+    return r;
+  };
+})();
 
 const COMPANY_NAMES = {
   SU_HQ: 'SU本社', SU_SAITAMA: 'SU埼玉', SU_MKANTO: 'SU南関東', SU_ZAMA: 'SU座間',
@@ -957,7 +972,16 @@ function worldToScreen(wx, wy) {
 
 function connectSocket() {
   socket = io({ auth: { token } });
-  socket.on('connect_error', (e) => console.warn('socket err', e.message));
+  socket.on('connect_error', (e) => {
+    console.warn('socket err', e.message);
+    // 認証失敗(unauth)の場合はセッション切れ → 自動ログアウト
+    if (e.message === 'unauth' || e.message === 'Authentication error') {
+      localStorage.removeItem('cohub_token');
+      localStorage.removeItem('cohub_user');
+      try { showToast('セッションが切れました。再ログインしてください'); } catch (err) {}
+      setTimeout(() => location.reload(), 1500);
+    }
+  });
   socket.on('snapshot', (data) => {
     me = data.me;
     proximityRadius = data.proximity || 220;
@@ -2520,11 +2544,31 @@ function updateLockUI() {
 
 function toggleRailMenu(e) {
   const m = document.getElementById('rail-menu');
+  renderRailMenu();
   const rect = e.currentTarget.getBoundingClientRect();
   m.style.bottom = (window.innerHeight - rect.bottom) + 'px';
   m.style.top = 'auto';
   m.classList.toggle('show');
   e.stopPropagation();
+}
+
+function renderRailMenu() {
+  const m = document.getElementById('rail-menu');
+  if (!m) return;
+  const u = userData || currentUser || {};
+  const isAdmin = u.role === 'admin';
+  const companyName = COMPANY_NAMES[u.company_code] || '';
+  m.innerHTML = `
+    <div style="padding:10px 12px 8px;border-bottom:1px solid rgba(15,23,42,0.08);margin-bottom:4px;">
+      <div style="font-size:12px;font-weight:800;color:#0f172a;">${escapeHtml(u.display_name || '-')}${isAdmin ? ' <span style="color:#ca8a04;font-size:10px;">(管理者)</span>' : ''}</div>
+      <div style="font-size:10px;color:#64748b;">${escapeHtml(u.login_id || '')}${companyName ? ' / ' + escapeHtml(companyName) : ''}</div>
+      <div style="font-size:10px;color:#10b981;margin-top:2px;">🟢 ログイン中</div>
+    </div>
+    ${isAdmin ? "<button onclick=\"location.href='/admin'\">🛠 管理画面</button>" : ''}
+    <button onclick="openAvatarModal()">🎨 アバター作り直し</button>
+    <button onclick="location.href='/mylog'">📜 自分のログ</button>
+    <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
+  `;
 }
 
 // ===== ヘルプ =====
