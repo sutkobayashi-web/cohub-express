@@ -203,6 +203,7 @@ io.use((socket, next) => {
 });
 
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
+const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
 
 function allFloors() {
   const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, approval_mode, building FROM floors ORDER BY sort_order').all();
@@ -445,13 +446,40 @@ io.on('connection', (socket) => {
 
   // ステータス + 自由文
   socket.on('status', (data) => {
-    const s = ['online', '退席中', '会議中'].includes(data.status) ? data.status : 'online';
+    const s = ['online', '退席中', '会議中', '集中中'].includes(data.status) ? data.status : 'online';
     const text = (data && typeof data.text === 'string') ? data.text.slice(0, 50) : undefined;
     const p = presence.get(uid); if (!p) return;
     p.status = s;
     if (text !== undefined) p.statusText = text;
     db.prepare(`UPDATE positions SET status=?, status_text=?, updated_at=datetime('now') WHERE user_id=?`).run(s, p.statusText || '', uid);
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: s, status_text: p.statusText || '' });
+  });
+
+  // 👋 肩たたき: 同フロア+440px以内の相手に通知 (PWA Push連動、30秒レート制限)
+  socket.on('tap-shoulder', (data) => {
+    const targetUid = (data && data.targetUid || '').toString();
+    if (!targetUid || targetUid === uid) return;
+    const sender = presence.get(uid);
+    const target = presence.get(targetUid);
+    if (!sender || !target) return;
+    if (sender.floor !== target.floor) return;
+    const dx = sender.x - target.x, dy = sender.y - target.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 440) return;
+    const key = uid + ':' + targetUid;
+    const now = Date.now();
+    if ((tapTimestamps.get(key) || 0) > now - 30000) return;
+    tapTimestamps.set(key, now);
+    const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+    const tgtSocket = io.sockets.sockets.get(target.socketId);
+    if (tgtSocket) tgtSocket.emit('tap:received', { fromUid: uid, fromName: senderName, at: new Date().toISOString() });
+    sendPushToUser(targetUid, {
+      title: '👋 ' + senderName,
+      body: '近くで声をかけたいようです',
+      tag: 'tap-' + uid,
+      mention: true,
+      url: '/',
+    }).catch(() => {});
+    socket.emit('tap:sent', { targetUid });
   });
 
   // 挙手

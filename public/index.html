@@ -640,9 +640,13 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button onclick="setStatus('online')"><span class="stdot" style="background:#10b981;"></span>在席中</button>
     <button onclick="setStatus('退席中')"><span class="stdot" style="background:#eab308;"></span>退席中</button>
     <button onclick="setStatus('会議中')"><span class="stdot" style="background:#ef4444;"></span>会議中</button>
+    <button onclick="setStatus('集中中')"><span class="stdot" style="background:#8b5cf6;"></span>🎯 集中中</button>
     <div style="border-top:1px solid rgba(15,23,42,0.08);margin:4px 0;"></div>
     <button onclick="setStatusText()"><span style="font-size:14px;">💬</span>メッセージ設定...</button>
   </div>
+
+  <!-- 👋 ピアアクションメニュー (アバタークリック時) -->
+  <div id="peer-menu" style="position:absolute;display:none;background:#fff;border:1px solid rgba(15,23,42,0.12);border-radius:12px;padding:6px;z-index:35;min-width:180px;box-shadow:0 12px 28px rgba(15,23,42,0.18);"></div>
 
   <!-- ヘルプモーダル -->
   <div id="help-modal"></div>
@@ -922,6 +926,7 @@ function initCanvas() {
     if (!e.target.closest('#rail-menu') && !e.target.closest('#left-rail')) {
       document.getElementById('rail-menu').classList.remove('show');
     }
+    if (!e.target.closest('#peer-menu')) hidePeerMenu();
   });
 
   requestAnimationFrame(render);
@@ -1255,6 +1260,36 @@ function connectSocket() {
     if (users[u.uid].avatar && !avatarImages[u.uid]) loadAvatar(users[u.uid]);
     renderMemberList();
   });
+  socket.on('tap:received', (data) => {
+    const fromName = (data && data.fromName) || '誰か';
+    const fromUid = data && data.fromUid;
+    // アバター shake
+    if (users[me]) users[me]._shakeUntil = Date.now() + 900;
+    // タイトルバー点滅
+    flashTitleAlert('👋 ' + fromName + 'が呼んでます');
+    // OS通知 (speaker OFFでも気づく)
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const n = new Notification('👋 ' + fromName, {
+          body: '近くであなたを呼んでいます',
+          tag: 'tap-' + fromUid,
+          icon: '/img/icon-192.png',
+          requireInteraction: true,
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+      }
+    } catch (e) {}
+    // トースト
+    showToast('👋 ' + fromName + 'があなたの肩をたたきました');
+    // 効果音 (speakerOnのときだけ。mention=true で強めのベル)
+    try { if (typeof speakerOn !== 'undefined' && speakerOn) playBeep(true); } catch (e) {}
+    // バイブ (モバイル)
+    try { if (navigator.vibrate) navigator.vibrate([180, 80, 180]); } catch (e) {}
+  });
+  socket.on('tap:sent', (data) => {
+    const u = users[data && data.targetUid];
+    showToast('👋 ' + ((u && u.name) || '相手') + 'に肩たたきを送りました');
+  });
   socket.on('chat:msg', (m) => {
     const isEmoji = isSingleEmoji(m.content);
     const isMentioned = Array.isArray(m.mentions) && m.mentions.includes(me);
@@ -1332,12 +1367,36 @@ function loadAvatar(u) {
 }
 
 // ===== ドラッグ&クリック移動 =====
+function hitTestPeer(worldX, worldY) {
+  // 自分以外のオンラインアバターを当たり判定 (半径35px)
+  const HR2 = 35 * 35;
+  let hit = null;
+  let bestD = HR2;
+  for (const uid in users) {
+    if (uid === me) continue;
+    const u = users[uid];
+    if (!u || u.cx == null || u.status === 'offline') continue;
+    const dx = worldX - u.cx, dy = worldY - u.cy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD) { bestD = d2; hit = u; }
+  }
+  return hit;
+}
+
 function onPointerDown(e) {
+  const rect = canvas.getBoundingClientRect();
+  const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+  const peer = hitTestPeer(world.x, world.y);
+  if (peer) {
+    // 他人のアバターをタップ → 移動せずピアメニュー表示
+    showPeerMenu(peer, e.clientX, e.clientY);
+    return;
+  }
+  hidePeerMenu();
   canvas.setPointerCapture(e.pointerId);
   dragging = true;
   canvas.classList.add('dragging');
   dragStart = { x: e.clientX, y: e.clientY, t: Date.now() };
-  const world = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
   moveTo(world.x, world.y);
 }
 
@@ -1476,8 +1535,16 @@ function render() {
 
 function drawAvatar(u) {
   const r = 28;
+  // shake 演出 (肩たたき受信時 900ms)
+  let sx = 0;
+  if (u._shakeUntil && u._shakeUntil > Date.now()) {
+    const t = (u._shakeUntil - Date.now()) / 900;
+    sx = Math.sin(Date.now() / 30) * 6 * t;
+  } else if (u._shakeUntil) {
+    u._shakeUntil = 0;
+  }
   // 描画座標は整数化してサブピクセルのにじみを防ぐ
-  const cx = Math.round(u.cx);
+  const cx = Math.round(u.cx + sx);
   const cy = Math.round(u.cy);
   ctx.save();
   // フェードイン不透明度
@@ -1544,7 +1611,7 @@ function drawAvatar(u) {
   ctx.fillText(label, cx, cy + r + 14);
 
   // ステータスドット
-  const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
+  const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : u.status === '集中中' ? '#8b5cf6' : '#10b981';
   ctx.beginPath();
   ctx.arc(cx + r - 4, cy - r + 4, 6, 0, Math.PI * 2);
   ctx.fillStyle = dotColor;
@@ -1552,6 +1619,13 @@ function drawAvatar(u) {
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.stroke();
+  // 集中中バッジ (頭上 🎯)
+  if (u.status === '集中中') {
+    ctx.font = '700 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('🎯', cx, cy - r - 6);
+  }
   // マイクON マーク (voice=true)
   if (u.voice) {
     ctx.beginPath();
@@ -1711,7 +1785,7 @@ function renderMemberList() {
 }
 
 function memberRowHtml(u) {
-  const dotColor = u.status === 'offline' ? '#94a3b8' : u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
+  const dotColor = u.status === 'offline' ? '#94a3b8' : u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : u.status === '集中中' ? '#8b5cf6' : '#10b981';
   const companyName = COMPANY_NAMES[u.company] || u.company || '';
   const avatarHtml = u.avatar
     ? `<img src="${u.avatar}" alt="">`
@@ -3834,11 +3908,83 @@ function setStatus(s) {
   socket.emit('status', { status: s });
   const label = s === 'online' ? '在席中' : s;
   document.getElementById('status-label').textContent = label;
-  const color = s === '会議中' ? '#ef4444' : s === '退席中' ? '#eab308' : '#10b981';
+  const color = s === '会議中' ? '#ef4444' : s === '退席中' ? '#eab308' : s === '集中中' ? '#8b5cf6' : '#10b981';
   const dot = document.getElementById('status-dot-big');
   dot.style.background = color;
   dot.style.boxShadow = '0 0 0 1px ' + color;
   document.getElementById('status-menu').classList.remove('show');
+  if (users[me]) users[me].status = s;
+}
+
+// ===== 👋 ピアアクション (肩たたき) =====
+function showPeerMenu(peer, screenX, screenY) {
+  const menu = document.getElementById('peer-menu');
+  if (!menu) return;
+  const isFocus = peer.status === '集中中';
+  const myU = users[me];
+  let inRange = false;
+  if (myU && myU.cx != null && peer.cx != null) {
+    const dx = myU.cx - peer.cx, dy = myU.cy - peer.cy;
+    inRange = Math.sqrt(dx*dx + dy*dy) <= 440;
+  }
+  const safeName = String(peer.name || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c]));
+  const focusBadge = isFocus ? ' <span style="background:#ede9fe;color:#6d28d9;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;">🎯集中中</span>' : '';
+  const tapDisabled = !inRange;
+  let html = '<div style="padding:8px 10px;font-size:12px;color:#475569;border-bottom:1px solid rgba(15,23,42,0.06);margin-bottom:4px;">' + safeName + focusBadge + '</div>';
+  html += '<button onclick="onTapShoulderClick(\'' + peer.uid + '\',' + (isFocus ? 'true' : 'false') + ')"' +
+          (tapDisabled ? ' disabled' : '') +
+          ' style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:none;border:none;color:' + (tapDisabled ? '#94a3b8' : '#0f172a') + ';text-align:left;cursor:' + (tapDisabled ? 'not-allowed' : 'pointer') + ';border-radius:8px;font-size:13px;">' +
+          '<span style="font-size:16px;">👋</span>肩をたたく' +
+          (tapDisabled ? '<span style="font-size:10px;color:#94a3b8;margin-left:auto;">遠すぎ</span>' : '') +
+          '</button>';
+  html += '<button onclick="hidePeerMenu();openDmWith(\'' + peer.uid + '\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:none;border:none;color:#0f172a;text-align:left;cursor:pointer;border-radius:8px;font-size:13px;"><span style="font-size:16px;">💬</span>DMを送る</button>';
+  menu.innerHTML = html;
+  menu.style.display = 'block';
+  // 配置: クリック位置から右下に。画面端に出ないよう調整
+  const menuW = 200, menuH = 110;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = screenX + 8, y = screenY + 8;
+  if (x + menuW > vw - 8) x = screenX - menuW - 8;
+  if (y + menuH > vh - 8) y = screenY - menuH - 8;
+  menu.style.left = Math.max(8, x) + 'px';
+  menu.style.top = Math.max(8, y) + 'px';
+}
+function hidePeerMenu() {
+  const menu = document.getElementById('peer-menu');
+  if (menu) menu.style.display = 'none';
+}
+function onTapShoulderClick(targetUid, isFocus) {
+  hidePeerMenu();
+  const u = users[targetUid];
+  if (isFocus) {
+    const ok = confirm((u && u.name ? u.name : '相手') + 'さんは集中中です。それでも声をかけますか?');
+    if (!ok) return;
+  }
+  if (socket) socket.emit('tap-shoulder', { targetUid });
+}
+function openDmWith(uid) {
+  // 既存DMオープン関数があれば呼ぶ。無ければ右パネルでDMタブに切替する
+  try { if (typeof openDM === 'function') return openDM(uid); } catch (e) {}
+  try { if (typeof startDM === 'function') return startDM(uid); } catch (e) {}
+  try { if (typeof switchTab === 'function') switchTab('dm'); } catch (e) {}
+}
+
+// タイトルバー点滅アラート (3.5秒間)
+let _titleFlashTimer = null;
+function flashTitleAlert(msg) {
+  try {
+    if (_titleFlashTimer) { clearInterval(_titleFlashTimer); _titleFlashTimer = null; }
+    const orig = document.title;
+    let on = true;
+    _titleFlashTimer = setInterval(() => {
+      document.title = on ? msg : orig;
+      on = !on;
+    }, 600);
+    setTimeout(() => {
+      if (_titleFlashTimer) { clearInterval(_titleFlashTimer); _titleFlashTimer = null; }
+      document.title = orig;
+    }, 3500);
+  } catch (e) {}
 }
 
 // ステータス自由文
