@@ -1935,11 +1935,21 @@ function renderMemberList() {
   list.innerHTML = html;
 }
 
+const SHORT_FLOOR_NAMES = {
+  lobby: 'ロビー',
+  office: '2F事務',
+  meeting_a: '役員室',
+  meeting_b: '会議室B',
+  meeting_c: '大会議室',
+  field_rest: '詰所',
+  field_work: '倉庫',
+  field_meet: '現場会議',
+};
 function floorLabelByCode(code) {
   if (!code) return '';
+  if (SHORT_FLOOR_NAMES[code]) return SHORT_FLOOR_NAMES[code];
   const f = (allFloors || []).find(x => x.code === code);
-  if (!f) return code;
-  return (f.icon ? f.icon + ' ' : '') + f.name;
+  return f ? (f.name || code) : code;
 }
 
 function memberRowHtml(u) {
@@ -1961,7 +1971,7 @@ function memberRowHtml(u) {
     const label = floorLabelByCode(u.floor);
     const bg = sameFloor ? 'rgba(16,185,129,0.12)' : 'rgba(6,182,212,0.14)';
     const fg = sameFloor ? '#047857' : '#0e7490';
-    floorPill = `<span style="display:inline-block;background:${bg};color:${fg};font-size:10px;padding:1px 6px;border-radius:8px;margin-top:2px;font-weight:600;">📍 ${escapeHtml(label)}${sameFloor ? ' (同じ)' : ''}</span>`;
+    floorPill = `<span style="display:inline-block;background:${bg};color:${fg};font-size:10px;padding:1px 6px;border-radius:8px;margin-top:2px;font-weight:600;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;">📍${escapeHtml(label)}</span>`;
   }
   return `
     <div class="member-row ${isMe ? 'me' : ''}" onclick="walkTo('${u.uid}')">
