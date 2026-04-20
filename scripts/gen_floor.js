@@ -17,19 +17,19 @@ WIDE 16:9 horizontal rectangular canvas.`;
 const PROMPTS = {
   lobby: `${COMMON}
 
-Layout: 1F Lobby of a modern Japanese IT company.
-- Upper wall: 3 large windows, warm morning daylight
-- Lower wall: main entrance glass double-door with red welcome mat
-- Left-top: lounge zone with L-shaped grey sofa, wooden coffee table, floor lamp, potted plant
-- Center-top: reception counter with 2 small chairs in front
-- Right-top: 2 small round cafe tables with 4 chairs, coffee counter with espresso machine, sink, barstools
-- Right-middle: display shelf showing company logo/magazines
-- Right-bottom: tall bookshelf with colorful books from above
-- Center: open empty floor (guests walk through)
-- Left-bottom: elevator and staircase symbols on the wall
-- Four corners: lush potted plants (green circles from above)
+Layout: 1F ENTRANCE LOBBY of a modern Japanese corporate office, focused on visitor reception.
+- Lower wall: MAIN ENTRANCE double glass automatic sliding door with red welcome mat and company logo plate
+- Upper-center: LARGE RECEPTION COUNTER (long curved desk) with 2 reception chairs behind it, small sign "RECEPTION"
+- Upper-left: visitor waiting area - two L-shaped grey sofas facing each other, rectangular wooden coffee table with magazines, floor lamp
+- Upper-right: second waiting area - 3 individual lounge chairs around a round coffee table, tall potted palm
+- Left-middle wall: elevator bank (3 elevator doors as tall rectangles) and stairs going up
+- Right-middle: digital signage board (rectangular screen) on wall, display shelf with brochures
+- Center floor: OPEN WALKING AREA (for visitors and employees to cross), company logo inlaid in the floor
+- Left-bottom: security guard booth (small counter) with chair
+- Right-bottom: visitor registration kiosk (small standing tablet on pole)
+- Four corners: lush potted plants (green circles)
 
-Overall feeling: welcoming, spacious, empty of people, refined modern Japanese corporate lobby.`,
+Style: welcoming, spacious, bright, corporate entrance hall feeling. Polished marble or light wood floor tone. Empty of people.`,
 
   office: `${COMMON}
 
@@ -45,6 +45,49 @@ Layout: 2F office floor with 30 desks for administrative staff.
 - A small breakroom cutout in top-right corner with round table and 2 chairs
 
 Colors: beige/white desks, dark grey monitors, grey chairs, green plants. Organized, professional, empty office scene.`,
+
+  meeting_a: `${COMMON}
+
+Layout: 3F MEETING ROOM A - formal executive meeting room, BLUE accent color.
+- Walls: 4 solid walls making an enclosed room (this is a single meeting room view, the whole canvas IS the room)
+- Center: LARGE OVAL/RECTANGULAR MEETING TABLE made of dark polished wood, seats 10-12
+- Around table: 12 executive chairs (rounded dark blue upholstery, seen from above as small circles)
+- Upper wall: large whiteboard OR mounted presentation screen (big rectangle), small name plate "MEETING A" above
+- Right wall: sideboard cabinet with water pitcher, glasses, notebooks
+- Lower wall: entrance door with red mat
+- Table top: water bottles, notepads, pens, a laptop at the head chair
+- Corners: 2 potted plants
+- Ceiling (viewed top-down): pendant light rectangle over table
+Colors: deep navy blue + warm oak wood + cream walls. Professional, executive feeling.`,
+
+  meeting_b: `${COMMON}
+
+Layout: 3F MEETING ROOM B - casual brainstorm meeting room, GREEN accent color.
+- Walls: 4 solid walls making an enclosed room
+- Center: MEDIUM ROUND MEETING TABLE (light birch wood, circular), seats 6
+- Around table: 6 casual chairs (soft green fabric, circles from above)
+- Upper wall: LARGE WHITEBOARD with colorful sticky notes all over it, multicolor markers on tray
+- Left wall: TWO bean-bag chairs + small side table with coffee cups (informal corner)
+- Right wall: vertical plant shelf with many small plants, small standing desk
+- Lower wall: entrance door
+- Table top: sketch pad, pens, coffee cups
+- Corners: 2 tall potted plants
+Colors: fresh green + birch wood + cream. Creative, collaborative brainstorm atmosphere.`,
+
+  meeting_c: `${COMMON}
+
+Layout: 3F MEETING ROOM C - small private 1-on-1 meeting room, WARM ORANGE accent.
+- Walls: 4 solid walls making a smaller enclosed room
+- Center: SMALL SQUARE MEETING TABLE (4-person), warm oak wood
+- Around table: 4 chairs (soft orange/terracotta fabric)
+- Upper wall: small video conference screen mounted on wall + small sign "MEETING C"
+- Right wall: bookshelf with books and binders, small artwork frame
+- Left wall: tall mirror OR large wall art
+- Lower wall: entrance door
+- Table top: 4 coffee cups, notebooks, pens, a laptop
+- Corners: 1-2 potted plants
+- One comfortable armchair in corner for 1-on-1 casual talk
+Colors: warm terracotta + wood tones + cream walls. Intimate, quiet 1-on-1 discussion atmosphere.`,
 };
 
 (async () => {

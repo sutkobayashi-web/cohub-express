@@ -30,13 +30,20 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 /* ===== Space Layout (oVice風) ===== */
 #space-screen { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #e2e8f0; }
 
-/* 左サイドバー（アイコン縦列） */
-#left-rail { position: absolute; top: 0; left: 0; bottom: 0; width: 64px; background: #0f172a; z-index: 20; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; box-shadow: 2px 0 12px rgba(0,0,0,0.15); }
-#left-rail .brand { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
-#left-rail .rail-btn { width: 44px; height: 44px; border-radius: 10px; background: transparent; border: none; color: rgba(255,255,255,0.7); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 18px; transition: all 0.15s; position: relative; }
-#left-rail .rail-btn .lbl { font-size: 9px; line-height: 1; }
-#left-rail .rail-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+/* 左サイドバー（アイコン縦列＋フロア一覧を常時表示） */
+#left-rail { position: absolute; top: 0; left: 0; bottom: 0; width: 96px; background: #0f172a; z-index: 20; display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 2px; box-shadow: 2px 0 12px rgba(0,0,0,0.15); overflow-y: auto; overflow-x: hidden; }
+#left-rail::-webkit-scrollbar { width: 4px; }
+#left-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+#left-rail .brand { width: 56px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 6px; color: #fff; font-weight: 800; }
+#left-rail .rail-section { width: 100%; padding: 6px 0 2px; font-size: 9px; color: rgba(255,255,255,0.45); font-weight: 800; letter-spacing: 1.5px; text-align: center; text-transform: uppercase; }
+#left-rail .rail-btn { width: 82px; min-height: 52px; border-radius: 10px; background: transparent; border: none; color: rgba(255,255,255,0.75); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 18px; transition: all 0.12s; position: relative; padding: 6px 4px; }
+#left-rail .rail-btn .lbl { font-size: 10px; line-height: 1.1; text-align: center; font-weight: 600; }
+#left-rail .rail-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
 #left-rail .rail-btn.active { background: rgba(6,182,212,0.25); color: #06b6d4; }
+#left-rail .rail-btn.current-floor { background: rgba(6,182,212,0.3); color: #06b6d4; box-shadow: inset 3px 0 0 #06b6d4; }
+#left-rail .rail-btn .cnt { position: absolute; top: 4px; right: 8px; background: #06b6d4; color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 800; min-width: 14px; text-align: center; line-height: 1.2; }
+#left-rail .rail-btn.current-floor .cnt { background: #fff; color: #06b6d4; }
+#left-rail .rail-divider { width: 70%; height: 1px; background: rgba(255,255,255,0.1); margin: 6px 0; }
 #left-rail .spacer { flex: 1; }
 
 /* 右サイドバー（メンバーリスト） */
@@ -102,7 +109,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dm-input-wrap button { width: 40px; height: 40px; border-radius: 50%; border: none; background: #06b6d4; color: #fff; cursor: pointer; font-size: 15px; }
 
 /* キャンバス領域 */
-#space-canvas-wrap { position: absolute; top: 0; left: 64px; right: 280px; bottom: 88px; background: #c9bca3; overflow: hidden; transition: right 0.25s ease; }
+#space-canvas-wrap { position: absolute; top: 0; left: 96px; right: 280px; bottom: 88px; background: #c9bca3; overflow: hidden; transition: right 0.25s ease; }
 #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
 #space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
 #space-canvas.dragging { cursor: grabbing; }
@@ -117,7 +124,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #minimap .mm-label { position: absolute; top: 4px; left: 8px; font-size: 10px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; }
 
 /* 下部コントロールバー */
-#dock { position: absolute; bottom: 0; left: 64px; right: 0; height: 88px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 20px; z-index: 15; }
+#dock { position: absolute; bottom: 0; left: 96px; right: 0; height: 88px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 20px; z-index: 15; }
 .dock-btn { width: 56px; height: 56px; border-radius: 50%; border: none; background: #fff; color: #334155; box-shadow: 0 4px 12px rgba(15,23,42,0.12); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 22px; position: relative; transition: all 0.15s; }
 .dock-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,0.16); }
 .dock-btn:active { transform: translateY(0); }
@@ -162,7 +169,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #status-menu button .stdot { width: 10px; height: 10px; border-radius: 50%; }
 
 /* メニューポップ（左レールから） */
-#rail-menu { position: absolute; left: 72px; background: #fff; border-radius: 10px; padding: 6px; display: none; z-index: 30; min-width: 180px; box-shadow: 0 12px 28px rgba(15,23,42,0.18); }
+#rail-menu { position: absolute; left: 104px; background: #fff; border-radius: 10px; padding: 6px; display: none; z-index: 30; min-width: 180px; box-shadow: 0 12px 28px rgba(15,23,42,0.18); }
 #rail-menu.show { display: block; }
 #rail-menu button { display: block; width: 100%; padding: 10px 12px; background: none; border: none; color: #0f172a; text-align: left; cursor: pointer; border-radius: 6px; font-size: 13px; }
 #rail-menu button:hover { background: #f1f5f9; }
@@ -267,12 +274,13 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 <div id="space-screen" class="screen">
   <!-- 左レール -->
   <div id="left-rail">
-    <div class="brand" title="CoHub">🏢</div>
+    <div class="brand" title="CoHub">Co</div>
+    <div class="rail-section">フロア</div>
+    <div id="rail-floors"></div>
+    <div class="rail-divider"></div>
+    <div class="rail-section">操作</div>
     <button class="rail-btn active" id="rail-members" onclick="togglePanel()" title="メンバー">
       <span>👥</span><span class="lbl">メンバー</span>
-    </button>
-    <button class="rail-btn" id="rail-floor" onclick="toggleFloorMenu(event)" title="フロア">
-      <span>🏬</span><span class="lbl">フロア</span>
     </button>
     <button class="rail-btn" id="rail-minimap" onclick="toggleMinimap()" title="ミニマップ">
       <span>🗺️</span><span class="lbl">マップ</span>
@@ -354,9 +362,6 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     <button onclick="setStatus('退席中')"><span class="stdot" style="background:#eab308;"></span>退席中</button>
     <button onclick="setStatus('会議中')"><span class="stdot" style="background:#ef4444;"></span>会議中</button>
   </div>
-
-  <!-- フロア切替メニュー -->
-  <div id="floor-menu"></div>
 
   <!-- レールメニュー -->
   <div id="rail-menu">
@@ -559,9 +564,6 @@ function initCanvas() {
     if (!e.target.closest('#rail-menu') && !e.target.closest('#left-rail')) {
       document.getElementById('rail-menu').classList.remove('show');
     }
-    if (!e.target.closest('#floor-menu') && !e.target.closest('#rail-floor')) {
-      document.getElementById('floor-menu').classList.remove('show');
-    }
   });
 
   requestAnimationFrame(render);
@@ -639,6 +641,7 @@ function connectSocket() {
     }
     if (Array.isArray(data.floors)) allFloors = data.floors;
     if (data.floor_counts) floorCounts = data.floor_counts;
+    renderRailFloors();
     // ユーザー
     users = {};
     targets = {};
@@ -748,9 +751,7 @@ function connectSocket() {
 
   socket.on('floor:counts', (counts) => {
     floorCounts = counts || {};
-    // フロアメニューが開いていれば件数更新
-    if (document.getElementById('floor-menu').classList.contains('show')) renderFloorMenu();
-    // フロアヘッダーのオンライン数
+    renderRailFloors();
     if (currentFloor) {
       const el = document.getElementById('online-count');
       if (el) el.textContent = counts[currentFloor.code] || 0;
@@ -1675,39 +1676,28 @@ function toggleMinimap() {
   document.getElementById('rail-minimap').classList.toggle('active', minimapOn);
 }
 
-function toggleFloorMenu(e) {
-  const menu = document.getElementById('floor-menu');
-  const rect = e.currentTarget.getBoundingClientRect();
-  menu.style.top = rect.top + 'px';
-  menu.classList.toggle('show');
-  if (menu.classList.contains('show')) renderFloorMenu();
-  e.stopPropagation();
-}
-
-function renderFloorMenu() {
-  const menu = document.getElementById('floor-menu');
-  if (!menu) return;
-  let html = '<div class="fmhead">フロア移動</div>';
-  for (const f of allFloors) {
-    const isCurrent = currentFloor && f.code === currentFloor.code;
+function renderRailFloors() {
+  const host = document.getElementById('rail-floors');
+  if (!host || !allFloors) return;
+  host.innerHTML = allFloors.map(f => {
+    const isCur = currentFloor && currentFloor.code === f.code;
     const count = floorCounts[f.code] || 0;
-    html += `<button class="${isCurrent ? 'current' : ''}" onclick="switchFloor('${f.code}')">
-      <span class="ficon">${f.icon || '🏢'}</span>
-      <span class="fname">${escapeHtml(f.name)}</span>
-      <span class="fcount">${count}</span>
+    // "1F ロビー" → "1F" と "ロビー" に分割して2行表示
+    const m = f.name.match(/^(\d+F)\s*(.*)$/);
+    const tag = m ? m[1] : '';
+    const short = m ? m[2] : f.name;
+    return `<button class="rail-btn ${isCur ? 'current-floor' : ''}" onclick="switchFloor('${f.code}')" title="${escapeHtml(f.name)}">
+      <span style="font-size:14px;line-height:1;">${f.icon || '🏢'}${tag ? ' ' + escapeHtml(tag) : ''}</span>
+      <span class="lbl">${escapeHtml(short)}</span>
+      ${count ? `<span class="cnt">${count}</span>` : ''}
     </button>`;
-  }
-  menu.innerHTML = html;
+  }).join('');
 }
 
 function switchFloor(code) {
   if (!socket) return;
-  if (currentFloor && currentFloor.code === code) {
-    document.getElementById('floor-menu').classList.remove('show');
-    return;
-  }
+  if (currentFloor && currentFloor.code === code) return;
   socket.emit('floor:switch', { code });
-  document.getElementById('floor-menu').classList.remove('show');
 }
 
 function toggleRailMenu(e) {

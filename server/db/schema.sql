@@ -39,8 +39,11 @@ CREATE TABLE IF NOT EXISTS floors (
   icon TEXT DEFAULT ''
 );
 INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order, icon) VALUES
-  ('lobby',  '1F ロビー',        '/assets/floor_lobby.png',  1344, 768, 1, '🛋️'),
-  ('office', '2F 事務フロア',    '/assets/floor_office.png', 1344, 768, 2, '💼');
+  ('lobby',     '1F 玄関ロビー',     '/assets/floor_lobby.png',     1344, 768, 1, '🚪'),
+  ('office',    '2F 事務フロア',     '/assets/floor_office.png',    1344, 768, 2, '💼'),
+  ('meeting_a', '3F 会議室A',        '/assets/floor_meeting_a.png', 1344, 768, 3, '🅰'),
+  ('meeting_b', '3F 会議室B',        '/assets/floor_meeting_b.png', 1344, 768, 4, '🅱'),
+  ('meeting_c', '3F 会議室C',        '/assets/floor_meeting_c.png', 1344, 768, 5, '🅲');
 
 -- 会議録音 (管理者のみ閲覧)
 CREATE TABLE IF NOT EXISTS recordings (
