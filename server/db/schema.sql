@@ -76,10 +76,11 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 );
 CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
 
--- ホワイトボード (会議室毎に共有テキスト。会議室コード = primary key)
+-- ホワイトボード (会議室毎に共有テキスト+描画。会議室コード = primary key)
 CREATE TABLE IF NOT EXISTS whiteboards (
   room_code TEXT PRIMARY KEY,
   content TEXT DEFAULT '',
+  drawing_json TEXT DEFAULT '[]',
   updated_by TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );

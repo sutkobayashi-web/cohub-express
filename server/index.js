@@ -622,7 +622,7 @@ io.on('connection', (socket) => {
     io.to('floor:' + p.floor).emit('room:knock-cancel', { uid: applicantUid });
   });
 
-  // ホワイトボード 共同編集
+  // ホワイトボード 共同編集 (テキスト)
   socket.on('wb:update', (data) => {
     const content = (data && data.content || '').toString().slice(0, 100000);
     const p = presence.get(uid); if (!p) return;
@@ -630,6 +630,28 @@ io.on('connection', (socket) => {
     getDb().prepare(`INSERT INTO whiteboards (room_code, content, updated_by, updated_at) VALUES (?, ?, ?, datetime('now'))
       ON CONFLICT(room_code) DO UPDATE SET content=excluded.content, updated_by=excluded.updated_by, updated_at=datetime('now')`).run(room, content, uid);
     socket.to('floor:' + room).emit('wb:update', { content, from: uid, at: new Date().toISOString() });
+  });
+
+  // ホワイトボード 描画 (1ストローク毎にbroadcast)
+  socket.on('wb:draw', (data) => {
+    const p = presence.get(uid); if (!p) return;
+    socket.to('floor:' + p.floor).emit('wb:draw', { stroke: data && data.stroke, from: uid });
+  });
+
+  // 描画の全ストロークをDBに永続化 (ストローク終わりの負担軽く、間引き保存用)
+  socket.on('wb:draw-save', (data) => {
+    const p = presence.get(uid); if (!p) return;
+    const strokes = Array.isArray(data && data.strokes) ? data.strokes : [];
+    const json = JSON.stringify(strokes).slice(0, 2000000);
+    getDb().prepare(`INSERT INTO whiteboards (room_code, drawing_json, updated_by, updated_at) VALUES (?, ?, ?, datetime('now'))
+      ON CONFLICT(room_code) DO UPDATE SET drawing_json=excluded.drawing_json, updated_by=excluded.updated_by, updated_at=datetime('now')`).run(p.floor, json, uid);
+  });
+
+  // 描画の全消去
+  socket.on('wb:clear', () => {
+    const p = presence.get(uid); if (!p) return;
+    getDb().prepare("UPDATE whiteboards SET drawing_json='[]', updated_by=?, updated_at=datetime('now') WHERE room_code=?").run(uid, p.floor);
+    io.to('floor:' + p.floor).emit('wb:clear', { from: uid });
   });
 
   // 録音 状態通知 (管理者のみ、同フロアに通知＝被録音者に開示)

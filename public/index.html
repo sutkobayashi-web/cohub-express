@@ -184,9 +184,21 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
 .v-tile.pinned .v-pin { background: #fbbf24; color: #0f172a; }
 .v-tile:hover .v-pin { background: rgba(0,0,0,0.75); }
 .v-grid-empty { color: rgba(255,255,255,0.5); padding: 40px 20px; text-align: center; font-size: 12px; grid-column: 1 / -1; }
-#whiteboard { flex: 1 1 auto; background: #fff; padding: 12px 14px 16px; display: flex; flex-direction: column; min-height: 0; }
+#whiteboard { flex: 1 1 auto; background: #fff; padding: 10px 14px 14px; display: flex; flex-direction: column; min-height: 0; gap: 8px; }
+.wb-tabs { display: flex; gap: 4px; flex: 1; }
+.wbtab { padding: 6px 14px; background: #f1f5f9; border: none; border-radius: 8px 8px 0 0; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 700; }
+.wbtab.active { background: #fff; color: #0891b2; box-shadow: 0 -2px 0 #06b6d4 inset; }
+.wb-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #whiteboard textarea { flex: 1; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 14px; resize: none; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; line-height: 1.6; outline: none; background: #fffef5; }
 #whiteboard textarea:focus { border-color: #06b6d4; background: #fff; }
+.wb-toolbar { display: flex; align-items: center; gap: 6px; padding: 4px 0; flex-wrap: wrap; }
+.wb-color { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; box-shadow: 0 0 0 1px #cbd5e1; padding: 0; }
+.wb-color.active { box-shadow: 0 0 0 2px #06b6d4; transform: scale(1.1); }
+.wb-tool-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; cursor: pointer; font-size: 12px; }
+.wb-tool-btn.active { background: #06b6d4; color: #fff; border-color: #06b6d4; }
+.wb-tool-btn:hover:not(.active) { background: #f1f5f9; }
+.wb-width { width: 80px; }
+#wb-canvas { flex: 1; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; touch-action: none; cursor: crosshair; }
 
 @media (max-width: 1000px) {
   body.layout-meeting #meeting-panel { right: 0; width: 100%; top: auto; bottom: 72px; height: 48%; }
@@ -435,9 +447,31 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
 
   <!-- 会議室パネル (ホワイトボード専用、右半分) -->
   <div id="meeting-panel">
-    <div class="mp-head">🖊 ホワイトボード <span style="color:#94a3b8;font-weight:500;font-size:11px;" id="mp-room-name"></span><span class="wb-status" id="wb-status" style="margin-left:auto;"></span></div>
+    <div class="mp-head">
+      <div class="wb-tabs">
+        <button class="wbtab active" id="wbtab-text" onclick="switchWbTab('text')">📝 テキスト</button>
+        <button class="wbtab" id="wbtab-draw" onclick="switchWbTab('draw')">🖌 描画</button>
+      </div>
+      <span style="color:#94a3b8;font-weight:500;font-size:11px;" id="mp-room-name"></span>
+      <span class="wb-status" id="wb-status" style="font-size:10px;color:#94a3b8;"></span>
+    </div>
     <div id="whiteboard">
-      <textarea id="wb-text" placeholder="議事メモ・アジェンダ・共有事項を入力… (全員とリアルタイム共有)"></textarea>
+      <div id="wb-textpane" class="wb-pane">
+        <textarea id="wb-text" placeholder="議事メモ・アジェンダ・共有事項を入力… (全員とリアルタイム共有)"></textarea>
+      </div>
+      <div id="wb-drawpane" class="wb-pane" style="display:none;">
+        <div class="wb-toolbar">
+          <button class="wb-color active" data-color="#0f172a" style="background:#0f172a"></button>
+          <button class="wb-color" data-color="#dc2626" style="background:#dc2626"></button>
+          <button class="wb-color" data-color="#2563eb" style="background:#2563eb"></button>
+          <button class="wb-color" data-color="#16a34a" style="background:#16a34a"></button>
+          <button class="wb-color" data-color="#fbbf24" style="background:#fbbf24"></button>
+          <button class="wb-tool-btn" id="wb-eraser-btn" onclick="wbTool('eraser')">🧽 消しゴム</button>
+          <input type="range" class="wb-width" min="2" max="20" value="4" id="wb-width-range" title="線の太さ">
+          <button class="wb-tool-btn" onclick="wbClearConfirm()">🗑 全消去</button>
+        </div>
+        <canvas id="wb-canvas" width="1400" height="900"></canvas>
+      </div>
     </div>
   </div>
 
@@ -715,6 +749,7 @@ function initCanvas() {
   });
   setupMentionSuggest();
   initWhiteboard();
+  wbInit();
   const dmInput = document.getElementById('dm-input');
   if (dmInput) dmInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDM(); });
 
@@ -960,6 +995,17 @@ function connectSocket() {
     } else {
       showToast('❌ ' + (data.msg || '入室できませんでした'));
     }
+  });
+
+  // 描画ホワイトボード: 他ユーザーのストロークを受信
+  socket.on('wb:draw', (m) => {
+    if (!m || !m.stroke) return;
+    wbStrokes.push(m.stroke);
+    wbDrawStroke(m.stroke);
+  });
+  socket.on('wb:clear', () => {
+    wbStrokes = [];
+    wbRedrawAll();
   });
 
   // ホワイトボード同期 (カーソル位置を保持しつつ常に反映、直近500ms以内の自分の編集中は受信スキップ)
@@ -2653,8 +2699,154 @@ async function loadWhiteboard(roomCode) {
       const st = document.getElementById('wb-status');
       if (st) st.textContent = d.updated_at ? ('最終更新: ' + new Date(d.updated_at + 'Z').toLocaleString('ja-JP')) : '';
     }
+    // 描画ロード
+    try { wbStrokes = JSON.parse(d.drawing_json || '[]'); } catch (e) { wbStrokes = []; }
+    wbRedrawAll();
     setTimeout(() => { wbApplyingRemote = false; }, 50);
   } catch (e) {}
+}
+
+// ===== 描画ホワイトボード =====
+let wbStrokes = [];          // 全ストローク
+let wbCurrent = null;        // 描画中のストローク
+let wbColor = '#0f172a';
+let wbWidth = 4;
+let wbTool_ = 'pen';         // pen | eraser
+let wbCanvas = null;
+let wbCtx = null;
+let wbActiveTab = 'text';
+
+function switchWbTab(name) {
+  wbActiveTab = name;
+  document.getElementById('wbtab-text').classList.toggle('active', name === 'text');
+  document.getElementById('wbtab-draw').classList.toggle('active', name === 'draw');
+  document.getElementById('wb-textpane').style.display = name === 'text' ? 'flex' : 'none';
+  document.getElementById('wb-drawpane').style.display = name === 'draw' ? 'flex' : 'none';
+  if (name === 'draw') {
+    setTimeout(() => { wbRedrawAll(); }, 100);
+  }
+}
+
+function wbInit() {
+  wbCanvas = document.getElementById('wb-canvas');
+  if (!wbCanvas) return;
+  wbCtx = wbCanvas.getContext('2d');
+  wbCtx.lineCap = 'round';
+  wbCtx.lineJoin = 'round';
+  // pointer events
+  wbCanvas.addEventListener('pointerdown', wbPointerDown);
+  wbCanvas.addEventListener('pointermove', wbPointerMove);
+  wbCanvas.addEventListener('pointerup', wbPointerUp);
+  wbCanvas.addEventListener('pointercancel', wbPointerUp);
+  wbCanvas.addEventListener('pointerleave', wbPointerUp);
+  // 色ボタン
+  document.querySelectorAll('.wb-color').forEach(btn => {
+    btn.addEventListener('click', () => {
+      wbColor = btn.getAttribute('data-color');
+      wbTool_ = 'pen';
+      document.querySelectorAll('.wb-color').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('wb-eraser-btn').classList.remove('active');
+    });
+  });
+  document.getElementById('wb-width-range').addEventListener('input', (e) => {
+    wbWidth = parseInt(e.target.value) || 4;
+  });
+}
+
+function wbTool(tool) {
+  wbTool_ = tool;
+  const eb = document.getElementById('wb-eraser-btn');
+  if (eb) eb.classList.toggle('active', tool === 'eraser');
+  if (tool === 'eraser') document.querySelectorAll('.wb-color').forEach(b => b.classList.remove('active'));
+}
+
+function wbClientToLogical(e) {
+  const r = wbCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) / r.width * wbCanvas.width,
+    y: (e.clientY - r.top) / r.height * wbCanvas.height,
+  };
+}
+
+function wbPointerDown(e) {
+  wbCanvas.setPointerCapture(e.pointerId);
+  const p = wbClientToLogical(e);
+  wbCurrent = {
+    color: wbTool_ === 'eraser' ? '#ffffff' : wbColor,
+    width: wbTool_ === 'eraser' ? wbWidth * 3 : wbWidth,
+    eraser: wbTool_ === 'eraser',
+    points: [[p.x, p.y]],
+  };
+}
+
+function wbPointerMove(e) {
+  if (!wbCurrent) return;
+  const p = wbClientToLogical(e);
+  wbCurrent.points.push([p.x, p.y]);
+  // 直線セグメント描画
+  wbDrawStrokeLast(wbCurrent);
+}
+
+function wbPointerUp(e) {
+  if (!wbCurrent) return;
+  try { wbCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+  if (wbCurrent.points.length > 1) {
+    wbStrokes.push(wbCurrent);
+    // 自分の描画を送信
+    if (socket) socket.emit('wb:draw', { stroke: wbCurrent });
+    // DB保存 (間引き)
+    wbScheduleSave();
+  }
+  wbCurrent = null;
+}
+
+let _wbSaveTimer = null;
+function wbScheduleSave() {
+  if (_wbSaveTimer) clearTimeout(_wbSaveTimer);
+  _wbSaveTimer = setTimeout(() => {
+    if (socket) socket.emit('wb:draw-save', { strokes: wbStrokes });
+  }, 600);
+}
+
+function wbDrawStroke(s) {
+  if (!wbCtx || !s || !s.points || s.points.length < 2) return;
+  wbCtx.save();
+  wbCtx.strokeStyle = s.color || '#0f172a';
+  wbCtx.lineWidth = s.width || 4;
+  if (s.eraser) wbCtx.globalCompositeOperation = 'destination-out';
+  wbCtx.beginPath();
+  wbCtx.moveTo(s.points[0][0], s.points[0][1]);
+  for (let i = 1; i < s.points.length; i++) wbCtx.lineTo(s.points[i][0], s.points[i][1]);
+  wbCtx.stroke();
+  wbCtx.restore();
+}
+
+function wbDrawStrokeLast(s) {
+  // 最後の1セグメントのみ描く (リアルタイム用)
+  if (!wbCtx || !s || s.points.length < 2) return;
+  const n = s.points.length;
+  wbCtx.save();
+  wbCtx.strokeStyle = s.color || '#0f172a';
+  wbCtx.lineWidth = s.width || 4;
+  if (s.eraser) wbCtx.globalCompositeOperation = 'destination-out';
+  wbCtx.beginPath();
+  wbCtx.moveTo(s.points[n-2][0], s.points[n-2][1]);
+  wbCtx.lineTo(s.points[n-1][0], s.points[n-1][1]);
+  wbCtx.stroke();
+  wbCtx.restore();
+}
+
+function wbRedrawAll() {
+  if (!wbCtx) return;
+  wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
+  for (const s of wbStrokes) wbDrawStroke(s);
+}
+
+function wbClearConfirm() {
+  if (!confirm('ホワイトボードの描画を全消去しますか？')) return;
+  wbStrokes = [];
+  wbRedrawAll();
+  if (socket) socket.emit('wb:clear');
 }
 
 // ===== フロア種別で画面レイアウト切替 =====
