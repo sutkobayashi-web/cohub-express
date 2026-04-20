@@ -39,9 +39,9 @@ Style: welcoming, spacious, bright, corporate entrance hall feeling. Polished wo
 Layout: 2F OPEN OFFICE floor for administrative staff, with SPACIOUS desk layout.
 - Upper wall: 3-4 large windows
 - Lower wall: staircase and elevator entrance
-- Main area: **15 desks total** arranged as **3 ROWS × 5 COLUMNS** grid
+- Main area: **EXACTLY 15 desks AND EXACTLY 15 chairs, paired 1:1** (every desk has exactly one chair behind it; no extra chairs anywhere; no desk without a chair; no chair without a desk). Arrange as **3 ROWS × 5 COLUMNS** grid.
 - **WIDE SPACING between desks**: at least one desk-width of empty aisle between rows and between individual desks (enough room for a chair and a person to stand/walk comfortably)
-- Each desk top shows: wooden desktop rectangle (~120x70 pixels apparent), 2 dark rectangular monitor tops, a small circle chair behind it, optional coffee cup or document
+- Each desk-chair pair (desk top rectangle wooden, 2 dark monitor rectangles, ONE small circle chair directly behind). Count carefully: 15 desks × 1 chair each = 15 chairs total.
 - Right wall: filing cabinets (tall rectangles) and a printer
 - Left wall: whiteboard + notice boards
 - 4 corners: large potted plants (green circles)
