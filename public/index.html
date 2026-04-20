@@ -8,6 +8,7 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#f1f5f9">
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/selfie_segmentation.js" crossorigin="anonymous"></script>
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #e2e8f0; color: #0f172a; overflow: hidden; height: 100vh; -webkit-tap-highlight-color: transparent; }
@@ -497,6 +498,7 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
     <!-- 会議ツール群 (グループ化) -->
     <div class="dock-meeting-group" title="会議ツール">
       <button class="dock-btn" id="dock-camera" onclick="toggleCamera()" title="ビデオ" style="display:none;">📹<div class="sub">ビデオ</div></button>
+      <button class="dock-btn" id="dock-vb" onclick="toggleVbMenu(event)" title="バーチャル背景" style="display:none;">🖼<div class="sub">背景</div></button>
       <button class="dock-btn" id="dock-wb" onclick="toggleWhiteboard()" title="ホワイトボード" style="display:none;">🖊<div class="sub">ボード</div></button>
       <button class="dock-btn" id="dock-hand" onclick="toggleHand()" title="手を挙げる" style="display:none;">✋<div class="sub">挙手</div></button>
       <button class="dock-btn" id="dock-lock" onclick="toggleRoomLock()" title="施錠" style="display:none;">🔒<div class="sub">鍵</div></button>
@@ -524,6 +526,19 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
 
     <!-- 退席 -->
     <button class="dock-btn" id="dock-leave" onclick="doLogout()" title="退席" style="background:#fef2f2;color:#dc2626;">🚪<div class="sub">退席</div></button>
+  </div>
+
+  <!-- バーチャル背景メニュー -->
+  <div id="vb-pop" style="position:absolute;bottom:84px;background:#fff;border-radius:12px;padding:8px;display:none;z-index:30;box-shadow:0 12px 28px rgba(15,23,42,0.18);min-width:220px;">
+    <div style="font-size:10px;color:#94a3b8;font-weight:700;padding:4px 6px 8px;letter-spacing:1px;">バーチャル背景</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      <button class="vb-opt" data-mode="none" style="padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-size:12px;color:#475569;">なし</button>
+      <button class="vb-opt" data-mode="blur" style="padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-size:12px;color:#475569;">🌫 ぼかし</button>
+      <button class="vb-opt" data-mode="img:/assets/floor_lobby.png" style="padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-size:12px;color:#475569;">🚪 ロビー</button>
+      <button class="vb-opt" data-mode="img:/assets/floor_office.png" style="padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-size:12px;color:#475569;">💼 事務所</button>
+      <button class="vb-opt" data-mode="img:/assets/floor_meeting_a.png" style="padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-size:12px;color:#475569;">👔 役員室</button>
+      <button class="vb-opt" data-mode="color:#0f172a" style="padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#0f172a;cursor:pointer;font-size:12px;color:#fff;">黒</button>
+    </div>
   </div>
 
   <!-- リアクションピッカー -->
@@ -2545,7 +2560,19 @@ async function getOrCreatePeer(peerUid) {
 }
 
 // ===== カメラ / ビデオ会議 =====
-const camera = { enabled: false, stream: null };
+const camera = {
+  enabled: false,
+  stream: null,       // peer送信中のstream (raw or processed)
+  rawStream: null,    // getUserMedia 生ストリーム
+  processedStream: null,
+  bgMode: 'none',     // 'none' | 'blur' | 'img:xxx' | 'color:#xxx'
+  bgImage: null,      // loaded Image 要素
+  segmenter: null,
+  video: null,
+  canvas: null,
+  ctx: null,
+  loopId: null,
+};
 
 async function toggleCamera() {
   if (camera.enabled) { await disableCamera(); return; }
@@ -2559,12 +2586,17 @@ async function toggleCamera() {
 
 async function enableCamera() {
   try {
-    camera.stream = await navigator.mediaDevices.getUserMedia({
+    camera.rawStream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 20 } },
       audio: false,
     });
+    camera.stream = camera.rawStream;
   } catch (e) { showToast('カメラの許可が必要です'); return; }
   camera.enabled = true;
+  // 既存のbgMode があれば再適用
+  if (camera.bgMode && camera.bgMode !== 'none') {
+    try { await applyVirtualBackground(camera.bgMode); } catch (e) { console.warn('vb apply', e); }
+  }
   const track = camera.stream.getVideoTracks()[0];
   // 全peerに追加 + 再交渉
   for (const [peerUid, peer] of voice.peers) {
@@ -2583,6 +2615,8 @@ async function enableCamera() {
 
 async function disableCamera() {
   camera.enabled = false;
+  // VB処理ループ停止
+  stopVbLoop();
   // 1. 自分のタイル video 要素から srcObject 参照を切る (stream を release)
   const myTile = document.getElementById('vtile-' + me);
   if (myTile) {
@@ -2602,19 +2636,171 @@ async function disableCamera() {
     }
   }
   // 3. MediaStreamTrack を完全停止 (カメラLED消灯)
-  if (camera.stream) {
+  for (const s of [camera.stream, camera.rawStream, camera.processedStream]) {
+    if (!s) continue;
     try {
-      for (const t of camera.stream.getTracks()) {
+      for (const t of s.getTracks()) {
         try { t.enabled = false; } catch (e) {}
         try { t.stop(); } catch (e) {}
       }
     } catch (e) {}
   }
   camera.stream = null;
+  camera.rawStream = null;
+  camera.processedStream = null;
   removeVideoTile(me);
   const btn = document.getElementById('dock-camera');
   if (btn) { btn.classList.remove('on'); btn.innerHTML = '📹<div class="sub">カメラ</div>'; }
 }
+
+// ===== バーチャル背景 (MediaPipe Selfie Segmentation) =====
+async function setupSegmenter() {
+  if (camera.segmenter) return camera.segmenter;
+  if (typeof SelfieSegmentation === 'undefined') { showToast('MediaPipeが読み込めません'); return null; }
+  const seg = new SelfieSegmentation({
+    locateFile: (f) => 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/' + f,
+  });
+  seg.setOptions({ modelSelection: 1, selfieMode: true });
+  seg.onResults(onSegResults);
+  camera.segmenter = seg;
+  return seg;
+}
+
+function onSegResults(results) {
+  const cctx = camera.ctx;
+  if (!cctx) return;
+  const w = camera.canvas.width, h = camera.canvas.height;
+  cctx.save();
+  cctx.clearRect(0, 0, w, h);
+  // 人物マスク → 人物だけの画像を作る
+  cctx.drawImage(results.segmentationMask, 0, 0, w, h);
+  cctx.globalCompositeOperation = 'source-in';
+  cctx.drawImage(results.image, 0, 0, w, h);
+  // 背景 (destination-over で奥に)
+  cctx.globalCompositeOperation = 'destination-over';
+  const mode = camera.bgMode;
+  if (mode === 'blur') {
+    cctx.filter = 'blur(12px)';
+    cctx.drawImage(results.image, 0, 0, w, h);
+    cctx.filter = 'none';
+  } else if (mode && mode.startsWith('img:') && camera.bgImage && camera.bgImage.complete) {
+    cctx.drawImage(camera.bgImage, 0, 0, w, h);
+  } else if (mode && mode.startsWith('color:')) {
+    cctx.fillStyle = mode.slice(6);
+    cctx.fillRect(0, 0, w, h);
+  } else {
+    cctx.fillStyle = '#1e293b';
+    cctx.fillRect(0, 0, w, h);
+  }
+  cctx.restore();
+}
+
+function startVbLoop() {
+  if (camera.loopId) return;
+  const tick = async () => {
+    if (!camera.enabled || !camera.segmenter || !camera.video) { camera.loopId = null; return; }
+    try {
+      if (camera.video.readyState >= 2) {
+        await camera.segmenter.send({ image: camera.video });
+      }
+    } catch (e) {}
+    camera.loopId = requestAnimationFrame(tick);
+  };
+  camera.loopId = requestAnimationFrame(tick);
+}
+function stopVbLoop() {
+  if (camera.loopId) { cancelAnimationFrame(camera.loopId); camera.loopId = null; }
+}
+
+async function applyVirtualBackground(mode) {
+  camera.bgMode = mode || 'none';
+  // 視覚フィードバック (メニューマーク)
+  document.querySelectorAll('.vb-opt').forEach(b => {
+    b.style.borderColor = b.getAttribute('data-mode') === camera.bgMode ? '#06b6d4' : '#e2e8f0';
+  });
+  if (!camera.enabled) { document.getElementById('vb-pop').style.display = 'none'; return; }
+
+  if (camera.bgMode === 'none') {
+    // 生streamに戻す
+    stopVbLoop();
+    if (camera.rawStream) await swapCameraStream(camera.rawStream);
+    camera.stream = camera.rawStream;
+    document.getElementById('vb-pop').style.display = 'none';
+    return;
+  }
+
+  // 背景画像プリロード
+  if (camera.bgMode.startsWith('img:')) {
+    const src = camera.bgMode.slice(4);
+    if (!camera.bgImage || camera.bgImage.src.indexOf(src) === -1) {
+      camera.bgImage = new Image();
+      camera.bgImage.crossOrigin = 'anonymous';
+      camera.bgImage.src = src;
+    }
+  }
+
+  // segmenter準備
+  await setupSegmenter();
+  if (!camera.segmenter) { document.getElementById('vb-pop').style.display = 'none'; return; }
+
+  // canvas + video 準備
+  if (!camera.canvas) {
+    camera.canvas = document.createElement('canvas');
+    camera.canvas.width = 480; camera.canvas.height = 360;
+    camera.ctx = camera.canvas.getContext('2d');
+    camera.video = document.createElement('video');
+    camera.video.autoplay = true; camera.video.playsInline = true; camera.video.muted = true;
+  }
+  if (camera.video.srcObject !== camera.rawStream) {
+    camera.video.srcObject = camera.rawStream;
+    try { await camera.video.play(); } catch (e) {}
+  }
+
+  // 処理ストリームを生成/取得
+  if (!camera.processedStream) {
+    camera.processedStream = camera.canvas.captureStream(15);
+  }
+  // 処理開始
+  startVbLoop();
+  // peer置換
+  await swapCameraStream(camera.processedStream);
+  camera.stream = camera.processedStream;
+  document.getElementById('vb-pop').style.display = 'none';
+}
+
+async function swapCameraStream(newStream) {
+  const newTrack = newStream.getVideoTracks()[0];
+  if (!newTrack) return;
+  for (const [, peer] of voice.peers) {
+    if (!peer.cameraSender) continue;
+    try { await peer.cameraSender.replaceTrack(newTrack); } catch (e) { console.warn('replaceTrack', e); }
+  }
+  const myTile = document.getElementById('vtile-' + me);
+  if (myTile) {
+    const v = myTile.querySelector('video');
+    if (v) v.srcObject = newStream;
+  }
+}
+
+function toggleVbMenu(e) {
+  const pop = document.getElementById('vb-pop');
+  const rect = e.currentTarget.getBoundingClientRect();
+  pop.style.left = (rect.left + rect.width / 2 - 115) + 'px';
+  pop.style.display = pop.style.display === 'flex' ? 'none' : 'flex';
+  pop.style.flexDirection = 'column';
+  e.stopPropagation();
+}
+
+// vb-opt ボタン
+document.addEventListener('click', (e) => {
+  if (e.target.classList && e.target.classList.contains('vb-opt')) {
+    const mode = e.target.getAttribute('data-mode');
+    applyVirtualBackground(mode);
+  } else if (!e.target.closest('#vb-pop') && !e.target.closest('#dock-vb')) {
+    const pop = document.getElementById('vb-pop');
+    if (pop) pop.style.display = 'none';
+  }
+});
 
 function addVideoTile(peerUid, stream, isSelf) {
   const grid = document.getElementById('video-grid');
@@ -2855,6 +3041,8 @@ function applyFloorLayout(floor) {
   document.body.classList.toggle('layout-meeting', !!isMeeting);
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
+  const vbBtn = document.getElementById('dock-vb');
+  if (vbBtn) vbBtn.style.display = isMeeting ? 'flex' : 'none';
   const wbBtn = document.getElementById('dock-wb');
   if (wbBtn) wbBtn.style.display = isMeeting ? 'flex' : 'none';
   const handBtn = document.getElementById('dock-hand');

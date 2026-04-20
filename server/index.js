@@ -67,7 +67,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "blob:"],
       mediaSrc: ["'self'", "blob:", "data:"],
-      connectSrc: ["'self'", "wss:", "ws:", "https://cloudflareinsights.com"],
+      connectSrc: ["'self'", "wss:", "ws:", "https://cloudflareinsights.com", "https://cdn.jsdelivr.net"],
       workerSrc: ["'self'", "blob:"],
       childSrc: ["'self'", "blob:"],
     }
