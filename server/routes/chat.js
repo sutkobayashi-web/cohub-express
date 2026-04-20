@@ -1,7 +1,35 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser, authAdmin } = require('../middleware/auth');
+
+// チャット添付ファイル保存
+const chatDir = path.join(__dirname, '..', '..', 'uploads', 'chat');
+if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
+const chatUpload = multer({
+  storage: multer.diskStorage({
+    destination: chatDir,
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '').slice(0, 8).replace(/[^a-zA-Z0-9.]/g, '');
+      cb(null, Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext);
+    },
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+});
+
+router.post('/upload', authUser, chatUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, msg: 'ファイル無し' });
+  res.json({
+    success: true,
+    url: '/uploads/chat/' + req.file.filename,
+    name: req.file.originalname,
+    size: req.file.size,
+    type: req.file.mimetype,
+  });
+});
 
 // 自分の60日以内の会話履歴（本人のみ閲覧）
 router.get('/history', authUser, (req, res) => {
@@ -28,6 +56,7 @@ router.get('/recent', authUser, (req, res) => {
   const db = getDb();
   const rows = db.prepare(`
     SELECT m.id, m.sender_id, m.content, m.has_mention, m.created_at,
+           m.attach_url, m.attach_name, m.attach_size, m.attach_type,
            u.display_name AS sender_name
     FROM messages m
     LEFT JOIN users u ON u.id = m.sender_id
@@ -82,7 +111,8 @@ router.get('/admin/search', authAdmin, (req, res) => {
 router.get('/dm/:peerId', authUser, (req, res) => {
   const peerId = req.params.peerId;
   const rows = getDb().prepare(`
-    SELECT m.id, m.sender_id, m.receiver_id, m.content, m.created_at
+    SELECT m.id, m.sender_id, m.receiver_id, m.content, m.created_at,
+           m.attach_url, m.attach_name, m.attach_size, m.attach_type
     FROM messages m
     WHERE m.room_code = 'dm'
       AND ((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))

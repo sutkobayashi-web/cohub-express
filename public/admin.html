@@ -86,6 +86,23 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
+    <h2>📋 出席履歴 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">ログイン/ログアウト/フロア移動のイベント</span></h2>
+    <div class="row">
+      <select id="att-user"><option value="">社員すべて</option></select>
+      <select id="att-floor"><option value="">フロアすべて</option></select>
+      <input type="date" id="att-since">
+      <input type="date" id="att-until">
+      <button class="btn" onclick="loadAttendance()">検索</button>
+    </div>
+    <div style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr><th style="width:140px;">日時</th><th style="width:160px;">社員</th><th style="width:120px;">フロア</th><th style="width:80px;">イベント</th></tr></thead>
+        <tbody id="att-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>🎙️ 会議録音 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">管理者が録音開始→自動アップロード</span></h2>
     <div id="rec-list" style="font-size:12px;color:#94a3b8;">読み込み中...</div>
     <audio id="rec-player" controls style="width:100%;margin-top:10px;display:none;"></audio>
@@ -175,6 +192,38 @@ function showPanel(user) {
   loadFloors();
   loadChatLog(0);
   loadRecordings();
+  loadAttendance();
+}
+
+async function loadAttendance() {
+  const params = new URLSearchParams({ limit: 500 });
+  const u = document.getElementById('att-user').value;
+  const f = document.getElementById('att-floor').value;
+  const s = document.getElementById('att-since').value;
+  const e = document.getElementById('att-until').value;
+  if (u) params.set('user_id', u);
+  if (f) params.set('floor', f);
+  if (s) params.set('since', s);
+  if (e) params.set('until', e);
+  try {
+    const r = await fetch('/api/admin/attendance?' + params.toString(), { headers:{'Authorization':'Bearer '+token} });
+    const d = await r.json();
+    const tb = document.getElementById('att-tbody');
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="4" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    tb.innerHTML = '';
+    for (const ev of d.events) {
+      const dtime = new Date(ev.at + 'Z').toLocaleString('ja-JP');
+      const label = { login: '🟢 ログイン', logout: '🔴 ログアウト', enter: '➡ 入室', leave: '⬅ 退室' }[ev.event_type] || ev.event_type;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="font-size:11px;color:#64748b;">${dtime}</td>
+                      <td style="font-size:12px;">${escapeHtml(ev.display_name || '')} (${escapeHtml(ev.login_id || '')})</td>
+                      <td style="font-size:11px;">${escapeHtml(ev.floor_code || '')}</td>
+                      <td style="font-size:11px;">${label}</td>`;
+      tb.appendChild(tr);
+    }
+  } catch (e) {
+    document.getElementById('att-tbody').innerHTML = '<tr><td colspan="4">通信エラー</td></tr>';
+  }
 }
 
 async function loadRecordings() {
@@ -245,6 +294,8 @@ async function loadFloors() {
     if (!d.success) return;
     const sel = document.getElementById('chat-room');
     sel.innerHTML = '<option value="">フロアすべて</option>' + d.floors.map(f => `<option value="${f.code}">${escapeHtml(f.name)}</option>`).join('');
+    const asel = document.getElementById('att-floor');
+    if (asel) asel.innerHTML = '<option value="">フロアすべて</option>' + d.floors.map(f => `<option value="${f.code}">${escapeHtml(f.name)}</option>`).join('');
   } catch (e) {}
 }
 
@@ -262,6 +313,13 @@ async function loadUsers() {
     sel.innerHTML = '<option value="">送信者すべて</option>' +
       d.users.map(u => `<option value="${u.id}">${escapeHtml(u.display_name)} (${escapeHtml(u.login_id)})</option>`).join('');
     sel.value = cur;
+  }
+  const asel = document.getElementById('att-user');
+  if (asel) {
+    const cur = asel.value;
+    asel.innerHTML = '<option value="">社員すべて</option>' +
+      d.users.map(u => `<option value="${u.id}">${escapeHtml(u.display_name)}</option>`).join('');
+    asel.value = cur;
   }
   const tb = document.getElementById('user-tbody');
   tb.innerHTML = '';

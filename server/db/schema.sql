@@ -24,9 +24,21 @@ CREATE TABLE IF NOT EXISTS positions (
   x INTEGER DEFAULT 672,
   y INTEGER DEFAULT 384,
   status TEXT DEFAULT 'online',
+  status_text TEXT DEFAULT '',
   floor_code TEXT DEFAULT 'lobby',
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- 出席履歴 (ログイン/ログアウト/フロア移動)
+CREATE TABLE IF NOT EXISTS attendance (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  floor_code TEXT,
+  event_type TEXT NOT NULL,  -- login / logout / enter / leave
+  at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_attend_user ON attendance(user_id, at DESC);
+CREATE INDEX IF NOT EXISTS idx_attend_at ON attendance(at DESC);
 
 -- フロアマスタ（1F ロビー / 2F 事務フロア など）
 CREATE TABLE IF NOT EXISTS floors (
@@ -79,6 +91,10 @@ CREATE TABLE IF NOT EXISTS messages (
   content TEXT NOT NULL,
   room_code TEXT DEFAULT 'public',  -- public / private_xxx / dm
   has_mention INTEGER DEFAULT 0,
+  attach_url TEXT,
+  attach_name TEXT,
+  attach_size INTEGER,
+  attach_type TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id, created_at DESC);

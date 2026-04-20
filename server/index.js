@@ -184,7 +184,9 @@ function floorUserList(floorCode) {
       x: inFloor ? p.x : null,
       y: inFloor ? p.y : null,
       status: inFloor ? p.status : 'offline',
+      status_text: inFloor ? (p.statusText || '') : '',
       voice: !!(inFloor && p.voiceOn),
+      handUp: !!(inFloor && p.handUp),
       floor: p ? p.floor : null,
     };
   });
@@ -202,13 +204,14 @@ function clampForFloor(floor, x, y) {
 io.on('connection', (socket) => {
   const uid = socket.uid;
   const db = getDb();
-  const saved = db.prepare('SELECT x, y, floor_code FROM positions WHERE user_id = ?').get(uid);
+  const saved = db.prepare('SELECT x, y, floor_code, status_text FROM positions WHERE user_id = ?').get(uid);
   const floorCode = (saved && saved.floor_code) || 'lobby';
   const floor = getFloor(floorCode) || getFloor('lobby');
   const pos = clampForFloor(floor, saved && saved.x, saved && saved.y);
 
-  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', floor: floor.code, socketId: socket.id });
+  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
+  db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
   socket.join('floor:' + floor.code);
 
   // 初期スナップショット
@@ -254,6 +257,13 @@ io.on('connection', (socket) => {
       p.voiceOn = false;
       io.to('floor:' + oldFloor).emit('voice:state', { uid, on: false });
     }
+    if (p.handUp) {
+      p.handUp = false;
+      io.to('floor:' + oldFloor).emit('hand', { uid, up: false });
+    }
+    // 出席履歴
+    db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'leave')").run(uid, oldFloor);
+    db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'enter')").run(uid, target.code);
     // 旧フロアから leave、旧メンバーに「退室」を通知
     socket.leave('floor:' + oldFloor);
     io.to('floor:' + oldFloor).emit('user:leave', { uid });
@@ -292,12 +302,23 @@ io.on('connection', (socket) => {
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: p.status });
   });
 
-  // ステータス
+  // ステータス + 自由文
   socket.on('status', (data) => {
     const s = ['online', '退席中', '会議中'].includes(data.status) ? data.status : 'online';
+    const text = (data && typeof data.text === 'string') ? data.text.slice(0, 50) : undefined;
     const p = presence.get(uid); if (!p) return;
     p.status = s;
-    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: s });
+    if (text !== undefined) p.statusText = text;
+    db.prepare(`UPDATE positions SET status=?, status_text=?, updated_at=datetime('now') WHERE user_id=?`).run(s, p.statusText || '', uid);
+    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: s, status_text: p.statusText || '' });
+  });
+
+  // 挙手
+  socket.on('hand', (data) => {
+    const up = !!(data && data.up);
+    const p = presence.get(uid); if (!p) return;
+    p.handUp = up;
+    io.to('floor:' + p.floor).emit('hand', { uid, up });
   });
 
   // フロアチャット（同フロアのみ配信。ログは60日保存、管理者閲覧可）
@@ -311,7 +332,13 @@ io.on('connection', (socket) => {
       : [];
 
     const hasMention = mentions.length > 0 ? 1 : 0;
-    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention) VALUES (?, NULL, ?, ?, ?)").run(uid, content, sender.floor, hasMention);
+    const a = data && data.attach && data.attach.url ? data.attach : null;
+    const attachUrl = a ? String(a.url).slice(0, 500) : null;
+    const attachName = a ? String(a.name || '').slice(0, 200) : null;
+    const attachSize = a ? (parseInt(a.size) || 0) : null;
+    const attachType = a ? String(a.type || '').slice(0, 80) : null;
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention, attach_url, attach_name, attach_size, attach_type) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?)")
+      .run(uid, content, sender.floor, hasMention, attachUrl, attachName, attachSize, attachType);
 
     const payload = {
       id: ins.lastInsertRowid,
@@ -320,24 +347,32 @@ io.on('connection', (socket) => {
       at: new Date().toISOString(),
       mentions,
       room: sender.floor,
+      attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
     };
     io.to('floor:' + sender.floor).emit('chat:msg', payload);
   });
 
-  // DM (1対1ダイレクトメッセージ)
+  // DM (1対1ダイレクトメッセージ、添付対応)
   socket.on('chat:dm', (data) => {
     const to = (data && data.to || '').toString();
     const content = (data && data.content || '').toString().trim().slice(0, 1000);
-    if (!to || !content || to === uid) return;
+    if (!to || (!content && !(data && data.attach)) || to === uid) return;
     const target = getDb().prepare('SELECT id FROM users WHERE id = ?').get(to);
     if (!target) return;
-    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')").run(uid, to, content);
+    const a = data && data.attach && data.attach.url ? data.attach : null;
+    const attachUrl = a ? String(a.url).slice(0, 500) : null;
+    const attachName = a ? String(a.name || '').slice(0, 200) : null;
+    const attachSize = a ? (parseInt(a.size) || 0) : null;
+    const attachType = a ? String(a.type || '').slice(0, 80) : null;
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, ?, ?, 'dm', ?, ?, ?, ?)")
+      .run(uid, to, content, attachUrl, attachName, attachSize, attachType);
     const payload = {
       id: ins.lastInsertRowid,
       from: uid,
       to,
       content,
       at: new Date().toISOString(),
+      attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
     };
     socket.emit('dm:msg', payload);
     const tp = presence.get(to);
@@ -451,11 +486,15 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const p = presence.get(uid);
     if (!p) return;
-    // 音声参加中なら切断通知
     if (p.voiceOn) {
       p.voiceOn = false;
       io.to('floor:' + p.floor).emit('voice:state', { uid, on: false });
     }
+    if (p.handUp) {
+      p.handUp = false;
+      io.to('floor:' + p.floor).emit('hand', { uid, up: false });
+    }
+    db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'logout')").run(uid, p.floor);
     p.status = 'offline';
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
     io.emit('floor:counts', floorCountMap());
