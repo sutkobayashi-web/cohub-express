@@ -46,9 +46,16 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #left-rail .rail-divider { width: 70%; height: 1px; background: rgba(255,255,255,0.1); margin: 6px 0; }
 #left-rail .spacer { flex: 1; }
 
-/* 右サイドバー（メンバーリスト） */
+/* 右サイドバー（チャット専用、常時表示） */
 #right-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 280px; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); z-index: 18; display: flex; flex-direction: column; border-left: 1px solid rgba(15,23,42,0.08); box-shadow: -4px 0 16px rgba(15,23,42,0.08); transition: transform 0.25s ease; }
 #right-panel.hidden { transform: translateX(100%); }
+
+/* メンバーパネル（左レール横、開閉式） */
+#members-panel { position: absolute; top: 0; left: 96px; bottom: 0; width: 280px; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); z-index: 17; display: flex; flex-direction: column; border-right: 1px solid rgba(15,23,42,0.08); box-shadow: 4px 0 16px rgba(15,23,42,0.08); transition: transform 0.25s ease; }
+#members-panel.hidden { transform: translateX(calc(-100% - 96px)); }
+#members-panel .panel-head { padding: 14px 14px 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(15,23,42,0.08); font-weight: 700; color: #0f172a; font-size: 14px; }
+#members-panel .panel-head .ttl { flex: 1; }
+#members-panel .panel-head .count { background: #06b6d4; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
 .panel-head { padding: 6px 4px 0 8px; display: flex; align-items: stretch; gap: 4px; border-bottom: 1px solid rgba(15,23,42,0.08); }
 .panel-head .panel-tabs { flex: 1; display: flex; gap: 2px; }
 .ptab { flex: 1; padding: 12px 6px; background: none; border: none; color: #64748b; font-weight: 700; cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 4px; transition: color 0.12s; }
@@ -109,7 +116,8 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dm-input-wrap button { width: 40px; height: 40px; border-radius: 50%; border: none; background: #06b6d4; color: #fff; cursor: pointer; font-size: 15px; }
 
 /* キャンバス領域 */
-#space-canvas-wrap { position: absolute; top: 0; left: 96px; right: 280px; bottom: 88px; background: #c9bca3; overflow: hidden; transition: right 0.25s ease; }
+#space-canvas-wrap { position: absolute; top: 0; left: 96px; right: 280px; bottom: 88px; background: #c9bca3; overflow: hidden; transition: all 0.25s ease; }
+#members-panel:not(.hidden) ~ #space-canvas-wrap { left: 376px; }
 #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
 #space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
 #space-canvas.dragging { cursor: grabbing; }
@@ -379,17 +387,23 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
     </button>
   </div>
 
-  <!-- 右サイドバー -->
+  <!-- 右サイドバー: チャット専用 (常時表示) -->
   <div id="right-panel">
+    <div class="panel-head" style="gap:8px;">
+      <div style="font-weight:700;font-size:14px;color:#0f172a;flex:1;">💬 チャット</div>
+      <span class="badge" id="chat-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:800;">0</span>
+    </div>
+    <div class="panel-body chat-list" id="chat-list"></div>
+  </div>
+
+  <!-- 左: メンバーパネル (トグル) -->
+  <div id="members-panel" class="hidden">
     <div class="panel-head">
-      <div class="panel-tabs">
-        <button class="ptab active" id="tab-members" onclick="switchTab('members')">👥 メンバー <span class="count" id="member-count">0</span></button>
-        <button class="ptab" id="tab-chat" onclick="switchTab('chat')">💬 チャット <span class="badge" id="chat-badge" style="display:none;">0</span></button>
-      </div>
-      <button class="close" onclick="togglePanel()" title="閉じる">×</button>
+      <div class="ttl">👥 メンバー</div>
+      <div class="count" id="member-count">0</div>
+      <button class="close" onclick="togglePanel()" title="閉じる" style="background:transparent;border:none;cursor:pointer;color:#64748b;font-size:18px;width:28px;height:28px;border-radius:6px;">×</button>
     </div>
     <div class="panel-body" id="member-list"></div>
-    <div class="panel-body chat-list hidden" id="chat-list"></div>
   </div>
 
   <!-- 会議室パネル (ホワイトボード専用、右半分) -->
@@ -554,7 +568,7 @@ const bubbles = []; // { uid, content, at, isEmoji }
 // チャットログ (受信したメッセージを永続化)
 let chatLog = [];          // { id, uid, name, content, at, self, isEmoji, readBy[] }
 let chatUnread = 0;
-let currentTab = 'members'; // 'members' | 'chat'
+let currentTab = 'chat'; // 右パネルは常時チャット
 try { chatLog = JSON.parse(localStorage.getItem('cohub_chat_log') || '[]'); } catch(e) { chatLog = []; }
 // 72時間より古いログは自動削除
 const CHAT_LOG_TTL = 72 * 3600 * 1000;
@@ -590,8 +604,7 @@ function enterSpace() {
   if (!currentUser.avatar_url) {
     setTimeout(openAvatarModal, 600);
   }
-  // パネル初期表示: モバイルは閉じ
-  if (window.innerWidth <= 800) togglePanel(true);
+  // メンバーパネルは初期非表示
   // OS通知の許可取得 (ユーザージェスチャー直後)
   requestNotifPermission();
   updateFaviconBadge(0);
@@ -958,9 +971,8 @@ function connectSocket() {
         mention: isMentioned
       });
       const title = (isMentioned ? '[メンション] ' : '') + (sender.name || 'CoHub');
-      fireOSNotif(title, m.content, () => { switchTab('chat'); if (document.getElementById('right-panel').classList.contains('hidden')) togglePanel(); });
-      const panelHidden = document.getElementById('right-panel').classList.contains('hidden');
-      const notReading = currentTab !== 'chat' || panelHidden || document.visibilityState !== 'visible';
+      fireOSNotif(title, m.content, () => { switchTab('chat'); });
+      const notReading = document.visibilityState !== 'visible';
       if (notReading) {
         chatUnread++;
         updateChatBadge();
@@ -1498,7 +1510,6 @@ function showNotifCard(o) {
     '</div>';
   card.onclick = () => {
     switchTab('chat');
-    if (document.getElementById('right-panel').classList.contains('hidden')) togglePanel();
     try { card.remove(); } catch(e) {}
   };
   stack.appendChild(card);
@@ -1509,7 +1520,7 @@ function showNotifCard(o) {
 
 // visibility 変化で未読バッジリセット
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && currentTab === 'chat' && !document.getElementById('right-panel').classList.contains('hidden')) {
+  if (document.visibilityState === 'visible') {
     chatUnread = 0;
     updateChatBadge();
     updateTitleBadge(0);
@@ -1653,28 +1664,22 @@ function renderChatLog() {
   list.scrollTop = list.scrollHeight;
 }
 
-// タブ切替
+// チャットパネルが見える状態で既読処理
 function switchTab(name) {
-  currentTab = name;
-  document.getElementById('tab-members').classList.toggle('active', name === 'members');
-  document.getElementById('tab-chat').classList.toggle('active', name === 'chat');
-  document.getElementById('member-list').classList.toggle('hidden', name !== 'members');
-  document.getElementById('chat-list').classList.toggle('hidden', name !== 'chat');
-  if (name === 'chat') {
-    // 未読クリア + 全送信者に既読通知
-    if (chatUnread > 0) {
-      const senders = new Set();
-      for (const m of chatLog) {
-        if (!m.self && m.uid !== me) senders.add(m.uid);
-      }
-      for (const from of senders) {
-        if (socket) socket.emit('chat:read', { from });
-      }
+  // 互換のため残存。右パネルは常時チャット表示なので、ここでは既読処理のみ
+  currentTab = 'chat';
+  if (chatUnread > 0) {
+    const senders = new Set();
+    for (const m of chatLog) {
+      if (!m.self && m.uid !== me) senders.add(m.uid);
     }
-    chatUnread = 0;
-    updateChatBadge();
-    renderChatLog();
+    for (const from of senders) {
+      if (socket) socket.emit('chat:read', { from });
+    }
   }
+  chatUnread = 0;
+  updateChatBadge();
+  renderChatLog();
 }
 
 function updateChatBadge() {
@@ -1852,24 +1857,19 @@ function walkTo(uid) {
 }
 
 // ===== UIトグル =====
+// 👥メンバーパネル (左側、開閉式)
 function togglePanel(forceHide) {
-  const p = document.getElementById('right-panel');
-  const wrap = document.getElementById('space-canvas-wrap');
+  const p = document.getElementById('members-panel');
   const btn = document.getElementById('rail-members');
+  if (!p) return;
   if (forceHide === true) {
     p.classList.add('hidden');
-    wrap.classList.remove('with-panel');
-    btn.classList.remove('active');
+    if (btn) btn.classList.remove('active');
+    setTimeout(resize, 280);
     return;
   }
   p.classList.toggle('hidden');
-  if (p.classList.contains('hidden')) {
-    wrap.classList.remove('with-panel');
-    btn.classList.remove('active');
-  } else {
-    wrap.classList.add('with-panel');
-    btn.classList.add('active');
-  }
+  if (btn) btn.classList.toggle('active', !p.classList.contains('hidden'));
   setTimeout(resize, 280);
 }
 
