@@ -138,9 +138,11 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
    左半分: 上=ビデオ / 下=アバター空間,  右半分: ホワイトボード */
 #meeting-panel { position: absolute; top: 0; right: 280px; bottom: 88px; width: 50%; min-width: 360px; background: #fff; display: none; flex-direction: column; border-left: 1px solid rgba(15,23,42,0.08); z-index: 8; transition: right 0.25s ease; }
 #right-panel.hidden ~ #meeting-panel { right: 0; }
-body.layout-meeting #meeting-panel { display: flex; }
-body.layout-meeting #space-canvas-wrap { right: calc(50% + 280px); display: flex; flex-direction: column; }
-body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 50%; }
+body.layout-meeting #space-canvas-wrap { right: 280px; display: flex; flex-direction: column; }
+body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
+body.layout-meeting.wb-open #meeting-panel { display: flex; }
+body.layout-meeting.wb-open #space-canvas-wrap { right: calc(50% + 280px); }
+body.layout-meeting.wb-open #right-panel.hidden ~ #space-canvas-wrap { right: 50%; }
 body.layout-meeting #floor-head { top: 200px; }  /* ビデオ下に floor-head を表示 */
 
 .mp-head { padding: 10px 14px; border-bottom: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; font-size: 13px; background: #fff; flex-shrink: 0; }
@@ -369,6 +371,7 @@ body.layout-meeting #space-canvas { position: relative; flex: 1 1 auto; min-heig
     <button class="dock-btn" id="dock-mic" onclick="toggleMic()" title="マイク">🎤<div class="sub">マイク</div></button>
     <button class="dock-btn" id="dock-speaker" onclick="toggleSpeaker()" title="スピーカー">🔊<div class="sub">音量</div></button>
     <button class="dock-btn" id="dock-camera" onclick="toggleCamera()" title="ビデオ会議" style="display:none;">📹<div class="sub">カメラ</div></button>
+    <button class="dock-btn" id="dock-wb" onclick="toggleWhiteboard()" title="ホワイトボード" style="display:none;">🖊<div class="sub">ボード</div></button>
     <button class="dock-btn" id="dock-screen" onclick="toggleScreenShare()" title="画面共有">🖥️<div class="sub">画面共有</div></button>
     <button class="dock-btn" id="dock-rec" onclick="toggleRecording()" title="会議録音 (管理者のみ)" style="display:none;">🔴<div class="sub">録音</div></button>
     <div class="dock-sep"></div>
@@ -2049,16 +2052,35 @@ function applyFloorLayout(floor) {
   document.body.classList.toggle('layout-meeting', !!isMeeting);
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
+  const wbBtn = document.getElementById('dock-wb');
+  if (wbBtn) wbBtn.style.display = isMeeting ? 'flex' : 'none';
   if (!isMeeting) {
-    // 会議室から出た: カメラOFF、ビデオタイル掃除
+    // 会議室から出た: カメラOFF、ビデオタイル掃除、ホワイトボードも閉じる
     if (camera.enabled) disableCamera();
+    document.body.classList.remove('wb-open');
+    if (wbBtn) wbBtn.classList.remove('on');
     const grid = document.getElementById('video-grid');
     if (grid) grid.innerHTML = '<div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div>';
   } else {
-    // 会議室に入った: ホワイトボード表示
+    // 会議室に入った: デフォルトはホワイトボード閉じ、必要なら手動で開く
+    document.body.classList.remove('wb-open');
+    if (wbBtn) wbBtn.classList.remove('on');
     const rn = document.getElementById('mp-room-name');
     if (rn) rn.textContent = floor.name;
-    loadWhiteboard(floor.code);
+    loadWhiteboard(floor.code);  // 内容は事前ロード
+  }
+  setTimeout(resize, 280);
+}
+
+function toggleWhiteboard() {
+  const opened = document.body.classList.toggle('wb-open');
+  const btn = document.getElementById('dock-wb');
+  if (btn) btn.classList.toggle('on', opened);
+  if (opened) {
+    setTimeout(() => {
+      const ta = document.getElementById('wb-text');
+      if (ta) ta.focus();
+    }, 260);
   }
   setTimeout(resize, 280);
 }
