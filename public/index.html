@@ -1519,12 +1519,20 @@ function render() {
 
   // 1Fロビー・大会議室: スタンダード運輸ロゴを床の透かしとして描画
   if (currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'meeting_c') && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    const logoW = 170;  // テーブル内に収まるよう調整
+    const logoW = 170;
     const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
     const lx = (WORLD_W - logoW) / 2;
-    const ly = (WORLD_H - logoH) / 2;
+    // 大会議室は新背景でテーブル中央が下寄りなので+70pxオフセット
+    const yOffset = currentFloor.code === 'meeting_c' ? 70 : 0;
+    const ly = (WORLD_H - logoH) / 2 + yOffset;
     ctx.save();
-    ctx.globalAlpha = 0.288;  // 0.144→0.288 (倍)
+    if (currentFloor.code === 'meeting_c') {
+      // 暗いマホガニー卓に対し screen 合成で明るい青へ
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.55;
+    } else {
+      ctx.globalAlpha = 0.288;
+    }
     ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
     ctx.restore();
   }
