@@ -358,6 +358,8 @@ io.on('connection', (socket) => {
 
   // 全体のフロア在席数更新を配信
   io.emit('floor:counts', floorCountMap());
+  // 全クライアントに「このユーザーがこのフロアにオンライン」を通知
+  io.emit('user:floor', { uid, floor: floor.code });
 
   // フロア切替
   socket.on('floor:switch', (data) => {
@@ -475,6 +477,7 @@ io.on('connection', (socket) => {
       huddle_zones: HUDDLE_ZONES[target.code] || [],
     });
     io.emit('floor:counts', floorCountMap());
+    io.emit('user:floor', { uid, floor: target.code });
   });
 
   // 移動
@@ -933,6 +936,7 @@ io.on('connection', (socket) => {
     db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'logout')").run(uid, p.floor);
     p.status = 'offline';
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
+    io.emit('user:floor', { uid, floor: null, offline: true });
     io.emit('floor:counts', floorCountMap());
     setTimeout(() => {
       const cur = presence.get(uid);
