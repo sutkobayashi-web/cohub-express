@@ -865,14 +865,9 @@ function resize() {
   viewScale = Math.min(r.width / WORLD_W, r.height / WORLD_H);
 }
 
-let stdLogo = null;
 function loadBackground(src) {
   bgImage = new Image();
   bgImage.src = (src || '/assets/office_bg.png') + '?v=9';
-  if (!stdLogo) {
-    stdLogo = new Image();
-    stdLogo.src = '/assets/std_logo.png?v=1';
-  }
 }
 
 // スクリーン座標 → ワールド座標
@@ -1327,17 +1322,6 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1F ロビー限定: スタンダード運輸ロゴを床の透かし(ウォーターマーク)として描画
-  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    const logoW = 310;
-    const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
-    const lx = (WORLD_W - logoW) / 2;
-    const ly = (WORLD_H - logoH) / 2;
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
-    ctx.restore();
-  }
 
   // 近接範囲（自分中心）
   if (me && users[me]) {
