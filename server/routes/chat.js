@@ -21,19 +21,20 @@ router.get('/history', authUser, (req, res) => {
   res.json({ success: true, messages: rows });
 });
 
-// フロア全体のチャット履歴 直近100件（全ユーザー）
+// 指定フロアのチャット履歴 直近100件（全ユーザー）
 router.get('/recent', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  const room = (req.query.room || 'lobby').toString();
   const db = getDb();
   const rows = db.prepare(`
     SELECT m.id, m.sender_id, m.content, m.has_mention, m.created_at,
            u.display_name AS sender_name
     FROM messages m
     LEFT JOIN users u ON u.id = m.sender_id
-    WHERE m.room_code = 'public' AND m.created_at > datetime('now', '-60 days')
+    WHERE m.room_code = ? AND m.created_at > datetime('now', '-60 days')
     ORDER BY m.created_at DESC
     LIMIT ?
-  `).all(limit);
+  `).all(room, limit);
   res.json({ success: true, messages: rows.reverse() });
 });
 
@@ -46,6 +47,7 @@ router.get('/admin/search', authAdmin, (req, res) => {
   const since = (req.query.since || '').toString().trim();
   const until = (req.query.until || '').toString().trim();
   const onlyMention = req.query.mention === '1';
+  const room = (req.query.room || '').toString().trim();
 
   let sql = `SELECT m.id, m.sender_id, m.content, m.room_code, m.has_mention, m.created_at,
              u.display_name AS sender_name, u.login_id AS sender_login, u.company_code AS sender_company
@@ -56,6 +58,7 @@ router.get('/admin/search', authAdmin, (req, res) => {
   if (since) { sql += ' AND m.created_at >= ?'; params.push(since); }
   if (until) { sql += " AND m.created_at <= ? || ' 23:59:59'"; params.push(until); }
   if (onlyMention) { sql += ' AND m.has_mention = 1'; }
+  if (room) { sql += ' AND m.room_code = ?'; params.push(room); }
   sql += ' ORDER BY m.created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
@@ -69,9 +72,16 @@ router.get('/admin/search', authAdmin, (req, res) => {
   if (since) { countSql += ' AND m.created_at >= ?'; countParams.push(since); }
   if (until) { countSql += " AND m.created_at <= ? || ' 23:59:59'"; countParams.push(until); }
   if (onlyMention) { countSql += ' AND m.has_mention = 1'; }
+  if (room) { countSql += ' AND m.room_code = ?'; countParams.push(room); }
   const totalRow = getDb().prepare(countSql).get(...countParams);
 
   res.json({ success: true, messages: rows, total: totalRow.c });
+});
+
+// フロア一覧
+router.get('/floors', authUser, (req, res) => {
+  const rows = getDb().prepare('SELECT code, name FROM floors ORDER BY sort_order').all();
+  res.json({ success: true, floors: rows });
 });
 
 module.exports = router;

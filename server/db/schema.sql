@@ -18,14 +18,29 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen_at TEXT
 );
 
--- 座標（空間内の位置）
+-- 座標（空間内の位置、フロア別）
 CREATE TABLE IF NOT EXISTS positions (
   user_id TEXT PRIMARY KEY,
-  x INTEGER DEFAULT 400,
-  y INTEGER DEFAULT 300,
+  x INTEGER DEFAULT 672,
+  y INTEGER DEFAULT 384,
   status TEXT DEFAULT 'online',
+  floor_code TEXT DEFAULT 'lobby',
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- フロアマスタ（1F ロビー / 2F 事務フロア など）
+CREATE TABLE IF NOT EXISTS floors (
+  code TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  bg_image TEXT NOT NULL,
+  world_w INTEGER NOT NULL DEFAULT 1344,
+  world_h INTEGER NOT NULL DEFAULT 768,
+  sort_order INTEGER DEFAULT 0,
+  icon TEXT DEFAULT ''
+);
+INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order, icon) VALUES
+  ('lobby',  '1F ロビー',        '/assets/floor_lobby.png',  1344, 768, 1, '🛋️'),
+  ('office', '2F 事務フロア',    '/assets/floor_office.png', 1344, 768, 2, '💼');
 
 -- チャット履歴（60日保持、管理者は全文閲覧可）
 CREATE TABLE IF NOT EXISTS messages (

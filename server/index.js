@@ -109,52 +109,133 @@ io.use((socket, next) => {
   } catch (e) { next(new Error('unauth')); }
 });
 
-const presence = new Map(); // uid → { x, y, status, socketId, user }
+const presence = new Map(); // uid → { x, y, status, floor, socketId }
 
-function currentUserList() {
+function allFloors() {
+  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, sort_order, icon FROM floors ORDER BY sort_order').all();
+}
+
+function getFloor(code) {
+  return getDb().prepare('SELECT code, name, bg_image, world_w, world_h, sort_order, icon FROM floors WHERE code = ?').get(code);
+}
+
+function floorCountMap() {
+  const map = {};
+  for (const [, p] of presence) {
+    if (p.status === 'offline') continue;
+    map[p.floor] = (map[p.floor] || 0) + 1;
+  }
+  return map;
+}
+
+// 指定フロアに居るメンバー（+オフライン全員のメタ情報）
+function floorUserList(floorCode) {
   const db = getDb();
   const users = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, c.ring_color
     FROM users u LEFT JOIN companies c ON c.code = u.company_code`).all();
   return users.map(u => {
     const p = presence.get(u.id);
+    const inFloor = p && p.status !== 'offline' && p.floor === floorCode;
     return {
       uid: u.id,
       name: u.display_name,
       company: u.company_code,
       avatar: u.avatar_url,
       ring: u.ring_color || '#333',
-      x: p ? p.x : null,
-      y: p ? p.y : null,
-      status: p ? p.status : 'offline',
+      x: inFloor ? p.x : null,
+      y: inFloor ? p.y : null,
+      status: inFloor ? p.status : 'offline',
+      floor: p ? p.floor : null,
     };
   });
+}
+
+function clampForFloor(floor, x, y) {
+  const W = floor.world_w || 1344;
+  const H = floor.world_h || 768;
+  return {
+    x: Math.max(20, Math.min(W - 20, parseInt(x) || Math.floor(W / 2))),
+    y: Math.max(20, Math.min(H - 20, parseInt(y) || Math.floor(H / 2))),
+  };
 }
 
 io.on('connection', (socket) => {
   const uid = socket.uid;
   const db = getDb();
-  const pos = db.prepare('SELECT x, y FROM positions WHERE user_id = ?').get(uid) || { x: 400, y: 300 };
-  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', socketId: socket.id });
+  const saved = db.prepare('SELECT x, y, floor_code FROM positions WHERE user_id = ?').get(uid);
+  const floorCode = (saved && saved.floor_code) || 'lobby';
+  const floor = getFloor(floorCode) || getFloor('lobby');
+  const pos = clampForFloor(floor, saved && saved.x, saved && saved.y);
+
+  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', floor: floor.code, socketId: socket.id });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
+  socket.join('floor:' + floor.code);
 
   // 初期スナップショット
-  socket.emit('snapshot', { users: currentUserList(), me: uid, proximity: PROXIMITY_RADIUS });
-  // 新規接続者のフル情報を既存接続者に通知（名前・会社・リング色・アバター付き）
-  const fullUser = currentUserList().find(u => u.uid === uid);
-  if (fullUser) socket.broadcast.emit('user:join', fullUser);
-  else socket.broadcast.emit('user:update', { uid, x: pos.x, y: pos.y, status: 'online' });
+  const sendSnapshot = () => {
+    socket.emit('snapshot', {
+      users: floorUserList(floor.code),
+      me: uid,
+      proximity: PROXIMITY_RADIUS,
+      floor,
+      floors: allFloors(),
+      floor_counts: floorCountMap(),
+    });
+  };
+  sendSnapshot();
+
+  // 新規接続者のフル情報を同フロア既存接続者に通知
+  const fullUser = floorUserList(floor.code).find(u => u.uid === uid);
+  if (fullUser) socket.to('floor:' + floor.code).emit('user:join', fullUser);
+  else socket.to('floor:' + floor.code).emit('user:update', { uid, x: pos.x, y: pos.y, status: 'online' });
+
+  // 全体のフロア在席数更新を配信
+  io.emit('floor:counts', floorCountMap());
+
+  // フロア切替
+  socket.on('floor:switch', (data) => {
+    const targetCode = (data && data.code || '').toString();
+    const target = getFloor(targetCode);
+    if (!target) return;
+    const p = presence.get(uid);
+    if (!p) return;
+    if (p.floor === target.code) return;
+    const oldFloor = p.floor;
+    // 旧フロアから leave、旧メンバーに「退室」を通知
+    socket.leave('floor:' + oldFloor);
+    io.to('floor:' + oldFloor).emit('user:leave', { uid });
+    // 新フロア
+    p.floor = target.code;
+    const np = clampForFloor(target, target.world_w / 2, target.world_h / 2);
+    p.x = np.x; p.y = np.y;
+    db.prepare(`INSERT INTO positions (user_id, x, y, floor_code) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, floor_code=excluded.floor_code, updated_at=datetime('now')`).run(uid, p.x, p.y, target.code);
+    socket.join('floor:' + target.code);
+    // 新フロアの既存メンバーに自分の join 通知
+    const fu = floorUserList(target.code).find(u => u.uid === uid);
+    if (fu) socket.to('floor:' + target.code).emit('user:join', fu);
+    // 自分にはフル再snapshot
+    socket.emit('snapshot', {
+      users: floorUserList(target.code),
+      me: uid,
+      proximity: PROXIMITY_RADIUS,
+      floor: target,
+      floors: allFloors(),
+      floor_counts: floorCountMap(),
+    });
+    io.emit('floor:counts', floorCountMap());
+  });
 
   // 移動
   socket.on('move', (data) => {
-    // ワールド1344×768、壁の内側のみ
-    const x = Math.max(20, Math.min(1324, parseInt(data.x) || 672));
-    const y = Math.max(20, Math.min(748, parseInt(data.y) || 384));
     const p = presence.get(uid);
     if (!p) return;
-    p.x = x; p.y = y;
-    db.prepare(`INSERT INTO positions (user_id, x, y) VALUES (?, ?, ?)
-      ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, updated_at=datetime('now')`).run(uid, x, y);
-    io.emit('user:update', { uid, x, y, status: p.status });
+    const f = getFloor(p.floor) || floor;
+    const np = clampForFloor(f, data.x, data.y);
+    p.x = np.x; p.y = np.y;
+    db.prepare(`INSERT INTO positions (user_id, x, y, floor_code) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, floor_code=excluded.floor_code, updated_at=datetime('now')`).run(uid, p.x, p.y, p.floor);
+    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: p.status });
   });
 
   // ステータス
@@ -162,10 +243,10 @@ io.on('connection', (socket) => {
     const s = ['online', '退席中', '会議中'].includes(data.status) ? data.status : 'online';
     const p = presence.get(uid); if (!p) return;
     p.status = s;
-    io.emit('user:update', { uid, x: p.x, y: p.y, status: s });
+    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: s });
   });
 
-  // フロアチャット（全員配信。ログは60日保存、管理者閲覧可）
+  // フロアチャット（同フロアのみ配信。ログは60日保存、管理者閲覧可）
   socket.on('chat', (data) => {
     const content = (data.content || '').toString().trim().slice(0, 500);
     if (!content) return;
@@ -175,22 +256,21 @@ io.on('connection', (socket) => {
       ? data.mentions.filter(x => typeof x === 'string').slice(0, 50)
       : [];
 
-    // DB保存（全員閲覧可、管理者が内部統制モニタリング）
     const hasMention = mentions.length > 0 ? 1 : 0;
-    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention) VALUES (?, NULL, ?, 'public', ?)").run(uid, content, hasMention);
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention) VALUES (?, NULL, ?, ?, ?)").run(uid, content, sender.floor, hasMention);
 
     const payload = {
       id: ins.lastInsertRowid,
       uid, content,
       x: sender.x, y: sender.y,
       at: new Date().toISOString(),
-      mentions
+      mentions,
+      room: sender.floor,
     };
-    // フロア全員に配信
-    io.emit('chat:msg', payload);
+    io.to('floor:' + sender.floor).emit('chat:msg', payload);
   });
 
-  // 既読通知を送信者に転送
+  // 既読通知を送信者に転送（同フロアのみ意味あり）
   socket.on('chat:read', (data) => {
     const from = (data && data.from || '').toString();
     if (!from) return;
@@ -202,8 +282,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const p = presence.get(uid);
-    if (p) p.status = 'offline';
-    io.emit('user:update', { uid, x: p ? p.x : 400, y: p ? p.y : 300, status: 'offline' });
+    if (!p) return;
+    p.status = 'offline';
+    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
+    io.emit('floor:counts', floorCountMap());
     setTimeout(() => {
       const cur = presence.get(uid);
       if (cur && cur.socketId === socket.id) presence.delete(uid);

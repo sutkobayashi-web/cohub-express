@@ -126,6 +126,18 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #rail-menu button { display: block; width: 100%; padding: 10px 12px; background: none; border: none; color: #0f172a; text-align: left; cursor: pointer; border-radius: 6px; font-size: 13px; }
 #rail-menu button:hover { background: #f1f5f9; }
 
+/* フロア切替ポップ */
+#floor-menu { position: absolute; left: 72px; background: #fff; border-radius: 12px; padding: 6px; display: none; z-index: 30; min-width: 220px; box-shadow: 0 12px 28px rgba(15,23,42,0.2); }
+#floor-menu.show { display: block; }
+#floor-menu .fmhead { padding: 8px 12px 4px; font-size: 10px; color: #94a3b8; font-weight: 800; letter-spacing: 1px; }
+#floor-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; background: none; border: none; color: #0f172a; text-align: left; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: 600; }
+#floor-menu button:hover { background: #f1f5f9; }
+#floor-menu button.current { background: #ecfeff; color: #0891b2; cursor: default; }
+#floor-menu button .ficon { font-size: 18px; }
+#floor-menu button .fname { flex: 1; }
+#floor-menu button .fcount { background: #cbd5e1; color: #475569; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+#floor-menu button.current .fcount { background: #06b6d4; color: #fff; }
+
 /* ===== Avatar Setup Modal ===== */
 .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .modal { background: #fff; color: #0f172a; border: 1px solid rgba(15,23,42,0.08); border-radius: 16px; padding: 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
@@ -216,6 +228,9 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     <button class="rail-btn active" id="rail-members" onclick="togglePanel()" title="メンバー">
       <span>👥</span><span class="lbl">メンバー</span>
     </button>
+    <button class="rail-btn" id="rail-floor" onclick="toggleFloorMenu(event)" title="フロア">
+      <span>🏬</span><span class="lbl">フロア</span>
+    </button>
     <button class="rail-btn" id="rail-minimap" onclick="toggleMinimap()" title="ミニマップ">
       <span>🗺️</span><span class="lbl">マップ</span>
     </button>
@@ -249,8 +264,8 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     <canvas id="space-canvas"></canvas>
     <div id="floor-head">
       <span class="dot"></span>
-      <span>Main Floor</span>
-      <span style="color:#94a3b8;font-weight:500;">・<span id="online-count">0</span>人オンライン</span>
+      <span id="floor-name">ロビー</span>
+      <span style="color:#94a3b8;font-weight:500;">・<span id="online-count">0</span>人</span>
       <span style="font-weight:500;color:#64748b;font-size:11px;margin-left:4px;" title="フロア発言は60日保存され、管理者の内部統制モニタリング対象です">🔍 公開会話・ログ60日</span>
     </div>
     <div id="minimap">
@@ -294,6 +309,9 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     <button onclick="setStatus('退席中')"><span class="stdot" style="background:#eab308;"></span>退席中</button>
     <button onclick="setStatus('会議中')"><span class="stdot" style="background:#ef4444;"></span>会議中</button>
   </div>
+
+  <!-- フロア切替メニュー -->
+  <div id="floor-menu"></div>
 
   <!-- レールメニュー -->
   <div id="rail-menu">
@@ -377,9 +395,12 @@ function saveChatLog() {
   try { localStorage.setItem('cohub_chat_log', JSON.stringify(chatLog.slice(-300))); } catch(e) {}
 }
 
-// ワールド座標系: 1344 × 768 (AI生成ワイド背景に合わせる 16:9相当)
-const WORLD_W = 1344;
-const WORLD_H = 768;
+// ワールド座標系 (フロアごとに可変。snapshotで上書きされる)
+let WORLD_W = 1344;
+let WORLD_H = 768;
+let currentFloor = null;   // { code, name, bg_image, world_w, world_h, icon }
+let allFloors = [];
+let floorCounts = {};
 let viewScale = 1; // 実表示に対するスケール
 
 // ドラッグ状態
@@ -393,9 +414,7 @@ function enterSpace() {
   document.getElementById('space-screen').classList.add('active');
   currentUser = userData;
   initCanvas();
-  loadBackground();
   connectSocket();
-  loadRecentChat();
   // 初回ログインでアバター未設定なら促す
   if (!currentUser.avatar_url) {
     setTimeout(openAvatarModal, 600);
@@ -407,10 +426,11 @@ function enterSpace() {
   updateFaviconBadge(0);
 }
 
-// サーバーからフロアの直近100件を取得
-async function loadRecentChat() {
+// サーバーから指定フロアの直近100件を取得
+async function loadRecentChat(roomCode) {
   try {
-    const r = await fetch('/api/chat/recent?limit=100', { headers: { 'Authorization': 'Bearer ' + token } });
+    const room = roomCode || (currentFloor && currentFloor.code) || 'lobby';
+    const r = await fetch('/api/chat/recent?limit=100&room=' + encodeURIComponent(room), { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
     if (!d.success || !Array.isArray(d.messages)) return;
     const myUid = (currentUser && currentUser.uid) || me;
@@ -468,6 +488,9 @@ function initCanvas() {
     if (!e.target.closest('#rail-menu') && !e.target.closest('#left-rail')) {
       document.getElementById('rail-menu').classList.remove('show');
     }
+    if (!e.target.closest('#floor-menu') && !e.target.closest('#rail-floor')) {
+      document.getElementById('floor-menu').classList.remove('show');
+    }
   });
 
   requestAnimationFrame(render);
@@ -490,9 +513,9 @@ function resize() {
   mmCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
-function loadBackground() {
+function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = '/assets/office_bg.png?v=6';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=7';
 }
 
 // スクリーン座標 → ワールド座標
@@ -528,17 +551,53 @@ function connectSocket() {
   socket.on('snapshot', (data) => {
     me = data.me;
     proximityRadius = data.proximity || 220;
+    // フロア情報
+    if (data.floor) {
+      currentFloor = data.floor;
+      WORLD_W = data.floor.world_w || 1344;
+      WORLD_H = data.floor.world_h || 768;
+      const fname = document.getElementById('floor-name');
+      if (fname) fname.textContent = (data.floor.icon ? data.floor.icon + ' ' : '') + data.floor.name;
+      loadBackground(data.floor.bg_image);
+      resize();
+    }
+    if (Array.isArray(data.floors)) allFloors = data.floors;
+    if (data.floor_counts) floorCounts = data.floor_counts;
+    // ユーザー
     users = {};
     targets = {};
     for (const u of data.users) {
       users[u.uid] = u;
-      users[u.uid].cx = u.x || WORLD_W / 2;
-      users[u.uid].cy = u.y || WORLD_H / 2;
+      users[u.uid].cx = u.x != null ? u.x : WORLD_W / 2;
+      users[u.uid].cy = u.y != null ? u.y : WORLD_H / 2;
       targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
       if (u.uid === me) { myX = users[u.uid].cx; myY = users[u.uid].cy; }
       if (u.avatar && !avatarImages[u.uid]) loadAvatar(u);
     }
     renderMemberList();
+    // フロア切替時はログも再取得
+    if (currentFloor) loadRecentChat(currentFloor.code);
+    chatUnread = 0; updateChatBadge(); updateTitleBadge(0); updateFaviconBadge(0);
+  });
+
+  socket.on('user:leave', (u) => {
+    // 別フロアに移った人は自フロアから消す
+    if (users[u.uid]) {
+      delete users[u.uid];
+      delete targets[u.uid];
+      renderMemberList();
+    }
+  });
+
+  socket.on('floor:counts', (counts) => {
+    floorCounts = counts || {};
+    // フロアメニューが開いていれば件数更新
+    if (document.getElementById('floor-menu').classList.contains('show')) renderFloorMenu();
+    // フロアヘッダーのオンライン数
+    if (currentFloor) {
+      const el = document.getElementById('online-count');
+      if (el) el.textContent = counts[currentFloor.code] || 0;
+    }
   });
   socket.on('user:join', (u) => {
     // 新規接続者のフル情報（name, company, ring, avatar 付き）
@@ -1344,6 +1403,41 @@ function toggleMinimap() {
   minimapOn = !minimapOn;
   document.getElementById('minimap').style.display = minimapOn ? 'block' : 'none';
   document.getElementById('rail-minimap').classList.toggle('active', minimapOn);
+}
+
+function toggleFloorMenu(e) {
+  const menu = document.getElementById('floor-menu');
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top = rect.top + 'px';
+  menu.classList.toggle('show');
+  if (menu.classList.contains('show')) renderFloorMenu();
+  e.stopPropagation();
+}
+
+function renderFloorMenu() {
+  const menu = document.getElementById('floor-menu');
+  if (!menu) return;
+  let html = '<div class="fmhead">フロア移動</div>';
+  for (const f of allFloors) {
+    const isCurrent = currentFloor && f.code === currentFloor.code;
+    const count = floorCounts[f.code] || 0;
+    html += `<button class="${isCurrent ? 'current' : ''}" onclick="switchFloor('${f.code}')">
+      <span class="ficon">${f.icon || '🏢'}</span>
+      <span class="fname">${escapeHtml(f.name)}</span>
+      <span class="fcount">${count}</span>
+    </button>`;
+  }
+  menu.innerHTML = html;
+}
+
+function switchFloor(code) {
+  if (!socket) return;
+  if (currentFloor && currentFloor.code === code) {
+    document.getElementById('floor-menu').classList.remove('show');
+    return;
+  }
+  socket.emit('floor:switch', { code });
+  document.getElementById('floor-menu').classList.remove('show');
 }
 
 function toggleRailMenu(e) {
