@@ -16,10 +16,9 @@ const { chatBot } = require('./services/ai');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
-  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 640, y: 110 },
-  { id: 'bot_misaki', login_id: 'bot_misaki', name: '美咲', avatar: '/assets/concierge_misaki.png', floor: 'lobby', x: 760, y: 110 },
+  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 700, y: 110 },
 ];
-const OLD_BOT_IDS = ['bot_yui']; // 廃止bot
+const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
 function ensureConciergeBots() {
   const db = getDb();
   // 廃止botを削除 (関連メッセージも掃除)
@@ -532,13 +531,39 @@ io.on('connection', (socket) => {
     const target = presence.get(targetUid);
     if (!sender || !target) return;
     if (sender.floor !== target.floor) return;
-    const dx = sender.x - target.x, dy = sender.y - target.y;
-    if (Math.sqrt(dx * dx + dy * dy) > 440) return;
+    if (!target.isBot) {
+      const dx = sender.x - target.x, dy = sender.y - target.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 440) return;
+    }
     const key = uid + ':' + targetUid;
     const now = Date.now();
     if ((tapTimestamps.get(key) || 0) > now - 30000) return;
     tapTimestamps.set(key, now);
     const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+    // bot宛: 吹き出しで挨拶を返す (DMしてくださいと案内)
+    if (target.isBot) {
+      const greetings = [
+        senderName + 'さん、こんにちは！💬DMで何でも聞いてくださいね',
+        'はい、' + senderName + 'さん。気軽にDMで話しかけてください✨',
+        senderName + 'さん、お声がけありがとうございます。DMでお手伝いしますね！',
+      ];
+      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+      const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention) VALUES (?, NULL, ?, ?, 0)")
+        .run(targetUid, greeting, target.floor);
+      const payload = {
+        id: ins.lastInsertRowid,
+        uid: targetUid,
+        content: greeting,
+        x: target.x, y: target.y,
+        at: new Date().toISOString(),
+        mentions: [],
+        room: target.floor,
+        attach: null,
+      };
+      io.to('floor:' + target.floor).emit('chat:msg', payload);
+      socket.emit('tap:sent', { targetUid });
+      return;
+    }
     const tgtSocket = io.sockets.sockets.get(target.socketId);
     if (tgtSocket) tgtSocket.emit('tap:received', { fromUid: uid, fromName: senderName, at: new Date().toISOString() });
     sendPushToUser(targetUid, {

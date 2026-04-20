@@ -4069,16 +4069,18 @@ function showPeerMenu(peer, screenX, screenY) {
   const menu = document.getElementById('peer-menu');
   if (!menu) return;
   const isFocus = peer.status === '集中中';
+  const isBot = peer.role === 'bot';
   const myU = users[me];
-  let inRange = false;
-  if (myU && myU.cx != null && peer.cx != null) {
+  let inRange = isBot; // botは距離無視
+  if (!isBot && myU && myU.cx != null && peer.cx != null) {
     const dx = myU.cx - peer.cx, dy = myU.cy - peer.cy;
     inRange = Math.sqrt(dx*dx + dy*dy) <= 440;
   }
   const safeName = String(peer.name || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c]));
   const focusBadge = isFocus ? ' <span style="background:#ede9fe;color:#6d28d9;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;">🎯集中中</span>' : '';
+  const botBadge = isBot ? ' <span style="background:#cffafe;color:#155e75;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;">🤖 BOT</span>' : '';
   const tapDisabled = !inRange;
-  let html = '<div style="padding:8px 10px;font-size:12px;color:#475569;border-bottom:1px solid rgba(15,23,42,0.06);margin-bottom:4px;">' + safeName + focusBadge + '</div>';
+  let html = '<div style="padding:8px 10px;font-size:12px;color:#475569;border-bottom:1px solid rgba(15,23,42,0.06);margin-bottom:4px;">' + safeName + botBadge + focusBadge + '</div>';
   html += '<button onclick="onTapShoulderClick(\'' + peer.uid + '\',' + (isFocus ? 'true' : 'false') + ')"' +
           (tapDisabled ? ' disabled' : '') +
           ' style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:none;border:none;color:' + (tapDisabled ? '#94a3b8' : '#0f172a') + ';text-align:left;cursor:' + (tapDisabled ? 'not-allowed' : 'pointer') + ';border-radius:8px;font-size:13px;">' +
