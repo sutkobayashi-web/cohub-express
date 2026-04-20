@@ -143,13 +143,13 @@ body.layout-meeting #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
 body.layout-meeting.wb-open #meeting-panel { display: flex; }
 body.layout-meeting.wb-open #space-canvas-wrap { right: calc(50% + 280px); }
 body.layout-meeting.wb-open #right-panel.hidden ~ #space-canvas-wrap { right: 50%; }
-body.layout-meeting #floor-head { top: 200px; }  /* ビデオ下に floor-head を表示 */
+body.layout-meeting.cam-open #floor-head { top: 200px; }  /* ビデオ表示時のみ下にずらす */
 
 .mp-head { padding: 10px 14px; border-bottom: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; font-size: 13px; background: #fff; flex-shrink: 0; }
 .mp-head .wb-status { font-size: 10px; color: #94a3b8; font-weight: 500; }
 
 #video-grid { display: none; background: #0f172a; }
-body.layout-meeting #video-grid {
+body.layout-meeting.cam-open #video-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 4px;
@@ -1980,6 +1980,8 @@ function addVideoTile(peerUid, stream, isSelf) {
   if (!grid) return;
   // 空プレースホルダ除去
   const ph = grid.querySelector('.v-grid-empty'); if (ph) ph.remove();
+  document.body.classList.add('cam-open');
+  setTimeout(resize, 280);
   let tile = document.getElementById('vtile-' + peerUid);
   if (!tile) {
     tile = document.createElement('div');
@@ -2006,8 +2008,10 @@ function removeVideoTile(peerUid) {
   const tile = document.getElementById('vtile-' + peerUid);
   if (tile) tile.remove();
   const grid = document.getElementById('video-grid');
-  if (grid && !grid.children.length) {
-    grid.innerHTML = '<div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div>';
+  // タイル数0 なら video-grid を非表示 (cam-open外す)
+  if (grid && grid.querySelectorAll('.v-tile').length === 0) {
+    document.body.classList.remove('cam-open');
+    setTimeout(resize, 280);
   }
 }
 
@@ -2058,12 +2062,14 @@ function applyFloorLayout(floor) {
     // 会議室から出た: カメラOFF、ビデオタイル掃除、ホワイトボードも閉じる
     if (camera.enabled) disableCamera();
     document.body.classList.remove('wb-open');
+    document.body.classList.remove('cam-open');
     if (wbBtn) wbBtn.classList.remove('on');
     const grid = document.getElementById('video-grid');
-    if (grid) grid.innerHTML = '<div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div>';
+    if (grid) grid.innerHTML = '';
   } else {
-    // 会議室に入った: デフォルトはホワイトボード閉じ、必要なら手動で開く
+    // 会議室に入った: デフォルトはホワイトボード閉じ、ビデオも非表示
     document.body.classList.remove('wb-open');
+    document.body.classList.remove('cam-open');
     if (wbBtn) wbBtn.classList.remove('on');
     const rn = document.getElementById('mp-room-name');
     if (rn) rn.textContent = floor.name;
