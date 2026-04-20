@@ -37,12 +37,20 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #left-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 #left-rail .brand { width: 56px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 6px; color: #fff; font-weight: 800; }
 #left-rail .rail-section { width: 100%; padding: 6px 0 2px; font-size: 9px; color: rgba(255,255,255,0.45); font-weight: 800; letter-spacing: 1.5px; text-align: center; text-transform: uppercase; }
-#left-rail .rail-subsection { width: 90%; padding: 4px 0; font-size: 9px; color: rgba(255,255,255,0.5); font-weight: 700; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); margin: 2px auto 2px; }
+#left-rail .rail-subsection { width: 90%; padding: 4px 0; font-size: 9px; font-weight: 800; text-align: center; margin: 4px auto 2px; border-radius: 4px; }
+#left-rail .rail-subsection.office { color: #7dd3fc; background: rgba(6,182,212,0.14); border: 1px solid rgba(6,182,212,0.3); }
+#left-rail .rail-subsection.field { color: #fdba74; background: rgba(249,115,22,0.14); border: 1px solid rgba(249,115,22,0.3); }
 #left-rail .rail-btn { width: 82px; min-height: 52px; border-radius: 10px; background: transparent; border: none; color: rgba(255,255,255,0.75); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 18px; transition: all 0.12s; position: relative; padding: 6px 4px; }
 #left-rail .rail-btn .lbl { font-size: 10px; line-height: 1.1; text-align: center; font-weight: 600; }
 #left-rail .rail-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
 #left-rail .rail-btn.active { background: rgba(6,182,212,0.25); color: #06b6d4; }
 #left-rail .rail-btn.current-floor { background: rgba(6,182,212,0.3); color: #06b6d4; box-shadow: inset 3px 0 0 #06b6d4; }
+#left-rail .rail-btn.wing-office { border-left: 3px solid rgba(6,182,212,0.6); background: rgba(6,182,212,0.04); }
+#left-rail .rail-btn.wing-office:hover { background: rgba(6,182,212,0.14); color: #7dd3fc; }
+#left-rail .rail-btn.wing-office.current-floor { background: rgba(6,182,212,0.32); color: #7dd3fc; border-left-color: #06b6d4; box-shadow: inset 3px 0 0 #06b6d4; }
+#left-rail .rail-btn.wing-field { border-left: 3px solid rgba(249,115,22,0.6); background: rgba(249,115,22,0.04); }
+#left-rail .rail-btn.wing-field:hover { background: rgba(249,115,22,0.14); color: #fdba74; }
+#left-rail .rail-btn.wing-field.current-floor { background: rgba(249,115,22,0.32); color: #fdba74; border-left-color: #f97316; box-shadow: inset 3px 0 0 #f97316; }
 #left-rail .rail-btn .cnt { position: absolute; top: 4px; right: 8px; background: #06b6d4; color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 800; min-width: 14px; text-align: center; line-height: 1.2; }
 #left-rail .rail-btn.current-floor .cnt { background: #fff; color: #06b6d4; }
 #left-rail .rail-divider { width: 70%; height: 1px; background: rgba(255,255,255,0.1); margin: 6px 0; }
@@ -2367,7 +2375,8 @@ function renderRailFloors() {
     const tag = m ? m[1] : '';
     const short = m ? m[2] : f.name;
     const lockMark = f.locked ? '<span style="color:#fbbf24;margin-left:2px;">🔒</span>' : (f.approval_mode ? '<span style="color:#06b6d4;margin-left:2px;">🔔</span>' : '');
-    return `<button class="rail-btn ${isCur ? 'current-floor' : ''}" onclick="switchFloor('${f.code}')" title="${escapeHtml(f.name)}${f.locked ? ' (施錠中)' : ''}">
+    const wingClass = f.building === 'field' ? 'wing-field' : 'wing-office';
+    return `<button class="rail-btn ${wingClass} ${isCur ? 'current-floor' : ''}" onclick="switchFloor('${f.code}')" title="${escapeHtml(f.name)}${f.locked ? ' (施錠中)' : ''}">
       <span style="font-size:14px;line-height:1;">${f.icon || '🏢'}${tag ? ' ' + escapeHtml(tag) : ''}${lockMark}</span>
       <span class="lbl">${escapeHtml(short)}</span>
       ${count ? `<span class="cnt">${count}</span>` : ''}
@@ -2375,11 +2384,11 @@ function renderRailFloors() {
   };
   let html = '';
   if (officeFloors.length) {
-    html += '<div class="rail-subsection">🏢 事務所棟</div>';
+    html += '<div class="rail-subsection office">🏢 事務所棟</div>';
     html += officeFloors.map(renderBtn).join('');
   }
   if (fieldFloors.length) {
-    html += '<div class="rail-subsection" style="margin-top:6px;">🚚 現場棟</div>';
+    html += '<div class="rail-subsection field">🚚 現場棟</div>';
     html += fieldFloors.map(renderBtn).join('');
   }
   host.innerHTML = html;
