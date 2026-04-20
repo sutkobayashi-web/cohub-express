@@ -1,9 +1,22 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authAdmin } = require('../middleware/auth');
+
+const recDir = path.join(__dirname, '..', '..', 'uploads', 'recordings');
+if (!fs.existsSync(recDir)) fs.mkdirSync(recDir, { recursive: true });
+const recUpload = multer({
+  storage: multer.diskStorage({
+    destination: recDir,
+    filename: (req, file, cb) => cb(null, Date.now() + '_' + (req.uid || 'anon').slice(0, 8) + '.webm'),
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 },
+});
 
 // ユーザー一覧
 router.get('/users', authAdmin, (req, res) => {
@@ -73,6 +86,40 @@ router.delete('/users/:id', authAdmin, (req, res) => {
   db.prepare('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?').run(req.params.id, req.params.id);
   const r = db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   res.json({ success: r.changes > 0 });
+});
+
+// ========== 録音機能 ==========
+router.post('/recording/upload', authAdmin, recUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, msg: 'ファイルなし' });
+  const duration_ms = parseInt(req.body.duration_ms) || 0;
+  const floor_code = (req.body.floor_code || '').toString();
+  const note = (req.body.note || '').toString().slice(0, 500);
+  const ins = getDb().prepare(`INSERT INTO recordings (filename, size, duration_ms, floor_code, recorded_by, note) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(req.file.filename, req.file.size, duration_ms, floor_code, req.uid, note);
+  res.json({ success: true, id: ins.lastInsertRowid });
+});
+
+router.get('/recording', authAdmin, (req, res) => {
+  const rows = getDb().prepare(`SELECT r.id, r.filename, r.size, r.duration_ms, r.floor_code, r.recorded_by, r.note, r.created_at,
+    u.display_name AS recorded_by_name FROM recordings r LEFT JOIN users u ON u.id = r.recorded_by ORDER BY r.created_at DESC LIMIT 500`).all();
+  res.json({ success: true, recordings: rows });
+});
+
+router.get('/recording/:id', authAdmin, (req, res) => {
+  const row = getDb().prepare('SELECT filename FROM recordings WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).end();
+  const fp = path.join(recDir, row.filename);
+  if (!fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Type', 'audio/webm');
+  fs.createReadStream(fp).pipe(res);
+});
+
+router.delete('/recording/:id', authAdmin, (req, res) => {
+  const row = getDb().prepare('SELECT filename FROM recordings WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ success: false });
+  try { fs.unlinkSync(path.join(recDir, row.filename)); } catch (e) {}
+  getDb().prepare('DELETE FROM recordings WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
 });
 
 module.exports = router;

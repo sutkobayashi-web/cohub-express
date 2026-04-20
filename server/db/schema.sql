@@ -42,6 +42,18 @@ INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, sort_order
   ('lobby',  '1F ロビー',        '/assets/floor_lobby.png',  1344, 768, 1, '🛋️'),
   ('office', '2F 事務フロア',    '/assets/floor_office.png', 1344, 768, 2, '💼');
 
+-- 会議録音 (管理者のみ閲覧)
+CREATE TABLE IF NOT EXISTS recordings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  filename TEXT NOT NULL,
+  size INTEGER,
+  duration_ms INTEGER,
+  floor_code TEXT,
+  recorded_by TEXT,
+  note TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- チャット履歴（60日保持、管理者は全文閲覧可）
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -124,9 +124,23 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dock-btn.on { background: #06b6d4; color: #fff; }
 .dock-btn.off { background: #fef2f2; color: #dc2626; }
 .dock-btn.speaking { box-shadow: 0 0 0 4px rgba(16,185,129,0.55), 0 4px 12px rgba(16,185,129,0.3); animation: dockPulse 1s ease-in-out infinite; }
+.dock-btn.rec-on { background: #dc2626; color: #fff; animation: recBlink 1s ease-in-out infinite; }
+@keyframes recBlink { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.6); } 50% { box-shadow: 0 0 0 10px rgba(220,38,38,0); } }
+#rec-banner { background: #dc2626; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 8px; animation: recBlink 1.2s ease-in-out infinite; }
 @keyframes dockPulse { 0%,100% { box-shadow: 0 0 0 4px rgba(16,185,129,0.55); } 50% { box-shadow: 0 0 0 8px rgba(16,185,129,0.15); } }
 .dock-btn .vol-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 40px; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; }
 .dock-btn .vol-bar i { display: block; height: 100%; width: 0%; background: #10b981; transition: width 0.06s linear; }
+
+/* 画面共有受信オーバーレイ */
+.screen-overlay { position: fixed; top: 60px; left: 80px; right: 300px; bottom: 110px; background: #000; border-radius: 12px; overflow: hidden; z-index: 40; box-shadow: 0 20px 60px rgba(0,0,0,0.5); display: flex; }
+.screen-overlay video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.screen-label { position: absolute; top: 10px; left: 12px; color: #fff; background: rgba(0,0,0,0.7); padding: 4px 12px; border-radius: 16px; font-size: 12px; z-index: 2; font-weight: 600; }
+.screen-close { position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff; border: none; cursor: pointer; font-size: 18px; z-index: 2; }
+.screen-close:hover { background: rgba(220,38,38,0.85); }
+@media (max-width: 800px) {
+  .screen-overlay { top: 48px; left: 72px; right: 12px; bottom: 100px; }
+  #right-panel:not(.hidden) ~ #space-canvas-wrap ~ .screen-overlay { right: 272px; }
+}
 .dock-btn .sub { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #64748b; font-weight: 600; white-space: nowrap; }
 .dock-sep { width: 1px; height: 36px; background: rgba(15,23,42,0.1); margin: 0 4px; }
 #dock-chat-wrap { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px; background: #f1f5f9; border-radius: 28px; padding: 6px 8px 6px 16px; }
@@ -307,6 +321,8 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
   <div id="dock">
     <button class="dock-btn" id="dock-mic" onclick="toggleMic()" title="マイク">🎤<div class="sub">マイク</div></button>
     <button class="dock-btn" id="dock-speaker" onclick="toggleSpeaker()" title="スピーカー">🔊<div class="sub">音量</div></button>
+    <button class="dock-btn" id="dock-screen" onclick="toggleScreenShare()" title="画面共有">🖥️<div class="sub">画面共有</div></button>
+    <button class="dock-btn" id="dock-rec" onclick="toggleRecording()" title="会議録音 (管理者のみ)" style="display:none;">🔴<div class="sub">録音</div></button>
     <div class="dock-sep"></div>
     <button class="dock-btn" id="dock-react" onclick="toggleReactions(event)" title="リアクション">😊<div class="sub">リアクション</div></button>
     <button class="dock-btn" id="dock-status" onclick="toggleStatusMenu(event)" title="ステータス">
@@ -472,6 +488,11 @@ function enterSpace() {
   // OS通知の許可取得 (ユーザージェスチャー直後)
   requestNotifPermission();
   updateFaviconBadge(0);
+  // 管理者のみ録音ボタンを表示
+  if (currentUser && currentUser.role === 'admin') {
+    const rb = document.getElementById('dock-rec');
+    if (rb) rb.style.display = 'flex';
+  }
 }
 
 // サーバーから指定フロアの直近100件を取得
@@ -692,6 +713,19 @@ function connectSocket() {
   socket.on('voice:speaking', (data) => {
     if (!data || !data.uid) return;
     if (users[data.uid]) users[data.uid].speaking = !!data.on;
+  });
+
+  socket.on('screen:state', (data) => {
+    if (!data || !data.uid) return;
+    if (users[data.uid]) users[data.uid].screen = !!data.on;
+    if (!data.on) removeIncomingScreen(data.uid);
+  });
+
+  socket.on('recording:state', (data) => {
+    showRecordingBanner(!!(data && data.on), data && data.uid);
+    if (data && data.on) {
+      showToast('🔴 この会話は管理者により録音されています');
+    }
   });
 
   // DM着信
@@ -1828,7 +1862,15 @@ async function getOrCreatePeer(peerUid) {
   audio.style.display = 'none';
   document.body.appendChild(audio);
   pc.ontrack = (e) => {
-    const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+    const track = e.track;
+    if (track.kind === 'video') {
+      // 画面共有
+      const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([track]);
+      handleIncomingScreen(peerUid, stream);
+      track.onended = () => removeIncomingScreen(peerUid);
+      return;
+    }
+    const stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([track]);
     audio.srcObject = stream;
     const p = audio.play();
     if (p && p.catch) p.catch(err => console.warn('audio.play blocked', err));
@@ -1850,6 +1892,175 @@ async function getOrCreatePeer(peerUid) {
   const obj = { pc, audio, uid: peerUid };
   voice.peers.set(peerUid, obj);
   return obj;
+}
+
+// ===== 画面共有 =====
+async function toggleScreenShare() {
+  if (voice.screenStream) { await stopScreenShare(); return; }
+  if (!voice.enabled) {
+    showToast('先にマイクONにしてください');
+    await enableVoice();
+    if (!voice.enabled) return;
+  }
+  try {
+    voice.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+  } catch (e) { showToast('画面共有がキャンセルされました'); return; }
+  const track = voice.screenStream.getVideoTracks()[0];
+  voice.screenTrack = track;
+  // 全peerにトラック追加 + 再交渉
+  for (const [peerUid, peer] of voice.peers) {
+    try {
+      peer.screenSender = peer.pc.addTrack(track, voice.screenStream);
+      const offer = await peer.pc.createOffer();
+      await peer.pc.setLocalDescription(offer);
+      socket.emit('voice:signal', { to: peerUid, type: 'offer', payload: peer.pc.localDescription });
+    } catch (e) { console.warn('screen share offer err', e); }
+  }
+  track.onended = () => stopScreenShare();
+  const btn = document.getElementById('dock-screen');
+  if (btn) { btn.classList.add('on'); btn.innerHTML = '🛑<div class="sub">共有停止</div>'; }
+  showToast('画面共有中 (同フロアに配信)');
+  if (socket) socket.emit('screen:state', { on: true });
+}
+
+async function stopScreenShare() {
+  if (!voice.screenStream) return;
+  try { voice.screenStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+  for (const [peerUid, peer] of voice.peers) {
+    if (peer.screenSender) {
+      try { peer.pc.removeTrack(peer.screenSender); } catch (e) {}
+      peer.screenSender = null;
+      try {
+        const offer = await peer.pc.createOffer();
+        await peer.pc.setLocalDescription(offer);
+        socket.emit('voice:signal', { to: peerUid, type: 'offer', payload: peer.pc.localDescription });
+      } catch (e) {}
+    }
+  }
+  voice.screenStream = null;
+  voice.screenTrack = null;
+  const btn = document.getElementById('dock-screen');
+  if (btn) { btn.classList.remove('on'); btn.innerHTML = '🖥️<div class="sub">画面共有</div>'; }
+  if (socket) socket.emit('screen:state', { on: false });
+}
+
+// ===== 録音機能 (管理者) =====
+async function toggleRecording() {
+  if (voice.recorder) { stopRecording(); return; }
+  await startRecording();
+}
+
+async function startRecording() {
+  if (!voice.enabled || !voice.audioContext) {
+    showToast('先にマイクONにしてください');
+    return;
+  }
+  try {
+    const dest = voice.audioContext.createMediaStreamDestination();
+    // 自分のマイク
+    try {
+      const localSrc = voice.audioContext.createMediaStreamSource(voice.localStream);
+      localSrc.connect(dest);
+    } catch (e) { console.warn('local mix err', e); }
+    // 各peer受信音声
+    for (const [, peer] of voice.peers) {
+      try {
+        if (peer.audio && peer.audio.srcObject) {
+          const src = voice.audioContext.createMediaStreamSource(peer.audio.srcObject);
+          src.connect(dest);
+        }
+      } catch (e) { console.warn('peer mix err', e); }
+    }
+    voice.recChunks = [];
+    voice.recStart = Date.now();
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    const rec = new MediaRecorder(dest.stream, { mimeType: mime });
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) voice.recChunks.push(e.data); };
+    rec.onstop = async () => {
+      const blob = new Blob(voice.recChunks, { type: 'audio/webm' });
+      const duration = Date.now() - voice.recStart;
+      const fd = new FormData();
+      fd.append('file', blob, 'rec.webm');
+      fd.append('duration_ms', String(duration));
+      fd.append('floor_code', currentFloor ? currentFloor.code : '');
+      try {
+        const r = await fetch('/api/admin/recording/upload', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: fd,
+        });
+        const d = await r.json();
+        if (d.success) showToast('録音を保存しました (' + Math.round(duration/1000) + '秒)');
+        else showToast('保存に失敗: ' + (d.msg || ''));
+      } catch (e) { showToast('保存に失敗'); }
+      voice.recChunks = [];
+    };
+    rec.start(1000); // 1秒毎にデータ確定
+    voice.recorder = rec;
+    const btn = document.getElementById('dock-rec');
+    btn.classList.add('rec-on');
+    btn.innerHTML = '⏹<div class="sub">停止</div>';
+    if (socket) socket.emit('recording:state', { on: true });
+    showToast('会議録音を開始しました (同フロアに通知済)');
+  } catch (e) {
+    showToast('録音開始に失敗: ' + (e.message || ''));
+  }
+}
+
+function stopRecording() {
+  if (!voice.recorder) return;
+  try { voice.recorder.stop(); } catch (e) {}
+  voice.recorder = null;
+  const btn = document.getElementById('dock-rec');
+  if (btn) { btn.classList.remove('rec-on'); btn.innerHTML = '🔴<div class="sub">録音</div>'; }
+  if (socket) socket.emit('recording:state', { on: false });
+}
+
+// 被録音者側: 録音中バナー表示
+function showRecordingBanner(on, byUid) {
+  const head = document.getElementById('floor-head');
+  if (!head) return;
+  let banner = document.getElementById('rec-banner');
+  if (on) {
+    if (!banner) {
+      banner = document.createElement('span');
+      banner.id = 'rec-banner';
+      head.appendChild(banner);
+    }
+    const byName = (users[byUid] && users[byUid].name) || '管理者';
+    banner.textContent = '🔴 録音中 (' + byName + ')';
+  } else {
+    if (banner) banner.remove();
+  }
+}
+
+// 受信: 画面共有映像を表示
+function handleIncomingScreen(peerUid, stream) {
+  removeIncomingScreen();
+  const overlay = document.createElement('div');
+  overlay.id = 'screen-overlay';
+  overlay.className = 'screen-overlay';
+  const label = (users[peerUid] && users[peerUid].name) || '画面共有';
+  overlay.innerHTML =
+    '<div class="screen-label">📺 ' + escapeHtml(label) + ' の画面</div>' +
+    '<button class="screen-close" title="閉じる">×</button>';
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.playsInline = true;
+  video.muted = true;
+  video.srcObject = stream;
+  overlay.appendChild(video);
+  overlay.querySelector('.screen-close').onclick = () => { try { overlay.remove(); } catch(e) {} };
+  document.body.appendChild(overlay);
+  voice.screenReceiving = { peerUid, overlay };
+}
+
+function removeIncomingScreen(peerUid) {
+  if (voice.screenReceiving) {
+    if (peerUid && voice.screenReceiving.peerUid !== peerUid) return;
+    try { voice.screenReceiving.overlay.remove(); } catch (e) {}
+    voice.screenReceiving = null;
+  }
 }
 
 async function callPeerAsOfferer(peerUid) {

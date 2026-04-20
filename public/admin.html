@@ -86,6 +86,12 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
+    <h2>🎙️ 会議録音 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">管理者が録音開始→自動アップロード</span></h2>
+    <div id="rec-list" style="font-size:12px;color:#94a3b8;">読み込み中...</div>
+    <audio id="rec-player" controls style="width:100%;margin-top:10px;display:none;"></audio>
+  </div>
+
+  <div class="card">
     <h2>🔍 チャットログ（内部統制モニタリング）<span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">全社員のフロア発言・直近60日</span></h2>
     <div class="row">
       <input type="text" id="chat-q" placeholder="キーワード検索">
@@ -168,6 +174,68 @@ function showPanel(user) {
   loadUsers();
   loadFloors();
   loadChatLog(0);
+  loadRecordings();
+}
+
+async function loadRecordings() {
+  try {
+    const r = await fetch('/api/admin/recording', { headers:{'Authorization':'Bearer '+token} });
+    const d = await r.json();
+    const list = document.getElementById('rec-list');
+    if (!d.success) { list.textContent = '取得失敗'; return; }
+    if (!d.recordings.length) { list.innerHTML = '<span style="color:#94a3b8;">録音はまだありません</span>'; return; }
+    let html = '<table><thead><tr><th style="width:140px;">日時</th><th style="width:120px;">録音者</th><th style="width:100px;">フロア</th><th style="width:70px;">長さ</th><th style="width:80px;">サイズ</th><th>操作</th></tr></thead><tbody>';
+    for (const r of d.recordings) {
+      const dtime = new Date(r.created_at + 'Z').toLocaleString('ja-JP', { year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit' });
+      const dur = Math.round((r.duration_ms || 0) / 1000);
+      const kb = Math.round((r.size || 0) / 1024);
+      html += `<tr>
+        <td style="font-size:11px;color:#64748b;">${dtime}</td>
+        <td style="font-size:12px;">${escapeHtml(r.recorded_by_name || '')}</td>
+        <td style="font-size:11px;">${escapeHtml(r.floor_code || '')}</td>
+        <td>${dur}秒</td>
+        <td>${kb}KB</td>
+        <td>
+          <button class="btn btn-ghost" onclick="playRec(${r.id})">▶ 再生</button>
+          <button class="btn btn-ghost" onclick="downloadRec(${r.id})">⬇</button>
+          <button class="btn btn-danger" onclick="deleteRec(${r.id})">削除</button>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    list.innerHTML = html;
+  } catch (e) { document.getElementById('rec-list').textContent = '通信エラー'; }
+}
+
+async function playRec(id) {
+  try {
+    const r = await fetch('/api/admin/recording/' + id, { headers:{'Authorization':'Bearer '+token} });
+    if (!r.ok) { alert('再生できません'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const player = document.getElementById('rec-player');
+    player.src = url;
+    player.style.display = 'block';
+    player.play();
+  } catch (e) { alert('通信エラー'); }
+}
+
+async function downloadRec(id) {
+  try {
+    const r = await fetch('/api/admin/recording/' + id, { headers:{'Authorization':'Bearer '+token} });
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'cohub_rec_' + id + '.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) { alert('ダウンロード失敗'); }
+}
+
+async function deleteRec(id) {
+  if (!confirm('この録音を削除しますか？復元できません。')) return;
+  await fetch('/api/admin/recording/' + id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} });
+  loadRecordings();
 }
 
 async function loadFloors() {

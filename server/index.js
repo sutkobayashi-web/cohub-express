@@ -380,6 +380,21 @@ io.on('connection', (socket) => {
     io.to('floor:' + p.floor).emit('voice:speaking', { uid, on: !!(data && data.on) });
   });
 
+  // 画面共有 状態通知 (情報表示のみ)
+  socket.on('screen:state', (data) => {
+    const p = presence.get(uid);
+    if (!p) return;
+    io.to('floor:' + p.floor).emit('screen:state', { uid, on: !!(data && data.on) });
+  });
+
+  // 録音 状態通知 (管理者のみ、同フロアに通知＝被録音者に開示)
+  socket.on('recording:state', (data) => {
+    if (socket.role !== 'admin') return;
+    const p = presence.get(uid);
+    if (!p) return;
+    io.to('floor:' + p.floor).emit('recording:state', { uid, on: !!(data && data.on) });
+  });
+
   socket.on('disconnect', () => {
     const p = presence.get(uid);
     if (!p) return;
