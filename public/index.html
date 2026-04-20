@@ -372,16 +372,69 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 /* メンション入力中バッジ */
 #dock-chat-wrap.has-mention { box-shadow: 0 0 0 2px rgba(239,68,68,0.4); }
 
-/* モバイル対応 */
+/* タブレット・スマホ対応 */
 @media (max-width: 800px) {
-  #right-panel { width: 260px; }
-  #right-panel.hidden { transform: translateX(100%); }
-  #space-canvas-wrap { right: 0; }
-  #space-canvas-wrap.with-panel { right: 260px; }
-  #dock { gap: 8px; padding: 0 10px; }
-  .dock-btn { width: 48px; height: 48px; font-size: 20px; }
-  #dock-chat-wrap { display: none; }
-  #left-rail .rail-btn .lbl { display: none; }
+  /* 左レール: アイコンのみ、幅を詰める */
+  #left-rail { width: 64px; padding: 8px 0; }
+  #left-rail .brand { width: 40px; height: 36px; font-size: 16px; }
+  #left-rail .rail-btn { width: 54px; min-height: 42px; padding: 4px 2px; font-size: 15px; }
+  #left-rail .rail-btn .lbl { font-size: 9px; }
+  #left-rail .rail-section { font-size: 8px; letter-spacing: 1px; }
+
+  /* 右パネル(チャット)はオーバーレイ化、デフォルトは非表示 */
+  #right-panel { width: 82%; max-width: 320px; z-index: 30; }
+  #right-panel:not(.hidden) { box-shadow: -8px 0 32px rgba(0,0,0,0.35); }
+
+  /* メンバーパネルは全画面オーバーレイ */
+  #members-panel { left: 64px; width: calc(100% - 64px); max-width: 320px; z-index: 25; }
+  #members-panel:not(.hidden) { box-shadow: 8px 0 32px rgba(0,0,0,0.35); }
+  #members-panel:not(.hidden) ~ #space-canvas-wrap { left: 64px; }
+
+  /* キャンバス: パネルが閉じた時に全幅使う */
+  #space-canvas-wrap { left: 64px; right: 0; bottom: 72px; }
+  #dock { left: 64px; right: 0; height: 72px; padding: 2px 8px 0; gap: 4px; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; }
+  #dock::-webkit-scrollbar { height: 2px; }
+  .dock-btn { width: 40px; height: 40px; font-size: 16px; box-shadow: 0 2px 6px rgba(15,23,42,0.1); }
+  .dock-btn .sub { display: none; } /* モバイルではラベル省略 */
+  .dock-meeting-group { padding: 2px 6px; gap: 4px; }
+  .dock-sep { height: 24px; margin: 0 2px; }
+  #dock-chat-wrap { min-width: 120px; max-width: 200px; padding: 3px 4px 3px 10px; }
+  #dock-chat-wrap input { font-size: 12px; }
+  #dock-chat-wrap .attach-btn { width: 26px; height: 26px; font-size: 13px; }
+  #dock-chat-send { width: 28px; height: 28px; font-size: 12px; }
+
+  /* 会議室モード: 上下分割 */
+  body.layout-meeting #meeting-panel { right: 0; width: 100%; top: auto; bottom: 72px; height: 50%; border-left: none; border-top: 1px solid rgba(15,23,42,0.08); }
+  body.layout-meeting #space-canvas-wrap { right: 0; bottom: calc(50% + 72px); }
+  body.layout-meeting.cam-open #video-grid { flex: 0 0 84px; }
+  body.layout-meeting.cam-open #floor-head { top: 96px; }
+
+  /* ビデオタイル */
+  .v-tile { aspect-ratio: 4/3; }
+
+  /* ノック/リアクション等のポップ位置調整 */
+  #reaction-pop, #status-menu, #vb-pop { bottom: 84px; }
+
+  .screen-overlay { top: 50px; left: 74px; right: 10px; bottom: 82px; }
+
+  /* トースト */
+  .toast { bottom: 80px; font-size: 12px; }
+
+  /* floor-head 位置 */
+  #floor-head { top: 8px; left: 10px; font-size: 11px; padding: 4px 10px; }
+  #floor-head span:not(.dot) { font-size: 11px; }
+}
+
+/* 小型スマホ */
+@media (max-width: 480px) {
+  #left-rail { width: 56px; }
+  #left-rail .rail-btn { width: 48px; min-height: 38px; font-size: 13px; }
+  #left-rail .rail-btn .lbl { font-size: 8px; }
+  #space-canvas-wrap, #dock { left: 56px; }
+  #members-panel { left: 56px; width: calc(100% - 56px); }
+  #members-panel:not(.hidden) ~ #space-canvas-wrap { left: 56px; }
+  .dock-btn { width: 36px; height: 36px; font-size: 14px; }
+  #dock-chat-wrap { min-width: 100px; max-width: 160px; }
 }
 </style>
 </head>
@@ -413,6 +466,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <div class="rail-section">操作</div>
     <button class="rail-btn active" id="rail-members" onclick="togglePanel()" title="メンバー">
       <span>👥</span><span class="lbl">メンバー</span>
+    </button>
+    <button class="rail-btn active" id="rail-chat" onclick="toggleChatPanel()" title="チャット">
+      <span>💬</span><span class="lbl">チャット</span><span class="cnt" id="rail-chat-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
       <span>🎨</span><span class="lbl">アバター</span>
@@ -708,7 +764,10 @@ function enterSpace() {
   if (!currentUser.avatar_url) {
     setTimeout(openAvatarModal, 600);
   }
-  // メンバーパネルは初期非表示
+  // メンバーパネルは初期非表示、モバイル時はチャットも初期非表示
+  if (window.innerWidth <= 800) {
+    toggleChatPanel(true);
+  }
   // OS通知の許可取得 (ユーザージェスチャー直後)
   requestNotifPermission();
   updateFaviconBadge(0);
@@ -1890,9 +1949,15 @@ function switchTab(name) {
 
 function updateChatBadge() {
   const b = document.getElementById('chat-badge');
-  if (!b) return;
-  if (chatUnread > 0) { b.style.display = 'inline-block'; b.textContent = chatUnread > 99 ? '99+' : chatUnread; }
-  else b.style.display = 'none';
+  if (b) {
+    if (chatUnread > 0) { b.style.display = 'inline-block'; b.textContent = chatUnread > 99 ? '99+' : chatUnread; }
+    else b.style.display = 'none';
+  }
+  const rb = document.getElementById('rail-chat-cnt');
+  if (rb) {
+    if (chatUnread > 0) { rb.style.display = 'inline-block'; rb.textContent = chatUnread > 99 ? '99+' : chatUnread; rb.style.background = '#ef4444'; rb.style.color = '#fff'; }
+    else rb.style.display = 'none';
+  }
 }
 
 // 通知音（Teams風のやわらかいベル音。余韻あり）
@@ -2063,6 +2128,18 @@ function walkTo(uid) {
 }
 
 // ===== UIトグル =====
+// 💬チャットパネル (右側、モバイル時のみトグル)
+function toggleChatPanel(forceHide) {
+  const p = document.getElementById('right-panel');
+  const btn = document.getElementById('rail-chat');
+  if (!p) return;
+  if (forceHide === true) { p.classList.add('hidden'); btn && btn.classList.remove('active'); return; }
+  p.classList.toggle('hidden');
+  if (btn) btn.classList.toggle('active', !p.classList.contains('hidden'));
+  // チャット開いたら未読クリア
+  if (!p.classList.contains('hidden')) switchTab('chat');
+}
+
 // 👥メンバーパネル (左側、開閉式)
 function togglePanel(forceHide) {
   const p = document.getElementById('members-panel');
