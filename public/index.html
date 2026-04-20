@@ -6,17 +6,17 @@
 <title>CoHub Express</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='80' font-size='90'%3E%F0%9F%8F%A2%3C/text%3E%3C/svg%3E">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#f1f5f9">
 <script src="/socket.io/socket.io.js"></script>
 <style>
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #0f172a; color: #fff; overflow: hidden; height: 100vh; }
+html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #e2e8f0; color: #0f172a; overflow: hidden; height: 100vh; -webkit-tap-highlight-color: transparent; }
 .screen { display: none; }
 .screen.active { display: block; }
 
 /* ===== Login ===== */
-#login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
-.login-card { background: #fff; color: #0f172a; border-radius: 16px; padding: 32px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+#login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 16px; background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%); }
+.login-card { background: #fff; color: #0f172a; border-radius: 16px; padding: 32px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(15,23,42,0.25); }
 .login-card h1 { margin: 0 0 4px; font-size: 22px; text-align: center; }
 .login-card .tag { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 24px; }
 .field { margin-bottom: 14px; }
@@ -26,39 +26,100 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .btn-primary:disabled { opacity: 0.6; cursor: wait; }
 .err { color: #dc2626; font-size: 12px; margin-top: 8px; text-align: center; min-height: 16px; }
 
-/* ===== Space ===== */
-#space-screen { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #0f172a; }
-#space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; }
-#topbar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; padding: 10px 14px; background: linear-gradient(180deg, rgba(15,23,42,0.85), rgba(15,23,42,0)); z-index: 10; pointer-events: none; }
-#topbar > * { pointer-events: auto; }
-#topbar .title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 6px; }
-#topbar .spacer { flex: 1; }
-.chip { padding: 6px 10px; border-radius: 20px; background: rgba(15,23,42,0.7); border: 1px solid rgba(255,255,255,0.15); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #fff; }
-.chip:hover { background: rgba(15,23,42,0.9); }
+/* ===== Space Layout (oVice風) ===== */
+#space-screen { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #e2e8f0; }
 
-#chat-bar { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; display: flex; gap: 8px; background: linear-gradient(0deg, rgba(15,23,42,0.9), rgba(15,23,42,0)); z-index: 10; }
-#chat-input { flex: 1; padding: 12px 14px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; font-size: 14px; backdrop-filter: blur(8px); }
-#chat-input::placeholder { color: rgba(255,255,255,0.5); }
-#chat-send { padding: 12px 18px; border-radius: 24px; border: none; background: #06b6d4; color: #fff; font-weight: 700; cursor: pointer; }
+/* 左サイドバー（アイコン縦列） */
+#left-rail { position: absolute; top: 0; left: 0; bottom: 0; width: 64px; background: #0f172a; z-index: 20; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; box-shadow: 2px 0 12px rgba(0,0,0,0.15); }
+#left-rail .brand { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
+#left-rail .rail-btn { width: 44px; height: 44px; border-radius: 10px; background: transparent; border: none; color: rgba(255,255,255,0.7); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 18px; transition: all 0.15s; position: relative; }
+#left-rail .rail-btn .lbl { font-size: 9px; line-height: 1; }
+#left-rail .rail-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+#left-rail .rail-btn.active { background: rgba(6,182,212,0.25); color: #06b6d4; }
+#left-rail .spacer { flex: 1; }
 
-#status-menu { position: absolute; top: 56px; right: 12px; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 6px; display: none; z-index: 20; min-width: 120px; }
+/* 右サイドバー（メンバーリスト） */
+#right-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 280px; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); z-index: 18; display: flex; flex-direction: column; border-left: 1px solid rgba(15,23,42,0.08); box-shadow: -4px 0 16px rgba(15,23,42,0.08); transition: transform 0.25s ease; }
+#right-panel.hidden { transform: translateX(100%); }
+.panel-head { padding: 16px 16px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(15,23,42,0.08); }
+.panel-head .ttl { font-weight: 700; font-size: 14px; flex: 1; color: #0f172a; }
+.panel-head .count { background: #06b6d4; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+.panel-head .close { width: 28px; height: 28px; border-radius: 6px; background: transparent; border: none; cursor: pointer; color: #64748b; font-size: 18px; }
+.panel-head .close:hover { background: rgba(15,23,42,0.06); }
+.panel-body { flex: 1; overflow-y: auto; padding: 8px 8px 16px; }
+.member-group { padding: 10px 12px 4px; font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; }
+.member-row { padding: 8px 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 0.12s; }
+.member-row:hover { background: rgba(6,182,212,0.08); }
+.member-row.me { background: rgba(6,182,212,0.12); }
+.member-avatar { width: 36px; height: 36px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; position: relative; overflow: hidden; border: 2px solid #333; }
+.member-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.member-avatar .ini { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #0f172a; }
+.member-avatar .st-dot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; }
+.member-meta { flex: 1; min-width: 0; }
+.member-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #0f172a; }
+.member-sub { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 4px; }
+
+/* キャンバス領域 */
+#space-canvas-wrap { position: absolute; top: 0; left: 64px; right: 280px; bottom: 88px; background: #e2e8f0; overflow: hidden; transition: right 0.25s ease; }
+#right-panel.hidden ~ #space-canvas-wrap { right: 0; }
+#space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
+#space-canvas.dragging { cursor: grabbing; }
+
+/* フロアヘッダー（キャンバス上部にフロート） */
+#floor-head { position: absolute; top: 12px; left: 16px; background: rgba(255,255,255,0.85); backdrop-filter: blur(6px); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: #0f172a; box-shadow: 0 4px 12px rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; z-index: 5; }
+#floor-head .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+
+/* ミニマップ */
+#minimap { position: absolute; right: 12px; bottom: 12px; width: 180px; height: 108px; background: rgba(255,255,255,0.9); border: 1px solid rgba(15,23,42,0.12); border-radius: 10px; box-shadow: 0 8px 20px rgba(15,23,42,0.12); backdrop-filter: blur(6px); overflow: hidden; z-index: 6; cursor: pointer; }
+#minimap canvas { display: block; width: 100%; height: 100%; }
+#minimap .mm-label { position: absolute; top: 4px; left: 8px; font-size: 10px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; }
+
+/* 下部コントロールバー */
+#dock { position: absolute; bottom: 0; left: 64px; right: 0; height: 88px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 20px; z-index: 15; }
+.dock-btn { width: 56px; height: 56px; border-radius: 50%; border: none; background: #fff; color: #334155; box-shadow: 0 4px 12px rgba(15,23,42,0.12); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 22px; position: relative; transition: all 0.15s; }
+.dock-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,0.16); }
+.dock-btn:active { transform: translateY(0); }
+.dock-btn.on { background: #06b6d4; color: #fff; }
+.dock-btn.off { background: #fef2f2; color: #dc2626; }
+.dock-btn .sub { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #64748b; font-weight: 600; white-space: nowrap; }
+.dock-sep { width: 1px; height: 36px; background: rgba(15,23,42,0.1); margin: 0 4px; }
+#dock-chat-wrap { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px; background: #f1f5f9; border-radius: 28px; padding: 6px 8px 6px 16px; }
+#dock-chat-wrap input { flex: 1; background: transparent; border: none; outline: none; font-size: 14px; color: #0f172a; }
+#dock-chat-wrap input::placeholder { color: #94a3b8; }
+#dock-chat-send { width: 40px; height: 40px; border-radius: 50%; border: none; background: #06b6d4; color: #fff; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+
+/* リアクションピッカー */
+#reaction-pop { position: absolute; bottom: 100px; background: #fff; border-radius: 32px; padding: 10px 14px; display: none; gap: 6px; box-shadow: 0 12px 32px rgba(15,23,42,0.18); z-index: 30; }
+#reaction-pop.show { display: flex; }
+#reaction-pop button { width: 40px; height: 40px; border-radius: 50%; border: none; background: #f1f5f9; cursor: pointer; font-size: 20px; transition: all 0.12s; }
+#reaction-pop button:hover { background: #06b6d4; transform: scale(1.1); }
+
+/* ステータスメニュー */
+#status-menu { position: absolute; bottom: 100px; background: #fff; border: 1px solid rgba(15,23,42,0.1); border-radius: 12px; padding: 6px; display: none; z-index: 30; min-width: 140px; box-shadow: 0 12px 28px rgba(15,23,42,0.15); }
 #status-menu.show { display: block; }
-#status-menu button { display: block; width: 100%; padding: 8px 12px; background: none; border: none; color: #fff; text-align: left; cursor: pointer; border-radius: 6px; font-size: 13px; }
-#status-menu button:hover { background: rgba(255,255,255,0.08); }
+#status-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; background: none; border: none; color: #0f172a; text-align: left; cursor: pointer; border-radius: 8px; font-size: 13px; }
+#status-menu button:hover { background: #f1f5f9; }
+#status-menu button .stdot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* メニューポップ（左レールから） */
+#rail-menu { position: absolute; left: 72px; background: #fff; border-radius: 10px; padding: 6px; display: none; z-index: 30; min-width: 180px; box-shadow: 0 12px 28px rgba(15,23,42,0.18); }
+#rail-menu.show { display: block; }
+#rail-menu button { display: block; width: 100%; padding: 10px 12px; background: none; border: none; color: #0f172a; text-align: left; cursor: pointer; border-radius: 6px; font-size: 13px; }
+#rail-menu button:hover { background: #f1f5f9; }
 
 /* ===== Avatar Setup Modal ===== */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.modal { background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { background: #fff; color: #0f172a; border: 1px solid rgba(15,23,42,0.08); border-radius: 16px; padding: 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
 .modal h2 { margin: 0 0 6px; font-size: 18px; }
-.modal .tag { color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 16px; }
+.modal .tag { color: #64748b; font-size: 12px; margin-bottom: 16px; }
 .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 16px; }
-.style-card { padding: 12px; background: rgba(255,255,255,0.05); border: 2px solid transparent; border-radius: 10px; cursor: pointer; text-align: center; }
-.style-card.active { border-color: #06b6d4; background: rgba(6,182,212,0.15); }
+.style-card { padding: 12px; background: #f1f5f9; border: 2px solid transparent; border-radius: 10px; cursor: pointer; text-align: center; }
+.style-card.active { border-color: #06b6d4; background: rgba(6,182,212,0.1); }
 .style-card .emoji { font-size: 24px; }
-.style-card .label { font-size: 12px; margin-top: 4px; }
-.photo-picker { border: 2px dashed rgba(255,255,255,0.25); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 12px; }
+.style-card .label { font-size: 12px; margin-top: 4px; color: #334155; }
+.photo-picker { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 12px; }
 .photo-picker img { max-height: 160px; border-radius: 10px; margin-top: 10px; }
-.btn-ghost { padding: 8px 14px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; font-size: 13px; }
+.btn-ghost { padding: 8px 14px; background: transparent; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; cursor: pointer; font-size: 13px; }
 .btn-small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
 
 /* ===== Chat bubble ===== */
@@ -66,7 +127,20 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .chat-bubble::after { content: ''; position: absolute; bottom: -6px; left: 14px; width: 12px; height: 12px; background: #fff; transform: rotate(45deg); }
 @keyframes bubbleIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.95); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.toast { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.95); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+
+/* モバイル対応 */
+@media (max-width: 800px) {
+  #right-panel { width: 260px; }
+  #right-panel.hidden { transform: translateX(100%); }
+  #space-canvas-wrap { right: 0; }
+  #space-canvas-wrap.with-panel { right: 260px; }
+  #dock { gap: 8px; padding: 0 10px; }
+  .dock-btn { width: 48px; height: 48px; font-size: 20px; }
+  #dock-chat-wrap { display: none; }
+  #minimap { width: 140px; height: 84px; }
+  #left-rail .rail-btn .lbl { display: none; }
+}
 </style>
 </head>
 <body>
@@ -88,26 +162,92 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 
 <!-- 空間 -->
 <div id="space-screen" class="screen">
-  <canvas id="space-canvas"></canvas>
-  <div id="topbar">
-    <div class="title">🏢 CoHub Express</div>
+  <!-- 左レール -->
+  <div id="left-rail">
+    <div class="brand" title="CoHub">🏢</div>
+    <button class="rail-btn active" id="rail-members" onclick="togglePanel()" title="メンバー">
+      <span>👥</span><span class="lbl">メンバー</span>
+    </button>
+    <button class="rail-btn" id="rail-minimap" onclick="toggleMinimap()" title="ミニマップ">
+      <span>🗺️</span><span class="lbl">マップ</span>
+    </button>
+    <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
+      <span>🎨</span><span class="lbl">アバター</span>
+    </button>
+    <button class="rail-btn" onclick="location.href='/mylog'" title="自分のログ">
+      <span>📜</span><span class="lbl">ログ</span>
+    </button>
     <div class="spacer"></div>
-    <div class="chip" id="status-chip" onclick="toggleStatusMenu()">
-      <span id="status-dot" style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
-      <span id="status-label">在席中</span>
+    <button class="rail-btn" onclick="toggleRailMenu(event)" title="メニュー">
+      <span>⚙️</span><span class="lbl">設定</span>
+    </button>
+  </div>
+
+  <!-- 右サイドバー -->
+  <div id="right-panel">
+    <div class="panel-head">
+      <div class="ttl">メンバー</div>
+      <div class="count" id="member-count">0</div>
+      <button class="close" onclick="togglePanel()" title="閉じる">×</button>
     </div>
-    <div class="chip" onclick="openAvatarModal()" style="margin-left:8px;">🎨 アバター</div>
-    <div class="chip" onclick="location.href='/mylog'" style="margin-left:8px;">📜 ログ</div>
-    <div class="chip" onclick="doLogout()" style="margin-left:8px;">ログアウト</div>
+    <div class="panel-body" id="member-list"></div>
   </div>
+
+  <!-- キャンバス領域 -->
+  <div id="space-canvas-wrap">
+    <canvas id="space-canvas"></canvas>
+    <div id="floor-head">
+      <span class="dot"></span>
+      <span>Main Floor</span>
+      <span style="color:#94a3b8;font-weight:500;">・<span id="online-count">0</span>人オンライン</span>
+    </div>
+    <div id="minimap">
+      <canvas id="minimap-canvas"></canvas>
+      <div class="mm-label">MAP</div>
+    </div>
+  </div>
+
+  <!-- 下部ドック -->
+  <div id="dock">
+    <button class="dock-btn" id="dock-mic" onclick="toggleMic()" title="マイク">🎤<div class="sub">マイク</div></button>
+    <button class="dock-btn" id="dock-speaker" onclick="toggleSpeaker()" title="スピーカー">🔊<div class="sub">音量</div></button>
+    <div class="dock-sep"></div>
+    <button class="dock-btn" id="dock-react" onclick="toggleReactions(event)" title="リアクション">😊<div class="sub">リアクション</div></button>
+    <button class="dock-btn" id="dock-status" onclick="toggleStatusMenu(event)" title="ステータス">
+      <span id="status-dot-big" style="width:16px;height:16px;border-radius:50%;background:#10b981;display:inline-block;border:3px solid #fff;box-shadow:0 0 0 1px #10b981;"></span>
+      <div class="sub" id="status-label">在席中</div>
+    </button>
+    <div class="dock-sep"></div>
+    <div id="dock-chat-wrap">
+      <input type="text" id="chat-input" placeholder="近くの人に話しかける…" maxlength="500">
+      <button id="dock-chat-send" onclick="sendChat()" title="送信">➤</button>
+    </div>
+    <button class="dock-btn" id="dock-leave" onclick="doLogout()" title="退席" style="background:#fef2f2;color:#dc2626;">🚪<div class="sub">退席</div></button>
+  </div>
+
+  <!-- リアクションピッカー -->
+  <div id="reaction-pop">
+    <button onclick="sendReaction('👍')">👍</button>
+    <button onclick="sendReaction('❤️')">❤️</button>
+    <button onclick="sendReaction('😂')">😂</button>
+    <button onclick="sendReaction('👏')">👏</button>
+    <button onclick="sendReaction('🙏')">🙏</button>
+    <button onclick="sendReaction('🎉')">🎉</button>
+    <button onclick="sendReaction('☕')">☕</button>
+  </div>
+
+  <!-- ステータスメニュー -->
   <div id="status-menu">
-    <button onclick="setStatus('online')">🟢 在席中</button>
-    <button onclick="setStatus('退席中')">🟡 退席中</button>
-    <button onclick="setStatus('会議中')">🔴 会議中</button>
+    <button onclick="setStatus('online')"><span class="stdot" style="background:#10b981;"></span>在席中</button>
+    <button onclick="setStatus('退席中')"><span class="stdot" style="background:#eab308;"></span>退席中</button>
+    <button onclick="setStatus('会議中')"><span class="stdot" style="background:#ef4444;"></span>会議中</button>
   </div>
-  <div id="chat-bar">
-    <input type="text" id="chat-input" placeholder="近くの人に話しかける…（Enterで送信）" maxlength="500">
-    <button id="chat-send" onclick="sendChat()">送信</button>
+
+  <!-- レールメニュー -->
+  <div id="rail-menu">
+    <button onclick="location.href='/admin'">🛠 管理画面</button>
+    <button onclick="openAvatarModal()">🎨 アバター作り直し</button>
+    <button onclick="doLogout()">🚪 ログアウト</button>
   </div>
 </div>
 
@@ -126,6 +266,8 @@ const STYLES = [
   { key: 'pixar', emoji: '✨', label: 'ピクサー風' },
   { key: 'watercolor', emoji: '🎨', label: '水彩' },
 ];
+
+const COMPANY_NAMES = { STD: 'スタンダード運輸', KBC: '関東BC', SZE: 'スズエ電機' };
 
 // ===== 認証 =====
 async function doLogin() {
@@ -162,14 +304,26 @@ function doLogout() {
 
 // ===== 空間 =====
 let socket = null;
-let users = {};
+let users = {};           // uid → user state
+let targets = {};          // uid → 補間目標座標 { x, y }
 let me = null;
 let myX = 600, myY = 400;
 let proximityRadius = 220;
-let canvas, ctx;
+let canvas, ctx, mmCanvas, mmCtx;
 let bgImage = null;
 let avatarImages = {}; // uid → Image
-const bubbles = []; // { uid, content, at }
+const bubbles = []; // { uid, content, at, isEmoji }
+
+// ワールド座標系: 1200 × 720
+const WORLD_W = 1200;
+const WORLD_H = 720;
+let viewScale = 1; // 実表示に対するスケール
+
+// ドラッグ状態
+let dragging = false;
+let dragStart = null;
+let dragEmitTimer = 0;
+const DRAG_EMIT_INTERVAL = 80;
 
 function enterSpace() {
   document.getElementById('login-screen').classList.remove('active');
@@ -182,18 +336,44 @@ function enterSpace() {
   if (!currentUser.avatar_url) {
     setTimeout(openAvatarModal, 600);
   }
+  // パネル初期表示: モバイルは閉じ
+  if (window.innerWidth <= 800) togglePanel(true);
 }
 
 function initCanvas() {
   canvas = document.getElementById('space-canvas');
   ctx = canvas.getContext('2d');
+  mmCanvas = document.getElementById('minimap-canvas');
+  mmCtx = mmCanvas.getContext('2d');
   resize();
   window.addEventListener('resize', resize);
-  canvas.addEventListener('click', onCanvasClick);
-  canvas.addEventListener('touchstart', onCanvasTouch, { passive: false });
+
+  // ポインタ（マウス/タッチ統一）
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointercancel', onPointerUp);
+
+  // ミニマップクリックで視点/自分移動
+  document.getElementById('minimap').addEventListener('click', onMinimapClick);
+
   document.getElementById('chat-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendChat();
   });
+
+  // 外クリックでメニューを閉じる
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#reaction-pop') && !e.target.closest('#dock-react')) {
+      document.getElementById('reaction-pop').classList.remove('show');
+    }
+    if (!e.target.closest('#status-menu') && !e.target.closest('#dock-status')) {
+      document.getElementById('status-menu').classList.remove('show');
+    }
+    if (!e.target.closest('#rail-menu') && !e.target.closest('#left-rail')) {
+      document.getElementById('rail-menu').classList.remove('show');
+    }
+  });
+
   requestAnimationFrame(render);
 }
 
@@ -203,11 +383,47 @@ function resize() {
   canvas.height = r.height * window.devicePixelRatio;
   ctx.setTransform(1,0,0,1,0,0);
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  // スケール: ワールド1200×720を表示領域にフィット（cover）
+  viewScale = Math.max(r.width / WORLD_W, r.height / WORLD_H);
+
+  const mmR = mmCanvas.getBoundingClientRect();
+  mmCanvas.width = mmR.width * window.devicePixelRatio;
+  mmCanvas.height = mmR.height * window.devicePixelRatio;
+  mmCtx.setTransform(1,0,0,1,0,0);
+  mmCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
 function loadBackground() {
   bgImage = new Image();
-  bgImage.src = '/assets/office_bg.svg';
+  bgImage.src = '/assets/office_bg.svg?v=2';
+}
+
+// スクリーン座標 → ワールド座標
+function screenToWorld(sx, sy) {
+  const r = canvas.getBoundingClientRect();
+  // cover: viewScaleでcanvas表示。中央基準で配置
+  const dw = WORLD_W * viewScale;
+  const dh = WORLD_H * viewScale;
+  const ox = (r.width - dw) / 2;
+  const oy = (r.height - dh) / 2;
+  return {
+    x: (sx - ox) / viewScale,
+    y: (sy - oy) / viewScale,
+  };
+}
+
+// ワールド座標 → スクリーン座標
+function worldToScreen(wx, wy) {
+  const r = canvas.getBoundingClientRect();
+  const dw = WORLD_W * viewScale;
+  const dh = WORLD_H * viewScale;
+  const ox = (r.width - dw) / 2;
+  const oy = (r.height - dh) / 2;
+  return {
+    x: wx * viewScale + ox,
+    y: wy * viewScale + oy,
+  };
 }
 
 function connectSocket() {
@@ -217,23 +433,37 @@ function connectSocket() {
     me = data.me;
     proximityRadius = data.proximity || 220;
     users = {};
+    targets = {};
     for (const u of data.users) {
       users[u.uid] = u;
-      if (u.uid === me) { myX = u.x || 600; myY = u.y || 400; }
+      users[u.uid].cx = u.x || WORLD_W / 2;
+      users[u.uid].cy = u.y || WORLD_H / 2;
+      targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
+      if (u.uid === me) { myX = users[u.uid].cx; myY = users[u.uid].cy; }
       if (u.avatar && !avatarImages[u.uid]) loadAvatar(u);
     }
+    renderMemberList();
   });
   socket.on('user:update', (u) => {
-    if (!users[u.uid]) users[u.uid] = { uid: u.uid, name: '...', ring: '#333' };
-    users[u.uid].x = u.x;
-    users[u.uid].y = u.y;
+    if (!users[u.uid]) users[u.uid] = { uid: u.uid, name: '...', ring: '#333', cx: u.x, cy: u.y };
+    targets[u.uid] = { x: u.x, y: u.y };
     users[u.uid].status = u.status;
     if (u.uid === me) { myX = u.x; myY = u.y; }
+    if (users[u.uid].avatar && !avatarImages[u.uid]) loadAvatar(users[u.uid]);
+    renderMemberList();
   });
   socket.on('chat:msg', (m) => {
-    bubbles.push({ uid: m.uid, content: m.content, at: Date.now() });
+    const isEmoji = isSingleEmoji(m.content);
+    bubbles.push({ uid: m.uid, content: m.content, at: Date.now(), isEmoji });
     while (bubbles.length > 40) bubbles.shift();
   });
+}
+
+function isSingleEmoji(s) {
+  if (!s) return false;
+  const trimmed = s.trim();
+  if (trimmed.length > 6) return false;
+  return /^(\p{Extended_Pictographic}|\p{Emoji}|\s)+$/u.test(trimmed);
 }
 
 function loadAvatar(u) {
@@ -243,62 +473,109 @@ function loadAvatar(u) {
   avatarImages[u.uid] = img;
 }
 
-function onCanvasClick(e) {
-  const r = canvas.getBoundingClientRect();
-  const x = e.clientX - r.left;
-  const y = e.clientY - r.top;
-  moveTo(x, y);
+// ===== ドラッグ&クリック移動 =====
+function onPointerDown(e) {
+  canvas.setPointerCapture(e.pointerId);
+  dragging = true;
+  canvas.classList.add('dragging');
+  dragStart = { x: e.clientX, y: e.clientY, t: Date.now() };
+  const world = screenToWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+  moveTo(world.x, world.y);
 }
 
-function onCanvasTouch(e) {
-  if (!e.touches || !e.touches[0]) return;
-  e.preventDefault();
+function onPointerMove(e) {
+  if (!dragging) return;
   const r = canvas.getBoundingClientRect();
-  const x = e.touches[0].clientX - r.left;
-  const y = e.touches[0].clientY - r.top;
-  moveTo(x, y);
+  const world = screenToWorld(e.clientX - r.left, e.clientY - r.top);
+  const now = Date.now();
+  if (now - dragEmitTimer > DRAG_EMIT_INTERVAL) {
+    moveTo(world.x, world.y);
+    dragEmitTimer = now;
+  } else {
+    // ローカルだけ先行補間
+    if (users[me]) targets[me] = { x: clampX(world.x), y: clampY(world.y) };
+  }
 }
+
+function onPointerUp(e) {
+  if (!dragging) return;
+  dragging = false;
+  canvas.classList.remove('dragging');
+  try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
+}
+
+function clampX(x) { return Math.max(30, Math.min(WORLD_W - 30, x)); }
+function clampY(y) { return Math.max(30, Math.min(WORLD_H - 30, y)); }
 
 function moveTo(x, y) {
-  myX = Math.max(30, Math.min(canvas.clientWidth - 30, x));
-  myY = Math.max(60, Math.min(canvas.clientHeight - 100, y));
-  if (users[me]) { users[me].x = myX; users[me].y = myY; }
-  socket.emit('move', { x: myX, y: myY });
+  const cx = clampX(x), cy = clampY(y);
+  targets[me] = { x: cx, y: cy };
+  myX = cx; myY = cy;
+  if (users[me]) { users[me].x = cx; users[me].y = cy; }
+  if (socket) socket.emit('move', { x: cx, y: cy });
 }
 
+function onMinimapClick(e) {
+  const r = mmCanvas.getBoundingClientRect();
+  const mx = e.clientX - r.left;
+  const my = e.clientY - r.top;
+  const wx = (mx / r.width) * WORLD_W;
+  const wy = (my / r.height) * WORLD_H;
+  moveTo(wx, wy);
+}
+
+// ===== レンダリング =====
 function render() {
   if (!ctx) return;
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  ctx.clearRect(0, 0, w, h);
 
-  // 背景
-  if (bgImage && bgImage.complete) {
-    // cover
-    const ar = bgImage.width / bgImage.height;
-    const cAR = w / h;
-    let dw, dh, dx, dy;
-    if (cAR > ar) { dw = w; dh = w / ar; dx = 0; dy = (h - dh) / 2; }
-    else { dh = h; dw = h * ar; dx = (w - dw) / 2; dy = 0; }
-    ctx.drawImage(bgImage, dx, dy, dw, dh);
-  } else {
-    // フォールバック
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#fef3c7');
-    g.addColorStop(1, '#fde68a');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
+  // 補間: targets → users[uid].cx/cy に近づける
+  for (const uid in targets) {
+    if (!users[uid]) continue;
+    const t = targets[uid];
+    const u = users[uid];
+    if (u.cx == null) { u.cx = t.x; u.cy = t.y; continue; }
+    const dx = t.x - u.cx;
+    const dy = t.y - u.cy;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 0.5) { u.cx = t.x; u.cy = t.y; continue; }
+    // 最大速度 20px/frame 程度、距離に応じたeasing
+    const speed = Math.min(Math.max(dist * 0.2, 2), 20);
+    u.cx += (dx / dist) * speed;
+    u.cy += (dy / dist) * speed;
   }
 
-  // 近接範囲（自分中心）をうっすら
+  const r = canvas.getBoundingClientRect();
+  const w = r.width, h = r.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // 背景: ワールドをcoverで描画
+  const dw = WORLD_W * viewScale;
+  const dh = WORLD_H * viewScale;
+  const ox = (w - dw) / 2;
+  const oy = (h - dh) / 2;
+
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(viewScale, viewScale);
+
+  if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
+    ctx.drawImage(bgImage, 0, 0, WORLD_W, WORLD_H);
+  } else {
+    // フォールバック
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  }
+
+  // 近接範囲（自分中心）
   if (me && users[me]) {
     const u = users[me];
     ctx.beginPath();
-    ctx.arc(u.x, u.y, proximityRadius, 0, Math.PI * 2);
+    ctx.arc(u.cx, u.cy, proximityRadius, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(6,182,212,0.08)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(6,182,212,0.25)';
+    ctx.strokeStyle = 'rgba(6,182,212,0.3)';
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash([6, 6]);
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -306,20 +583,27 @@ function render() {
   // アバター群
   for (const uid in users) {
     const u = users[uid];
-    if (!u.x || !u.y) continue;
+    if (u.cx == null) continue;
     if (u.status === 'offline') continue;
     drawAvatar(u);
   }
 
-  // チャット吹き出し（5秒で消える）
+  // 吹き出し
   const now = Date.now();
+  const bubbleLife = 5000;
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i];
-    if (now - b.at > 5000) { bubbles.splice(i, 1); continue; }
+    if (now - b.at > bubbleLife) { bubbles.splice(i, 1); continue; }
     const u = users[b.uid];
-    if (!u || !u.x || !u.y) continue;
-    drawBubble(u.x, u.y - 50, b.content, Math.max(0, 1 - (now - b.at) / 5000));
+    if (!u || u.cx == null) continue;
+    if (b.isEmoji) drawEmojiBubble(u.cx, u.cy, b.content, (now - b.at) / bubbleLife);
+    else drawBubble(u.cx, u.cy - 50, b.content, Math.max(0, 1 - (now - b.at) / bubbleLife));
   }
+
+  ctx.restore();
+
+  // ミニマップ描画
+  drawMinimap();
 
   requestAnimationFrame(render);
 }
@@ -329,52 +613,58 @@ function drawAvatar(u) {
   ctx.save();
   // ステータスリング
   ctx.beginPath();
-  ctx.arc(u.x, u.y, r + 3, 0, Math.PI * 2);
+  ctx.arc(u.cx, u.cy, r + 3, 0, Math.PI * 2);
   ctx.fillStyle = u.ring || '#333';
   ctx.fill();
 
-  // ステータスドット色
-  const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
+  // ドロップシャドウ
+  ctx.shadowColor = 'rgba(15,23,42,0.2)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
 
-  // アバター画像
+  // アバター画像 / イニシャル
   const img = avatarImages[u.uid];
   if (img && img.complete && img.naturalWidth > 0) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+    ctx.arc(u.cx, u.cy, r, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(img, u.x - r, u.y - r, r * 2, r * 2);
+    ctx.drawImage(img, u.cx - r, u.cy - r, r * 2, r * 2);
     ctx.restore();
   } else {
     ctx.beginPath();
-    ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+    ctx.arc(u.cx, u.cy, r, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
     ctx.fill();
+    ctx.shadowColor = 'transparent';
     ctx.fillStyle = '#0f172a';
     ctx.font = '600 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(u.name ? u.name.slice(0, 2) : '?', u.x, u.y);
+    ctx.fillText(u.name ? u.name.slice(0, 2) : '?', u.cx, u.cy);
   }
+  ctx.shadowColor = 'transparent';
 
   // 名前バッジ
   ctx.font = '600 11px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const label = (u.name || '') + ' ' + (u.status === 'online' ? '' : '(' + u.status + ')');
-  const tw = ctx.measureText(label).width + 12;
+  const label = (u.name || '') + (u.status && u.status !== 'online' ? ' (' + u.status + ')' : '');
+  const tw = ctx.measureText(label).width + 14;
   ctx.fillStyle = 'rgba(15,23,42,0.85)';
-  ctx.fillRect(u.x - tw/2, u.y + r + 4, tw, 18);
+  roundRect(u.cx - tw/2, u.cy + r + 4, tw, 20, 10);
+  ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.fillText(label, u.x, u.y + r + 13);
+  ctx.fillText(label, u.cx, u.cy + r + 14);
 
   // ステータスドット
+  const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
   ctx.beginPath();
-  ctx.arc(u.x + r - 4, u.y - r + 4, 5, 0, Math.PI * 2);
+  ctx.arc(u.cx + r - 4, u.cy - r + 4, 6, 0, Math.PI * 2);
   ctx.fillStyle = dotColor;
   ctx.fill();
   ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
 }
@@ -393,14 +683,12 @@ function drawBubble(x, y, text, alpha) {
   const bubbleH = lines.length * lineH + padding * 2;
   const bx = x - bubbleW / 2;
   const by = y - bubbleH;
-  // 枠
   ctx.fillStyle = '#fff';
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
   ctx.lineWidth = 1;
   roundRect(bx, by, bubbleW, bubbleH, 10);
   ctx.fill();
   ctx.stroke();
-  // 尻尾
   ctx.beginPath();
   ctx.moveTo(x - 6, by + bubbleH);
   ctx.lineTo(x, by + bubbleH + 8);
@@ -408,11 +696,23 @@ function drawBubble(x, y, text, alpha) {
   ctx.closePath();
   ctx.fillStyle = '#fff';
   ctx.fill();
-  // テキスト
   ctx.fillStyle = '#0f172a';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + padding, by + padding + i * lineH);
+  ctx.restore();
+}
+
+function drawEmojiBubble(cx, cy, emoji, progress) {
+  // 下から上へフワッと浮かび、最後にフェード
+  ctx.save();
+  const rise = Math.min(progress * 2, 1) * 60;
+  const alpha = progress < 0.75 ? 1 : (1 - (progress - 0.75) / 0.25);
+  ctx.globalAlpha = alpha;
+  ctx.font = '36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, cx, cy - 40 - rise);
   ctx.restore();
 }
 
@@ -446,6 +746,147 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
+function drawMinimap() {
+  if (!mmCtx) return;
+  const r = mmCanvas.getBoundingClientRect();
+  const mw = r.width, mh = r.height;
+  mmCtx.clearRect(0, 0, mw, mh);
+
+  // 背景
+  mmCtx.fillStyle = '#f1f5f9';
+  mmCtx.fillRect(0, 0, mw, mh);
+
+  // ゾーン（背景SVGと同じ区画をラフに）
+  mmCtx.fillStyle = '#e2e8f0';
+  mmCtx.fillRect(mw * 0.04, mh * 0.08, mw * 0.3, mh * 0.35);
+  mmCtx.fillRect(mw * 0.4, mh * 0.08, mw * 0.3, mh * 0.35);
+  mmCtx.fillRect(mw * 0.74, mh * 0.08, mw * 0.22, mh * 0.4);
+  mmCtx.fillRect(mw * 0.04, mh * 0.55, mw * 0.26, mh * 0.35);
+  mmCtx.fillRect(mw * 0.36, mh * 0.55, mw * 0.3, mh * 0.35);
+  mmCtx.fillRect(mw * 0.72, mh * 0.55, mw * 0.24, mh * 0.35);
+
+  // ユーザー dot
+  const sx = mw / WORLD_W;
+  const sy = mh / WORLD_H;
+  for (const uid in users) {
+    const u = users[uid];
+    if (u.cx == null) continue;
+    if (u.status === 'offline') continue;
+    mmCtx.beginPath();
+    mmCtx.arc(u.cx * sx, u.cy * sy, uid === me ? 4 : 3, 0, Math.PI * 2);
+    mmCtx.fillStyle = uid === me ? '#06b6d4' : (u.ring || '#334155');
+    mmCtx.fill();
+    if (uid === me) {
+      mmCtx.strokeStyle = '#fff';
+      mmCtx.lineWidth = 1.5;
+      mmCtx.stroke();
+    }
+  }
+}
+
+// ===== メンバーリスト =====
+function renderMemberList() {
+  const list = document.getElementById('member-list');
+  if (!list) return;
+
+  const online = [];
+  const offline = [];
+  for (const uid in users) {
+    const u = users[uid];
+    if (u.status === 'offline') offline.push(u);
+    else online.push(u);
+  }
+  online.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  offline.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  document.getElementById('member-count').textContent = online.length;
+  document.getElementById('online-count').textContent = online.length;
+
+  let html = '';
+  if (online.length > 0) {
+    html += '<div class="member-group">オンライン</div>';
+    for (const u of online) html += memberRowHtml(u);
+  }
+  if (offline.length > 0) {
+    html += '<div class="member-group">オフライン</div>';
+    for (const u of offline) html += memberRowHtml(u);
+  }
+  list.innerHTML = html;
+}
+
+function memberRowHtml(u) {
+  const dotColor = u.status === 'offline' ? '#94a3b8' : u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : '#10b981';
+  const companyName = COMPANY_NAMES[u.company] || u.company || '';
+  const avatarHtml = u.avatar
+    ? `<img src="${u.avatar}" alt="">`
+    : `<div class="ini">${(u.name || '?').slice(0, 2)}</div>`;
+  const isMe = u.uid === me;
+  return `
+    <div class="member-row ${isMe ? 'me' : ''}" onclick="walkTo('${u.uid}')">
+      <div class="member-avatar" style="border-color:${u.ring || '#333'};">
+        ${avatarHtml}
+        <div class="st-dot" style="background:${dotColor};"></div>
+      </div>
+      <div class="member-meta">
+        <div class="member-name">${escapeHtml(u.name || '')}${isMe ? ' <span style="color:#06b6d4;font-size:10px;">(自分)</span>' : ''}</div>
+        <div class="member-sub">${companyName}${u.status && u.status !== 'online' && u.status !== 'offline' ? ' · ' + u.status : ''}</div>
+      </div>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// メンバーをクリック → その人の近くに歩いていく
+function walkTo(uid) {
+  const u = users[uid];
+  if (!u || u.cx == null) return;
+  if (uid === me) return;
+  // 少しずらして隣に
+  const angle = Math.random() * Math.PI * 2;
+  const offset = 80;
+  moveTo(u.cx + Math.cos(angle) * offset, u.cy + Math.sin(angle) * offset);
+}
+
+// ===== UIトグル =====
+function togglePanel(forceHide) {
+  const p = document.getElementById('right-panel');
+  const wrap = document.getElementById('space-canvas-wrap');
+  const btn = document.getElementById('rail-members');
+  if (forceHide === true) {
+    p.classList.add('hidden');
+    wrap.classList.remove('with-panel');
+    btn.classList.remove('active');
+    return;
+  }
+  p.classList.toggle('hidden');
+  if (p.classList.contains('hidden')) {
+    wrap.classList.remove('with-panel');
+    btn.classList.remove('active');
+  } else {
+    wrap.classList.add('with-panel');
+    btn.classList.add('active');
+  }
+  setTimeout(resize, 280);
+}
+
+let minimapOn = true;
+function toggleMinimap() {
+  minimapOn = !minimapOn;
+  document.getElementById('minimap').style.display = minimapOn ? 'block' : 'none';
+  document.getElementById('rail-minimap').classList.toggle('active', minimapOn);
+}
+
+function toggleRailMenu(e) {
+  const m = document.getElementById('rail-menu');
+  const rect = e.currentTarget.getBoundingClientRect();
+  m.style.bottom = (window.innerHeight - rect.bottom) + 'px';
+  m.style.top = 'auto';
+  m.classList.toggle('show');
+  e.stopPropagation();
+}
+
 // ===== チャット =====
 function sendChat() {
   const input = document.getElementById('chat-input');
@@ -455,15 +896,56 @@ function sendChat() {
   input.value = '';
 }
 
+function sendReaction(emoji) {
+  if (!socket) return;
+  socket.emit('chat', { content: emoji });
+  document.getElementById('reaction-pop').classList.remove('show');
+}
+
+function toggleReactions(e) {
+  const pop = document.getElementById('reaction-pop');
+  const rect = e.currentTarget.getBoundingClientRect();
+  pop.style.left = (rect.left + rect.width / 2 - 140) + 'px';
+  pop.classList.toggle('show');
+  e.stopPropagation();
+}
+
+// ===== マイク/スピーカー（今はプレースホルダー） =====
+let micOn = false;
+let speakerOn = true;
+function toggleMic() {
+  micOn = !micOn;
+  const btn = document.getElementById('dock-mic');
+  btn.classList.toggle('on', micOn);
+  btn.classList.toggle('off', false);
+  btn.innerHTML = (micOn ? '🎤' : '🎙️') + '<div class="sub">' + (micOn ? 'マイクON' : 'マイク') + '</div>';
+  showToast(micOn ? 'マイク機能は準備中です' : 'マイクをオフにしました');
+}
+function toggleSpeaker() {
+  speakerOn = !speakerOn;
+  const btn = document.getElementById('dock-speaker');
+  btn.classList.toggle('off', !speakerOn);
+  btn.innerHTML = (speakerOn ? '🔊' : '🔇') + '<div class="sub">' + (speakerOn ? '音量' : 'ミュート') + '</div>';
+}
+
 // ===== ステータス =====
-function toggleStatusMenu() {
-  document.getElementById('status-menu').classList.toggle('show');
+function toggleStatusMenu(e) {
+  const m = document.getElementById('status-menu');
+  const rect = e.currentTarget.getBoundingClientRect();
+  m.style.left = (rect.left + rect.width / 2 - 70) + 'px';
+  m.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+  m.classList.toggle('show');
+  e.stopPropagation();
 }
 function setStatus(s) {
+  if (!socket) return;
   socket.emit('status', { status: s });
   const label = s === 'online' ? '在席中' : s;
   document.getElementById('status-label').textContent = label;
-  document.getElementById('status-dot').style.background = s === '会議中' ? '#ef4444' : s === '退席中' ? '#eab308' : '#10b981';
+  const color = s === '会議中' ? '#ef4444' : s === '退席中' ? '#eab308' : '#10b981';
+  const dot = document.getElementById('status-dot-big');
+  dot.style.background = color;
+  dot.style.boxShadow = '0 0 0 1px ' + color;
   document.getElementById('status-menu').classList.remove('show');
 }
 
@@ -484,7 +966,7 @@ function openAvatarModal() {
         <div class="tag">あなたの写真を漫画風に変換します。元の写真はサーバーに保存されません。</div>
         <div class="photo-picker" id="photo-picker-area">
           <div id="photo-placeholder">
-            <div style="margin-bottom:10px;color:rgba(255,255,255,0.7);font-size:13px;">写真を用意</div>
+            <div style="margin-bottom:10px;color:#64748b;font-size:13px;">写真を用意</div>
             <button class="btn-primary btn-small" style="width:auto;padding:8px 14px;margin:4px;" onclick="openCamera()">📷 カメラで撮る</button>
             <button class="btn-ghost btn-small" style="margin:4px;" onclick="document.getElementById('avatar-file').click()">📁 ファイルから</button>
           </div>
@@ -501,15 +983,15 @@ function openAvatarModal() {
         </div>
         <canvas id="camera-canvas" style="display:none;"></canvas>
         <input type="file" id="avatar-file" accept="image/*" capture="user" style="display:none;" onchange="onPhotoPick(this)">
-        <div style="font-size:12px;color:rgba(255,255,255,0.7);margin:10px 0 4px;">スタイル選択</div>
+        <div style="font-size:12px;color:#64748b;margin:10px 0 4px;">スタイル選択</div>
         <div class="style-grid" id="style-grid">${styleGrid}</div>
         <div style="display:flex;gap:8px;">
           <button class="btn-primary" id="avatar-gen-btn" onclick="doGenerateAvatar()" disabled>変換する (30秒程度)</button>
           <button class="btn-ghost" onclick="closeAvatarModal()">閉じる</button>
         </div>
         <div id="avatar-err" class="err"></div>
-        <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.5);text-align:center;">
-          <a href="javascript:removeAvatar()" style="color:rgba(252,165,165,0.8);">アバターを削除</a>
+        <div style="margin-top:12px;font-size:11px;color:#94a3b8;text-align:center;">
+          <a href="javascript:removeAvatar()" style="color:#ef4444;">アバターを削除</a>
         </div>
       </div>
     </div>`;
@@ -556,7 +1038,7 @@ function setPhoto(fileOrBlob) {
 
 // ===== カメラ撮影 =====
 let cameraStream = null;
-let cameraFacing = 'user'; // user=インカメラ, environment=アウトカメラ
+let cameraFacing = 'user';
 
 async function openCamera() {
   try {
@@ -589,23 +1071,21 @@ async function switchCamera() {
 
 function takePhoto() {
   const video = document.getElementById('camera-video');
-  const canvas = document.getElementById('camera-canvas');
+  const c = document.getElementById('camera-canvas');
   const size = Math.min(video.videoWidth, video.videoHeight);
-  canvas.width = size; canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  // 正方形にトリミング（中央）
+  c.width = size; c.height = size;
+  const cctx = c.getContext('2d');
   const sx = (video.videoWidth - size) / 2;
   const sy = (video.videoHeight - size) / 2;
-  // インカメラは鏡像反転するのが自然
   if (cameraFacing === 'user') {
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, size, size, -size, 0, size, size);
-    ctx.restore();
+    cctx.save();
+    cctx.scale(-1, 1);
+    cctx.drawImage(video, sx, sy, size, size, -size, 0, size, size);
+    cctx.restore();
   } else {
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    cctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
   }
-  canvas.toBlob((blob) => {
+  c.toBlob((blob) => {
     if (!blob) return;
     const file = new File([blob], 'camera_' + Date.now() + '.jpg', { type: 'image/jpeg' });
     closeCamera();
@@ -653,8 +1133,10 @@ async function doGenerateAvatar() {
     userData.avatar_url = d.avatar_url;
     localStorage.setItem('cohub_user', JSON.stringify(userData));
     if (users[me]) users[me].avatar = d.avatar_url;
+    delete avatarImages[me];
     loadAvatar({ uid: me, avatar: d.avatar_url });
     closeAvatarModal();
+    renderMemberList();
     showToast('アバター完成！');
   } catch(e) {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = '変換する (30秒程度)';
@@ -670,6 +1152,7 @@ async function removeAvatar() {
   if (users[me]) users[me].avatar = '';
   delete avatarImages[me];
   closeAvatarModal();
+  renderMemberList();
 }
 
 function showToast(msg) {

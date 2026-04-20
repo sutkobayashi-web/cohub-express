@@ -2,121 +2,169 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid slice">
   <defs>
     <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f5e6d0"/>
-      <stop offset="1" stop-color="#e8d3b0"/>
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#e8eef5"/>
     </linearGradient>
-    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fef3e2"/>
-      <stop offset="1" stop-color="#f5e6d0"/>
-    </linearGradient>
-    <radialGradient id="light" cx="0.5" cy="0" r="0.7">
-      <stop offset="0" stop-color="#fff9e6" stop-opacity="0.8"/>
-      <stop offset="1" stop-color="#fff9e6" stop-opacity="0"/>
+    <pattern id="plank" width="60" height="60" patternUnits="userSpaceOnUse">
+      <rect width="60" height="60" fill="url(#floor)"/>
+      <line x1="0" y1="0" x2="60" y2="0" stroke="#dfe6ee" stroke-width="1"/>
+      <line x1="0" y1="30" x2="60" y2="30" stroke="#e6ecf3" stroke-width="0.6"/>
+    </pattern>
+    <radialGradient id="lightspot" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fffbe6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fffbe6" stop-opacity="0"/>
     </radialGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
 
-  <!-- 壁（上半分） -->
-  <rect x="0" y="0" width="1200" height="300" fill="url(#wall)"/>
-  <!-- 床（下半分） -->
-  <rect x="0" y="300" width="1200" height="420" fill="url(#floor)"/>
-  <!-- 天井ライト -->
-  <rect x="0" y="0" width="1200" height="200" fill="url(#light)"/>
+  <!-- 床ベース -->
+  <rect width="1200" height="720" fill="url(#plank)"/>
+  <!-- スポットライト -->
+  <ellipse cx="300" cy="200" rx="260" ry="160" fill="url(#lightspot)"/>
+  <ellipse cx="900" cy="220" rx="240" ry="150" fill="url(#lightspot)"/>
+  <ellipse cx="600" cy="540" rx="300" ry="180" fill="url(#lightspot)"/>
 
-  <!-- 床のライン -->
-  <path d="M 0 300 L 1200 300" stroke="#d4b989" stroke-width="2"/>
-  <path d="M 0 500 L 1200 500 M 0 600 L 1200 600 M 0 680 L 1200 680" stroke="#e8d3b0" stroke-width="1" stroke-dasharray="3,6" opacity="0.5"/>
-
-  <!-- 窓 -->
-  <g transform="translate(100,60)">
-    <rect width="220" height="140" fill="#87ceeb" stroke="#8b6f47" stroke-width="4"/>
-    <line x1="110" y1="0" x2="110" y2="140" stroke="#8b6f47" stroke-width="3"/>
-    <line x1="0" y1="70" x2="220" y2="70" stroke="#8b6f47" stroke-width="3"/>
-    <!-- 雲 -->
-    <ellipse cx="60" cy="40" rx="28" ry="10" fill="#fff" opacity="0.9"/>
-    <ellipse cx="170" cy="90" rx="22" ry="8" fill="#fff" opacity="0.8"/>
+  <!-- ============ ゾーン区切り ============ -->
+  <!-- ソファ/雑談エリア (左上) -->
+  <g transform="translate(60,80)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="300" height="200" rx="16" fill="#fff8e1" stroke="#f5e1a4" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.9"/>
+    <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#b58b2e" font-weight="700" letter-spacing="2">LOUNGE</text>
+    <!-- ソファ（L字） -->
+    <rect x="30" y="50" width="130" height="40" rx="12" fill="#8ca5c4"/>
+    <rect x="30" y="50" width="130" height="16" rx="8" fill="#6b89ae"/>
+    <rect x="30" y="90" width="40" height="90" rx="12" fill="#8ca5c4"/>
+    <rect x="30" y="90" width="14" height="90" rx="6" fill="#6b89ae"/>
+    <!-- ローテーブル -->
+    <rect x="90" y="115" width="120" height="50" rx="10" fill="#c8a074"/>
+    <rect x="90" y="115" width="120" height="10" rx="4" fill="#a98458"/>
+    <!-- 観葉植物 -->
+    <circle cx="240" cy="150" r="22" fill="#7fb069"/>
+    <circle cx="232" cy="140" r="14" fill="#9cc47f"/>
+    <circle cx="250" cy="145" r="12" fill="#6a9a58"/>
+    <rect x="234" y="165" width="12" height="18" rx="2" fill="#7b4f2a"/>
   </g>
 
-  <!-- 時計 -->
-  <g transform="translate(560,90)">
-    <circle r="38" fill="#fff" stroke="#8b6f47" stroke-width="4"/>
-    <line x1="0" y1="0" x2="0" y2="-26" stroke="#333" stroke-width="3" stroke-linecap="round"/>
-    <line x1="0" y1="0" x2="18" y2="8" stroke="#333" stroke-width="2" stroke-linecap="round"/>
-    <circle r="3" fill="#333"/>
+  <!-- 会議卓 (中央上) -->
+  <g transform="translate(420,80)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="320" height="200" rx="16" fill="#eaf2fb" stroke="#b8d1ec" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.9"/>
+    <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#3a6ea5" font-weight="700" letter-spacing="2">MEETING</text>
+    <!-- 長机 -->
+    <rect x="60" y="70" width="200" height="80" rx="14" fill="#d9b38a"/>
+    <rect x="60" y="70" width="200" height="14" rx="6" fill="#b98f5e"/>
+    <!-- 椅子（上下4脚） -->
+    <rect x="80" y="40" width="40" height="26" rx="6" fill="#5a6b85"/>
+    <rect x="140" y="40" width="40" height="26" rx="6" fill="#5a6b85"/>
+    <rect x="200" y="40" width="40" height="26" rx="6" fill="#5a6b85"/>
+    <rect x="80" y="156" width="40" height="26" rx="6" fill="#5a6b85"/>
+    <rect x="140" y="156" width="40" height="26" rx="6" fill="#5a6b85"/>
+    <rect x="200" y="156" width="40" height="26" rx="6" fill="#5a6b85"/>
   </g>
 
-  <!-- 観葉植物（左） -->
-  <g transform="translate(80,420)">
-    <rect x="-30" y="40" width="60" height="50" fill="#a0522d" rx="4"/>
-    <path d="M 0 40 C -40 20, -50 -30, -20 -60 M 0 40 C 40 20, 50 -30, 20 -60 M 0 40 C 0 0, -10 -40, 0 -70 M 0 40 C 20 0, 30 -30, 10 -50 M 0 40 C -20 10, -30 -20, -10 -40" stroke="#22c55e" stroke-width="6" fill="none" stroke-linecap="round"/>
-    <ellipse cx="-20" cy="-30" rx="12" ry="6" fill="#16a34a" transform="rotate(-30 -20 -30)"/>
-    <ellipse cx="20" cy="-30" rx="12" ry="6" fill="#16a34a" transform="rotate(30 20 -30)"/>
-    <ellipse cx="0" cy="-50" rx="14" ry="7" fill="#22c55e"/>
+  <!-- 集中デスク (右上) -->
+  <g transform="translate(800,80)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="340" height="220" rx="16" fill="#f4ecff" stroke="#d3c2ea" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.9"/>
+    <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#6b4ca6" font-weight="700" letter-spacing="2">FOCUS DESKS</text>
+    <!-- 4席 -->
+    <g>
+      <rect x="30" y="50" width="130" height="70" rx="8" fill="#e8dcc0"/>
+      <rect x="36" y="56" width="30" height="22" rx="3" fill="#334155"/>
+      <rect x="72" y="56" width="30" height="22" rx="3" fill="#334155"/>
+    </g>
+    <g>
+      <rect x="180" y="50" width="130" height="70" rx="8" fill="#e8dcc0"/>
+      <rect x="186" y="56" width="30" height="22" rx="3" fill="#334155"/>
+      <rect x="222" y="56" width="30" height="22" rx="3" fill="#334155"/>
+    </g>
+    <g>
+      <rect x="30" y="140" width="130" height="70" rx="8" fill="#e8dcc0"/>
+      <rect x="36" y="146" width="30" height="22" rx="3" fill="#334155"/>
+      <rect x="72" y="146" width="30" height="22" rx="3" fill="#334155"/>
+    </g>
+    <g>
+      <rect x="180" y="140" width="130" height="70" rx="8" fill="#e8dcc0"/>
+      <rect x="186" y="146" width="30" height="22" rx="3" fill="#334155"/>
+      <rect x="222" y="146" width="30" height="22" rx="3" fill="#334155"/>
+    </g>
   </g>
 
-  <!-- 観葉植物（右） -->
-  <g transform="translate(1100,440)">
-    <rect x="-28" y="35" width="56" height="48" fill="#8b4513" rx="4"/>
-    <path d="M 0 35 C -35 15, -45 -25, -15 -55 M 0 35 C 35 15, 45 -25, 15 -55 M 0 35 C 0 -5, -8 -35, 0 -65" stroke="#16a34a" stroke-width="5" fill="none" stroke-linecap="round"/>
-    <ellipse cx="-15" cy="-30" rx="11" ry="6" fill="#22c55e" transform="rotate(-30 -15 -30)"/>
-    <ellipse cx="15" cy="-25" rx="11" ry="6" fill="#22c55e" transform="rotate(30 15 -25)"/>
-  </g>
-
-  <!-- カフェコーナー（右上）テーブル -->
-  <g transform="translate(950,280)">
-    <ellipse cx="0" cy="20" rx="70" ry="14" fill="#6b4423" opacity="0.4"/>
-    <rect x="-60" y="-40" width="120" height="60" fill="#d4a373" stroke="#8b6f47" stroke-width="2" rx="6"/>
-    <rect x="-60" y="-40" width="120" height="10" fill="#8b6f47" rx="4"/>
+  <!-- カフェコーナー (左下) -->
+  <g transform="translate(60,400)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="280" height="260" rx="16" fill="#fff0ea" stroke="#f1c8b4" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.9"/>
+    <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#b86241" font-weight="700" letter-spacing="2">CAFE</text>
+    <!-- カウンター -->
+    <rect x="30" y="50" width="220" height="40" rx="8" fill="#7b4f2a"/>
+    <rect x="30" y="50" width="220" height="10" rx="4" fill="#5b3a1f"/>
+    <!-- コーヒーマシン -->
+    <rect x="60" y="30" width="36" height="22" rx="4" fill="#334155"/>
+    <rect x="66" y="30" width="24" height="8" rx="2" fill="#1e293b"/>
+    <circle cx="78" cy="42" r="3" fill="#ef4444"/>
     <!-- カップ -->
-    <ellipse cx="-30" cy="-50" rx="10" ry="4" fill="#fff"/>
-    <path d="M -40 -50 L -38 -30 L -22 -30 L -20 -50" fill="#fff" stroke="#94a3b8" stroke-width="1"/>
-    <ellipse cx="-30" cy="-50" rx="10" ry="4" fill="#92400e"/>
-    <!-- 小さな植物 -->
-    <rect x="20" y="-55" width="16" height="15" fill="#a0522d"/>
-    <circle cx="28" cy="-60" r="10" fill="#22c55e"/>
+    <circle cx="140" cy="40" r="8" fill="#fff"/>
+    <circle cx="140" cy="40" r="5" fill="#7b4f2a"/>
+    <circle cx="170" cy="42" r="7" fill="#fff"/>
+    <circle cx="170" cy="42" r="4" fill="#7b4f2a"/>
+    <!-- スツール -->
+    <circle cx="70" cy="130" r="18" fill="#c67e52"/>
+    <circle cx="70" cy="130" r="12" fill="#e0a47a"/>
+    <circle cx="140" cy="130" r="18" fill="#c67e52"/>
+    <circle cx="140" cy="130" r="12" fill="#e0a47a"/>
+    <circle cx="210" cy="130" r="18" fill="#c67e52"/>
+    <circle cx="210" cy="130" r="12" fill="#e0a47a"/>
+    <!-- 観葉植物 -->
+    <circle cx="250" cy="210" r="26" fill="#7fb069"/>
+    <circle cx="240" cy="198" r="16" fill="#9cc47f"/>
+    <circle cx="260" cy="204" r="14" fill="#6a9a58"/>
+    <rect x="242" y="228" width="16" height="22" rx="2" fill="#7b4f2a"/>
   </g>
 
-  <!-- ソファ（左下） -->
-  <g transform="translate(200,580)">
-    <ellipse cx="0" cy="20" rx="130" ry="16" fill="#6b4423" opacity="0.3"/>
-    <rect x="-120" y="-30" width="240" height="50" fill="#64748b" rx="10"/>
-    <rect x="-120" y="-55" width="240" height="30" fill="#475569" rx="10"/>
-    <rect x="-130" y="-50" width="18" height="70" fill="#334155" rx="6"/>
-    <rect x="112" y="-50" width="18" height="70" fill="#334155" rx="6"/>
-    <!-- クッション -->
-    <ellipse cx="-60" cy="-20" rx="22" ry="10" fill="#fbbf24" opacity="0.8"/>
-    <ellipse cx="60" cy="-20" rx="22" ry="10" fill="#f87171" opacity="0.8"/>
+  <!-- フリーエリア (中央下) - ラグ + 丸テーブル -->
+  <g transform="translate(420,400)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="320" height="260" rx="16" fill="#ecf9f0" stroke="#b9e1c6" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.9"/>
+    <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#2f7a4e" font-weight="700" letter-spacing="2">OPEN FLOOR</text>
+    <!-- ラグ -->
+    <ellipse cx="160" cy="140" rx="120" ry="70" fill="#d8c4a8" opacity="0.7"/>
+    <ellipse cx="160" cy="140" rx="100" ry="54" fill="none" stroke="#b89872" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.8"/>
+    <!-- 丸テーブル -->
+    <circle cx="160" cy="140" r="34" fill="#d9b38a"/>
+    <circle cx="160" cy="140" r="34" fill="none" stroke="#b98f5e" stroke-width="2"/>
+    <!-- 椅子 -->
+    <circle cx="96" cy="140" r="12" fill="#5a6b85"/>
+    <circle cx="224" cy="140" r="12" fill="#5a6b85"/>
+    <circle cx="160" cy="76" r="12" fill="#5a6b85"/>
+    <circle cx="160" cy="204" r="12" fill="#5a6b85"/>
   </g>
 
-  <!-- ミーティングテーブル（中央） -->
-  <g transform="translate(600,450)">
-    <ellipse cx="0" cy="30" rx="140" ry="20" fill="#6b4423" opacity="0.3"/>
-    <ellipse cx="0" cy="0" rx="130" ry="40" fill="#e8d3b0" stroke="#8b6f47" stroke-width="3"/>
-    <ellipse cx="0" cy="-5" rx="130" ry="40" fill="#f5e6d0"/>
-    <!-- 本/ノート -->
-    <rect x="-40" y="-15" width="30" height="22" fill="#dc2626" rx="2"/>
-    <rect x="10" y="-20" width="35" height="24" fill="#0891b2" rx="2"/>
-    <circle cx="60" cy="-10" r="8" fill="#fbbf24"/>
+  <!-- ホワイトボード＆ブレスト (右下) -->
+  <g transform="translate(800,340)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="340" height="320" rx="16" fill="#fff8f0" stroke="#f1dcb8" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.9"/>
+    <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#a06b22" font-weight="700" letter-spacing="2">BRAINSTORM</text>
+    <!-- ホワイトボード -->
+    <rect x="30" y="50" width="280" height="80" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+    <line x1="60" y1="78" x2="130" y2="78" stroke="#ef4444" stroke-width="2"/>
+    <line x1="60" y1="88" x2="160" y2="88" stroke="#1e293b" stroke-width="1.5"/>
+    <line x1="60" y1="100" x2="110" y2="100" stroke="#2563eb" stroke-width="1.5"/>
+    <line x1="180" y1="78" x2="280" y2="78" stroke="#16a34a" stroke-width="2"/>
+    <line x1="180" y1="92" x2="260" y2="92" stroke="#1e293b" stroke-width="1.5"/>
+    <!-- 付箋 -->
+    <rect x="50" y="155" width="36" height="36" rx="3" fill="#fde68a" transform="rotate(-4 68 173)"/>
+    <rect x="100" y="160" width="36" height="36" rx="3" fill="#fca5a5" transform="rotate(3 118 178)"/>
+    <rect x="150" y="155" width="36" height="36" rx="3" fill="#a7f3d0" transform="rotate(-2 168 173)"/>
+    <!-- ソファ（3人） -->
+    <rect x="40" y="230" width="260" height="50" rx="14" fill="#a3adbf"/>
+    <rect x="40" y="230" width="260" height="18" rx="8" fill="#7e8aa3"/>
+    <rect x="40" y="278" width="80" height="10" fill="#7e8aa3"/>
+    <rect x="220" y="278" width="80" height="10" fill="#7e8aa3"/>
   </g>
 
-  <!-- 絵画（壁中央） -->
-  <g transform="translate(440,130)">
-    <rect width="100" height="80" fill="#fef3c7" stroke="#8b6f47" stroke-width="3"/>
-    <circle cx="30" cy="30" r="15" fill="#fbbf24"/>
-    <path d="M 0 60 Q 25 40 50 55 T 100 50 L 100 80 L 0 80 Z" fill="#22c55e"/>
-    <path d="M 60 25 L 70 15 L 80 25" stroke="#64748b" stroke-width="2" fill="none"/>
-  </g>
+  <!-- ============ 装飾（通路ライン） ============ -->
+  <path d="M 380 80 L 380 660 M 770 80 L 770 660" stroke="#d4dde8" stroke-width="1" stroke-dasharray="2,8" opacity="0.6"/>
+  <path d="M 60 350 L 1140 350" stroke="#d4dde8" stroke-width="1" stroke-dasharray="2,8" opacity="0.6"/>
 
-  <!-- 中央エリア ラグマット -->
-  <ellipse cx="600" cy="560" rx="260" ry="50" fill="#d4a373" opacity="0.5"/>
-  <ellipse cx="600" cy="560" rx="200" ry="38" fill="#e8d3b0" opacity="0.7"/>
-
-  <!-- 右下 窓（カフェ窓） -->
-  <g transform="translate(870,70)">
-    <rect width="160" height="110" fill="#bfdbfe" stroke="#8b6f47" stroke-width="4" rx="2"/>
-    <line x1="80" y1="0" x2="80" y2="110" stroke="#8b6f47" stroke-width="3"/>
-    <path d="M 10 40 L 30 30 L 50 45 L 70 35 L 70 50 L 10 50 Z" fill="#fff" opacity="0.6"/>
-  </g>
-
-  <!-- ウェルカムメッセージ -->
-  <text x="600" y="250" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#64748b" opacity="0.4">Welcome to CoHub Express</text>
+  <!-- CoHubロゴ（薄く床に） -->
+  <text x="600" y="704" font-family="sans-serif" font-size="10" fill="#94a3b8" font-weight="600" letter-spacing="8" text-anchor="middle" opacity="0.6">COHUB · MAIN FLOOR</text>
 </svg>
