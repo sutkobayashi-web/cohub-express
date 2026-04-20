@@ -57,7 +57,8 @@ Layout: 3F EXECUTIVE BOARDROOM - high-end formal executive boardroom for board m
 - Floor: dark herringbone hardwood (instead of standard plank)
 - Center: LARGE BOAT-SHAPED conference table made of HIGHLY POLISHED DARK MAHOGANY (you can see the rich grain and reflective sheen from above), seats 12
 - Around table: 12 high-back executive chairs in BLACK SOFT LEATHER (slightly larger circles than normal chairs to suggest premium size), seen from directly above
-- Center of table: a sleek BLACK CONFERENCE SPEAKER PHONE (round, dark) and small leather portfolio at each seat
+- Center of table: ONE single sleek BLACK CONFERENCE SPEAKER PHONE (round, dark, octagonal) placed exactly at the geometric center of the table. Small leather portfolio at each seat.
+- ABSOLUTELY NO other round objects on the table top: NO wooden trays, NO round mats, NO Lazy Susans, NO circular placemats, NO bowls. The table surface should be CLEAN dark mahogany except for the single speaker phone in the center and the leather portfolios at each seat.
 - Upper wall: VERY LARGE wall-mounted PRESENTATION DISPLAY (a long dark rectangle, premium thin bezel) with a slim CONFERENCE CAMERA BAR mounted just below it
 - Right wall: low SLEEK CREDENZA in dark wood with neat row of crystal water carafes, glasses, leather notebooks
 - Left wall: tall vertical accent panel with subtle decoration (no text)
