@@ -1,5 +1,5 @@
 // CoHub Express Service Worker (PWA Push通知)
-const CACHE = 'cohub-v1';
+const CACHE = 'cohub-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -15,8 +15,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'CoHub Express';
   const options = {
     body: data.body || '',
-    icon: data.icon || '/assets/floor_lobby.png',
-    badge: '/assets/floor_lobby.png',
+    icon: data.icon || '/img/icon-192.png',
+    badge: '/img/favicon-32.png',
     tag: data.tag || 'cohub-push',
     renotify: true,
     requireInteraction: !!data.mention,
