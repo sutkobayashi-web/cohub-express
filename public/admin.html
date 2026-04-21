@@ -178,6 +178,78 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 
 </main>
 
+<!-- ユーザー編集モーダル -->
+<div id="edit-user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;display:flex;align-items:center;gap:10px;">
+      <div style="font-weight:800;font-size:15px;flex:1;">✏️ メンバー編集: <span id="edit-user-title"></span></div>
+      <button onclick="closeEditModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px 22px;">
+      <input type="hidden" id="edit-user-id">
+      <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">ログインID</label><input type="text" id="edit-login-id" disabled style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#94a3b8;margin-top:4px;"></div>
+      <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">表示名</label><input type="text" id="edit-display-name" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">所属会社</label>
+          <select id="edit-company" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <option value="SU_HQ">SU本社</option>
+            <option value="SU_SAITAMA">SU埼玉</option>
+            <option value="SU_MKANTO">SU南関東</option>
+            <option value="SU_ZAMA">SU座間</option>
+            <option value="IBA_KASHIMA">IBA鹿島</option>
+            <option value="IBA_SANWA">IBA三和</option>
+            <option value="SUZUE">スズエ</option>
+            <option value="ADMIN">管理職</option>
+          </select>
+        </div>
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">権限</label>
+          <select id="edit-role" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <option value="member">一般</option>
+            <option value="admin">管理者 (DM階層無視)</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">雇用区分</label>
+          <select id="edit-employee-type" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <option value="office">事務所棟</option>
+            <option value="field">現場棟</option>
+            <option value="admin">管理職</option>
+          </select>
+        </div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:6px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔒 DM権限 (レポートライン)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+          <div><label style="font-size:12px;font-weight:600;color:#475569;">DMグループ</label>
+            <input type="text" id="edit-dm-group" list="dm-group-suggestions" placeholder="空欄=無制限" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <datalist id="dm-group-suggestions"></datalist>
+          </div>
+          <div><label style="font-size:12px;font-weight:600;color:#475569;">階層ランク</label>
+            <select id="edit-dm-rank" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+              <option value="0">0 一般</option>
+              <option value="1">1 主任/係長</option>
+              <option value="2">2 課長/部長</option>
+              <option value="3">3 役員/社長</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;">別グループへのDMは rank差1まで許可。例: 一般(0)→部長(2)はブロック。</div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔑 パスワードリセット (任意)</div>
+        <input type="text" id="edit-new-password" placeholder="空欄ならパスワード変更なし" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+        <div style="font-size:10px;color:#64748b;margin-top:4px;">入力すると保存時に新パスワードに置き換えます (8文字以上)。</div>
+      </div>
+      <div id="edit-err" style="color:#dc2626;font-size:12px;margin-top:10px;min-height:14px;"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;background:#f8fafc;">
+      <button onclick="closeEditModal()" class="btn btn-ghost" style="flex:1;">キャンセル</button>
+      <button onclick="submitEdit()" class="btn" id="edit-save-btn" style="flex:2;">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 議事録モーダル -->
 <div id="transcript-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
@@ -537,17 +609,17 @@ async function loadUsers() {
   for (const u of d.users) {
     const c = COMPANY_MAP[u.company_code] || { name: u.company_code, color: '#64748b' };
     const tr = document.createElement('tr');
-    const rankLabels = ['0 一般', '1 主任係長', '2 課長部長', '3 役員社長'];
+    const rankLabels = ['一般', '主任/係長', '課長/部長', '役員/社長'];
+    const dgHtml = u.dm_group ? escapeHtml(u.dm_group) : '<span style="color:#94a3b8;">-</span>';
     tr.innerHTML = `
       <td>${escapeHtml(u.login_id)}</td>
-      <td>${escapeHtml(u.display_name)}</td>
+      <td><a href="#" onclick="openEditModal('${u.id}');return false;" style="color:#0891b2;text-decoration:none;font-weight:600;">${escapeHtml(u.display_name)}</a></td>
       <td><span class="chip" style="background:${c.color};">${escapeHtml(c.name)}</span></td>
       <td>${u.role === 'admin' ? '<span class="chip chip-role-admin">管理者</span>' : '一般'}</td>
-      <td style="font-size:11px;">${escapeHtml(u.dm_group || '<span style=\"color:#94a3b8;\">-</span>')}<br><span style="color:#64748b;font-size:10px;">${escapeHtml(rankLabels[u.dm_rank | 0])}</span></td>
+      <td style="font-size:11px;">${dgHtml}<br><span style="color:#64748b;font-size:10px;">${escapeHtml(rankLabels[u.dm_rank | 0])}</span></td>
       <td>${u.status || 'offline'}</td>
       <td>
-        <button class="btn btn-ghost" onclick="editDmGroup('${u.id}','${escapeHtml(u.display_name)}','${escapeHtml(u.dm_group || '')}',${u.dm_rank | 0})">DM設定</button>
-        <button class="btn btn-ghost" onclick="resetPass('${u.id}','${escapeHtml(u.display_name)}')">PWリセット</button>
+        <button class="btn" onclick="openEditModal('${u.id}')">✏️ 編集</button>
         <button class="btn btn-danger" onclick="delUser('${u.id}','${escapeHtml(u.display_name)}')">削除</button>
       </td>`;
     tb.appendChild(tr);
@@ -596,19 +668,70 @@ async function bulkAdd() {
   loadUsers();
 }
 
-async function editDmGroup(id, name, currentGroup, currentRank) {
-  const g = prompt(`${name} さんのDMグループ (例: 営業部 / 経理 / 経営層 / 現場_座間)\n空欄で無制限に戻す`, currentGroup || '');
-  if (g === null) return;
-  const rankStr = prompt(`${name} さんの階層ランク\n0=一般 / 1=主任係長 / 2=課長部長 / 3=役員社長`, String(currentRank || 0));
-  if (rankStr === null) return;
-  const r = await fetch('/api/admin/users/' + id, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ dm_group: g.trim() || null, dm_rank: parseInt(rankStr) || 0 }),
-  });
-  const d = await r.json();
-  if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
-  loadUsers();
+function openEditModal(id) {
+  const u = (cachedUsers || []).find(x => x.id === id);
+  if (!u) { alert('ユーザーが見つかりません'); return; }
+  document.getElementById('edit-user-id').value = u.id;
+  document.getElementById('edit-user-title').textContent = u.display_name || u.login_id;
+  document.getElementById('edit-login-id').value = u.login_id || '';
+  document.getElementById('edit-display-name').value = u.display_name || '';
+  document.getElementById('edit-company').value = u.company_code || 'SU_HQ';
+  document.getElementById('edit-role').value = u.role || 'member';
+  document.getElementById('edit-employee-type').value = u.employee_type || 'office';
+  document.getElementById('edit-dm-group').value = u.dm_group || '';
+  document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
+  document.getElementById('edit-new-password').value = '';
+  document.getElementById('edit-err').textContent = '';
+  // DMグループのdatalistを既存メンバーから収集
+  const groups = Array.from(new Set((cachedUsers || []).map(x => x.dm_group).filter(Boolean))).sort();
+  document.getElementById('dm-group-suggestions').innerHTML =
+    groups.map(g => `<option value="${escapeHtml(g)}">`).join('');
+  document.getElementById('edit-user-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('edit-display-name').focus(), 80);
+}
+function closeEditModal() {
+  document.getElementById('edit-user-modal').style.display = 'none';
+}
+async function submitEdit() {
+  const id = document.getElementById('edit-user-id').value;
+  const err = document.getElementById('edit-err');
+  const btn = document.getElementById('edit-save-btn');
+  err.textContent = '';
+  const payload = {
+    display_name: document.getElementById('edit-display-name').value.trim(),
+    company_code: document.getElementById('edit-company').value,
+    role: document.getElementById('edit-role').value,
+    employee_type: document.getElementById('edit-employee-type').value,
+    dm_group: document.getElementById('edit-dm-group').value.trim(),
+    dm_rank: parseInt(document.getElementById('edit-dm-rank').value) || 0,
+  };
+  if (!payload.display_name) { err.textContent = '表示名は必須です'; return; }
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const r = await fetch('/api/admin/users/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '保存失敗'; btn.disabled = false; btn.textContent = '保存'; return; }
+    // パスワード変更が指定されていれば別途
+    const newPw = document.getElementById('edit-new-password').value;
+    if (newPw) {
+      if (newPw.length < 8) { err.textContent = '保存OK / ただしパスワードは8文字以上が必要です'; btn.disabled = false; btn.textContent = '保存'; return; }
+      const rr = await fetch('/api/admin/users/' + id + '/password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ password: newPw }),
+      });
+      const dd = await rr.json();
+      if (!dd.success) { err.textContent = 'プロフィール保存OK / パスワード変更失敗'; btn.disabled = false; btn.textContent = '保存'; return; }
+    }
+    closeEditModal();
+    loadUsers();
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = '保存';
+  }
 }
 
 async function resetPass(id, name) {
