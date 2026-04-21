@@ -261,8 +261,17 @@ router.post('/groups', authAdmin, (req, res) => {
     addMember.run(id, req.uid);
     for (const uid of memberIds) if (typeof uid === 'string') addMember.run(id, uid);
   })();
+  notifyGroupsChanged(req, 'create', id);
   res.json({ success: true, id });
 });
+
+// 変更通知ヘルパ: 全ログイン中クライアントに groups:changed を放送
+function notifyGroupsChanged(req, action, gid) {
+  try {
+    const io = req.app.locals.io;
+    if (io) io.emit('groups:changed', { action, gid: gid || null });
+  } catch (e) {}
+}
 
 router.get('/groups/:gid', authAdmin, (req, res) => {
   const g = getDb().prepare('SELECT id, name, icon, created_by, created_at FROM chat_groups WHERE id = ?').get(req.params.gid);
@@ -289,6 +298,7 @@ router.patch('/groups/:gid', authAdmin, (req, res) => {
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.gid);
   db.prepare('UPDATE chat_groups SET ' + updates.join(', ') + ' WHERE id = ?').run(...params);
+  notifyGroupsChanged(req, 'update', req.params.gid);
   res.json({ success: true });
 });
 
@@ -296,11 +306,13 @@ router.post('/groups/:gid/members', authAdmin, (req, res) => {
   const ids = Array.isArray(req.body.user_ids) ? req.body.user_ids : [];
   const st = getDb().prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
   for (const uid of ids) if (typeof uid === 'string') st.run(req.params.gid, uid);
+  notifyGroupsChanged(req, 'members_add', req.params.gid);
   res.json({ success: true });
 });
 
 router.delete('/groups/:gid/members/:uid', authAdmin, (req, res) => {
   getDb().prepare('DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?').run(req.params.gid, req.params.uid);
+  notifyGroupsChanged(req, 'members_remove', req.params.gid);
   res.json({ success: true });
 });
 
@@ -309,6 +321,7 @@ router.delete('/groups/:gid', authAdmin, (req, res) => {
   db.prepare('DELETE FROM chat_group_members WHERE group_id = ?').run(req.params.gid);
   db.prepare("DELETE FROM messages WHERE room_code = ?").run('grp_' + req.params.gid);
   db.prepare('DELETE FROM chat_groups WHERE id = ?').run(req.params.gid);
+  notifyGroupsChanged(req, 'delete', req.params.gid);
   res.json({ success: true });
 });
 

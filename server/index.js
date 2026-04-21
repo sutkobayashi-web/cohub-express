@@ -254,6 +254,8 @@ const io = new Server(server, {
   cors: { origin: [process.env.WEB_APP_URL || 'https://cohub.biz-terrace.org', 'http://localhost:3005'], credentials: true },
   maxHttpBufferSize: 1024 * 1024,
 });
+// ルート側からioを使えるようlocalsに共有
+app.locals.io = io;
 
 // ソケット認証
 io.use((socket, next) => {
