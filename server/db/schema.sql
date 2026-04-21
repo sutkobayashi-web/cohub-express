@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS floors (
 );
 INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building) VALUES
   ('lobby',      '1F 玄関ロビー',     '/assets/floor_lobby.png',      1344, 768, 672, 678, 1, '🚪',  'office'),
-  ('office',     '2F 事務フロア',     '/assets/floor_office.png',     1344, 768, 672, 110, 2, '💼',  'office'),
+  ('office',     '2F 事務フロア',     '/assets/floor_office.png',     1344, 768, 672, 678, 2, '💼',  'office'),
   ('meeting_a',  '3F 役員会議室',     '/assets/floor_meeting_a.png',  1344, 768, 672, 678, 3, '👔',  'office'),
   ('meeting_b',  '3F 会議室B',        '/assets/floor_meeting_b.png',  1344, 768, 672, 678, 4, '🅱',  'office'),
   ('meeting_c',  '3F 大会議室',       '/assets/floor_meeting_c.png',  1344, 768, 672, 678, 5, '🏛',  'office'),
