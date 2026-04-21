@@ -181,8 +181,9 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #lobby-calendar .lc-title { flex: 1; font-family: 'Cormorant Garamond', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-weight: 600; letter-spacing: 2px; }
 #lobby-calendar .lc-updated { font-size: 9px; font-weight: 500; color: #8b6f3e; letter-spacing: 0.5px; text-transform: none; font-family: sans-serif; }
 #lobby-calendar .lc-body {
-  flex: 1; overflow: hidden; position: relative; z-index: 3;
+  flex: 1; overflow: hidden; position: relative; z-index: 3; background: #fff;
 }
+#lobby-calendar iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 #lobby-calendar .lc-list { position: absolute; inset: 0; overflow-y: auto; padding: 4px 0; scrollbar-width: thin; scrollbar-color: rgba(168,135,73,0.5) transparent; }
 #lobby-calendar .lc-list::-webkit-scrollbar { width: 6px; }
 #lobby-calendar .lc-list::-webkit-scrollbar-thumb { background: rgba(168,135,73,0.5); border-radius: 3px; }
@@ -646,17 +647,14 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- ロビー掲示: 社内カレンダー (自前描画・壁掛けデジタルサイネージ風) -->
+    <!-- ロビー掲示: 社内Googleカレンダー (iframe埋込・Googleログイン済み前提) -->
     <div id="lobby-calendar" aria-label="社内カレンダー">
       <div class="lc-head">
         <span class="lc-dot"></span>
         <span class="lc-title">社内カレンダー</span>
-        <span class="lc-updated" id="lobby-cal-updated"></span>
       </div>
       <div class="lc-body">
-        <div class="lc-list" id="lobby-cal-list">
-          <div class="lc-empty">読み込み中…</div>
-        </div>
+        <iframe id="lobby-cal-iframe" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FTokyo&showPrint=0&showTitle=0&showCalendars=0&showTz=0&mode=AGENDA&src=bG1hcWhjZGQ0ZGcxYTIxdGhlY3Rmc3RkdGdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&src=c3UueS5nb3RvaEBnbWFpbC5jb20&src=ODVmZmZhNGRkOWVkZmNlZDUzOWQ1ZTY1YjdjNzI3Yzg1MzNiMDUzNzRiZWQ0MTgwZTdlMmUwOGM5OGM0YjgwZkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%23527bd9&color=%23c0ca33&color=%237cb342" loading="lazy" referrerpolicy="no-referrer" title="社内カレンダー"></iframe>
       </div>
     </div>
     <div id="floor-head">
@@ -4143,79 +4141,11 @@ function wbClearConfirm() {
   if (socket) socket.emit('wb:clear');
 }
 
-// ===== ロビーカレンダー (社内Googleカレンダー・自前描画) =====
-let lobbyCalTimer = null;
-const DOW_JA = ['日','月','火','水','木','金','土'];
-
-function fmtCalDate(d) {
-  const m = d.getMonth() + 1, day = d.getDate(), dow = DOW_JA[d.getDay()];
-  return { md: `${m}/${day}`, dow };
-}
-function fmtCalTime(start, end, allDay) {
-  if (allDay) return '終日';
-  const pad = n => String(n).padStart(2,'0');
-  const s = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
-  if (!end) return s;
-  const e = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
-  return `${s}–${e}`;
-}
-
-async function loadLobbyCalendar() {
-  const listEl = document.getElementById('lobby-cal-list');
-  const updEl = document.getElementById('lobby-cal-updated');
-  if (!listEl) return;
-  try {
-    const res = await fetch('/api/calendar/upcoming', {
-      headers: { Authorization: 'Bearer ' + (token || '') }
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      listEl.innerHTML = `<div class="lc-empty"><b>カレンダー接続待ち</b>${j.detail ? escapeHtml(j.detail) : 'サーバー設定を確認してください'}</div>`;
-      if (updEl) updEl.textContent = '';
-      return;
-    }
-    const data = await res.json();
-    if (updEl) updEl.textContent = new Date(data.updated_at || Date.now()).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
-    if (!data.events || data.events.length === 0) {
-      listEl.innerHTML = '<div class="lc-empty"><b>予定はありません</b>直近の予定はカレンダーに登録されていません</div>';
-      return;
-    }
-    const today = new Date(); today.setHours(0,0,0,0);
-    const rows = data.events.map(ev => {
-      const s = new Date(ev.start);
-      const e = ev.end ? new Date(ev.end) : null;
-      const { md, dow } = fmtCalDate(s);
-      const sd = new Date(s); sd.setHours(0,0,0,0);
-      const isToday = sd.getTime() === today.getTime();
-      const time = fmtCalTime(s, e, ev.allDay);
-      const loc = ev.location ? `<div class="lc-loc">📍 ${escapeHtml(ev.location)}</div>` : '';
-      return `<div class="lc-item${isToday ? ' today' : ''}">
-        <div class="lc-date"><span class="lc-md">${md}</span><span class="lc-dow">${dow}</span><span class="lc-time">${time}</span></div>
-        <div><div class="lc-sum">${escapeHtml(ev.summary)}</div>${loc}</div>
-      </div>`;
-    }).join('');
-    listEl.innerHTML = rows;
-  } catch (e) {
-    listEl.innerHTML = `<div class="lc-empty"><b>読み込みエラー</b>${escapeHtml(e.message || '不明なエラー')}</div>`;
-  }
-}
-
-function startLobbyCalendar() {
-  loadLobbyCalendar();
-  if (lobbyCalTimer) clearInterval(lobbyCalTimer);
-  lobbyCalTimer = setInterval(loadLobbyCalendar, 5 * 60 * 1000);
-}
-function stopLobbyCalendar() {
-  if (lobbyCalTimer) { clearInterval(lobbyCalTimer); lobbyCalTimer = null; }
-}
-
 // ===== フロア種別で画面レイアウト切替 =====
 function applyFloorLayout(floor) {
   const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
   document.body.classList.toggle('layout-meeting', !!isMeeting);
-  const inLobby = !!(floor && floor.code === 'lobby');
-  document.body.classList.toggle('floor-lobby', inLobby);
-  if (inLobby) startLobbyCalendar(); else stopLobbyCalendar();
+  document.body.classList.toggle('floor-lobby', !!(floor && floor.code === 'lobby'));
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
   const vbBtn = document.getElementById('dock-vb');
