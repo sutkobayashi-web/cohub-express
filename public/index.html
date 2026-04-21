@@ -137,53 +137,70 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #members-panel:not(.hidden) ~ #space-canvas-wrap { left: 376px; }
 #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
 #space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
-/* ロビー壁面ディスプレイ: 真鍮額装 + 大理石ロビーに馴染ませる */
+/* ロビー壁面デジタルサイネージ: 白大理石ロビーに掛かる黒マット液晶 */
 #lobby-calendar {
-  position: absolute; top: 54px; right: 22px; width: 440px; height: 340px; z-index: 12;
-  background: #f8f5ee; border-radius: 6px;
-  padding: 10px; /* 額縁の内側余白 */
-  overflow: hidden; display: none; flex-direction: column;
-  /* 真鍮フレーム */
-  border: 1px solid #6e5326;
-  background-image: linear-gradient(135deg, #d4ad5a 0%, #b08d3f 25%, #e8c878 50%, #9a7829 75%, #caa354 100%);
-  /* 壁掛けディスプレイの立体感: 内側にへこみ、外側に影 */
+  position: absolute; top: 58px; right: 24px; width: 420px; height: 320px; z-index: 12;
+  display: none; flex-direction: column; overflow: hidden;
+  border-radius: 4px;
+  /* 細ベゼル(マット黒) + 金属フレーム */
+  padding: 3px;
+  background: linear-gradient(180deg, #2c2c2c 0%, #0a0a0a 100%);
+  /* 大理石壁への映り込み・陰影・取付金具の影 */
   box-shadow:
-    inset 0 1px 0 rgba(255,248,220,0.9),
-    inset 0 -1px 0 rgba(90,60,10,0.6),
-    0 2px 4px rgba(0,0,0,0.12),
-    0 18px 36px rgba(0,0,0,0.28),
-    0 36px 60px rgba(0,0,0,0.18);
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 1px 2px rgba(0,0,0,0.35),
+    0 8px 16px rgba(20,18,14,0.28),
+    0 22px 44px rgba(20,18,14,0.22),
+    0 44px 80px rgba(20,18,14,0.14);
 }
-#lobby-calendar::before {
-  /* フレーム内側の黒マット (画面のベゼル) */
-  content: ''; position: absolute; inset: 8px; border-radius: 3px;
-  background: #1a1208; z-index: 0;
-  box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+#lobby-calendar::after {
+  /* 画面表面のうっすらしたガラス反射 */
+  content: ''; position: absolute; inset: 3px; pointer-events: none;
+  background: linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 38%, rgba(255,255,255,0) 100%);
+  z-index: 3; border-radius: 2px;
 }
 #lobby-calendar .lc-head {
-  position: relative; z-index: 1;
-  padding: 5px 12px; margin: 0 2px;
-  background: linear-gradient(180deg,#faf8f3 0%, #e8e1cf 100%);
-  color: #3d2817; font-size: 10px; font-weight: 700; letter-spacing: 2px;
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-  border-top-left-radius: 3px; border-top-right-radius: 3px;
-  border-bottom: 1px solid #c9a96e;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+  padding: 7px 14px;
+  background: linear-gradient(180deg, #1c2433 0%, #0f1624 100%);
+  color: #e2e8f0; font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(148,163,184,0.18);
+  text-transform: uppercase;
 }
+#lobby-calendar .lc-dot { width: 6px; height: 6px; border-radius: 50%; background: #06b6d4; box-shadow: 0 0 6px #06b6d4; animation: lcPulse 2.4s ease-in-out infinite; }
+@keyframes lcPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+#lobby-calendar .lc-title { flex: 1; }
+#lobby-calendar .lc-updated { font-size: 9px; font-weight: 500; color: #64748b; letter-spacing: 0.5px; text-transform: none; }
 #lobby-calendar .lc-body {
-  position: relative; z-index: 1; flex: 1; display: flex;
-  margin: 0 2px 2px; background: #fff; overflow: hidden;
-  border-bottom-left-radius: 3px; border-bottom-right-radius: 3px;
+  flex: 1; background: #0b1220; overflow: hidden; position: relative;
 }
-#lobby-calendar iframe { flex: 1; width: 100%; border: 0; background: #fff; }
-#lobby-calendar .lc-fallback {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 18px; text-align: center; color: #64748b; font-size: 12px; line-height: 1.7;
-  background: linear-gradient(180deg,#fafaf7,#f1ede3);
+#lobby-calendar .lc-list { position: absolute; inset: 0; overflow-y: auto; padding: 6px 0; scrollbar-width: thin; scrollbar-color: #334155 #0b1220; }
+#lobby-calendar .lc-list::-webkit-scrollbar { width: 6px; }
+#lobby-calendar .lc-list::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+#lobby-calendar .lc-item {
+  display: grid; grid-template-columns: 56px 1fr; gap: 10px;
+  padding: 8px 14px; border-bottom: 1px solid rgba(148,163,184,0.08);
+  color: #e2e8f0; align-items: start;
 }
-#lobby-calendar .lc-fallback b { color: #3d2817; font-size: 13px; display: block; margin-bottom: 6px; }
+#lobby-calendar .lc-item:last-child { border-bottom: 0; }
+#lobby-calendar .lc-item.today { background: linear-gradient(90deg, rgba(6,182,212,0.18), rgba(6,182,212,0)); }
+#lobby-calendar .lc-item.today .lc-date { color: #22d3ee; }
+#lobby-calendar .lc-date {
+  font-size: 10px; color: #94a3b8; line-height: 1.3;
+  border-right: 1px solid rgba(148,163,184,0.2); padding-right: 8px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+#lobby-calendar .lc-date .lc-md { font-size: 14px; font-weight: 700; color: #e2e8f0; display: block; }
+#lobby-calendar .lc-date .lc-dow { font-size: 9px; color: #64748b; display: block; margin-top: 1px; }
+#lobby-calendar .lc-date .lc-time { font-size: 10px; color: #94a3b8; display: block; margin-top: 3px; }
+#lobby-calendar .lc-sum { font-size: 12px; color: #f1f5f9; font-weight: 500; line-height: 1.4; }
+#lobby-calendar .lc-loc { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+#lobby-calendar .lc-empty {
+  padding: 40px 16px; text-align: center; color: #64748b; font-size: 11px; line-height: 1.8;
+}
+#lobby-calendar .lc-empty b { color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 4px; }
 body.floor-lobby #lobby-calendar { display: flex; }
-@media (max-width: 900px) { #lobby-calendar { width: 320px; height: 250px; top: 52px; right: 12px; } }
+@media (max-width: 900px) { #lobby-calendar { width: 320px; height: 260px; top: 54px; right: 12px; } }
 @media (max-width: 600px) { body.floor-lobby #lobby-calendar { display: none; } }
 #space-canvas.dragging { cursor: grabbing; }
 
@@ -616,14 +633,16 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- ロビー掲示: 社内 Google カレンダー (閲覧のみ・壁面ディスプレイ風) -->
+    <!-- ロビー掲示: 社内カレンダー (自前描画・壁掛けデジタルサイネージ風) -->
     <div id="lobby-calendar" aria-label="社内カレンダー">
-      <div class="lc-head">📅 &nbsp;社内カレンダー</div>
+      <div class="lc-head">
+        <span class="lc-dot"></span>
+        <span class="lc-title">社内カレンダー</span>
+        <span class="lc-updated" id="lobby-cal-updated"></span>
+      </div>
       <div class="lc-body">
-        <iframe id="lobby-cal-iframe" src="https://calendar.google.com/calendar/embed?src=lmaqhcdd4dg1a21thectfstdtg%40group.calendar.google.com&ctz=Asia%2FTokyo&showTitle=0&showPrint=0&showCalendars=0&showTz=0&mode=AGENDA" loading="lazy" referrerpolicy="no-referrer" title="社内カレンダー" onerror="document.getElementById('lobby-calendar-fallback').style.display='flex';this.style.display='none';"></iframe>
-        <div class="lc-fallback" id="lobby-calendar-fallback" style="display:none;">
-          <b>📅 カレンダーを読み込めません</b>
-          一般公開設定が必要です。<br>管理者にお問い合わせください。
+        <div class="lc-list" id="lobby-cal-list">
+          <div class="lc-empty">読み込み中…</div>
         </div>
       </div>
     </div>
@@ -4111,11 +4130,79 @@ function wbClearConfirm() {
   if (socket) socket.emit('wb:clear');
 }
 
+// ===== ロビーカレンダー (社内Googleカレンダー・自前描画) =====
+let lobbyCalTimer = null;
+const DOW_JA = ['日','月','火','水','木','金','土'];
+
+function fmtCalDate(d) {
+  const m = d.getMonth() + 1, day = d.getDate(), dow = DOW_JA[d.getDay()];
+  return { md: `${m}/${day}`, dow };
+}
+function fmtCalTime(start, end, allDay) {
+  if (allDay) return '終日';
+  const pad = n => String(n).padStart(2,'0');
+  const s = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+  if (!end) return s;
+  const e = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+  return `${s}–${e}`;
+}
+
+async function loadLobbyCalendar() {
+  const listEl = document.getElementById('lobby-cal-list');
+  const updEl = document.getElementById('lobby-cal-updated');
+  if (!listEl) return;
+  try {
+    const res = await fetch('/api/calendar/upcoming', {
+      headers: { Authorization: 'Bearer ' + (token || '') }
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      listEl.innerHTML = `<div class="lc-empty"><b>カレンダー接続待ち</b>${j.detail ? escapeHtml(j.detail) : 'サーバー設定を確認してください'}</div>`;
+      if (updEl) updEl.textContent = '';
+      return;
+    }
+    const data = await res.json();
+    if (updEl) updEl.textContent = new Date(data.updated_at || Date.now()).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
+    if (!data.events || data.events.length === 0) {
+      listEl.innerHTML = '<div class="lc-empty"><b>予定はありません</b>直近の予定はカレンダーに登録されていません</div>';
+      return;
+    }
+    const today = new Date(); today.setHours(0,0,0,0);
+    const rows = data.events.map(ev => {
+      const s = new Date(ev.start);
+      const e = ev.end ? new Date(ev.end) : null;
+      const { md, dow } = fmtCalDate(s);
+      const sd = new Date(s); sd.setHours(0,0,0,0);
+      const isToday = sd.getTime() === today.getTime();
+      const time = fmtCalTime(s, e, ev.allDay);
+      const loc = ev.location ? `<div class="lc-loc">📍 ${escapeHtml(ev.location)}</div>` : '';
+      return `<div class="lc-item${isToday ? ' today' : ''}">
+        <div class="lc-date"><span class="lc-md">${md}</span><span class="lc-dow">${dow}</span><span class="lc-time">${time}</span></div>
+        <div><div class="lc-sum">${escapeHtml(ev.summary)}</div>${loc}</div>
+      </div>`;
+    }).join('');
+    listEl.innerHTML = rows;
+  } catch (e) {
+    listEl.innerHTML = `<div class="lc-empty"><b>読み込みエラー</b>${escapeHtml(e.message || '不明なエラー')}</div>`;
+  }
+}
+
+function startLobbyCalendar() {
+  loadLobbyCalendar();
+  if (lobbyCalTimer) clearInterval(lobbyCalTimer);
+  lobbyCalTimer = setInterval(loadLobbyCalendar, 5 * 60 * 1000);
+}
+function stopLobbyCalendar() {
+  if (lobbyCalTimer) { clearInterval(lobbyCalTimer); lobbyCalTimer = null; }
+}
+
 // ===== フロア種別で画面レイアウト切替 =====
 function applyFloorLayout(floor) {
   const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
   document.body.classList.toggle('layout-meeting', !!isMeeting);
-  document.body.classList.toggle('floor-lobby', !!(floor && floor.code === 'lobby'));
+  const inLobby = !!(floor && floor.code === 'lobby');
+  document.body.classList.toggle('floor-lobby', inLobby);
+  if (inLobby) startLobbyCalendar(); else stopLobbyCalendar();
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
   const vbBtn = document.getElementById('dock-vb');
