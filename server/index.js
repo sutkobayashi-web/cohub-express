@@ -167,6 +167,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/avatar', require('./routes/avatar'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/calendar', require('./routes/calendar'));
+app.use('/api/voice', require('./routes/tts'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {

@@ -3649,58 +3649,48 @@ function toggleSpeaker() {
   if (!speakerOn) stopAoiSpeech();
 }
 
-// ===== 葵の読み上げ (SpeechSynthesis API) =====
-let _aoiVoice = null;
-function pickJapaneseFemaleVoice() {
-  try {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices || !voices.length) return null;
-    const ja = voices.filter(v => /^ja/i.test(v.lang));
-    if (!ja.length) return null;
-    // 日本語女性っぽい名前を優先 (Google/Microsoft/macOS系)
-    const pref = ['Google 日本語', 'Microsoft Nanami', 'Microsoft Ayumi', 'Microsoft Haruka', 'Kyoko', 'O-ren'];
-    for (const p of pref) {
-      const v = ja.find(v => v.name && v.name.indexOf(p) !== -1);
-      if (v) return v;
-    }
-    return ja[0];
-  } catch (e) { return null; }
-}
-// voicesは非同期ロードのため、voiceschangedで再選択
-try {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = () => { _aoiVoice = pickJapaneseFemaleVoice(); };
-    _aoiVoice = pickJapaneseFemaleVoice();
-  }
-} catch (e) {}
+// ===== 葵の読み上げ (Google Cloud TTS / CoWell流) =====
+let _aoiAudio = null;
+let _aoiAudioUrl = null;
+const AOI_VOICE = 'ja-JP-Neural2-B';    // CoWellと同じデフォルト女声
 
-function speakAoi(text) {
-  if (!speakerOn) return;
-  if (!('speechSynthesis' in window)) return;
-  if (!text) return;
+async function speakAoi(text) {
+  if (!speakerOn || !text) return;
   try {
-    // 連続発話を避ける (既存を止めてから)
-    window.speechSynthesis.cancel();
-    // 箇条書き記号や絵文字を除去して読みやすく
+    stopAoiSpeech();
     const cleaned = String(text)
-      .replace(/[🤖📅✨🔊🔇🎯🎙️🚪💼👔🅱🏛☕📦📋🔒🔔🎨🔑📜👋💬📎➤]/g, '')
+      .replace(/[🤖📅✨🔊🔇🎯🎙️🚪💼👔🅱🏛☕📦📋🔒🔔🎨🔑📜👋💬📎➤🟢🔴⭕]/g, '')
       .replace(/^[\s・\-\*]+/gm, '')
       .replace(/【[^】]*】/g, '、')
       .replace(/\n+/g, '。')
       .replace(/\s{2,}/g, ' ')
-      .slice(0, 300);
-    const utt = new SpeechSynthesisUtterance(cleaned);
-    utt.lang = 'ja-JP';
-    utt.rate = 1.02;
-    utt.pitch = 1.08;
-    utt.volume = 1.0;
-    if (!_aoiVoice) _aoiVoice = pickJapaneseFemaleVoice();
-    if (_aoiVoice) utt.voice = _aoiVoice;
-    window.speechSynthesis.speak(utt);
+      .slice(0, 1000);
+    if (!cleaned.trim()) return;
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+      body: JSON.stringify({ text: cleaned, voice: AOI_VOICE, speed: 1.05 }),
+    });
+    if (!res.ok) { console.warn('tts http', res.status); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { try { URL.revokeObjectURL(url); } catch (e) {} };
+    _aoiAudio = audio;
+    _aoiAudioUrl = url;
+    await audio.play();
   } catch (e) { console.warn('speakAoi failed', e.message); }
 }
 function stopAoiSpeech() {
-  try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (e) {}
+  if (_aoiAudio) {
+    try { _aoiAudio.pause(); } catch (e) {}
+    try { _aoiAudio.src = ''; } catch (e) {}
+  }
+  if (_aoiAudioUrl) {
+    try { URL.revokeObjectURL(_aoiAudioUrl); } catch (e) {}
+    _aoiAudioUrl = null;
+  }
+  _aoiAudio = null;
 }
 
 // ===== 音声モード (WebRTC 近接メッシュ) =====
