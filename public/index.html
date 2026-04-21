@@ -1916,8 +1916,8 @@ function render() {
     ctx.restore();
   }
 
-  // 事務所棟フロア (lobby/office/meeting_*): 登場位置にエレベーター入口マーカー
-  if (currentFloor && /^(lobby|office|meeting_)/.test(currentFloor.code)) {
+  // 2F事務フロア + 3F会議室: 登場位置にエレベーター入口マーカー (ロビーは除外)
+  if (currentFloor && /^(office|meeting_)/.test(currentFloor.code)) {
     drawFloorEntrance(currentFloor.entry_x || 180, currentFloor.entry_y || 230, currentFloor.code);
   }
 
