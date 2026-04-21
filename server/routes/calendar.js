@@ -7,10 +7,13 @@ const { authUser } = require('../middleware/auth');
 const router = express.Router();
 
 const SA_PATH = process.env.GOOGLE_SA_JSON || path.join(__dirname, '..', '..', 'config', 'google-sa.json');
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'lmaqhcdd4dg1a21thectfstdtg@group.calendar.google.com';
+// 複数カレンダー対応: カンマ区切りで指定可
+const CALENDAR_IDS = (process.env.GOOGLE_CALENDAR_IDS || 'lmaqhcdd4dg1a21thectfstdtg@group.calendar.google.com,85fffa4dd9edfced539d5e65b7c727c8533b05374bed4180e7e2e08c98c4b80f@group.calendar.google.com')
+  .split(',').map(s => s.trim()).filter(Boolean);
 const TIME_ZONE = 'Asia/Tokyo';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_EVENTS = 20;
+const PER_CAL_MAX = 30;
 
 let calendarClient = null;
 let initError = null;
@@ -34,27 +37,45 @@ function initClient() {
 let cache = { at: 0, data: null };
 let inflight = null;
 
+async function fetchOneCalendar(calendarId) {
+  try {
+    const res = await calendarClient.events.list({
+      calendarId,
+      timeMin: new Date().toISOString(),
+      maxResults: PER_CAL_MAX,
+      singleEvents: true,
+      orderBy: 'startTime',
+      timeZone: TIME_ZONE,
+    });
+    return (res.data.items || []).map(ev => ({
+      id: `${calendarId}:${ev.id}`,
+      calendar_id: calendarId,
+      summary: ev.summary || '(無題)',
+      start: ev.start && (ev.start.dateTime || ev.start.date),
+      end: ev.end && (ev.end.dateTime || ev.end.date),
+      allDay: !!(ev.start && ev.start.date && !ev.start.dateTime),
+      location: ev.location || '',
+      htmlLink: ev.htmlLink || '',
+    }));
+  } catch (e) {
+    console.warn('calendar fetch err for', calendarId, ':', e.code || '', e.message.split('\n')[0]);
+    return { __error: true, calendar_id: calendarId, code: e.code, msg: e.message.split('\n')[0] };
+  }
+}
+
 async function fetchUpcoming() {
   initClient();
   if (!calendarClient) throw new Error(initError || 'Calendar未初期化');
-  const res = await calendarClient.events.list({
-    calendarId: CALENDAR_ID,
-    timeMin: new Date().toISOString(),
-    maxResults: MAX_EVENTS,
-    singleEvents: true,
-    orderBy: 'startTime',
-    timeZone: TIME_ZONE,
-  });
-  const items = (res.data.items || []).map(ev => ({
-    id: ev.id,
-    summary: ev.summary || '(無題)',
-    start: ev.start && (ev.start.dateTime || ev.start.date),
-    end: ev.end && (ev.end.dateTime || ev.end.date),
-    allDay: !!(ev.start && ev.start.date && !ev.start.dateTime),
-    location: ev.location || '',
-    htmlLink: ev.htmlLink || '',
-  }));
-  return { updated_at: Date.now(), events: items };
+  const results = await Promise.all(CALENDAR_IDS.map(id => fetchOneCalendar(id)));
+  const errors = results.filter(r => r && r.__error);
+  const all = results.filter(r => Array.isArray(r)).flat();
+  all.sort((a, b) => new Date(a.start) - new Date(b.start));
+  const items = all.slice(0, MAX_EVENTS);
+  if (items.length === 0 && errors.length > 0) {
+    const e = errors[0];
+    throw new Error(`${e.msg || 'Not Found'}`);
+  }
+  return { updated_at: Date.now(), events: items, errors };
 }
 
 router.get('/upcoming', authUser, async (req, res) => {
