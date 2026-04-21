@@ -1916,9 +1916,9 @@ function render() {
     ctx.restore();
   }
 
-  // 2F事務フロア: 登場位置に入口マーカーを描画 (レイアウト変更なし・オーバーレイのみ)
-  if (currentFloor && currentFloor.code === 'office') {
-    drawOfficeEntrance(currentFloor.entry_x || 672, currentFloor.entry_y || 678);
+  // 事務所棟フロア (lobby/office/meeting_*): 登場位置にエレベーター入口マーカー
+  if (currentFloor && /^(lobby|office|meeting_)/.test(currentFloor.code)) {
+    drawFloorEntrance(currentFloor.entry_x || 180, currentFloor.entry_y || 230, currentFloor.code);
   }
 
   // ハドルゾーン (紫枠 + ラベル)
@@ -1996,59 +1996,62 @@ function render() {
   requestAnimationFrame(render);
 }
 
-// 2F事務フロア: 登場位置に入口マーカー (扉+マット+光+ラベル)
-function drawOfficeEntrance(x, y) {
+// 全事務所棟フロア: 登場位置にエレベーター入口マーカー (左側壁・上から見た扉)
+function drawFloorEntrance(x, y, floorCode) {
   ctx.save();
-  // 扉から漏れる柔らかい光 (床に広がる)
-  const glow = ctx.createRadialGradient(x, y + 30, 4, x, y + 30, 140);
-  glow.addColorStop(0, 'rgba(253, 224, 165, 0.32)');
+  // 扉から漏れる光 (床に楕円状に広がる)
+  const glow = ctx.createRadialGradient(x + 30, y, 4, x + 30, y, 140);
+  glow.addColorStop(0, 'rgba(253, 224, 165, 0.35)');
   glow.addColorStop(1, 'rgba(253, 224, 165, 0)');
   ctx.fillStyle = glow;
-  ctx.fillRect(x - 140, y - 70, 280, 200);
+  ctx.fillRect(x - 80, y - 120, 240, 240);
 
-  // ウェルカムマット (木目床の上・扉の手前)
-  const matW = 72, matH = 24;
-  ctx.fillStyle = '#2a1e12';
-  ctx.fillRect(x - matW / 2, y - 4, matW, matH);
-  ctx.strokeStyle = '#c9a96e';
-  ctx.lineWidth = 1.2;
-  ctx.strokeRect(x - matW / 2 + 3, y - 4 + 3, matW - 6, matH - 6);
-
-  // 扉 (壁内の平面。登場位置の少し下=壁側に配置)
-  const doorW = 64, doorH = 28;
-  const dx = x - doorW / 2;
-  const dy = y + matH + 2;
-  // 扉枠 (ブラス色)
+  // エレベーター扉は左壁にあるので、x = 左壁寄り (小さいx) に扉を描く
+  // 登場位置(x,y)はエレベーター前の開放エリアを想定
+  // 扉: 左壁に埋め込み (垂直方向に開く両開きの平面表現)
+  const doorW = 26, doorH = 80;
+  const dx = x - 50;           // 登場位置の左側 (左壁方向) に扉
+  const dy = y - doorH / 2;
+  // ブラス枠
   ctx.fillStyle = '#8b6f3e';
-  ctx.fillRect(dx - 2, dy - 2, doorW + 4, doorH + 4);
-  // 扉本体 (両開き)
+  ctx.fillRect(dx - 3, dy - 3, doorW + 6, doorH + 6);
+  // 扉本体 (両開き: 上下に分割)
   ctx.fillStyle = '#1f150a';
   ctx.fillRect(dx, dy, doorW, doorH);
-  // 中央境界線
+  // 中央境界線 (扉が開く線)
   ctx.strokeStyle = '#c9a96e';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(x, dy);
-  ctx.lineTo(x, dy + doorH);
+  ctx.moveTo(dx, y);
+  ctx.lineTo(dx + doorW, y);
   ctx.stroke();
-  // 取っ手 (2個)
+  // 取っ手 (上下の扉中央寄り)
   ctx.fillStyle = '#e8c878';
   ctx.beginPath();
-  ctx.arc(x - 4, dy + doorH / 2, 1.8, 0, Math.PI * 2);
-  ctx.arc(x + 4, dy + doorH / 2, 1.8, 0, Math.PI * 2);
+  ctx.arc(dx + doorW / 2, y - 4, 1.8, 0, Math.PI * 2);
+  ctx.arc(dx + doorW / 2, y + 4, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
-  // ラベル "🚪 入口" (マットの上)
+  // ウェルカムマット (扉の右=部屋内側)
+  const matW = 50, matH = 68;
+  const mx = dx + doorW + 6, my = dy + 6;
+  ctx.fillStyle = 'rgba(42, 30, 18, 0.7)';
+  ctx.fillRect(mx, my, matW, matH);
+  ctx.strokeStyle = '#c9a96e';
+  ctx.lineWidth = 1.1;
+  ctx.strokeRect(mx + 3, my + 3, matW - 6, matH - 6);
+
+  // ラベル (マット上方)
   ctx.font = '700 11px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const label = '🚪 入口';
+  const label = floorCode === 'lobby' ? '🛗 エレベーター/階段' : '🛗 エレベーター';
   const lw = Math.round(ctx.measureText(label).width + 16);
   ctx.fillStyle = 'rgba(15,23,42,0.82)';
-  roundRect(x - lw / 2, y - 26, lw, 18, 9);
+  roundRect(x + 20 - lw / 2, y - doorH / 2 - 22, lw, 18, 9);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.fillText(label, x, y - 17);
+  ctx.fillText(label, x + 20, y - doorH / 2 - 13);
   ctx.restore();
 }
 
