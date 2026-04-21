@@ -1916,6 +1916,11 @@ function render() {
     ctx.restore();
   }
 
+  // 2F事務フロア: 登場位置に入口マーカーを描画 (レイアウト変更なし・オーバーレイのみ)
+  if (currentFloor && currentFloor.code === 'office') {
+    drawOfficeEntrance(currentFloor.entry_x || 672, currentFloor.entry_y || 678);
+  }
+
   // ハドルゾーン (紫枠 + ラベル)
   for (const z of huddleZones) {
     const w = z.x2 - z.x1, h = z.y2 - z.y1;
@@ -1989,6 +1994,62 @@ function render() {
   ctx.restore();
 
   requestAnimationFrame(render);
+}
+
+// 2F事務フロア: 登場位置に入口マーカー (扉+マット+光+ラベル)
+function drawOfficeEntrance(x, y) {
+  ctx.save();
+  // 扉から漏れる柔らかい光 (床に広がる)
+  const glow = ctx.createRadialGradient(x, y + 30, 4, x, y + 30, 140);
+  glow.addColorStop(0, 'rgba(253, 224, 165, 0.32)');
+  glow.addColorStop(1, 'rgba(253, 224, 165, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - 140, y - 70, 280, 200);
+
+  // ウェルカムマット (木目床の上・扉の手前)
+  const matW = 72, matH = 24;
+  ctx.fillStyle = '#2a1e12';
+  ctx.fillRect(x - matW / 2, y - 4, matW, matH);
+  ctx.strokeStyle = '#c9a96e';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(x - matW / 2 + 3, y - 4 + 3, matW - 6, matH - 6);
+
+  // 扉 (壁内の平面。登場位置の少し下=壁側に配置)
+  const doorW = 64, doorH = 28;
+  const dx = x - doorW / 2;
+  const dy = y + matH + 2;
+  // 扉枠 (ブラス色)
+  ctx.fillStyle = '#8b6f3e';
+  ctx.fillRect(dx - 2, dy - 2, doorW + 4, doorH + 4);
+  // 扉本体 (両開き)
+  ctx.fillStyle = '#1f150a';
+  ctx.fillRect(dx, dy, doorW, doorH);
+  // 中央境界線
+  ctx.strokeStyle = '#c9a96e';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, dy);
+  ctx.lineTo(x, dy + doorH);
+  ctx.stroke();
+  // 取っ手 (2個)
+  ctx.fillStyle = '#e8c878';
+  ctx.beginPath();
+  ctx.arc(x - 4, dy + doorH / 2, 1.8, 0, Math.PI * 2);
+  ctx.arc(x + 4, dy + doorH / 2, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ラベル "🚪 入口" (マットの上)
+  ctx.font = '700 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const label = '🚪 入口';
+  const lw = Math.round(ctx.measureText(label).width + 16);
+  ctx.fillStyle = 'rgba(15,23,42,0.82)';
+  roundRect(x - lw / 2, y - 26, lw, 18, 9);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(label, x, y - 17);
+  ctx.restore();
 }
 
 // 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)

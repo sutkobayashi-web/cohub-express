@@ -37,40 +37,19 @@ Style: welcoming, spacious, bright, premium corporate entrance hall feeling. POL
 
   office: `${COMMON}
 
-Layout: 2F OPEN OFFICE floor. **THE MOST IMPORTANT REQUIREMENT: A VISIBLE ENTRANCE OPENING AT THE EXACT HORIZONTAL CENTER OF THE BOTTOM WALL.**
-
-❌ DO NOT place stairs or elevators on the LEFT wall or LEFT corner. ❌
-❌ DO NOT place stairs or elevators on the RIGHT wall. ❌
-✅ Stairs AND elevators BOTH go at BOTTOM CENTER of the canvas, side-by-side along the bottom wall, at the exact horizontal center. ✅
-
-═══ ENTRANCE (dead center of bottom wall) ═══
-Imagine the canvas divided into 3 equal vertical columns: LEFT, CENTER, RIGHT.
-The entire BOTTOM portion of the CENTER column (approx. x=40% to x=60% of width, and bottom 22% of height) is a VESTIBULE/ARRIVAL ZONE with NO desks, NO chairs, NO furniture other than entrance fixtures:
-- A BREAK in the bottom wall showing a wide double-glass sliding door or open threshold, about 2 desk-widths wide
-- Just inside the door: 2 recessed ELEVATOR DOORS built flush into the bottom wall (dark rectangles with brushed brass frames), one slightly left of center, one slightly right of center
-- To one side: a STAIRCASE LANDING (3-4 horizontal step lines visible)
-- An open wooden floor WELCOME AREA of about 2×1.5 desk-widths in front of these doors
-- A small dark welcome rug on the floor in this center zone
-- Corners of this zone: one small potted plant on each side
-
-═══ DESKS (LEFT and RIGHT clusters only, NEVER center bottom) ═══
-- Total 14-15 desks with chairs (1:1). Paired.
-- LEFT CLUSTER: about 7 desks filling the left column (3-4 rows × 2 cols)
-- RIGHT CLUSTER: about 7 desks filling the right column (3-4 rows × 2 cols)
-- TOP-CENTER (above entrance column): 1-2 desks is OK but NOT directly blocking the entrance line-of-sight
-- CRITICAL: the bottom-center 20%×20% must remain open walkway/welcome area, NO desks there.
-- Each desk: wooden rectangle top + 2 dark monitor rectangles + ONE small circle chair behind.
-
-═══ Walls ═══
-- Upper wall: 3-4 large window rectangles
-- Right wall: filing cabinets + printer
+Layout: 2F OPEN OFFICE floor for administrative staff, with SPACIOUS desk layout.
+- Upper wall: 3-4 large windows
+- Lower wall: staircase and elevator entrance
+- Main area: **EXACTLY 15 desks AND EXACTLY 15 chairs, paired 1:1** (every desk has exactly one chair behind it; no extra chairs anywhere; no desk without a chair; no chair without a desk). Arrange as **3 ROWS × 5 COLUMNS** grid.
+- **WIDE SPACING between desks**: at least one desk-width of empty aisle between rows and between individual desks (enough room for a chair and a person to stand/walk comfortably)
+- Each desk-chair pair (desk top rectangle wooden, 2 dark monitor rectangles, ONE small circle chair directly behind). Count carefully: 15 desks × 1 chair each = 15 chairs total.
+- Right wall: filing cabinets (tall rectangles) and a printer
 - Left wall: whiteboard + notice boards
-- Top-right corner: small breakroom cutout with round table and 2 chairs
+- 4 corners: large potted plants (green circles)
+- A small breakroom cutout in top-right corner with round table and 2 chairs
+- Plenty of empty floor space between desk clusters - NOT cramped
 
-═══ Floor & colors ═══
-Warm oak hardwood with visible plank lines. Beige/white desks, dark grey monitors, grey chairs, green potted plants in corners.
-
-Organized, professional, empty office with an obvious clear walking path from the bottom-center entrance door all the way up to the top wall.`,
+Colors: beige/white desks, dark grey monitors, grey chairs, green plants. Organized, professional, empty office scene with comfortable personal space per desk.`,
 
   meeting_a: `${COMMON}
 
