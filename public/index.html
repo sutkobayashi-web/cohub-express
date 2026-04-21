@@ -717,6 +717,53 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   </div>
 </div>
 
+<!-- 📅 カレンダー連携モーダル -->
+<div id="cal-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(15,23,42,0.4);">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="font-size:18px;font-weight:800;color:#0f172a;flex:1;">📅 カレンダー連携</div>
+      <button onclick="closeCalModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:14px;line-height:1.7;">
+      Googleカレンダーを葵に連携すると、ロビー入室時に<b>本日の予定をDMでお知らせ</b>します。<br>
+      「今日の予定は?」「明日の会議は?」などと聞けば葵が答えてくれます。
+    </div>
+
+    <!-- ステータス表示 -->
+    <div id="cal-status" style="padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;"></div>
+
+    <!-- 未連携時: 手順 + 入力 -->
+    <div id="cal-setup" style="display:none;">
+      <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔧 連携手順</div>
+      <ol style="font-size:12px;color:#475569;line-height:1.9;padding-left:20px;margin-bottom:14px;">
+        <li>下記のメールアドレスをコピー:
+          <div id="cal-sa-email-box" style="margin:6px 0;padding:8px 10px;background:#f1f5f9;border-radius:6px;font-family:monospace;font-size:11px;display:flex;align-items:center;gap:6px;">
+            <span id="cal-sa-email" style="flex:1;user-select:all;word-break:break-all;">-</span>
+            <button onclick="copyCalSaEmail()" style="background:#06b6d4;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;">コピー</button>
+          </div>
+        </li>
+        <li><a href="https://calendar.google.com/" target="_blank" style="color:#0891b2;">Googleカレンダー</a>を開き、連携したいカレンダーの <b>設定と共有</b> へ</li>
+        <li>「特定のユーザーやグループと共有する」 → 上記メールを追加 → 権限 <b>「予定の表示(すべての予定の詳細)」</b></li>
+        <li>該当カレンダーの<b>カレンダーID</b>(通常は自分のGmailアドレス、または `xxxxx@group.calendar.google.com` 形式)を下記に入力</li>
+      </ol>
+
+      <label style="display:block;font-size:12px;color:#475569;margin-bottom:4px;">カレンダーID</label>
+      <input type="text" id="cal-id-input" placeholder="例: your.email@gmail.com" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;margin-bottom:8px;">
+      <div id="cal-err" style="color:#dc2626;font-size:12px;margin-bottom:10px;min-height:14px;"></div>
+      <button id="cal-link-btn" onclick="submitCalLink()" style="width:100%;padding:12px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">連携をテストして保存</button>
+    </div>
+
+    <!-- 連携済み: 解除 -->
+    <div id="cal-linked" style="display:none;">
+      <div style="padding:12px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;margin-bottom:14px;">
+        <div style="font-size:13px;color:#065f46;font-weight:700;margin-bottom:4px;">✅ 連携中</div>
+        <div id="cal-linked-id" style="font-size:11px;color:#047857;font-family:monospace;word-break:break-all;"></div>
+      </div>
+      <button onclick="submitCalUnlink()" style="width:100%;padding:10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">連携を解除</button>
+    </div>
+  </div>
+</div>
+
 <!-- 添付ファイル用input (DM/グループ) -->
 <input type="file" id="dm-file" style="display:none;" onchange="onDmFilePick(this)">
 <input type="file" id="group-file" style="display:none;" onchange="onGroupFilePick(this)">
@@ -872,6 +919,95 @@ function openPasswordModal() {
 }
 function closePasswordModal() {
   document.getElementById('pw-modal').style.display = 'none';
+}
+
+// ===== 📅 カレンダー連携 =====
+async function openCalModal() {
+  const modal = document.getElementById('cal-modal');
+  modal.style.display = 'flex';
+  const rm = document.getElementById('rail-menu'); if (rm) rm.classList.remove('show');
+  document.getElementById('cal-err').textContent = '';
+  document.getElementById('cal-status').innerHTML = '読み込み中…';
+  document.getElementById('cal-status').style.background = '#f1f5f9';
+  document.getElementById('cal-status').style.color = '#475569';
+  document.getElementById('cal-setup').style.display = 'none';
+  document.getElementById('cal-linked').style.display = 'none';
+  try {
+    const r = await fetch('/api/calendar/status', { headers: { Authorization: 'Bearer ' + (token || '') } });
+    const j = await r.json();
+    if (!j.service_available) {
+      document.getElementById('cal-status').innerHTML = '⚠ サーバー側の連携が準備できていません<br><span style="font-size:10px;color:#64748b;">' + escapeHtml(j.error || '') + '</span>';
+      document.getElementById('cal-status').style.background = '#fef2f2';
+      document.getElementById('cal-status').style.color = '#991b1b';
+      return;
+    }
+    if (j.linked) {
+      document.getElementById('cal-status').innerHTML = '✅ 葵と連携中';
+      document.getElementById('cal-status').style.background = '#f0fdf4';
+      document.getElementById('cal-status').style.color = '#065f46';
+      document.getElementById('cal-linked-id').textContent = j.calendar_id || '';
+      document.getElementById('cal-linked').style.display = 'block';
+    } else {
+      document.getElementById('cal-status').innerHTML = '⭕ 未連携';
+      document.getElementById('cal-status').style.background = '#fef3c7';
+      document.getElementById('cal-status').style.color = '#92400e';
+      document.getElementById('cal-sa-email').textContent = j.service_account_email || '-';
+      document.getElementById('cal-setup').style.display = 'block';
+    }
+  } catch (e) {
+    document.getElementById('cal-status').innerHTML = '⚠ 読み込みエラー';
+    document.getElementById('cal-status').style.background = '#fef2f2';
+    document.getElementById('cal-status').style.color = '#991b1b';
+  }
+}
+function closeCalModal() {
+  document.getElementById('cal-modal').style.display = 'none';
+}
+function copyCalSaEmail() {
+  const txt = document.getElementById('cal-sa-email').textContent;
+  navigator.clipboard.writeText(txt).then(() => showToast('📋 コピーしました')).catch(() => {});
+}
+async function submitCalLink() {
+  const id = document.getElementById('cal-id-input').value.trim();
+  const btn = document.getElementById('cal-link-btn');
+  const err = document.getElementById('cal-err');
+  err.textContent = '';
+  if (!id) { err.textContent = 'カレンダーIDを入力してください'; return; }
+  btn.disabled = true;
+  btn.textContent = '接続テスト中…';
+  try {
+    const r = await fetch('/api/calendar/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+      body: JSON.stringify({ calendar_id: id }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.success) {
+      err.textContent = j.msg || '接続テスト失敗';
+      btn.disabled = false;
+      btn.textContent = '連携をテストして保存';
+      return;
+    }
+    showToast('✅ カレンダー連携しました');
+    closeCalModal();
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '連携をテストして保存';
+  }
+}
+async function submitCalUnlink() {
+  if (!confirm('カレンダー連携を解除します。よろしいですか?')) return;
+  try {
+    await fetch('/api/calendar/link', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + (token || '') },
+    });
+    showToast('連携を解除しました');
+    closeCalModal();
+  } catch (e) {
+    alert('解除失敗: ' + e.message);
+  }
 }
 
 function _pwRules(pw) {
@@ -3021,6 +3157,7 @@ function renderRailMenu() {
     ${isAdmin ? "<button onclick=\"location.href='/admin'\">🛠 管理画面</button>" : ''}
     <button onclick="openAvatarModal()">🎨 アバター作り直し</button>
     <button onclick="openPasswordModal()">🔑 パスワード変更</button>
+    <button onclick="openCalModal()">📅 カレンダー連携</button>
     <button onclick="location.href='/mylog'">📜 自分のログ</button>
     <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
   `;

@@ -13,6 +13,7 @@ let webpush = null;
 try { webpush = require('web-push'); } catch (e) { console.warn('web-push未インストール'); }
 const { getDb } = require('./services/db');
 const { chatBot } = require('./services/ai');
+const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
@@ -78,6 +79,43 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 
+// 葵からの当日予定DM送信 (1日1回、ロビー入室時)
+async function maybeSendCalendarGreeting(uid) {
+  const db = getDb();
+  const u = db.prepare('SELECT display_name, google_cal_id, last_cal_dm_date FROM users WHERE id = ?').get(uid);
+  if (!u || !u.google_cal_id) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (u.last_cal_dm_date === today) return;
+  const botId = 'bot_aoi';
+  try {
+    const events = await gcal.fetchEvents(u.google_cal_id, 2, 15);
+    const text = gcal.formatEventsForGreeting(events, u.display_name || 'あなた');
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
+      .run(botId, uid, text);
+    db.prepare("UPDATE users SET last_cal_dm_date = ? WHERE id = ?").run(today, uid);
+    const p = presence.get(uid);
+    if (p && p.socketId) {
+      const s = io.sockets.sockets.get(p.socketId);
+      if (s) s.emit('dm:msg', {
+        id: ins.lastInsertRowid,
+        from: botId,
+        to: uid,
+        content: text,
+        at: new Date().toISOString(),
+        attach: null,
+      });
+    }
+    sendPushToUser(uid, {
+      title: '📅 葵',
+      body: '本日の予定をお届けしました',
+      tag: 'cal-greet',
+      url: '/',
+    }).catch(() => {});
+  } catch (e) {
+    console.warn('cal greet fail', uid, (e.message || '').slice(0, 120));
+  }
+}
+
 app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
 
 app.use(helmet({
@@ -128,6 +166,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/avatar', require('./routes/avatar'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/calendar', require('./routes/calendar'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {
@@ -363,6 +402,11 @@ io.on('connection', (socket) => {
   // 全クライアントに「このユーザーがこのフロアにオンライン」を通知
   io.emit('user:floor', { uid, floor: floor.code });
 
+  // ロビー着地: 当日初回なら葵がカレンダー予定をDM
+  if (floor.code === 'lobby') {
+    setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
+  }
+
   // フロア切替
   socket.on('floor:switch', (data) => {
     const targetCode = (data && data.code || '').toString();
@@ -480,6 +524,10 @@ io.on('connection', (socket) => {
     });
     io.emit('floor:counts', floorCountMap());
     io.emit('user:floor', { uid, floor: target.code });
+    // ロビーへ移動: 当日初回なら葵がカレンダー予定をDM
+    if (target.code === 'lobby') {
+      setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
+    }
   });
 
   // 移動
@@ -723,7 +771,31 @@ io.on('connection', (socket) => {
             role: r.sender_id === to ? 'bot' : 'user',
             text: r.content,
           }));
-          const replyText = await chatBot(to, content, history);
+          // カレンダーキーワード検知 → 連携済なら予定を注入
+          let userMessage = content;
+          if (/予定|スケジュール|カレンダー|アジェンダ|今日|明日|明後日|今週|来週|会議|ミーティング|打ち合わせ|午前|午後/.test(content)) {
+            const u = db.prepare('SELECT google_cal_id FROM users WHERE id = ?').get(uid);
+            if (u && u.google_cal_id) {
+              try {
+                const events = await gcal.fetchEvents(u.google_cal_id, 7, 20);
+                const pad = n => String(n).padStart(2, '0');
+                const dayJa = ['日','月','火','水','木','金','土'];
+                const lines = events.map(ev => {
+                  const s = new Date(ev.start);
+                  const d = `${s.getMonth()+1}/${s.getDate()}(${dayJa[s.getDay()]})`;
+                  const t = ev.allDay ? '終日' : `${pad(s.getHours())}:${pad(s.getMinutes())}`;
+                  return `${d} ${t} ${ev.summary}${ev.location ? ' @' + ev.location : ''}`;
+                }).join('\n');
+                const evBlock = lines || '(直近1週間に予定はありません)';
+                userMessage = `[社員のGoogleカレンダー予定 (今日〜7日分)]\n${evBlock}\n\n[社員からの質問]\n${content}`;
+              } catch (e) {
+                userMessage = `[社員のGoogleカレンダー取得に失敗: ${(e.message||'').slice(0,60)}]\n\n[社員からの質問]\n${content}`;
+              }
+            } else {
+              userMessage = `[この社員はGoogleカレンダー未連携です]\n\n[社員からの質問]\n${content}`;
+            }
+          }
+          const replyText = await chatBot(to, userMessage, history);
           const ins2 = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
             .run(to, uid, replyText);
           const replyPayload = {

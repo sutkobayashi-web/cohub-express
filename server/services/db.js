@@ -4,6 +4,13 @@ const Database = require('better-sqlite3');
 
 let _db = null;
 
+function ensureColumn(db, table, column, ddl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some(c => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
+}
+
 function getDb() {
   if (_db) return _db;
   const dbDir = path.join(__dirname, '..', 'db');
@@ -13,6 +20,9 @@ function getDb() {
   _db.pragma('journal_mode = WAL');
   const schema = fs.readFileSync(path.join(dbDir, 'schema.sql'), 'utf8');
   _db.exec(schema);
+  // 既存DB向けマイグレーション (idempotent)
+  ensureColumn(_db, 'users', 'google_cal_id', 'google_cal_id TEXT');
+  ensureColumn(_db, 'users', 'last_cal_dm_date', 'last_cal_dm_date TEXT');
   return _db;
 }
 

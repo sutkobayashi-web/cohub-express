@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_style TEXT DEFAULT '',  -- shonen | anime | pixar | watercolor
   status TEXT DEFAULT 'active',  -- active | 退席中 | 会議中
   session_token TEXT,
+  google_cal_id TEXT,                 -- Googleカレンダー連携ID (NULL=未連携)
+  last_cal_dm_date TEXT,              -- 最後に葵から予定DMを送った日 YYYY-MM-DD
   created_at TEXT DEFAULT (datetime('now')),
   last_seen_at TEXT
 );
