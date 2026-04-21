@@ -10,20 +10,25 @@ const path = require('path');
   const srcPath = path.join(__dirname, '..', 'public', 'assets', 'floor_office.png');
   const ref = fs.readFileSync(srcPath).toString('base64');
 
-  const prompt = `Edit this top-down office floor plan image.
+  const prompt = `Edit this top-down orthographic floor plan of an office. I need you to modify ONLY the thin wall line at the very UPPER EDGE of the image (the topmost ~5% horizontal strip of the canvas — the wall between the outside of the building and the office interior).
 
-KEEP ABSOLUTELY EVERYTHING IDENTICAL: all 15 desks, 15 chairs, monitors, plants, walls, windows, furniture — do NOT move, add, or remove any item except as specified below.
+Current state of that upper wall strip: it has several small rectangular GLASS WINDOWS evenly spaced along it.
 
-THE ONLY CHANGE: the BOTTOM WALL.
-1. REMOVE the staircase currently at the BOTTOM-LEFT corner completely — replace with plain wooden floor and plant corner decoration matching the other corners.
-2. At the HORIZONTAL CENTER of the BOTTOM WALL (from about 44% to 56% of total image width): create a CLEAR DOORWAY OPENING. This looks like:
-   - A break in the bottom wall about 12-15% of the total image width wide
-   - Double glass automatic sliding doors set flush into the wall (shown from above as two narrow parallel dark rectangles with thin metal frames)
-   - A small dark welcome mat (rectangle) on the wooden floor just inside the doorway
-   - The opening should look like a professional Japanese office front entrance viewed directly from above
-3. The breakroom, printer, filing cabinets, whiteboards, windows, and ALL 15 desks must remain PIXEL-EXACT in their current positions.
+Desired change:
+1. DELETE those windows entirely. The upper wall strip becomes one continuous solid beige/white wall with NO glass openings.
+2. Then, at the EXACT HORIZONTAL MIDDLE of that upper wall (from pixel x=42% to x=58% of image width), REPLACE THAT MIDDLE SECTION OF WALL with a wide entrance opening. The opening is SHOWN AS:
+   - A gap in the wall line
+   - Two tall rectangular glass panels (silver-framed) side by side filling the gap — these are the two leaves of a sliding double door
+   - A thin dark threshold strip spanning across the opening at floor level
+3. DIRECTLY INSIDE the office (on the wooden floor, just a few pixels below the top wall, centered on the entrance): a small dark rectangular welcome mat (oriented horizontally, perpendicular to the flow of entering people).
 
-Style: match the existing top-down orthographic rendering, same lighting, same wooden floor texture. NO text, NO logos.`;
+CRITICAL CONSTRAINTS:
+- The entrance appears ONLY within the topmost ~8% of the image height (the wall strip + mat area).
+- Do NOT add any entrance, door, mat, glass, or opening anywhere else in the image.
+- Do NOT alter the wooden floor, the desks, the chairs, the bottom-left staircase, the plants, the breakroom, or any other furniture.
+- Do NOT add any text or logos.
+
+Preserve the top-down orthographic projection, overall lighting, warm wooden floor, beige walls.`;
 
   const body = {
     contents: [{

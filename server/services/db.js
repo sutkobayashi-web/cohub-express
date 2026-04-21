@@ -27,6 +27,9 @@ function getDb() {
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')
                  AND entry_x=180 AND entry_y=230`).run();
+  // 2F事務フロアは正面玄関(上中央)に変更
+  _db.prepare(`UPDATE floors SET entry_x=672, entry_y=110
+               WHERE code='office' AND entry_x=672 AND entry_y=678`).run();
   return _db;
 }
 
