@@ -23,11 +23,10 @@ function getDb() {
   // 既存DB向けマイグレーション (idempotent)
   ensureColumn(_db, 'users', 'google_cal_id', 'google_cal_id TEXT');
   ensureColumn(_db, 'users', 'last_cal_dm_date', 'last_cal_dm_date TEXT');
-  // 事務所棟フロアの登場位置を左上エレベーター位置に統一 (既定(672,678)の場合のみ)
-  _db.prepare(`UPDATE floors SET entry_x=180, entry_y=230
+  // 事務所棟フロアの登場位置を正面玄関(下中央)に戻す (前回の(180,230)を元に戻す)
+  _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')
-                 AND (entry_x IS NULL OR entry_x=672)
-                 AND (entry_y IS NULL OR entry_y=678)`).run();
+                 AND entry_x=180 AND entry_y=230`).run();
   return _db;
 }
 

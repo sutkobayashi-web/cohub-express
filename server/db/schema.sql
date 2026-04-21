@@ -62,11 +62,11 @@ CREATE TABLE IF NOT EXISTS floors (
   building TEXT DEFAULT 'office'  -- office=事務所棟 / field=現場棟
 );
 INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building) VALUES
-  ('lobby',      '1F 玄関ロビー',     '/assets/floor_lobby.png',      1344, 768, 180, 230, 1, '🚪',  'office'),
-  ('office',     '2F 事務フロア',     '/assets/floor_office.png',     1344, 768, 180, 230, 2, '💼',  'office'),
-  ('meeting_a',  '3F 役員会議室',     '/assets/floor_meeting_a.png',  1344, 768, 180, 230, 3, '👔',  'office'),
-  ('meeting_b',  '3F 会議室B',        '/assets/floor_meeting_b.png',  1344, 768, 180, 230, 4, '🅱',  'office'),
-  ('meeting_c',  '3F 大会議室',       '/assets/floor_meeting_c.png',  1344, 768, 180, 230, 5, '🏛',  'office'),
+  ('lobby',      '1F 玄関ロビー',     '/assets/floor_lobby.png',      1344, 768, 672, 678, 1, '🚪',  'office'),
+  ('office',     '2F 事務フロア',     '/assets/floor_office.png',     1344, 768, 672, 678, 2, '💼',  'office'),
+  ('meeting_a',  '3F 役員会議室',     '/assets/floor_meeting_a.png',  1344, 768, 672, 678, 3, '👔',  'office'),
+  ('meeting_b',  '3F 会議室B',        '/assets/floor_meeting_b.png',  1344, 768, 672, 678, 4, '🅱',  'office'),
+  ('meeting_c',  '3F 大会議室',       '/assets/floor_meeting_c.png',  1344, 768, 672, 678, 5, '🏛',  'office'),
   ('field_rest', '現場 乗務員詰所',    '/assets/floor_field_rest.png', 1344, 768, 672, 678, 10, '☕', 'field'),
   ('field_work', '現場 倉庫作業室',    '/assets/floor_field_work.png', 1344, 768, 672, 678, 11, '📦', 'field'),
   ('field_meet', '現場 ミーティング',  '/assets/floor_field_meet.png', 1344, 768, 672, 678, 12, '📋', 'field');

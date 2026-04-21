@@ -1916,10 +1916,6 @@ function render() {
     ctx.restore();
   }
 
-  // 2F事務フロア + 3F会議室: 登場位置にエレベーター入口マーカー (ロビーは除外)
-  if (currentFloor && /^(office|meeting_)/.test(currentFloor.code)) {
-    drawFloorEntrance(currentFloor.entry_x || 180, currentFloor.entry_y || 230, currentFloor.code);
-  }
 
   // ハドルゾーン (紫枠 + ラベル)
   for (const z of huddleZones) {
