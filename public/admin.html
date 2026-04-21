@@ -122,13 +122,11 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
-    <h2>🗨 グループチャット管理 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">LINE代替。作成・メンバー追加は管理者のみ</span></h2>
+    <h2>🗨 グループチャット管理 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">LINE代替。作成・編集は管理者のみ</span></h2>
     <div class="row">
-      <input type="text" id="grp-name" placeholder="グループ名">
-      <input type="text" id="grp-icon" placeholder="アイコン絵文字 (例: 💼)" maxlength="4" value="💬" style="min-width:80px;">
-      <button class="btn" onclick="createGroup()">グループ作成</button>
+      <button class="btn" onclick="openNewGroupModal()">+ 新しいグループを作成</button>
     </div>
-    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;margin-top:8px;">
       <table style="margin:0;">
         <thead style="position:sticky;top:0;"><tr><th>名前</th><th style="width:100px;">メンバー</th><th style="width:140px;">作成日時</th><th>操作</th></tr></thead>
         <tbody id="grp-tbody"></tbody>
@@ -177,6 +175,39 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 </div>
 
 </main>
+
+<!-- グループ編集モーダル (新規作成 + 既存編集 兼用) -->
+<div id="edit-group-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:620px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;display:flex;align-items:center;gap:10px;">
+      <div style="font-weight:800;font-size:15px;flex:1;"><span id="grp-modal-title">🗨 グループ作成</span></div>
+      <button onclick="closeGroupModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px 22px;">
+      <input type="hidden" id="grp-edit-id">
+      <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;margin-bottom:14px;">
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">グループ名</label>
+          <input type="text" id="grp-edit-name" placeholder="例: 🚛 SU本社 現場" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+        </div>
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">アイコン</label>
+          <input type="text" id="grp-edit-icon" maxlength="4" value="💬" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;text-align:center;font-size:18px;">
+        </div>
+      </div>
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+        <label style="font-size:12px;font-weight:700;color:#0f172a;flex:1;">👥 メンバー (<span id="grp-edit-count">0</span>名選択中)</label>
+        <input type="text" id="grp-edit-search" placeholder="🔎 名前で絞込" oninput="filterGroupMembers()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;min-width:180px;">
+        <button class="btn btn-ghost" onclick="toggleAllMembers(true)" style="font-size:11px;padding:6px 10px;">全員</button>
+        <button class="btn btn-ghost" onclick="toggleAllMembers(false)" style="font-size:11px;padding:6px 10px;">解除</button>
+      </div>
+      <div id="grp-member-list" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;"></div>
+      <div id="grp-edit-err" style="color:#dc2626;font-size:12px;margin-top:10px;min-height:14px;"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;background:#f8fafc;">
+      <button onclick="closeGroupModal()" class="btn btn-ghost" style="flex:1;">キャンセル</button>
+      <button onclick="submitGroup()" class="btn" id="grp-save-btn" style="flex:2;">保存</button>
+    </div>
+  </div>
+</div>
 
 <!-- ユーザー編集モーダル -->
 <div id="edit-user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
@@ -350,11 +381,11 @@ async function loadGroups() {
     tb.innerHTML = d.groups.map(g => {
       const dt = new Date(g.created_at + 'Z').toLocaleDateString('ja-JP');
       return `<tr>
-        <td><span style="font-size:16px;margin-right:4px;">${g.icon || '💬'}</span>${escapeHtml(g.name)}</td>
+        <td><a href="#" onclick="openEditGroupModal('${g.id}');return false;" style="color:#0f172a;text-decoration:none;font-weight:600;"><span style="font-size:16px;margin-right:4px;">${g.icon || '💬'}</span>${escapeHtml(g.name)}</a></td>
         <td>${g.member_count}名</td>
         <td style="font-size:11px;color:#64748b;">${dt}</td>
         <td>
-          <button class="btn btn-ghost" onclick="editGroupMembers('${g.id}', '${escapeHtml(g.name)}')">メンバー編集</button>
+          <button class="btn" onclick="openEditGroupModal('${g.id}')">✏️ 編集</button>
           <button class="btn btn-danger" onclick="deleteGroup('${g.id}', '${escapeHtml(g.name)}')">削除</button>
         </td>
       </tr>`;
@@ -364,68 +395,165 @@ async function loadGroups() {
   }
 }
 
-async function createGroup() {
-  const name = document.getElementById('grp-name').value.trim();
-  const icon = document.getElementById('grp-icon').value.trim() || '💬';
-  if (!name) { alert('グループ名を入力してください'); return; }
-  if (!cachedUsers.length) { alert('ユーザー一覧取得まで待ってください'); return; }
-  // メンバー選択ダイアログ (簡易版: prompt で CSV)
-  const names = cachedUsers.map(u => u.display_name).join(', ');
-  const sel = prompt('メンバーを選択 (氏名をカンマ区切り、部分一致OK、空白で作成者のみ):\n全ユーザー: ' + names);
-  if (sel === null) return;
-  const memberIds = [];
-  const terms = sel.split(',').map(s => s.trim()).filter(Boolean);
-  for (const t of terms) {
-    const u = cachedUsers.find(u => u.display_name.includes(t) || u.login_id === t);
-    if (u) memberIds.push(u.id);
-  }
-  try {
-    const r = await fetch('/api/admin/groups', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, icon, member_ids: memberIds })
-    });
-    const d = await r.json();
-    if (d.success) {
-      document.getElementById('grp-name').value = '';
-      document.getElementById('grp-icon').value = '💬';
-      loadGroups();
-    } else alert('作成失敗: ' + (d.msg || ''));
-  } catch (e) { alert('通信エラー'); }
+// ===== グループ編集モーダル =====
+let _grpEditCurrentIds = new Set(); // 現在のメンバー (編集時) または空 (新規作成)
+let _grpEditSelected = new Set();   // 選択中のメンバー
+
+function openNewGroupModal() {
+  if (!cachedUsers || !cachedUsers.length) { alert('ユーザー一覧取得まで待ってください'); return; }
+  _grpEditCurrentIds = new Set();
+  _grpEditSelected = new Set();
+  document.getElementById('grp-modal-title').textContent = '🗨 新しいグループを作成';
+  document.getElementById('grp-edit-id').value = '';
+  document.getElementById('grp-edit-name').value = '';
+  document.getElementById('grp-edit-icon').value = '💬';
+  document.getElementById('grp-edit-search').value = '';
+  document.getElementById('grp-edit-err').textContent = '';
+  renderGroupMemberList();
+  document.getElementById('edit-group-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('grp-edit-name').focus(), 80);
 }
 
-async function editGroupMembers(gid, gname) {
-  const r = await fetch('/api/admin/groups/' + gid, { headers: { 'Authorization': 'Bearer ' + token } });
-  const d = await r.json();
-  if (!d.success) { alert('取得失敗'); return; }
-  const currentIds = new Set(d.members.map(m => m.id));
-  const currentNames = d.members.map(m => m.display_name).join(', ');
-  const sel = prompt(gname + ' のメンバー編集 (氏名カンマ区切り):\n現メンバー: ' + currentNames + '\n全ユーザー: ' + cachedUsers.map(u => u.display_name).join(', '), currentNames);
-  if (sel === null) return;
-  const newIds = new Set();
-  for (const t of sel.split(',').map(s => s.trim()).filter(Boolean)) {
-    const u = cachedUsers.find(u => u.display_name.includes(t) || u.login_id === t);
-    if (u) newIds.add(u.id);
+async function openEditGroupModal(gid) {
+  if (!cachedUsers || !cachedUsers.length) { alert('ユーザー一覧取得まで待ってください'); return; }
+  try {
+    const r = await fetch('/api/admin/groups/' + gid, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { alert('取得失敗'); return; }
+    _grpEditCurrentIds = new Set(d.members.map(m => m.id));
+    _grpEditSelected = new Set(_grpEditCurrentIds);
+    document.getElementById('grp-modal-title').textContent = '✏️ ' + (d.group.name || 'グループ編集');
+    document.getElementById('grp-edit-id').value = gid;
+    document.getElementById('grp-edit-name').value = d.group.name || '';
+    document.getElementById('grp-edit-icon').value = d.group.icon || '💬';
+    document.getElementById('grp-edit-search').value = '';
+    document.getElementById('grp-edit-err').textContent = '';
+    renderGroupMemberList();
+    document.getElementById('edit-group-modal').style.display = 'flex';
+  } catch (e) { alert('通信エラー: ' + e.message); }
+}
+
+function closeGroupModal() {
+  document.getElementById('edit-group-modal').style.display = 'none';
+}
+
+function renderGroupMemberList() {
+  const q = (document.getElementById('grp-edit-search').value || '').toLowerCase().trim();
+  const list = (cachedUsers || []).filter(u => {
+    if (!q) return true;
+    return (u.display_name || '').toLowerCase().includes(q)
+      || (u.login_id || '').toLowerCase().includes(q)
+      || (u.dm_group || '').toLowerCase().includes(q)
+      || (u.company_code || '').toLowerCase().includes(q);
+  });
+  // グループ別にまとめて表示 (dm_group or company_code)
+  const byGroup = {};
+  for (const u of list) {
+    const key = u.dm_group || u.company_code || 'その他';
+    if (!byGroup[key]) byGroup[key] = [];
+    byGroup[key].push(u);
   }
-  // 追加
-  const toAdd = [...newIds].filter(id => !currentIds.has(id));
-  if (toAdd.length) {
-    await fetch('/api/admin/groups/' + gid + '/members', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_ids: toAdd })
-    });
-  }
-  // 削除
-  for (const id of currentIds) {
-    if (!newIds.has(id)) {
-      await fetch('/api/admin/groups/' + gid + '/members/' + id, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+  const el = document.getElementById('grp-member-list');
+  let html = '';
+  const groupKeys = Object.keys(byGroup).sort();
+  for (const k of groupKeys) {
+    html += `<div style="padding:4px 8px;background:#f1f5f9;font-size:11px;font-weight:700;color:#475569;margin-top:4px;border-radius:4px;">${escapeHtml(k)} (${byGroup[k].length}名)</div>`;
+    for (const u of byGroup[k]) {
+      const checked = _grpEditSelected.has(u.id) ? 'checked' : '';
+      const cur = _grpEditCurrentIds.has(u.id);
+      const avatar = u.avatar_url
+        ? `<img src="${escapeHtml(u.avatar_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`
+        : `<div style="width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#475569;">${escapeHtml((u.display_name || '?').slice(0,2))}</div>`;
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <input type="checkbox" ${checked} onchange="toggleMember('${u.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;">
+        ${avatar}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;">${escapeHtml(u.display_name || '')}${cur ? ' <span style=\"font-size:9px;color:#10b981;\">(現メンバー)</span>' : ''}</div>
+          <div style="font-size:10px;color:#64748b;">${escapeHtml(u.login_id || '')} / ${escapeHtml(u.company_code || '')}${u.dm_group ? ' / ' + escapeHtml(u.dm_group) : ''}</div>
+        </div>
+      </label>`;
     }
   }
-  loadGroups();
+  el.innerHTML = html || '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px;">該当メンバーなし</div>';
+  document.getElementById('grp-edit-count').textContent = _grpEditSelected.size;
+}
+
+function filterGroupMembers() { renderGroupMemberList(); }
+
+function toggleMember(uid, checked) {
+  if (checked) _grpEditSelected.add(uid);
+  else _grpEditSelected.delete(uid);
+  document.getElementById('grp-edit-count').textContent = _grpEditSelected.size;
+}
+
+function toggleAllMembers(select) {
+  // 現在フィルター表示されている人だけに対して全選択/解除
+  const q = (document.getElementById('grp-edit-search').value || '').toLowerCase().trim();
+  const visible = (cachedUsers || []).filter(u => {
+    if (!q) return true;
+    return (u.display_name || '').toLowerCase().includes(q)
+      || (u.login_id || '').toLowerCase().includes(q)
+      || (u.dm_group || '').toLowerCase().includes(q)
+      || (u.company_code || '').toLowerCase().includes(q);
+  });
+  for (const u of visible) {
+    if (select) _grpEditSelected.add(u.id);
+    else _grpEditSelected.delete(u.id);
+  }
+  renderGroupMemberList();
+}
+
+async function submitGroup() {
+  const id = document.getElementById('grp-edit-id').value;
+  const name = document.getElementById('grp-edit-name').value.trim();
+  const icon = document.getElementById('grp-edit-icon').value.trim() || '💬';
+  const err = document.getElementById('grp-edit-err');
+  const btn = document.getElementById('grp-save-btn');
+  err.textContent = '';
+  if (!name) { err.textContent = 'グループ名必須'; return; }
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    if (!id) {
+      // 新規作成
+      const r = await fetch('/api/admin/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name, icon, member_ids: Array.from(_grpEditSelected) }),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.msg || '作成失敗');
+    } else {
+      // 編集: name/icon更新 + メンバー差分
+      const rr = await fetch('/api/admin/groups/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name, icon }),
+      });
+      const dd = await rr.json();
+      if (!dd.success) throw new Error(dd.msg || 'グループ更新失敗');
+      // メンバー差分
+      const toAdd = [...Array.from(_grpEditSelected)].filter(uid => !_grpEditCurrentIds.has(uid));
+      const toRemove = [...Array.from(_grpEditCurrentIds)].filter(uid => !_grpEditSelected.has(uid));
+      if (toAdd.length) {
+        await fetch('/api/admin/groups/' + id + '/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ user_ids: toAdd }),
+        });
+      }
+      for (const uid of toRemove) {
+        await fetch('/api/admin/groups/' + id + '/members/' + uid, {
+          method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token },
+        });
+      }
+    }
+    closeGroupModal();
+    loadGroups();
+  } catch (e) {
+    err.textContent = '失敗: ' + (e.message || 'エラー');
+  } finally {
+    btn.disabled = false; btn.textContent = '保存';
+  }
 }
 
 async function deleteGroup(gid, gname) {

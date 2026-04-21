@@ -272,6 +272,26 @@ router.get('/groups/:gid', authAdmin, (req, res) => {
   res.json({ success: true, group: g, members });
 });
 
+router.patch('/groups/:gid', authAdmin, (req, res) => {
+  const db = getDb();
+  const g = db.prepare('SELECT id FROM chat_groups WHERE id = ?').get(req.params.gid);
+  if (!g) return res.status(404).json({ success: false, msg: 'グループが見つかりません' });
+  const updates = [];
+  const params = [];
+  if (req.body.name !== undefined) {
+    const n = String(req.body.name || '').trim().slice(0, 50);
+    if (!n) return res.status(400).json({ success: false, msg: 'グループ名必須' });
+    updates.push('name = ?'); params.push(n);
+  }
+  if (req.body.icon !== undefined) {
+    updates.push('icon = ?'); params.push(String(req.body.icon || '💬').slice(0, 8));
+  }
+  if (updates.length === 0) return res.json({ success: true });
+  params.push(req.params.gid);
+  db.prepare('UPDATE chat_groups SET ' + updates.join(', ') + ' WHERE id = ?').run(...params);
+  res.json({ success: true });
+});
+
 router.post('/groups/:gid/members', authAdmin, (req, res) => {
   const ids = Array.isArray(req.body.user_ids) ? req.body.user_ids : [];
   const st = getDb().prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
