@@ -242,6 +242,7 @@ app.get('/api/voice/ice-servers', (req, res) => {
 // SPA fallback
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 app.get('/mylog', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'mylog.html')));
+app.get('/m', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'm.html')));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   if (req.path.startsWith('/uploads/')) return res.status(404).end();

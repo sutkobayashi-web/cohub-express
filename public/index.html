@@ -882,10 +882,18 @@ async function doLogin() {
         navigator.credentials.store(cred).catch(() => {});
       }
     } catch (e) {}
+    // 現場スタッフ or モバイル端末 → モバイル版 /m へ自動遷移
+    if (userData && (userData.employee_type === 'field' || isMobileDevice())) {
+      location.href = '/m';
+      return;
+    }
     enterSpace();
   } catch(e) {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
   }
+}
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent) && Math.min(screen.width, screen.height) < 820;
 }
 
 function doLogout() {
@@ -5175,7 +5183,12 @@ function showToast(msg) {
 
 // 自動ログイン or ログインIDをプリフィル
 if (token && userData) {
-  enterSpace();
+  // 現場 or モバイルなら /m へ
+  if (userData.employee_type === 'field' || isMobileDevice()) {
+    location.href = '/m';
+  } else {
+    enterSpace();
+  }
 } else {
   const savedId = localStorage.getItem('cohub_login_id');
   if (savedId) {

@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0891b2">
+<title>CoHub モバイル</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f1f5f9; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+  button, input, textarea { font-family: inherit; font-size: inherit; }
+  button { cursor: pointer; }
+  a { color: #0891b2; text-decoration: none; }
+  .hidden { display: none !important; }
+
+  /* ===== ログイン ===== */
+  #login { position: fixed; inset: 0; background: linear-gradient(160deg, #06b6d4 0%, #0891b2 100%); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+  #login-card { background: #fff; border-radius: 16px; padding: 28px 22px; width: 100%; max-width: 340px; box-shadow: 0 24px 54px rgba(0,0,0,0.25); }
+  #login-card h1 { margin: 0 0 4px; font-size: 22px; color: #0f172a; text-align: center; font-weight: 800; letter-spacing: 1px; }
+  #login-card .subtitle { font-size: 11px; color: #64748b; text-align: center; margin-bottom: 20px; }
+  #login-card label { display: block; font-size: 11px; color: #475569; margin: 10px 0 4px; font-weight: 600; }
+  #login-card input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; }
+  #login-card input:focus { outline: none; border-color: #0891b2; }
+  #login-btn { width: 100%; padding: 13px; margin-top: 18px; background: linear-gradient(135deg,#06b6d4,#0891b2); color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 15px; letter-spacing: 1px; }
+  #login-err { color: #dc2626; font-size: 12px; margin-top: 10px; min-height: 14px; text-align: center; }
+
+  /* ===== シェル ===== */
+  #app { position: fixed; inset: 0; display: none; flex-direction: column; }
+  /* ヘッダー */
+  #topbar { flex-shrink: 0; background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; padding: env(safe-area-inset-top) 14px 10px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  #topbar .ttl { flex: 1; font-weight: 800; letter-spacing: 1px; font-size: 15px; }
+  #topbar .status-pill { background: rgba(255,255,255,0.22); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  #topbar .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
+  #topbar .mute-btn { background: rgba(255,255,255,0.22); border: none; color: #fff; width: 34px; height: 34px; border-radius: 10px; font-size: 16px; }
+
+  /* コンテンツ領域 */
+  #content { flex: 1; overflow: hidden; position: relative; }
+  .page { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: none; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .page.active { display: block; }
+
+  /* 下部タブ */
+  #tabbar { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 1px solid #e2e8f0; padding-bottom: env(safe-area-inset-bottom); z-index: 50; }
+  #tabbar button { background: none; border: none; padding: 10px 0 8px; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; position: relative; }
+  #tabbar button.active { color: #0891b2; }
+  #tabbar button .icon { font-size: 22px; line-height: 1; }
+  #tabbar button .badge { position: absolute; top: 5px; right: 50%; transform: translateX(16px); background: #ef4444; color: #fff; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 8px; min-width: 16px; text-align: center; }
+
+  /* ===== ホーム ===== */
+  .section { background: #fff; margin: 10px 12px; border-radius: 14px; padding: 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
+  .section-ttl { font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .me-box { display: flex; align-items: center; gap: 12px; }
+  .me-av { width: 52px; height: 52px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #475569; overflow: hidden; flex-shrink: 0; }
+  .me-av img { width: 100%; height: 100%; object-fit: cover; }
+  .me-info { flex: 1; min-width: 0; }
+  .me-name { font-size: 16px; font-weight: 800; }
+  .me-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .status-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 14px; }
+  .status-btn { padding: 10px 6px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 12px; font-weight: 600; color: #475569; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .status-btn.active { border-color: #0891b2; background: #ecfeff; color: #0891b2; }
+  .status-btn .sdot { width: 10px; height: 10px; border-radius: 50%; }
+  .qa-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .qa-item { padding: 18px 12px; border-radius: 14px; background: linear-gradient(135deg, #f0f9ff, #ecfeff); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #0f172a; border: 1.5px solid #cffafe; }
+  .qa-item .i { font-size: 28px; }
+  .qa-item.aoi { background: linear-gradient(135deg, #fdf4ff, #fce7f3); border-color: #f9a8d4; color: #831843; }
+
+  /* ===== チャット一覧 ===== */
+  .chat-list { padding: 0; }
+  .chat-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border-bottom: 1px solid #f1f5f9; position: relative; }
+  .chat-item:active { background: #f8fafc; }
+  .chat-av { width: 46px; height: 46px; border-radius: 50%; background: #e2e8f0; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #475569; font-weight: 700; }
+  .chat-av img { width: 100%; height: 100%; object-fit: cover; }
+  .chat-av.bot { background: linear-gradient(135deg, #fce7f3, #cffafe); }
+  .chat-body { flex: 1; min-width: 0; }
+  .chat-name { font-size: 14px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+  .chat-snippet { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .chat-time { font-size: 10px; color: #94a3b8; }
+  .chat-unread { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; min-width: 20px; text-align: center; }
+  .list-section-ttl { padding: 14px 14px 6px; font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; }
+
+  /* ===== DM/グループ会話 ===== */
+  #chat-modal { position: fixed; inset: 0; background: #f1f5f9; display: none; flex-direction: column; z-index: 90; }
+  #chat-modal.show { display: flex; }
+  #chat-head { flex-shrink: 0; background: #fff; display: flex; align-items: center; gap: 10px; padding: env(safe-area-inset-top) 12px 10px; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+  #chat-head button.back { background: none; border: none; font-size: 22px; color: #475569; padding: 6px 10px; }
+  #chat-head .h-av { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #475569; }
+  #chat-head .h-av img { width: 100%; height: 100%; object-fit: cover; }
+  #chat-head .h-info { flex: 1; min-width: 0; }
+  #chat-head .h-name { font-size: 14px; font-weight: 700; }
+  #chat-head .h-sub { font-size: 10px; color: #64748b; }
+  #chat-body { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+  .msg { margin-bottom: 10px; display: flex; gap: 8px; }
+  .msg.self { flex-direction: row-reverse; }
+  .msg .av { width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #475569; }
+  .msg .av img { width: 100%; height: 100%; object-fit: cover; }
+  .msg .bub-wrap { max-width: 74%; display: flex; flex-direction: column; }
+  .msg.self .bub-wrap { align-items: flex-end; }
+  .msg .sender { font-size: 10px; color: #64748b; margin-bottom: 2px; padding: 0 4px; }
+  .msg .bub { background: #fff; padding: 10px 12px; border-radius: 14px; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(15,23,42,0.06); white-space: pre-wrap; word-break: break-word; }
+  .msg.self .bub { background: #06b6d4; color: #fff; }
+  .msg .t { font-size: 9px; color: #94a3b8; margin-top: 2px; padding: 0 4px; }
+  .msg .attach { margin-top: 6px; }
+  .msg .attach img { max-width: 100%; max-height: 240px; border-radius: 10px; display: block; }
+  .msg .attach a { display: inline-block; padding: 6px 10px; background: rgba(15,23,42,0.08); border-radius: 8px; font-size: 12px; color: #0f172a; }
+  #chat-input-wrap { flex-shrink: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); display: flex; gap: 6px; align-items: flex-end; }
+  #chat-attach-btn { background: none; border: none; font-size: 22px; color: #64748b; padding: 6px 8px; }
+  #chat-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 18px; padding: 8px 12px; font-size: 14px; min-height: 36px; max-height: 120px; resize: none; font-family: inherit; }
+  #chat-input:focus { outline: none; border-color: #0891b2; }
+  #chat-send-btn { background: #06b6d4; color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  #chat-send-btn:disabled { background: #cbd5e1; }
+
+  /* ===== メンバー一覧 ===== */
+  .mem-tabs { display: flex; gap: 4px; padding: 10px 12px; background: #fff; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #e2e8f0; }
+  .mem-tabs button { flex: 1; padding: 8px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; font-size: 12px; font-weight: 600; color: #475569; }
+  .mem-tabs button.active { background: #0891b2; color: #fff; border-color: #0891b2; }
+  .mem-list { padding: 0; }
+  .mem-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border-bottom: 1px solid #f1f5f9; }
+  .mem-item:active { background: #f8fafc; }
+  .mem-av { position: relative; width: 46px; height: 46px; border-radius: 50%; background: #e2e8f0; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #475569; }
+  .mem-av img { width: 100%; height: 100%; object-fit: cover; }
+  .mem-av .sdot { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; background: #cbd5e1; }
+  .mem-av .sdot.online { background: #10b981; }
+  .mem-av .sdot.busy { background: #ef4444; }
+  .mem-av .sdot.focus { background: #8b5cf6; }
+  .mem-info { flex: 1; min-width: 0; }
+  .mem-name { font-size: 14px; font-weight: 700; }
+  .mem-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .mem-tap { background: #ecfeff; color: #0891b2; border: 1px solid #a5f3fc; border-radius: 18px; padding: 6px 12px; font-size: 11px; font-weight: 700; }
+
+  /* ===== 設定 ===== */
+  .set-list { background: #fff; margin: 10px 12px; border-radius: 14px; overflow: hidden; }
+  .set-item { display: flex; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }
+  .set-item:last-child { border-bottom: 0; }
+  .set-item .i { font-size: 20px; width: 28px; text-align: center; }
+  .set-item .l { flex: 1; font-size: 14px; font-weight: 600; }
+  .set-item .r { color: #94a3b8; font-size: 16px; }
+  .set-item.danger { color: #dc2626; }
+
+  /* ===== モーダル共通 ===== */
+  .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 150; display: none; align-items: flex-end; justify-content: center; }
+  .modal.show { display: flex; }
+  .modal-sheet { background: #fff; border-radius: 18px 18px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; padding: 18px 18px calc(20px + env(safe-area-inset-bottom)); }
+  .modal-sheet h3 { margin: 0 0 10px; font-size: 16px; }
+  .modal-sheet .desc { font-size: 12px; color: #64748b; margin-bottom: 14px; line-height: 1.7; }
+  .modal-sheet label { display: block; font-size: 12px; color: #475569; margin: 10px 0 4px; font-weight: 600; }
+  .modal-sheet input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; }
+  .modal-sheet .row-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .modal-sheet .row-btns button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 700; font-size: 14px; }
+  .btn-primary { background: linear-gradient(135deg,#06b6d4,#0891b2); color: #fff; }
+  .btn-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5 !important; }
+  .btn-cancel { background: #f1f5f9; color: #475569; }
+
+  /* トースト */
+  #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 200; opacity: 0; transition: opacity 0.25s, bottom 0.25s; pointer-events: none; max-width: 85vw; text-align: center; }
+  #toast.show { opacity: 1; bottom: 110px; }
+</style>
+</head>
+<body>
+
+<!-- ========== ログイン ========== -->
+<div id="login">
+  <div id="login-card">
+    <h1>CoHub</h1>
+    <div class="subtitle">スタンダード運輸グループ</div>
+    <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
+      <label for="li">ログインID</label>
+      <input type="text" id="li" name="login_id" autocomplete="username" inputmode="email" autocapitalize="off">
+      <label for="pw">パスワード</label>
+      <input type="password" id="pw" name="password" autocomplete="current-password">
+      <button id="login-btn" type="submit">ログイン</button>
+      <div id="login-err"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== メインアプリ ========== -->
+<div id="app">
+  <div id="topbar">
+    <div class="ttl">CoHub</div>
+    <div class="status-pill"><span class="dot" id="top-sdot"></span><span id="top-status">在席</span></div>
+    <button class="mute-btn" id="mute-btn" onclick="toggleMute()" title="音声">🔊</button>
+  </div>
+
+  <div id="content">
+    <!-- ホーム -->
+    <div class="page active" id="page-home">
+      <div class="section">
+        <div class="me-box">
+          <div class="me-av" id="me-av"></div>
+          <div class="me-info">
+            <div class="me-name" id="me-name">-</div>
+            <div class="me-meta" id="me-meta">-</div>
+          </div>
+        </div>
+        <div class="status-grid">
+          <button class="status-btn" data-s="active" onclick="setMyStatus('active')"><span class="sdot" style="background:#10b981"></span>在席</button>
+          <button class="status-btn" data-s="退席中" onclick="setMyStatus('退席中')"><span class="sdot" style="background:#eab308"></span>退席</button>
+          <button class="status-btn" data-s="会議中" onclick="setMyStatus('会議中')"><span class="sdot" style="background:#ef4444"></span>取込中</button>
+          <button class="status-btn" data-s="集中中" onclick="setMyStatus('集中中')"><span class="sdot" style="background:#8b5cf6"></span>集中</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-ttl">クイックアクセス</div>
+        <div class="qa-grid">
+          <div class="qa-item aoi" onclick="openBotChat()">
+            <div class="i">🤖</div>
+            <div>葵に聞く</div>
+          </div>
+          <div class="qa-item" onclick="switchTab('members')">
+            <div class="i">👥</div>
+            <div>メンバー</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- チャット -->
+    <div class="page" id="page-chat">
+      <div class="list-section-ttl">葵 (受付AI)</div>
+      <div class="chat-list" id="bot-list"></div>
+      <div class="list-section-ttl">グループ</div>
+      <div class="chat-list" id="group-list"></div>
+      <div class="list-section-ttl">メンバー</div>
+      <div class="chat-list" id="dm-list"></div>
+    </div>
+
+    <!-- メンバー -->
+    <div class="page" id="page-members">
+      <div class="mem-tabs">
+        <button class="active" data-filter="all" onclick="setMemberFilter('all')">全員</button>
+        <button data-filter="office" onclick="setMemberFilter('office')">事務所</button>
+        <button data-filter="field" onclick="setMemberFilter('field')">現場</button>
+      </div>
+      <div class="mem-list" id="mem-list"></div>
+    </div>
+
+    <!-- 設定 -->
+    <div class="page" id="page-settings">
+      <div class="section me-box">
+        <div class="me-av" id="set-av"></div>
+        <div class="me-info">
+          <div class="me-name" id="set-name">-</div>
+          <div class="me-meta" id="set-meta">-</div>
+        </div>
+      </div>
+      <div class="set-list">
+        <div class="set-item" id="set-calendar" onclick="openCalModal()">
+          <div class="i">📅</div><div class="l">カレンダー連携</div><div class="r">›</div>
+        </div>
+        <div class="set-item" onclick="openPwModal()">
+          <div class="i">🔑</div><div class="l">パスワード変更</div><div class="r">›</div>
+        </div>
+        <div class="set-item" onclick="location.href='/'">
+          <div class="i">🖥️</div><div class="l">PC版に切替</div><div class="r">›</div>
+        </div>
+        <div class="set-item danger" onclick="doLogout()">
+          <div class="i">🚪</div><div class="l">ログアウト</div><div class="r">›</div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:20px;color:#94a3b8;font-size:10px;">CoHub Express Mobile</div>
+    </div>
+  </div>
+
+  <!-- 下部タブ -->
+  <div id="tabbar">
+    <button class="active" data-tab="home" onclick="switchTab('home')"><div class="icon">🏠</div>ホーム</button>
+    <button data-tab="chat" onclick="switchTab('chat')"><div class="icon">💬</div>チャット<span class="badge hidden" id="badge-chat">0</span></button>
+    <button data-tab="members" onclick="switchTab('members')"><div class="icon">👥</div>メンバー</button>
+    <button data-tab="settings" onclick="switchTab('settings')"><div class="icon">⚙️</div>設定</button>
+  </div>
+</div>
+
+<!-- ========== 会話モーダル (DM/グループ/葵) ========== -->
+<div id="chat-modal">
+  <div id="chat-head">
+    <button class="back" onclick="closeChatModal()">‹</button>
+    <div class="h-av" id="chat-h-av"></div>
+    <div class="h-info">
+      <div class="h-name" id="chat-h-name">-</div>
+      <div class="h-sub" id="chat-h-sub">-</div>
+    </div>
+  </div>
+  <div id="chat-body"></div>
+  <div id="chat-input-wrap">
+    <button id="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()">📎</button>
+    <input type="file" id="chat-file-input" style="display:none" onchange="onAttachFile(this)">
+    <textarea id="chat-input" placeholder="メッセージを入力…" rows="1"></textarea>
+    <button id="chat-send-btn" onclick="sendChatMessage()">➤</button>
+  </div>
+</div>
+
+<!-- ========== カレンダー連携モーダル ========== -->
+<div class="modal" id="cal-modal">
+  <div class="modal-sheet">
+    <h3>📅 カレンダー連携</h3>
+    <div class="desc">Googleカレンダーを葵に連携すると、本日の予定をDMで受け取れます。</div>
+    <div id="cal-status-box" style="padding:10px 12px;border-radius:8px;margin-bottom:10px;font-size:12px;background:#f1f5f9;">読み込み中…</div>
+    <div id="cal-setup-box" style="display:none;">
+      <div style="font-size:11px;color:#64748b;line-height:1.7;">
+        下記メールを、Googleカレンダーの共有相手に追加してください (権限: 予定の表示 すべての詳細)。
+      </div>
+      <div style="margin:10px 0;padding:10px;background:#f1f5f9;border-radius:8px;font-family:monospace;font-size:11px;word-break:break-all;">
+        <span id="cal-sa-email">-</span>
+        <button onclick="copyCalSa()" style="float:right;background:#06b6d4;color:#fff;border:none;padding:2px 8px;border-radius:4px;font-size:10px;">コピー</button>
+      </div>
+      <label>カレンダーID (通常はGmailアドレス)</label>
+      <input type="text" id="cal-id-input" placeholder="your.email@gmail.com" inputmode="email" autocapitalize="off">
+      <div id="cal-err" style="color:#dc2626;font-size:11px;margin-top:6px;min-height:12px;"></div>
+    </div>
+    <div id="cal-linked-box" style="display:none;">
+      <div style="padding:10px;background:#f0fdf4;border-radius:8px;color:#065f46;font-size:12px;">
+        ✅ 連携済: <span id="cal-linked-id" style="font-family:monospace;font-size:11px;"></span>
+      </div>
+    </div>
+    <div class="row-btns">
+      <button class="btn-cancel" onclick="closeCalModal()">閉じる</button>
+      <button class="btn-primary" id="cal-action-btn" onclick="calAction()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== パスワード変更モーダル ========== -->
+<div class="modal" id="pw-modal">
+  <div class="modal-sheet">
+    <h3>🔑 パスワード変更</h3>
+    <label>現在のパスワード</label>
+    <input type="password" id="pw-current" autocomplete="current-password">
+    <label>新しいパスワード</label>
+    <input type="password" id="pw-new" autocomplete="new-password">
+    <div style="font-size:10px;color:#64748b;margin-top:4px;line-height:1.6;">10文字以上、大小英数字+記号、3連続禁止</div>
+    <label>新しいパスワード (確認)</label>
+    <input type="password" id="pw-confirm" autocomplete="new-password">
+    <div id="pw-err" style="color:#dc2626;font-size:11px;margin-top:8px;min-height:12px;"></div>
+    <div class="row-btns">
+      <button class="btn-cancel" onclick="closePwModal()">キャンセル</button>
+      <button class="btn-primary" onclick="submitPw()">変更</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ============================================================
+// 状態
+// ============================================================
+let token = localStorage.getItem('cohub_token') || '';
+let user = null;         // { uid, display_name, role, employee_type, ... }
+let socket = null;
+let users = {};          // uid -> { uid, name, avatar, status, company, employee_type, floor, ... }
+let currentTab = 'home';
+let openPeerUid = null;  // 開いている会話相手 (DM)
+let openGroupId = null;  // 開いているグループID
+let dmPeers = [];        // DM相手一覧 (最新順)
+let dmUnread = {};       // uid -> unread count
+let groupUnread = {};    // gid -> count
+let groupsList = [];     // 自分が参加してるグループ一覧
+let memberFilter = 'all';
+let speakerOn = true;
+const BOT_UID = 'bot_aoi';
+const AOI_VOICE = 'ja-JP-Neural2-B';
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function escapeHtml(s) {
+  return String(s || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'})[c]);
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function fmtTime(ts) {
+  try {
+    const d = new Date(ts);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+    const y = now.getFullYear() === d.getFullYear() ? '' : (d.getFullYear() + '/');
+    return y + (d.getMonth()+1) + '/' + d.getDate();
+  } catch (e) { return ''; }
+}
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, token ? { 'Authorization': 'Bearer ' + token } : {});
+  return fetch(path, opts).then(async r => {
+    if (r.status === 401) {
+      // 認証切れ → /m のログインに戻す (但し /api/calendar/upcoming など一部は例外)
+      if (!path.includes('/api/calendar/')) {
+        localStorage.removeItem('cohub_token');
+        token = ''; user = null;
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('login').style.display = 'flex';
+        throw new Error('認証切れ');
+      }
+    }
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('json')) return await r.json();
+    return { _raw: r };
+  });
+}
+
+// ============================================================
+// ログイン
+// ============================================================
+async function doLogin() {
+  const li = document.getElementById('li').value.trim();
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  err.textContent = '';
+  if (!li || !pw) { err.textContent = 'IDとパスワードを入力してください'; return; }
+  btn.disabled = true; btn.textContent = 'ログイン中…';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login_id: li, password: pw }),
+    });
+    const j = await r.json();
+    if (!j.success) {
+      err.textContent = j.msg || 'ログイン失敗';
+      btn.disabled = false; btn.textContent = 'ログイン';
+      return;
+    }
+    token = j.token;
+    user = j.user;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(user));
+    localStorage.setItem('cohub_login_id', li);
+    startApp();
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = 'ログイン';
+  }
+}
+
+async function doLogout() {
+  if (!confirm('ログアウトしますか?')) return;
+  try { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } }); } catch (e) {}
+  localStorage.removeItem('cohub_token');
+  localStorage.removeItem('cohub_user');
+  token = ''; user = null;
+  if (socket) { try { socket.disconnect(); } catch (e) {} socket = null; }
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login').style.display = 'flex';
+  document.getElementById('pw').value = '';
+}
+
+// ============================================================
+// アプリ開始
+// ============================================================
+function startApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderMe();
+  connectSocket();
+  loadChatLists();
+  // PWA: SW登録 (既存SWを使いまわし)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+}
+
+function renderMe() {
+  if (!user) return;
+  const av = document.getElementById('me-av');
+  const savEl = document.getElementById('set-av');
+  const initials = (user.display_name || user.login_id || '?').slice(0, 2);
+  if (user.avatar_url) {
+    av.innerHTML = '<img src="' + escapeHtml(user.avatar_url) + '" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initials) + '\'))">';
+    savEl.innerHTML = av.innerHTML;
+  } else {
+    av.textContent = initials;
+    savEl.textContent = initials;
+  }
+  document.getElementById('me-name').textContent = user.display_name || user.login_id;
+  document.getElementById('set-name').textContent = user.display_name || user.login_id;
+  const metaParts = [];
+  if (user.company_code) metaParts.push(user.company_code);
+  if (user.role === 'admin') metaParts.push('管理者');
+  if (user.employee_type === 'field') metaParts.push('現場');
+  const meta = metaParts.join(' / ');
+  document.getElementById('me-meta').textContent = meta;
+  document.getElementById('set-meta').textContent = meta;
+  // 現場スタッフはカレンダー連携項目を隠す
+  const calItem = document.getElementById('set-calendar');
+  if (calItem) calItem.style.display = (user.employee_type === 'field') ? 'none' : 'flex';
+}
+
+// ============================================================
+// タブ切替
+// ============================================================
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + tab));
+  if (tab === 'chat') loadChatLists();
+  if (tab === 'members') renderMembers();
+}
+
+// ============================================================
+// Socket.IO
+// ============================================================
+function connectSocket() {
+  if (socket) { try { socket.disconnect(); } catch (e) {} }
+  socket = io({ auth: { token } });
+  socket.on('connect_error', (e) => {
+    if (e.message === 'unauth' || e.message === 'Authentication error') {
+      localStorage.removeItem('cohub_token');
+      token = ''; user = null;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('login').style.display = 'flex';
+    }
+  });
+  socket.on('snapshot', (d) => {
+    users = {};
+    for (const u of (d.users || [])) users[u.uid] = u;
+    // 自分のステータス反映
+    if (users[user.uid]) {
+      applyMyStatusUI(users[user.uid].status || 'online');
+    }
+    renderMembers();
+  });
+  socket.on('user:join', (u) => { users[u.uid] = u; renderMembers(); });
+  socket.on('user:leave', (d) => { if (users[d.uid]) { users[d.uid].status = 'offline'; renderMembers(); } });
+  socket.on('user:update', (d) => {
+    const u = users[d.uid] || {};
+    Object.assign(u, d);
+    users[d.uid] = u;
+    if (d.uid === user.uid && d.status) applyMyStatusUI(d.status);
+    renderMembers();
+  });
+  socket.on('chat:msg', (m) => {
+    // フロア公開チャット: モバイル版では受信はするが通知のみ (葵挨拶のみ表示)
+    if (m.uid === BOT_UID) {
+      // 葵のフロア公開挨拶は無視 (DMで改めて来る)
+    }
+  });
+  socket.on('dm:msg', (m) => {
+    const isSelf = m.from === user.uid;
+    const peerUid = isSelf ? m.to : m.from;
+    // 葵からの発言は読み上げ
+    if (!isSelf && m.from === BOT_UID && m.content) speakAoi(m.content);
+    if (openPeerUid === peerUid) {
+      appendMessage(m, isSelf);
+    } else if (!isSelf) {
+      dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
+      updateChatBadge();
+      loadChatLists();
+      const sender = users[peerUid] || {};
+      const name = peerUid === BOT_UID ? '葵' : (sender.name || '');
+      showToast('💬 ' + name + ': ' + (m.content || '').slice(0, 40));
+    }
+    if (isSelf && openPeerUid === peerUid) {
+      // 何もしない (即時追加はsendChatMessage側でOptimistic)
+    }
+  });
+  socket.on('group:msg', (m) => {
+    if (openGroupId === m.gid) {
+      appendMessage({ from: m.uid, content: m.content, at: m.at, attach: m.attach, sender_name: (users[m.uid] || {}).name || '' }, m.uid === user.uid);
+    } else if (m.uid !== user.uid) {
+      groupUnread[m.gid] = (groupUnread[m.gid] || 0) + 1;
+      updateChatBadge();
+      loadChatLists();
+    }
+  });
+}
+
+// ============================================================
+// ステータス
+// ============================================================
+function applyMyStatusUI(status) {
+  document.querySelectorAll('.status-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.s === status || (b.dataset.s === 'active' && (status === 'online' || status === 'active')));
+  });
+  document.getElementById('top-status').textContent =
+    status === '退席中' ? '退席' :
+    status === '会議中' ? '取込' :
+    status === '集中中' ? '集中' : '在席';
+  const dot = document.getElementById('top-sdot');
+  dot.style.background =
+    status === '退席中' ? '#eab308' :
+    status === '会議中' ? '#ef4444' :
+    status === '集中中' ? '#8b5cf6' : '#10b981';
+}
+function setMyStatus(s) {
+  if (!socket) return;
+  const sendVal = s === 'active' ? 'online' : s;
+  socket.emit('status', { status: sendVal });
+  applyMyStatusUI(sendVal);
+}
+
+// ============================================================
+// チャットリスト読み込み
+// ============================================================
+async function loadChatLists() {
+  try {
+    const [dm, groups] = await Promise.all([
+      api('/api/chat/dm'),
+      api('/api/chat/groups'),
+    ]);
+    dmPeers = (dm && dm.peers) || [];
+    groupsList = (groups && groups.groups) || [];
+    renderChatLists();
+  } catch (e) { console.warn('chat lists', e.message); }
+}
+function renderChatLists() {
+  // 葵 (常時上部)
+  const bl = document.getElementById('bot-list');
+  const botPeer = dmPeers.find(p => p.peer_id === BOT_UID);
+  bl.innerHTML = renderChatItem({
+    peer_id: BOT_UID,
+    display_name: '葵',
+    avatar_url: '/assets/concierge_aoi.png',
+    company_code: 'AI 受付',
+    last_at: botPeer ? botPeer.last_at : null,
+    isBot: true,
+    unread: dmUnread[BOT_UID] || 0,
+  });
+  // グループ
+  const gl = document.getElementById('group-list');
+  gl.innerHTML = groupsList.map(g => {
+    const u = groupUnread[g.id] || 0;
+    return '<div class="chat-item" onclick="openGroup(\'' + escapeHtml(g.id) + '\',\'' + escapeHtml(g.name) + '\',\'' + escapeHtml(g.icon||'💬') + '\')">' +
+      '<div class="chat-av" style="background:#f0f9ff;">' + escapeHtml(g.icon || '💬') + '</div>' +
+      '<div class="chat-body">' +
+        '<div class="chat-name">' + escapeHtml(g.name) + ' <span style="font-size:10px;color:#94a3b8;font-weight:500;">(' + g.member_count + ')</span></div>' +
+        '<div class="chat-snippet">' + escapeHtml((g.last_content || '').slice(0, 40) || '(まだ投稿なし)') + '</div>' +
+      '</div>' +
+      '<div class="chat-right">' +
+        (g.last_at ? '<div class="chat-time">' + fmtTime(g.last_at) + '</div>' : '') +
+        (u > 0 ? '<div class="chat-unread">' + u + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('') || '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px;">参加中のグループはありません</div>';
+  // DMリスト (葵を除外)
+  const dl = document.getElementById('dm-list');
+  const peers = dmPeers.filter(p => p.peer_id !== BOT_UID);
+  dl.innerHTML = peers.map(p => renderChatItem({
+    peer_id: p.peer_id,
+    display_name: p.display_name,
+    avatar_url: p.avatar_url,
+    company_code: p.company_code,
+    last_at: p.last_at,
+    unread: dmUnread[p.peer_id] || 0,
+  })).join('') || '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px;">まだDM履歴がありません</div>';
+}
+function renderChatItem(o) {
+  const initials = (o.display_name || '?').slice(0, 2);
+  const avHtml = o.avatar_url
+    ? '<img src="' + escapeHtml(o.avatar_url) + '" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initials) + '\'))">'
+    : escapeHtml(initials);
+  return '<div class="chat-item" onclick="openDM(\'' + escapeHtml(o.peer_id) + '\',\'' + escapeHtml(o.display_name) + '\',\'' + escapeHtml(o.avatar_url || '') + '\',' + (o.isBot ? 'true' : 'false') + ')">' +
+    '<div class="chat-av' + (o.isBot ? ' bot' : '') + '">' + avHtml + '</div>' +
+    '<div class="chat-body">' +
+      '<div class="chat-name">' + escapeHtml(o.display_name) + (o.isBot ? ' <span style="font-size:9px;background:#cffafe;color:#155e75;padding:1px 5px;border-radius:6px;">BOT</span>' : '') + '</div>' +
+      '<div class="chat-snippet">' + escapeHtml(o.company_code || '') + '</div>' +
+    '</div>' +
+    '<div class="chat-right">' +
+      (o.last_at ? '<div class="chat-time">' + fmtTime(o.last_at) + '</div>' : '') +
+      (o.unread > 0 ? '<div class="chat-unread">' + o.unread + '</div>' : '') +
+    '</div>' +
+  '</div>';
+}
+function updateChatBadge() {
+  const total = Object.values(dmUnread).reduce((a,b) => a + b, 0) + Object.values(groupUnread).reduce((a,b) => a + b, 0);
+  const badge = document.getElementById('badge-chat');
+  if (total > 0) { badge.textContent = total > 99 ? '99+' : total; badge.classList.remove('hidden'); }
+  else { badge.classList.add('hidden'); }
+}
+
+// ============================================================
+// 会話モーダル (DM/グループ/葵)
+// ============================================================
+function openBotChat() {
+  openDM(BOT_UID, '葵', '/assets/concierge_aoi.png', true);
+}
+async function openDM(peerId, name, avatar, isBot) {
+  openPeerUid = peerId;
+  openGroupId = null;
+  dmUnread[peerId] = 0;
+  updateChatBadge();
+  loadChatLists();
+  document.getElementById('chat-modal').classList.add('show');
+  document.getElementById('chat-h-name').textContent = name;
+  document.getElementById('chat-h-sub').textContent = isBot ? 'AI 受付案内員' : (users[peerId] ? (users[peerId].company || '') : '');
+  const hav = document.getElementById('chat-h-av');
+  if (avatar) hav.innerHTML = '<img src="' + escapeHtml(avatar) + '">';
+  else hav.textContent = (name || '?').slice(0, 2);
+  document.getElementById('chat-body').innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px;">読み込み中…</div>';
+  try {
+    const j = await api('/api/chat/dm/' + encodeURIComponent(peerId));
+    const msgs = (j.messages || []).map(m => ({
+      id: m.id, from: m.sender_id, to: m.receiver_id, content: m.content, at: m.created_at,
+      attach: m.attach_url ? { url: m.attach_url, name: m.attach_name, size: m.attach_size, type: m.attach_type } : null,
+    }));
+    renderMessages(msgs);
+  } catch (e) { console.warn(e); }
+  setTimeout(() => document.getElementById('chat-input').focus(), 150);
+}
+async function openGroup(gid, name, icon) {
+  openGroupId = gid;
+  openPeerUid = null;
+  groupUnread[gid] = 0;
+  updateChatBadge();
+  loadChatLists();
+  document.getElementById('chat-modal').classList.add('show');
+  document.getElementById('chat-h-name').textContent = name;
+  document.getElementById('chat-h-sub').textContent = 'グループ';
+  document.getElementById('chat-h-av').innerHTML = escapeHtml(icon || '💬');
+  document.getElementById('chat-body').innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px;">読み込み中…</div>';
+  try {
+    const j = await api('/api/chat/groups/' + gid + '/messages');
+    const msgs = (j.messages || []).map(m => ({
+      id: m.id, from: m.sender_id, content: m.content, at: m.created_at,
+      sender_name: m.sender_name,
+      attach: m.attach_url ? { url: m.attach_url, name: m.attach_name, size: m.attach_size, type: m.attach_type } : null,
+    }));
+    renderMessages(msgs, true);
+  } catch (e) { console.warn(e); }
+}
+function closeChatModal() {
+  document.getElementById('chat-modal').classList.remove('show');
+  openPeerUid = null;
+  openGroupId = null;
+}
+function renderMessages(msgs, showSenderName) {
+  const body = document.getElementById('chat-body');
+  body.innerHTML = msgs.map(m => msgHtml(m, m.from === user.uid, showSenderName)).join('');
+  body.scrollTop = body.scrollHeight;
+}
+function appendMessage(m, isSelf) {
+  const body = document.getElementById('chat-body');
+  const near = body.scrollTop + body.clientHeight >= body.scrollHeight - 20;
+  body.insertAdjacentHTML('beforeend', msgHtml(m, isSelf, !!openGroupId));
+  if (near) body.scrollTop = body.scrollHeight;
+}
+function msgHtml(m, isSelf, showSenderName) {
+  const sender = users[m.from] || {};
+  const name = m.from === BOT_UID ? '葵' : (m.sender_name || sender.name || '');
+  const avatar = m.from === BOT_UID ? '/assets/concierge_aoi.png' : sender.avatar || '';
+  const initials = (name || '?').slice(0, 2);
+  const avHtml = avatar ? '<img src="' + escapeHtml(avatar) + '">' : escapeHtml(initials);
+  let attachHtml = '';
+  if (m.attach && m.attach.url) {
+    if ((m.attach.type || '').startsWith('image/')) {
+      attachHtml = '<div class="attach"><img src="' + escapeHtml(m.attach.url) + '" alt=""></div>';
+    } else {
+      attachHtml = '<div class="attach"><a href="' + escapeHtml(m.attach.url) + '" target="_blank">📎 ' + escapeHtml(m.attach.name || 'ファイル') + '</a></div>';
+    }
+  }
+  return '<div class="msg' + (isSelf ? ' self' : '') + '">' +
+    (isSelf ? '' : '<div class="av">' + avHtml + '</div>') +
+    '<div class="bub-wrap">' +
+      (showSenderName && !isSelf && name ? '<div class="sender">' + escapeHtml(name) + '</div>' : '') +
+      '<div class="bub">' + escapeHtml(m.content || '') + attachHtml + '</div>' +
+      (m.at ? '<div class="t">' + fmtTime(m.at) + '</div>' : '') +
+    '</div>' +
+  '</div>';
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const content = input.value.trim();
+  if (!content && !_pendingAttach) return;
+  if (openPeerUid) {
+    const payload = { to: openPeerUid, content };
+    if (_pendingAttach) payload.attach = _pendingAttach;
+    socket.emit('chat:dm', payload);
+    input.value = '';
+    clearAttach();
+    input.style.height = 'auto';
+  } else if (openGroupId) {
+    const payload = { gid: openGroupId, content };
+    if (_pendingAttach) payload.attach = _pendingAttach;
+    socket.emit('chat:group', payload);
+    input.value = '';
+    clearAttach();
+    input.style.height = 'auto';
+  }
+}
+
+// 添付ファイル
+let _pendingAttach = null;
+async function onAttachFile(el) {
+  const file = el.files && el.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { showToast('20MB以内でお願いします'); el.value = ''; return; }
+  try {
+    showToast('アップロード中…');
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/api/chat/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const j = await r.json();
+    if (j.success) {
+      _pendingAttach = { url: j.url, name: j.name, size: j.size, type: j.type };
+      showToast('📎 ' + (j.name || 'ファイル') + ' 準備OK');
+    }
+  } catch (e) { showToast('アップロード失敗'); }
+  el.value = '';
+}
+function clearAttach() { _pendingAttach = null; }
+
+// テキストエリア自動伸縮
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'chat-input') {
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px';
+  }
+});
+
+// ============================================================
+// メンバー一覧
+// ============================================================
+function setMemberFilter(f) {
+  memberFilter = f;
+  document.querySelectorAll('.mem-tabs button').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  renderMembers();
+}
+function renderMembers() {
+  const list = document.getElementById('mem-list');
+  const myType = user && user.employee_type;
+  const entries = Object.values(users || {}).filter(u => u && u.uid && u.uid !== user.uid && u.role !== 'bot');
+  const filtered = entries.filter(u => {
+    if (memberFilter === 'office') return u.employee_type !== 'field';
+    if (memberFilter === 'field') return u.employee_type === 'field';
+    return true;
+  });
+  // ソート: オンライン → 退席 → オフライン順、同状態なら会社コード
+  filtered.sort((a, b) => {
+    const rank = s => s === 'offline' ? 3 : s === '退席中' ? 2 : 1;
+    const d = rank(a.status) - rank(b.status);
+    if (d !== 0) return d;
+    return String(a.company || '').localeCompare(String(b.company || ''));
+  });
+  list.innerHTML = filtered.map(u => {
+    const init = (u.name || '?').slice(0, 2);
+    const av = u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(init);
+    const sCls = u.status === 'online' || !u.status || u.status === 'active' ? 'online' : u.status === '会議中' ? 'busy' : u.status === '集中中' ? 'focus' : '';
+    const sub = [u.company || '', u.employee_type === 'field' ? '現場' : '事務所'].filter(Boolean).join(' / ');
+    return '<div class="mem-item">' +
+      '<div class="mem-av">' + av + '<span class="sdot ' + sCls + '"></span></div>' +
+      '<div class="mem-info">' +
+        '<div class="mem-name">' + escapeHtml(u.name || '') + '</div>' +
+        '<div class="mem-sub">' + escapeHtml(sub) + (u.statusText ? ' — ' + escapeHtml(u.statusText) : '') + '</div>' +
+      '</div>' +
+      '<button class="mem-tap" onclick="openDM(\'' + escapeHtml(u.uid) + '\',\'' + escapeHtml(u.name || '') + '\',\'' + escapeHtml(u.avatar || '') + '\',false)">💬 DM</button>' +
+    '</div>';
+  }).join('') || '<div style="padding:30px 20px;text-align:center;color:#94a3b8;font-size:12px;">オンラインメンバーはいません</div>';
+}
+
+// ============================================================
+// カレンダー連携
+// ============================================================
+let _calStatus = null;
+async function openCalModal() {
+  document.getElementById('cal-modal').classList.add('show');
+  document.getElementById('cal-err').textContent = '';
+  document.getElementById('cal-setup-box').style.display = 'none';
+  document.getElementById('cal-linked-box').style.display = 'none';
+  document.getElementById('cal-status-box').textContent = '読み込み中…';
+  try {
+    const j = await api('/api/calendar/status');
+    _calStatus = j;
+    if (!j.service_available) {
+      document.getElementById('cal-status-box').textContent = '⚠ サーバー側の連携が未準備: ' + (j.error || '');
+      document.getElementById('cal-action-btn').style.display = 'none';
+      return;
+    }
+    document.getElementById('cal-action-btn').style.display = '';
+    if (j.linked) {
+      document.getElementById('cal-status-box').innerHTML = '✅ 連携中';
+      document.getElementById('cal-status-box').style.background = '#f0fdf4';
+      document.getElementById('cal-status-box').style.color = '#065f46';
+      document.getElementById('cal-linked-id').textContent = j.calendar_id || '';
+      document.getElementById('cal-linked-box').style.display = 'block';
+      document.getElementById('cal-action-btn').textContent = '解除';
+      document.getElementById('cal-action-btn').className = 'btn-danger';
+    } else {
+      document.getElementById('cal-status-box').innerHTML = '⭕ 未連携';
+      document.getElementById('cal-status-box').style.background = '#fef3c7';
+      document.getElementById('cal-status-box').style.color = '#92400e';
+      document.getElementById('cal-sa-email').textContent = j.service_account_email || '-';
+      document.getElementById('cal-setup-box').style.display = 'block';
+      document.getElementById('cal-action-btn').textContent = '連携テスト+保存';
+      document.getElementById('cal-action-btn').className = 'btn-primary';
+    }
+  } catch (e) {
+    document.getElementById('cal-status-box').textContent = '読み込みエラー';
+  }
+}
+function closeCalModal() { document.getElementById('cal-modal').classList.remove('show'); }
+function copyCalSa() {
+  const t = document.getElementById('cal-sa-email').textContent;
+  navigator.clipboard.writeText(t).then(() => showToast('📋 コピーしました')).catch(() => {});
+}
+async function calAction() {
+  if (!_calStatus) return;
+  const btn = document.getElementById('cal-action-btn');
+  if (_calStatus.linked) {
+    if (!confirm('カレンダー連携を解除しますか?')) return;
+    btn.disabled = true;
+    try {
+      await fetch('/api/calendar/link', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+      showToast('解除しました');
+      closeCalModal();
+    } catch (e) { showToast('解除失敗'); }
+    btn.disabled = false;
+    return;
+  }
+  const id = document.getElementById('cal-id-input').value.trim();
+  const err = document.getElementById('cal-err');
+  err.textContent = '';
+  if (!id) { err.textContent = 'カレンダーIDを入力してください'; return; }
+  btn.disabled = true;
+  btn.textContent = 'テスト中…';
+  try {
+    const r = await fetch('/api/calendar/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ calendar_id: id }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.success) { err.textContent = j.msg || '接続失敗'; btn.disabled = false; btn.textContent = '連携テスト+保存'; return; }
+    showToast('✅ 連携しました');
+    closeCalModal();
+  } catch (e) {
+    err.textContent = '通信エラー';
+    btn.disabled = false; btn.textContent = '連携テスト+保存';
+  }
+}
+
+// ============================================================
+// パスワード変更
+// ============================================================
+function openPwModal() {
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-err').textContent = '';
+  document.getElementById('pw-modal').classList.add('show');
+}
+function closePwModal() { document.getElementById('pw-modal').classList.remove('show'); }
+async function submitPw() {
+  const cur = document.getElementById('pw-current').value;
+  const ne = document.getElementById('pw-new').value;
+  const cn = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-err');
+  err.textContent = '';
+  if (ne !== cn) { err.textContent = '新パスワードが一致しません'; return; }
+  try {
+    const r = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ current_password: cur, new_password: ne }),
+    });
+    const j = await r.json();
+    if (!j.success) { err.textContent = j.msg || '変更失敗'; return; }
+    token = j.token;
+    localStorage.setItem('cohub_token', token);
+    showToast('パスワードを変更しました');
+    closePwModal();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+// ============================================================
+// 音量/ミュート + 葵 TTS
+// ============================================================
+let _aoiAudio = null;
+let _aoiAudioUrl = null;
+function toggleMute() {
+  speakerOn = !speakerOn;
+  document.getElementById('mute-btn').textContent = speakerOn ? '🔊' : '🔇';
+  if (!speakerOn) stopAoiSpeech();
+}
+async function speakAoi(text) {
+  if (!speakerOn || !text) return;
+  try {
+    stopAoiSpeech();
+    const cleaned = String(text)
+      .replace(/[🤖📅✨🔊🔇🎯🎙️🚪💼👔🅱🏛☕📦📋🔒🔔🎨🔑📜👋💬📎➤🟢🔴⭕]/g, '')
+      .replace(/^[\s・\-\*]+/gm, '')
+      .replace(/【[^】]*】/g, '、')
+      .replace(/\n+/g, '。')
+      .replace(/\s{2,}/g, ' ')
+      .slice(0, 1000);
+    if (!cleaned.trim()) return;
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ text: cleaned, voice: AOI_VOICE, speed: 1.05 }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { try { URL.revokeObjectURL(url); } catch (e) {} };
+    _aoiAudio = audio; _aoiAudioUrl = url;
+    await audio.play();
+  } catch (e) {}
+}
+function stopAoiSpeech() {
+  if (_aoiAudio) { try { _aoiAudio.pause(); } catch (e) {} try { _aoiAudio.src = ''; } catch (e) {} }
+  if (_aoiAudioUrl) { try { URL.revokeObjectURL(_aoiAudioUrl); } catch (e) {} _aoiAudioUrl = null; }
+  _aoiAudio = null;
+}
+
+// ============================================================
+// 初期化
+// ============================================================
+(async function init() {
+  const savedUser = localStorage.getItem('cohub_user');
+  if (token && savedUser) {
+    try { user = JSON.parse(savedUser); startApp(); return; } catch (e) {}
+  }
+  const savedLogin = localStorage.getItem('cohub_login_id');
+  if (savedLogin) document.getElementById('li').value = savedLogin;
+  document.getElementById('login').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+})();
+
+// Enterで送信 (Shiftで改行)
+document.addEventListener('keydown', (e) => {
+  if (e.target && e.target.id === 'chat-input' && e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
+</script>
+</body>
+</html>
