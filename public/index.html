@@ -137,11 +137,53 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #members-panel:not(.hidden) ~ #space-canvas-wrap { left: 376px; }
 #right-panel.hidden ~ #space-canvas-wrap { right: 0; }
 #space-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
-#lobby-calendar { position: absolute; top: 60px; right: 18px; width: 440px; height: 340px; z-index: 12; background: #fff; border-radius: 14px; box-shadow: 0 16px 38px rgba(15,23,42,0.42), 0 0 0 2px rgba(15,23,42,0.12); overflow: hidden; display: none; flex-direction: column; border: 6px solid #1e293b; }
-#lobby-calendar .lc-head { padding: 6px 12px; background: linear-gradient(90deg,#0f172a,#334155); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* ロビー壁面ディスプレイ: 真鍮額装 + 大理石ロビーに馴染ませる */
+#lobby-calendar {
+  position: absolute; top: 54px; right: 22px; width: 440px; height: 340px; z-index: 12;
+  background: #f8f5ee; border-radius: 6px;
+  padding: 10px; /* 額縁の内側余白 */
+  overflow: hidden; display: none; flex-direction: column;
+  /* 真鍮フレーム */
+  border: 1px solid #6e5326;
+  background-image: linear-gradient(135deg, #d4ad5a 0%, #b08d3f 25%, #e8c878 50%, #9a7829 75%, #caa354 100%);
+  /* 壁掛けディスプレイの立体感: 内側にへこみ、外側に影 */
+  box-shadow:
+    inset 0 1px 0 rgba(255,248,220,0.9),
+    inset 0 -1px 0 rgba(90,60,10,0.6),
+    0 2px 4px rgba(0,0,0,0.12),
+    0 18px 36px rgba(0,0,0,0.28),
+    0 36px 60px rgba(0,0,0,0.18);
+}
+#lobby-calendar::before {
+  /* フレーム内側の黒マット (画面のベゼル) */
+  content: ''; position: absolute; inset: 8px; border-radius: 3px;
+  background: #1a1208; z-index: 0;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+}
+#lobby-calendar .lc-head {
+  position: relative; z-index: 1;
+  padding: 5px 12px; margin: 0 2px;
+  background: linear-gradient(180deg,#faf8f3 0%, #e8e1cf 100%);
+  color: #3d2817; font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  border-top-left-radius: 3px; border-top-right-radius: 3px;
+  border-bottom: 1px solid #c9a96e;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+}
+#lobby-calendar .lc-body {
+  position: relative; z-index: 1; flex: 1; display: flex;
+  margin: 0 2px 2px; background: #fff; overflow: hidden;
+  border-bottom-left-radius: 3px; border-bottom-right-radius: 3px;
+}
 #lobby-calendar iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+#lobby-calendar .lc-fallback {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 18px; text-align: center; color: #64748b; font-size: 12px; line-height: 1.7;
+  background: linear-gradient(180deg,#fafaf7,#f1ede3);
+}
+#lobby-calendar .lc-fallback b { color: #3d2817; font-size: 13px; display: block; margin-bottom: 6px; }
 body.floor-lobby #lobby-calendar { display: flex; }
-@media (max-width: 900px) { #lobby-calendar { width: 320px; height: 260px; top: 56px; right: 10px; } }
+@media (max-width: 900px) { #lobby-calendar { width: 320px; height: 250px; top: 52px; right: 12px; } }
 @media (max-width: 600px) { body.floor-lobby #lobby-calendar { display: none; } }
 #space-canvas.dragging { cursor: grabbing; }
 
@@ -574,10 +616,16 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- ロビー掲示: 社内 Google カレンダー (閲覧のみ) -->
+    <!-- ロビー掲示: 社内 Google カレンダー (閲覧のみ・壁面ディスプレイ風) -->
     <div id="lobby-calendar" aria-label="社内カレンダー">
-      <div class="lc-head">📅 社内カレンダー</div>
-      <iframe src="https://calendar.google.com/calendar/embed?src=lmaqhcdd4dg1a21thectfstdtg%40group.calendar.google.com&ctz=Asia%2FTokyo&showTitle=0&showPrint=0&showCalendars=0&showTz=0&mode=AGENDA" loading="lazy" referrerpolicy="no-referrer" title="社内カレンダー"></iframe>
+      <div class="lc-head">📅 &nbsp;社内カレンダー</div>
+      <div class="lc-body">
+        <iframe id="lobby-cal-iframe" src="https://calendar.google.com/calendar/embed?src=lmaqhcdd4dg1a21thectfstdtg%40group.calendar.google.com&ctz=Asia%2FTokyo&showTitle=0&showPrint=0&showCalendars=0&showTz=0&mode=AGENDA" loading="lazy" referrerpolicy="no-referrer" title="社内カレンダー" onerror="document.getElementById('lobby-calendar-fallback').style.display='flex';this.style.display='none';"></iframe>
+        <div class="lc-fallback" id="lobby-calendar-fallback" style="display:none;">
+          <b>📅 カレンダーを読み込めません</b>
+          一般公開設定が必要です。<br>管理者にお問い合わせください。
+        </div>
+      </div>
     </div>
     <div id="floor-head">
       <span class="dot"></span>
