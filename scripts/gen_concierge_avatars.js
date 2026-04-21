@@ -16,6 +16,17 @@ Clean white background. Soft warm studio lighting. Bright, welcoming, polished c
 Square 1:1 frame. NO text, NO logos, NO writing.`,
   },
   {
+    file: 'concierge_aoi_full.png',
+    aspectRatio: '2:3',
+    prompt: `Full body standing figure of professional Japanese corporate receptionist, anime illustration style.
+Young woman, 25-30 years old, friendly warm smile, dark brown hair tied neatly, SAME CHARACTER AS PORTRAIT.
+Navy blazer over white blouse, navy pencil skirt just below knees, sheer stockings, navy closed-toe pumps.
+Slight welcome pose: one hand holding a slim silver tablet at her side, other hand relaxed.
+Front-facing, feet fully visible at bottom, head at top, centered.
+Pure white background (#FFFFFF), soft small elliptical floor shadow directly beneath feet.
+2:3 portrait aspect. NO text, NO logos, NO other people.`,
+  },
+  {
     file: 'concierge_misaki.png',
     prompt: `Professional Japanese corporate receptionist illustration, anime style.
 Young woman, 25-30 years old, calm gentle smile, light brown long straight hair with side swept bangs,
@@ -37,7 +48,7 @@ Square 1:1 frame. NO text, NO logos, NO writing.`,
       generationConfig: {
         responseModalities: ['IMAGE', 'TEXT'],
         temperature: 0.85,
-        imageConfig: { aspectRatio: '1:1' },
+        imageConfig: { aspectRatio: a.aspectRatio || '1:1' },
       },
     };
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey, {

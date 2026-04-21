@@ -1727,6 +1727,44 @@ function loadAvatar(u) {
   avatarImages[u.uid] = img;
 }
 
+// ===== 受付AI 葵: 立ち姿画像 (四隅flood-fillで背景透過) =====
+let conciergeFull = null; // { canvas, w, h } — 透過処理済みキャンバス
+(function loadConciergeFull() {
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const cx2 = c.getContext('2d', { willReadFrequently: true });
+      cx2.drawImage(img, 0, 0);
+      const id = cx2.getImageData(0, 0, w, h);
+      const data = id.data;
+      const visited = new Uint8Array(w * h);
+      const stack = [];
+      // 四隅からflood-fill (白〜淡色を透明化)
+      stack.push(0, w - 1, (h - 1) * w, (h - 1) * w + w - 1);
+      const THRESH = 235;
+      while (stack.length) {
+        const idx = stack.pop();
+        if (idx < 0 || idx >= w * h || visited[idx]) continue;
+        const i = idx * 4;
+        if (data[i] < THRESH || data[i + 1] < THRESH || data[i + 2] < THRESH) continue;
+        visited[idx] = 1;
+        data[i + 3] = 0;
+        const x = idx % w;
+        if (x + 1 < w) stack.push(idx + 1);
+        if (x - 1 >= 0) stack.push(idx - 1);
+        if (idx + w < w * h) stack.push(idx + w);
+        if (idx - w >= 0) stack.push(idx - w);
+      }
+      cx2.putImageData(id, 0, 0);
+      conciergeFull = { canvas: c, w, h };
+    } catch (e) { console.warn('concierge transparency failed', e.message); }
+  };
+  img.src = '/assets/concierge_aoi_full.png';
+})();
+
 // ===== ドラッグ&クリック移動 =====
 function hitTestPeer(worldX, worldY) {
   // 自分以外のオンラインアバターを当たり判定 (半径35px)
@@ -1941,7 +1979,69 @@ function render() {
   requestAnimationFrame(render);
 }
 
+// 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
+function drawConciergeStanding(u) {
+  const FIG_H = 150;                    // 全身高さ(px)
+  const aspect = conciergeFull.w / conciergeFull.h;
+  const FIG_W = Math.round(FIG_H * aspect);
+  // shake 演出
+  let sx = 0;
+  if (u._shakeUntil && u._shakeUntil > Date.now()) {
+    const t = (u._shakeUntil - Date.now()) / 900;
+    sx = Math.sin(Date.now() / 30) * 6 * t;
+  } else if (u._shakeUntil) { u._shakeUntil = 0; }
+  const cx = Math.round(u.cx + sx);
+  // 葵の指定y位置を中心として、足元がそこに来るよう上へ描画
+  const feetY = Math.round(u.cy + FIG_H / 2);
+  const headY = feetY - FIG_H;
+  ctx.save();
+  if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
+  // 足元の楕円影
+  ctx.save();
+  ctx.fillStyle = 'rgba(15,23,42,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(cx, feetY + 4, FIG_W * 0.42, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // 呼吸する柔らかなシアンのオーラ (AI感)
+  const phase = (Date.now() % 2600) / 2600;
+  const glowA = 0.28 + 0.12 * Math.sin(phase * Math.PI * 2);
+  const grad = ctx.createRadialGradient(cx, headY + FIG_H * 0.35, 10, cx, headY + FIG_H * 0.45, FIG_W * 0.95);
+  grad.addColorStop(0, `rgba(6,182,212,${glowA * 0.45})`);
+  grad.addColorStop(1, 'rgba(6,182,212,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
+  // 本体
+  ctx.drawImage(conciergeFull.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
+  // 頭上BOTバッジ
+  ctx.font = '700 10px sans-serif';
+  const botLabel = '🤖 AI 受付';
+  const tw = Math.round(ctx.measureText(botLabel).width + 16);
+  ctx.fillStyle = 'rgba(6,182,212,0.95)';
+  roundRect(cx - Math.round(tw / 2), headY - 20, tw, 18, 9);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(botLabel, cx, headY - 11);
+  // 名札 (足元下)
+  const label = u.name || '葵';
+  ctx.font = '600 12px sans-serif';
+  const lw = Math.round(ctx.measureText(label).width + 16);
+  ctx.fillStyle = 'rgba(15,23,42,0.85)';
+  roundRect(cx - Math.round(lw / 2), feetY + 10, lw, 20, 10);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(label, cx, feetY + 20);
+  ctx.restore();
+}
+
 function drawAvatar(u) {
+  // 受付AI 葵 は立ち姿で描画 (cy=足元 基準)
+  if (u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas) {
+    drawConciergeStanding(u);
+    return;
+  }
   const r = 28;
   // shake 演出 (肩たたき受信時 900ms)
   let sx = 0;
