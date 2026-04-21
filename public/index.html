@@ -1567,6 +1567,10 @@ function connectSocket() {
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === me;
     const peerUid = isSelf ? m.to : m.from;
+    // 葵からのメッセージは読み上げ (受信者自分の時のみ)
+    if (!isSelf && m.from === 'bot_aoi' && m.content) {
+      speakAoi(m.content);
+    }
     if (dmPeerUid === peerUid) {
       dmLog.push({ id: m.id, from: m.from, to: m.to, content: m.content, at: m.at, attach: m.attach || null });
       renderDM();
@@ -1964,7 +1968,7 @@ function render() {
 
   // 吹き出し
   const now = Date.now();
-  const bubbleLife = 20000;
+  const bubbleLife = 10000;
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i];
     if (now - b.at > bubbleLife) { bubbles.splice(i, 1); continue; }
@@ -1981,7 +1985,7 @@ function render() {
 
 // 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
 function drawConciergeStanding(u) {
-  const FIG_H = 150;                    // 全身高さ(px)
+  const FIG_H = 210;                    // 全身高さ(px)
   const aspect = conciergeFull.w / conciergeFull.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -3641,6 +3645,62 @@ function toggleSpeaker() {
   for (const [, peer] of voice.peers) {
     if (peer.audio) peer.audio.muted = !speakerOn;
   }
+  // ミュート時は葵の読み上げも停止
+  if (!speakerOn) stopAoiSpeech();
+}
+
+// ===== 葵の読み上げ (SpeechSynthesis API) =====
+let _aoiVoice = null;
+function pickJapaneseFemaleVoice() {
+  try {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+    const ja = voices.filter(v => /^ja/i.test(v.lang));
+    if (!ja.length) return null;
+    // 日本語女性っぽい名前を優先 (Google/Microsoft/macOS系)
+    const pref = ['Google 日本語', 'Microsoft Nanami', 'Microsoft Ayumi', 'Microsoft Haruka', 'Kyoko', 'O-ren'];
+    for (const p of pref) {
+      const v = ja.find(v => v.name && v.name.indexOf(p) !== -1);
+      if (v) return v;
+    }
+    return ja[0];
+  } catch (e) { return null; }
+}
+// voicesは非同期ロードのため、voiceschangedで再選択
+try {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => { _aoiVoice = pickJapaneseFemaleVoice(); };
+    _aoiVoice = pickJapaneseFemaleVoice();
+  }
+} catch (e) {}
+
+function speakAoi(text) {
+  if (!speakerOn) return;
+  if (!('speechSynthesis' in window)) return;
+  if (!text) return;
+  try {
+    // 連続発話を避ける (既存を止めてから)
+    window.speechSynthesis.cancel();
+    // 箇条書き記号や絵文字を除去して読みやすく
+    const cleaned = String(text)
+      .replace(/[🤖📅✨🔊🔇🎯🎙️🚪💼👔🅱🏛☕📦📋🔒🔔🎨🔑📜👋💬📎➤]/g, '')
+      .replace(/^[\s・\-\*]+/gm, '')
+      .replace(/【[^】]*】/g, '、')
+      .replace(/\n+/g, '。')
+      .replace(/\s{2,}/g, ' ')
+      .slice(0, 300);
+    const utt = new SpeechSynthesisUtterance(cleaned);
+    utt.lang = 'ja-JP';
+    utt.rate = 1.02;
+    utt.pitch = 1.08;
+    utt.volume = 1.0;
+    if (!_aoiVoice) _aoiVoice = pickJapaneseFemaleVoice();
+    if (_aoiVoice) utt.voice = _aoiVoice;
+    window.speechSynthesis.speak(utt);
+  } catch (e) { console.warn('speakAoi failed', e.message); }
+}
+function stopAoiSpeech() {
+  try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (e) {}
 }
 
 // ===== 音声モード (WebRTC 近接メッシュ) =====

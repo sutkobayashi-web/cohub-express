@@ -17,7 +17,7 @@ const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
-  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 700, y: 180 },
+  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 672, y: 380 },
 ];
 const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
 function ensureConciergeBots() {
