@@ -545,6 +545,9 @@ function connectSocket() {
       // 葵のフロア公開挨拶は無視 (DMで改めて来る)
     }
   });
+  socket.on('dm:blocked', (r) => {
+    showToast('🔒 ' + (r.msg || 'この相手にはDMできません'));
+  });
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === user.uid;
     const peerUid = isSelf ? m.to : m.from;

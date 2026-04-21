@@ -1572,6 +1572,9 @@ function connectSocket() {
   });
 
   // DM着信
+  socket.on('dm:blocked', (r) => {
+    showToast('🔒 ' + (r.msg || 'この相手にはDMできません'));
+  });
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === me;
     const peerUid = isSelf ? m.to : m.from;

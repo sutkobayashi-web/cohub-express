@@ -23,6 +23,8 @@ function getDb() {
   // 既存DB向けマイグレーション (idempotent)
   ensureColumn(_db, 'users', 'google_cal_id', 'google_cal_id TEXT');
   ensureColumn(_db, 'users', 'last_cal_dm_date', 'last_cal_dm_date TEXT');
+  ensureColumn(_db, 'users', 'dm_group', 'dm_group TEXT');
+  ensureColumn(_db, 'users', 'dm_rank', 'dm_rank INTEGER DEFAULT 0');
   // 事務所棟フロアの登場位置を正面玄関(下中央)に揃える
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')

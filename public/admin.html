@@ -77,7 +77,17 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <option value="member">一般</option>
         <option value="admin">管理者</option>
       </select>
+      <input type="text" id="new-dm-group" placeholder="DMグループ (例: 営業部)" style="max-width:170px;">
+      <select id="new-dm-rank" title="DM階層: 別グループへは差1までOK">
+        <option value="0">0 一般</option>
+        <option value="1">1 主任/係長</option>
+        <option value="2">2 課長/部長</option>
+        <option value="3">3 役員/社長</option>
+      </select>
       <button class="btn" onclick="addUser()">追加</button>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
+      💡 <b>DMグループ・階層</b>: レポートライン保護のための設定。同じグループは常にDM可、別グループへはrank差1まで許可 (例: 一般→部長 はブロック)。管理者ロールは階層無視。
     </div>
     <div id="add-msg"></div>
   </div>
@@ -160,7 +170,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div class="card">
     <h2>ユーザー一覧 <span id="user-count" style="color:#64748b;font-weight:400;font-size:13px;"></span></h2>
     <table>
-      <thead><tr><th>ID</th><th>表示名</th><th>所属</th><th>権限</th><th>状態</th><th>操作</th></tr></thead>
+      <thead><tr><th>ID</th><th>表示名</th><th>所属</th><th>権限</th><th>DMグループ/階層</th><th>状態</th><th>操作</th></tr></thead>
       <tbody id="user-tbody"></tbody>
     </table>
   </div>
@@ -527,13 +537,16 @@ async function loadUsers() {
   for (const u of d.users) {
     const c = COMPANY_MAP[u.company_code] || { name: u.company_code, color: '#64748b' };
     const tr = document.createElement('tr');
+    const rankLabels = ['0 一般', '1 主任係長', '2 課長部長', '3 役員社長'];
     tr.innerHTML = `
       <td>${escapeHtml(u.login_id)}</td>
       <td>${escapeHtml(u.display_name)}</td>
       <td><span class="chip" style="background:${c.color};">${escapeHtml(c.name)}</span></td>
       <td>${u.role === 'admin' ? '<span class="chip chip-role-admin">管理者</span>' : '一般'}</td>
+      <td style="font-size:11px;">${escapeHtml(u.dm_group || '<span style=\"color:#94a3b8;\">-</span>')}<br><span style="color:#64748b;font-size:10px;">${escapeHtml(rankLabels[u.dm_rank | 0])}</span></td>
       <td>${u.status || 'offline'}</td>
       <td>
+        <button class="btn btn-ghost" onclick="editDmGroup('${u.id}','${escapeHtml(u.display_name)}','${escapeHtml(u.dm_group || '')}',${u.dm_rank | 0})">DM設定</button>
         <button class="btn btn-ghost" onclick="resetPass('${u.id}','${escapeHtml(u.display_name)}')">PWリセット</button>
         <button class="btn btn-danger" onclick="delUser('${u.id}','${escapeHtml(u.display_name)}')">削除</button>
       </td>`;
@@ -550,6 +563,8 @@ async function addUser() {
     password: document.getElementById('new-pass').value,
     role: document.getElementById('new-role').value,
     employee_type: document.getElementById('new-type').value,
+    dm_group: document.getElementById('new-dm-group').value.trim(),
+    dm_rank: parseInt(document.getElementById('new-dm-rank').value) || 0,
   };
   const msg = document.getElementById('add-msg');
   const r = await fetch('/api/admin/users', {
@@ -578,6 +593,21 @@ async function bulkAdd() {
   if (!d.success) { msg.className = 'err'; msg.textContent = d.msg || '失敗'; return; }
   msg.className = 'ok';
   msg.textContent = `追加: ${d.created}件 / スキップ: ${d.skipped}件` + (d.errors.length ? ` / エラー: ${d.errors.join(', ')}` : '');
+  loadUsers();
+}
+
+async function editDmGroup(id, name, currentGroup, currentRank) {
+  const g = prompt(`${name} さんのDMグループ (例: 営業部 / 経理 / 経営層 / 現場_座間)\n空欄で無制限に戻す`, currentGroup || '');
+  if (g === null) return;
+  const rankStr = prompt(`${name} さんの階層ランク\n0=一般 / 1=主任係長 / 2=課長部長 / 3=役員社長`, String(currentRank || 0));
+  if (rankStr === null) return;
+  const r = await fetch('/api/admin/users/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ dm_group: g.trim() || null, dm_rank: parseInt(rankStr) || 0 }),
+  });
+  const d = await r.json();
+  if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
   loadUsers();
 }
 

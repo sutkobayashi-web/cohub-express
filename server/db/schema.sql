@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   session_token TEXT,
   google_cal_id TEXT,                 -- Googleカレンダー連携ID (NULL=未連携)
   last_cal_dm_date TEXT,              -- 最後に葵から予定DMを送った日 YYYY-MM-DD
+  dm_group TEXT,                      -- DM所属グループ (例: 営業部/経理/経営層) NULLは無制限(移行互換)
+  dm_rank INTEGER DEFAULT 0,          -- DM階層 0=一般 1=主任係長 2=課長部長 3=役員社長
   created_at TEXT DEFAULT (datetime('now')),
   last_seen_at TEXT
 );

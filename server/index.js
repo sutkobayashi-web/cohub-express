@@ -290,6 +290,30 @@ function getVoiceGroup(p) {
   return p.floor + ':open';
 }
 
+// DM権限判定: true=許可 / false=拒否 (レポートライン保護)
+// - 管理者(role=admin)は常にOK
+// - 受信者がbotなら常にOK
+// - dm_group NULL は移行互換で無制限
+// - 同じdm_groupなら常にOK
+// - 別group: 送信者rank >= 受信者rank - 1 (即ち差が2以上の下から上はブロック)
+function canDm(sender, receiver) {
+  if (!sender || !receiver) return false;
+  if (sender.role === 'admin') return true;
+  if (receiver.role === 'bot') return true;
+  const sg = sender.dm_group || null;
+  const rg = receiver.dm_group || null;
+  // 移行互換: どちらかがNULLなら無制限
+  if (sg == null || rg == null) return true;
+  if (sg === rg) return true;
+  const sr = sender.dm_rank | 0;
+  const rr = receiver.dm_rank | 0;
+  // 送信者ランクが受信者ランク-1以上なら通す (上から下/隣接レベルまで)
+  return sr >= rr - 1;
+}
+function loadUserForDm(uid) {
+  return getDb().prepare('SELECT id, role, dm_group, dm_rank FROM users WHERE id = ?').get(uid);
+}
+
 function allFloors() {
   const rows = getDb().prepare('SELECT code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, locked, approval_mode, building FROM floors ORDER BY sort_order').all();
   return rows.map(r => ({ ...r, locked: !!r.locked, approval_mode: !!r.approval_mode }));
@@ -331,7 +355,7 @@ function floorCountMap() {
 // 指定フロアに居るメンバー（+オフライン全員のメタ情報）
 function floorUserList(floorCode) {
   const db = getDb();
-  const users = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, u.employee_type, u.role, c.ring_color
+  const users = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, u.employee_type, u.role, u.dm_group, u.dm_rank, c.ring_color
     FROM users u LEFT JOIN companies c ON c.code = u.company_code`).all();
   return users.map(u => {
     const p = presence.get(u.id);
@@ -344,6 +368,8 @@ function floorUserList(floorCode) {
       ring: u.ring_color || '#333',
       employee_type: u.employee_type || 'office',
       role: u.role,
+      dm_group: u.dm_group || null,
+      dm_rank: u.dm_rank | 0,
       x: inFloor ? p.x : null,
       y: inFloor ? p.y : null,
       status: inFloor ? p.status : 'offline',
@@ -734,8 +760,14 @@ io.on('connection', (socket) => {
     const to = (data && data.to || '').toString();
     const content = (data && data.content || '').toString().trim().slice(0, 1000);
     if (!to || (!content && !(data && data.attach)) || to === uid) return;
-    const target = getDb().prepare('SELECT id FROM users WHERE id = ?').get(to);
+    const target = getDb().prepare('SELECT id, role, dm_group, dm_rank FROM users WHERE id = ?').get(to);
     if (!target) return;
+    // DM権限判定 (レポートライン保護)
+    const sender = loadUserForDm(uid);
+    if (!canDm(sender, target)) {
+      socket.emit('dm:blocked', { to, reason: 'hierarchy', msg: 'この相手にはDMできません。上司経由でご連絡ください。' });
+      return;
+    }
     const a = data && data.attach && data.attach.url ? data.attach : null;
     const attachUrl = a ? String(a.url).slice(0, 500) : null;
     const attachName = a ? String(a.name || '').slice(0, 200) : null;
