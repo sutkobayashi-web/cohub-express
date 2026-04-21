@@ -145,7 +145,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div class="row">
       <input type="text" id="chat-q" placeholder="キーワード検索">
       <select id="chat-sender"><option value="">送信者すべて</option></select>
-      <select id="chat-room"><option value="">フロアすべて</option></select>
+      <select id="chat-room" title="すべての部屋=フロア+DM+グループ全て対象"><option value="">すべての部屋</option></select>
       <input type="date" id="chat-since">
       <input type="date" id="chat-until">
       <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="chat-mention-only"> メンションのみ</label>
@@ -155,7 +155,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div style="font-size:12px;color:#64748b;margin-bottom:6px;" id="chat-meta"></div>
     <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
       <table style="margin:0;">
-        <thead style="position:sticky;top:0;"><tr><th style="width:140px;">日時</th><th style="width:160px;">送信者</th><th style="width:120px;">フロア</th><th>内容</th><th style="width:60px;">メンション</th></tr></thead>
+        <thead style="position:sticky;top:0;"><tr><th style="width:140px;">日時</th><th style="width:160px;">送信者</th><th style="width:140px;">部屋</th><th>内容</th><th style="width:60px;">メンション</th></tr></thead>
         <tbody id="chat-tbody"></tbody>
       </table>
     </div>
@@ -698,15 +698,42 @@ async function copyTranscript() {
   catch (e) { alert('コピー失敗'); }
 }
 
+// room_code を人間可読ラベルに変換 (フロア/DM/グループ)
+let _roomLabelMap = {}; // code → label
+function roomLabel(code) {
+  if (!code) return '';
+  if (code === 'dm') return '<span style="color:#0891b2;">💬 DM</span>';
+  if (_roomLabelMap[code]) return escapeHtml(_roomLabelMap[code]);
+  if (code.startsWith('grp_')) return '🗨 (不明グループ)';
+  return escapeHtml(code);
+}
+
 async function loadFloors() {
   try {
-    const r = await fetch('/api/chat/floors', { headers:{'Authorization':'Bearer '+token} });
-    const d = await r.json();
-    if (!d.success) return;
+    const [fr, gr] = await Promise.all([
+      fetch('/api/chat/floors', { headers:{'Authorization':'Bearer '+token} }).then(r => r.json()),
+      fetch('/api/admin/groups', { headers:{'Authorization':'Bearer '+token} }).then(r => r.json()).catch(() => ({ groups: [] })),
+    ]);
+    if (!fr.success) return;
+    _roomLabelMap = {};
+    for (const f of fr.floors) _roomLabelMap[f.code] = '🏢 ' + f.name;
+    if (gr && Array.isArray(gr.groups)) {
+      for (const g of gr.groups) _roomLabelMap['grp_' + g.id] = '🗨 ' + (g.icon || '') + ' ' + g.name;
+    }
     const sel = document.getElementById('chat-room');
-    sel.innerHTML = '<option value="">フロアすべて</option>' + d.floors.map(f => `<option value="${f.code}">${escapeHtml(f.name)}</option>`).join('');
+    let html = '<option value="">すべての部屋 (フロア+DM+グループ)</option>';
+    html += '<optgroup label="🏢 フロア (公開チャット)">';
+    html += fr.floors.map(f => `<option value="${f.code}">${escapeHtml(f.name)}</option>`).join('');
+    html += '</optgroup>';
+    html += '<optgroup label="💬 DM (1対1)"><option value="dm">DM全て</option></optgroup>';
+    if (gr && Array.isArray(gr.groups) && gr.groups.length) {
+      html += '<optgroup label="🗨 グループチャット">';
+      html += gr.groups.map(g => `<option value="grp_${g.id}">${escapeHtml((g.icon||'💬') + ' ' + g.name)}</option>`).join('');
+      html += '</optgroup>';
+    }
+    sel.innerHTML = html;
     const asel = document.getElementById('att-floor');
-    if (asel) asel.innerHTML = '<option value="">フロアすべて</option>' + d.floors.map(f => `<option value="${f.code}">${escapeHtml(f.name)}</option>`).join('');
+    if (asel) asel.innerHTML = '<option value="">フロアすべて</option>' + fr.floors.map(f => `<option value="${f.code}">${escapeHtml(f.name)}</option>`).join('');
   } catch (e) {}
 }
 
@@ -924,7 +951,7 @@ async function loadChatLog(offset, append) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td style="font-size:11px;color:#64748b;white-space:nowrap;">${dstr}</td>
                         <td style="font-size:12px;">${escapeHtml(sender)}</td>
-                        <td style="font-size:11px;color:#475569;">${escapeHtml(m.room_code || '')}</td>
+                        <td style="font-size:11px;color:#475569;">${roomLabel(m.room_code)}</td>
                         <td style="font-size:13px;word-break:break-word;">${escapeHtml(m.content)}</td>
                         <td style="text-align:center;">${mention}</td>`;
         tb.appendChild(tr);
