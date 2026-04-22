@@ -151,7 +151,8 @@ app.use('/api/', apiLimiter);
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   etag: false,
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')
+        || filePath.endsWith('manifest.json') || filePath.endsWith('sw.js')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   }
