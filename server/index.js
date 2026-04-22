@@ -481,8 +481,8 @@ io.on('connection', (socket) => {
         }
       }
     }
-    // ロック中ならPWチェック (admin は免除)
-    if (target.locked && target.lock_pw_hash && socket.role !== 'admin') {
+    // ロック中ならPWチェック (役員/一般社員/admin問わず全員対象)
+    if (target.locked && target.lock_pw_hash) {
       const pw = (data.password || '').toString();
       if (!pw || !bcrypt.compareSync(pw, target.lock_pw_hash)) {
         socket.emit('floor:locked', { code: target.code, name: target.name });
