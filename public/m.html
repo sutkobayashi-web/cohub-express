@@ -254,7 +254,7 @@
         <div class="set-item" onclick="openPwModal()">
           <div class="i">🔑</div><div class="l">パスワード変更</div><div class="r">›</div>
         </div>
-        <div class="set-item" onclick="location.href='/'">
+        <div class="set-item" onclick="switchToPc()">
           <div class="i">🖥️</div><div class="l">PC版に切替</div><div class="r">›</div>
         </div>
         <div class="set-item danger" onclick="doLogout()">
@@ -441,6 +441,12 @@ async function doLogin() {
     err.textContent = '通信エラー: ' + e.message;
     btn.disabled = false; btn.textContent = 'ログイン';
   }
+}
+
+function switchToPc() {
+  // このタブのセッション中だけPC版を優先 (field職員でも /m へ自動送致されない)
+  sessionStorage.setItem('cohub_prefer_pc', '1');
+  location.href = '/';
 }
 
 async function doLogout() {

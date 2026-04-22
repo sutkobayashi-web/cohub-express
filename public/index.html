@@ -882,8 +882,8 @@ async function doLogin() {
         navigator.credentials.store(cred).catch(() => {});
       }
     } catch (e) {}
-    // 現場スタッフ or モバイル端末 → モバイル版 /m へ自動遷移
-    if (userData && (userData.employee_type === 'field' || isMobileDevice())) {
+    // 現場スタッフのみ自動でモバイル版 /m へ (PC優先フラグ時はスキップ)
+    if (userData && userData.employee_type === 'field' && sessionStorage.getItem('cohub_prefer_pc') !== '1') {
       location.href = '/m';
       return;
     }
@@ -892,10 +892,6 @@ async function doLogin() {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
   }
 }
-function isMobileDevice() {
-  return /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent) && Math.min(screen.width, screen.height) < 820;
-}
-
 function doLogout() {
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} });
   localStorage.removeItem('cohub_token');
@@ -5253,8 +5249,8 @@ function showToast(msg) {
 
 // 自動ログイン or ログインIDをプリフィル
 if (token && userData) {
-  // 現場 or モバイルなら /m へ
-  if (userData.employee_type === 'field' || isMobileDevice()) {
+  // 現場スタッフのみ /m へ (PC優先フラグ時はスキップ)
+  if (userData.employee_type === 'field' && sessionStorage.getItem('cohub_prefer_pc') !== '1') {
     location.href = '/m';
   } else {
     enterSpace();
