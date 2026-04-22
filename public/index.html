@@ -2373,12 +2373,12 @@ function renderMemberList() {
     if (u.role === 'admin' || u.employee_type === 'admin') groups.admin.members.push(u);
     else if (u.employee_type === 'field') groups.field.members.push(u);
     else groups.office.members.push(u);
-    if (u.status && u.status !== 'offline') onlineCount++;
+    if (u.status !== 'offline') onlineCount++;
   }
   // 各グループ内: オンライン → 退席/会議中 → オフライン の順、以降名前
   const sorter = (a, b) => {
-    const oa = (a.status && a.status !== 'offline') ? 0 : 1;
-    const ob = (b.status && b.status !== 'offline') ? 0 : 1;
+    const oa = (a.status !== 'offline') ? 0 : 1;
+    const ob = (b.status !== 'offline') ? 0 : 1;
     if (oa !== ob) return oa - ob;
     return (a.name || '').localeCompare(b.name || '', 'ja');
   };
@@ -2391,7 +2391,7 @@ function renderMemberList() {
   for (const key of ['admin', 'office', 'field']) {
     const g = groups[key];
     if (!g.members.length) continue;
-    const onlineN = g.members.filter(m => m.status && m.status !== 'offline').length;
+    const onlineN = g.members.filter(m => m.status !== 'offline').length;
     html += '<div class="member-group" style="background:' + g.bg + ';color:' + g.color + ';border-radius:6px;padding:6px 10px;margin:6px 4px 2px;display:flex;align-items:center;justify-content:space-between;">' +
             '<span>' + g.title + ' (' + g.members.length + ')</span>' +
             '<span style="font-size:9px;opacity:0.7;">オンライン ' + onlineN + '</span>' +

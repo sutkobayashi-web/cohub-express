@@ -362,7 +362,8 @@ function floorUserList(floorCode) {
     FROM users u LEFT JOIN companies c ON c.code = u.company_code`).all();
   return users.map(u => {
     const p = presence.get(u.id);
-    const inFloor = p && p.status !== 'offline' && p.floor === floorCode;
+    const connected = p && p.status !== 'offline';
+    const inFloor = connected && p.floor === floorCode;
     return {
       uid: u.id,
       name: u.display_name,
@@ -375,8 +376,8 @@ function floorUserList(floorCode) {
       dm_rank: u.dm_rank | 0,
       x: inFloor ? p.x : null,
       y: inFloor ? p.y : null,
-      status: inFloor ? p.status : 'offline',
-      status_text: inFloor ? (p.statusText || '') : '',
+      status: connected ? p.status : 'offline',
+      status_text: connected ? (p.statusText || '') : '',
       voice: !!(inFloor && p.voiceOn),
       handUp: !!(inFloor && p.handUp),
       floor: p ? p.floor : null,
