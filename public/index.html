@@ -1343,12 +1343,18 @@ function connectSocket() {
     targets = {};
     for (const u of data.users) {
       users[u.uid] = u;
-      users[u.uid].cx = u.x != null ? u.x : WORLD_W / 2;
-      users[u.uid].cy = u.y != null ? u.y : WORLD_H / 2;
-      targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
+      // 自フロア不在 (他フロア or オフライン) は座標を付与しない → 描画/当たり判定ループの cx==null ガードでスキップ
+      if (u.x != null && u.y != null) {
+        users[u.uid].cx = u.x;
+        users[u.uid].cy = u.y;
+        targets[u.uid] = { x: u.x, y: u.y };
+      } else {
+        users[u.uid].cx = null;
+        users[u.uid].cy = null;
+      }
       // 自分のみフェードインで入場 (他人は既にいた人たち、不透明)
       users[u.uid].opacity = (u.uid === me) ? 0 : 1;
-      if (u.uid === me) { myX = users[u.uid].cx; myY = users[u.uid].cy; }
+      if (u.uid === me && users[u.uid].cx != null) { myX = users[u.uid].cx; myY = users[u.uid].cy; }
       if (u.avatar && !avatarImages[u.uid]) loadAvatar(u);
     }
     renderMemberList();
