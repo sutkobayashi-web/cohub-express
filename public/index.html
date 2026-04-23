@@ -1723,8 +1723,14 @@ function connectSocket() {
     if (m.uid !== me) {
       if (speakerOn) playBeep(isMentioned);
       const sender = users[m.uid] || {};
-      // フロア公開チャットはキャンバスの吹き出し1本に統一 (通知カード・OS通知は出さない)
-      // @メンションのみOS通知で知らせる
+      // 通知カード表示 (同一送信者4秒クールダウン、最大3枚で連投抑制)
+      showNotifCard({
+        name: sender.name || '誰か',
+        content: m.content,
+        avatar: sender.avatar || '',
+        mention: isMentioned
+      });
+      // OS通知はメンション時のみ (通常チャットはカードで充分、OS音の二重を避ける)
       if (isMentioned) {
         const title = '[メンション] ' + (sender.name || 'CoHub');
         fireOSNotif(title, m.content, () => { switchTab('chat'); });
