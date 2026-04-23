@@ -1366,9 +1366,12 @@ function connectSocket() {
   socket.on('user:leave', (u) => {
     // 別フロアに移った人は自フロアから消す
     if (users[u.uid]) {
+      const leaverName = users[u.uid].name;
+      const isBot = users[u.uid].role === 'bot';
       delete users[u.uid];
       delete targets[u.uid];
       renderMemberList();
+      if (!isBot) announceEnterLeave(u.uid, leaverName, false);
     }
   });
 
@@ -1631,6 +1634,8 @@ function connectSocket() {
     users[u.uid].opacity = 0;
     if (u.avatar) loadAvatar(u);
     renderMemberList();
+    // 入室チャイム + 音声アナウンス (bot/自分は除外)
+    if (u.uid !== me && u.role !== 'bot') announceEnterLeave(u.uid, u.name, true);
   });
   socket.on('user:update', (u) => {
     if (!users[u.uid]) users[u.uid] = { uid: u.uid, name: '...', ring: '#333', cx: u.x, cy: u.y };
@@ -2878,6 +2883,74 @@ function playBeep(mention) {
     }
   } catch (e) {}
 }
+
+// ===== 入出室チャイム＆音声アナウンス =====
+// 同一UIDの連投(瞬断再接続)を抑制するスロットル
+const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
+const _ENTER_LEAVE_COOLDOWN_MS = 8000;
+
+function playEnterLeaveChime(isEnter) {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    const tone = (freq, startOffset, dur, vol) => {
+      const t0 = ctx.currentTime + startOffset;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(env);
+      env.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    };
+    if (isEnter) {
+      // 入室: ドアチャイム風 上昇 (E5→B5)
+      tone(659.25, 0.00, 0.35, 0.14);
+      tone(987.77, 0.12, 0.45, 0.14);
+    } else {
+      // 退室: 下降 (B5→E5) 少し控えめ
+      tone(987.77, 0.00, 0.35, 0.10);
+      tone(659.25, 0.12, 0.45, 0.10);
+    }
+  } catch (e) {}
+}
+
+function speakEnterLeave(name, isEnter) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    const text = (name || 'どなたか') + 'さんが' + (isEnter ? '入室' : '退室') + 'しました';
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.rate = 1.15;
+    u.pitch = isEnter ? 1.15 : 0.95;
+    u.volume = 0.8;
+    // 日本語音声を選択
+    const voices = window.speechSynthesis.getVoices();
+    const jp = voices.find(v => /^ja/i.test(v.lang));
+    if (jp) u.voice = jp;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function announceEnterLeave(uid, name, isEnter) {
+  if (!speakerOn) return;
+  if (!uid) return;
+  const now = Date.now();
+  const last = _enterLeaveThrottle.get(uid) || 0;
+  if (now - last < _ENTER_LEAVE_COOLDOWN_MS) return;
+  _enterLeaveThrottle.set(uid, now);
+  playEnterLeaveChime(isEnter);
+  // チャイム後にわずかに遅らせて読み上げ (音の被り回避)
+  setTimeout(() => speakEnterLeave(name, isEnter), 250);
+}
+
+// SpeechSynthesisの音声リストは非同期ロードされる環境があるため、先行ロード
+try { if ('speechSynthesis' in window) window.speechSynthesis.getVoices(); } catch (e) {}
 
 // ===== グループチャット =====
 let myGroups = [];             // 参加中グループ

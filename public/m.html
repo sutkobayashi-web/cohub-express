@@ -371,6 +371,65 @@ const AOI_VOICE = 'ja-JP-Neural2-B';
 function escapeHtml(s) {
   return String(s || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'})[c]);
 }
+
+// ===== 入出室チャイム＆音声アナウンス =====
+let _mAudioCtx = null;
+const _mEnterLeaveThrottle = new Map();
+const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
+function playEnterLeaveChime(isEnter) {
+  try {
+    if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _mAudioCtx;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    const tone = (freq, startOffset, dur, vol) => {
+      const t0 = ctx.currentTime + startOffset;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(env);
+      env.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    };
+    if (isEnter) {
+      tone(659.25, 0.00, 0.35, 0.14);
+      tone(987.77, 0.12, 0.45, 0.14);
+    } else {
+      tone(987.77, 0.00, 0.35, 0.10);
+      tone(659.25, 0.12, 0.45, 0.10);
+    }
+  } catch (e) {}
+}
+function speakEnterLeave(name, isEnter) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    const text = (name || 'どなたか') + 'さんが' + (isEnter ? '入室' : '退室') + 'しました';
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.rate = 1.15;
+    u.pitch = isEnter ? 1.15 : 0.95;
+    u.volume = 0.8;
+    const voices = window.speechSynthesis.getVoices();
+    const jp = voices.find(v => /^ja/i.test(v.lang));
+    if (jp) u.voice = jp;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function announceEnterLeave(uid, name, isEnter) {
+  if (!uid) return;
+  const now = Date.now();
+  const last = _mEnterLeaveThrottle.get(uid) || 0;
+  if (now - last < _M_ENTER_LEAVE_COOLDOWN_MS) return;
+  _mEnterLeaveThrottle.set(uid, now);
+  playEnterLeaveChime(isEnter);
+  setTimeout(() => speakEnterLeave(name, isEnter), 250);
+}
+try { if ('speechSynthesis' in window) window.speechSynthesis.getVoices(); } catch (e) {}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -536,8 +595,20 @@ function connectSocket() {
     }
     renderMembers();
   });
-  socket.on('user:join', (u) => { users[u.uid] = u; renderMembers(); });
-  socket.on('user:leave', (d) => { if (users[d.uid]) { users[d.uid].status = 'offline'; renderMembers(); } });
+  socket.on('user:join', (u) => {
+    users[u.uid] = u;
+    renderMembers();
+    if (user && u.uid !== user.uid && u.role !== 'bot') announceEnterLeave(u.uid, u.name, true);
+  });
+  socket.on('user:leave', (d) => {
+    if (users[d.uid]) {
+      const leaverName = users[d.uid].name;
+      const isBot = users[d.uid].role === 'bot';
+      users[d.uid].status = 'offline';
+      renderMembers();
+      if (!isBot) announceEnterLeave(d.uid, leaverName, false);
+    }
+  });
   socket.on('user:update', (d) => {
     const u = users[d.uid] || {};
     Object.assign(u, d);
