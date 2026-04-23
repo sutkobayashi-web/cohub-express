@@ -3537,6 +3537,12 @@ function testChime() {
   setTimeout(() => speakViaTTS('チャイムテストです'), CHIME_DURATION_MS + 200);
 }
 
+function testNotifBeep() {
+  document.getElementById('rail-menu').classList.remove('show');
+  console.log('[cohub] testNotifBeep: playBeep(true) を直接実行');
+  playBeep(true);
+}
+
 function renderRailMenu() {
   const m = document.getElementById('rail-menu');
   if (!m) return;
@@ -3557,6 +3563,7 @@ function renderRailMenu() {
     <button onclick="openOverviewWindow()">🗺 全フロアビュー</button>
     <button onclick="switchToMobile()">📱 モバイル版に切替</button>
     <button onclick="testChime()">🔔 チャイム試聴</button>
+    <button onclick="testNotifBeep()">🎵 通知音テスト</button>
     <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
   `;
 }
