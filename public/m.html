@@ -376,35 +376,27 @@ function escapeHtml(s) {
 let _mAudioCtx = null;
 const _mEnterLeaveThrottle = new Map();
 const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
-const CHIME_DURATION_MS = 3200;
+const CHIME_DURATION_MS = 2000;
+// 警告チャイム: 880Hz (A5) 単音を1回長めに
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _mAudioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    const tone = (freq, startOffset, dur, vol) => {
-      const t0 = ctx.currentTime + startOffset;
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0.0001, t0);
-      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
-      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(env);
-      env.connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.05);
-    };
-    // 緊急地震速報風: 880Hz+1480Hz (A5+F#6) を4回繰り返し (高音域でよく通る)
-    const vol = 0.38;
-    const chimeDur = 0.55;
-    const cycleGap = 0.25;
-    for (let i = 0; i < 4; i++) {
-      const t = i * (chimeDur + cycleGap);
-      tone(880, t, chimeDur, vol);
-      tone(1480, t + 0.01, chimeDur, vol);
-    }
+    const t0 = ctx.currentTime;
+    const dur = 1.8;
+    const vol = 0.42;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(env);
+    env.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
   } catch (e) {}
 }
 // 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)

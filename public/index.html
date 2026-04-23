@@ -2920,38 +2920,27 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// 緊急地震速報風チャイム (ピロン♪ピロン♪ピロン♪ピロン♪)
-// NHK警報音に倣い 442Hz(A4) + 740Hz(F#5) の2音同時発音を4回繰り返す
-const CHIME_DURATION_MS = 3200;  // チャイム総時間、speak遅延の基準
+// 警告チャイム: 880Hz (A5) 単音を1回長めに鳴らす (緩やかに減衰するベル)
+const CHIME_DURATION_MS = 2000;
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _audioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    const tone = (freq, startOffset, dur, vol) => {
-      const t0 = ctx.currentTime + startOffset;
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0.0001, t0);
-      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
-      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(env);
-      env.connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.05);
-    };
-    const vol = 0.38;       // 音量UP (従来0.14の2.7倍)
-    const chimeDur = 0.55;  // 1つのチャイム長さ
-    const cycleGap = 0.25;  // チャイム間の無音
-    const pairs = 4;        // 回数
-    for (let i = 0; i < pairs; i++) {
-      const t = i * (chimeDur + cycleGap);
-      tone(880, t, chimeDur, vol);         // 基音 A5 (高音域)
-      tone(1480, t + 0.01, chimeDur, vol); // 倍音 F#6近辺 (高音域でよく通る)
-    }
-    // isEnterは未使用 (緊急警報風は統一音色だが、将来必要なら分岐可)
+    const t0 = ctx.currentTime;
+    const dur = 1.8;
+    const vol = 0.42;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(env);
+    env.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
   } catch (e) {}
 }
 
