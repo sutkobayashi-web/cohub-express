@@ -1935,15 +1935,18 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1Fロビー: 受付背面の壁にスタンダード運輸ロゴを描画
+  // 1Fロビー: 受付背面の壁にスタンダード運輸ロゴを描画 (壁に沿って縦方向に圧縮+軽い視点角度)
   if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    const logoW = 140;
+    const logoW = 160;
     const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
-    const lx = (WORLD_W - logoW) / 2;
-    const ly = 20;  // 受付背面壁の位置 (画面上端近く)
+    const cx = WORLD_W / 2;
+    const cy = 95;  // 従来y=20から2cm(約75px)下げて受付背面壁の中央へ
     ctx.save();
+    ctx.translate(cx, cy);
+    // 壁に沿った見え方を再現: 縦方向0.55倍に圧縮 (俯瞰からの遠近感風)
+    ctx.scale(1.0, 0.55);
     ctx.globalAlpha = 0.95;
-    ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
+    ctx.drawImage(stdLogo, -logoW / 2, -logoH / 2, logoW, logoH);
     ctx.restore();
   }
   // 大会議室: スタンダード運輸ロゴを床の透かしとして描画 (従来通り)
