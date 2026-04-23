@@ -1618,6 +1618,8 @@ function connectSocket() {
       const sender = users[peerUid] || {};
       showNotifCard({ name: '[DM] ' + (sender.name || '誰か'), content: m.content, avatar: sender.avatar || '', mention: true });
       fireOSNotif('[DM] ' + (sender.name || ''), m.content, () => openDM(peerUid));
+      // 送付元名をアナウンス (bot除外: 葵はspeakAoiで本文を読み上げるため)
+      if (m.from !== 'bot_aoi') announceDmSender(m.from, sender.name || '');
     }
   });
 
@@ -2965,6 +2967,37 @@ function readingOf(name) {
     if (k.replace(/\s+/g, '').replace(/　/g, '') === norm) return NAME_READINGS[k];
   }
   return name;
+}
+
+// DM送付元名の読み上げ (受信時、送付元名を声でアナウンス)
+const _dmSenderThrottle = new Map();
+const _DM_SENDER_COOLDOWN_MS = 8000;
+function speakDmSender(name) {
+  try {
+    if (!speakerOn) return;
+    if (!('speechSynthesis' in window)) return;
+    const reading = readingOf(name);
+    const text = (reading || 'どなたか') + 'さんからメッセージです';
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.rate = 1.15;
+    u.pitch = 1.1;
+    u.volume = 0.85;
+    const voices = window.speechSynthesis.getVoices();
+    const jp = voices.find(v => /^ja/i.test(v.lang));
+    if (jp) u.voice = jp;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function announceDmSender(senderUid, name) {
+  if (!senderUid) return;
+  const now = Date.now();
+  const last = _dmSenderThrottle.get(senderUid) || 0;
+  if (now - last < _DM_SENDER_COOLDOWN_MS) return;
+  _dmSenderThrottle.set(senderUid, now);
+  // チャイム(playBeep)直後に声が被らないよう0.9秒遅延
+  setTimeout(() => speakDmSender(name), 900);
+  console.log('[cohub] announce DM sender', senderUid, name);
 }
 
 function speakEnterLeave(name, isEnter) {

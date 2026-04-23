@@ -419,6 +419,34 @@ function readingOf(name) {
   }
   return name;
 }
+// DM送付元名の読み上げ
+const _dmSenderThrottle = new Map();
+const _DM_SENDER_COOLDOWN_MS = 8000;
+function speakDmSender(name) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    const reading = readingOf(name);
+    const text = (reading || 'どなたか') + 'さんからメッセージです';
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.rate = 1.15;
+    u.pitch = 1.1;
+    u.volume = 0.85;
+    const voices = window.speechSynthesis.getVoices();
+    const jp = voices.find(v => /^ja/i.test(v.lang));
+    if (jp) u.voice = jp;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function announceDmSender(senderUid, name) {
+  if (!senderUid) return;
+  const now = Date.now();
+  const last = _dmSenderThrottle.get(senderUid) || 0;
+  if (now - last < _DM_SENDER_COOLDOWN_MS) return;
+  _dmSenderThrottle.set(senderUid, now);
+  setTimeout(() => speakDmSender(name), 900);
+}
+
 function speakEnterLeave(name, isEnter) {
   try {
     if (!('speechSynthesis' in window)) return;
@@ -664,6 +692,8 @@ function connectSocket() {
       const sender = users[peerUid] || {};
       const name = peerUid === BOT_UID ? '葵' : (sender.name || '');
       showToast('💬 ' + name + ': ' + (m.content || '').slice(0, 40));
+      // 送付元名アナウンス (botは本文を読み上げるので除外)
+      if (m.from !== BOT_UID) announceDmSender(m.from, sender.name || '');
     }
     if (isSelf && openPeerUid === peerUid) {
       // 何もしない (即時追加はsendChatMessage側でOptimistic)
