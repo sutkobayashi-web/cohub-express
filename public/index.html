@@ -1678,6 +1678,7 @@ function connectSocket() {
           tag: 'tap-' + fromUid,
           icon: '/img/icon-192.png',
           requireInteraction: true,
+          silent: true,  // OSの通知音を抑制、CoHub側playBeepを唯一音源に
         });
         n.onclick = () => { window.focus(); n.close(); };
       }
@@ -2628,7 +2629,8 @@ function fireOSNotif(title, body, onClick) {
   if (Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   try {
-    const n = new Notification(title, { body, tag: 'cohub-chat', icon: '/assets/office_bg.png' });
+    // silent:true でOS側の通知音を抑制 (CoHub側のWeb Audioを唯一の音源にする)
+    const n = new Notification(title, { body, tag: 'cohub-chat', icon: '/assets/office_bg.png', silent: true });
     n.onclick = () => { window.focus(); if (onClick) onClick(); n.close(); };
     setTimeout(() => { try { n.close(); } catch(e) {} }, 8000);
   } catch (e) {}
