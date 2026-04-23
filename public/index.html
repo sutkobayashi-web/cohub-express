@@ -1943,9 +1943,8 @@ function render() {
     const cy = 114;  // 5mm(約19px)上へ戻す
     ctx.save();
     ctx.translate(cx, cy);
-    // ロゴを立てつつ軽く角度 (傾き)
-    ctx.rotate(-6 * Math.PI / 180);  // -6度傾ける
-    ctx.scale(1.0, 0.82);             // 圧縮を0.55→0.82に緩めて立てる
+    // 壁に沿った見え方を再現: 縦方向0.55倍に圧縮 (俯瞰からの遠近感風)
+    ctx.scale(1.0, 0.55);
     ctx.globalAlpha = 0.95;
     ctx.drawImage(stdLogo, -logoW / 2, -logoH / 2, logoW, logoH);
     ctx.restore();
