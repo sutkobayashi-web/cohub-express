@@ -1274,7 +1274,7 @@ function resize() {
 let stdLogo = null;
 function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = (src || '/assets/office_bg.png') + '?v=26';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=27';
   if (!stdLogo) {
     stdLogo = new Image();
     stdLogo.src = '/assets/std_logo.png?v=1';
@@ -1935,22 +1935,26 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1Fロビー・大会議室: スタンダード運輸ロゴを床の透かしとして描画
-  if (currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'meeting_c') && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
+  // 1Fロビー: 受付背面の壁にスタンダード運輸ロゴを描画
+  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
+    const logoW = 140;
+    const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
+    const lx = (WORLD_W - logoW) / 2;
+    const ly = 20;  // 受付背面壁の位置 (画面上端近く)
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
+    ctx.restore();
+  }
+  // 大会議室: スタンダード運輸ロゴを床の透かしとして描画 (従来通り)
+  if (currentFloor && currentFloor.code === 'meeting_c' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
     const logoW = 170;
     const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
     const lx = (WORLD_W - logoW) / 2;
-    // 大会議室は新背景でテーブル中央が下寄りなので+70pxオフセット
-    const yOffset = currentFloor.code === 'meeting_c' ? 50 : 0;
-    const ly = (WORLD_H - logoH) / 2 + yOffset;
+    const ly = (WORLD_H - logoH) / 2 + 50;
     ctx.save();
-    if (currentFloor.code === 'meeting_c') {
-      // 暗いマホガニー卓に対し screen 合成で明るい青へ
-      ctx.globalCompositeOperation = 'screen';
-      ctx.globalAlpha = 0.55;
-    } else {
-      ctx.globalAlpha = 0.288;
-    }
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.55;
     ctx.drawImage(stdLogo, lx, ly, logoW, logoH);
     ctx.restore();
   }
