@@ -2986,12 +2986,14 @@ function announceEnterLeave(uid, name, isEnter) {
   if (!speakerOn) return;
   if (!uid) return;
   const now = Date.now();
-  const last = _enterLeaveThrottle.get(uid) || 0;
+  const key = uid + (isEnter ? ':in' : ':out');
+  const last = _enterLeaveThrottle.get(key) || 0;
   if (now - last < _ENTER_LEAVE_COOLDOWN_MS) return;
-  _enterLeaveThrottle.set(uid, now);
+  _enterLeaveThrottle.set(key, now);
   playEnterLeaveChime(isEnter);
   // チャイム後にわずかに遅らせて読み上げ (音の被り回避)
   setTimeout(() => speakEnterLeave(name, isEnter), 250);
+  console.log('[cohub] announce', isEnter ? 'login' : 'logout', uid, name);
 }
 
 // SpeechSynthesisの音声リストは非同期ロードされる環境があるため、先行ロード

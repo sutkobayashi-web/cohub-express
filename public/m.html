@@ -438,11 +438,13 @@ function speakEnterLeave(name, isEnter) {
 function announceEnterLeave(uid, name, isEnter) {
   if (!uid) return;
   const now = Date.now();
-  const last = _mEnterLeaveThrottle.get(uid) || 0;
+  const key = uid + (isEnter ? ':in' : ':out');
+  const last = _mEnterLeaveThrottle.get(key) || 0;
   if (now - last < _M_ENTER_LEAVE_COOLDOWN_MS) return;
-  _mEnterLeaveThrottle.set(uid, now);
+  _mEnterLeaveThrottle.set(key, now);
   playEnterLeaveChime(isEnter);
   setTimeout(() => speakEnterLeave(name, isEnter), 250);
+  console.log('[cohub-m] announce', isEnter ? 'login' : 'logout', uid, name);
 }
 try { if ('speechSynthesis' in window) window.speechSynthesis.getVoices(); } catch (e) {}
 

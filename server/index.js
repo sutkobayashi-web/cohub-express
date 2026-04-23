@@ -521,7 +521,9 @@ io.on('connection', (socket) => {
   // 全クライアントに「このユーザーがこのフロアにオンライン」を通知
   io.emit('user:floor', { uid, floor: floor.code });
   // ログインアナウンス (全クライアント対象、自分以外が受信)
-  socket.broadcast.emit('user:login', { uid, name: (fullUser && fullUser.name) || '' });
+  const loginName = (fullUser && fullUser.name) || '';
+  socket.broadcast.emit('user:login', { uid, name: loginName });
+  console.log('[cohub] emit user:login', uid, loginName);
 
   // ロビー着地: 当日初回なら葵がカレンダー予定+CoWellイベント案内をDM
   if (floor.code === 'lobby') {
@@ -1147,6 +1149,7 @@ io.on('connection', (socket) => {
       const cur = presence.get(uid);
       if (cur && cur.socketId === socket.id) {
         io.emit('user:logout', { uid, name: leaverName });
+        console.log('[cohub] emit user:logout', uid, leaverName);
         presence.delete(uid);
       }
     }, 2000);
