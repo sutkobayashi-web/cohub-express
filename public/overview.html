@@ -112,7 +112,6 @@
 let token = localStorage.getItem('cohub_token') || '';
 let floors = [];
 let users = [];
-const bgCache = {};      // code -> Image
 const avatarCache = {};  // url -> Image
 let timerId = null;
 
@@ -169,17 +168,241 @@ function buildLayout() {
       </div>
     `;
     (f.building === 'field' ? fieldCol : officeCol).appendChild(card);
-    // 背景画像プリロード
-    if (f.bg_image && !bgCache[f.code]) {
-      const img = new Image();
-      img.src = f.bg_image;
-      bgCache[f.code] = img;
-    }
   }
 }
 
 function escapeHtml(s) {
   return String(s || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'})[c]);
+}
+
+// ===== 模式図 (フロアプラン) =====
+const SCHEMATIC_THEME = {
+  office: { bg: '#eef2f7', wall: '#94a3b8', room: '#ffffff', accent: '#3b82f6', label: '#334155' },
+  field:  { bg: '#fff7ed', wall: '#a8a29e', room: '#ffffff', accent: '#ea580c', label: '#7c2d12' },
+};
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function roomBox(ctx, x, y, w, h, fill, stroke) {
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.stroke();
+}
+function drawLabel(ctx, text, x, y, size, color) {
+  ctx.font = `700 ${size}px "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+function drawDesk(ctx, cx, cy) {
+  const w = 70, h = 48;
+  roundRect(ctx, cx - w / 2, cy - h / 2, w, h, 6);
+  ctx.fillStyle = '#dbeafe'; ctx.fill();
+  ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy + h / 2 + 10, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#cbd5e1'; ctx.fill();
+}
+function drawChair(ctx, cx, cy, dir) {
+  ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#94a3b8'; ctx.fill();
+}
+function drawShelf(ctx, x, y, w, h) {
+  roundRect(ctx, x, y, w, h, 4);
+  ctx.fillStyle = '#fcd34d'; ctx.fill();
+  ctx.strokeStyle = '#a16207'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#d97706'; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const yy = y + (h / 4) * i;
+    ctx.beginPath(); ctx.moveTo(x + 4, yy); ctx.lineTo(x + w - 4, yy); ctx.stroke();
+  }
+}
+
+const SCHEMATICS = {
+  lobby(ctx, W, H) {
+    const t = SCHEMATIC_THEME.office;
+    ctx.fillStyle = t.bg; ctx.fillRect(0, 0, W, H);
+    // 外壁
+    ctx.strokeStyle = t.wall; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // エレベーター (左壁)
+    roomBox(ctx, 80, 180, 130, 220, '#e5e7eb', '#64748b');
+    drawLabel(ctx, '🛗 EV', 145, 290, 28, '#475569');
+    // 受付カウンター (中央)
+    roomBox(ctx, 480, 320, 380, 120, '#fef3c7', '#d97706');
+    drawLabel(ctx, '🛎 受付カウンター', 670, 380, 32, '#92400e');
+    // ソファセット (右)
+    roomBox(ctx, 1000, 200, 260, 120, '#dbeafe', '#3b82f6');
+    drawLabel(ctx, 'ソファ', 1130, 260, 26, '#1e40af');
+    roomBox(ctx, 1000, 360, 260, 120, '#dbeafe', '#3b82f6');
+    drawLabel(ctx, 'ソファ', 1130, 420, 26, '#1e40af');
+    // 入口 (下中央)
+    roomBox(ctx, 540, 660, 260, 70, '#fee2e2', '#dc2626');
+    drawLabel(ctx, '🚪 玄関', 670, 695, 30, '#991b1b');
+    // フロア名
+    drawLabel(ctx, '1F 玄関ロビー', 670, 100, 36, t.label);
+  },
+  office(ctx, W, H) {
+    const t = SCHEMATIC_THEME.office;
+    ctx.fillStyle = t.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = t.wall; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // ハドル席 (右上 1050-1300, 70-260)
+    roomBox(ctx, 1000, 70, 280, 200, '#ecfeff', '#0891b2');
+    drawLabel(ctx, '🎙 ハドル席', 1140, 170, 26, '#0e7490');
+    // デスク3×5 (中央〜左)
+    const startX = 200, startY = 180, dx = 170, dy = 160;
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 5; c++) {
+        drawDesk(ctx, startX + c * dx, startY + r * dy);
+      }
+    }
+    drawLabel(ctx, '💼 執務エリア (デスク15席)', 500, 700, 24, t.label);
+    // 複合機・棚 (右下)
+    roomBox(ctx, 1030, 520, 220, 80, '#fef3c7', '#d97706');
+    drawLabel(ctx, '📠 複合機', 1140, 560, 22, '#92400e');
+    roomBox(ctx, 1030, 610, 220, 80, '#e0e7ff', '#6366f1');
+    drawLabel(ctx, '📚 キャビネット', 1140, 650, 22, '#3730a3');
+    drawLabel(ctx, '2F 事務フロア', 650, 100, 36, t.label);
+  },
+  meeting_a(ctx, W, H) {
+    const t = SCHEMATIC_THEME.office;
+    ctx.fillStyle = '#fef3c7'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#854d0e'; ctx.lineWidth = 10;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 大型ディスプレイ (上)
+    roomBox(ctx, 400, 110, 544, 80, '#111827', '#000');
+    drawLabel(ctx, '🖥 ディスプレイ', 672, 150, 26, '#f1f5f9');
+    // U字テーブル (マホガニー)
+    ctx.fillStyle = '#78350f';
+    roundRect(ctx, 300, 260, 744, 60, 10); ctx.fill();  // 上辺
+    roundRect(ctx, 300, 320, 60, 280, 10); ctx.fill();  // 左辺
+    roundRect(ctx, 984, 320, 60, 280, 10); ctx.fill();  // 右辺
+    // 椅子 12席
+    const chairColor = '#1f2937';
+    for (let i = 0; i < 5; i++) { drawChair(ctx, 380 + i * 150, 250, 'up'); }
+    for (let i = 0; i < 3; i++) { drawChair(ctx, 280, 360 + i * 80, 'left'); }
+    for (let i = 0; i < 3; i++) { drawChair(ctx, 1064, 360 + i * 80, 'right'); }
+    drawLabel(ctx, '3F 役員室', 672, 680, 36, '#78350f');
+  },
+  meeting_b(ctx, W, H) {
+    const t = SCHEMATIC_THEME.office;
+    ctx.fillStyle = t.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = t.wall; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 楕円テーブル
+    ctx.beginPath();
+    ctx.ellipse(W / 2, H / 2, 280, 130, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#7c2d12'; ctx.fill();
+    ctx.strokeStyle = '#431407'; ctx.lineWidth = 3; ctx.stroke();
+    // 椅子 6席
+    const cx = W / 2, cy = H / 2;
+    const chairs = [
+      [cx, cy - 180], [cx, cy + 180],
+      [cx - 310, cy - 70], [cx - 310, cy + 70],
+      [cx + 310, cy - 70], [cx + 310, cy + 70],
+    ];
+    for (const [x, y] of chairs) drawChair(ctx, x, y);
+    drawLabel(ctx, '3F 会議室B', 672, 100, 36, t.label);
+    drawLabel(ctx, '6席', cx, cy, 34, '#fef3c7');
+  },
+  meeting_c(ctx, W, H) {
+    const t = SCHEMATIC_THEME.office;
+    ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // スクリーン (上)
+    roomBox(ctx, 420, 110, 504, 70, '#e2e8f0', '#64748b');
+    drawLabel(ctx, '🎦 スクリーン', 672, 145, 26, '#334155');
+    // 大U字
+    ctx.fillStyle = '#475569';
+    roundRect(ctx, 230, 230, 884, 50, 8); ctx.fill();
+    roundRect(ctx, 230, 280, 50, 340, 8); ctx.fill();
+    roundRect(ctx, 1064, 280, 50, 340, 8); ctx.fill();
+    // 椅子を多数 (30席相当)
+    for (let i = 0; i < 11; i++) drawChair(ctx, 280 + i * 80, 210);
+    for (let i = 0; i < 8; i++) drawChair(ctx, 210, 310 + i * 40);
+    for (let i = 0; i < 8; i++) drawChair(ctx, 1134, 310 + i * 40);
+    drawLabel(ctx, '3F 大会議室 (30席)', 672, 680, 32, '#334155');
+  },
+  field_rest(ctx, W, H) {
+    const t = SCHEMATIC_THEME.field;
+    ctx.fillStyle = t.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = t.wall; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 丸テーブル3つ
+    const tables = [[320, 340], [672, 340], [1024, 340]];
+    for (const [cx, cy] of tables) {
+      ctx.beginPath(); ctx.arc(cx, cy, 90, 0, Math.PI * 2);
+      ctx.fillStyle = '#fde68a'; ctx.fill();
+      ctx.strokeStyle = '#a16207'; ctx.lineWidth = 3; ctx.stroke();
+      // 椅子4つ
+      drawChair(ctx, cx, cy - 120);
+      drawChair(ctx, cx, cy + 120);
+      drawChair(ctx, cx - 120, cy);
+      drawChair(ctx, cx + 120, cy);
+    }
+    // ロッカー (上部)
+    roomBox(ctx, 200, 80, 944, 80, '#fef3c7', '#92400e');
+    drawLabel(ctx, '🚪 ロッカー', 672, 120, 26, '#7c2d12');
+    // 自販機 (右下)
+    roomBox(ctx, 1100, 560, 140, 140, '#dbeafe', '#2563eb');
+    drawLabel(ctx, '🥤', 1170, 620, 48, '#1e3a8a');
+    drawLabel(ctx, '自販機', 1170, 670, 18, '#1e3a8a');
+    drawLabel(ctx, '☕ 乗務員詰所', 500, 700, 28, t.label);
+  },
+  field_work(ctx, W, H) {
+    const t = SCHEMATIC_THEME.field;
+    ctx.fillStyle = t.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = t.wall; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 棚群 (左半分)
+    for (let i = 0; i < 4; i++) {
+      drawShelf(ctx, 100 + i * 140, 120, 100, 420);
+    }
+    // ピッキングゾーン (中央)
+    roomBox(ctx, 700, 140, 240, 340, '#dcfce7', '#16a34a');
+    drawLabel(ctx, '📦 ピッキング', 820, 310, 24, '#14532d');
+    // 荷捌き (右)
+    roomBox(ctx, 970, 140, 290, 260, '#dbeafe', '#2563eb');
+    drawLabel(ctx, '🚚 荷捌き', 1115, 270, 28, '#1e3a8a');
+    // 搬入出口 (下)
+    roomBox(ctx, 700, 600, 560, 100, '#fee2e2', '#dc2626');
+    drawLabel(ctx, '🚛 搬入出口', 980, 650, 30, '#991b1b');
+    drawLabel(ctx, '📦 倉庫作業室', 350, 680, 28, t.label);
+  },
+  field_meet(ctx, W, H) {
+    const t = SCHEMATIC_THEME.field;
+    ctx.fillStyle = t.bg; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = t.wall; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 朝礼台 (上)
+    roomBox(ctx, 530, 100, 284, 70, '#fed7aa', '#c2410c');
+    drawLabel(ctx, '📋 朝礼台', 672, 135, 26, '#7c2d12');
+    // 円形整列マーク
+    ctx.strokeStyle = '#f97316'; ctx.lineWidth = 3; ctx.setLineDash([8, 8]);
+    ctx.beginPath(); ctx.ellipse(W / 2, 460, 430, 210, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    drawLabel(ctx, '整列エリア', W / 2, 460, 30, '#9a3412');
+    drawLabel(ctx, '📢 現場ミーティング', 672, 700, 28, t.label);
+  },
+};
+
+function drawFloorSchematic(ctx, code, W, H) {
+  const fn = SCHEMATICS[code];
+  if (fn) { fn(ctx, W, H); return; }
+  // フォールバック: 枠だけ
+  ctx.fillStyle = '#eef2f7'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 6;
+  ctx.strokeRect(30, 30, W - 60, H - 60);
+  drawLabel(ctx, code, W / 2, H / 2, 42, '#64748b');
 }
 
 function drawFloor(code) {
@@ -189,17 +412,8 @@ function drawFloor(code) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-  // 背景
-  const bg = bgCache[code];
-  if (bg && bg.complete && bg.naturalWidth) {
-    ctx.drawImage(bg, 0, 0, W, H);
-  } else {
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, W, H);
-  }
-  // 半透明オーバーレイ (視認性)
-  ctx.fillStyle = 'rgba(15,23,42,0.15)';
-  ctx.fillRect(0, 0, W, H);
+  // 模式図背景
+  drawFloorSchematic(ctx, code, W, H);
   // 在席者
   const here = users.filter(u => u.floor === code);
   card.querySelector('[data-count]').textContent = here.length;
