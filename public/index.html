@@ -2920,11 +2920,12 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// チャイム: /assets/chime.mp3 + Web Audioフォールバック
-const CHIME_DURATION_MS = 2000;
+// チャイム: /assets/chime.mp3 (救急車サイレン風 960↔770Hz、2.6秒)
+const CHIME_DURATION_MS = 2800;
+const CHIME_URL = '/assets/chime.mp3?v=2';  // 差し替え時はv=を上げる
 let _chimeAudio = null;
 try {
-  _chimeAudio = new Audio('/assets/chime.mp3');
+  _chimeAudio = new Audio(CHIME_URL);
   _chimeAudio.preload = 'auto';
   _chimeAudio.load();
 } catch (e) {}
@@ -2959,7 +2960,7 @@ function playChimeFallback() {
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_chimeAudio) {
-      _chimeAudio = new Audio('/assets/chime.mp3');
+      _chimeAudio = new Audio(CHIME_URL);
       _chimeAudio.preload = 'auto';
     }
     _chimeAudio.currentTime = 0;

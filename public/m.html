@@ -375,17 +375,18 @@ function escapeHtml(s) {
 // ===== 入出室チャイム＆音声アナウンス =====
 const _mEnterLeaveThrottle = new Map();
 const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
-const CHIME_DURATION_MS = 2000;
+const CHIME_DURATION_MS = 2800;
+const CHIME_URL = '/assets/chime.mp3?v=2';
 let _mChimeAudio = null;
 try {
-  _mChimeAudio = new Audio('/assets/chime.mp3');
+  _mChimeAudio = new Audio(CHIME_URL);
   _mChimeAudio.preload = 'auto';
   _mChimeAudio.load();
 } catch (e) {}
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_mChimeAudio) {
-      _mChimeAudio = new Audio('/assets/chime.mp3');
+      _mChimeAudio = new Audio(CHIME_URL);
       _mChimeAudio.preload = 'auto';
     }
     _mChimeAudio.currentTime = 0;
