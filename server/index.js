@@ -79,6 +79,54 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 
+// 葵から労働安全健康推進室のCoWellイベント案内DM (1日1回、ロビー入室時)
+// 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
+const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🏥 労働安全健康推進室より
+
+CoWellで健康づくりを始めませんか？
+左メニュー「🏥 労働安全健康推進室」からいつでもアクセスできます。
+
+🎯 今週のイベント
+・毎日の歩数記録で『健康の海』を冒険
+・食事の写真をバディーに見せて栄養チェック
+・ちょっとした会話でメンタル調子を把握
+
+皆さんの健康づくり、応援しています！`;
+
+async function maybeSendWellnessAnnouncement(uid) {
+  const db = getDb();
+  const u = db.prepare('SELECT display_name, last_wellness_dm_date FROM users WHERE id = ?').get(uid);
+  if (!u) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (u.last_wellness_dm_date === today) return;
+  const botId = 'bot_aoi';
+  try {
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
+      .run(botId, uid, WELLNESS_EVENT_TEXT);
+    db.prepare("UPDATE users SET last_wellness_dm_date = ? WHERE id = ?").run(today, uid);
+    const p = presence.get(uid);
+    if (p && p.socketId) {
+      const s = io.sockets.sockets.get(p.socketId);
+      if (s) s.emit('dm:msg', {
+        id: ins.lastInsertRowid,
+        from: botId,
+        to: uid,
+        content: WELLNESS_EVENT_TEXT,
+        at: new Date().toISOString(),
+        attach: null,
+      });
+    }
+    sendPushToUser(uid, {
+      title: '🏥 葵',
+      body: '労働安全健康推進室のCoWellイベント案内を送りました',
+      tag: 'wellness-greet',
+      url: '/',
+    }).catch(() => {});
+  } catch (e) {
+    console.warn('wellness greet fail', uid, (e.message || '').slice(0, 120));
+  }
+}
+
 // 葵からの当日予定DM送信 (1日1回、ロビー入室時)
 async function maybeSendCalendarGreeting(uid) {
   const db = getDb();
@@ -470,9 +518,10 @@ io.on('connection', (socket) => {
   // 全クライアントに「このユーザーがこのフロアにオンライン」を通知
   io.emit('user:floor', { uid, floor: floor.code });
 
-  // ロビー着地: 当日初回なら葵がカレンダー予定をDM
+  // ロビー着地: 当日初回なら葵がカレンダー予定+CoWellイベント案内をDM
   if (floor.code === 'lobby') {
     setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
+    setTimeout(() => maybeSendWellnessAnnouncement(uid), 3000);
   }
 
   // フロア切替
@@ -592,9 +641,10 @@ io.on('connection', (socket) => {
     });
     io.emit('floor:counts', floorCountMap());
     io.emit('user:floor', { uid, floor: target.code });
-    // ロビーへ移動: 当日初回なら葵がカレンダー予定をDM
+    // ロビーへ移動: 当日初回なら葵がカレンダー予定+CoWellイベント案内をDM
     if (target.code === 'lobby') {
       setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
+      setTimeout(() => maybeSendWellnessAnnouncement(uid), 3000);
     }
   });
 

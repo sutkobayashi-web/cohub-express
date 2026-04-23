@@ -25,6 +25,9 @@ function getDb() {
   ensureColumn(_db, 'users', 'last_cal_dm_date', 'last_cal_dm_date TEXT');
   ensureColumn(_db, 'users', 'dm_group', 'dm_group TEXT');
   ensureColumn(_db, 'users', 'dm_rank', 'dm_rank INTEGER DEFAULT 0');
+  ensureColumn(_db, 'users', 'last_wellness_dm_date', 'last_wellness_dm_date TEXT');
+  // 労働安全健康推進室への名称統一 (旧: 安全衛生健康管理室)
+  _db.prepare("UPDATE floors SET name = '労働安全健康推進室' WHERE code = 'wellness_room'").run();
   // 事務所棟フロアの登場位置を正面玄関(下中央)に揃える
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')
