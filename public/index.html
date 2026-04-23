@@ -2921,6 +2921,7 @@ const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
 // ベートーヴェン交響曲第5番「運命」冒頭 (ジャ・ジャ・ジャ・ジャーン) を2回で約3秒
+// シンプルな sine+triangle 合成でブラウザ互換性重視
 const CHIME_DURATION_MS = 3400;
 function playEnterLeaveChime(isEnter) {
   try {
@@ -2928,49 +2929,41 @@ function playEnterLeaveChime(isEnter) {
     const ctx = _audioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
     const reverb = ensureReverb(ctx);
-    // 弦楽器風: 基音triangle + sawtooth倍音 + lowpass
     const note = (freq, startOffset, dur, vol) => {
       const t0 = ctx.currentTime + startOffset;
       const osc1 = ctx.createOscillator();
-      osc1.type = 'triangle';
+      osc1.type = 'sine';
       osc1.frequency.value = freq;
       const osc2 = ctx.createOscillator();
-      osc2.type = 'sawtooth';
-      osc2.frequency.value = freq * 0.5;  // 1オクターブ下でチェロ層
-      const gLow = ctx.createGain();
-      gLow.gain.value = 0.22;
-      osc2.connect(gLow);
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 2800;
-      lp.Q.value = 0.7;
+      osc2.type = 'triangle';
+      osc2.frequency.value = freq * 2;
+      const gHarm = ctx.createGain();
+      gHarm.gain.value = 0.18;
+      osc2.connect(gHarm);
       const env = ctx.createGain();
       env.gain.setValueAtTime(0.0001, t0);
-      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.025);
-      env.gain.setValueAtTime(vol, t0 + dur * 0.6);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
       env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       osc1.connect(env);
-      gLow.connect(env);
-      env.connect(lp);
-      lp.connect(ctx.destination);  // dry
-      lp.connect(reverb);            // wet
+      gHarm.connect(env);
+      env.connect(ctx.destination);
+      env.connect(reverb);
       osc1.start(t0); osc2.start(t0);
       osc1.stop(t0 + dur + 0.1);
       osc2.stop(t0 + dur + 0.1);
     };
-    // 周波数
     const G5 = 783.99, Eb5 = 622.25, F5 = 698.46, D5 = 587.33;
-    const v = 0.38;
-    // 第1モチーフ: G G G Eb (ジャ・ジャ・ジャ・ジャーン)
-    note(G5, 0.00, 0.17, v);
-    note(G5, 0.20, 0.17, v);
-    note(G5, 0.40, 0.17, v);
-    note(Eb5, 0.65, 1.00, v * 1.1);   // フェルマータ
-    // 第2モチーフ: F F F D (下降繰り返し)
-    note(F5, 1.80, 0.17, v);
-    note(F5, 2.00, 0.17, v);
-    note(F5, 2.20, 0.17, v);
-    note(D5, 2.45, 0.85, v * 1.15);   // 最後のフェルマータ
+    const v = 0.4;
+    // 第1モチーフ: G G G Eb───
+    note(G5, 0.00, 0.22, v);
+    note(G5, 0.25, 0.22, v);
+    note(G5, 0.50, 0.22, v);
+    note(Eb5, 0.78, 1.20, v * 1.1);
+    // 第2モチーフ: F F F D───
+    note(F5, 2.00, 0.22, v);
+    note(F5, 2.25, 0.22, v);
+    note(F5, 2.50, 0.22, v);
+    note(D5, 2.78, 1.30, v * 1.15);
   } catch (e) {}
 }
 
