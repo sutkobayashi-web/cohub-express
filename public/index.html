@@ -2879,16 +2879,16 @@ let _beepMaster = null;
 function ensureBeepMaster(ctx) {
   if (_beepMaster) return _beepMaster;
   const master = ctx.createGain();
-  master.gain.value = 3.0;  // 3倍ブースト
-  // 歪み防止リミッター
-  const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -6;
-  comp.knee.value = 6;
-  comp.ratio.value = 12;
-  comp.attack.value = 0.002;
-  comp.release.value = 0.12;
-  master.connect(comp);
-  comp.connect(ctx.destination);
+  master.gain.value = 5.0;  // 5倍ブースト
+  // ブリックウォールリミッター (0dB近くで張り付き、歪ませずに最大音量)
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -1;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.001;
+  limiter.release.value = 0.05;
+  master.connect(limiter);
+  limiter.connect(ctx.destination);
   _beepMaster = master;
   return master;
 }
@@ -2938,13 +2938,14 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// チャイム: シンプルなWeb Audio合成 (最初のデフォルト版)
+// チャイム: Web Audio合成 + マスターゲインで大音量化
 const CHIME_DURATION_MS = 1000;
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _audioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    const master = ensureBeepMaster(ctx);  // playBeepと同じ3倍ブースター+リミッター
     const tone = (freq, startOffset, dur, vol) => {
       const t0 = ctx.currentTime + startOffset;
       const osc = ctx.createOscillator();
@@ -2955,16 +2956,16 @@ function playEnterLeaveChime(isEnter) {
       env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
       env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       osc.connect(env);
-      env.connect(ctx.destination);
+      env.connect(master);
       osc.start(t0);
       osc.stop(t0 + dur + 0.05);
     };
     if (isEnter) {
-      tone(659.25, 0.00, 0.35, 0.14);
-      tone(987.77, 0.12, 0.45, 0.14);
+      tone(659.25, 0.00, 0.35, 0.45);
+      tone(987.77, 0.12, 0.45, 0.45);
     } else {
-      tone(987.77, 0.00, 0.35, 0.10);
-      tone(659.25, 0.12, 0.45, 0.10);
+      tone(987.77, 0.00, 0.35, 0.40);
+      tone(659.25, 0.12, 0.45, 0.40);
     }
   } catch (e) {}
 }
