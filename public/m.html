@@ -419,28 +419,45 @@ function readingOf(name) {
   }
   return name;
 }
+// ===== Google Cloud TTS 汎用読み上げ =====
+const _ttsBlobCache = new Map();
+async function speakViaTTS(text, opts) {
+  if (!text) return;
+  opts = opts || {};
+  const speed = opts.speed || 1.15;
+  const voice = opts.voice || 'ja-JP-Neural2-B';
+  try {
+    let url = _ttsBlobCache.get(text);
+    if (!url) {
+      const res = await fetch('/api/voice/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+        body: JSON.stringify({ text, voice, speed }),
+      });
+      if (!res.ok) { console.warn('[cohub-m] tts http', res.status); return; }
+      const blob = await res.blob();
+      url = URL.createObjectURL(blob);
+      _ttsBlobCache.set(text, url);
+      if (_ttsBlobCache.size > 100) {
+        const first = _ttsBlobCache.keys().next().value;
+        try { URL.revokeObjectURL(_ttsBlobCache.get(first)); } catch (e) {}
+        _ttsBlobCache.delete(first);
+      }
+    }
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    console.log('[cohub-m] TTS play:', text);
+    await audio.play();
+  } catch (e) { console.warn('[cohub-m] speakViaTTS failed', e.message || e); }
+}
+
 // DM送付元名の読み上げ
 const _dmSenderThrottle = new Map();
 const _DM_SENDER_COOLDOWN_MS = 8000;
 function speakDmSender(name) {
-  try {
-    if (!('speechSynthesis' in window)) return;
-    const reading = readingOf(name);
-    const text = (reading || 'どなたか') + 'さんからメッセージです';
-    try { window.speechSynthesis.cancel(); } catch (e) {}
-    try { window.speechSynthesis.resume(); } catch (e) {}
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP';
-    u.rate = 1.15;
-    u.pitch = 1.1;
-    u.volume = 1.0;
-    const voices = window.speechSynthesis.getVoices();
-    const jp = voices.find(v => /^ja/i.test(v.lang));
-    if (jp) u.voice = jp;
-    u.onstart = () => console.log('[cohub-m] TTS start:', text);
-    u.onerror = (e) => console.warn('[cohub-m] TTS error:', e.error || e);
-    window.speechSynthesis.speak(u);
-  } catch (e) { console.warn('[cohub-m] speakDmSender exception', e); }
+  const reading = readingOf(name);
+  const text = (reading || 'どなたか') + 'さんからメッセージです';
+  speakViaTTS(text, { speed: 1.15 });
 }
 function announceDmSender(senderUid, name) {
   if (!senderUid) return;
@@ -452,24 +469,9 @@ function announceDmSender(senderUid, name) {
 }
 
 function speakEnterLeave(name, isEnter) {
-  try {
-    if (!('speechSynthesis' in window)) return;
-    const reading = readingOf(name);
-    const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
-    try { window.speechSynthesis.cancel(); } catch (e) {}
-    try { window.speechSynthesis.resume(); } catch (e) {}
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP';
-    u.rate = 1.15;
-    u.pitch = isEnter ? 1.15 : 0.95;
-    u.volume = 1.0;
-    const voices = window.speechSynthesis.getVoices();
-    const jp = voices.find(v => /^ja/i.test(v.lang));
-    if (jp) u.voice = jp;
-    u.onstart = () => console.log('[cohub-m] TTS start:', text);
-    u.onerror = (e) => console.warn('[cohub-m] TTS error:', e.error || e);
-    window.speechSynthesis.speak(u);
-  } catch (e) { console.warn('[cohub-m] speakEnterLeave exception', e); }
+  const reading = readingOf(name);
+  const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
+  speakViaTTS(text, { speed: 1.15 });
 }
 function announceEnterLeave(uid, name, isEnter) {
   if (!uid) return;
