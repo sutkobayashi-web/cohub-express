@@ -1617,12 +1617,12 @@ function connectSocket() {
       renderMemberList();
       const sender = users[peerUid] || {};
       showNotifCard({ name: '[DM] ' + (sender.name || '誰か'), content: m.content, avatar: sender.avatar || '', mention: true });
+      // OS通知(Windowsデフォルト大音量音源) + CoHub内部Web Audio音
       fireOSNotif('[DM] ' + (sender.name || ''), m.content, () => openDM(peerUid));
-      // 送付元名をアナウンス (チャイム+TTSを一括再生。bot除外: 葵はspeakAoiで本文を読み上げる)
+      if (speakerOn) playBeep(true);
       if (m.from !== 'bot_aoi' && speakerOn) {
-        announceDmSender(m.from, sender.name || '');
-      } else if (speakerOn) {
-        playBeep(true); // 葵からのDMはTTS本文あり、通知音のみ鳴らす
+        // TTSアナウンス (sender名読み上げ、チャイム重複は避けるためannounceDmSenderではなく直接speak)
+        setTimeout(() => speakDmSender(sender.name || ''), 1200);
       }
     }
   });
@@ -1678,7 +1678,6 @@ function connectSocket() {
           tag: 'tap-' + fromUid,
           icon: '/img/icon-192.png',
           requireInteraction: true,
-          silent: true,  // OSの通知音を抑制、CoHub側playBeepを唯一音源に
         });
         n.onclick = () => { window.focus(); n.close(); };
       }
@@ -2629,8 +2628,8 @@ function fireOSNotif(title, body, onClick) {
   if (Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   try {
-    // silent:true でOS側の通知音を抑制 (CoHub側のWeb Audioを唯一の音源にする)
-    const n = new Notification(title, { body, tag: 'cohub-chat', icon: '/assets/office_bg.png', silent: true });
+    // OS通知はデフォルト音でOK (Windowsの通知音が主音源として大音量で鳴る)
+    const n = new Notification(title, { body, tag: 'cohub-chat', icon: '/assets/office_bg.png' });
     n.onclick = () => { window.focus(); if (onClick) onClick(); n.close(); };
     setTimeout(() => { try { n.close(); } catch(e) {} }, 8000);
   } catch (e) {}
@@ -2880,17 +2879,10 @@ function ensureReverb(ctx) {
 let _beepMaster = null;
 function ensureBeepMaster(ctx) {
   if (_beepMaster) return _beepMaster;
+  // シンプルに2倍ゲインのみ (リミッター無し、ブラウザ内部のハードクリップで自然に上限)
   const master = ctx.createGain();
-  master.gain.value = 5.0;  // 5倍ブースト
-  // ブリックウォールリミッター (0dB近くで張り付き、歪ませずに最大音量)
-  const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -1;
-  limiter.knee.value = 0;
-  limiter.ratio.value = 20;
-  limiter.attack.value = 0.001;
-  limiter.release.value = 0.05;
-  master.connect(limiter);
-  limiter.connect(ctx.destination);
+  master.gain.value = 2.0;
+  master.connect(ctx.destination);
   _beepMaster = master;
   return master;
 }
