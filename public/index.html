@@ -1611,7 +1611,8 @@ function connectSocket() {
     if (dmPeerUid === peerUid) {
       dmLog.push({ id: m.id, from: m.from, to: m.to, content: m.content, at: m.at, attach: m.attach || null });
       renderDM();
-      // 自分が開いている = 既読扱い
+      // 自分が開いている = 既読扱いだが、相手からの新着時は控えめな通知音を鳴らす
+      if (!isSelf && speakerOn && m.from !== 'bot_aoi') playBeep(false);
     } else if (!isSelf) {
       dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
       renderMemberList();
