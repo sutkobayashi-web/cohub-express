@@ -2920,43 +2920,13 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// 学校放送風チャイム「ピンポンパンポン」: B5-G5-B5-G5 の矩形波で大音量
+// チャイム: /assets/chime.mp3 (ffmpegで事前生成、約1.8秒)
 const CHIME_DURATION_MS = 2000;
 function playEnterLeaveChime(isEnter) {
   try {
-    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    // マスター: 高域をわずかに抑えて学校PAのくぐもり感
-    const master = ctx.createGain();
-    master.gain.value = 0.5;
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 4000;
-    lp.Q.value = 0.7;
-    master.connect(lp);
-    lp.connect(ctx.destination);
-    const beep = (freq, startOffset, dur, vol) => {
-      const t0 = ctx.currentTime + startOffset;
-      const osc = ctx.createOscillator();
-      osc.type = 'square';       // 矩形波: 音量が確実に取れる
-      osc.frequency.value = freq;
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0, t0);
-      env.gain.linearRampToValueAtTime(vol, t0 + 0.015);
-      env.gain.setValueAtTime(vol, t0 + dur - 0.06);
-      env.gain.linearRampToValueAtTime(0, t0 + dur);
-      osc.connect(env);
-      env.connect(master);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.05);
-    };
-    const B5 = 987.77, G5 = 783.99;
-    const v = 0.6;
-    beep(B5, 0.00, 0.38, v);  // ピン
-    beep(G5, 0.42, 0.38, v);  // ポン
-    beep(B5, 0.84, 0.38, v);  // パン
-    beep(G5, 1.26, 0.55, v);  // ポン (最後長め)
+    const audio = new Audio('/assets/chime.mp3');
+    audio.volume = 1.0;
+    audio.play().catch(e => console.warn('[cohub] chime play error', e));
   } catch (e) { console.warn('[cohub] chime fail', e); }
 }
 
