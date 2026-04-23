@@ -376,46 +376,43 @@ function escapeHtml(s) {
 let _mAudioCtx = null;
 const _mEnterLeaveThrottle = new Map();
 const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
-const CHIME_DURATION_MS = 3400;
-// ベートーヴェン5番「運命」冒頭 (シンプルなsine+triangle合成)
+const CHIME_DURATION_MS = 2000;
+// 学校放送風チャイム「ピンポンパンポン」(矩形波・大音量)
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _mAudioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    const note = (freq, startOffset, dur, vol) => {
+    const master = ctx.createGain();
+    master.gain.value = 0.5;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 4000;
+    lp.Q.value = 0.7;
+    master.connect(lp);
+    lp.connect(ctx.destination);
+    const beep = (freq, startOffset, dur, vol) => {
       const t0 = ctx.currentTime + startOffset;
-      const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.value = freq;
-      const osc2 = ctx.createOscillator();
-      osc2.type = 'triangle';
-      osc2.frequency.value = freq * 2;
-      const gHarm = ctx.createGain();
-      gHarm.gain.value = 0.18;
-      osc2.connect(gHarm);
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = freq;
       const env = ctx.createGain();
-      env.gain.setValueAtTime(0.0001, t0);
-      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
-      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc1.connect(env);
-      gHarm.connect(env);
-      env.connect(ctx.destination);
-      osc1.start(t0); osc2.start(t0);
-      osc1.stop(t0 + dur + 0.1);
-      osc2.stop(t0 + dur + 0.1);
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(vol, t0 + 0.015);
+      env.gain.setValueAtTime(vol, t0 + dur - 0.06);
+      env.gain.linearRampToValueAtTime(0, t0 + dur);
+      osc.connect(env);
+      env.connect(master);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
     };
-    const G5 = 783.99, Eb5 = 622.25, F5 = 698.46, D5 = 587.33;
-    const v = 0.4;
-    note(G5, 0.00, 0.22, v);
-    note(G5, 0.25, 0.22, v);
-    note(G5, 0.50, 0.22, v);
-    note(Eb5, 0.78, 1.20, v * 1.1);
-    note(F5, 2.00, 0.22, v);
-    note(F5, 2.25, 0.22, v);
-    note(F5, 2.50, 0.22, v);
-    note(D5, 2.78, 1.30, v * 1.15);
-  } catch (e) {}
+    const B5 = 987.77, G5 = 783.99;
+    const v = 0.6;
+    beep(B5, 0.00, 0.38, v);
+    beep(G5, 0.42, 0.38, v);
+    beep(B5, 0.84, 0.38, v);
+    beep(G5, 1.26, 0.55, v);
+  } catch (e) { console.warn('[cohub-m] chime fail', e); }
 }
 // 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)
 const NAME_READINGS = {
