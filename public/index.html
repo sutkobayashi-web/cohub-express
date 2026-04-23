@@ -1722,12 +1722,15 @@ function connectSocket() {
     if (m.uid !== me) {
       if (speakerOn) playBeep(isMentioned);
       const sender = users[m.uid] || {};
-      showNotifCard({
-        name: sender.name || '誰か',
-        content: m.content,
-        avatar: sender.avatar || '',
-        mention: isMentioned
-      });
+      // 通知カードはメンション時のみ (通常の公開チャットはキャンバス吹き出しで見えるので二重表示を回避)
+      if (isMentioned) {
+        showNotifCard({
+          name: sender.name || '誰か',
+          content: m.content,
+          avatar: sender.avatar || '',
+          mention: true
+        });
+      }
       const title = (isMentioned ? '[メンション] ' : '') + (sender.name || 'CoHub');
       fireOSNotif(title, m.content, () => { switchTab('chat'); });
       const notReading = document.visibilityState !== 'visible';
@@ -2635,7 +2638,15 @@ function fireOSNotif(title, body, onClick) {
   } catch (e) {}
 }
 
+const _notifCardCooldown = new Map();  // name → last shown timestamp
+const _NOTIF_CARD_COOLDOWN_MS = 4000;
 function showNotifCard(o) {
+  // 同一送信者の連投を抑制
+  const now = Date.now();
+  const key = o.name || '';
+  const last = _notifCardCooldown.get(key) || 0;
+  if (now - last < _NOTIF_CARD_COOLDOWN_MS) return;
+  _notifCardCooldown.set(key, now);
   let stack = document.getElementById('notif-stack');
   if (!stack) {
     stack = document.createElement('div');
@@ -2661,7 +2672,8 @@ function showNotifCard(o) {
   stack.appendChild(card);
   const lifespan = o.mention ? 5800 : 3800;
   setTimeout(() => { try { card.remove(); } catch(e) {} }, lifespan);
-  while (stack.children.length > 6) stack.removeChild(stack.firstChild);
+  // 最大3枚まで (超過は古いものから削除)
+  while (stack.children.length > 3) stack.removeChild(stack.firstChild);
 }
 
 // visibility 変化で未読バッジリセット
