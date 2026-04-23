@@ -2920,27 +2920,45 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// 警告チャイム: 880Hz (A5) 単音を1回長めに鳴らす (緩やかに減衰するベル)
-const CHIME_DURATION_MS = 2000;
+// Teams通知風チャイム: E5→G5→C6 の3音アルペジオ+リバーブ
+// 音量/余韻をTeamsより強めにモディファイして存在感アップ
+const CHIME_DURATION_MS = 2200;
 function playEnterLeaveChime(isEnter) {
   try {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _audioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    const t0 = ctx.currentTime;
-    const dur = 1.8;
-    const vol = 0.42;
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    const env = ctx.createGain();
-    env.gain.setValueAtTime(0.0001, t0);
-    env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
-    env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(env);
-    env.connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(t0 + dur + 0.05);
+    const reverb = ensureReverb(ctx);
+    const bellTone = (freq, startOffset, dur, vol) => {
+      const t0 = ctx.currentTime + startOffset;
+      // メインsine + 2倍音triangleで鐘の厚み
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.value = freq;
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'triangle';
+      osc2.frequency.value = freq * 2;
+      const gHarm = ctx.createGain();
+      gHarm.gain.value = 0.18;
+      osc2.connect(gHarm);
+      // 速いattack + 長いrelease (ベル)
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc1.connect(env);
+      gHarm.connect(env);
+      env.connect(ctx.destination);  // dry
+      env.connect(reverb);            // wet (reverb→destination既に結線済)
+      osc1.start(t0); osc2.start(t0);
+      osc1.stop(t0 + dur + 0.1);
+      osc2.stop(t0 + dur + 0.1);
+    };
+    // E5 → G5 → C6 (Teams mention相当)
+    // 各音大きめ/余韻長め
+    bellTone(659.25, 0.00, 1.6, 0.32);
+    bellTone(783.99, 0.20, 1.8, 0.32);
+    bellTone(1046.50, 0.45, 2.0, 0.38);
   } catch (e) {}
 }
 
