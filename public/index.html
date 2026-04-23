@@ -2920,14 +2920,61 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// チャイム: /assets/chime.mp3 (ffmpegで事前生成、約1.8秒)
+// チャイム: /assets/chime.mp3 + Web Audioフォールバック
 const CHIME_DURATION_MS = 2000;
+let _chimeAudio = null;
+try {
+  _chimeAudio = new Audio('/assets/chime.mp3');
+  _chimeAudio.preload = 'auto';
+  _chimeAudio.load();
+} catch (e) {}
+function playChimeFallback() {
+  // Web Audio矩形波フォールバック (MP3再生失敗時)
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    const master = ctx.createGain();
+    master.gain.value = 0.5;
+    master.connect(ctx.destination);
+    const beep = (freq, start, dur) => {
+      const t0 = ctx.currentTime + start;
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(0.6, t0 + 0.015);
+      env.gain.setValueAtTime(0.6, t0 + dur - 0.05);
+      env.gain.linearRampToValueAtTime(0, t0 + dur);
+      osc.connect(env); env.connect(master);
+      osc.start(t0); osc.stop(t0 + dur + 0.05);
+    };
+    beep(987.77, 0.00, 0.38);
+    beep(783.99, 0.42, 0.38);
+    beep(987.77, 0.84, 0.38);
+    beep(783.99, 1.26, 0.55);
+  } catch (e) { console.warn('[cohub] fallback chime fail', e); }
+}
 function playEnterLeaveChime(isEnter) {
   try {
-    const audio = new Audio('/assets/chime.mp3');
-    audio.volume = 1.0;
-    audio.play().catch(e => console.warn('[cohub] chime play error', e));
-  } catch (e) { console.warn('[cohub] chime fail', e); }
+    if (!_chimeAudio) {
+      _chimeAudio = new Audio('/assets/chime.mp3');
+      _chimeAudio.preload = 'auto';
+    }
+    _chimeAudio.currentTime = 0;
+    _chimeAudio.volume = 1.0;
+    const p = _chimeAudio.play();
+    if (p && p.catch) {
+      p.then(() => console.log('[cohub] chime.mp3 playing')).catch(e => {
+        console.warn('[cohub] chime.mp3 rejected → fallback:', e.name || e);
+        playChimeFallback();
+      });
+    }
+  } catch (e) {
+    console.warn('[cohub] chime exception → fallback', e);
+    playChimeFallback();
+  }
 }
 
 // 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)

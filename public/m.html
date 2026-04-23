@@ -376,13 +376,25 @@ function escapeHtml(s) {
 const _mEnterLeaveThrottle = new Map();
 const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
 const CHIME_DURATION_MS = 2000;
-// チャイム: /assets/chime.mp3
+let _mChimeAudio = null;
+try {
+  _mChimeAudio = new Audio('/assets/chime.mp3');
+  _mChimeAudio.preload = 'auto';
+  _mChimeAudio.load();
+} catch (e) {}
 function playEnterLeaveChime(isEnter) {
   try {
-    const audio = new Audio('/assets/chime.mp3');
-    audio.volume = 1.0;
-    audio.play().catch(e => console.warn('[cohub-m] chime play error', e));
-  } catch (e) { console.warn('[cohub-m] chime fail', e); }
+    if (!_mChimeAudio) {
+      _mChimeAudio = new Audio('/assets/chime.mp3');
+      _mChimeAudio.preload = 'auto';
+    }
+    _mChimeAudio.currentTime = 0;
+    _mChimeAudio.volume = 1.0;
+    const p = _mChimeAudio.play();
+    if (p && p.catch) {
+      p.then(() => console.log('[cohub-m] chime.mp3 playing')).catch(e => console.warn('[cohub-m] chime.mp3 rejected:', e.name || e));
+    }
+  } catch (e) { console.warn('[cohub-m] chime exception', e); }
 }
 // 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)
 const NAME_READINGS = {
