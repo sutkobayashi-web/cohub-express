@@ -2003,7 +2003,7 @@ function render() {
     drawAvatar(u);
   }
 
-  // 吹き出し
+  // 吹き出し (葵は立ち姿210pxなので頭上まで引き上げる)
   const now = Date.now();
   const bubbleLife = 10000;
   for (let i = bubbles.length - 1; i >= 0; i--) {
@@ -2011,8 +2011,11 @@ function render() {
     if (now - b.at > bubbleLife) { bubbles.splice(i, 1); continue; }
     const u = users[b.uid];
     if (!u || u.cx == null) continue;
-    if (b.isEmoji) drawEmojiBubble(u.cx, u.cy, b.content, (now - b.at) / bubbleLife);
-    else drawBubble(u.cx, u.cy - 50, b.content, Math.max(0, 1 - (now - b.at) / bubbleLife));
+    const isConcierge = u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas;
+    const bubbleAnchorY = isConcierge ? (u.cy - 118) : (u.cy - 50);  // 葵は頭上(head top cy-105)の少し上
+    const emojiAnchorY = isConcierge ? (u.cy - 110) : u.cy;           // 葵は頭上、一般は中心
+    if (b.isEmoji) drawEmojiBubble(u.cx, emojiAnchorY, b.content, (now - b.at) / bubbleLife);
+    else drawBubble(u.cx, bubbleAnchorY, b.content, Math.max(0, 1 - (now - b.at) / bubbleLife));
   }
 
   ctx.restore();
