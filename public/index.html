@@ -2864,18 +2864,44 @@ function ensureReverb(ctx) {
   return conv;
 }
 
-// 通知音: 毎回新規 Audio を生成 (事前キャッシュで動作不安定だった問題の修正)
-const NOTIF_MENTION_URL = '/assets/notif-mention.mp3?v=1';
-const NOTIF_NORMAL_URL = '/assets/notif-normal.mp3?v=1';
 function playBeep(mention) {
   try {
-    const url = mention ? NOTIF_MENTION_URL : NOTIF_NORMAL_URL;
-    const audio = new Audio(url);
-    audio.volume = 1.0;
-    console.log('[cohub] playBeep', mention ? 'mention' : 'normal', url);
-    const p = audio.play();
-    if (p && p.catch) p.then(() => console.log('[cohub] beep playing')).catch(e => console.warn('[cohub] beep rejected:', e.name || e));
-  } catch (e) { console.warn('[cohub] beep fail', e); }
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    const reverb = ensureReverb(ctx);
+    const tone = (freq, startOffset, dur, vol) => {
+      const t0 = ctx.currentTime + startOffset;
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.value = freq;
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'triangle';
+      osc2.frequency.value = freq * 2;
+      const gHarm = ctx.createGain();
+      gHarm.gain.value = 0.12;
+      osc2.connect(gHarm);
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc1.connect(env);
+      gHarm.connect(env);
+      env.connect(ctx.destination);
+      env.connect(reverb);
+      osc1.start(t0); osc2.start(t0);
+      osc1.stop(t0 + dur + 0.1);
+      osc2.stop(t0 + dur + 0.1);
+    };
+    if (mention) {
+      tone(659.25, 0.00, 1.1, 0.22);
+      tone(783.99, 0.18, 1.2, 0.22);
+      tone(1046.50, 0.38, 1.5, 0.26);
+    } else {
+      tone(440.00, 0.00, 1.3, 0.20);
+      tone(659.25, 0.14, 1.5, 0.20);
+    }
+  } catch (e) {}
 }
 
 // ===== 入出室チャイム＆音声アナウンス =====
@@ -2883,62 +2909,35 @@ function playBeep(mention) {
 const _enterLeaveThrottle = new Map(); // uid → 最後に発火したepoch ms
 const _ENTER_LEAVE_COOLDOWN_MS = 8000;
 
-// チャイム: /assets/chime.mp3 (E5-G5-C6 3音ベルアルペジオ、約2秒)
-const CHIME_DURATION_MS = 2200;
-const CHIME_URL = '/assets/chime.mp3?v=3';  // 差し替え時はv=を上げる
-let _chimeAudio = null;
-try {
-  _chimeAudio = new Audio(CHIME_URL);
-  _chimeAudio.preload = 'auto';
-  _chimeAudio.load();
-} catch (e) {}
-function playChimeFallback() {
-  // Web Audio矩形波フォールバック (MP3再生失敗時)
+// チャイム: シンプルなWeb Audio合成 (最初のデフォルト版)
+const CHIME_DURATION_MS = 1000;
+function playEnterLeaveChime(isEnter) {
   try {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _audioCtx;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    const master = ctx.createGain();
-    master.gain.value = 0.5;
-    master.connect(ctx.destination);
-    const beep = (freq, start, dur) => {
-      const t0 = ctx.currentTime + start;
+    const tone = (freq, startOffset, dur, vol) => {
+      const t0 = ctx.currentTime + startOffset;
       const osc = ctx.createOscillator();
-      osc.type = 'square';
+      osc.type = 'sine';
       osc.frequency.value = freq;
       const env = ctx.createGain();
-      env.gain.setValueAtTime(0, t0);
-      env.gain.linearRampToValueAtTime(0.6, t0 + 0.015);
-      env.gain.setValueAtTime(0.6, t0 + dur - 0.05);
-      env.gain.linearRampToValueAtTime(0, t0 + dur);
-      osc.connect(env); env.connect(master);
-      osc.start(t0); osc.stop(t0 + dur + 0.05);
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(env);
+      env.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
     };
-    beep(987.77, 0.00, 0.38);
-    beep(783.99, 0.42, 0.38);
-    beep(987.77, 0.84, 0.38);
-    beep(783.99, 1.26, 0.55);
-  } catch (e) { console.warn('[cohub] fallback chime fail', e); }
-}
-function playEnterLeaveChime(isEnter) {
-  try {
-    if (!_chimeAudio) {
-      _chimeAudio = new Audio(CHIME_URL);
-      _chimeAudio.preload = 'auto';
+    if (isEnter) {
+      tone(659.25, 0.00, 0.35, 0.14);
+      tone(987.77, 0.12, 0.45, 0.14);
+    } else {
+      tone(987.77, 0.00, 0.35, 0.10);
+      tone(659.25, 0.12, 0.45, 0.10);
     }
-    _chimeAudio.currentTime = 0;
-    _chimeAudio.volume = 1.0;
-    const p = _chimeAudio.play();
-    if (p && p.catch) {
-      p.then(() => console.log('[cohub] chime.mp3 playing')).catch(e => {
-        console.warn('[cohub] chime.mp3 rejected → fallback:', e.name || e);
-        playChimeFallback();
-      });
-    }
-  } catch (e) {
-    console.warn('[cohub] chime exception → fallback', e);
-    playChimeFallback();
-  }
+  } catch (e) {}
 }
 
 // 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)
