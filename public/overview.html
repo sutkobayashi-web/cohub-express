@@ -26,31 +26,35 @@
   header a:hover, header button:hover { background: #334155; }
   #grid {
     flex: 1; display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px; padding: 10px; overflow: auto;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 8px; padding: 8px; overflow: hidden; min-height: 0;
   }
-  .building-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-  .building-head {
-    font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
-    padding: 4px 10px; border-radius: 6px; display: inline-block;
-  }
-  .building-head.office { background: #1e3a5f; color: #93c5fd; }
-  .building-head.field { background: #4a2c10; color: #fdba74; }
+  .floor-card.building-office { border-left: 4px solid #3b82f6; }
+  .floor-card.building-field { border-left: 4px solid #ea580c; }
   .floor-card {
-    background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+    background: #1e293b; border: 1px solid #334155; border-radius: 6px;
     overflow: hidden; position: relative; display: flex; flex-direction: column;
+    flex: 1 1 0; min-height: 0;
   }
   .floor-head {
-    display: flex; align-items: center; gap: 8px;
-    padding: 4px 10px; background: #0f172a; font-size: 12px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 8px; background: #0f172a; font-size: 11px;
+    flex-shrink: 0;
   }
   .floor-head .fname { font-weight: 700; }
   .floor-head .count { margin-left: auto; color: #fbbf24; font-weight: 700; }
   .floor-head .lock { color: #f87171; }
   .floor-canvas-wrap {
-    position: relative; width: 100%; aspect-ratio: 1344/768; background: #0f172a;
+    flex: 1; min-height: 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: #0f172a; overflow: hidden;
   }
-  .floor-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+  .floor-canvas-wrap canvas {
+    max-width: 100%; max-height: 100%;
+    aspect-ratio: 1344/768;
+    display: block;
+  }
   .floor-canvas-wrap .empty {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-size: 11px; color: #64748b; pointer-events: none;
@@ -74,8 +78,11 @@
   }
   #login-overlay button:hover { background: #2563eb; }
   #login-overlay .err { color: #f87171; font-size: 12px; min-height: 16px; margin-top: 8px; }
-  @media (max-width: 1100px) {
-    #grid { grid-template-columns: 1fr; }
+  @media (max-width: 1400px) {
+    #grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); }
+  }
+  @media (max-width: 700px) {
+    #grid { grid-template-columns: 1fr; grid-template-rows: repeat(8, minmax(120px, 1fr)); overflow: auto; }
   }
 </style>
 </head>
@@ -89,14 +96,7 @@
   <a href="/">← 通常画面へ</a>
   <button id="btn-fullscreen" title="全画面表示">⛶ 全画面</button>
 </header>
-<div id="grid">
-  <div class="building-col" id="col-office">
-    <div class="building-head office">🏢 事務所棟</div>
-  </div>
-  <div class="building-col" id="col-field">
-    <div class="building-head field">🚚 現場棟</div>
-  </div>
-</div>
+<div id="grid"></div>
 
 <div id="login-overlay" style="display:none;">
   <div class="box">
@@ -145,14 +145,18 @@ async function doLogin() {
 }
 
 function buildLayout() {
-  const officeCol = document.getElementById('col-office');
-  const fieldCol = document.getElementById('col-field');
-  // 既存のカードを削除 (ヘッダ以外)
-  [...officeCol.querySelectorAll('.floor-card')].forEach(e => e.remove());
-  [...fieldCol.querySelectorAll('.floor-card')].forEach(e => e.remove());
-  for (const f of floors) {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  // 事務所棟 → 現場棟の順で並べる (建物でソート)
+  const sorted = [...floors].sort((a, b) => {
+    const ba = a.building === 'field' ? 1 : 0;
+    const bb = b.building === 'field' ? 1 : 0;
+    if (ba !== bb) return ba - bb;
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  });
+  for (const f of sorted) {
     const card = document.createElement('div');
-    card.className = 'floor-card';
+    card.className = 'floor-card building-' + (f.building === 'field' ? 'field' : 'office');
     card.dataset.code = f.code;
     card.innerHTML = `
       <div class="floor-head">
@@ -167,7 +171,7 @@ function buildLayout() {
         <div class="empty" data-empty>誰もいません</div>
       </div>
     `;
-    (f.building === 'field' ? fieldCol : officeCol).appendChild(card);
+    grid.appendChild(card);
   }
 }
 
