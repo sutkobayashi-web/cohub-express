@@ -396,14 +396,14 @@ function playEnterLeaveChime(isEnter) {
       osc.start(t0);
       osc.stop(t0 + dur + 0.05);
     };
-    // 緊急地震速報風: 442Hz+740Hz を4回繰り返し
+    // 緊急地震速報風: 880Hz+1480Hz (A5+F#6) を4回繰り返し (高音域でよく通る)
     const vol = 0.38;
     const chimeDur = 0.55;
     const cycleGap = 0.25;
     for (let i = 0; i < 4; i++) {
       const t = i * (chimeDur + cycleGap);
-      tone(442, t, chimeDur, vol);
-      tone(740, t + 0.01, chimeDur, vol);
+      tone(880, t, chimeDur, vol);
+      tone(1480, t + 0.01, chimeDur, vol);
     }
   } catch (e) {}
 }
