@@ -317,6 +317,27 @@ const SCHEMATICS = {
     drawLabel(ctx, '3F 会議室B', 672, 100, 36, t.label);
     drawLabel(ctx, '6席', cx, cy, 34, '#fef3c7');
   },
+  wellness_room(ctx, W, H) {
+    ctx.fillStyle = '#ecfdf5'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#10b981'; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 受付デスク (上)
+    roomBox(ctx, 400, 110, 544, 80, '#d1fae5', '#059669');
+    drawLabel(ctx, '🩺 保健師 / 産業医', 672, 150, 26, '#064e3b');
+    // 診察スペース (中央左)
+    roomBox(ctx, 120, 240, 400, 280, '#ffffff', '#10b981');
+    drawLabel(ctx, '🩻 健康測定', 320, 340, 30, '#047857');
+    drawLabel(ctx, '(血圧・体組成)', 320, 390, 22, '#059669');
+    // 面談ブース (中央右)
+    roomBox(ctx, 560, 240, 380, 280, '#ffffff', '#10b981');
+    drawLabel(ctx, '💬 面談ブース', 750, 340, 30, '#047857');
+    drawLabel(ctx, '(メンタル相談)', 750, 390, 22, '#059669');
+    // CoWell端末 (右)
+    roomBox(ctx, 980, 240, 280, 280, '#fef3c7', '#d97706');
+    drawLabel(ctx, '💻 CoWell', 1120, 340, 30, '#92400e');
+    drawLabel(ctx, '端末', 1120, 390, 22, '#b45309');
+    drawLabel(ctx, '🏥 安全衛生健康管理室', 672, 680, 32, '#064e3b');
+  },
   meeting_c(ctx, W, H) {
     const t = SCHEMATIC_THEME.office;
     ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 0, W, H);

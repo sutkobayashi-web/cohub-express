@@ -568,6 +568,11 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
+    <!-- 安全衛生健康管理室: CoWell (健康経営アプリ) をiframeで表示 -->
+    <iframe id="wellness-iframe" src="about:blank"
+      style="display:none;position:absolute;inset:40px 0 0 0;width:100%;height:calc(100% - 40px);border:0;z-index:5;background:#f8fafc;"
+      allow="camera; microphone; fullscreen; clipboard-read; clipboard-write"
+      title="CoWell 健康管理"></iframe>
     <div id="floor-head">
       <span class="dot"></span>
       <span id="floor-name">ロビー</span>
@@ -4501,6 +4506,21 @@ function wbClearConfirm() {
 // ===== フロア種別で画面レイアウト切替 =====
 function applyFloorLayout(floor) {
   const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
+  const isWellness = floor && floor.code === 'wellness_room';
+  // 健康管理室: CoWellをiframe全面表示、会議室系UIは非表示
+  const ifr = document.getElementById('wellness-iframe');
+  if (ifr) {
+    if (isWellness) {
+      if (ifr.src === 'about:blank' || !ifr.dataset.loaded) {
+        ifr.src = 'https://health.biz-terrace.org/';
+        ifr.dataset.loaded = '1';
+      }
+      ifr.style.display = 'block';
+    } else {
+      ifr.style.display = 'none';
+    }
+  }
+  document.body.classList.toggle('layout-wellness', !!isWellness);
   document.body.classList.toggle('layout-meeting', !!isMeeting);
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
