@@ -2974,20 +2974,26 @@ const _dmSenderThrottle = new Map();
 const _DM_SENDER_COOLDOWN_MS = 8000;
 function speakDmSender(name) {
   try {
-    if (!speakerOn) return;
-    if (!('speechSynthesis' in window)) return;
+    if (!speakerOn) { console.log('[cohub] speakDmSender skipped: muted'); return; }
+    if (!('speechSynthesis' in window)) { console.log('[cohub] speechSynthesis not supported'); return; }
     const reading = readingOf(name);
     const text = (reading || 'どなたか') + 'さんからメッセージです';
+    // Chrome対策: 既に喋っている/ポーズ中の発話をクリアして新規起動
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    try { window.speechSynthesis.resume(); } catch (e) {}
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 1.15;
     u.pitch = 1.1;
-    u.volume = 0.85;
+    u.volume = 1.0;
     const voices = window.speechSynthesis.getVoices();
     const jp = voices.find(v => /^ja/i.test(v.lang));
     if (jp) u.voice = jp;
+    u.onstart = () => console.log('[cohub] TTS start:', text);
+    u.onerror = (e) => console.warn('[cohub] TTS error:', e.error || e);
+    u.onend = () => console.log('[cohub] TTS end');
     window.speechSynthesis.speak(u);
-  } catch (e) {}
+  } catch (e) { console.warn('[cohub] speakDmSender exception', e); }
 }
 function announceDmSender(senderUid, name) {
   if (!senderUid) return;
@@ -3005,17 +3011,20 @@ function speakEnterLeave(name, isEnter) {
     if (!('speechSynthesis' in window)) return;
     const reading = readingOf(name);
     const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    try { window.speechSynthesis.resume(); } catch (e) {}
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 1.15;
     u.pitch = isEnter ? 1.15 : 0.95;
-    u.volume = 0.8;
-    // 日本語音声を選択
+    u.volume = 1.0;
     const voices = window.speechSynthesis.getVoices();
     const jp = voices.find(v => /^ja/i.test(v.lang));
     if (jp) u.voice = jp;
+    u.onstart = () => console.log('[cohub] TTS start:', text);
+    u.onerror = (e) => console.warn('[cohub] TTS error:', e.error || e);
     window.speechSynthesis.speak(u);
-  } catch (e) {}
+  } catch (e) { console.warn('[cohub] speakEnterLeave exception', e); }
 }
 
 function announceEnterLeave(uid, name, isEnter) {

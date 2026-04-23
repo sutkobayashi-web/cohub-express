@@ -427,16 +427,20 @@ function speakDmSender(name) {
     if (!('speechSynthesis' in window)) return;
     const reading = readingOf(name);
     const text = (reading || 'どなたか') + 'さんからメッセージです';
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    try { window.speechSynthesis.resume(); } catch (e) {}
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 1.15;
     u.pitch = 1.1;
-    u.volume = 0.85;
+    u.volume = 1.0;
     const voices = window.speechSynthesis.getVoices();
     const jp = voices.find(v => /^ja/i.test(v.lang));
     if (jp) u.voice = jp;
+    u.onstart = () => console.log('[cohub-m] TTS start:', text);
+    u.onerror = (e) => console.warn('[cohub-m] TTS error:', e.error || e);
     window.speechSynthesis.speak(u);
-  } catch (e) {}
+  } catch (e) { console.warn('[cohub-m] speakDmSender exception', e); }
 }
 function announceDmSender(senderUid, name) {
   if (!senderUid) return;
@@ -452,16 +456,20 @@ function speakEnterLeave(name, isEnter) {
     if (!('speechSynthesis' in window)) return;
     const reading = readingOf(name);
     const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    try { window.speechSynthesis.resume(); } catch (e) {}
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 1.15;
     u.pitch = isEnter ? 1.15 : 0.95;
-    u.volume = 0.8;
+    u.volume = 1.0;
     const voices = window.speechSynthesis.getVoices();
     const jp = voices.find(v => /^ja/i.test(v.lang));
     if (jp) u.voice = jp;
+    u.onstart = () => console.log('[cohub-m] TTS start:', text);
+    u.onerror = (e) => console.warn('[cohub-m] TTS error:', e.error || e);
     window.speechSynthesis.speak(u);
-  } catch (e) {}
+  } catch (e) { console.warn('[cohub-m] speakEnterLeave exception', e); }
 }
 function announceEnterLeave(uid, name, isEnter) {
   if (!uid) return;
