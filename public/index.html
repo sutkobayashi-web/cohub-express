@@ -882,8 +882,8 @@ async function doLogin() {
         navigator.credentials.store(cred).catch(() => {});
       }
     } catch (e) {}
-    // 現場スタッフのみ自動でモバイル版 /m へ (PC優先フラグ時はスキップ)
-    if (userData && userData.employee_type === 'field' && sessionStorage.getItem('cohub_prefer_pc') !== '1') {
+    // 現場スタッフ or スマホアクセスは自動でモバイル版 /m へ (PC優先フラグ時はスキップ)
+    if (userData && shouldRedirectToMobile(userData)) {
       location.href = '/m';
       return;
     }
@@ -5326,10 +5326,27 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2000);
 }
 
+// デバイス判定: スマホUA + 短辺<820px → モバイル扱い
+function isMobileDevice() {
+  try {
+    const ua = navigator.userAgent || '';
+    const uaHit = /Android|iPhone|iPod|Mobile/i.test(ua) || (/iPad/.test(ua) && navigator.maxTouchPoints > 1);
+    const minSide = Math.min(screen.width || 9999, screen.height || 9999);
+    return uaHit && minSide < 820;
+  } catch (e) { return false; }
+}
+function shouldRedirectToMobile(u) {
+  if (!u) return false;
+  if (sessionStorage.getItem('cohub_prefer_pc') === '1') return false;
+  if (u.employee_type === 'field') return true;
+  if (isMobileDevice()) return true;
+  return false;
+}
+
 // 自動ログイン or ログインIDをプリフィル
 if (token && userData) {
-  // 現場スタッフのみ /m へ (PC優先フラグ時はスキップ)
-  if (userData.employee_type === 'field' && sessionStorage.getItem('cohub_prefer_pc') !== '1') {
+  // 現場スタッフ or スマホアクセスは /m へ (PC優先フラグ時はスキップ)
+  if (shouldRedirectToMobile(userData)) {
     location.href = '/m';
   } else {
     enterSpace();
