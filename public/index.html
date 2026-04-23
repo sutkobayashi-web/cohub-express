@@ -1369,15 +1369,23 @@ function connectSocket() {
   });
 
   socket.on('user:leave', (u) => {
-    // 別フロアに移った人は自フロアから消す
+    // 別フロアに移った人は自フロアから消す (音声アナウンスは user:logout で扱う)
     if (users[u.uid]) {
-      const leaverName = users[u.uid].name;
-      const isBot = users[u.uid].role === 'bot';
       delete users[u.uid];
       delete targets[u.uid];
       renderMemberList();
-      if (!isBot) announceEnterLeave(u.uid, leaverName, false);
     }
+  });
+  // ログイン/ログアウトアナウンス (入退室音声は本イベントに限定、フロア移動では鳴らさない)
+  socket.on('user:login', (d) => {
+    if (!d || !d.uid) return;
+    if (d.uid === me) return;
+    announceEnterLeave(d.uid, d.name, true);
+  });
+  socket.on('user:logout', (d) => {
+    if (!d || !d.uid) return;
+    if (d.uid === me) return;
+    announceEnterLeave(d.uid, d.name, false);
   });
 
   // ===== 音声シグナリング =====
@@ -1635,12 +1643,10 @@ function connectSocket() {
     users[u.uid].cx = u.x != null ? u.x : WORLD_W / 2;
     users[u.uid].cy = u.y != null ? u.y : WORLD_H / 2;
     targets[u.uid] = { x: users[u.uid].cx, y: users[u.uid].cy };
-    // 入場者をフェードインで登場
+    // 入場者をフェードインで登場 (音声アナウンスは user:login で扱う)
     users[u.uid].opacity = 0;
     if (u.avatar) loadAvatar(u);
     renderMemberList();
-    // 入室チャイム + 音声アナウンス (bot/自分は除外)
-    if (u.uid !== me && u.role !== 'bot') announceEnterLeave(u.uid, u.name, true);
   });
   socket.on('user:update', (u) => {
     if (!users[u.uid]) users[u.uid] = { uid: u.uid, name: '...', ring: '#333', cx: u.x, cy: u.y };
@@ -2940,10 +2946,29 @@ function playEnterLeaveChime(isEnter) {
   } catch (e) {}
 }
 
+// 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)
+// 表記ゆれ対策で半角/全角スペースの両方登録
+const NAME_READINGS = {
+  '小林 猛': 'コバヤシ タケシ',
+  '小林　猛': 'コバヤシ タケシ',
+  '小林猛': 'コバヤシ タケシ',
+};
+function readingOf(name) {
+  if (!name) return name;
+  if (NAME_READINGS[name]) return NAME_READINGS[name];
+  // 全角/半角スペース差を吸収した再検索
+  const norm = name.replace(/\s+/g, '').replace(/　/g, '');
+  for (const k of Object.keys(NAME_READINGS)) {
+    if (k.replace(/\s+/g, '').replace(/　/g, '') === norm) return NAME_READINGS[k];
+  }
+  return name;
+}
+
 function speakEnterLeave(name, isEnter) {
   try {
     if (!('speechSynthesis' in window)) return;
-    const text = (name || 'どなたか') + 'さんが' + (isEnter ? '入室' : '退室') + 'しました';
+    const reading = readingOf(name);
+    const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 1.15;

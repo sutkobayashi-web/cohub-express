@@ -404,10 +404,26 @@ function playEnterLeaveChime(isEnter) {
     }
   } catch (e) {}
 }
+// 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)
+const NAME_READINGS = {
+  '小林 猛': 'コバヤシ タケシ',
+  '小林　猛': 'コバヤシ タケシ',
+  '小林猛': 'コバヤシ タケシ',
+};
+function readingOf(name) {
+  if (!name) return name;
+  if (NAME_READINGS[name]) return NAME_READINGS[name];
+  const norm = name.replace(/\s+/g, '').replace(/　/g, '');
+  for (const k of Object.keys(NAME_READINGS)) {
+    if (k.replace(/\s+/g, '').replace(/　/g, '') === norm) return NAME_READINGS[k];
+  }
+  return name;
+}
 function speakEnterLeave(name, isEnter) {
   try {
     if (!('speechSynthesis' in window)) return;
-    const text = (name || 'どなたか') + 'さんが' + (isEnter ? '入室' : '退室') + 'しました';
+    const reading = readingOf(name);
+    const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 1.15;
@@ -598,16 +614,20 @@ function connectSocket() {
   socket.on('user:join', (u) => {
     users[u.uid] = u;
     renderMembers();
-    if (user && u.uid !== user.uid && u.role !== 'bot') announceEnterLeave(u.uid, u.name, true);
   });
   socket.on('user:leave', (d) => {
     if (users[d.uid]) {
-      const leaverName = users[d.uid].name;
-      const isBot = users[d.uid].role === 'bot';
       users[d.uid].status = 'offline';
       renderMembers();
-      if (!isBot) announceEnterLeave(d.uid, leaverName, false);
     }
+  });
+  socket.on('user:login', (d) => {
+    if (!d || !d.uid || !user || d.uid === user.uid) return;
+    announceEnterLeave(d.uid, d.name, true);
+  });
+  socket.on('user:logout', (d) => {
+    if (!d || !d.uid || !user || d.uid === user.uid) return;
+    announceEnterLeave(d.uid, d.name, false);
   });
   socket.on('user:update', (d) => {
     const u = users[d.uid] || {};
