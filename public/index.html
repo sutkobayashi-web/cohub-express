@@ -1308,7 +1308,7 @@ function worldToScreen(wx, wy) {
 }
 
 function connectSocket() {
-  socket = io({ auth: { token } });
+  socket = io({ auth: { token, isMobile: (typeof isMobileDevice === 'function') ? isMobileDevice() : false } });
   socket.on('connect_error', (e) => {
     console.warn('socket err', e.message);
     // 認証失敗(unauth)の場合はセッション切れ → 自動ログアウト
@@ -2239,6 +2239,21 @@ function drawAvatar(u) {
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.stroke();
+  // モバイル接続バッジ (右下 📱)
+  if (u.isMobile) {
+    const bx = cx + r - 4, by = cy + r - 4;
+    ctx.beginPath();
+    ctx.arc(bx, by, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.font = '700 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('📱', bx, by + 1);
+  }
   // 集中中バッジ (頭上 🎯)
   if (u.status === '集中中') {
     ctx.font = '700 18px sans-serif';
@@ -2462,7 +2477,7 @@ function memberRowHtml(u) {
         <div class="st-dot" style="background:${dotColor};"></div>
       </div>
       <div class="member-meta">
-        <div class="member-name">${escapeHtml(u.name || '')}${u.handUp ? ' ✋' : ''}${isMe ? ' <span style="color:#06b6d4;font-size:10px;">(自分)</span>' : ''}</div>
+        <div class="member-name">${escapeHtml(u.name || '')}${u.handUp ? ' ✋' : ''}${u.isMobile ? ' <span title="スマホから接続中" style="font-size:11px;">📱</span>' : ''}${isMe ? ' <span style="color:#06b6d4;font-size:10px;">(自分)</span>' : ''}</div>
         <div class="member-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${companyName}${floorPill}${u.status && u.status !== 'online' && u.status !== 'offline' ? ' · ' + u.status : ''}${u.status_text ? ' · <span style="color:#b7750d;">' + escapeHtml(u.status_text) + '</span>' : ''}</div>
       </div>
       ${dmBtn}

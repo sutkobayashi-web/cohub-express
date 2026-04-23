@@ -318,6 +318,7 @@ app.get('/api/overview/snapshot', (req, res) => {
       y: p.y,
       speaking: !!p.speaking,
       voiceOn: !!p.voiceOn,
+      isMobile: !!p.isMobile,
     });
   }
   res.json({ success: true, floors, users, ts: Date.now() });
@@ -350,6 +351,7 @@ io.use((socket, next) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     socket.uid = payload.uid;
     socket.role = payload.role;
+    socket.isMobile = !!(socket.handshake.auth && socket.handshake.auth.isMobile);
     next();
   } catch (e) { next(new Error('unauth')); }
 });
@@ -465,6 +467,7 @@ function floorUserList(floorCode) {
       voice: !!(inFloor && p.voiceOn),
       handUp: !!(inFloor && p.handUp),
       floor: p ? p.floor : null,
+      isMobile: !!(connected && p.isMobile),
     };
   });
 }
@@ -489,7 +492,7 @@ io.on('connection', (socket) => {
   const floor = getFloor(floorCode) || getFloor(defaultFloor) || getFloor('lobby');
   const pos = clampForFloor(floor, saved && saved.x, saved && saved.y);
 
-  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id });
+  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
   db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
   socket.join('floor:' + floor.code);

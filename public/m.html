@@ -577,7 +577,7 @@ function switchTab(tab) {
 // ============================================================
 function connectSocket() {
   if (socket) { try { socket.disconnect(); } catch (e) {} }
-  socket = io({ auth: { token } });
+  socket = io({ auth: { token, isMobile: true } });
   socket.on('connect_error', (e) => {
     if (e.message === 'unauth' || e.message === 'Authentication error') {
       localStorage.removeItem('cohub_token');
@@ -933,7 +933,7 @@ function renderMembers() {
     return '<div class="mem-item">' +
       '<div class="mem-av">' + av + '<span class="sdot ' + sCls + '"></span></div>' +
       '<div class="mem-info">' +
-        '<div class="mem-name">' + escapeHtml(u.name || '') + '</div>' +
+        '<div class="mem-name">' + escapeHtml(u.name || '') + (u.isMobile ? ' <span title="スマホから接続中" style="font-size:11px;">📱</span>' : '') + '</div>' +
         '<div class="mem-sub">' + escapeHtml(sub) + (u.statusText ? ' — ' + escapeHtml(u.statusText) : '') + '</div>' +
       '</div>' +
       '<button class="mem-tap" onclick="openDM(\'' + escapeHtml(u.uid) + '\',\'' + escapeHtml(u.name || '') + '\',\'' + escapeHtml(u.avatar || '') + '\',false)">💬 DM</button>' +

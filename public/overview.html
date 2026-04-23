@@ -490,6 +490,21 @@ function drawFloor(code) {
       ctx.lineWidth = 3;
       ctx.stroke();
     }
+    // モバイル接続バッジ (右下 📱)
+    if (u.isMobile) {
+      const bx = u.x + r - 6, by = u.y + r - 6;
+      ctx.beginPath();
+      ctx.arc(bx, by, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.font = '700 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('📱', bx, by + 1);
+    }
     // 名前ラベル
     const label = u.name || '?';
     ctx.font = 'bold 24px "Hiragino Kaku Gothic ProN", sans-serif';
