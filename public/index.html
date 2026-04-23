@@ -2882,55 +2882,27 @@ function ensureReverb(ctx) {
   return conv;
 }
 
+// 通知音はMP3ファイルで大音量化 (Web Audio合成では環境依存で音量不足だった)
+const NOTIF_MENTION_URL = '/assets/notif-mention.mp3?v=1';
+const NOTIF_NORMAL_URL = '/assets/notif-normal.mp3?v=1';
+function playBeep(mention) {
+  try {
+    const url = mention ? NOTIF_MENTION_URL : NOTIF_NORMAL_URL;
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    const p = audio.play();
+    if (p && p.catch) p.catch(e => console.warn('[cohub] beep:', e.name || e));
+  } catch (e) { console.warn('[cohub] beep fail', e); }
+}
+// ensureBeepMaster は playEnterLeaveChime のみで使用継続 (2倍ゲイン)
 let _beepMaster = null;
 function ensureBeepMaster(ctx) {
   if (_beepMaster) return _beepMaster;
-  // シンプルに2倍ゲインのみ (リミッター無し、ブラウザ内部のハードクリップで自然に上限)
   const master = ctx.createGain();
   master.gain.value = 2.0;
   master.connect(ctx.destination);
   _beepMaster = master;
   return master;
-}
-function playBeep(mention) {
-  try {
-    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
-    const master = ensureBeepMaster(ctx);
-    const reverb = ensureReverb(ctx);
-    const tone = (freq, startOffset, dur, vol) => {
-      const t0 = ctx.currentTime + startOffset;
-      const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.value = freq;
-      const osc2 = ctx.createOscillator();
-      osc2.type = 'triangle';
-      osc2.frequency.value = freq * 2;
-      const gHarm = ctx.createGain();
-      gHarm.gain.value = 0.12;
-      osc2.connect(gHarm);
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0.0001, t0);
-      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
-      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc1.connect(env);
-      gHarm.connect(env);
-      env.connect(master);  // masterGain経由で3倍ブースト
-      env.connect(reverb);
-      osc1.start(t0); osc2.start(t0);
-      osc1.stop(t0 + dur + 0.1);
-      osc2.stop(t0 + dur + 0.1);
-    };
-    if (mention) {
-      tone(659.25, 0.00, 1.1, 0.35);
-      tone(783.99, 0.18, 1.2, 0.35);
-      tone(1046.50, 0.38, 1.5, 0.40);
-    } else {
-      tone(440.00, 0.00, 1.3, 0.32);
-      tone(659.25, 0.14, 1.5, 0.32);
-    }
-  } catch (e) {}
 }
 
 // ===== 入出室チャイム＆音声アナウンス =====
