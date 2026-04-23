@@ -131,7 +131,9 @@ app.use(helmet({
       mediaSrc: ["'self'", "blob:", "data:"],
       connectSrc: ["'self'", "wss:", "ws:", "https://cloudflareinsights.com", "https://cdn.jsdelivr.net"],
       workerSrc: ["'self'", "blob:"],
-      childSrc: ["'self'", "blob:"],
+      childSrc: ["'self'", "blob:", "https://health.biz-terrace.org"],
+      // 安全衛生健康管理室でCoWell (health) をiframe埋込するため
+      frameSrc: ["'self'", "https://health.biz-terrace.org"],
     }
   },
   crossOriginEmbedderPolicy: false,
