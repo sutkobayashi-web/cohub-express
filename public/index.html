@@ -2864,22 +2864,17 @@ function ensureReverb(ctx) {
   return conv;
 }
 
-// 通知音をMP3化してMAX音量で再生 (Web Audio合成は環境依存で小音量化する問題あり)
+// 通知音: 毎回新規 Audio を生成 (事前キャッシュで動作不安定だった問題の修正)
 const NOTIF_MENTION_URL = '/assets/notif-mention.mp3?v=1';
 const NOTIF_NORMAL_URL = '/assets/notif-normal.mp3?v=1';
-let _notifMentionAudio = null, _notifNormalAudio = null;
-try {
-  _notifMentionAudio = new Audio(NOTIF_MENTION_URL); _notifMentionAudio.preload = 'auto'; _notifMentionAudio.load();
-  _notifNormalAudio = new Audio(NOTIF_NORMAL_URL); _notifNormalAudio.preload = 'auto'; _notifNormalAudio.load();
-} catch (e) {}
 function playBeep(mention) {
   try {
-    const a = mention ? _notifMentionAudio : _notifNormalAudio;
-    if (!a) return;
-    a.currentTime = 0;
-    a.volume = 1.0;
-    const p = a.play();
-    if (p && p.catch) p.catch(e => console.warn('[cohub] notif beep rejected:', e.name || e));
+    const url = mention ? NOTIF_MENTION_URL : NOTIF_NORMAL_URL;
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    console.log('[cohub] playBeep', mention ? 'mention' : 'normal', url);
+    const p = audio.play();
+    if (p && p.catch) p.then(() => console.log('[cohub] beep playing')).catch(e => console.warn('[cohub] beep rejected:', e.name || e));
   } catch (e) { console.warn('[cohub] beep fail', e); }
 }
 
