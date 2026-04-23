@@ -240,10 +240,44 @@ app.get('/api/voice/ice-servers', (req, res) => {
   res.json({ success: true, iceServers: servers });
 });
 
+// 全フロアスナップショット (オーバービュー用)
+app.get('/api/overview/snapshot', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '')
+    || (req.query.token || '');
+  if (!token) return res.status(401).json({ success: false });
+  try { jwt.verify(token, process.env.JWT_SECRET); }
+  catch (e) { return res.status(401).json({ success: false }); }
+  const db = getDb();
+  const floors = allFloors();
+  const rows = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, u.role, c.ring_color
+    FROM users u LEFT JOIN companies c ON c.code = u.company_code`).all();
+  const users = [];
+  for (const u of rows) {
+    const p = presence.get(u.id);
+    if (!p || p.status === 'offline') continue;
+    if (p.isBot) continue;
+    users.push({
+      uid: u.id,
+      name: u.display_name,
+      company: u.company_code,
+      avatar: u.avatar_url,
+      ring: u.ring_color || '#333',
+      role: u.role,
+      floor: p.floor,
+      x: p.x,
+      y: p.y,
+      speaking: !!p.speaking,
+      voiceOn: !!p.voiceOn,
+    });
+  }
+  res.json({ success: true, floors, users, ts: Date.now() });
+});
+
 // SPA fallback
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 app.get('/mylog', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'mylog.html')));
 app.get('/m', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'm.html')));
+app.get('/overview', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'overview.html')));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   if (req.path.startsWith('/uploads/')) return res.status(404).end();

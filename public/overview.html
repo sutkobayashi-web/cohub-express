@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CoHub 全フロアビュー</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #0f172a; color: #e2e8f0; font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 16px; background: #1e293b; border-bottom: 1px solid #334155;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: 0.04em; }
+  header .sub { font-size: 11px; color: #94a3b8; }
+  header .spacer { flex: 1; }
+  header .stat { font-size: 12px; color: #cbd5e1; margin-right: 14px; }
+  header .stat b { color: #fbbf24; }
+  header a, header button {
+    color: #93c5fd; background: transparent; border: 1px solid #475569; border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; text-decoration: none; cursor: pointer;
+  }
+  header a:hover, header button:hover { background: #334155; }
+  #grid {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px; padding: 10px; overflow: auto;
+  }
+  .building-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .building-head {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+    padding: 4px 10px; border-radius: 6px; display: inline-block;
+  }
+  .building-head.office { background: #1e3a5f; color: #93c5fd; }
+  .building-head.field { background: #4a2c10; color: #fdba74; }
+  .floor-card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+    overflow: hidden; position: relative; display: flex; flex-direction: column;
+  }
+  .floor-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 10px; background: #0f172a; font-size: 12px;
+  }
+  .floor-head .fname { font-weight: 700; }
+  .floor-head .count { margin-left: auto; color: #fbbf24; font-weight: 700; }
+  .floor-head .lock { color: #f87171; }
+  .floor-canvas-wrap {
+    position: relative; width: 100%; aspect-ratio: 1344/768; background: #0f172a;
+  }
+  .floor-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+  .floor-canvas-wrap .empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #64748b; pointer-events: none;
+  }
+  #login-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.96); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #login-overlay .box {
+    background: #1e293b; padding: 30px 40px; border-radius: 12px; min-width: 300px;
+    border: 1px solid #334155;
+  }
+  #login-overlay h2 { margin: 0 0 18px; font-size: 16px; }
+  #login-overlay input {
+    width: 100%; padding: 10px 12px; margin-bottom: 10px; border-radius: 6px;
+    border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 14px;
+  }
+  #login-overlay button {
+    width: 100%; padding: 10px; border-radius: 6px; border: 0;
+    background: #3b82f6; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  #login-overlay button:hover { background: #2563eb; }
+  #login-overlay .err { color: #f87171; font-size: 12px; min-height: 16px; margin-top: 8px; }
+  @media (max-width: 1100px) {
+    #grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🗺 CoHub 全フロアビュー</h1>
+  <span class="sub">自動更新 3秒</span>
+  <span class="spacer"></span>
+  <span class="stat">合計 <b id="total-online">-</b> 名在席</span>
+  <span class="stat">更新: <span id="last-update">-</span></span>
+  <a href="/">← 通常画面へ</a>
+  <button id="btn-fullscreen" title="全画面表示">⛶ 全画面</button>
+</header>
+<div id="grid">
+  <div class="building-col" id="col-office">
+    <div class="building-head office">🏢 事務所棟</div>
+  </div>
+  <div class="building-col" id="col-field">
+    <div class="building-head field">🚚 現場棟</div>
+  </div>
+</div>
+
+<div id="login-overlay" style="display:none;">
+  <div class="box">
+    <h2>ログインが必要です</h2>
+    <input id="login-id" type="text" placeholder="ログインID" autocomplete="username">
+    <input id="login-pw" type="password" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="err" id="login-err"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let floors = [];
+let users = [];
+const bgCache = {};      // code -> Image
+const avatarCache = {};  // url -> Image
+let timerId = null;
+
+function showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  const saved = localStorage.getItem('cohub_login_id');
+  if (saved) document.getElementById('login-id').value = saved;
+}
+function hideLogin() { document.getElementById('login-overlay').style.display = 'none'; }
+
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  if (!id || !pw) { err.textContent = 'ID/PW必須'; return; }
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login_id: id, password: pw }),
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || 'ログイン失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    localStorage.setItem('cohub_login_id', id);
+    hideLogin();
+    start();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+function buildLayout() {
+  const officeCol = document.getElementById('col-office');
+  const fieldCol = document.getElementById('col-field');
+  // 既存のカードを削除 (ヘッダ以外)
+  [...officeCol.querySelectorAll('.floor-card')].forEach(e => e.remove());
+  [...fieldCol.querySelectorAll('.floor-card')].forEach(e => e.remove());
+  for (const f of floors) {
+    const card = document.createElement('div');
+    card.className = 'floor-card';
+    card.dataset.code = f.code;
+    card.innerHTML = `
+      <div class="floor-head">
+        <span>${f.icon || ''}</span>
+        <span class="fname">${escapeHtml(f.name)}</span>
+        ${f.locked ? '<span class="lock">🔒</span>' : ''}
+        ${f.approval_mode ? '<span class="lock">🔔</span>' : ''}
+        <span class="count" data-count>0</span>
+      </div>
+      <div class="floor-canvas-wrap">
+        <canvas data-canvas width="1344" height="768"></canvas>
+        <div class="empty" data-empty>誰もいません</div>
+      </div>
+    `;
+    (f.building === 'field' ? fieldCol : officeCol).appendChild(card);
+    // 背景画像プリロード
+    if (f.bg_image && !bgCache[f.code]) {
+      const img = new Image();
+      img.src = f.bg_image;
+      bgCache[f.code] = img;
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'})[c]);
+}
+
+function drawFloor(code) {
+  const card = document.querySelector(`.floor-card[data-code="${code}"]`);
+  if (!card) return;
+  const canvas = card.querySelector('canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  // 背景
+  const bg = bgCache[code];
+  if (bg && bg.complete && bg.naturalWidth) {
+    ctx.drawImage(bg, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, W, H);
+  }
+  // 半透明オーバーレイ (視認性)
+  ctx.fillStyle = 'rgba(15,23,42,0.15)';
+  ctx.fillRect(0, 0, W, H);
+  // 在席者
+  const here = users.filter(u => u.floor === code);
+  card.querySelector('[data-count]').textContent = here.length;
+  card.querySelector('[data-empty]').style.display = here.length ? 'none' : 'flex';
+  for (const u of here) {
+    if (u.x == null || u.y == null) continue;
+    const r = 56; // 大きめのアバター (縮小表示向け)
+    // リングカラー
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r + 6, 0, Math.PI * 2);
+    ctx.fillStyle = u.ring || '#64748b';
+    ctx.fill();
+    // 白リム
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r + 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    // アバターか頭文字
+    const img = u.avatar ? loadAvatar(u.avatar) : null;
+    if (img && img.complete && img.naturalWidth) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(img, u.x - r, u.y - r, r * 2, r * 2);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fill();
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 52px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText((u.name || '?').charAt(0), u.x, u.y + 4);
+    }
+    // 発話中の脈動
+    if (u.speaking) {
+      ctx.beginPath();
+      ctx.arc(u.x, u.y, r + 14, 0, Math.PI * 2);
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    } else if (u.voiceOn) {
+      ctx.beginPath();
+      ctx.arc(u.x, u.y, r + 10, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(34,197,94,0.4)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    // 名前ラベル
+    const label = u.name || '?';
+    ctx.font = 'bold 24px "Hiragino Kaku Gothic ProN", sans-serif';
+    const metrics = ctx.measureText(label);
+    const pad = 10;
+    const bw = metrics.width + pad * 2;
+    const by = u.y + r + 14;
+    ctx.fillStyle = 'rgba(15,23,42,0.85)';
+    ctx.fillRect(u.x - bw / 2, by, bw, 32);
+    ctx.fillStyle = '#f1f5f9';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, u.x, by + 16);
+  }
+}
+
+function loadAvatar(url) {
+  if (!url) return null;
+  if (avatarCache[url]) return avatarCache[url];
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = url;
+  img.onload = () => { try { drawAll(); } catch (e) {} };
+  avatarCache[url] = img;
+  return img;
+}
+
+function drawAll() {
+  for (const f of floors) drawFloor(f.code);
+  document.getElementById('total-online').textContent = users.length;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('last-update').textContent = `${hh}:${mm}:${ss}`;
+}
+
+async function fetchSnapshot() {
+  try {
+    const r = await fetch('/api/overview/snapshot', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (r.status === 401) {
+      clearInterval(timerId);
+      localStorage.removeItem('cohub_token');
+      token = '';
+      showLogin();
+      return;
+    }
+    const d = await r.json();
+    if (!d.success) return;
+    const firstLoad = floors.length === 0;
+    floors = d.floors || [];
+    users = d.users || [];
+    if (firstLoad) buildLayout();
+    // ロック/approvalバッジが変わった可能性があるので毎回headを更新
+    for (const f of floors) {
+      const card = document.querySelector(`.floor-card[data-code="${f.code}"]`);
+      if (card) {
+        const head = card.querySelector('.floor-head');
+        head.innerHTML = `
+          <span>${f.icon || ''}</span>
+          <span class="fname">${escapeHtml(f.name)}</span>
+          ${f.locked ? '<span class="lock">🔒</span>' : ''}
+          ${f.approval_mode ? '<span class="lock">🔔</span>' : ''}
+          <span class="count" data-count>${users.filter(u => u.floor === f.code).length}</span>
+        `;
+      }
+    }
+    drawAll();
+  } catch (e) { /* network blip ignored */ }
+}
+
+function start() {
+  fetchSnapshot();
+  clearInterval(timerId);
+  timerId = setInterval(fetchSnapshot, 3000);
+}
+
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+});
+
+if (!token) showLogin();
+else start();
+</script>
+</body>
+</html>
