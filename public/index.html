@@ -1614,12 +1614,15 @@ function connectSocket() {
     } else if (!isSelf) {
       dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
       renderMemberList();
-      if (speakerOn) playBeep(true); // DM はメンション扱いで強めの音
       const sender = users[peerUid] || {};
       showNotifCard({ name: '[DM] ' + (sender.name || '誰か'), content: m.content, avatar: sender.avatar || '', mention: true });
       fireOSNotif('[DM] ' + (sender.name || ''), m.content, () => openDM(peerUid));
-      // 送付元名をアナウンス (bot除外: 葵はspeakAoiで本文を読み上げるため)
-      if (m.from !== 'bot_aoi') announceDmSender(m.from, sender.name || '');
+      // 送付元名をアナウンス (チャイム+TTSを一括再生。bot除外: 葵はspeakAoiで本文を読み上げる)
+      if (m.from !== 'bot_aoi' && speakerOn) {
+        announceDmSender(m.from, sender.name || '');
+      } else if (speakerOn) {
+        playBeep(true); // 葵からのDMはTTS本文あり、通知音のみ鳴らす
+      }
     }
   });
 
@@ -3524,8 +3527,8 @@ function renderRailMenu() {
     <button onclick="location.href='/mylog'">📜 自分のログ</button>
     <button onclick="openOverviewWindow()">🗺 全フロアビュー</button>
     <button onclick="switchToMobile()">📱 モバイル版に切替</button>
-    <button onclick="testChime()">🔔 チャイム試聴</button>
-    <button onclick="testNotifBeep()">🎵 通知音テスト</button>
+    <button onclick="testChime()">🔔 DM/ログイン音テスト</button>
+    <button onclick="testNotifBeep()">🎵 チャット通知音テスト</button>
     <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
   `;
 }
