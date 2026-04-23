@@ -1123,6 +1123,8 @@ function stopAoiSpeech() {
 // 初期化
 // ============================================================
 (async function init() {
+  // /m に明示アクセスした時点でPC優先フラグを解除 (モバイル版に戻す意思表示)
+  try { sessionStorage.removeItem('cohub_prefer_pc'); } catch (e) {}
   const savedUser = localStorage.getItem('cohub_user');
   if (token && savedUser) {
     try { user = JSON.parse(savedUser); startApp(); return; } catch (e) {}

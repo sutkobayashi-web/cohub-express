@@ -3451,6 +3451,12 @@ function openOverviewWindow() {
   window.open('/overview', 'cohub-overview', 'width=1400,height=900');
 }
 
+function switchToMobile() {
+  // PC優先フラグを解除してから /m に遷移 (/m 側でも再度クリア)
+  try { sessionStorage.removeItem('cohub_prefer_pc'); } catch (e) {}
+  location.href = '/m';
+}
+
 function renderRailMenu() {
   const m = document.getElementById('rail-menu');
   if (!m) return;
@@ -3469,6 +3475,7 @@ function renderRailMenu() {
     <button onclick="openCalModal()">📅 カレンダー連携</button>
     <button onclick="location.href='/mylog'">📜 自分のログ</button>
     <button onclick="openOverviewWindow()">🗺 全フロアビュー</button>
+    <button onclick="switchToMobile()">📱 モバイル版に切替</button>
     <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
   `;
 }
