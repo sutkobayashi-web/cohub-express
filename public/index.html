@@ -820,8 +820,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <div class="dm-body" id="dm-body"></div>
     <div class="dm-input-wrap">
       <button class="attach-btn" onclick="document.getElementById('dm-file').click()" title="ファイル添付" style="width:36px;height:36px;border-radius:50%;background:transparent;border:none;color:#64748b;cursor:pointer;font-size:16px;">📎</button>
+      <button id="dm-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid #cbd5e1;color:#64748b;cursor:pointer;font-size:16px;flex-shrink:0;">💬</button>
       <input type="text" id="dm-input" placeholder="メッセージ…(Enterで送信)" maxlength="1000">
-      <button onclick="sendDM()" title="送信">➤</button>
+      <button id="dm-send-btn" onclick="sendDM()" title="送信">➤</button>
     </div>
   </div>
 </div>
@@ -1609,10 +1610,15 @@ function connectSocket() {
       speakAoi(m.content);
     }
     if (dmPeerUid === peerUid) {
-      dmLog.push({ id: m.id, from: m.from, to: m.to, content: m.content, at: m.at, attach: m.attach || null });
+      dmLog.push({ id: m.id, from: m.from, to: m.to, content: m.content, at: m.at, attach: m.attach || null, voice: !!m.voice });
       renderDM();
       // 自分が開いている = 既読扱いだが、相手からの新着時は控えめな通知音を鳴らす
       if (!isSelf && speakerOn && m.from !== 'bot_aoi') playBeep(false);
+      // 音声DMを受信: 取込中でも伝わるようTTSで本文を読み上げ (speakerOn無視、急ぎ連絡用)
+      if (!isSelf && m.voice && m.content && m.from !== 'bot_aoi') {
+        const sender = users[peerUid] || {};
+        speakVoiceDm(m.content, sender.name || '');
+      }
     } else if (!isSelf) {
       dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
       renderMemberList();
@@ -1621,8 +1627,11 @@ function connectSocket() {
       // OS通知(Windowsデフォルト大音量音源) + CoHub内部Web Audio音
       fireOSNotif('[DM] ' + (sender.name || ''), m.content, () => openDM(peerUid));
       if (speakerOn) playBeep(true);
-      if (m.from !== 'bot_aoi' && speakerOn) {
-        // TTSアナウンス (sender名読み上げ、チャイム重複は避けるためannounceDmSenderではなく直接speak)
+      // 音声DM: 取込中でも強制読み上げ (speakerOn無視)
+      if (m.voice && m.content && m.from !== 'bot_aoi') {
+        speakVoiceDm(m.content, sender.name || '');
+      } else if (m.from !== 'bot_aoi' && speakerOn) {
+        // 通常DM: sender名のみアナウンス
         setTimeout(() => speakDmSender(sender.name || ''), 1200);
       }
     }
@@ -3002,6 +3011,39 @@ async function speakViaTTS(text, opts) {
   } catch (e) { console.warn('[cohub] speakViaTTS failed', e.message || e); }
 }
 
+// 音声DM: 送信者が「音声モード」で送った急ぎメッセージ。
+// speakerOnがOFFでも強制再生 (取込中の相手にも伝わるのが本機能の目的)。
+// 先頭に「◯◯さんから伝言です」を付けて聞き漏らし防止。
+async function speakVoiceDm(content, senderName) {
+  try {
+    const reading = readingOf(senderName);
+    const prefix = (reading || 'どなたか') + 'さんから伝言です。';
+    const text = prefix + (content || '').slice(0, 500);
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+      body: JSON.stringify({ text, voice: 'ja-JP-Neural2-B', speed: 1.1 }),
+    });
+    if (!res.ok) { console.warn('[cohub] voice-dm tts http', res.status); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audio.addEventListener('ended', () => { try { URL.revokeObjectURL(url); } catch(e) {} });
+    console.log('[cohub] voice DM play:', text);
+    await audio.play();
+  } catch (e) { console.warn('[cohub] speakVoiceDm failed', e.message || e); }
+}
+
+// 受信済み音声DMを手動で再生 (履歴のボタン用)
+function replayVoiceDm(id) {
+  const m = (dmLog || []).find(x => x.id == id);
+  if (!m || !m.content) return;
+  const peerUid = m.from === me ? m.to : m.from;
+  const peer = users[peerUid] || {};
+  speakVoiceDm(m.content, peer.name || '');
+}
+
 // DM送付元名の読み上げ (受信時、送付元名を声でアナウンス)
 const _dmSenderThrottle = new Map();
 const _DM_SENDER_COOLDOWN_MS = 8000;
@@ -3189,6 +3231,8 @@ async function openDM(peerUid) {
   av.style.borderColor = u.ring || '#333';
   av.innerHTML = u.avatar ? `<img src="${u.avatar}" alt="">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#334155;">${escapeHtml((u.name||'?').slice(0,2))}</div>`;
   document.getElementById('dm-modal').classList.add('show');
+  dmSendMode = 'text';
+  applyDmModeUi();
   setTimeout(() => document.getElementById('dm-input').focus(), 100);
   // 既読扱い + バッジクリア
   delete dmUnread[peerUid];
@@ -3230,7 +3274,15 @@ function renderDM() {
     const showMeta = prevAuthor !== m.from || (t.getTime() - prevTime) > 5 * 60 * 1000;
     html += '<div class="chat-msg ' + (isSelf ? 'self' : '') + '">';
     if (showMeta) html += '<div class="meta"><span>' + hhmm + '</span></div>';
-    if (m.content) html += '<div class="bubble">' + escapeHtml(m.content) + '</div>';
+    if (m.content) {
+      const vMark = m.voice
+        ? '<span title="音声DM" style="display:inline-block;margin-right:4px;color:#ef4444;font-weight:600;">🔊</span>'
+        : '';
+      const replayBtn = m.voice
+        ? ' <button onclick="replayVoiceDm(' + (m.id || 0) + ')" title="もう一度読み上げ" style="margin-left:6px;background:none;border:1px solid rgba(15,23,42,0.15);border-radius:10px;padding:1px 8px;font-size:11px;cursor:pointer;color:#64748b;">▶ 再生</button>'
+        : '';
+      html += '<div class="bubble">' + vMark + escapeHtml(m.content) + replayBtn + '</div>';
+    }
     if (m.attach) html += attachBoxHtml(m.attach);
     html += '</div>';
     prevAuthor = m.from;
@@ -3240,11 +3292,42 @@ function renderDM() {
   body.scrollTop = body.scrollHeight;
 }
 
+// DM送信モード: 'text' (文字) / 'voice' (受信側で音声読み上げ、取込中でも届ける急ぎ用)
+let dmSendMode = 'text';
+function toggleDmSendMode() {
+  dmSendMode = dmSendMode === 'voice' ? 'text' : 'voice';
+  applyDmModeUi();
+}
+function applyDmModeUi() {
+  const btn = document.getElementById('dm-mode-btn');
+  const input = document.getElementById('dm-input');
+  const send = document.getElementById('dm-send-btn');
+  if (!btn || !input || !send) return;
+  if (dmSendMode === 'voice') {
+    btn.textContent = '🔊';
+    btn.style.background = '#fee2e2';
+    btn.style.borderColor = '#ef4444';
+    btn.style.color = '#dc2626';
+    btn.title = '音声モード (相手の端末で読み上げ / 取込中でも届く)';
+    input.placeholder = '🔊 音声で伝える…(Enterで送信)';
+    send.style.background = '#ef4444';
+  } else {
+    btn.textContent = '💬';
+    btn.style.background = 'transparent';
+    btn.style.borderColor = '#cbd5e1';
+    btn.style.color = '#64748b';
+    btn.title = 'テキストモード (クリックで音声モードへ)';
+    input.placeholder = 'メッセージ…(Enterで送信)';
+    send.style.background = '#06b6d4';
+  }
+}
 function sendDM() {
   const input = document.getElementById('dm-input');
   const content = input.value.trim();
   if (!content || !socket || !dmPeerUid) return;
-  socket.emit('chat:dm', { to: dmPeerUid, content });
+  const payload = { to: dmPeerUid, content };
+  if (dmSendMode === 'voice') payload.voice = true;
+  socket.emit('chat:dm', payload);
   input.value = '';
 }
 

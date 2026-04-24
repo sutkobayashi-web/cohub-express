@@ -870,6 +870,8 @@ io.on('connection', (socket) => {
     const attachName = a ? String(a.name || '').slice(0, 200) : null;
     const attachSize = a ? (parseInt(a.size) || 0) : null;
     const attachType = a ? String(a.type || '').slice(0, 80) : null;
+    // 音声モード: 相手が取込中でも読み上げでメッセージを伝える (急ぎ連絡用)
+    const voiceMode = !!(data && data.voice) && !!content;
     const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, ?, ?, 'dm', ?, ?, ?, ?)")
       .run(uid, to, content, attachUrl, attachName, attachSize, attachType);
     const payload = {
@@ -879,6 +881,7 @@ io.on('connection', (socket) => {
       content,
       at: new Date().toISOString(),
       attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
+      voice: voiceMode,
     };
     socket.emit('dm:msg', payload);
     const tp = presence.get(to);

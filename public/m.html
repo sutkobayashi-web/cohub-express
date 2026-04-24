@@ -288,6 +288,7 @@
   <div id="chat-input-wrap">
     <button id="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()">📎</button>
     <input type="file" id="chat-file-input" style="display:none" onchange="onAttachFile(this)">
+    <button id="chat-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">💬</button>
     <textarea id="chat-input" placeholder="メッセージを入力…" rows="1"></textarea>
     <button id="chat-send-btn" onclick="sendChatMessage()">➤</button>
   </div>
@@ -450,6 +451,27 @@ async function speakViaTTS(text, opts) {
     console.log('[cohub-m] TTS play:', text);
     await audio.play();
   } catch (e) { console.warn('[cohub-m] speakViaTTS failed', e.message || e); }
+}
+
+// 音声DM: 送信者が音声モードで送った急ぎメッセージ。強制再生 (取込中でも届ける)
+async function speakVoiceDm(content, senderName) {
+  try {
+    const reading = readingOf(senderName);
+    const prefix = (reading || 'どなたか') + 'さんから伝言です。';
+    const text = prefix + (content || '').slice(0, 500);
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+      body: JSON.stringify({ text, voice: 'ja-JP-Neural2-B', speed: 1.1 }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audio.addEventListener('ended', () => { try { URL.revokeObjectURL(url); } catch(e) {} });
+    await audio.play();
+  } catch (e) { console.warn('[cohub-m] speakVoiceDm failed', e.message || e); }
 }
 
 // DM送付元名の読み上げ
@@ -695,6 +717,12 @@ function connectSocket() {
     const peerUid = isSelf ? m.to : m.from;
     // 葵からの発言は読み上げ
     if (!isSelf && m.from === BOT_UID && m.content) speakAoi(m.content);
+    // 音声DM受信: 取込中でも本文をTTSで強制再生 (急ぎ連絡用)
+    if (!isSelf && m.voice && m.content && m.from !== BOT_UID) {
+      const sender = users[peerUid] || {};
+      speakVoiceDm(m.content, sender.name || '');
+    }
+    if (m.voice && m.content) rememberVoiceDm(m);
     if (openPeerUid === peerUid) {
       appendMessage(m, isSelf);
     } else if (!isSelf) {
@@ -703,9 +731,9 @@ function connectSocket() {
       loadChatLists();
       const sender = users[peerUid] || {};
       const name = peerUid === BOT_UID ? '葵' : (sender.name || '');
-      showToast('💬 ' + name + ': ' + (m.content || '').slice(0, 40));
-      // 送付元名アナウンス (botは本文を読み上げるので除外)
-      if (m.from !== BOT_UID) announceDmSender(m.from, sender.name || '');
+      showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
+      // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
+      if (m.from !== BOT_UID && !m.voice) announceDmSender(m.from, sender.name || '');
     }
     if (isSelf && openPeerUid === peerUid) {
       // 何もしない (即時追加はsendChatMessage側でOptimistic)
@@ -852,11 +880,15 @@ async function openDM(peerId, name, avatar, isBot) {
     }));
     renderMessages(msgs);
   } catch (e) { console.warn(e); }
+  dmSendMode = 'text';
+  applyDmModeUi();
   setTimeout(() => document.getElementById('chat-input').focus(), 150);
 }
 async function openGroup(gid, name, icon) {
   openGroupId = gid;
   openPeerUid = null;
+  dmSendMode = 'text';
+  applyDmModeUi();
   groupUnread[gid] = 0;
   updateChatBadge();
   loadChatLists();
@@ -905,16 +937,73 @@ function msgHtml(m, isSelf, showSenderName) {
       attachHtml = '<div class="attach"><a href="' + escapeHtml(m.attach.url) + '" target="_blank">📎 ' + escapeHtml(m.attach.name || 'ファイル') + '</a></div>';
     }
   }
+  const vMark = m.voice ? '<span title="音声DM" style="display:inline-block;margin-right:4px;color:#ef4444;font-weight:600;">🔊</span>' : '';
+  const replayBtn = m.voice && m.content
+    ? ' <button onclick="replayVoiceDm(' + (m.id || 0) + ')" style="margin-left:6px;background:none;border:1px solid rgba(15,23,42,0.15);border-radius:10px;padding:1px 8px;font-size:11px;color:#64748b;">▶ 再生</button>'
+    : '';
   return '<div class="msg' + (isSelf ? ' self' : '') + '">' +
     (isSelf ? '' : '<div class="av">' + avHtml + '</div>') +
     '<div class="bub-wrap">' +
       (showSenderName && !isSelf && name ? '<div class="sender">' + escapeHtml(name) + '</div>' : '') +
-      '<div class="bub">' + escapeHtml(m.content || '') + attachHtml + '</div>' +
+      '<div class="bub">' + vMark + escapeHtml(m.content || '') + replayBtn + attachHtml + '</div>' +
       (m.at ? '<div class="t">' + fmtTime(m.at) + '</div>' : '') +
     '</div>' +
   '</div>';
 }
+// 音声DMは履歴APIに voice フラグが残らないため、受信時のみキャッシュ
+const _voiceDmCache = new Map(); // id -> { content, senderUid }
+function rememberVoiceDm(m) {
+  if (m && m.id && m.voice && m.content) {
+    _voiceDmCache.set(m.id, { content: m.content, senderUid: m.from });
+  }
+}
+function replayVoiceDm(id) {
+  const c = _voiceDmCache.get(id);
+  if (!c) return;
+  const senderName = (users[c.senderUid] || {}).name || '';
+  speakVoiceDm(c.content, senderName);
+}
 
+// DM送信モード: 'text' / 'voice' (音声モード=受信側TTS強制再生、取込中でも届ける)
+let dmSendMode = 'text';
+function toggleDmSendMode() {
+  // グループチャット中は音声モード無効 (DMのみ対応)
+  if (!openPeerUid) { showToast('音声モードはDMのみ対応しています'); return; }
+  dmSendMode = dmSendMode === 'voice' ? 'text' : 'voice';
+  applyDmModeUi();
+}
+function applyDmModeUi() {
+  const btn = document.getElementById('chat-mode-btn');
+  const input = document.getElementById('chat-input');
+  const send = document.getElementById('chat-send-btn');
+  if (!btn || !input || !send) return;
+  // グループ中は無効表示
+  if (!openPeerUid) {
+    btn.textContent = '💬';
+    btn.style.background = 'transparent';
+    btn.style.borderColor = '#cbd5e1';
+    btn.style.color = '#cbd5e1';
+    btn.style.opacity = '0.5';
+    input.placeholder = 'メッセージを入力…';
+    return;
+  }
+  btn.style.opacity = '1';
+  if (dmSendMode === 'voice') {
+    btn.textContent = '🔊';
+    btn.style.background = '#fee2e2';
+    btn.style.borderColor = '#ef4444';
+    btn.style.color = '#dc2626';
+    btn.title = '音声モード (取込中でも届く)';
+    input.placeholder = '🔊 音声で伝える…';
+  } else {
+    btn.textContent = '💬';
+    btn.style.background = 'transparent';
+    btn.style.borderColor = '#cbd5e1';
+    btn.style.color = '#64748b';
+    btn.title = 'テキストモード (クリックで音声モードへ)';
+    input.placeholder = 'メッセージを入力…';
+  }
+}
 async function sendChatMessage() {
   const input = document.getElementById('chat-input');
   const content = input.value.trim();
@@ -922,6 +1011,7 @@ async function sendChatMessage() {
   if (openPeerUid) {
     const payload = { to: openPeerUid, content };
     if (_pendingAttach) payload.attach = _pendingAttach;
+    if (dmSendMode === 'voice' && content) payload.voice = true;
     socket.emit('chat:dm', payload);
     input.value = '';
     clearAttach();
