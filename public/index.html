@@ -1616,8 +1616,7 @@ function connectSocket() {
       if (!isSelf && speakerOn && m.from !== 'bot_aoi') playBeep(false);
       // 音声DMを受信: 取込中でも伝わるようTTSで本文を読み上げ (speakerOn無視、急ぎ連絡用)
       if (!isSelf && m.voice && m.content && m.from !== 'bot_aoi') {
-        const sender = users[peerUid] || {};
-        speakVoiceDm(m.content, sender.name || '');
+        speakVoiceDm(m.content);
       }
     } else if (!isSelf) {
       dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
@@ -1629,7 +1628,7 @@ function connectSocket() {
       if (speakerOn) playBeep(true);
       // 音声DM: 取込中でも強制読み上げ (speakerOn無視)
       if (m.voice && m.content && m.from !== 'bot_aoi') {
-        speakVoiceDm(m.content, sender.name || '');
+        speakVoiceDm(m.content);
       } else if (m.from !== 'bot_aoi' && speakerOn) {
         // 通常DM: sender名のみアナウンス
         setTimeout(() => speakDmSender(sender.name || ''), 1200);
@@ -3011,14 +3010,12 @@ async function speakViaTTS(text, opts) {
   } catch (e) { console.warn('[cohub] speakViaTTS failed', e.message || e); }
 }
 
-// 音声DM: 送信者が「音声モード」で送った急ぎメッセージ。
+// 音声DM: 送信者が「音声モード」で送ったメッセージ本文をそのまま読み上げ。
 // speakerOnがOFFでも強制再生 (取込中の相手にも伝わるのが本機能の目的)。
-// 先頭に「◯◯さんから伝言です」を付けて聞き漏らし防止。
-async function speakVoiceDm(content, senderName) {
+async function speakVoiceDm(content) {
   try {
-    const reading = readingOf(senderName);
-    const prefix = (reading || 'どなたか') + 'さんから伝言です。';
-    const text = prefix + (content || '').slice(0, 500);
+    const text = (content || '').slice(0, 500);
+    if (!text) return;
     const res = await fetch('/api/voice/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
@@ -3039,9 +3036,7 @@ async function speakVoiceDm(content, senderName) {
 function replayVoiceDm(id) {
   const m = (dmLog || []).find(x => x.id == id);
   if (!m || !m.content) return;
-  const peerUid = m.from === me ? m.to : m.from;
-  const peer = users[peerUid] || {};
-  speakVoiceDm(m.content, peer.name || '');
+  speakVoiceDm(m.content);
 }
 
 // DM送付元名の読み上げ (受信時、送付元名を声でアナウンス)

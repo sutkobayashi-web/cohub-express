@@ -453,12 +453,11 @@ async function speakViaTTS(text, opts) {
   } catch (e) { console.warn('[cohub-m] speakViaTTS failed', e.message || e); }
 }
 
-// 音声DM: 送信者が音声モードで送った急ぎメッセージ。強制再生 (取込中でも届ける)
-async function speakVoiceDm(content, senderName) {
+// 音声DM: 送信者が音声モードで送ったメッセージ本文をそのまま読み上げ。強制再生 (取込中でも届ける)
+async function speakVoiceDm(content) {
   try {
-    const reading = readingOf(senderName);
-    const prefix = (reading || 'どなたか') + 'さんから伝言です。';
-    const text = prefix + (content || '').slice(0, 500);
+    const text = (content || '').slice(0, 500);
+    if (!text) return;
     const res = await fetch('/api/voice/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
@@ -719,8 +718,7 @@ function connectSocket() {
     if (!isSelf && m.from === BOT_UID && m.content) speakAoi(m.content);
     // 音声DM受信: 取込中でも本文をTTSで強制再生 (急ぎ連絡用)
     if (!isSelf && m.voice && m.content && m.from !== BOT_UID) {
-      const sender = users[peerUid] || {};
-      speakVoiceDm(m.content, sender.name || '');
+      speakVoiceDm(m.content);
     }
     if (m.voice && m.content) rememberVoiceDm(m);
     if (openPeerUid === peerUid) {
@@ -960,8 +958,7 @@ function rememberVoiceDm(m) {
 function replayVoiceDm(id) {
   const c = _voiceDmCache.get(id);
   if (!c) return;
-  const senderName = (users[c.senderUid] || {}).name || '';
-  speakVoiceDm(c.content, senderName);
+  speakVoiceDm(c.content);
 }
 
 // DM送信モード: 'text' / 'voice' (音声モード=受信側TTS強制再生、取込中でも届ける)
