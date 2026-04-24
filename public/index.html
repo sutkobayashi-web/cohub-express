@@ -2980,8 +2980,10 @@ function readingOf(name) {
 // メリット: ブラウザSpeechSynthesisと違い環境差ゼロ、Neural2-B高品質
 const _ttsBlobCache = new Map();  // text -> blobURL (同じ文言は1度だけ生成)
 async function speakViaTTS(text, opts) {
-  if (!speakerOn || !text) return;
   opts = opts || {};
+  if (!text) return;
+  // opts.force=true なら speakerOn を無視 (音声DMなど強制再生用)
+  if (!opts.force && !speakerOn) return;
   const speed = opts.speed || 1.15;
   const voice = opts.voice || 'ja-JP-Neural2-B';
   try {
@@ -3011,25 +3013,12 @@ async function speakViaTTS(text, opts) {
 }
 
 // 音声DM: 送信者が「音声モード」で送ったメッセージ本文をそのまま読み上げ。
-// speakerOnがOFFでも強制再生 (取込中の相手にも伝わるのが本機能の目的)。
+// speakerOn=OFFでも force で強制再生 (取込中の相手にも伝わるのが本機能の目的)。
 async function speakVoiceDm(content) {
-  try {
-    const text = (content || '').slice(0, 500);
-    if (!text) return;
-    const res = await fetch('/api/voice/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
-      body: JSON.stringify({ text, voice: 'ja-JP-Neural2-B', speed: 1.1 }),
-    });
-    if (!res.ok) { console.warn('[cohub] voice-dm tts http', res.status); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.volume = 1.0;
-    audio.addEventListener('ended', () => { try { URL.revokeObjectURL(url); } catch(e) {} });
-    console.log('[cohub] voice DM play:', text);
-    await audio.play();
-  } catch (e) { console.warn('[cohub] speakVoiceDm failed', e.message || e); }
+  const text = (content || '').slice(0, 500);
+  if (!text) return;
+  console.log('[cohub] voice DM play:', text);
+  await speakViaTTS(text, { force: true, speed: 1.1 });
 }
 
 // 受信済み音声DMを手動で再生 (履歴のボタン用)

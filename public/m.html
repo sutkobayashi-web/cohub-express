@@ -426,6 +426,7 @@ const _ttsBlobCache = new Map();
 async function speakViaTTS(text, opts) {
   if (!text) return;
   opts = opts || {};
+  // opts.force=true で強制再生 (音声DM用)。モバイル版は既に speakerOn 判定なし
   const speed = opts.speed || 1.15;
   const voice = opts.voice || 'ja-JP-Neural2-B';
   try {
@@ -453,24 +454,12 @@ async function speakViaTTS(text, opts) {
   } catch (e) { console.warn('[cohub-m] speakViaTTS failed', e.message || e); }
 }
 
-// 音声DM: 送信者が音声モードで送ったメッセージ本文をそのまま読み上げ。強制再生 (取込中でも届ける)
+// 音声DM: 送信者が音声モードで送ったメッセージ本文をそのまま読み上げ (強制再生)
 async function speakVoiceDm(content) {
-  try {
-    const text = (content || '').slice(0, 500);
-    if (!text) return;
-    const res = await fetch('/api/voice/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
-      body: JSON.stringify({ text, voice: 'ja-JP-Neural2-B', speed: 1.1 }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.volume = 1.0;
-    audio.addEventListener('ended', () => { try { URL.revokeObjectURL(url); } catch(e) {} });
-    await audio.play();
-  } catch (e) { console.warn('[cohub-m] speakVoiceDm failed', e.message || e); }
+  const text = (content || '').slice(0, 500);
+  if (!text) return;
+  console.log('[cohub-m] voice DM play:', text);
+  await speakViaTTS(text, { force: true, speed: 1.1 });
 }
 
 // DM送付元名の読み上げ
