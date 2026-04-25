@@ -10,7 +10,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f3f4f6; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+  :root { --m-fs: 1; }   /* 文字スケール (小=0.9 / 中=1 / 大=1.15 / 特大=1.3) */
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f3f4f6; color: #0f172a; -webkit-tap-highlight-color: transparent; font-size: calc(15px * var(--m-fs)); }
   button, input, textarea { font-family: inherit; font-size: inherit; }
   button { cursor: pointer; }
   a { color: #0891b2; text-decoration: none; }
@@ -61,10 +62,64 @@
   .status-btn { padding: 10px 6px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 12px; font-weight: 600; color: #475569; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .status-btn.active { border-color: #0891b2; background: #ecfeff; color: #0891b2; }
   .status-btn .sdot { width: 10px; height: 10px; border-radius: 50%; }
-  .qa-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .qa-item { padding: 18px 12px; border-radius: 14px; background: linear-gradient(135deg, #f0f9ff, #ecfeff); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #0f172a; border: 1.5px solid #cffafe; }
-  .qa-item .i { font-size: 28px; }
+  .qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .qa-item { padding: 14px 8px; border-radius: 14px; background: linear-gradient(135deg, #f0f9ff, #ecfeff); display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #0f172a; border: 1.5px solid #cffafe; min-height: 88px; justify-content: center; text-align: center; }
+  .qa-item .i { font-size: 24px; }
   .qa-item.aoi { background: linear-gradient(135deg, #fdf4ff, #fce7f3); border-color: #f9a8d4; color: #831843; }
+  .qa-item.wellness { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-color: #86efac; color: #166534; }
+
+  /* オンライン中ストリップ (横スクロールアバター) */
+  .online-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 6px; -webkit-overflow-scrolling: touch; }
+  .online-strip::-webkit-scrollbar { display: none; }
+  .online-chip { flex-shrink: 0; width: 60px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+  .online-chip .av { position: relative; width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #475569; font-size: 14px; }
+  .online-chip .av img { width: 100%; height: 100%; object-fit: cover; }
+  .online-chip .av .sd { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; background: #10b981; }
+  .online-chip .av .sd.busy { background: #ef4444; }
+  .online-chip .av .sd.focus { background: #8b5cf6; }
+  .online-chip .av .sd.away { background: #eab308; }
+  .online-chip .nm { font-size: 10px; color: #475569; max-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .online-empty { padding: 8px; color: #94a3b8; font-size: 11px; text-align: center; }
+
+  /* 最近のDM (ホーム圧縮版) */
+  .recent-dm { display: flex; flex-direction: column; gap: 0; }
+  .recent-dm-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+  .recent-dm-item:last-child { border-bottom: none; }
+  .recent-dm-av { width: 36px; height: 36px; border-radius: 50%; background: #e2e8f0; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #475569; }
+  .recent-dm-av img { width: 100%; height: 100%; object-fit: cover; }
+  .recent-dm-info { flex: 1; min-width: 0; }
+  .recent-dm-name { font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-dm-snip { font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-dm-time { font-size: 9px; color: #94a3b8; flex-shrink: 0; }
+  .recent-dm-unread { background: #ef4444; color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; min-width: 16px; text-align: center; margin-left: 4px; }
+
+  /* チャット検索ボックス */
+  .chat-search { padding: 8px 12px; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 5; }
+  .chat-search input { width: 100%; padding: 8px 12px 8px 32px; border: 1px solid #e2e8f0; border-radius: 18px; font-size: 13px; background: #f8fafc url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>') no-repeat 10px center; }
+  .chat-search input:focus { outline: none; border-color: #06b6d4; background-color: #fff; }
+
+  /* メンバー区切りラベル */
+  .mem-section-h { padding: 10px 14px 6px; font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; background: #f3f4f6; }
+  .mem-item.offline { opacity: 0.55; }
+  .mem-item.offline .mem-name { color: #64748b; }
+  .mem-item.offline .mem-tap { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+
+  /* ステータス bottom sheet */
+  .status-pill { cursor: pointer; }
+  #status-sheet { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 160; display: none; align-items: flex-end; }
+  #status-sheet.show { display: flex; }
+  #status-sheet .sheet { background: #fff; border-radius: 18px 18px 0 0; width: 100%; padding: 18px 18px calc(20px + env(safe-area-inset-bottom)); }
+  #status-sheet h3 { margin: 0 0 14px; font-size: 15px; }
+  #status-sheet .sheet-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  #status-sheet .sheet-grid button { padding: 14px 8px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 13px; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #status-sheet .sheet-grid button.active { border-color: #0891b2; background: #ecfeff; color: #0891b2; }
+  #status-sheet .sheet-grid button .sdot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* 設定: トグル/セレクト */
+  .set-toggle { display: inline-flex; background: #f1f5f9; border-radius: 12px; padding: 2px; gap: 0; }
+  .set-toggle button { background: none; border: none; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #64748b; border-radius: 10px; }
+  .set-toggle button.active { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(15,23,42,0.1); }
+  .set-item .ctrl { margin-left: auto; }
 
   /* ===== チャット一覧 ===== */
   .chat-list { padding: 0; }
@@ -180,7 +235,7 @@
 <div id="app">
   <div id="topbar">
     <div class="ttl">CoHub</div>
-    <div class="status-pill"><span class="dot" id="top-sdot"></span><span id="top-status">在席</span></div>
+    <div class="status-pill" onclick="openStatusSheet()" title="タップで切替"><span class="dot" id="top-sdot"></span><span id="top-status">在席</span> <span style="font-size:9px;color:#94a3b8;">▾</span></div>
     <button class="mute-btn" id="mute-btn" onclick="toggleMute()" title="音声">🔊</button>
   </div>
 
@@ -210,21 +265,41 @@
             <div class="i">🤖</div>
             <div>葵に聞く</div>
           </div>
+          <div class="qa-item wellness" onclick="openWellness()">
+            <div class="i">🏥</div>
+            <div>健康管理室</div>
+          </div>
           <div class="qa-item" onclick="switchTab('members')">
             <div class="i">👥</div>
             <div>メンバー</div>
           </div>
         </div>
       </div>
+
+      <div class="section">
+        <div class="section-ttl">オンライン中 <span id="online-count" style="color:#0891b2;font-weight:800;margin-left:4px;">0</span></div>
+        <div class="online-strip" id="online-strip"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-ttl" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>最近のDM</span>
+          <span onclick="switchTab('chat')" style="font-size:10px;color:#0891b2;font-weight:700;cursor:pointer;">すべて見る ›</span>
+        </div>
+        <div class="recent-dm" id="recent-dm"></div>
+      </div>
     </div>
 
     <!-- チャット -->
     <div class="page" id="page-chat">
+      <div class="chat-search">
+        <input type="search" id="chat-q" placeholder="名前・グループで絞り込み" oninput="filterChats(this.value)" autocomplete="off">
+      </div>
       <div class="list-section-ttl">葵 (受付AI)</div>
       <div class="chat-list" id="bot-list"></div>
-      <div class="list-section-ttl">グループ</div>
+      <div class="list-section-ttl" id="group-section-ttl">グループ</div>
       <div class="chat-list" id="group-list"></div>
-      <div class="list-section-ttl">メンバー</div>
+      <div class="list-section-ttl" id="dm-section-ttl">メンバー</div>
       <div class="chat-list" id="dm-list"></div>
     </div>
 
@@ -248,11 +323,38 @@
         </div>
       </div>
       <div class="set-list">
+        <div class="set-item">
+          <div class="i">🔡</div><div class="l">文字サイズ</div>
+          <div class="ctrl set-toggle" id="font-toggle">
+            <button data-fs="0.9" onclick="setFontScale(0.9)">小</button>
+            <button data-fs="1" class="active" onclick="setFontScale(1)">中</button>
+            <button data-fs="1.15" onclick="setFontScale(1.15)">大</button>
+            <button data-fs="1.3" onclick="setFontScale(1.3)">特</button>
+          </div>
+        </div>
+        <div class="set-item">
+          <div class="i">🔊</div><div class="l">通知音</div>
+          <div class="ctrl set-toggle" id="chime-toggle">
+            <button data-v="1" class="active" onclick="setChimeOn(true)">ON</button>
+            <button data-v="0" onclick="setChimeOn(false)">OFF</button>
+          </div>
+        </div>
+        <div class="set-item">
+          <div class="i">🗣️</div><div class="l">読み上げ速度</div>
+          <div class="ctrl set-toggle" id="speed-toggle">
+            <button data-v="0.95" onclick="setSpeechSpeed(0.95)">遅</button>
+            <button data-v="1.15" class="active" onclick="setSpeechSpeed(1.15)">普通</button>
+            <button data-v="1.35" onclick="setSpeechSpeed(1.35)">速</button>
+          </div>
+        </div>
         <div class="set-item" id="set-calendar" onclick="openCalModal()">
           <div class="i">📅</div><div class="l">カレンダー連携</div><div class="r">›</div>
         </div>
         <div class="set-item" onclick="openPwModal()">
           <div class="i">🔑</div><div class="l">パスワード変更</div><div class="r">›</div>
+        </div>
+        <div class="set-item" onclick="openWellness()">
+          <div class="i">🏥</div><div class="l">健康管理室</div><div class="r">›</div>
         </div>
         <div class="set-item" onclick="switchToPc()">
           <div class="i">🖥️</div><div class="l">PC版に切替</div><div class="r">›</div>
@@ -343,6 +445,19 @@
   </div>
 </div>
 
+<!-- ステータス bottom sheet -->
+<div id="status-sheet" onclick="if(event.target.id==='status-sheet')closeStatusSheet()">
+  <div class="sheet">
+    <h3>ステータスを変更</h3>
+    <div class="sheet-grid">
+      <button data-s="active" onclick="pickStatus('active')"><span class="sdot" style="background:#10b981"></span>在席</button>
+      <button data-s="退席中" onclick="pickStatus('退席中')"><span class="sdot" style="background:#eab308"></span>退席</button>
+      <button data-s="会議中" onclick="pickStatus('会議中')"><span class="sdot" style="background:#ef4444"></span>取込中</button>
+      <button data-s="集中中" onclick="pickStatus('集中中')"><span class="sdot" style="background:#8b5cf6"></span>集中</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -363,8 +478,24 @@ let groupUnread = {};    // gid -> count
 let groupsList = [];     // 自分が参加してるグループ一覧
 let memberFilter = 'all';
 let speakerOn = true;
+let chimeOn = true;            // 入出室/DM到着チャイム (設定で切替)
+let speechSpeed = 1.15;        // TTS読み上げ速度
 const BOT_UID = 'bot_aoi';
 const AOI_VOICE = 'ja-JP-Neural2-B';
+
+// ===== 永続化設定の復元 =====
+(function loadPrefs() {
+  try {
+    const fs = parseFloat(localStorage.getItem('m_font_scale') || '1');
+    if (!isNaN(fs) && fs >= 0.8 && fs <= 1.5) document.documentElement.style.setProperty('--m-fs', String(fs));
+    const co = localStorage.getItem('m_chime_on');
+    if (co === '0') chimeOn = false;
+    const sp = parseFloat(localStorage.getItem('m_speech_speed') || '1.15');
+    if (!isNaN(sp) && sp >= 0.8 && sp <= 1.6) speechSpeed = sp;
+    const so = localStorage.getItem('m_speaker_on');
+    if (so === '0') speakerOn = false;
+  } catch (e) {}
+})();
 
 // ============================================================
 // ユーティリティ
@@ -379,6 +510,7 @@ const _mEnterLeaveThrottle = new Map();
 const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
 const CHIME_DURATION_MS = 1000;
 function playEnterLeaveChime(isEnter) {
+  if (!chimeOn) return;
   try {
     if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _mAudioCtx;
@@ -426,8 +558,9 @@ const _ttsBlobCache = new Map();
 async function speakViaTTS(text, opts) {
   if (!text) return;
   opts = opts || {};
-  // opts.force=true で強制再生 (音声DM用)。モバイル版は既に speakerOn 判定なし
-  const speed = opts.speed || 1.15;
+  // opts.force=true で強制再生 (音声DM用)。それ以外は speakerOn 判定 (ミュート時は鳴らさない)
+  if (!opts.force && !speakerOn) return;
+  const speed = opts.speed || speechSpeed;
   const voice = opts.voice || 'ja-JP-Neural2-B';
   try {
     let url = _ttsBlobCache.get(text);
@@ -594,6 +727,7 @@ async function doLogout() {
 function startApp() {
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  applyPrefsToUI();
   renderMe();
   connectSocket();
   loadChatLists();
@@ -638,6 +772,7 @@ function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + tab));
   if (tab === 'chat') loadChatLists();
   if (tab === 'members') renderMembers();
+  if (tab === 'home') { renderHomeOnline(); renderHomeRecentDm(); }
 }
 
 // ============================================================
@@ -662,15 +797,18 @@ function connectSocket() {
       applyMyStatusUI(users[user.uid].status || 'online');
     }
     renderMembers();
+    renderHomeOnline();
   });
   socket.on('user:join', (u) => {
     users[u.uid] = u;
     renderMembers();
+    renderHomeOnline();
   });
   socket.on('user:leave', (d) => {
     if (users[d.uid]) {
       users[d.uid].status = 'offline';
       renderMembers();
+      renderHomeOnline();
     }
   });
   socket.on('user:login', (d) => {
@@ -687,6 +825,7 @@ function connectSocket() {
     users[d.uid] = u;
     if (d.uid === user.uid && d.status) applyMyStatusUI(d.status);
     renderMembers();
+    renderHomeOnline();
   });
   socket.on('chat:msg', (m) => {
     // フロア公開チャット: モバイル版では受信はするが通知のみ (葵挨拶のみ表示)
@@ -773,6 +912,7 @@ async function loadChatLists() {
     dmPeers = (dm && dm.peers) || [];
     groupsList = (groups && groups.groups) || [];
     renderChatLists();
+    renderHomeRecentDm();
   } catch (e) { console.warn('chat lists', e.message); }
 }
 function renderChatLists() {
@@ -1051,34 +1191,44 @@ function setMemberFilter(f) {
 }
 function renderMembers() {
   const list = document.getElementById('mem-list');
-  const myType = user && user.employee_type;
   const entries = Object.values(users || {}).filter(u => u && u.uid && u.uid !== user.uid && u.role !== 'bot');
   const filtered = entries.filter(u => {
     if (memberFilter === 'office') return u.employee_type !== 'field';
     if (memberFilter === 'field') return u.employee_type === 'field';
     return true;
   });
-  // ソート: オンライン → 退席 → オフライン順、同状態なら会社コード
+  // 並び替え: 同会社コード内で名前順
   filtered.sort((a, b) => {
-    const rank = s => s === 'offline' ? 3 : s === '退席中' ? 2 : 1;
-    const d = rank(a.status) - rank(b.status);
-    if (d !== 0) return d;
-    return String(a.company || '').localeCompare(String(b.company || ''));
+    const ca = String(a.company || ''), cb = String(b.company || '');
+    if (ca !== cb) return ca.localeCompare(cb);
+    return String(a.name || '').localeCompare(String(b.name || ''));
   });
-  list.innerHTML = filtered.map(u => {
+  const onlines = filtered.filter(u => u.status !== 'offline');
+  const offlines = filtered.filter(u => u.status === 'offline');
+  const renderRow = (u, isOff) => {
     const init = (u.name || '?').slice(0, 2);
     const av = u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(init);
-    const sCls = u.status === 'online' || !u.status || u.status === 'active' ? 'online' : u.status === '会議中' ? 'busy' : u.status === '集中中' ? 'focus' : '';
+    const sCls = isOff ? '' : (u.status === '会議中' ? 'busy' : u.status === '集中中' ? 'focus' : u.status === '退席中' ? 'away' : 'online');
     const sub = [u.company || '', u.employee_type === 'field' ? '現場' : '事務所'].filter(Boolean).join(' / ');
-    return '<div class="mem-item">' +
+    return '<div class="mem-item' + (isOff ? ' offline' : '') + '">' +
       '<div class="mem-av">' + av + '<span class="sdot ' + sCls + '"></span></div>' +
       '<div class="mem-info">' +
-        '<div class="mem-name">' + escapeHtml(u.name || '') + (u.isMobile ? ' <span title="スマホから接続中" style="font-size:11px;">📱</span>' : '') + '</div>' +
-        '<div class="mem-sub">' + escapeHtml(sub) + (u.statusText ? ' — ' + escapeHtml(u.statusText) : '') + '</div>' +
+        '<div class="mem-name">' + escapeHtml(u.name || '') + (u.isMobile && !isOff ? ' <span title="スマホから接続中" style="font-size:11px;">📱</span>' : '') + '</div>' +
+        '<div class="mem-sub">' + escapeHtml(sub) + (!isOff && u.statusText ? ' — ' + escapeHtml(u.statusText) : '') + '</div>' +
       '</div>' +
       '<button class="mem-tap" onclick="openDM(\'' + escapeHtml(u.uid) + '\',\'' + escapeHtml(u.name || '') + '\',\'' + escapeHtml(u.avatar || '') + '\',false)">💬 DM</button>' +
     '</div>';
-  }).join('') || '<div style="padding:30px 20px;text-align:center;color:#94a3b8;font-size:12px;">オンラインメンバーはいません</div>';
+  };
+  let html = '';
+  if (onlines.length) {
+    html += '<div class="mem-section-h">オンライン ' + onlines.length + '人</div>';
+    html += onlines.map(u => renderRow(u, false)).join('');
+  }
+  if (offlines.length) {
+    html += '<div class="mem-section-h">オフライン ' + offlines.length + '人</div>';
+    html += offlines.map(u => renderRow(u, true)).join('');
+  }
+  list.innerHTML = html || '<div style="padding:30px 20px;text-align:center;color:#94a3b8;font-size:12px;">表示するメンバーがいません</div>';
 }
 
 // ============================================================
@@ -1203,6 +1353,7 @@ let _aoiAudioUrl = null;
 function toggleMute() {
   speakerOn = !speakerOn;
   document.getElementById('mute-btn').textContent = speakerOn ? '🔊' : '🔇';
+  try { localStorage.setItem('m_speaker_on', speakerOn ? '1' : '0'); } catch (e) {}
   if (!speakerOn) stopAoiSpeech();
 }
 async function speakAoi(text) {
@@ -1260,6 +1411,153 @@ document.addEventListener('keydown', (e) => {
     sendChatMessage();
   }
 });
+
+// ============================================================
+// 設定UI (文字サイズ/通知音/読み上げ速度) と各種拡張機能
+// ============================================================
+function applyPrefsToUI() {
+  // 文字サイズ
+  const fs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m-fs')) || 1;
+  document.querySelectorAll('#font-toggle button').forEach(b => {
+    b.classList.toggle('active', Math.abs(parseFloat(b.dataset.fs) - fs) < 0.01);
+  });
+  // 通知音
+  document.querySelectorAll('#chime-toggle button').forEach(b => {
+    b.classList.toggle('active', (b.dataset.v === '1') === chimeOn);
+  });
+  // 読み上げ速度
+  document.querySelectorAll('#speed-toggle button').forEach(b => {
+    b.classList.toggle('active', Math.abs(parseFloat(b.dataset.v) - speechSpeed) < 0.01);
+  });
+  // ミュートボタン
+  const mb = document.getElementById('mute-btn');
+  if (mb) mb.textContent = speakerOn ? '🔊' : '🔇';
+}
+function setFontScale(v) {
+  document.documentElement.style.setProperty('--m-fs', String(v));
+  try { localStorage.setItem('m_font_scale', String(v)); } catch (e) {}
+  applyPrefsToUI();
+}
+function setChimeOn(on) {
+  chimeOn = !!on;
+  try { localStorage.setItem('m_chime_on', chimeOn ? '1' : '0'); } catch (e) {}
+  applyPrefsToUI();
+}
+function setSpeechSpeed(v) {
+  speechSpeed = v;
+  try { localStorage.setItem('m_speech_speed', String(v)); } catch (e) {}
+  applyPrefsToUI();
+  // TTSキャッシュは速度違いで残しておくと混ざるのでクリア
+  try { _ttsBlobCache.forEach(u => URL.revokeObjectURL(u)); _ttsBlobCache.clear(); } catch (e) {}
+}
+
+// ===== ステータス bottom sheet =====
+function openStatusSheet() {
+  const cur = (users[user.uid] && users[user.uid].status) || 'online';
+  document.querySelectorAll('#status-sheet .sheet-grid button').forEach(b => {
+    const s = b.dataset.s;
+    const match = s === cur || (s === 'active' && (cur === 'online' || cur === 'active'));
+    b.classList.toggle('active', match);
+  });
+  document.getElementById('status-sheet').classList.add('show');
+}
+function closeStatusSheet() {
+  document.getElementById('status-sheet').classList.remove('show');
+}
+function pickStatus(s) {
+  setMyStatus(s);
+  closeStatusSheet();
+}
+
+// ===== 健康管理室への導線 (CoWell PWA を新タブで) =====
+function openWellness() {
+  window.open('https://health.biz-terrace.org/', '_blank', 'noopener');
+}
+
+// ===== チャット一覧フィルタ =====
+function filterChats(q) {
+  q = (q || '').trim().toLowerCase();
+  const groupItems = document.querySelectorAll('#group-list .chat-item');
+  const dmItems = document.querySelectorAll('#dm-list .chat-item');
+  let groupHits = 0, dmHits = 0;
+  groupItems.forEach(el => {
+    const t = (el.textContent || '').toLowerCase();
+    const hit = !q || t.includes(q);
+    el.style.display = hit ? '' : 'none';
+    if (hit) groupHits++;
+  });
+  dmItems.forEach(el => {
+    const t = (el.textContent || '').toLowerCase();
+    const hit = !q || t.includes(q);
+    el.style.display = hit ? '' : 'none';
+    if (hit) dmHits++;
+  });
+  // 見出しも0件時は隠す
+  const gt = document.getElementById('group-section-ttl');
+  const dt = document.getElementById('dm-section-ttl');
+  if (gt) gt.style.display = (q && groupHits === 0) ? 'none' : '';
+  if (dt) dt.style.display = (q && dmHits === 0) ? 'none' : '';
+}
+
+// ===== ホーム: オンライン中ストリップ =====
+function renderHomeOnline() {
+  const host = document.getElementById('online-strip');
+  const cnt = document.getElementById('online-count');
+  if (!host || !user) return;
+  const onlines = Object.values(users || {}).filter(u =>
+    u && u.uid && u.uid !== user.uid && u.role !== 'bot' && u.status !== 'offline'
+  );
+  // 並び: スマホ接続中 → デフォルト → 取込中 (会社コード昇順)
+  onlines.sort((a, b) => String(a.company || '').localeCompare(String(b.company || '')));
+  if (cnt) cnt.textContent = onlines.length;
+  if (!onlines.length) {
+    host.innerHTML = '<div class="online-empty">他にオンラインの人はいません</div>';
+    return;
+  }
+  host.innerHTML = onlines.slice(0, 20).map(u => {
+    const init = (u.name || '?').slice(0, 2);
+    const av = u.avatar
+      ? '<img src="' + escapeHtml(u.avatar) + '" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(init) + '\'))">'
+      : escapeHtml(init);
+    const sCls = u.status === '会議中' ? 'busy' : u.status === '集中中' ? 'focus' : u.status === '退席中' ? 'away' : '';
+    const shortName = (u.name || '').length > 5 ? (u.name || '').slice(0, 5) + '…' : (u.name || '');
+    return '<div class="online-chip" onclick="openDM(\'' + escapeHtml(u.uid) + '\',\'' + escapeHtml(u.name || '') + '\',\'' + escapeHtml(u.avatar || '') + '\',false)">' +
+      '<div class="av">' + av + '<span class="sd ' + sCls + '"></span></div>' +
+      '<div class="nm">' + escapeHtml(shortName) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ===== ホーム: 最近のDM (上位3件) =====
+function renderHomeRecentDm() {
+  const host = document.getElementById('recent-dm');
+  if (!host) return;
+  const peers = (dmPeers || []).slice(0, 3);
+  if (!peers.length) {
+    host.innerHTML = '<div style="padding:8px;color:#94a3b8;font-size:11px;text-align:center;">まだDM履歴がありません</div>';
+    return;
+  }
+  host.innerHTML = peers.map(p => {
+    const isBot = p.peer_id === BOT_UID;
+    const name = isBot ? '葵' : (p.display_name || '');
+    const avUrl = isBot ? '/assets/concierge_aoi.png' : (p.avatar_url || '');
+    const init = (name || '?').slice(0, 2);
+    const av = avUrl
+      ? '<img src="' + escapeHtml(avUrl) + '" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(init) + '\'))">'
+      : escapeHtml(init);
+    const unread = dmUnread[p.peer_id] || 0;
+    const time = p.last_at ? fmtTime(p.last_at) : '';
+    return '<div class="recent-dm-item" onclick="openDM(\'' + escapeHtml(p.peer_id) + '\',\'' + escapeHtml(name) + '\',\'' + escapeHtml(avUrl) + '\',' + (isBot ? 'true' : 'false') + ')">' +
+      '<div class="recent-dm-av">' + av + '</div>' +
+      '<div class="recent-dm-info">' +
+        '<div class="recent-dm-name">' + escapeHtml(name) + (isBot ? ' <span style="font-size:9px;background:#cffafe;color:#155e75;padding:1px 4px;border-radius:6px;font-weight:700;">BOT</span>' : '') + '</div>' +
+        '<div class="recent-dm-snip">' + escapeHtml(p.company_code || (isBot ? 'AI 受付案内員' : '')) + '</div>' +
+      '</div>' +
+      (time ? '<div class="recent-dm-time">' + escapeHtml(time) + '</div>' : '') +
+      (unread > 0 ? '<div class="recent-dm-unread">' + unread + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
 </script>
 </body>
 </html>
