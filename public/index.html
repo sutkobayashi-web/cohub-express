@@ -143,6 +143,15 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #floor-head { position: absolute; top: 12px; left: 16px; background: rgba(255,255,255,0.85); backdrop-filter: blur(6px); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: #0f172a; box-shadow: 0 4px 12px rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; z-index: 5; }
 #floor-head .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
 
+/* 健康管理室在室中の自分PIP (iframeに隠れる自分の現在地表示+脱出口) */
+#self-pip { display: none; position: absolute; top: 56px; right: 16px; z-index: 10; background: rgba(255,255,255,0.96); border: 1px solid rgba(15,23,42,0.12); border-radius: 16px; padding: 8px 14px 8px 8px; box-shadow: 0 8px 24px rgba(15,23,42,0.18); cursor: pointer; align-items: center; gap: 10px; backdrop-filter: blur(8px); transition: transform 0.15s, box-shadow 0.15s; }
+#self-pip:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(15,23,42,0.22); }
+body.layout-wellness #self-pip { display: flex; }
+#self-pip-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2.5px solid #06b6d4; background: #f1f5f9; flex-shrink: 0; }
+#self-pip .self-pip-meta { font-size: 12px; line-height: 1.3; }
+#self-pip .self-pip-name { font-weight: 800; color: #0f172a; }
+#self-pip .self-pip-hint { color: #64748b; font-size: 10px; margin-top: 2px; }
+
 
 /* 下部コントロールバー (チャットパネル分 right:280px 空ける) */
 #dock { position: absolute; bottom: 0; left: 96px; right: 280px; height: 88px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; justify-content: center; gap: 8px; padding: 4px 14px 8px; z-index: 15; transition: right 0.25s ease; }
@@ -574,6 +583,14 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       style="display:none;position:absolute;inset:40px 0 0 0;width:100%;height:calc(100% - 40px);border:0;z-index:5;background:#f8fafc;"
       allow="camera; microphone; fullscreen; clipboard-read; clipboard-write"
       title="CoWell 健康管理"></iframe>
+    <!-- 健康管理室在室中の自分PIP (iframeに隠れる自分の現在地表示+脱出口) -->
+    <div id="self-pip" onclick="onSelfPipClick(event)" title="クリックでフロア移動">
+      <img id="self-pip-img" alt="">
+      <div class="self-pip-meta">
+        <div class="self-pip-name" id="self-pip-name">あなた</div>
+        <div class="self-pip-hint">🏥 健康管理室にいます<br><span style="color:#06b6d4;font-weight:700;">タップでフロア移動</span></div>
+      </div>
+    </div>
     <div id="floor-head">
       <span class="dot"></span>
       <span id="floor-name">ロビー</span>
@@ -4709,6 +4726,22 @@ function applyFloorLayout(floor) {
   }
   document.body.classList.toggle('layout-wellness', !!isWellness);
   document.body.classList.toggle('layout-meeting', !!isMeeting);
+  // 健康管理室: 自分PIPに自分のアバター/名前を反映
+  if (isWellness) {
+    const myU = users[me];
+    const pipImg = document.getElementById('self-pip-img');
+    const pipName = document.getElementById('self-pip-name');
+    if (pipImg) {
+      if (myU && myU.avatar) {
+        pipImg.src = myU.avatar;
+        pipImg.style.display = 'block';
+      } else {
+        pipImg.removeAttribute('src');
+        pipImg.style.display = 'none';
+      }
+    }
+    if (pipName) pipName.textContent = (myU && myU.name) || 'あなた';
+  }
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
   const vbBtn = document.getElementById('dock-vb');
@@ -5101,6 +5134,14 @@ function showPeerMenu(peer, screenX, screenY) {
 function hidePeerMenu() {
   const menu = document.getElementById('peer-menu');
   if (menu) { menu.style.display = 'none'; menu.style.minWidth = ''; }
+}
+
+// 健康管理室PIPクリック → フロアジャンプメニュー (脱出口)
+function onSelfPipClick(e) {
+  if (e) e.stopPropagation();
+  const x = (e && e.clientX) || window.innerWidth - 260;
+  const y = (e && e.clientY) || 100;
+  showSelfFloorMenu(x, y);
 }
 
 // 自分タップ → フロア間ジャンプメニュー
