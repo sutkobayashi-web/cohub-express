@@ -1841,9 +1841,22 @@ function hitTestPeer(worldX, worldY) {
   return hit;
 }
 
+function hitTestSelf(worldX, worldY) {
+  // 自分のアバター当たり判定 (半径32px ≒ アバター本体)
+  if (!me || !users[me] || users[me].cx == null) return false;
+  const u = users[me];
+  const dx = worldX - u.cx, dy = worldY - u.cy;
+  return (dx * dx + dy * dy) < (32 * 32);
+}
+
 function onPointerDown(e) {
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+  // 自分のアバタータップ → フロアジャンプメニュー (移動せず)
+  if (hitTestSelf(world.x, world.y)) {
+    showSelfFloorMenu(e.clientX, e.clientY);
+    return;
+  }
   const peer = hitTestPeer(world.x, world.y);
   if (peer) {
     // 他人のアバターをタップ → 移動せずピアメニュー表示
@@ -5087,7 +5100,52 @@ function showPeerMenu(peer, screenX, screenY) {
 }
 function hidePeerMenu() {
   const menu = document.getElementById('peer-menu');
-  if (menu) menu.style.display = 'none';
+  if (menu) { menu.style.display = 'none'; menu.style.minWidth = ''; }
+}
+
+// 自分タップ → フロア間ジャンプメニュー
+function showSelfFloorMenu(screenX, screenY) {
+  const menu = document.getElementById('peer-menu');
+  if (!menu || !allFloors) return;
+  _peerMenuOpenAt = Date.now();
+  const officeFloors = allFloors.filter(f => !f.building || f.building === 'office');
+  const fieldFloors = allFloors.filter(f => f.building === 'field');
+  const renderRow = (f) => {
+    const isCur = currentFloor && currentFloor.code === f.code;
+    const lockMark = f.locked ? ' 🔒' : (f.approval_mode ? ' 🔔' : '');
+    const cnt = floorCounts[f.code] || 0;
+    const right = isCur
+      ? '<span style="margin-left:auto;font-size:10px;color:#0891b2;font-weight:700;">現在地</span>'
+      : (cnt ? '<span style="margin-left:auto;font-size:10px;background:#06b6d4;color:#fff;padding:1px 6px;border-radius:8px;">' + cnt + '</span>' : '');
+    return '<button onclick="hidePeerMenu();switchFloor(\'' + f.code + '\')"' +
+           (isCur ? ' disabled' : '') +
+           ' style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;background:' + (isCur ? 'rgba(6,182,212,0.12)' : 'none') + ';border:none;color:#0f172a;text-align:left;cursor:' + (isCur ? 'default' : 'pointer') + ';border-radius:8px;font-size:13px;">' +
+           '<span style="font-size:14px;">' + (f.icon || '🏢') + '</span>' +
+           '<span>' + escapeHtml(f.name) + lockMark + '</span>' +
+           right +
+           '</button>';
+  };
+  let html = '<div style="padding:8px 10px;font-size:12px;color:#475569;border-bottom:1px solid rgba(15,23,42,0.06);margin-bottom:4px;font-weight:600;">🚪 フロアへ移動</div>';
+  if (officeFloors.length) {
+    html += '<div style="padding:6px 10px 2px;font-size:10px;color:#0e7490;font-weight:800;letter-spacing:1px;">🏢 事務所棟</div>';
+    html += officeFloors.map(renderRow).join('');
+  }
+  if (fieldFloors.length) {
+    html += '<div style="padding:8px 10px 2px;font-size:10px;color:#9a3412;font-weight:800;letter-spacing:1px;">🚚 現場棟</div>';
+    html += fieldFloors.map(renderRow).join('');
+  }
+  menu.innerHTML = html;
+  menu.style.minWidth = '240px';
+  menu.style.display = 'block';
+  // 配置: クリック位置から右下、画面端なら反転
+  const menuW = 250;
+  const menuH = 90 + (officeFloors.length + fieldFloors.length) * 40;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = screenX + 8, y = screenY + 8;
+  if (x + menuW > vw - 8) x = screenX - menuW - 8;
+  if (y + menuH > vh - 8) y = Math.max(8, vh - menuH - 8);
+  menu.style.left = Math.max(8, x) + 'px';
+  menu.style.top = Math.max(8, y) + 'px';
 }
 function onTapShoulderClick(targetUid, isFocus) {
   hidePeerMenu();
