@@ -105,6 +105,26 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
+    <h2>🩺 現場の声 (運管POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
+    <div class="row">
+      <select id="fv-cat-filter"><option value="">カテゴリすべて</option><option value="体調">体調</option><option value="食事">食事</option><option value="睡眠">睡眠</option><option value="職場環境">職場環境</option><option value="その他">その他</option></select>
+      <select id="fv-urg-filter"><option value="">緊急度すべて</option><option value="高">🔴 高</option><option value="中">🟡 中</option><option value="低">🟢 低</option></select>
+      <input type="number" id="fv-limit" value="50" min="10" max="200" style="max-width:90px;" title="表示件数">
+      <button class="btn" onclick="loadFieldVoice()">再読込</button>
+      <span id="fv-count" style="margin-left:auto;color:#64748b;font-size:12px;align-self:center;"></span>
+    </div>
+    <div style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th></tr></thead>
+        <tbody id="fv-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:11px;color:#065f46;line-height:1.7;">
+      💡 <b>運用ガイド</b>: 月1の健康管理室会議で本一覧を一緒にレビュー → カテゴリ別の傾向を確認 → 月次施策候補を選定 → 実行後は全社アナウンス + 推進メンバーへフィードバック (=ループを閉じる)
+    </div>
+  </div>
+
+  <div class="card">
     <h2>📋 出席履歴 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">ログイン/ログアウト/フロア移動のイベント</span></h2>
     <div class="row">
       <select id="att-user"><option value="">社員すべて</option></select>
@@ -369,6 +389,7 @@ function showPanel(user) {
   loadRecordings();
   loadAttendance();
   loadGroups();
+  loadFieldVoice();
 }
 
 async function loadGroups() {
@@ -560,6 +581,46 @@ async function deleteGroup(gid, gname) {
   if (!confirm(gname + ' を削除しますか？メッセージ履歴も全て消えます。')) return;
   await fetch('/api/admin/groups/' + gid, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
   loadGroups();
+}
+
+async function loadFieldVoice() {
+  const tb = document.getElementById('fv-tbody');
+  const cnt = document.getElementById('fv-count');
+  const limit = parseInt(document.getElementById('fv-limit').value) || 50;
+  tb.innerHTML = '<tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
+  try {
+    const r = await fetch('/api/wellness/posts?limit=' + limit, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    const catFilter = document.getElementById('fv-cat-filter').value;
+    const urgFilter = document.getElementById('fv-urg-filter').value;
+    const filtered = (d.posts || []).filter(p =>
+      (!catFilter || p.category === catFilter) && (!urgFilter || p.urgency === urgFilter)
+    );
+    cnt.textContent = filtered.length + '件 / 全' + (d.posts || []).length + '件';
+    if (!filtered.length) {
+      tb.innerHTML = '<tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
+      return;
+    }
+    const urgIcon = u => u === '高' ? '🔴' : u === '中' ? '🟡' : '🟢';
+    const urgColor = u => u === '高' ? '#dc2626' : u === '中' ? '#d97706' : '#059669';
+    const idColor = m => m === '本人特定可' ? '#0891b2' : m === '匿名' ? '#7c3aed' : '#64748b';
+    tb.innerHTML = filtered.map(p => {
+      const dtime = new Date(p.created_at + 'Z').toLocaleString('ja-JP');
+      return `<tr>
+        <td style="font-size:11px;color:#94a3b8;font-weight:700;">#${p.id}</td>
+        <td style="font-size:11px;color:#64748b;white-space:nowrap;">${dtime}</td>
+        <td style="font-size:12px;">${escapeHtml(p.poster_name || '-')}</td>
+        <td style="font-size:11px;color:#64748b;">${escapeHtml(p.company_code || '-')}</td>
+        <td style="font-size:12px;font-weight:600;">${escapeHtml(p.category)}</td>
+        <td style="font-size:11px;color:${urgColor(p.urgency)};font-weight:700;">${urgIcon(p.urgency)} ${escapeHtml(p.urgency)}</td>
+        <td style="font-size:11px;color:${idColor(p.identity_mode)};">${escapeHtml(p.identity_mode)}</td>
+        <td style="font-size:12px;line-height:1.5;">${escapeHtml(p.memo || '').replace(/\n/g, '<br>') || '<span style="color:#cbd5e1;">(なし)</span>'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';
+  }
 }
 
 async function loadAttendance() {
