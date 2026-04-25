@@ -677,7 +677,6 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
   <!-- 👋 ピアアクションメニュー (アバタークリック時) -->
   <div id="peer-menu" style="position:absolute;display:none;background:#fff;border:1px solid rgba(15,23,42,0.12);border-radius:12px;padding:6px;z-index:35;min-width:180px;box-shadow:0 12px 28px rgba(15,23,42,0.18);"></div>
-  <div id="self-tip" style="position:fixed;display:none;background:#0f172a;color:#fff;padding:7px 11px;border-radius:8px;font-size:12px;font-weight:700;pointer-events:none;z-index:40;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,0.25);">🖱 右クリックで各階に移動<div style="position:absolute;bottom:-5px;left:18px;width:10px;height:10px;background:#0f172a;transform:rotate(45deg);"></div></div>
 
   <!-- ヘルプモーダル -->
   <div id="help-modal"></div>
@@ -1242,8 +1241,6 @@ function initCanvas() {
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerUp);
-  // canvasから外れたら吹き出し消す
-  canvas.addEventListener('pointerleave', () => { hideSelfTip(); canvas.style.cursor = ''; });
   // 右クリック → フロアジャンプメニュー (canvas/フロア空間なら全域で開く)
   // 入力欄やチャットパネル/ドック上では従来のブラウザメニューを残す
   document.addEventListener('contextmenu', (e) => {
@@ -1879,9 +1876,6 @@ function hitTestSelf(worldX, worldY) {
 }
 
 function onPointerDown(e) {
-  // どこを押しても吹き出しは即消す (移動の邪魔にならないように)
-  hideSelfTip();
-  canvas.style.cursor = '';
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
   // 自分のアバタータップ: タッチのみメニュー (右クリックのないモバイル用)。マウスは右クリック専用
@@ -1907,18 +1901,6 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
-  // ホバー: マウスが自分アバター上に来たら吹き出し表示 (ドラッグ中・タッチは除外)
-  if (!dragging && e.pointerType === 'mouse') {
-    const r = canvas.getBoundingClientRect();
-    const world = screenToWorld(e.clientX - r.left, e.clientY - r.top);
-    if (hitTestSelf(world.x, world.y)) {
-      showSelfTip(e.clientX, e.clientY);
-      canvas.style.cursor = 'context-menu';
-    } else {
-      hideSelfTip();
-      canvas.style.cursor = '';
-    }
-  }
   if (!dragging) return;
   const r = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - r.left, e.clientY - r.top);
@@ -1930,23 +1912,6 @@ function onPointerMove(e) {
     // ローカルだけ先行補間
     if (users[me]) targets[me] = { x: clampX(world.x), y: clampY(world.y) };
   }
-}
-
-function showSelfTip(screenX, screenY) {
-  const tip = document.getElementById('self-tip');
-  if (!tip) return;
-  tip.style.display = 'block';
-  // ツールチップ自体の幅を見て画面端で反転
-  const tw = tip.offsetWidth || 180;
-  const vw = window.innerWidth;
-  let x = screenX + 14;
-  if (x + tw > vw - 8) x = screenX - tw - 14;
-  tip.style.left = Math.max(8, x) + 'px';
-  tip.style.top = Math.max(8, screenY - 38) + 'px';
-}
-function hideSelfTip() {
-  const tip = document.getElementById('self-tip');
-  if (tip) tip.style.display = 'none';
 }
 
 function onPointerUp(e) {
