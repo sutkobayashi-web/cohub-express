@@ -1881,9 +1881,12 @@ function hitTestSelf(worldX, worldY) {
 function onPointerDown(e) {
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-  // 自分のアバタータップ → フロアジャンプメニュー (移動せず)
+  // 自分のアバタータップ: タッチのみメニュー (右クリックのないモバイル用)。マウスは右クリック専用
   if (hitTestSelf(world.x, world.y)) {
-    showSelfFloorMenu(e.clientX, e.clientY);
+    if (e.pointerType !== 'mouse') {
+      showSelfFloorMenu(e.clientX, e.clientY);
+    }
+    // マウス左クリック時は何もしない (移動もしない=同じ位置にいるため)
     return;
   }
   const peer = hitTestPeer(world.x, world.y);
