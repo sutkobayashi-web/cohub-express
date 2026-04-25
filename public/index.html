@@ -1879,6 +1879,9 @@ function hitTestSelf(worldX, worldY) {
 }
 
 function onPointerDown(e) {
+  // どこを押しても吹き出しは即消す (移動の邪魔にならないように)
+  hideSelfTip();
+  canvas.style.cursor = '';
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
   // 自分のアバタータップ: タッチのみメニュー (右クリックのないモバイル用)。マウスは右クリック専用
