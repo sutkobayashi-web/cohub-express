@@ -1241,12 +1241,8 @@ function initCanvas() {
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerUp);
-  // 右クリック → フロアジャンプメニュー (canvas/フロア空間なら全域で開く)
-  // 入力欄やチャットパネル/ドック上では従来のブラウザメニューを残す
-  document.addEventListener('contextmenu', (e) => {
-    const t = e.target;
-    if (!t) return;
-    if (t.closest('input, textarea, select, [contenteditable="true"], #right-panel, #dock, #left-rail, #peer-menu, .modal, #wellness-iframe')) return;
+  // ダブルクリック → フロアジャンプメニュー (右クリックよりスムーズ)
+  canvas.addEventListener('dblclick', (e) => {
     e.preventDefault();
     showSelfFloorMenu(e.clientX, e.clientY);
   });
@@ -1878,12 +1874,9 @@ function hitTestSelf(worldX, worldY) {
 function onPointerDown(e) {
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-  // 自分のアバタータップ: タッチのみメニュー (右クリックのないモバイル用)。マウスは右クリック専用
-  if (hitTestSelf(world.x, world.y)) {
-    if (e.pointerType !== 'mouse') {
-      showSelfFloorMenu(e.clientX, e.clientY);
-    }
-    // マウス左クリック時は何もしない (移動もしない=同じ位置にいるため)
+  // 自分のアバタータップ: タッチのみメニュー (タッチ端末用)。マウスはダブルクリック専用
+  if (hitTestSelf(world.x, world.y) && e.pointerType !== 'mouse') {
+    showSelfFloorMenu(e.clientX, e.clientY);
     return;
   }
   const peer = hitTestPeer(world.x, world.y);
