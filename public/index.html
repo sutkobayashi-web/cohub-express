@@ -1241,6 +1241,15 @@ function initCanvas() {
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerUp);
+  // 右クリック → フロアジャンプメニュー (canvas/フロア空間なら全域で開く)
+  // 入力欄やチャットパネル/ドック上では従来のブラウザメニューを残す
+  document.addEventListener('contextmenu', (e) => {
+    const t = e.target;
+    if (!t) return;
+    if (t.closest('input, textarea, select, [contenteditable="true"], #right-panel, #dock, #left-rail, #peer-menu, .modal, #wellness-iframe')) return;
+    e.preventDefault();
+    showSelfFloorMenu(e.clientX, e.clientY);
+  });
 
   document.getElementById('chat-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
