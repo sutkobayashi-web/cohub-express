@@ -200,4 +200,35 @@ async function chatBot(botId, userMessage, history) {
   throw new Error('応答テキストなし');
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot };
+// 汎用テキスト生成 (プロンプト→テキスト) — 健康管理室AI集計などで使用
+async function generateText(prompt, opts) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  opts = opts || {};
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: opts.temperature != null ? opts.temperature : 0.5,
+      maxOutputTokens: opts.maxTokens || 2000,
+      responseMimeType: opts.responseMimeType || undefined,
+    },
+  };
+  const model = opts.model || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 300));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  if (!parts) throw new Error('Gemini応答なし');
+  for (const p of parts) if (p.text) return p.text.trim();
+  throw new Error('応答テキストなし');
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText };

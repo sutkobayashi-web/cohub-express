@@ -41,6 +41,29 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_wp_at ON wellness_posts(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wp_cat ON wellness_posts(category, created_at DESC);`);
+  // 健康管理室 月次施策ボード
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    source_post_ids TEXT,
+    source_summary TEXT,
+    status TEXT NOT NULL DEFAULT '候補',
+    owner_id TEXT,
+    budget_jpy INTEGER DEFAULT 0,
+    target_date TEXT,
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    approved_by TEXT,
+    approved_at TEXT,
+    completed_at TEXT,
+    announce_message TEXT,
+    is_ai_suggested INTEGER DEFAULT 0,
+    rejection_reason TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_wa_status ON wellness_actions(status, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_wa_at ON wellness_actions(created_at DESC);`);
   // 労働安全健康推進室への名称統一 (旧: 安全衛生健康管理室)
   _db.prepare("UPDATE floors SET name = '労働安全健康推進室' WHERE code = 'wellness_room'").run();
   // login_id 統一: eitaro → e_sugai (須貝栄二)
@@ -54,10 +77,20 @@ function getDb() {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
       .run(PROMOTER_GROUP_ID, '🩺 現場の声 (運管POST)', '🩺', null);
   }
-  // メンバー: 推進メンバー + 全管理者を自動加入 (既加入はON CONFLICTでスキップ)
+  // 健康管理室ディスカッションGC (Bライン: 事務側からの直接議論)
+  const WELLNESS_DISC_ID = 'g_wellness_disc';
+  const discExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(WELLNESS_DISC_ID);
+  if (!discExists) {
+    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
+      .run(WELLNESS_DISC_ID, '🏥 健康管理室ディスカッション', '🏥', null);
+  }
+  // メンバー: 推進メンバー + 全管理者を自動加入 (両グループ共通、既加入はスキップ)
   const promoterRows = _db.prepare("SELECT id FROM users WHERE is_field_promoter = 1 OR role = 'admin'").all();
   const memInsert = _db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
-  for (const r of promoterRows) memInsert.run(PROMOTER_GROUP_ID, r.id);
+  for (const r of promoterRows) {
+    memInsert.run(PROMOTER_GROUP_ID, r.id);
+    memInsert.run(WELLNESS_DISC_ID, r.id);
+  }
   // 事務所棟フロアの登場位置を正面玄関(下中央)に揃える
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')
