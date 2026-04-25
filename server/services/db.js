@@ -45,8 +45,8 @@ function getDb() {
   _db.prepare("UPDATE floors SET name = '労働安全健康推進室' WHERE code = 'wellness_room'").run();
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
-  // 推進メンバー初期付与 (運管型)
-  _db.prepare("UPDATE users SET is_field_promoter = 1 WHERE login_id IN ('y_yoshizawa','a_yamada','e_sugai')").run();
+  // 推進メンバー初期付与 (運管型) — taketake はテスト確認用
+  _db.prepare("UPDATE users SET is_field_promoter = 1 WHERE login_id IN ('y_yoshizawa','a_yamada','e_sugai','taketake')").run();
   // 現場の声 専用グループチャット作成 (idempotent)
   const PROMOTER_GROUP_ID = 'g_field_voice';
   const grpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(PROMOTER_GROUP_ID);
