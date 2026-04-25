@@ -26,8 +26,38 @@ function getDb() {
   ensureColumn(_db, 'users', 'dm_group', 'dm_group TEXT');
   ensureColumn(_db, 'users', 'dm_rank', 'dm_rank INTEGER DEFAULT 0');
   ensureColumn(_db, 'users', 'last_wellness_dm_date', 'last_wellness_dm_date TEXT');
+  // 推進メンバー(運管型) フラグ — 健康管理室 現場の声POST権限
+  ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
+  // 現場の声POST 構造化テーブル
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    poster_id TEXT NOT NULL,
+    company_code TEXT,
+    category TEXT NOT NULL,
+    urgency TEXT NOT NULL,
+    identity_mode TEXT NOT NULL,
+    memo TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_wp_at ON wellness_posts(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_wp_cat ON wellness_posts(category, created_at DESC);`);
   // 労働安全健康推進室への名称統一 (旧: 安全衛生健康管理室)
   _db.prepare("UPDATE floors SET name = '労働安全健康推進室' WHERE code = 'wellness_room'").run();
+  // login_id 統一: eitaro → e_sugai (須貝栄二)
+  try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
+  // 推進メンバー初期付与 (運管型)
+  _db.prepare("UPDATE users SET is_field_promoter = 1 WHERE login_id IN ('y_yoshizawa','a_yamada','e_sugai')").run();
+  // 現場の声 専用グループチャット作成 (idempotent)
+  const PROMOTER_GROUP_ID = 'g_field_voice';
+  const grpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(PROMOTER_GROUP_ID);
+  if (!grpExists) {
+    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
+      .run(PROMOTER_GROUP_ID, '🩺 現場の声 (運管POST)', '🩺', null);
+  }
+  // メンバー: 推進メンバー + 全管理者を自動加入 (既加入はON CONFLICTでスキップ)
+  const promoterRows = _db.prepare("SELECT id FROM users WHERE is_field_promoter = 1 OR role = 'admin'").all();
+  const memInsert = _db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
+  for (const r of promoterRows) memInsert.run(PROMOTER_GROUP_ID, r.id);
   // 事務所棟フロアの登場位置を正面玄関(下中央)に揃える
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')

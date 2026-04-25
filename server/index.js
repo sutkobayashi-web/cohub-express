@@ -219,6 +219,7 @@ app.use('/api/avatar', require('./routes/avatar'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/voice', require('./routes/tts'));
+app.use('/api/wellness', require('./routes/wellness'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {
@@ -358,6 +359,22 @@ io.use((socket, next) => {
 
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
+
+// REST → ソケット 配信ヘルパー (ルートから呼び出せるようlocalsに登録)
+app.locals.emitToGroupMembers = function(groupId, eventName, payload) {
+  try {
+    const members = getDb().prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(groupId);
+    for (const m of members) {
+      const tp = presence.get(m.user_id);
+      if (tp) {
+        const s = io.sockets.sockets.get(tp.socketId);
+        if (s) s.emit(eventName, payload);
+      }
+    }
+    return members.length;
+  } catch (e) { console.warn('emitToGroupMembers fail', e.message); return 0; }
+};
+app.locals.sendPushToUser = (uid, p) => sendPushToUser(uid, p);
 
 // ハドルゾーン定義 (フロア毎・座標は world 座標)
 // zone内のユーザーは独立した音声グループを形成 (フロア外の人には聞こえない)

@@ -507,6 +507,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-groups" onclick="openGroupsPanel()" title="グループ">
       <span>🗨</span><span class="lbl">グループ</span><span class="cnt" id="rail-groups-cnt" style="display:none;">0</span>
     </button>
+    <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
+      <span>🩺</span><span class="lbl">現場の声</span>
+    </button>
     <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
       <span>🎨</span><span class="lbl">アバター</span>
     </button>
@@ -700,6 +703,39 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
 <!-- アバター設定モーダル -->
 <div id="avatar-modal" style="display:none;"></div>
+
+<!-- 🩺 現場の声POSTモーダル (推進メンバー専用) -->
+<div id="fieldvoice-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:460px;box-shadow:0 24px 60px rgba(15,23,42,0.4);max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="font-size:18px;font-weight:800;color:#047857;flex:1;">🩺 現場の声 POST</div>
+      <button onclick="closeFieldVoiceModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:14px;line-height:1.6;">点呼/帰庫時に現場で気付いたことを30秒で記録。健康管理室の推進メンバーに即共有されます。</div>
+    <form id="fieldvoice-form" autocomplete="off" onsubmit="event.preventDefault(); submitFieldVoice();">
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:5px;font-weight:700;">カテゴリ <span style="color:#dc2626;">*</span></label>
+        <div id="fv-cat-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;"></div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:5px;font-weight:700;">緊急度 <span style="color:#dc2626;">*</span></label>
+        <div id="fv-urg-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;"></div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:5px;font-weight:700;">特定区分 <span style="color:#dc2626;">*</span></label>
+        <div id="fv-id-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;"></div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:4px;">本人特定可=管理者会話に名前出てもOK / 匿名=名前伏せて共有 / 集計のみ=傾向集計用</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:5px;font-weight:700;">一言メモ (任意・200字)</label>
+        <textarea id="fv-memo" rows="3" maxlength="200" placeholder="例) 朝礼でAさん腰痛気にしていた。配車軽めにしてあげたい" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;text-align:right;"><span id="fv-memo-count">0</span>/200</div>
+      </div>
+      <div id="fv-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;min-height:14px;"></div>
+      <button type="submit" id="fv-submit" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#047857);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">POST送信</button>
+    </form>
+  </div>
+</div>
 
 <!-- 🔑 パスワード変更モーダル -->
 <div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
@@ -948,6 +984,82 @@ function openPasswordModal() {
 function closePasswordModal() {
   document.getElementById('pw-modal').style.display = 'none';
 }
+
+// ===== 🩺 現場の声 (推進メンバー専用 POST) =====
+let _fvMeta = null;
+let _fvState = { category: '', urgency: '', identity_mode: '' };
+async function openFieldVoiceModal() {
+  if (!currentUser || !currentUser.is_field_promoter) return;
+  document.getElementById('fv-err').textContent = '';
+  document.getElementById('fv-memo').value = '';
+  document.getElementById('fv-memo-count').textContent = '0';
+  _fvState = { category: '', urgency: '', identity_mode: '' };
+  // メタ情報取得 (初回のみ)
+  if (!_fvMeta) {
+    try {
+      const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
+      _fvMeta = await r.json();
+    } catch (e) { _fvMeta = { categories: ['体調','食事','睡眠','職場環境','その他'], urgencies: ['低','中','高'], identity_modes: ['本人特定可','匿名','集計のみ'] }; }
+  }
+  // 選択肢ボタン描画
+  const renderChoiceGrid = (id, items, key, defaultIdx) => {
+    const host = document.getElementById(id);
+    host.innerHTML = items.map((v, i) => {
+      return `<button type="button" data-v="${escapeHtml(v)}" onclick="setFieldVoice('${key}', '${escapeHtml(v)}')" style="padding:9px 4px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:12px;font-weight:700;color:#475569;cursor:pointer;">${escapeHtml(v)}</button>`;
+    }).join('');
+    if (defaultIdx != null && items[defaultIdx]) setFieldVoice(key, items[defaultIdx]);
+  };
+  renderChoiceGrid('fv-cat-grid', _fvMeta.categories || [], 'category');
+  renderChoiceGrid('fv-urg-grid', _fvMeta.urgencies || [], 'urgency', 0);  // デフォルト=低
+  renderChoiceGrid('fv-id-grid', _fvMeta.identity_modes || [], 'identity_mode', 2);  // デフォルト=集計のみ
+  document.getElementById('fieldvoice-modal').style.display = 'flex';
+}
+function closeFieldVoiceModal() {
+  document.getElementById('fieldvoice-modal').style.display = 'none';
+}
+function setFieldVoice(key, v) {
+  _fvState[key] = v;
+  const gridId = key === 'category' ? 'fv-cat-grid' : key === 'urgency' ? 'fv-urg-grid' : 'fv-id-grid';
+  const host = document.getElementById(gridId);
+  if (!host) return;
+  host.querySelectorAll('button').forEach(b => {
+    const active = b.dataset.v === v;
+    b.style.background = active ? 'rgba(16,185,129,0.12)' : '#fff';
+    b.style.borderColor = active ? '#10b981' : '#e2e8f0';
+    b.style.color = active ? '#047857' : '#475569';
+  });
+}
+async function submitFieldVoice() {
+  const memo = document.getElementById('fv-memo').value.trim();
+  const errEl = document.getElementById('fv-err');
+  errEl.textContent = '';
+  if (!_fvState.category) { errEl.textContent = 'カテゴリを選択してください'; return; }
+  if (!_fvState.urgency) { errEl.textContent = '緊急度を選択してください'; return; }
+  if (!_fvState.identity_mode) { errEl.textContent = '特定区分を選択してください'; return; }
+  const btn = document.getElementById('fv-submit');
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    const r = await fetch('/api/wellness/post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ category: _fvState.category, urgency: _fvState.urgency, identity_mode: _fvState.identity_mode, memo }),
+    });
+    const j = await r.json();
+    if (!j.success) { errEl.textContent = j.msg || '送信失敗'; btn.disabled = false; btn.textContent = 'POST送信'; return; }
+    closeFieldVoiceModal();
+    showToast('🩺 現場の声を送信しました (#' + j.post_id + ')');
+  } catch (e) {
+    errEl.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = 'POST送信';
+  }
+}
+// memo文字数カウンタ
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'fv-memo') {
+    const c = document.getElementById('fv-memo-count');
+    if (c) c.textContent = String(e.target.value.length);
+  }
+});
 
 // ===== 📅 カレンダー連携 =====
 async function openCalModal() {
@@ -1198,6 +1310,28 @@ function enterSpace() {
     const rb = document.getElementById('dock-rec');
     if (rb) rb.style.display = 'flex';
   }
+  // 推進メンバー(運管型)のみ「現場の声」ボタンを表示
+  if (currentUser && currentUser.is_field_promoter) {
+    const fb = document.getElementById('rail-fieldvoice');
+    if (fb) fb.style.display = 'flex';
+  }
+  // 既存ログインユーザーの userData が古い場合に最新フラグを再取得 (idempotent)
+  refreshUserMe();
+}
+
+async function refreshUserMe() {
+  try {
+    const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success || !j.user) return;
+    currentUser = j.user;
+    userData = j.user;
+    localStorage.setItem('cohub_user', JSON.stringify(userData));
+    if (currentUser.is_field_promoter) {
+      const fb = document.getElementById('rail-fieldvoice');
+      if (fb) fb.style.display = 'flex';
+    }
+  } catch (e) {}
 }
 
 // サーバーから指定フロアの直近100件を取得

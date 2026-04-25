@@ -52,7 +52,27 @@ router.post('/login', (req, res) => {
       role: user.role,
       employee_type: user.employee_type || 'office',
       avatar_url: user.avatar_url,
+      is_field_promoter: !!user.is_field_promoter,
     }
+  });
+});
+
+// 自分の最新ユーザー情報 (フラグ追加時に既存ログイン中ユーザーが再取得できるよう)
+router.get('/me', authUser, (req, res) => {
+  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, role, employee_type, avatar_url, is_field_promoter FROM users WHERE id = ?').get(req.uid);
+  if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
+  res.json({
+    success: true,
+    user: {
+      uid: u.id,
+      login_id: u.login_id,
+      display_name: u.display_name,
+      company_code: u.company_code,
+      role: u.role,
+      employee_type: u.employee_type || 'office',
+      avatar_url: u.avatar_url,
+      is_field_promoter: !!u.is_field_promoter,
+    },
   });
 });
 
