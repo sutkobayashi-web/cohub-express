@@ -236,19 +236,31 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
   const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
-  const prompt = `あなたは管理栄養士です。この食事画像を見て、栄養スコアと一言コメントを返してください。
+  const prompt = `あなたは食事を見るのが好きな栄養のプロです。友達に「これ食べたよ」と見せられたときの自然な反応をしてください。国立長寿医療研究センター「栄養改善パック」(2020) に基づき分析。
 ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
-判定が難しくても必ず「見た目から推測した best estimate」のスコアを返すこと。
-判定不能 (食事ではない等) の場合のみ scores を全て null にする。
+画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
+それ以外は箸/茶碗/手等の基準物から実重量を推定し、食品成分表で算出。
 
-返答形式: JSON のみ。前置き、コードフェンス、説明文を一切付けない。
+★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。
 
-{"scores":{"protein":3,"fat":3,"carb":3,"vitamin":3,"mineral":3,"salt":3},"comment":"野菜が豊富で◎、塩分を少し控えめにするとさらに良いです"}
+{"comment":"60〜120字の自然な感想 (良い点+軽い改善提案)","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由"}}
 
-ルール:
-- 各スコアは 1〜5 の整数 (1=非常に少ない, 3=適量, 5=多い)
-- vitamin/mineral は野菜・果物の量で評価
-- comment は string、60字以内、改善1点+良い点1点を自然な1文で`;
+各値:
+- calories: kcal (目標 450-650/食)
+- protein: g (目標 20)
+- fat: g (目標 12-18)
+- carbs: g (目標 69-89)
+- vitamin: 野菜量 g (目標 120)
+- mineral: カルシウム mg (目標 227)
+- salt: 食塩相当量 g (目標 2.5未満)
+- fiber: 食物繊維 g (目標 7)
+- alcohol: 純アルコール g (酒なし=0)。ビール350ml=14g、日本酒1合=22g
+- has_alcohol: 画像に酒類があれば true
+- confidence.level: 3(成分表示) / 2(一部成分表示or定番料理) / 1(目視推定)
+- confidence.reason: 上記の理由文
+
+数値はカンマ無し。実数または推定実数 (小数点1桁まで)。
+不適切画像 (食事ではない) の場合は全 value を 0、comment に理由。`;
 
   const body = {
     contents: [{

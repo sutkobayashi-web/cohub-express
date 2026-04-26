@@ -73,16 +73,22 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .del-btn { background: transparent; border: none; color: #cbd5e1; font-size: 16px; cursor: pointer; padding: 4px 8px; }
 .del-btn:hover { color: #ef4444; }
 
-/* 栄養スコア */
-.nutri { background: linear-gradient(135deg, #fef3c7, #fef9c3); border-radius: 10px; padding: 10px; margin-top: 10px; }
-.nutri-head { font-size: 11px; font-weight: 800; color: #78350f; margin-bottom: 6px; }
-.nutri-bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.nutri-bar { text-align: center; }
-.nutri-bar .l { font-size: 9px; color: #78350f; font-weight: 700; }
-.nutri-bar .b { height: 32px; display: flex; align-items: flex-end; justify-content: center; }
-.nutri-bar .b .fill { width: 100%; background: linear-gradient(180deg, #f59e0b, #d97706); border-radius: 3px 3px 0 0; min-height: 2px; }
-.nutri-bar .v { font-size: 10px; font-weight: 800; color: #78350f; }
-.ai-cmt { font-size: 12px; color: #78350f; margin-top: 6px; padding: 6px 8px; background: rgba(255,255,255,0.5); border-radius: 6px; line-height: 1.5; }
+/* 栄養エビデンス対比バーチャート (CoWell 移植) */
+.nutri-card { margin: 10px 0; padding: 12px; background: #f8faf9; border-radius: 10px; border: 1px solid #e0f0e8; }
+.nutri-card .nutri-title { font-size: 12px; font-weight: 800; color: #1a3c34; margin-bottom: 10px; }
+.nutri-row { margin-bottom: 5px; }
+.nutri-row .label-line { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1px; }
+.nutri-row .label-line .lbl { font-size: 12px; font-weight: 700; color: #444; }
+.nutri-row .label-line .val { font-size: 11px; font-weight: 700; }
+.nutri-row .label-line .status { font-size: 9px; padding: 1px 5px; border-radius: 5px; margin-left: 4px; }
+.nutri-row .bar-wrap { position: relative; height: 8px; background: #e9ecef; border-radius: 3px; margin-bottom: 16px; }
+.nutri-row .bar-fill { height: 100%; border-radius: 3px; }
+.nutri-row .bar-target { position: absolute; top: -2px; width: 1.5px; height: 12px; background: #333; opacity: 0.45; border-radius: 1px; }
+.nutri-row .bar-target-lbl { position: absolute; top: 12px; transform: translateX(-50%); font-size: 8px; color: #888; white-space: nowrap; }
+.nutri-conf { margin-top: 6px; text-align: center; }
+.nutri-conf .badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+.nutri-foot { text-align: right; font-size: 9px; color: #aaa; margin-top: 6px; }
+.ai-cmt-block { font-size: 12px; color: #1a3c34; margin-top: 6px; padding: 8px 10px; background: linear-gradient(135deg,#f0faf4,#edf4ff); border-radius: 8px; line-height: 1.6; border-left: 3px solid #20c997; white-space: pre-wrap; word-wrap: break-word; }
 
 .post-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .react-btn { padding: 6px 10px; background: #f8fafc; border: 1px solid transparent; border-radius: 16px; cursor: pointer; font-size: 13px; }
@@ -206,6 +212,93 @@ function relTime(iso) {
   if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
   const d = new Date(t);
   return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+// CoWell 栄養エビデンス対比バーチャート (admin-food.js 移植)
+function buildNutritionBar(sc) {
+  if (!sc) return '';
+  // 旧形式 (1〜5 int) 検出 → 推定値に変換
+  const isLegacy = (typeof sc.protein === 'number' && sc.protein <= 5 && !sc.calories);
+  if (isLegacy) {
+    sc = {
+      calories: { value: 300 + (sc.protein || 3) * 70, unit: 'kcal' },
+      protein: { value: (sc.protein || 3) * 5, unit: 'g' },
+      fat: { value: 5 + (sc.fat || 3) * 2.5, unit: 'g' },
+      carbs: { value: 40 + (sc.carbs || sc.carb || 3) * 10, unit: 'g' },
+      vitamin: { value: (sc.vitamin || 3) * 30, unit: 'g' },
+      mineral: { value: (sc.mineral || 3) * 55, unit: 'mg' },
+      fiber: { value: (sc.vitamin || 3) * 1.5, unit: 'g' },
+      salt: { value: 4.0 - (sc.salt || 3) * 0.5, unit: 'g' },
+      alcohol: { value: 0, unit: 'g' },
+    };
+  }
+  const items = [
+    { key: 'calories', icon: '🔥', label: 'カロリー',     unit: 'kcal', target: 550, min: 450, max: 650, range: true },
+    { key: 'protein',  icon: '🍖', label: 'たんぱく質',   unit: 'g',    target: 20 },
+    { key: 'fat',      icon: '🫒', label: '脂質',         unit: 'g',    target: 15, min: 12, max: 18, range: true },
+    { key: 'carbs',    icon: '🍚', label: '炭水化物',     unit: 'g',    target: 79, min: 69, max: 89, range: true },
+    { key: 'vitamin',  icon: '🥬', label: '野菜量',       unit: 'g',    target: 120 },
+    { key: 'mineral',  icon: '🦴', label: 'カルシウム',   unit: 'mg',   target: 227 },
+    { key: 'fiber',    icon: '🌾', label: '食物繊維',     unit: 'g',    target: 7 },
+    { key: 'salt',     icon: '🧂', label: '塩分',         unit: 'g',    target: 2.5, reverse: true },
+    { key: 'alcohol',  icon: '🍺', label: 'アルコール',   unit: 'g',    target: 20, reverse: true, optional: true },
+  ];
+  let html = '<div class="nutri-card">';
+  html += '<div class="nutri-title">📊 栄養バランス（エビデンス対比）</div>';
+  // calories の値を fat/carbs %→g 変換に使う
+  const calRaw = sc.calories;
+  const calV = (calRaw && typeof calRaw === 'object') ? Number(calRaw.value) : (typeof calRaw === 'number' ? calRaw : 550);
+  for (const item of items) {
+    const raw = sc[item.key];
+    let val = 0;
+    if (raw && typeof raw === 'object' && raw.value !== undefined) val = Number(raw.value);
+    else if (typeof raw === 'number') val = raw;
+    if (item.optional && val === 0) continue;
+    // 旧データ互換: fat/carbs が % で保存されている場合 → g に変換
+    if (item.key === 'fat' && val > 0 && val <= 50) val = Math.round(val * calV / 100 / 9 * 10) / 10;
+    if (item.key === 'carbs' && val > 0 && val <= 70) val = Math.round(val * calV / 100 / 4 * 10) / 10;
+    const barMax = item.target * 1.5;
+    const pct = Math.min(100, (val / barMax) * 100);
+    let status, color;
+    if (item.reverse) {
+      if (val <= item.target * 0.8) { status = '良好'; color = '#20c997'; }
+      else if (val <= item.target) { status = '適量'; color = '#f59e0b'; }
+      else { status = '超過'; color = '#ef4444'; }
+    } else if (item.range) {
+      if (val >= item.min && val <= item.max) { status = '適量'; color = '#20c997'; }
+      else if (val < item.min) { status = '不足'; color = '#f59e0b'; }
+      else { status = '超過'; color = '#ef4444'; }
+    } else {
+      const ratio = val / item.target;
+      if (ratio >= 0.8 && ratio <= 1.3) { status = '適量'; color = '#20c997'; }
+      else if (ratio < 0.8) { status = '不足'; color = '#f59e0b'; }
+      else { status = '超過'; color = '#ef4444'; }
+    }
+    const targetPct = Math.min(100, (item.target / barMax) * 100);
+    const dispVal = (val % 1 === 0) ? val : val.toFixed(1);
+    html += `<div class="nutri-row">
+      <div class="label-line">
+        <span class="lbl">${item.icon} ${escapeHtml(item.label)}</span>
+        <span class="val" style="color:${color};">${dispVal}${item.unit}<span class="status" style="background:${color}22;color:${color};">${status}</span></span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-fill" style="width:${pct}%;background:${color};"></div>
+        <div class="bar-target" style="left:${targetPct}%;"></div>
+        <div class="bar-target-lbl" style="left:${targetPct}%;">${item.target}</div>
+      </div>
+    </div>`;
+  }
+  // 信憑性バッジ
+  const conf = sc.confidence;
+  if (conf && conf.level) {
+    const stars = conf.level === 3 ? '★★★' : conf.level === 2 ? '★★☆' : '★☆☆';
+    const cc = conf.level === 3 ? '#20c997' : conf.level === 2 ? '#f59e0b' : '#ef4444';
+    const lbl = conf.reason || (conf.level === 3 ? '成分表示' : conf.level === 2 ? '定番料理' : '目視推定');
+    html += `<div class="nutri-conf"><span class="badge" style="background:${cc}18;color:${cc};">🔍 信憑性 ${stars}（${escapeHtml(lbl)}）</span></div>`;
+  }
+  html += '<div class="nutri-foot">▮ 基準値｜食事摂取基準2025・スマートミール基準</div>';
+  html += '</div>';
+  return html;
 }
 
 async function api(p, opts) {
@@ -400,59 +493,14 @@ function postHtml(p) {
   let nutri = '';
   if (p.nutrition_scores) {
     try {
-      const ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
-      // CoWell新形式 ({value:40, unit:"g"}) と 旧形式 (int 1-5) 両対応
-      // 新形式の場合は g/mg/kcal の絶対値→1〜5スコアに正規化
-      function toScore(k, raw) {
-        if (raw == null || raw === '') return 0;
-        if (typeof raw === 'number') return Math.max(0, Math.min(5, parseInt(raw) || 0));
-        if (typeof raw === 'object' && raw.value != null) {
-          const v = parseFloat(raw.value);
-          if (isNaN(v)) return 0;
-          // 各栄養素の標準摂取目安に対する比率で 1〜5 スコア化 (1食分基準)
-          const ref = { protein: 25, fat: 25, carb: 90, vitamin: 100, mineral: 200, salt: 3 };
-          const r = ref[k] || 100;
-          if (v <= r * 0.2) return 1;
-          if (v <= r * 0.6) return 2;
-          if (v <= r * 1.2) return 3;
-          if (v <= r * 1.8) return 4;
-          return 5;
-        }
-        const n = parseInt(raw);
-        return isNaN(n) ? 0 : Math.max(0, Math.min(5, n));
-      }
-      function rawValue(raw) {
-        if (raw == null) return null;
-        if (typeof raw === 'object' && raw.value != null) return raw.value + (raw.unit || '');
-        if (typeof raw === 'number') return raw;
-        return null;
-      }
-      // CoWell新形式の "carbs" にも対応
-      const ns2 = { ...ns };
-      if (ns2.carbs != null && ns2.carb == null) ns2.carb = ns2.carbs;
-      const bars = NUTRI_KEYS.map(k => {
-        const raw = ns2[k];
-        const v = toScore(k, raw);
-        const rv = rawValue(raw);
-        const pct = (v / 5) * 100;
-        return `<div class="nutri-bar" title="${rv != null ? escapeHtml(String(rv)) : ''}">
-          <div class="l">${NUTRI_LABELS[k]}</div>
-          <div class="b"><div class="fill" style="height:${pct}%"></div></div>
-          <div class="v">${v || '-'}</div>
-        </div>`;
-      }).join('');
-      const cal = ns.calories && ns.calories.value;
-      const calBadge = cal ? `<span style="background:#fef3c7;color:#78350f;padding:1px 8px;border-radius:8px;font-size:10px;font-weight:800;margin-left:6px;">${Math.round(cal)} kcal</span>` : '';
+      let ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
+      nutri = buildNutritionBar(ns);
+      // AI コメント (CoWell の analysis or 新規の ai_comment)
       let cmt = p.ai_comment;
       if (cmt && typeof cmt === 'object') cmt = Object.values(cmt).filter(v => typeof v === 'string').join(' / ');
       if (cmt === '[object Object]' || cmt === 'undefined' || cmt === 'null') cmt = '';
-      // CoWell の analysis は長文markdown。アーカイブは200字でtruncate
-      if (p.kind === 'archive' && cmt && cmt.length > 240) cmt = cmt.slice(0, 240) + '…';
-      nutri = `<div class="nutri">
-        <div class="nutri-head">🍱 AI栄養分析${calBadge}</div>
-        <div class="nutri-bars">${bars}</div>
-        ${cmt ? `<div class="ai-cmt">💬 ${escapeHtml(cmt)}</div>` : ''}
-      </div>`;
+      if (p.kind === 'archive' && cmt && cmt.length > 320) cmt = cmt.slice(0, 320) + '…';
+      if (cmt) nutri += `<div class="ai-cmt-block">💬 ${escapeHtml(cmt)}</div>`;
     } catch (e) { console.warn('nutri parse fail', e.message, p.nutrition_scores); }
   }
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';

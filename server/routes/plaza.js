@@ -162,6 +162,7 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   const isAnonymous = (req.body && (req.body.is_anonymous === '1' || req.body.is_anonymous === 'true')) ? 1 : 0;
 
   // 食事カテゴリ + 画像あり → AI 栄養分析を試行 (失敗しても投稿は成立)
+  // CoWell 互換フォーマット ({calories:{value,unit}, protein:{value,unit}, ... confidence:{level,reason}}) で保存
   let nutritionScores = null;
   let aiComment = null;
   if (category === '食事' && req.file) {
@@ -169,26 +170,28 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
     try {
       const buf = fs.readFileSync(req.file.path);
       const r = await analyzeFoodImage(buf, req.file.mimetype, content);
-      if (r && r.scores && typeof r.scores === 'object') {
-        // 各スコアを整数に正規化 (string→int, 範囲外はclamp)
-        const norm = {};
+      if (r && typeof r === 'object') {
+        // comment と nutrition データを分離
+        if (r.comment != null) {
+          if (typeof r.comment === 'string') aiComment = r.comment;
+          else if (typeof r.comment === 'object') aiComment = Object.values(r.comment).filter(v => typeof v === 'string').join(' / ');
+          if (aiComment) aiComment = String(aiComment).slice(0, 400);
+        }
+        // CoWellフォーマットの数値項目を抽出してJSON保存
+        const NUTRI_KEYS = ['calories', 'protein', 'fat', 'carbs', 'vitamin', 'mineral', 'salt', 'fiber', 'alcohol'];
+        const scores = {};
         let hasAny = false;
-        for (const k of ['protein', 'fat', 'carb', 'vitamin', 'mineral', 'salt']) {
-          const v = parseInt(r.scores[k]);
-          if (!isNaN(v)) { norm[k] = Math.max(1, Math.min(5, v)); hasAny = true; }
-          else norm[k] = null;
+        for (const k of NUTRI_KEYS) {
+          if (r[k] != null) {
+            scores[k] = r[k];
+            hasAny = true;
+          }
         }
-        if (hasAny) nutritionScores = JSON.stringify(norm);
+        if (r.has_alcohol != null) scores.has_alcohol = !!r.has_alcohol;
+        if (r.confidence != null) scores.confidence = r.confidence;
+        if (hasAny) nutritionScores = JSON.stringify(scores);
       }
-      // コメントが object なら適切に文字列化
-      if (r && r.comment != null) {
-        if (typeof r.comment === 'string') aiComment = r.comment;
-        else if (typeof r.comment === 'object') {
-          aiComment = Object.values(r.comment).filter(v => typeof v === 'string').join(' / ');
-        }
-        if (aiComment) aiComment = String(aiComment).slice(0, 200);
-      }
-      console.log('[plaza] AI analysis done: scores=' + (nutritionScores ? 'YES' : 'no') + ' comment=' + (aiComment ? aiComment.slice(0, 60) : 'no'));
+      console.log('[plaza] AI done: scores=' + (nutritionScores ? 'YES' : 'no') + ' comment=' + (aiComment ? aiComment.slice(0, 60) : 'no'));
     } catch (e) { console.warn('[plaza] food AI fail:', e.message); }
   }
 
