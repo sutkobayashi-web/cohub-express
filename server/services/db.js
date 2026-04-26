@@ -66,6 +66,34 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_wa_at ON wellness_actions(created_at DESC);`);
   // 健康管理室への名称統一 (旧: 労働安全健康推進室 / 安全衛生健康管理室)
   _db.prepare("UPDATE floors SET name = '健康管理室' WHERE code = 'wellness_room'").run();
+  // 社内タイムライン (掲示板) — Phase1 コミュニケーション基盤強化
+  _db.exec(`CREATE TABLE IF NOT EXISTS board_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author_id TEXT NOT NULL,
+    content TEXT,
+    image_url TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_bp_at ON board_posts(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_bp_author ON board_posts(author_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS board_reactions (
+    post_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    emoji TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (post_id, user_id, emoji)
+  );
+  CREATE INDEX IF NOT EXISTS idx_br_post ON board_reactions(post_id);
+  CREATE TABLE IF NOT EXISTS board_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_bc_post ON board_comments(post_id, created_at);`);
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用

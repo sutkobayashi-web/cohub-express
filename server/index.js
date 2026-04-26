@@ -220,6 +220,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/voice', require('./routes/tts'));
 app.use('/api/wellness', require('./routes/wellness'));
+app.use('/api/board', require('./routes/board'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>📋 社内掲示板 — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json?v=2">
+<meta name="theme-color" content="#0891b2">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior-y: contain; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f1f5f9; color: #0f172a; }
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: linear-gradient(135deg, #0891b2, #06b6d4); color: #fff;
+  padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header a { color: #fff; text-decoration: none; font-size: 12px; opacity: 0.9; }
+main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
+
+/* 投稿フォーム */
+.composer {
+  background: #fff; border-radius: 14px; padding: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 14px;
+}
+.composer textarea {
+  width: 100%; min-height: 64px; max-height: 200px;
+  padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px;
+  font-size: 15px; font-family: inherit; resize: vertical; outline: none;
+}
+.composer textarea:focus { border-color: #06b6d4; box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
+.composer-bar {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+}
+.composer-meta { flex: 1; font-size: 11px; color: #94a3b8; }
+.btn { padding: 9px 16px; background: #06b6d4; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-icon { padding: 8px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; }
+.btn-icon:hover { background: #e2e8f0; }
+.preview-img-wrap { position: relative; margin-top: 8px; display: inline-block; }
+.preview-img { max-width: 200px; max-height: 200px; border-radius: 8px; }
+.preview-clear { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
+
+/* 投稿カード */
+.post {
+  background: #fff; border-radius: 14px; padding: 14px;
+  margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.post-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+.avatar-fallback { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+.post-meta { flex: 1; min-width: 0; }
+.post-author { font-weight: 700; font-size: 14px; }
+.post-time { font-size: 11px; color: #94a3b8; }
+.post-content { font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
+.post-image { margin-top: 10px; max-width: 100%; max-height: 480px; border-radius: 10px; cursor: pointer; }
+.post-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+.react-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 10px; background: #f8fafc; border: 1px solid transparent;
+  border-radius: 16px; cursor: pointer; font-size: 13px; transition: all 0.15s;
+}
+.react-btn:hover { background: #e2e8f0; }
+.react-btn.mine { background: #ecfeff; border-color: #06b6d4; color: #0891b2; font-weight: 700; }
+.react-btn .ct { font-size: 11px; color: #64748b; font-weight: 700; }
+.react-btn.mine .ct { color: #0891b2; }
+.cmt-btn {
+  margin-left: auto; padding: 6px 10px; background: transparent; border: none;
+  color: #64748b; font-size: 12px; cursor: pointer; border-radius: 8px;
+}
+.cmt-btn:hover { background: #f1f5f9; }
+.del-btn { background: transparent; border: none; color: #cbd5e1; font-size: 16px; cursor: pointer; padding: 4px 8px; }
+.del-btn:hover { color: #ef4444; }
+
+.comments {
+  margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; display: none;
+}
+.comments.open { display: block; }
+.cmt {
+  display: flex; align-items: flex-start; gap: 8px; padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.cmt:last-child { border-bottom: 0; }
+.cmt .avatar, .cmt .avatar-fallback { width: 28px; height: 28px; font-size: 11px; }
+.cmt-body { flex: 1; min-width: 0; }
+.cmt-author { font-size: 12px; font-weight: 700; }
+.cmt-time { font-size: 10px; color: #94a3b8; margin-left: 6px; }
+.cmt-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+.cmt-form { display: flex; gap: 6px; margin-top: 8px; }
+.cmt-form input { flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 18px; font-size: 13px; outline: none; }
+.cmt-form button { padding: 7px 14px; background: #06b6d4; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 12px; font-weight: 700; }
+
+.empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
+.empty .ico { font-size: 48px; margin-bottom: 12px; }
+.loadmore { display: block; margin: 16px auto; padding: 10px 24px; background: #fff; border: 1px solid #cbd5e1; border-radius: 20px; color: #475569; font-size: 13px; cursor: pointer; }
+
+/* 画像拡大モーダル */
+#img-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+#img-modal.open { display: flex; }
+#img-modal img { max-width: 100%; max-height: 100%; }
+#img-modal .close { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; }
+
+/* ログイン */
+.login {
+  max-width: 380px; margin: 60px auto; background: #fff;
+  border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.login h2 { margin: 0 0 16px; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #06b6d4; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
+
+@media (min-width: 700px) {
+  main { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 社内掲示板</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:12px;"></div>
+  <a href="/" style="margin-left:14px;">空間へ戻る</a>
+</header>
+
+<main id="main">
+  <div id="login" class="login" style="display:none;">
+    <h2>ログイン</h2>
+    <input type="text" id="li-id" placeholder="ログインID" autocomplete="username">
+    <input type="password" id="li-pw" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="err" id="li-err"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="composer">
+      <textarea id="cmp-text" placeholder="今、何してる？写真も貼れます" maxlength="280"></textarea>
+      <div id="cmp-preview" class="preview-img-wrap" style="display:none;">
+        <img id="cmp-preview-img" class="preview-img">
+        <button class="preview-clear" onclick="clearImage()">×</button>
+      </div>
+      <div class="composer-bar">
+        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="画像">📷</button>
+        <input type="file" id="cmp-file" accept="image/*" style="display:none;" onchange="onPickImage(event)">
+        <div class="composer-meta"><span id="cmp-count">0</span>/280</div>
+        <button class="btn" id="cmp-submit" onclick="submitPost()">投稿</button>
+      </div>
+    </div>
+
+    <div id="feed"></div>
+    <button class="loadmore" id="loadmore" onclick="loadMore()" style="display:none;">もっと見る</button>
+    <div id="empty" class="empty" style="display:none;">
+      <div class="ico">📭</div>
+      <div>まだ投稿がありません。<br>最初の一投目を!</div>
+    </div>
+  </div>
+</main>
+
+<div id="img-modal" onclick="closeImgModal()">
+  <button class="close" onclick="closeImgModal()">×</button>
+  <img id="img-modal-img" alt="">
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let me = null;
+let _imageFile = null;
+let _oldestId = null;
+let _socket = null;
+const EMOJIS = ['❤️', '🎉', '👍', '😊', '👏'];
+
+function escapeHtml(s) {
+  return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function avatarHtml(url, name) {
+  if (url) return `<img class="avatar" src="${escapeHtml(url)}" alt="">`;
+  const init = (name || '?').slice(0, 2);
+  return `<div class="avatar-fallback">${escapeHtml(init)}</div>`;
+}
+
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin('セッションが切れました'); throw new Error('401'); }
+  return r.json();
+}
+
+function showLogin(err) {
+  document.getElementById('login').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  if (err) document.getElementById('li-err').textContent = err;
+}
+
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login_id: id, password: pw })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || 'ログイン失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    initApp();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+function initApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('who').textContent = (me && me.display_name) || '';
+  loadFeed(true);
+  setupSocket();
+}
+
+function setupSocket() {
+  if (_socket || !window.io) return;
+  try {
+    _socket = io({ auth: { token } });
+    _socket.on('board:new', payload => prependPost(payload.post));
+    _socket.on('board:delete', payload => removePost(payload.id));
+    _socket.on('board:react', payload => applyReact(payload));
+    _socket.on('board:comment', payload => bumpCommentCount(payload.post_id));
+  } catch (e) { console.warn('socket fail', e.message); }
+}
+
+document.getElementById('cmp-text').addEventListener('input', e => {
+  document.getElementById('cmp-count').textContent = e.target.value.length;
+});
+
+function onPickImage(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  if (f.size > 10 * 1024 * 1024) { alert('10MB以下にしてください'); return; }
+  _imageFile = f;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('cmp-preview-img').src = e.target.result;
+    document.getElementById('cmp-preview').style.display = 'inline-block';
+  };
+  reader.readAsDataURL(f);
+}
+
+function clearImage() {
+  _imageFile = null;
+  document.getElementById('cmp-file').value = '';
+  document.getElementById('cmp-preview').style.display = 'none';
+}
+
+async function submitPost() {
+  const text = document.getElementById('cmp-text').value.trim();
+  if (!text && !_imageFile) { alert('本文か画像を入力してください'); return; }
+  const btn = document.getElementById('cmp-submit');
+  btn.disabled = true; btn.textContent = '投稿中…';
+  try {
+    const fd = new FormData();
+    fd.append('content', text);
+    if (_imageFile) fd.append('image', _imageFile);
+    const r = await fetch('/api/board/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const d = await r.json();
+    if (!d.success) { alert(d.msg || '投稿失敗'); return; }
+    document.getElementById('cmp-text').value = '';
+    document.getElementById('cmp-count').textContent = '0';
+    clearImage();
+    // 自前のpostは即座に出す (socketでも来るが重複を避けるためIDで判定)
+    prependPost(d.post);
+  } catch (e) { alert('通信エラー: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '投稿'; }
+}
+
+async function loadFeed(reset) {
+  if (reset) { _oldestId = null; document.getElementById('feed').innerHTML = ''; }
+  const url = '/api/board/posts?limit=30' + (_oldestId ? '&before=' + _oldestId : '');
+  const d = await api(url);
+  if (!d.success) return;
+  if (reset && (!d.posts || !d.posts.length)) {
+    document.getElementById('empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty').style.display = 'none';
+  for (const p of d.posts) appendPost(p);
+  document.getElementById('loadmore').style.display = d.posts.length === 30 ? 'block' : 'none';
+}
+
+function loadMore() { loadFeed(false); }
+
+function postHtml(p) {
+  const reactions = EMOJIS.map(e => {
+    const ct = (p.reactions && p.reactions[e]) || 0;
+    const mine = !!(p.my_reactions && p.my_reactions[e]);
+    return `<button class="react-btn ${mine ? 'mine' : ''}" onclick="toggleReact(${p.id}, '${e}')">${e}${ct ? ' <span class="ct">' + ct + '</span>' : ''}</button>`;
+  }).join('');
+  const img = p.image_url ? `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">` : '';
+  const delBtn = p.can_delete ? `<button class="del-btn" onclick="deletePost(${p.id})" title="削除">🗑</button>` : '';
+  const cnt = p.comment_count || 0;
+  return `<article class="post" id="post-${p.id}" data-id="${p.id}">
+    <div class="post-head">
+      ${avatarHtml(p.author_avatar, p.author_name)}
+      <div class="post-meta">
+        <div class="post-author">${escapeHtml(p.author_name || '不明')}</div>
+        <div class="post-time">${relTime(p.created_at)}</div>
+      </div>
+      ${delBtn}
+    </div>
+    ${p.content ? `<div class="post-content">${escapeHtml(p.content)}</div>` : ''}
+    ${img}
+    <div class="post-actions">
+      ${reactions}
+      <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>
+    </div>
+    <div class="comments" id="cmts-${p.id}"></div>
+  </article>`;
+}
+
+function appendPost(p) {
+  document.getElementById('feed').insertAdjacentHTML('beforeend', postHtml(p));
+  _oldestId = (_oldestId == null || p.id < _oldestId) ? p.id : _oldestId;
+}
+function prependPost(p) {
+  if (document.getElementById('post-' + p.id)) return;
+  // 自分の投稿リアクションフィールド初期化
+  if (!p.reactions) { p.reactions = {}; for (const e of EMOJIS) p.reactions[e] = 0; }
+  if (!p.my_reactions) { p.my_reactions = {}; for (const e of EMOJIS) p.my_reactions[e] = false; }
+  if (!('comment_count' in p)) p.comment_count = 0;
+  if (!('can_delete' in p)) p.can_delete = me && p.author_id === me.uid;
+  document.getElementById('feed').insertAdjacentHTML('afterbegin', postHtml(p));
+  document.getElementById('empty').style.display = 'none';
+}
+function removePost(id) {
+  const el = document.getElementById('post-' + id);
+  if (el) el.remove();
+}
+
+async function toggleReact(id, emoji) {
+  const r = await api('/api/board/posts/' + id + '/react', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ emoji })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  applyReact({ post_id: id, emoji, user_id: me.uid, added: r.added });
+}
+
+function applyReact(payload) {
+  const article = document.getElementById('post-' + payload.post_id);
+  if (!article) return;
+  const btns = article.querySelectorAll('.react-btn');
+  for (const b of btns) {
+    const txt = b.textContent.trim().replace(/\d+$/, '').trim();
+    if (txt.charAt(0) === payload.emoji.charAt(0) || txt.startsWith(payload.emoji)) {
+      const ctEl = b.querySelector('.ct');
+      let ct = ctEl ? parseInt(ctEl.textContent) : 0;
+      if (payload.user_id === me.uid) {
+        if (payload.added) b.classList.add('mine'); else b.classList.remove('mine');
+      }
+      ct = ct + (payload.added ? 1 : -1);
+      if (ct < 0) ct = 0;
+      b.innerHTML = payload.emoji + (ct ? ' <span class="ct">' + ct + '</span>' : '');
+      if (payload.user_id === me.uid && payload.added) b.classList.add('mine');
+      if (payload.user_id === me.uid && !payload.added) b.classList.remove('mine');
+      break;
+    }
+  }
+}
+
+async function deletePost(id) {
+  if (!confirm('この投稿を削除しますか？')) return;
+  const r = await api('/api/board/posts/' + id, { method: 'DELETE' });
+  if (r.success) removePost(id);
+}
+
+async function toggleComments(id) {
+  const box = document.getElementById('cmts-' + id);
+  if (box.classList.contains('open')) { box.classList.remove('open'); return; }
+  box.classList.add('open');
+  box.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:6px;">読み込み中…</div>';
+  const d = await api('/api/board/posts/' + id + '/comments');
+  if (!d.success) { box.innerHTML = '<div style="color:#dc2626;font-size:12px;">取得失敗</div>'; return; }
+  const list = (d.comments || []).map(c => `<div class="cmt">
+    ${avatarHtml(c.author_avatar, c.author_name)}
+    <div class="cmt-body">
+      <span class="cmt-author">${escapeHtml(c.author_name || '不明')}</span><span class="cmt-time">${relTime(c.created_at)}</span>
+      <div class="cmt-text">${escapeHtml(c.content)}</div>
+    </div>
+  </div>`).join('');
+  box.innerHTML = list + `<form class="cmt-form" onsubmit="postComment(event, ${id});return false;">
+    <input type="text" placeholder="コメントを書く…" maxlength="280" id="cmt-input-${id}">
+    <button type="submit">送信</button>
+  </form>`;
+  document.getElementById('cmt-input-' + id).focus();
+}
+
+async function postComment(ev, id) {
+  ev.preventDefault();
+  const inp = document.getElementById('cmt-input-' + id);
+  const content = inp.value.trim();
+  if (!content) return;
+  const r = await api('/api/board/posts/' + id + '/comments', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  inp.value = '';
+  const c = r.comment;
+  const formEl = inp.closest('form');
+  formEl.insertAdjacentHTML('beforebegin', `<div class="cmt">
+    ${avatarHtml(c.author_avatar, c.author_name)}
+    <div class="cmt-body">
+      <span class="cmt-author">${escapeHtml(c.author_name || '')}</span><span class="cmt-time">たった今</span>
+      <div class="cmt-text">${escapeHtml(c.content)}</div>
+    </div>
+  </div>`);
+  bumpCommentCount(id);
+}
+
+function bumpCommentCount(id) {
+  const el = document.getElementById('cmt-ct-' + id);
+  if (!el) return;
+  const cur = parseInt(el.textContent) || 0;
+  el.textContent = (cur + 1).toString();
+}
+
+function openImgModal(url) {
+  document.getElementById('img-modal-img').src = url;
+  document.getElementById('img-modal').classList.add('open');
+}
+function closeImgModal() {
+  document.getElementById('img-modal').classList.remove('open');
+}
+
+// 自動ログイン
+(async function() {
+  if (!token) { showLogin(''); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
+    if (u && u.uid) { me = u; initApp(); }
+    else showLogin('');
+  } catch (e) { showLogin(''); }
+})();
+</script>
+</body>
+</html>
