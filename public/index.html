@@ -1872,8 +1872,10 @@ function connectSocket() {
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === me;
     const peerUid = isSelf ? m.to : m.from;
-    // 葵からのメッセージは読み上げ (受信者自分の時のみ)
-    if (!isSelf && m.from === 'bot_aoi' && m.content) {
+    // 葵からのメッセージ読み上げは「葵のDM画面を開いている時のみ」
+    // (ロビー入室時の calendar/wellness 自動DM はチャットに溜めるだけ、
+    //  入室アナウンスとの重複を避ける)
+    if (!isSelf && m.from === 'bot_aoi' && m.content && dmPeerUid === 'bot_aoi') {
       speakAoi(m.content);
     }
     if (dmPeerUid === peerUid) {
