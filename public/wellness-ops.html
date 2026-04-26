@@ -704,10 +704,27 @@ async function renderActionDiscuss(actionId) {
     <div style="font-size:11px;color:#0e7490;font-weight:700;">${escapeHtml(d.author_name || '不明')} · ${escapeHtml((d.created_at||'').slice(0,16).replace('T',' '))}</div>
     <div style="font-size:13px;line-height:1.5;white-space:pre-wrap;color:#0f172a;">${escapeHtml(d.content)}</div>
   </div>`).join('') : '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだ議論はありません</div>';
-  const councilHtml = council.length ? council.map(c => `<div style="background:#faf5ff;border-left:3px solid #7c3aed;padding:8px 10px;margin-bottom:4px;border-radius:4px;">
-    <div style="font-size:11px;color:#7c3aed;font-weight:700;">${escapeHtml(c.avatar||'🤖')} ${escapeHtml(c.role || 'AI')}</div>
-    <div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#0f172a;margin-top:2px;">${escapeHtml(c.message)}</div>
-  </div>`).join('') : '<div style="color:#94a3b8;font-size:12px;padding:6px;">未実施。下のボタンで5専門家に評議させる</div>';
+  // 専門家と社内多様人材を分けて表示
+  const isVoice = (r) => /^\[voice\]/.test(r.role || '');
+  const renderRow = (c, color, bg) => {
+    const cleanRole = (c.role || 'AI').replace(/^\[(expert|voice)\]\s*/, '');
+    return `<div style="background:${bg};border-left:3px solid ${color};padding:8px 10px;margin-bottom:4px;border-radius:4px;">
+      <div style="font-size:11px;color:${color};font-weight:700;">${escapeHtml(c.avatar||'🤖')} ${escapeHtml(cleanRole)}</div>
+      <div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#0f172a;margin-top:2px;">${escapeHtml(c.message)}</div>
+    </div>`;
+  };
+  const expertCouncil = council.filter(c => !isVoice(c));
+  const voiceCouncil = council.filter(c => isVoice(c));
+  let councilHtml = '';
+  if (expertCouncil.length) {
+    councilHtml += '<div style="font-size:10px;font-weight:700;color:#7c3aed;margin:6px 0 4px;">📚 専門家評議 (5名)</div>';
+    councilHtml += expertCouncil.map(c => renderRow(c, '#7c3aed', '#faf5ff')).join('');
+  }
+  if (voiceCouncil.length) {
+    councilHtml += '<div style="font-size:10px;font-weight:700;color:#ea580c;margin:8px 0 4px;">👥 社内多様人材の声 (賛成・慎重・無関心など)</div>';
+    councilHtml += voiceCouncil.map(c => renderRow(c, '#ea580c', '#fff7ed')).join('');
+  }
+  if (!council.length) councilHtml = '<div style="color:#94a3b8;font-size:12px;padding:6px;">未実施。下のボタンで「専門家5名 + 多様な社員4〜5名」に評議させる</div>';
   area.innerHTML = `
     <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">💬 推進メンバーの議論</div>
     <div style="margin-bottom:8px;">${discHtml}</div>

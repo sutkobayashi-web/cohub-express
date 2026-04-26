@@ -536,7 +536,7 @@ router.post('/actions/:id/discussions', authUser, express.json(), (req, res) => 
   res.json({ success: true, discussion: c });
 });
 
-// AI評議会 (5専門家) — 施策候補に対して
+// AI評議会 (5専門家 + 11人プールから多様な社員シミュレーション)
 router.post('/actions/:id/ai-council', authUser, async (req, res) => {
   if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
   const id = parseInt(req.params.id);
@@ -550,14 +550,27 @@ router.post('/actions/:id/ai-council', authUser, async (req, res) => {
   const discText = discussions.length ? discussions.map(d => `${d.name||'匿名'}: ${d.content}`).join('\n') : '(議論なし)';
 
   const prompt = `あなたは中小運送会社の健康推進施策を評価する「AI評議会」です。
-5名の専門家が順番に論点を整理してください。
+2層構造で評価してください: ①専門家5名による評議 + ②社内多様な人材11人プールから選抜された4〜5名のリアル反応。
 
-【専門家メンバー】
+【①専門家評議 (固定5名)】
 1. AIメディカルアドバイザー(🩺) — 医学的妥当性、エビデンス
 2. AIヘルスアドバイザー(💉) — 産業保健、労働安全衛生
 3. AI食事アドバイザー(🥗) — 栄養学、食習慣改善
 4. AI経営アドバイザー(📊) — コスト対効果、経営インパクト
 5. AI現場アドバイザー(🚛) — ドライバー実態、現場実現可能性
+
+【②社内多様人材プール (11名から関連性の高い4〜5名を自動選抜)】
+- 田中さん (🚛 ベテランドライバー60歳/慢性腰痛/家族思い) — 賛成寄り、経験談
+- 佐藤さん (🚚 中堅ドライバー42歳/2児の父/長時間運転常習) — 慎重派、シフト懸念
+- 鈴木さん (🆕 新人ドライバー24歳/独身) — 中立、「教えてもらえたら」型
+- 山田さん (👨‍💼 配車担当35歳/現場調整役) — 「シフトに無理出ないか」現実派
+- 木村さん (👩‍💻 経理40歳) — コスト目線で慎重、「予算根拠は」
+- 高橋さん (👔 営業所長48歳/中間管理職) — 「現場負担と効果のバランス」
+- 中村さん (📊 部長55歳/経営寄り) — 効果測定にこだわる、批判的目線
+- 伊藤さん (🌱 健康熱心34歳/趣味ランニング) — 「もっと積極的に」前のめり
+- 渡辺さん (😴 健康無関心50歳/帰宅後ビール) — 「面倒くさい」否定的
+- 斎藤さん (👨‍👩‍👧 家族持ちドライバー38歳) — 「家族のためにも」温かい支持
+- 加藤さん (🧓 高齢ドライバー63歳/再雇用) — 「無理せず続けたい」マイペース
 
 【施策案】
 タイトル: ${a.title}
@@ -569,12 +582,20 @@ router.post('/actions/:id/ai-council', authUser, async (req, res) => {
 ${discText}
 
 【発言ルール】
-- まず結論 (賛成/条件付き賛成/要検討) を明示
-- 論点を1〜2点に絞り具体的に (各80〜120字)
-- ドライバー実態 (長時間運転/コンビニ食/不規則生活) を踏まえる
+- 各人 80〜120字、具体的・人間味のある発言で
+- 専門家は結論明示 (賛成/条件付き/要検討)
+- 多様人材は「自分の生活実態に照らした感想」中心、賛否のバランスを必ず取る (賛成だけ/反対だけにならない)
+- ドライバー実態 (長時間運転・コンビニ食・不規則生活・家族のための稼ぎ) を踏まえる
 
 純粋なJSON配列のみで回答 (前置き禁止):
-[{"role":"AIメディカルアドバイザー","avatar":"🩺","message":"..."},{"role":"AIヘルスアドバイザー","avatar":"💉","message":"..."},{"role":"AI食事アドバイザー","avatar":"🥗","message":"..."},{"role":"AI経営アドバイザー","avatar":"📊","message":"..."},{"role":"AI現場アドバイザー","avatar":"🚛","message":"..."}]`;
+[
+  {"role":"AIメディカルアドバイザー","avatar":"🩺","kind":"expert","message":"..."},
+  {"role":"AIヘルスアドバイザー","avatar":"💉","kind":"expert","message":"..."},
+  {"role":"AI食事アドバイザー","avatar":"🥗","kind":"expert","message":"..."},
+  {"role":"AI経営アドバイザー","avatar":"📊","kind":"expert","message":"..."},
+  {"role":"AI現場アドバイザー","avatar":"🚛","kind":"expert","message":"..."},
+  {"role":"○○さん (役職/年代)","avatar":"絵文字","kind":"voice","message":"..."}
+]`;
 
   try {
     const aiText = await generateText(prompt, { maxTokens: 4000, responseMimeType: 'application/json' });
@@ -600,8 +621,9 @@ ${discText}
     db.prepare('DELETE FROM wellness_action_council WHERE action_id = ?').run(id);
     const ins = db.prepare('INSERT INTO wellness_action_council (action_id, role, avatar, message) VALUES (?, ?, ?, ?)');
     for (const c of parsed) {
-      const role = String(c.role || 'AI専門家').slice(0, 50);
-      const avatar = String(c.avatar || '🤖').slice(0, 4);
+      const kind = c.kind === 'voice' ? 'voice' : 'expert';
+      const role = `[${kind}] ` + String(c.role || 'AI').slice(0, 80);
+      const avatar = String(c.avatar || '🤖').slice(0, 8);
       const msg = String(c.message || '').slice(0, 800);
       if (msg) ins.run(id, role, avatar, msg);
     }
