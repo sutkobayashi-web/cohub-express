@@ -18,6 +18,18 @@ function isFieldPromoter(uid) {
   return !!(r && r.is_field_promoter);
 }
 
+// 管理職 (employee_type='admin') 判定 — システムadmin (role='admin') とは別物
+function isWellnessManager(uid) {
+  const r = getDb().prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
+  return !!(r && r.employee_type === 'admin');
+}
+
+// 健康管理室ページの閲覧権限: 管理職 or 推進メンバー
+// (一般のシステム管理者は除外 — ドライバーの体調/睡眠/食事POSTを見せない方針)
+function canAccessWellness(uid) {
+  return isWellnessManager(uid) || isFieldPromoter(uid);
+}
+
 // POST /api/wellness/post  現場の声を1件登録 + 推進メンバーグループに自動配信
 router.post('/post', authUser, express.json(), (req, res) => {
   if (!isFieldPromoter(req.uid)) {
@@ -82,9 +94,9 @@ router.post('/post', authUser, express.json(), (req, res) => {
   res.json({ success: true, post_id: postId, group_id: PROMOTER_GROUP_ID });
 });
 
-// GET /api/wellness/posts  推進メンバー専用の最近の投稿一覧 (管理画面/レビュー用)
+// GET /api/wellness/posts  健康管理室メンバーのみ閲覧可
 router.get('/posts', authUser, (req, res) => {
-  if (!isFieldPromoter(req.uid) && req.user.role !== 'admin') {
+  if (!canAccessWellness(req.uid)) {
     return res.status(403).json({ success: false, msg: '権限なし' });
   }
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -98,10 +110,15 @@ router.get('/posts', authUser, (req, res) => {
   res.json({ success: true, posts: rows });
 });
 
-// メタ情報 (フォーム選択肢)
+// メタ情報 (フォーム選択肢 + 権限フラグ)
 router.get('/meta', authUser, (req, res) => {
+  const wm = isWellnessManager(req.uid);
+  const fp = isFieldPromoter(req.uid);
   res.json({
-    is_field_promoter: isFieldPromoter(req.uid),
+    is_field_promoter: fp,
+    is_wellness_manager: wm,           // 管理職 (employee_type='admin')
+    can_access_wellness: wm || fp,     // 健康管理室ページ閲覧可否
+    can_approve_actions: wm,           // 施策承認/却下は管理職のみ
     group_id: PROMOTER_GROUP_ID,
     disc_group_id: WELLNESS_DISC_ID,
     categories: CATEGORIES,
@@ -111,15 +128,28 @@ router.get('/meta', authUser, (req, res) => {
   });
 });
 
+// GET /api/wellness/owners  施策担当に指名できるメンバー一覧 (=管理職 + 推進メンバー + admin)
+router.get('/owners', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const rows = getDb().prepare(`
+    SELECT id, display_name, company_code FROM users
+    WHERE employee_type = 'admin' OR is_field_promoter = 1 OR role = 'admin'
+    ORDER BY display_name
+  `).all();
+  res.json({ success: true, users: rows });
+});
+
 // =============================================================
 // 月次施策ボード (Wellness Actions)
 // =============================================================
 
-function isAdmin(req) {
-  return req.user && req.user.role === 'admin';
-}
+// 施策ボード管理: 管理職 or 推進メンバー (=canAccessWellness と同等)
 function canManageActions(req) {
-  return isAdmin(req) || isFieldPromoter(req.uid);
+  return canAccessWellness(req.uid);
+}
+// 承認/却下は管理職のみ (system admin role でも不可)
+function canApprove(req) {
+  return isWellnessManager(req.uid);
 }
 
 // GET /api/wellness/actions  施策一覧 (推進メンバー or admin)
@@ -195,9 +225,9 @@ router.put('/actions/:id', authUser, express.json(), (req, res) => {
   res.json({ success: true });
 });
 
-// POST /api/wellness/actions/:id/approve  admin 承認
+// POST /api/wellness/actions/:id/approve  管理職のみ承認
 router.post('/actions/:id/approve', authUser, (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  if (!canApprove(req)) return res.status(403).json({ success: false, msg: '管理職権限が必要です' });
   const id = parseInt(req.params.id);
   const db = getDb();
   const cur = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
@@ -210,9 +240,9 @@ router.post('/actions/:id/approve', authUser, (req, res) => {
   res.json({ success: true });
 });
 
-// POST /api/wellness/actions/:id/reject  却下
+// POST /api/wellness/actions/:id/reject  却下 (管理職のみ)
 router.post('/actions/:id/reject', authUser, express.json(), (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  if (!canApprove(req)) return res.status(403).json({ success: false, msg: '管理職権限が必要です' });
   const id = parseInt(req.params.id);
   const reason = String((req.body && req.body.reason) || '').slice(0, 500);
   const db = getDb();
