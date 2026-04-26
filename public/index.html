@@ -513,7 +513,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
       <span>🌳</span><span class="lbl">ひろば</span>
     </button>
-    <button class="rail-btn" id="rail-wellness-mgmt" onclick="location.href='/wellness.html'" title="健康管理室 (管理職: 施策ボード/AI集約/現場の声)" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
+    <button class="rail-btn" onclick="location.href='/wellness.html'" title="健康管理室 (血圧/健診/メモ/eラーニング)" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>🏥</span><span class="lbl">健康管理室</span>
     </button>
     <button class="rail-btn" onclick="location.href='/board.html'" title="社内掲示板" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
@@ -1336,11 +1336,8 @@ function enterSpace() {
     const fb = document.getElementById('rail-fieldvoice');
     if (fb) fb.style.display = 'flex';
   }
-  // 管理職 or 推進メンバー or system admin のみ「健康管理室 (運営)」ボタン表示
-  if (currentUser && (currentUser.employee_type === 'admin' || currentUser.is_field_promoter || currentUser.role === 'admin' || currentUser.is_guest_reviewer)) {
-    const wb = document.getElementById('rail-wellness-mgmt');
-    if (wb) wb.style.display = 'flex';
-  }
+  // 健康管理室メニューは全員表示 (個人記録ハブとして利用)。
+  // 運営機能 (/wellness-ops.html) は健康管理室内の紫ボタンから入室。
   // 既存ログインユーザーの userData が古い場合に最新フラグを再取得 (idempotent)
   refreshUserMe();
   // 告知の未読チェック (バッジ + 重要告知の自動ポップアップ)
@@ -1437,10 +1434,7 @@ async function refreshUserMe() {
       const fb = document.getElementById('rail-fieldvoice');
       if (fb) fb.style.display = 'flex';
     }
-    if (currentUser.employee_type === 'admin' || currentUser.is_field_promoter || currentUser.role === 'admin') {
-      const wb = document.getElementById('rail-wellness-mgmt');
-      if (wb) wb.style.display = 'flex';
-    }
+    // 健康管理室メニューは常時表示なので分岐不要
   } catch (e) {}
 }
 

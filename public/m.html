@@ -269,7 +269,7 @@
             <div class="i">🌳</div>
             <div>ひろば</div>
           </div>
-          <div class="qa-item" id="qa-wellness-mgmt" onclick="location.href='/wellness.html'" style="display:none;background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#047857;">
+          <div class="qa-item" onclick="location.href='/wellness.html'" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#047857;">
             <div class="i">🏥</div>
             <div>健康管理室</div>
           </div>
@@ -755,11 +755,7 @@ function startApp() {
   document.getElementById('app').style.display = 'flex';
   applyPrefsToUI();
   renderMe();
-  // 管理職/推進メンバー/system admin/ゲストレビュアー のみ健康管理室メニュー表示
-  if (user && (user.employee_type === 'admin' || user.is_field_promoter || user.role === 'admin' || user.is_guest_reviewer)) {
-    const w = document.getElementById('qa-wellness-mgmt');
-    if (w) w.style.display = 'block';
-  }
+  // 健康管理室メニューは全員常時表示 (個人記録ハブ)。運営は健康管理室内のボタンから。
   connectSocket();
   loadChatLists();
   // PWA: SW登録 (既存SWを使いまわし)
