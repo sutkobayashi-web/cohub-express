@@ -98,12 +98,15 @@ router.get('/posts', authUser, (req, res) => {
     WHEN cp.category LIKE '%Tips%' OR cp.category LIKE '%ヒント%' THEN '健康Tips'
     ELSE '雑談'
   END`;
-  // CoWell の image_url を実体ホストに書き換え (/uploads/food_xxx.jpg → CoWell本体)
-  const COWELL_HOST = process.env.COWELL_HOST || 'https://health.biz-terrace.org';
+  // CoWell の image_url を cohub 経由のプロキシに書き換え
+  // (CoWellは Cross-Origin-Resource-Policy: same-origin を返すので直リン不可)
   function rewriteCwImage(url) {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    if (url.startsWith('/uploads/')) return COWELL_HOST + url;
+    if (url.startsWith('/uploads/')) {
+      const fname = url.replace(/^\/uploads\//, '');
+      return '/api/cw-archive/img/' + encodeURIComponent(fname);
+    }
     return url;
   }
   let archive = [];

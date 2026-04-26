@@ -107,4 +107,22 @@ router.post('/mapping/:cw_id', authUser, express.json(), (req, res) => {
   res.json({ success: true });
 });
 
+// CoWell画像プロキシ (CORP same-origin で直接配信できないため cohub経由)
+// img タグから読まれるため認証なし (CoWell本体も公開配信のため同等)
+router.get('/img/:filename', async (req, res) => {
+  const fname = req.params.filename;
+  if (!/^[a-zA-Z0-9._-]+$/.test(fname)) return res.status(400).end();
+  const upstream = (process.env.COWELL_HOST || 'https://health.biz-terrace.org') + '/uploads/' + fname;
+  try {
+    const r = await fetch(upstream);
+    if (!r.ok) return res.status(r.status).end();
+    res.setHeader('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.send(buf);
+  } catch (e) {
+    res.status(502).end();
+  }
+});
+
 module.exports = router;
