@@ -227,6 +227,7 @@ app.use('/api/videos', require('./routes/videos'));
 app.use('/api/cw-archive', require('./routes/cw_archive'));
 app.use('/api/plaza', require('./routes/plaza'));
 app.use('/api/events', require('./routes/events'));
+app.use('/api/myhealth', require('./routes/health'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {

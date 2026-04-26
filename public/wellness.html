@@ -30,6 +30,47 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 .banner { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
 .banner-info { background: #ecfdf5; border-left: 4px solid #10b981; color: #065f46; }
 .banner-warn { background: #fef3c7; border-left: 4px solid #f59e0b; color: #78350f; }
+
+/* タブナビ */
+.tab-nav { display: flex; gap: 4px; background: #fff; border-radius: 12px; padding: 6px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow-x: auto; }
+.tab-nav button { flex: 1 0 auto; padding: 10px 14px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.tab-nav button:hover { background: #f0fdf4; }
+.tab-nav button.active { background: #10b981; color: #fff; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* BP */
+.bp-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.bp-form input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
+.bp-form input:focus { border-color: #10b981; }
+.bp-stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.bp-stat-card { background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-radius: 10px; padding: 12px; text-align: center; }
+.bp-stat-card .n { font-size: 22px; font-weight: 800; color: #047857; }
+.bp-stat-card .l { font-size: 10px; color: #065f46; font-weight: 700; }
+.bp-bar { display: inline-block; height: 6px; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444); border-radius: 3px; vertical-align: middle; margin-right: 6px; position: relative; width: 80px; }
+.bp-marker { position: absolute; top: -3px; width: 2px; height: 12px; background: #1f2937; border-radius: 1px; }
+
+/* メモ */
+.note-card { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; }
+.note-text { font-size: 13px; color: #78350f; white-space: pre-wrap; line-height: 1.6; }
+.note-meta { font-size: 11px; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+.note-tag { display: inline-block; background: #fef3c7; color: #78350f; padding: 1px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+
+/* 健診ファイル */
+.checkup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.ck-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; }
+.ck-year { font-size: 18px; font-weight: 800; color: #047857; }
+.ck-name { font-size: 12px; color: #475569; margin: 4px 0; word-break: break-all; }
+
+/* eラーニング */
+.elearn-card { background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; }
+.elearn-card:hover { opacity: 0.9; }
+
+/* ヘルプ */
+.help-section { margin-bottom: 18px; }
+.help-section h3 { color: #047857; font-size: 14px; margin: 0 0 8px; padding-left: 8px; border-left: 3px solid #10b981; }
+.help-section p { font-size: 13px; line-height: 1.7; color: #334155; margin: 4px 0; }
+.help-section ul { padding-left: 20px; font-size: 13px; line-height: 1.7; color: #334155; }
 </style>
 </head>
 <body>
@@ -66,6 +107,155 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 <div id="panel" style="display:none;">
 
   <div id="role-banner" class="banner banner-info" style="display:none;"></div>
+
+  <!-- タブナビ -->
+  <div class="tab-nav">
+    <button class="active" data-tab="bp" onclick="switchTab('bp')">🩸 血圧</button>
+    <button data-tab="notes" onclick="switchTab('notes')">📝 健康メモ</button>
+    <button data-tab="checkup" onclick="switchTab('checkup')">📋 健診結果</button>
+    <button data-tab="elearn" onclick="switchTab('elearn')">🎬 eラーニング</button>
+    <button data-tab="help" onclick="switchTab('help')">❓ ヘルプ</button>
+    <button id="tab-ops-btn" data-tab="ops" onclick="switchTab('ops')" style="display:none;">🔄 運営</button>
+  </div>
+
+  <!-- 🩸 血圧 -->
+  <div class="tab-pane active" id="pane-bp">
+    <div class="card">
+      <h2>🩸 血圧記録</h2>
+      <div class="bp-stat" id="bp-stat"></div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:#475569;">新規記録</div>
+      <div class="bp-form">
+        <input type="number" id="bp-sys" placeholder="収縮期 (上)" min="50" max="300">
+        <input type="number" id="bp-dia" placeholder="拡張期 (下)" min="30" max="200">
+        <input type="number" id="bp-pulse" placeholder="脈拍" min="30" max="200">
+        <input type="datetime-local" id="bp-when">
+        <button class="btn" onclick="submitBP()">記録</button>
+      </div>
+      <input type="text" id="bp-memo" placeholder="メモ (任意)" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-top:8px;">
+      <div class="err" id="bp-err"></div>
+      <div style="margin-top:14px;">
+        <table>
+          <thead><tr><th>日時</th><th>収縮期</th><th>拡張期</th><th>脈拍</th><th>判定</th><th>メモ</th><th></th></tr></thead>
+          <tbody id="bp-tbody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:8px;">※判定基準: 正常 ≦120/80, 正常高値 130/85, I度高血圧 140/90 (日本高血圧学会2019)</div>
+    </div>
+  </div>
+
+  <!-- 📝 健康メモ -->
+  <div class="tab-pane" id="pane-notes">
+    <div class="card">
+      <h2>📝 健康メモ</h2>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">体調・服薬・気付きなどを記録 (本人のみ閲覧可)</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+        <input type="text" id="note-tag" placeholder="タグ (例: 服薬, 体調)" style="max-width:160px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        <textarea id="note-text" placeholder="今日のメモ" style="flex:1;min-width:240px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;min-height:60px;"></textarea>
+        <button class="btn" onclick="submitNote()">追加</button>
+      </div>
+      <div class="err" id="note-err"></div>
+      <div id="notes-list" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- 📋 健診結果 -->
+  <div class="tab-pane" id="pane-checkup">
+    <div class="card">
+      <h2>📋 健診結果ファイル</h2>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">PDF/画像をアップロードして年別に保管 (本人のみ閲覧可、最大20MB)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="number" id="ck-year" placeholder="年度" value="" style="max-width:120px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        <input type="file" id="ck-file" accept="application/pdf,image/*">
+        <button class="btn" onclick="submitCheckup()">アップロード</button>
+      </div>
+      <div class="err" id="ck-err"></div>
+      <div class="checkup-grid" id="ck-grid" style="margin-top:14px;"></div>
+      <div style="margin-top:14px;padding:10px;background:#ecfeff;border-radius:8px;font-size:12px;color:#0e7490;">
+        💡 過去の健診食事レポート (CoWell由来) は <a href="/wellness-archive.html" style="color:#0891b2;font-weight:700;">📦 CoWell履歴アーカイブ</a> から閲覧できます。
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎬 eラーニング -->
+  <div class="tab-pane" id="pane-elearn">
+    <div class="card">
+      <h2>🎬 eラーニング</h2>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">健康・安全教育の動画ライブラリです</div>
+      <div class="elearn-card" onclick="location.href='/videos.html'">
+        <div style="font-size:48px;margin-bottom:10px;">🎬</div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:6px;">動画ライブラリへ</div>
+        <div style="font-size:13px;opacity:0.85;">安全教育 / 業務マニュアル / 経営メッセージ / 新人教育</div>
+        <div style="margin-top:12px;font-size:11px;opacity:0.7;">タップして開く →</div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#065f46;">
+        💡 <b>必須視聴動画</b>がある場合はホーム画面にPush通知が届きます。視聴完了は記録され、管理職が視聴率を確認できます。
+      </div>
+    </div>
+  </div>
+
+  <!-- ❓ ヘルプ -->
+  <div class="tab-pane" id="pane-help">
+    <div class="card">
+      <h2>❓ 健康管理室ヘルプ</h2>
+
+      <div class="help-section">
+        <h3>🩸 血圧記録</h3>
+        <p>朝晩の血圧測定値を記録できます。判定基準は日本高血圧学会2019年版に準拠。</p>
+        <ul>
+          <li>収縮期(上) / 拡張期(下) / 脈拍を入力</li>
+          <li>過去のCoWell由来の血圧データも統合表示</li>
+          <li>本人のみ閲覧可。管理者にも見えません</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h3>📝 健康メモ</h3>
+        <p>気になる体調・服薬・通院記録などを自由記入。タグで整理可能。</p>
+        <ul>
+          <li>例: タグ「服薬」+本文「降圧剤朝晩」</li>
+          <li>例: タグ「体調」+本文「左肩こり、ストレッチで緩和」</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h3>📋 健診結果</h3>
+        <p>毎年の健康診断結果PDFを年度別にアップロードして保管。本人のみ閲覧可。</p>
+        <ul>
+          <li>PDFまたは画像 (JPG/PNG) を最大20MB</li>
+          <li>過去のCoWell食事週次レポートは別途「CoWell履歴アーカイブ」から</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h3>🎬 eラーニング</h3>
+        <p>動画ライブラリ (/videos.html) へのリンク。安全教育動画・社長メッセージなど。必須視聴は管理職が視聴率追跡可能。</p>
+      </div>
+
+      <div class="help-section">
+        <h3>🌳 ひろば (ここから別ページ)</h3>
+        <p>食事写真投稿でAI栄養分析、悩み相談、雑談を全社員と共有できます。匿名投稿も可能。</p>
+        <p><a href="/plaza.html" style="color:#10b981;font-weight:700;">→ ひろばを開く</a></p>
+      </div>
+
+      <div class="help-section">
+        <h3>🔄 運営機能 (管理職限定)</h3>
+        <p>「現場の声」AI集約 / 月次施策ボード / 完了アナウンス。月1の健康管理室会議で運用。</p>
+      </div>
+
+      <div class="help-section">
+        <h3>🐠 イベント: 水族館の冒険</h3>
+        <p>歩数で海を旅して魚を発見するCoWellのRPG。「ひろば」上部の開催中イベントから入れます。</p>
+      </div>
+
+      <div class="help-section">
+        <h3>🔒 プライバシー</h3>
+        <p>血圧・健康メモ・健診ファイルは <b>本人以外閲覧不可</b>。管理者・推進メンバーにも見えません。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔄 運営 (管理職のみ) -->
+  <div class="tab-pane" id="pane-ops">
 
   <div class="card" style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-left:4px solid #10b981;">
     <h2 style="color:#047857;">🔄 健康管理室ループ <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">現場の声 → AI集約 → 施策 → 実行 → アナウンス → 運管フィードバック</span></h2>
@@ -152,6 +342,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
       🔒 <b>取り扱い注意</b>: 個人の体調・睡眠・食事に関する情報を含みます。閲覧履歴は監査対象です。第三者への共有・SNS掲載は禁止。
     </div>
   </div>
+  </div><!-- /pane-ops -->
 </div>
 
 </main>
@@ -276,32 +467,218 @@ async function checkAccessAndShow(user) {
     if (r.status === 401) { showLogin('セッションが切れています'); return; }
     const m = await r.json();
     _meta = m;
-    if (!m.can_access_wellness) {
-      showNoAccess(user && user.display_name);
-      return;
-    }
     document.getElementById('login-box').style.display = 'none';
     document.getElementById('no-access').style.display = 'none';
     document.getElementById('panel').style.display = 'block';
-    const roles = [];
-    if (m.is_wellness_manager) roles.push('管理職');
-    if (m.is_field_promoter) roles.push('推進メンバー');
-    document.getElementById('who').textContent = (user && user.display_name ? user.display_name + ' ' : '') + '(' + (roles.join('・') || '健康管理室') + ')';
-    const banner = document.getElementById('role-banner');
-    if (m.can_approve_actions) {
-      banner.className = 'banner banner-info';
-      banner.textContent = '✅ 管理職権限: 施策の承認/却下まで実行可能です。';
+    document.getElementById('who').textContent = (user && user.display_name) || '';
+    // 運営タブは 管理職 or 推進メンバー or system admin のみ表示
+    const isManager = !!(m.is_wellness_manager || m.is_field_promoter || (user && user.role === 'admin'));
+    if (isManager) {
+      document.getElementById('tab-ops-btn').style.display = 'inline-flex';
+      // 管理者は運営タブをデフォルト表示
+      switchTab('ops');
     } else {
-      banner.className = 'banner banner-warn';
-      banner.textContent = '⚠ 推進メンバー権限: 閲覧と施策の起票/編集はできますが、承認/却下は管理職に依頼してください。';
+      switchTab('bp');
     }
-    banner.style.display = 'block';
-    loadFieldVoice();
-    loadActions();
-    loadLoopStats();
+    // 個人タブの初期データロード
+    loadBP();
   } catch (e) {
-    showLogin('権限確認に失敗しました: ' + (e.message || ''));
+    showLogin('読み込みエラー: ' + (e.message || ''));
   }
+}
+
+// タブ切替
+function switchTab(t) {
+  document.querySelectorAll('.tab-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.getElementById('pane-' + t);
+  if (pane) pane.classList.add('active');
+  // 各タブの初期化
+  if (t === 'bp') loadBP();
+  else if (t === 'notes') loadNotes();
+  else if (t === 'checkup') loadCheckups();
+  else if (t === 'ops') {
+    if (_meta) {
+      const banner = document.getElementById('role-banner');
+      if (_meta.can_approve_actions) {
+        banner.className = 'banner banner-info';
+        banner.textContent = '✅ 管理職権限: 施策の承認/却下まで実行可能';
+      } else if (_meta.is_field_promoter) {
+        banner.className = 'banner banner-warn';
+        banner.textContent = '⚠ 推進メンバー権限: 起票/編集可、承認/却下は管理職に依頼';
+      }
+      banner.style.display = 'block';
+    }
+    loadFieldVoice(); loadActions(); loadLoopStats();
+  }
+}
+
+// ===== 🩸 血圧 =====
+function bpStatus(sys, dia) {
+  if (sys >= 180 || dia >= 110) return ['III度高血圧', '#dc2626'];
+  if (sys >= 160 || dia >= 100) return ['II度高血圧', '#ea580c'];
+  if (sys >= 140 || dia >= 90) return ['I度高血圧', '#f59e0b'];
+  if (sys >= 130 || dia >= 85) return ['正常高値', '#fbbf24'];
+  if (sys >= 120 || dia >= 80) return ['正常', '#84cc16'];
+  return ['至適', '#10b981'];
+}
+async function loadBP() {
+  try {
+    const r = await fetch('/api/myhealth/bp', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) return;
+    const recs = d.records || [];
+    // 統計
+    const stat = document.getElementById('bp-stat');
+    if (recs.length) {
+      const recent7 = recs.filter(r => {
+        const t = new Date((r.measured_at || r.created_at || '').replace(' ', 'T') + 'Z').getTime();
+        return Date.now() - t < 7 * 24 * 3600 * 1000;
+      });
+      const avgSys = recent7.length ? Math.round(recent7.reduce((a, r) => a + r.systolic, 0) / recent7.length) : '-';
+      const avgDia = recent7.length ? Math.round(recent7.reduce((a, r) => a + r.diastolic, 0) / recent7.length) : '-';
+      const latest = recs[0];
+      const [stLab, stCol] = bpStatus(latest.systolic, latest.diastolic);
+      stat.innerHTML = `
+        <div class="bp-stat-card"><div class="n">${latest.systolic}/${latest.diastolic}</div><div class="l">最新測定</div></div>
+        <div class="bp-stat-card" style="background:linear-gradient(135deg,${stCol}22,${stCol}44);"><div class="n" style="color:${stCol};font-size:14px;padding-top:6px;">${stLab}</div><div class="l">判定</div></div>
+        <div class="bp-stat-card"><div class="n">${avgSys}/${avgDia}</div><div class="l">7日平均</div></div>
+        <div class="bp-stat-card"><div class="n">${recs.length}</div><div class="l">総記録</div></div>
+      `;
+    } else stat.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:10px;">まだ記録がありません</div>';
+    // テーブル
+    const tb = document.getElementById('bp-tbody');
+    tb.innerHTML = recs.slice(0, 50).map(r => {
+      const dt = (r.measured_at || r.created_at || '').slice(0, 16).replace('T', ' ');
+      const [st, col] = bpStatus(r.systolic, r.diastolic);
+      const isCw = r.src === 'cowell';
+      return `<tr>
+        <td style="font-size:11px;color:#64748b;white-space:nowrap;">${escapeHtml(dt)}${isCw ? ' <span style="font-size:9px;background:#e0e7ff;color:#3730a3;padding:1px 4px;border-radius:4px;">CoWell</span>' : ''}</td>
+        <td style="font-weight:700;">${r.systolic}</td>
+        <td>${r.diastolic}</td>
+        <td>${r.pulse || '-'}</td>
+        <td><span style="background:${col}22;color:${col};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;">${st}</span></td>
+        <td style="font-size:11px;">${escapeHtml(r.memo || '')}</td>
+        <td>${!isCw ? `<button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="delBP(${r.id})">×</button>` : ''}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:14px;">データなし</td></tr>';
+  } catch (e) { console.warn('loadBP', e.message); }
+}
+async function submitBP() {
+  const errEl = document.getElementById('bp-err');
+  errEl.textContent = '';
+  const sys = parseInt(document.getElementById('bp-sys').value);
+  const dia = parseInt(document.getElementById('bp-dia').value);
+  if (!sys || !dia) { errEl.textContent = '収縮期と拡張期を入力してください'; return; }
+  const payload = {
+    systolic: sys, diastolic: dia,
+    pulse: parseInt(document.getElementById('bp-pulse').value) || null,
+    measured_at: document.getElementById('bp-when').value || null,
+    memo: document.getElementById('bp-memo').value,
+  };
+  const r = await fetch('/api/myhealth/bp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(payload),
+  });
+  const d = await r.json();
+  if (!d.success) { errEl.textContent = d.msg || '失敗'; return; }
+  document.getElementById('bp-sys').value = '';
+  document.getElementById('bp-dia').value = '';
+  document.getElementById('bp-pulse').value = '';
+  document.getElementById('bp-memo').value = '';
+  loadBP();
+}
+async function delBP(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  await fetch('/api/myhealth/bp/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+  loadBP();
+}
+
+// ===== 📝 健康メモ =====
+async function loadNotes() {
+  const r = await fetch('/api/myhealth/notes', { headers: { Authorization: 'Bearer ' + token } });
+  const d = await r.json();
+  if (!d.success) return;
+  const list = document.getElementById('notes-list');
+  if (!d.notes.length) { list.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:14px;text-align:center;">メモがまだありません</div>'; return; }
+  list.innerHTML = d.notes.map(n => `<div class="note-card">
+    <div class="note-text">${escapeHtml(n.note)}</div>
+    <div class="note-meta">
+      ${n.tag ? '<span class="note-tag">' + escapeHtml(n.tag) + '</span>' : ''}
+      <span>${escapeHtml((n.created_at || '').slice(0, 16).replace('T', ' '))}</span>
+      <span style="margin-left:auto;"><button class="btn btn-danger" style="padding:2px 8px;font-size:10px;" onclick="delNote(${n.id})">×</button></span>
+    </div>
+  </div>`).join('');
+}
+async function submitNote() {
+  const errEl = document.getElementById('note-err');
+  errEl.textContent = '';
+  const note = document.getElementById('note-text').value.trim();
+  if (!note) { errEl.textContent = '本文を入力してください'; return; }
+  const tag = document.getElementById('note-tag').value;
+  const r = await fetch('/api/myhealth/notes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ note, tag })
+  });
+  const d = await r.json();
+  if (!d.success) { errEl.textContent = d.msg || '失敗'; return; }
+  document.getElementById('note-text').value = '';
+  document.getElementById('note-tag').value = '';
+  loadNotes();
+}
+async function delNote(id) {
+  if (!confirm('削除しますか？')) return;
+  await fetch('/api/myhealth/notes/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+  loadNotes();
+}
+
+// ===== 📋 健診結果 =====
+async function loadCheckups() {
+  const r = await fetch('/api/myhealth/checkups', { headers: { Authorization: 'Bearer ' + token } });
+  const d = await r.json();
+  if (!d.success) return;
+  const grid = document.getElementById('ck-grid');
+  if (!d.checkups.length) { grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:14px;text-align:center;grid-column:1/-1;">健診ファイルはまだアップロードされていません</div>'; return; }
+  grid.innerHTML = d.checkups.map(c => {
+    const isPdf = (c.file_url || '').toLowerCase().endsWith('.pdf');
+    return `<div class="ck-card">
+      <div class="ck-year">${c.year || '-'}年度 ${isPdf ? '📄' : '🖼'}</div>
+      <div class="ck-name" title="${escapeHtml(c.file_name || '')}">${escapeHtml((c.file_name || '').slice(0, 30))}${(c.file_name || '').length > 30 ? '…' : ''}</div>
+      <div style="font-size:10px;color:#94a3b8;">${Math.round((c.file_size || 0) / 1024)}KB · ${escapeHtml((c.uploaded_at || '').slice(0, 10))}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openCheckup(${c.id})">開く</button>
+        <button class="btn btn-danger" style="font-size:11px;padding:5px 10px;" onclick="delCheckup(${c.id})">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function openCheckup(id) {
+  const r = await fetch('/api/myhealth/checkup-file/' + id, { headers: { Authorization: 'Bearer ' + token } });
+  if (!r.ok) { alert('取得失敗'); return; }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function submitCheckup() {
+  const errEl = document.getElementById('ck-err');
+  errEl.textContent = '';
+  const file = document.getElementById('ck-file').files[0];
+  if (!file) { errEl.textContent = 'ファイルを選択してください'; return; }
+  const fd = new FormData();
+  const year = document.getElementById('ck-year').value || new Date().getFullYear();
+  fd.append('year', year);
+  fd.append('file', file);
+  const r = await fetch('/api/myhealth/checkups', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd });
+  const d = await r.json();
+  if (!d.success) { errEl.textContent = d.msg || '失敗'; return; }
+  document.getElementById('ck-file').value = '';
+  loadCheckups();
+}
+async function delCheckup(id) {
+  if (!confirm('健診ファイルを削除しますか？')) return;
+  await fetch('/api/myhealth/checkups/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+  loadCheckups();
 }
 
 // ===== ループ統計 =====

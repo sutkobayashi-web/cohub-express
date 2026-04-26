@@ -295,6 +295,38 @@ function getDb() {
     created_at TEXT DEFAULT (datetime('now')),
     deleted_at TEXT
   );`);
+  // 個人健康記録 (Phase9) — 血圧 / 健康メモ / 健診結果ファイル
+  _db.exec(`CREATE TABLE IF NOT EXISTS bp_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    systolic INTEGER NOT NULL,
+    diastolic INTEGER NOT NULL,
+    pulse INTEGER,
+    measured_at TEXT,
+    memo TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_bp_user ON bp_records(user_id, measured_at DESC);
+  CREATE TABLE IF NOT EXISTS health_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    note TEXT NOT NULL,
+    tag TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_hn_user ON health_notes(user_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS health_checkups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    year INTEGER,
+    file_url TEXT NOT NULL,
+    file_name TEXT,
+    file_size INTEGER,
+    uploaded_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_hc_user ON health_checkups(user_id, year DESC);`);
   // 既定イベント: 🐠 水族館 (CoWell)
   const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
   if (!eventExists) {
