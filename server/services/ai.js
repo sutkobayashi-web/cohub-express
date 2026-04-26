@@ -231,4 +231,58 @@ async function generateText(prompt, opts) {
   throw new Error('応答テキストなし');
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText };
+// 食事画像を Gemini Vision で栄養分析 (CoWell ひろば 互換のスコア形式)
+async function analyzeFoodImage(imageBuffer, mimeType, userMemo) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
+  const prompt = `この食事画像を栄養面で分析してください。${userMemo ? '\n投稿者メモ: ' + userMemo.slice(0, 200) : ''}
+
+以下の純粋なJSON (Markdownや前置き不要) で回答:
+{
+  "scores": {
+    "protein":  1〜5の整数,
+    "fat":      1〜5の整数,
+    "carb":     1〜5の整数,
+    "vitamin":  1〜5の整数,
+    "mineral":  1〜5の整数,
+    "salt":     1〜5の整数
+  },
+  "comment": "60字以内の前向きなコメント (改善1点 + 良い点1点)"
+}
+
+スコア基準:
+- 1=とても少ない, 3=ちょうどよい目安, 5=多め
+- saltは少ないほど健康的だが、ここは「含まれている量」のスコア
+- vitamin/mineral は野菜・果物の量で評価
+
+不適切な画像 (食事ではない/読み取れない) の場合は scores 全て null、comment に理由を入れる。`;
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 600, responseMimeType: 'application/json' },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini vision error: ' + resp.status + ' ' + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  text = text.replace(/^```json\s*|```\s*$/g, '').trim();
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) { throw new Error('AI応答解析失敗: ' + text.slice(0, 200)); }
+  return parsed;
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage };

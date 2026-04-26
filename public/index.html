@@ -510,6 +510,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>🩺</span><span class="lbl">現場の声</span>
     </button>
+    <button class="rail-btn" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
+      <span>🌳</span><span class="lbl">ひろば</span>
+    </button>
     <button class="rail-btn" onclick="location.href='/board.html'" title="社内掲示板" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
       <span>📋</span><span class="lbl">掲示板</span>
     </button>
@@ -596,7 +599,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- 健康管理室: CoWell (健康経営アプリ) をiframeで表示 -->
+    <!-- 健康管理室: CoHub ネイティブの「ひろば」を iframe で表示 -->
     <iframe id="wellness-iframe" src="about:blank"
       style="display:none;position:absolute;inset:40px 0 0 0;width:100%;height:calc(100% - 40px);border:0;z-index:5;background:#f8fafc;"
       allow="camera; microphone; fullscreen; clipboard-read; clipboard-write"
@@ -4945,12 +4948,12 @@ function wbClearConfirm() {
 function applyFloorLayout(floor) {
   const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
   const isWellness = floor && floor.code === 'wellness_room';
-  // 健康管理室: CoWellをiframe全面表示、会議室系UIは非表示
+  // 健康管理室: CoHubネイティブの「ひろば」を全面表示 (旧: CoWell iframe)
   const ifr = document.getElementById('wellness-iframe');
   if (ifr) {
     if (isWellness) {
       if (ifr.src === 'about:blank' || !ifr.dataset.loaded) {
-        ifr.src = 'https://health.biz-terrace.org/';
+        ifr.src = '/plaza.html';
         ifr.dataset.loaded = '1';
       }
       ifr.style.display = 'block';

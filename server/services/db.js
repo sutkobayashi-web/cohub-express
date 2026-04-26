@@ -245,6 +245,63 @@ function getDb() {
     notes TEXT,
     ran_at TEXT DEFAULT (datetime('now'))
   );`);
+  // ひろば (Phase6) — CoWell の posts 機能を CoHub にネイティブ実装
+  // 食事/相談/雑談を投稿、食事は AI 栄養スコア自動付与
+  _db.exec(`CREATE TABLE IF NOT EXISTS plaza_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author_id TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '雑談',
+    content TEXT,
+    image_url TEXT,
+    nutrition_scores TEXT,
+    ai_comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pp_at ON plaza_posts(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_pp_cat ON plaza_posts(category, created_at DESC);
+  CREATE TABLE IF NOT EXISTS plaza_reactions (
+    post_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    emoji TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (post_id, user_id, emoji)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pr_post ON plaza_reactions(post_id);
+  CREATE TABLE IF NOT EXISTS plaza_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pc_post ON plaza_comments(post_id, created_at);`);
+  // イベント (Phase7) — 健康チャレンジ/水族館等の「開催中」リスト
+  _db.exec(`CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    icon TEXT DEFAULT '🎉',
+    url TEXT,
+    is_external INTEGER DEFAULT 0,
+    start_date TEXT,
+    end_date TEXT,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );`);
+  // 既定イベント: 🐠 水族館 (CoWell)
+  const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
+  if (!eventExists) {
+    _db.prepare(`INSERT INTO events (title, description, icon, url, is_external, sort_order)
+      VALUES (?, ?, ?, ?, 1, 100)`).run(
+      '🐠 水族館の冒険',
+      '歩数で海を旅して魚を発見する CoWell の冒険RPGです。今までの冒険記録もそのまま続けられます。',
+      '🐠',
+      'https://health.biz-terrace.org/'
+    );
+  }
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用

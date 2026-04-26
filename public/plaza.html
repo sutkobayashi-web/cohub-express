@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🌳 ひろば — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<meta name="theme-color" content="#0d9488">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior-y: contain; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f0fdfa; color: #0f172a; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
+
+/* イベント */
+.events { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; scroll-snap-type: x mandatory; }
+.evt { flex: 0 0 240px; background: linear-gradient(135deg, #ecfeff, #cffafe); border: 1px solid #99f6e4; border-radius: 14px; padding: 14px; cursor: pointer; scroll-snap-align: start; box-shadow: 0 1px 4px rgba(0,0,0,0.04); transition: transform 0.15s; }
+.evt:hover { transform: translateY(-2px); }
+.evt-icon { font-size: 32px; line-height: 1; margin-bottom: 6px; }
+.evt-title { font-weight: 800; font-size: 14px; color: #0f766e; margin-bottom: 2px; }
+.evt-desc { font-size: 11px; color: #475569; line-height: 1.5; }
+.evt-tag { display: inline-block; background: #14b8a6; color: #fff; font-size: 10px; padding: 1px 8px; border-radius: 8px; font-weight: 700; margin-bottom: 6px; }
+
+/* 投稿フォーム */
+.composer { background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.cat-pills { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+.cp { padding: 6px 12px; background: #f1f5f9; border: 1px solid transparent; border-radius: 16px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; }
+.cp.sel-食事 { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
+.cp.sel-相談 { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
+.cp.sel-雑談 { background: #ecfeff; color: #0e7490; border-color: #06b6d4; }
+.cp.sel-健康Tips { background: #ecfdf5; color: #047857; border-color: #10b981; }
+.composer textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; }
+.composer textarea:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+.composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.btn { padding: 9px 16px; background: #0d9488; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-icon { padding: 8px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; }
+.composer-meta { flex: 1; font-size: 11px; color: #94a3b8; }
+.preview-img-wrap { position: relative; margin-top: 8px; display: inline-block; }
+.preview-img { max-width: 200px; max-height: 200px; border-radius: 8px; }
+.preview-clear { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
+.ai-tip { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 6px 10px; font-size: 11px; color: #78350f; border-radius: 4px; margin-top: 6px; display: none; }
+.ai-tip.show { display: block; }
+
+/* 投稿カード */
+.post { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.post.archive { background: #f8fafc; border-left: 3px solid #cbd5e1; }
+.post-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+.avatar-fallback { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #99f6e4, #5eead4); color: #115e59; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.post-meta { flex: 1; min-width: 0; }
+.post-author { font-weight: 700; font-size: 14px; }
+.post-time { font-size: 11px; color: #94a3b8; }
+.cat-bdg { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 800; }
+.cat-bdg.食事 { background: #fef3c7; color: #b45309; }
+.cat-bdg.相談 { background: #fee2e2; color: #b91c1c; }
+.cat-bdg.雑談 { background: #ecfeff; color: #0e7490; }
+.cat-bdg.健康Tips { background: #ecfdf5; color: #047857; }
+.post-content { font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; }
+.post-image { margin-top: 10px; max-width: 100%; max-height: 480px; border-radius: 10px; cursor: pointer; }
+.del-btn { background: transparent; border: none; color: #cbd5e1; font-size: 16px; cursor: pointer; padding: 4px 8px; }
+.del-btn:hover { color: #ef4444; }
+
+/* 栄養スコア */
+.nutri { background: linear-gradient(135deg, #fef3c7, #fef9c3); border-radius: 10px; padding: 10px; margin-top: 10px; }
+.nutri-head { font-size: 11px; font-weight: 800; color: #78350f; margin-bottom: 6px; }
+.nutri-bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.nutri-bar { text-align: center; }
+.nutri-bar .l { font-size: 9px; color: #78350f; font-weight: 700; }
+.nutri-bar .b { height: 32px; display: flex; align-items: flex-end; justify-content: center; }
+.nutri-bar .b .fill { width: 100%; background: linear-gradient(180deg, #f59e0b, #d97706); border-radius: 3px 3px 0 0; min-height: 2px; }
+.nutri-bar .v { font-size: 10px; font-weight: 800; color: #78350f; }
+.ai-cmt { font-size: 12px; color: #78350f; margin-top: 6px; padding: 6px 8px; background: rgba(255,255,255,0.5); border-radius: 6px; line-height: 1.5; }
+
+.post-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+.react-btn { padding: 6px 10px; background: #f8fafc; border: 1px solid transparent; border-radius: 16px; cursor: pointer; font-size: 13px; }
+.react-btn:hover { background: #e2e8f0; }
+.react-btn.mine { background: #ccfbf1; border-color: #0d9488; color: #0f766e; font-weight: 700; }
+.react-btn .ct { font-size: 11px; color: #64748b; font-weight: 700; }
+.react-btn.mine .ct { color: #0f766e; }
+.cmt-btn { margin-left: auto; padding: 6px 10px; background: transparent; border: none; color: #64748b; font-size: 12px; cursor: pointer; border-radius: 8px; }
+.cmt-btn:hover { background: #f1f5f9; }
+.comments { margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; display: none; }
+.comments.open { display: block; }
+.cmt { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.cmt:last-child { border-bottom: 0; }
+.cmt .avatar, .cmt .avatar-fallback { width: 28px; height: 28px; font-size: 11px; }
+.cmt-body { flex: 1; min-width: 0; }
+.cmt-author { font-size: 12px; font-weight: 700; }
+.cmt-time { font-size: 10px; color: #94a3b8; margin-left: 6px; }
+.cmt-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+.cmt-form { display: flex; gap: 6px; margin-top: 8px; }
+.cmt-form input { flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 18px; font-size: 13px; outline: none; }
+.cmt-form button { padding: 7px 14px; background: #0d9488; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 12px; font-weight: 700; }
+
+.section-ttl { font-size: 11px; font-weight: 800; color: #475569; padding: 4px 4px; margin-top: 14px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
+.empty .ico { font-size: 48px; margin-bottom: 12px; }
+.archive-tag { display: inline-block; background: #94a3b8; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 700; margin-left: 4px; }
+
+#img-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+#img-modal.open { display: flex; }
+#img-modal img { max-width: 100%; max-height: 100%; }
+#img-modal .close { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; }
+
+.login { max-width: 380px; margin: 60px auto; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.login h2 { margin: 0 0 16px; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #0d9488; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌳 ひろば</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:12px;"></div>
+  <button onclick="location.href='/'" style="margin-left:14px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+</header>
+
+<main>
+  <div id="login" class="login" style="display:none;">
+    <h2>ログイン</h2>
+    <input type="text" id="li-id" placeholder="ログインID" autocomplete="username">
+    <input type="password" id="li-pw" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="err" id="li-err"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="section-ttl">📅 開催中のイベント</div>
+    <div class="events" id="events"></div>
+
+    <div class="section-ttl">✏️ 投稿</div>
+    <div class="composer">
+      <div class="cat-pills" id="cat-pills"></div>
+      <textarea id="cmp-text" placeholder="今、何食べた？気になることある？シェアしましょう"></textarea>
+      <div id="cmp-preview" class="preview-img-wrap" style="display:none;">
+        <img id="cmp-preview-img" class="preview-img">
+        <button class="preview-clear" onclick="clearImage()">×</button>
+      </div>
+      <div class="ai-tip" id="ai-tip">🍱 食事カテゴリ + 写真付きなら AI が栄養スコアを自動分析します</div>
+      <div class="composer-bar">
+        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真">📷</button>
+        <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
+        <div class="composer-meta"><span id="cmp-count">0</span>/500</div>
+        <button class="btn" id="cmp-submit" onclick="submitPost()">投稿</button>
+      </div>
+    </div>
+
+    <div class="section-ttl">🌳 みんなの投稿</div>
+    <div id="feed"></div>
+  </div>
+</main>
+
+<div id="img-modal" onclick="closeImgModal()">
+  <button class="close" onclick="closeImgModal()">×</button>
+  <img id="img-modal-img" alt="">
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let me = null;
+let _imageFile = null;
+let _curCat = '雑談';
+let _socket = null;
+let _categories = [];
+const EMOJIS = ['❤️', '🎉', '👍', '😊', '👏'];
+const NUTRI_KEYS = ['protein', 'fat', 'carb', 'vitamin', 'mineral', 'salt'];
+const NUTRI_LABELS = { protein: 'タンパク', fat: '脂質', carb: '糖質', vitamin: 'ビタミン', mineral: 'ミネラル', salt: '塩分' };
+
+function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function avatarHtml(url, name) {
+  if (url) return `<img class="avatar" src="${escapeHtml(url)}" alt="">`;
+  const init = (name || '?').slice(0, 2);
+  return `<div class="avatar-fallback">${escapeHtml(init)}</div>`;
+}
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+async function api(p, opts) {
+  opts = opts || {}; opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(p, opts);
+  if (r.status === 401) { showLogin('セッション切れ'); throw new Error('401'); }
+  return r.json();
+}
+function showLogin(err) {
+  document.getElementById('login').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  if (err) document.getElementById('li-err').textContent = err;
+}
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login_id: id, password: pw }) });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    initApp();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+async function initApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('who').textContent = (me && me.display_name) || '';
+  const meta = await api('/api/plaza/meta');
+  _categories = meta.categories;
+  // カテゴリピル
+  const pills = document.getElementById('cat-pills');
+  pills.innerHTML = _categories.map(c => `<button class="cp" data-cat="${escapeHtml(c)}" onclick="setCat('${escapeHtml(c)}')">${escapeHtml(c)}</button>`).join('');
+  setCat('雑談');
+  loadEvents();
+  loadFeed();
+  setupSocket();
+}
+
+function setCat(c) {
+  _curCat = c;
+  document.querySelectorAll('.cp').forEach(b => {
+    b.className = 'cp';
+    if (b.dataset.cat === c) b.classList.add('sel-' + c);
+  });
+  document.getElementById('ai-tip').classList.toggle('show', c === '食事');
+}
+
+function setupSocket() {
+  if (_socket || !window.io) return;
+  try {
+    _socket = io({ auth: { token } });
+    _socket.on('plaza:new', payload => prependPost(payload.post));
+    _socket.on('plaza:delete', payload => removePost(payload.id));
+    _socket.on('plaza:react', applyReact);
+    _socket.on('plaza:comment', payload => bumpCmt(payload.post_id));
+  } catch (e) {}
+}
+
+async function loadEvents() {
+  const d = await api('/api/events');
+  const box = document.getElementById('events');
+  if (!d.success || !d.events.length) { box.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">現在開催中のイベントはありません</div>'; return; }
+  box.innerHTML = d.events.map(e => {
+    const tag = '<span class="evt-tag">開催中</span>';
+    const onclick = e.url ? `onclick="${e.is_external ? `window.open('${escapeHtml(e.url)}', '_blank')` : `location.href='${escapeHtml(e.url)}'`}"` : '';
+    return `<div class="evt" ${onclick}>
+      <div class="evt-icon">${e.icon || '🎉'}</div>
+      ${tag}
+      <div class="evt-title">${escapeHtml(e.title)}</div>
+      <div class="evt-desc">${escapeHtml(e.description || '')}</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('cmp-text').addEventListener('input', e => { document.getElementById('cmp-count').textContent = e.target.value.length; });
+
+function onPickImage(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  if (f.size > 10 * 1024 * 1024) { alert('10MB以下'); return; }
+  _imageFile = f;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('cmp-preview-img').src = e.target.result; document.getElementById('cmp-preview').style.display = 'inline-block'; };
+  reader.readAsDataURL(f);
+}
+function clearImage() {
+  _imageFile = null;
+  document.getElementById('cmp-file').value = '';
+  document.getElementById('cmp-preview').style.display = 'none';
+}
+
+async function submitPost() {
+  const text = document.getElementById('cmp-text').value.trim();
+  if (!text && !_imageFile) { alert('本文か画像が必要'); return; }
+  const btn = document.getElementById('cmp-submit');
+  btn.disabled = true; btn.textContent = _curCat === '食事' && _imageFile ? '🧠 AI分析中…' : '投稿中…';
+  try {
+    const fd = new FormData();
+    fd.append('category', _curCat);
+    fd.append('content', text);
+    if (_imageFile) fd.append('image', _imageFile);
+    const r = await fetch('/api/plaza/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const d = await r.json();
+    if (!d.success) { alert(d.msg || '失敗'); return; }
+    document.getElementById('cmp-text').value = '';
+    document.getElementById('cmp-count').textContent = '0';
+    clearImage();
+    prependPost(d.post);
+  } catch (e) { alert('通信エラー: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '投稿'; }
+}
+
+async function loadFeed() {
+  const d = await api('/api/plaza/posts?limit=30');
+  if (!d.success) return;
+  const feed = document.getElementById('feed');
+  if (!d.posts.length) { feed.innerHTML = '<div class="empty"><div class="ico">🌳</div><div>まだ投稿がありません。<br>最初の一投目を!</div></div>'; return; }
+  feed.innerHTML = d.posts.map(postHtml).join('');
+}
+
+function postHtml(p) {
+  const reactions = EMOJIS.map(e => {
+    const ct = (p.reactions && p.reactions[e]) || 0;
+    const mine = !!(p.my_reactions && p.my_reactions[e]);
+    return `<button class="react-btn ${mine ? 'mine' : ''}" onclick="toggleReact(${p.id}, '${e}')">${e}${ct ? ' <span class="ct">' + ct + '</span>' : ''}</button>`;
+  }).join('');
+  const img = p.image_url ? `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">` : '';
+  const delBtn = p.can_delete ? `<button class="del-btn" onclick="deletePost(${p.id})" title="削除">🗑</button>` : '';
+  const cnt = p.comment_count || 0;
+  const isArchive = p.kind === 'archive';
+  let nutri = '';
+  if (p.nutrition_scores) {
+    try {
+      const ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
+      const bars = NUTRI_KEYS.map(k => {
+        const v = ns[k] != null ? ns[k] : 0;
+        const pct = (Math.max(0, Math.min(5, v)) / 5) * 100;
+        return `<div class="nutri-bar">
+          <div class="l">${NUTRI_LABELS[k]}</div>
+          <div class="b"><div class="fill" style="height:${pct}%"></div></div>
+          <div class="v">${v || '-'}</div>
+        </div>`;
+      }).join('');
+      nutri = `<div class="nutri">
+        <div class="nutri-head">🍱 AI栄養分析</div>
+        <div class="nutri-bars">${bars}</div>
+        ${p.ai_comment ? `<div class="ai-cmt">💬 ${escapeHtml(p.ai_comment)}</div>` : ''}
+      </div>`;
+    } catch (e) {}
+  }
+  const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';
+  const author = p.author_name || (isArchive ? '(過去ユーザー)' : '不明');
+  const cat = p.category || '雑談';
+  return `<article class="post ${isArchive ? 'archive' : ''}" id="post-${p.id}" data-id="${p.id}">
+    <div class="post-head">
+      ${avatarHtml(p.author_avatar, author)}
+      <div class="post-meta">
+        <div class="post-author">${escapeHtml(author)} ${archiveTag}</div>
+        <div class="post-time"><span class="cat-bdg ${escapeHtml(cat)}">${escapeHtml(cat)}</span> · ${relTime(p.created_at)}</div>
+      </div>
+      ${delBtn}
+    </div>
+    ${p.content ? `<div class="post-content">${escapeHtml(p.content)}</div>` : ''}
+    ${img}
+    ${nutri}
+    ${!isArchive ? `<div class="post-actions">
+      ${reactions}
+      <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>
+    </div>
+    <div class="comments" id="cmts-${p.id}"></div>` : ''}
+  </article>`;
+}
+
+function prependPost(p) {
+  if (document.getElementById('post-' + p.id) && p.kind !== 'archive') return;
+  document.getElementById('feed').insertAdjacentHTML('afterbegin', postHtml(p));
+}
+function removePost(id) {
+  const el = document.getElementById('post-' + id);
+  if (el) el.remove();
+}
+
+async function toggleReact(id, emoji) {
+  const r = await api('/api/plaza/posts/' + id + '/react', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji })
+  });
+  if (!r.success) return;
+  applyReact({ post_id: id, emoji, user_id: me.uid, added: r.added });
+}
+
+function applyReact(payload) {
+  const article = document.getElementById('post-' + payload.post_id);
+  if (!article) return;
+  const btns = article.querySelectorAll('.react-btn');
+  for (const b of btns) {
+    if (b.textContent.trim().startsWith(payload.emoji)) {
+      const ctEl = b.querySelector('.ct');
+      let ct = ctEl ? parseInt(ctEl.textContent) : 0;
+      ct = ct + (payload.added ? 1 : -1);
+      if (ct < 0) ct = 0;
+      b.innerHTML = payload.emoji + (ct ? ' <span class="ct">' + ct + '</span>' : '');
+      if (payload.user_id === me.uid) {
+        if (payload.added) b.classList.add('mine'); else b.classList.remove('mine');
+      }
+      break;
+    }
+  }
+}
+
+async function deletePost(id) {
+  if (!confirm('この投稿を削除しますか？')) return;
+  const r = await api('/api/plaza/posts/' + id, { method: 'DELETE' });
+  if (r.success) removePost(id);
+}
+
+async function toggleComments(id) {
+  const box = document.getElementById('cmts-' + id);
+  if (box.classList.contains('open')) { box.classList.remove('open'); return; }
+  box.classList.add('open');
+  box.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:6px;">読み込み中…</div>';
+  const d = await api('/api/plaza/posts/' + id + '/comments');
+  if (!d.success) { box.innerHTML = '取得失敗'; return; }
+  const list = (d.comments || []).map(c => `<div class="cmt">
+    ${avatarHtml(c.author_avatar, c.author_name)}
+    <div class="cmt-body">
+      <span class="cmt-author">${escapeHtml(c.author_name || '')}</span><span class="cmt-time">${relTime(c.created_at)}</span>
+      <div class="cmt-text">${escapeHtml(c.content)}</div>
+    </div>
+  </div>`).join('');
+  box.innerHTML = list + `<form class="cmt-form" onsubmit="postComment(event, ${id});return false;">
+    <input type="text" placeholder="コメント…" maxlength="500" id="cmt-input-${id}">
+    <button type="submit">送信</button>
+  </form>`;
+  document.getElementById('cmt-input-' + id).focus();
+}
+
+async function postComment(ev, id) {
+  ev.preventDefault();
+  const inp = document.getElementById('cmt-input-' + id);
+  const content = inp.value.trim();
+  if (!content) return;
+  const r = await api('/api/plaza/posts/' + id + '/comments', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  inp.value = '';
+  const c = r.comment;
+  inp.closest('form').insertAdjacentHTML('beforebegin', `<div class="cmt">
+    ${avatarHtml(c.author_avatar, c.author_name)}
+    <div class="cmt-body">
+      <span class="cmt-author">${escapeHtml(c.author_name || '')}</span><span class="cmt-time">たった今</span>
+      <div class="cmt-text">${escapeHtml(c.content)}</div>
+    </div>
+  </div>`);
+  bumpCmt(id);
+}
+
+function bumpCmt(id) {
+  const el = document.getElementById('cmt-ct-' + id);
+  if (!el) return;
+  const cur = parseInt(el.textContent) || 0;
+  el.textContent = (cur + 1).toString();
+}
+
+function openImgModal(url) { document.getElementById('img-modal-img').src = url; document.getElementById('img-modal').classList.add('open'); }
+function closeImgModal() { document.getElementById('img-modal').classList.remove('open'); }
+
+(async function() {
+  if (!token) { showLogin(''); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
+    if (u && u.uid) { me = u; initApp(); }
+    else showLogin('');
+  } catch (e) { showLogin(''); }
+})();
+</script>
+</body>
+</html>

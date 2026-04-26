@@ -79,17 +79,17 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 
-// 葵から健康管理室のCoWellイベント案内DM (1日1回、ロビー入室時)
+// 葵から健康管理室のひろば案内DM (1日1回、ロビー入室時)
 // 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
-const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🏥 健康管理室より
+const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🌳 健康管理室「ひろば」より
 
-CoWellで健康づくりを始めませんか？
-左メニュー「🏥 健康管理室」からいつでもアクセスできます。
+ひろばに食事や雑談を投稿してみませんか？
+食事の写真を投稿すると AI が栄養スコアを自動分析します。
 
-🎯 今週のイベント
-・毎日の歩数記録で『健康の海』を冒険
-・食事の写真をバディーに見せて栄養チェック
-・ちょっとした会話でメンタル調子を把握
+🎯 今すぐできること
+・「ひろば」(左メニュー🌳) で 30秒で食事投稿 → AI栄養分析
+・「🐠 水族館の冒険」(開催中イベント) で歩数を冒険に
+・気になることがあれば「相談」カテゴリで投稿
 
 皆さんの健康づくり、応援しています！`;
 
@@ -179,9 +179,9 @@ app.use(helmet({
       mediaSrc: ["'self'", "blob:", "data:"],
       connectSrc: ["'self'", "wss:", "ws:", "https://cloudflareinsights.com", "https://cdn.jsdelivr.net"],
       workerSrc: ["'self'", "blob:"],
-      childSrc: ["'self'", "blob:", "https://health.biz-terrace.org"],
-      // 健康管理室でCoWell (health) をiframe埋込するため
-      frameSrc: ["'self'", "https://health.biz-terrace.org"],
+      childSrc: ["'self'", "blob:"],
+      // 健康管理室は CoHub ネイティブの /plaza.html を iframe (CoWell吸収済)
+      frameSrc: ["'self'"],
     }
   },
   crossOriginEmbedderPolicy: false,
@@ -225,6 +225,8 @@ app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/ops', require('./routes/ops'));
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/cw-archive', require('./routes/cw_archive'));
+app.use('/api/plaza', require('./routes/plaza'));
+app.use('/api/events', require('./routes/events'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {
