@@ -336,6 +336,34 @@ function getDb() {
     deleted_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_hc_user ON health_checkups(user_id, year DESC);`);
+  // 凝集型テーマ投票 (Phase10) — CoWell v2 から移植
+  // 1サイクル = テーマ起票 → 全社投票 → 専門家コメント → 施策化
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_themes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_no INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    description TEXT,
+    source_summary TEXT,
+    status TEXT NOT NULL DEFAULT '投票中',
+    created_by TEXT,
+    advisor_comment TEXT,
+    advisor_id TEXT,
+    advisor_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    closed_at TEXT,
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_wt_cycle ON wellness_themes(cycle_no, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_wt_status ON wellness_themes(status, created_at DESC);
+  CREATE TABLE IF NOT EXISTS wellness_theme_votes (
+    theme_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    vote INTEGER NOT NULL,                -- -1, 0, 1, 2 (反対/中立/賛成/強く賛成)
+    comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (theme_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_wtv_theme ON wellness_theme_votes(theme_id);`);
   // 既定イベント: 🐠 水族館 (CoWell)
   const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
   if (!eventExists) {

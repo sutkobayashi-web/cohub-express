@@ -160,9 +160,15 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
   <!-- 📋 健診結果 -->
   <div class="tab-pane" id="pane-checkup">
+    <div class="card" style="background:linear-gradient(135deg,#ede9fe,#fae8ff);border-left:4px solid #7c3aed;">
+      <h2>📥 Boxから健診データ取得</h2>
+      <div style="font-size:12px;color:#475569;margin-bottom:10px;">会社の Box に登録された健診結果(判定結果xlsm)から、氏名と生年月日でご自身のデータを表示します。</div>
+      <button class="btn" style="background:#7c3aed;" onclick="fetchBoxCheckup()">📥 Boxから取得</button>
+      <div id="box-result" style="margin-top:14px;"></div>
+    </div>
     <div class="card">
       <h2>📋 健診結果ファイル</h2>
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">PDF/画像をアップロードして年別に保管 (本人のみ閲覧可、最大20MB)</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">PDF/画像をアップロードして年別に保管 + AI分析 (本人のみ閲覧可、最大20MB)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="number" id="ck-year" placeholder="年度" value="" style="max-width:120px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
         <input type="file" id="ck-file" accept="application/pdf,image/*">
@@ -174,6 +180,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
         💡 過去の健診食事レポート (CoWell由来) は <a href="/wellness-archive.html" style="color:#0891b2;font-weight:700;">📦 CoWell履歴アーカイブ</a> から閲覧できます。
       </div>
     </div>
+    <div id="ck-ai-result" style="margin-top:14px;"></div>
   </div>
 
   <!-- 🎬 eラーニング -->
@@ -506,8 +513,9 @@ async function loadCheckups() {
       <div class="ck-year">${c.year || '-'}年度 ${isPdf ? '📄' : '🖼'}</div>
       <div class="ck-name" title="${escapeHtml(c.file_name || '')}">${escapeHtml((c.file_name || '').slice(0, 30))}${(c.file_name || '').length > 30 ? '…' : ''}</div>
       <div style="font-size:10px;color:#94a3b8;">${Math.round((c.file_size || 0) / 1024)}KB · ${escapeHtml((c.uploaded_at || '').slice(0, 10))}</div>
-      <div style="margin-top:8px;display:flex;gap:6px;">
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openCheckup(${c.id})">開く</button>
+        <button class="btn" style="font-size:11px;padding:5px 10px;background:#7c3aed;" onclick="analyzeCheckup(${c.id})">🧠 AI分析</button>
         <button class="btn btn-danger" style="font-size:11px;padding:5px 10px;" onclick="delCheckup(${c.id})">削除</button>
       </div>
     </div>`;
@@ -540,6 +548,70 @@ async function delCheckup(id) {
   if (!confirm('健診ファイルを削除しますか？')) return;
   await fetch('/api/myhealth/checkups/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
   loadCheckups();
+}
+
+async function analyzeCheckup(id) {
+  const box = document.getElementById('ck-ai-result');
+  box.innerHTML = '<div class="card" style="background:#faf5ff;color:#7c3aed;padding:14px;font-size:13px;">🧠 AI分析中… (10〜30秒)</div>';
+  try {
+    const r = await fetch('/api/myhealth/checkups/' + id + '/analyze', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { box.innerHTML = '<div class="card" style="color:#dc2626;">' + escapeHtml(d.msg || '失敗') + '</div>'; return; }
+    const a = d.analysis;
+    const sevColor = { good: '#10b981', caution: '#f59e0b', warning: '#ea580c', danger: '#dc2626' };
+    const sevLabel = { good: '✓ 良好', caution: '⚠ 注意', warning: '⚠ 警告', danger: '🚨 要医療' };
+    box.innerHTML = `<div class="card" style="border-left:4px solid #7c3aed;">
+      <h2>🧠 AI健診分析</h2>
+      <div style="background:#faf5ff;padding:12px;border-radius:8px;font-size:13px;line-height:1.7;color:#0f172a;margin-bottom:12px;white-space:pre-wrap;">${escapeHtml(a.summary || '')}</div>
+      ${(a.highlights || []).length ? '<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">🔍 ハイライト</div>' +
+        a.highlights.map(h => `<div style="padding:8px 10px;background:${(sevColor[h.level]||'#94a3b8')}11;border-left:3px solid ${(sevColor[h.level]||'#94a3b8')};border-radius:6px;margin-bottom:6px;">
+          <div style="font-size:11px;font-weight:700;color:${sevColor[h.level]||'#475569'};">${escapeHtml(h.category||'')} · ${sevLabel[h.level]||h.level||''}</div>
+          <div style="font-size:13px;color:#0f172a;margin-top:2px;">${escapeHtml(h.message||'')}</div>
+        </div>`).join('') : ''}
+      ${(a.values || []).length ? '<div style="font-size:12px;font-weight:700;color:#475569;margin:10px 0 6px;">📊 主要数値</div>' +
+        '<table style="font-size:12px;width:100%;"><thead><tr><th>項目</th><th>値</th><th>判定</th><th>基準</th></tr></thead><tbody>' +
+        a.values.map(v => `<tr><td>${escapeHtml(v.name||'')}</td><td><b>${escapeHtml(String(v.value||''))}</b> ${escapeHtml(v.unit||'')}</td><td>${escapeHtml(v.judgment||'')}</td><td style="color:#94a3b8;">${escapeHtml(v.ref_range||'')}</td></tr>`).join('') + '</tbody></table>' : ''}
+      ${a.advice ? '<div style="margin-top:12px;padding:10px 12px;background:#ecfdf5;border-left:3px solid #10b981;border-radius:6px;font-size:13px;line-height:1.7;color:#065f46;white-space:pre-wrap;">💡 ' + escapeHtml(a.advice) + '</div>' : ''}
+    </div>`;
+  } catch (e) { box.innerHTML = '<div class="card" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</div>'; }
+}
+
+async function fetchBoxCheckup() {
+  const box = document.getElementById('box-result');
+  box.innerHTML = '<div style="color:#7c3aed;font-size:13px;">📥 Boxから取得中…</div>';
+  try {
+    const r = await fetch('/api/myhealth/box-checkup', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { box.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:10px;background:#fef2f2;border-radius:6px;">' + escapeHtml(d.msg || '失敗') + '</div>'; return; }
+    const v = d.data;
+    const judgmentColor = j => /要医療|要精査/.test(j) ? '#dc2626' : /要観察|要再検/.test(j) ? '#f59e0b' : /異常|要注意/.test(j) ? '#ea580c' : /正常|問題/.test(j) ? '#10b981' : '#94a3b8';
+    const jb = j => j ? `<span style="background:${judgmentColor(j)}22;color:${judgmentColor(j)};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${escapeHtml(j)}</span>` : '-';
+    box.innerHTML = `<div style="background:#fff;border-radius:8px;padding:14px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px;">出典: ${escapeHtml(d.source || '')}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px;">
+        <div><div style="font-size:10px;color:#64748b;">受診日</div><div style="font-weight:700;">${escapeHtml(v.健診受診日 || '-')}</div></div>
+        <div><div style="font-size:10px;color:#64748b;">支店/職種</div><div style="font-weight:700;">${escapeHtml(v.支店名 || '')} / ${escapeHtml(v.職種 || '')}</div></div>
+        <div><div style="font-size:10px;color:#64748b;">年齢/性別</div><div style="font-weight:700;">${escapeHtml(String(v.年齢 || '-'))} ${escapeHtml(v.性別 || '')}</div></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📋 判定</div>
+      <table style="font-size:12px;width:100%;margin-bottom:14px;">
+        <tr><td>肥満</td><td>${jb(v.肥満判定)}</td><td>高血圧</td><td>${jb(v.高血圧判定)}</td></tr>
+        <tr><td>脂質</td><td>${jb(v.脂質異常判定)}</td><td>高血糖</td><td>${jb(v.高血糖判定)}</td></tr>
+        <tr><td>肝機能</td><td>${jb(v.肝機能判定)}</td><td>腎機能</td><td>${jb(v.腎機能判定)}</td></tr>
+        <tr><td>貧血</td><td>${jb(v.貧血判定)}</td><td></td><td></td></tr>
+      </table>
+      <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📊 主要数値</div>
+      <table style="font-size:12px;width:100%;">
+        <tr><td>身長</td><td>${escapeHtml(String(v.身長||'-'))} cm</td><td>体重</td><td>${escapeHtml(String(v.体重||'-'))} kg</td></tr>
+        <tr><td>BMI</td><td><b>${escapeHtml(String(v.BMI||'-'))}</b></td><td>腹囲</td><td>${escapeHtml(String(v.腹囲||'-'))} cm</td></tr>
+        <tr><td>血圧</td><td><b>${escapeHtml(String(v.収縮期血圧||'-'))}/${escapeHtml(String(v.拡張期血圧||'-'))}</b></td><td>HbA1c</td><td>${escapeHtml(String(v.HbA1c||'-'))}</td></tr>
+        <tr><td>HDL</td><td>${escapeHtml(String(v.HDL||'-'))}</td><td>LDL</td><td>${escapeHtml(String(v.LDL||'-'))}</td></tr>
+        <tr><td>中性脂肪</td><td>${escapeHtml(String(v.中性脂肪||'-'))}</td><td>空腹時血糖</td><td>${escapeHtml(String(v.空腹時血糖||'-'))}</td></tr>
+        <tr><td>AST</td><td>${escapeHtml(String(v.AST||'-'))}</td><td>ALT</td><td>${escapeHtml(String(v.ALT||'-'))}</td></tr>
+      </table>
+      <div style="margin-top:10px;font-size:10px;color:#94a3b8;">🔒 このデータは表示のみ。CoHub DBには保存されません。</div>
+    </div>`;
+  } catch (e) { box.innerHTML = '<div style="color:#dc2626;font-size:13px;">通信エラー: ' + escapeHtml(e.message) + '</div>'; }
 }
 
 // ===== 自動ログイン (CoHub既存セッション利用) =====

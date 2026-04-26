@@ -121,6 +121,17 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
     </div>
   </div>
 
+  <div class="card" style="background:linear-gradient(135deg,#ecfeff,#f0fdfa);border-left:4px solid #06b6d4;">
+    <h2 style="color:#0e7490;">🌱 凝集型テーマ投票 (CoWell v2 移植) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">テーマ起票→全社投票→専門家精査→施策化</span></h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn" id="btn-theme-ai" style="background:#06b6d4;" onclick="runThemeSuggest()">🧠 現場の声からAI提案</button>
+      <button class="btn btn-ghost" onclick="openNewTheme()">+ テーマ起票</button>
+      <button class="btn btn-ghost" onclick="loadThemes()">再読込</button>
+    </div>
+    <div id="theme-ai-box" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:10px;"></div>
+    <div id="theme-list"></div>
+  </div>
+
   <div class="card">
     <h2>🩺 現場の声 (運管POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
     <div class="row">
@@ -231,11 +242,124 @@ function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','
       document.getElementById('btn-ai').style.display = 'none';
       document.getElementById('btn-new').style.display = 'none';
     }
-    loadFieldVoice(); loadActions(); loadLoopStats();
+    loadFieldVoice(); loadActions(); loadLoopStats(); loadThemes();
+    if (!m.can_edit_actions) document.getElementById('btn-theme-ai').style.display = 'none';
   } catch (e) {
     document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
   }
 })();
+
+// ===== 🌱 凝集型テーマ投票 =====
+async function loadThemes() {
+  const list = document.getElementById('theme-list');
+  try {
+    const r = await fetch('/api/themes', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { list.innerHTML = '<div style="color:#dc2626;">取得失敗</div>'; return; }
+    if (!d.themes.length) { list.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:14px;text-align:center;">テーマはまだありません</div>'; return; }
+    const canManage = !!(_meta && _meta.can_edit_actions);
+    const isAdvisor = !!(_meta && (_meta.is_guest_reviewer || _meta.is_wellness_manager));
+    const statusColor = { '投票中': '#06b6d4', '専門家精査中': '#7c3aed', '施策化': '#10b981', '却下': '#ef4444', '完了': '#94a3b8' };
+    list.innerHTML = d.themes.map(t => {
+      const sc = statusColor[t.status] || '#64748b';
+      const myV = t.my_vote;
+      const voteBtn = (val, lbl, col) =>
+        `<button onclick="voteTheme(${t.id}, ${val})" style="padding:5px 10px;border-radius:14px;border:1px solid ${myV===val?col:'#cbd5e1'};background:${myV===val?col:'#fff'};color:${myV===val?'#fff':col};font-size:11px;font-weight:700;cursor:pointer;">${lbl}</button>`;
+      const advisor = t.advisor_comment
+        ? `<div style="margin-top:8px;padding:8px 10px;background:#faf5ff;border-left:3px solid #7c3aed;border-radius:6px;"><div style="font-size:10px;font-weight:700;color:#7c3aed;">🎓 専門家コメント (${escapeHtml(t.advisor_name||'')})</div><div style="font-size:13px;color:#0f172a;margin-top:2px;white-space:pre-wrap;">${escapeHtml(t.advisor_comment)}</div></div>`
+        : (isAdvisor ? `<button class="btn" style="background:#7c3aed;font-size:11px;margin-top:6px;" onclick="advisorComment(${t.id})">🎓 専門家コメント追加</button>` : '');
+      const statusBtns = canManage ? `<select onchange="changeThemeStatus(${t.id}, this.value)" style="font-size:11px;padding:3px 6px;margin-left:6px;">
+        <option value="">▼ステータス変更</option>
+        <option value="専門家精査中">→専門家精査中</option>
+        <option value="施策化">→施策化</option>
+        <option value="却下">→却下</option>
+        <option value="完了">→完了</option>
+      </select>` : '';
+      return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+          <span style="background:${sc};color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">${escapeHtml(t.status)}</span>
+          <span style="font-size:10px;color:#94a3b8;">サイクル${t.cycle_no}</span>
+          <span style="font-weight:800;font-size:14px;flex:1;">${escapeHtml(t.title)}</span>
+          ${statusBtns}
+        </div>
+        ${t.description ? `<div style="font-size:13px;color:#475569;margin-bottom:6px;">${escapeHtml(t.description)}</div>` : ''}
+        ${t.source_summary ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">📌 ${escapeHtml(t.source_summary)}</div>` : ''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+          ${voteBtn(-1, '👎 反対', '#ef4444')}
+          ${voteBtn(0, '🤔 中立', '#94a3b8')}
+          ${voteBtn(1, '👍 賛成', '#06b6d4')}
+          ${voteBtn(2, '💪 強く賛成', '#10b981')}
+          <span style="margin-left:auto;font-size:11px;color:#64748b;">${t.vote_count}票 / 集計値 <b style="color:${t.vote_sum>=t.vote_count?'#10b981':'#ef4444'};">${t.vote_sum}</b></span>
+        </div>
+        ${advisor}
+      </div>`;
+    }).join('');
+  } catch (e) { list.innerHTML = '<div style="color:#dc2626;">通信エラー</div>'; }
+}
+async function voteTheme(id, vote) {
+  await fetch('/api/themes/' + id + '/vote', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ vote }),
+  });
+  loadThemes();
+}
+async function advisorComment(id) {
+  const c = prompt('専門家コメントを入力してください (アクションプランの精査・改善提案など)');
+  if (!c) return;
+  await fetch('/api/themes/' + id + '/advisor', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ comment: c }),
+  });
+  loadThemes();
+}
+async function changeThemeStatus(id, status) {
+  if (!status) return;
+  await fetch('/api/themes/' + id + '/status', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ status }),
+  });
+  loadThemes();
+}
+async function openNewTheme() {
+  const title = prompt('テーマタイトル (30字以内)');
+  if (!title) return;
+  const desc = prompt('説明 (任意、なぜ重要か)') || '';
+  await fetch('/api/themes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ title, description: desc, cycle_no: 1 }),
+  });
+  loadThemes();
+}
+async function runThemeSuggest() {
+  const box = document.getElementById('theme-ai-box');
+  box.style.display = 'block';
+  box.innerHTML = '<div style="color:#06b6d4;font-size:13px;">🧠 現場の声から AI がテーマ案を生成中… (10〜20秒)</div>';
+  try {
+    const r = await fetch('/api/themes/ai-suggest', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ days: 60 }),
+    });
+    const d = await r.json();
+    if (!d.success) { box.innerHTML = '<div style="color:#dc2626;">' + escapeHtml(d.msg) + '</div>'; return; }
+    box.innerHTML = '<div style="font-size:12px;font-weight:700;color:#06b6d4;margin-bottom:8px;">🧠 AIテーマ案 (タップで起票)</div>' +
+      d.suggestions.map((s, i) => `<div style="background:#ecfeff;border:1px solid #cffafe;border-radius:8px;padding:10px;margin-bottom:6px;">
+        <div style="font-weight:800;color:#0e7490;">${i+1}. ${escapeHtml(s.title)}</div>
+        <div style="font-size:12px;margin:4px 0;color:#0f172a;">${escapeHtml(s.description||'')}</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;">📌 ${escapeHtml(s.source_summary||'')}</div>
+        <button class="btn" style="background:#06b6d4;font-size:11px;padding:4px 10px;" onclick='adoptTheme(${i})'>📋 起票する</button>
+      </div>`).join('');
+    window._themeSuggest = d.suggestions;
+  } catch (e) { box.innerHTML = '<div style="color:#dc2626;">通信エラー</div>'; }
+}
+async function adoptTheme(i) {
+  const s = window._themeSuggest && window._themeSuggest[i];
+  if (!s) return;
+  await fetch('/api/themes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ title: s.title, description: s.description, source_summary: s.source_summary, cycle_no: 1 }),
+  });
+  loadThemes();
+}
 
 // ===== ループ統計 =====
 async function loadLoopStats() {
