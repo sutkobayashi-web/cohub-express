@@ -416,14 +416,28 @@ ${discLines || '(なし)'}
 - データが薄い場合は無理に作らず空配列で良い`;
 
   try {
-    const aiText = await generateText(prompt, { maxTokens: 2000 });
+    // Gemini 2.5 は thinking にもトークン消費するため余裕を持たせる
+    const aiText = await generateText(prompt, { maxTokens: 4000, responseMimeType: 'application/json' });
+    console.log('[insights] raw:', String(aiText || '').slice(0, 300));
     let parsed = null;
-    try {
-      // ```json ... ``` ブロックを除去して試す
-      const cleaned = String(aiText || '').replace(/^```json\s*|```\s*$/g, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch (e) {
-      return res.json({ success: false, msg: 'AI出力解析失敗', raw: aiText });
+    let cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) cleaned = m[0];
+    try { parsed = JSON.parse(cleaned); }
+    catch (e) {
+      // 切詰時のフォールバック: 開きカッコ過多なら閉じる
+      let fixed = cleaned;
+      const opens = (fixed.match(/\{/g) || []).length;
+      const closes = (fixed.match(/\}/g) || []).length;
+      const obs = (fixed.match(/\[/g) || []).length;
+      const cbs = (fixed.match(/\]/g) || []).length;
+      if (obs > cbs) fixed += ']'.repeat(obs - cbs);
+      if (opens > closes) fixed += '}'.repeat(opens - closes);
+      try { parsed = JSON.parse(fixed); }
+      catch (e2) {
+        console.warn('[insights] parse fail:', cleaned.slice(0, 300));
+        return res.json({ success: false, msg: 'AI出力解析失敗 (出力切詰の可能性)', raw: cleaned.slice(0, 500) });
+      }
     }
     res.json({
       success: true,
@@ -433,6 +447,7 @@ ${discLines || '(なし)'}
       insights: parsed,
     });
   } catch (e) {
+    console.warn('[insights] error:', e.message);
     res.status(500).json({ success: false, msg: 'AI呼び出し失敗: ' + e.message });
   }
 });

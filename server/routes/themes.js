@@ -121,12 +121,26 @@ ${lines}
 以下の純粋なJSON (前置き禁止) で回答:
 {"themes": [{"title": "30字以内テーマ名", "description": "60字以内、なぜ重要か", "source_summary": "根拠となる声の要約40字"}]}`;
   try {
-    const aiText = await generateText(prompt, { maxTokens: 1500 });
-    const cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const aiText = await generateText(prompt, { maxTokens: 3000, responseMimeType: 'application/json' });
+    let cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
     const m = cleaned.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(m ? m[0] : cleaned);
+    if (m) cleaned = m[0];
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch (e) {
+      // 切詰フォールバック
+      let fixed = cleaned;
+      const obs = (fixed.match(/\[/g) || []).length;
+      const cbs = (fixed.match(/\]/g) || []).length;
+      const opens = (fixed.match(/\{/g) || []).length;
+      const closes = (fixed.match(/\}/g) || []).length;
+      if (obs > cbs) fixed += ']'.repeat(obs - cbs);
+      if (opens > closes) fixed += '}'.repeat(opens - closes);
+      parsed = JSON.parse(fixed);
+    }
     res.json({ success: true, suggestions: parsed.themes || [] });
   } catch (e) {
+    console.warn('[themes/ai-suggest] fail:', e.message);
     res.status(500).json({ success: false, msg: 'AI失敗: ' + e.message });
   }
 });
