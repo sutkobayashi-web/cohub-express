@@ -5,6 +5,7 @@ const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
+const { analyzeBPImage } = require('../services/ai');
 
 // ============================================================
 // 血圧記録
@@ -41,6 +42,18 @@ router.post('/bp', authUser, express.json(), (req, res) => {
   const ins = getDb().prepare(`INSERT INTO bp_records (user_id, systolic, diastolic, pulse, measured_at, memo)
     VALUES (?, ?, ?, ?, ?, ?)`).run(req.uid, sys, dia, pulse, measuredAt, memo);
   res.json({ success: true, id: ins.lastInsertRowid });
+});
+
+// 血圧計の写真をAIで読み取り
+const bpUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+router.post('/bp/ocr', authUser, bpUpload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, msg: '画像必須' });
+  try {
+    const result = await analyzeBPImage(req.file.buffer, req.file.mimetype);
+    res.json({ success: true, data: result });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: 'AI読取エラー: ' + e.message });
+  }
 });
 
 router.delete('/bp/:id', authUser, (req, res) => {

@@ -298,4 +298,54 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
   return parsed;
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage };
+// 血圧計の写真をAIで読み取り (CoWell移植)
+async function analyzeBPImage(imageBuffer, mimeType) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
+  const prompt = `あなたは血圧計の液晶表示を読み取る専門AIです。
+画像の血圧計の数値を正確に読み取って純粋なJSONのみで回答 (前置き・コードフェンス禁止):
+
+{"systolic": 数値またはnull, "diastolic": 数値またはnull, "pulse": 数値またはnull, "confidence": "high"|"medium"|"low", "note": "補足"}
+
+ルール:
+- systolic = 最高血圧(上)
+- diastolic = 最低血圧(下)
+- pulse = 脈拍数 (表示があれば)
+- 読み取れない項目は null
+- 血圧計以外の画像なら全て null + note に「血圧計の画像ではありません」
+- 数値が部分的にしか見えない場合もできるだけ推定して confidence=medium`;
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 300 },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini vision HTTP ' + resp.status + ': ' + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) text = m[0];
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) {
+    console.warn('[analyzeBP] parse fail:', text.slice(0, 200));
+    throw new Error('AI応答解析失敗');
+  }
+  return parsed;
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage };

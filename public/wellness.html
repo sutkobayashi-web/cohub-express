@@ -119,6 +119,11 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
       <h2>🩸 血圧記録</h2>
       <div class="bp-stat" id="bp-stat"></div>
       <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:#475569;">新規記録</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);padding:10px;border-radius:10px;">
+        <button type="button" class="btn" style="background:#06b6d4;" onclick="document.getElementById('bp-cam').click()">📷 血圧計を撮影</button>
+        <input type="file" id="bp-cam" accept="image/*" capture="environment" style="display:none;" onchange="ocrBP(event)">
+        <span id="bp-ocr-msg" style="font-size:12px;color:#065f46;">血圧計の液晶を撮影するとAIが数値を自動入力します</span>
+      </div>
       <div class="bp-form">
         <input type="number" id="bp-sys" placeholder="収縮期 (上)" min="50" max="300">
         <input type="number" id="bp-dia" placeholder="拡張期 (下)" min="30" max="200">
@@ -385,6 +390,41 @@ async function loadBP() {
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:14px;">データなし</td></tr>';
   } catch (e) { console.warn('loadBP', e.message); }
 }
+async function ocrBP(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const msg = document.getElementById('bp-ocr-msg');
+  msg.style.color = '#7c3aed';
+  msg.innerHTML = '🧠 AI解析中… (5〜10秒)';
+  try {
+    const fd = new FormData();
+    fd.append('image', f);
+    const r = await fetch('/api/myhealth/bp/ocr', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const d = await r.json();
+    if (!d.success) {
+      msg.style.color = '#dc2626';
+      msg.textContent = '❌ ' + (d.msg || '読み取り失敗');
+      return;
+    }
+    const v = d.data || {};
+    if (v.systolic == null && v.diastolic == null) {
+      msg.style.color = '#dc2626';
+      msg.textContent = '❌ 数値を読み取れませんでした (' + (v.note || '') + ')';
+      return;
+    }
+    if (v.systolic != null) document.getElementById('bp-sys').value = v.systolic;
+    if (v.diastolic != null) document.getElementById('bp-dia').value = v.diastolic;
+    if (v.pulse != null) document.getElementById('bp-pulse').value = v.pulse;
+    const conf = v.confidence === 'high' ? '✅ 信頼度: 高' : v.confidence === 'medium' ? '⚠ 信頼度: 中 (確認してください)' : '⚠ 信頼度: 低 (要確認)';
+    msg.style.color = v.confidence === 'high' ? '#10b981' : '#d97706';
+    msg.innerHTML = '🧠 AI読み取り完了: ' + (v.systolic||'-') + '/' + (v.diastolic||'-') + (v.pulse?' 脈'+v.pulse:'') + '　' + conf;
+  } catch (e) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '❌ 通信エラー: ' + (e.message || '');
+  }
+  ev.target.value = '';
+}
+
 async function submitBP() {
   const errEl = document.getElementById('bp-err');
   errEl.textContent = '';
