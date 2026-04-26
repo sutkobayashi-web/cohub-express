@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔄 健康管理データ運営 — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<meta name="theme-color" content="#7c3aed">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #faf5ff; color: #0f172a; }
+header { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+header h1 { margin: 0; font-size: 16px; }
+header .spacer { flex: 1; }
+main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+.card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.card h2 { margin: 0 0 12px; font-size: 15px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.row input, .row select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; min-width: 140px; }
+.btn { padding: 8px 16px; background: #7c3aed; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger { background: #ef4444; }
+.btn-ghost { background: #e2e8f0; color: #0f172a; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+th { background: #f8fafc; font-weight: 600; color: #475569; }
+.banner { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; line-height: 1.6; }
+.banner-info { background: #ede9fe; border-left: 4px solid #7c3aed; color: #5b21b6; }
+.banner-warn { background: #fef3c7; border-left: 4px solid #f59e0b; color: #78350f; }
+.banner-guest { background: #fce7f3; border-left: 4px solid #db2777; color: #9d174d; }
+#no-access { max-width: 520px; margin: 60px auto; text-align: center; }
+.err { color: #dc2626; font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔄 健康管理データ運営</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:13px;"></div>
+  <button onclick="location.href='/wellness.html'" style="margin-left:14px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">← 健康管理室へ</button>
+  <button onclick="location.href='/'" style="margin-left:8px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">✕ 閉じる</button>
+</header>
+<main>
+
+<div id="loading" class="card" style="text-align:center;color:#94a3b8;">読み込み中…</div>
+
+<div id="no-access" class="card" style="display:none;">
+  <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+  <h2 style="color:#dc2626;">アクセス権がありません</h2>
+  <div style="font-size:13px;color:#64748b;line-height:1.7;margin:12px 0;">
+    このページは <b>推進メンバー</b> / <b>管理職</b> / <b>NPO・大学関係者 (ゲストレビュアー)</b> のみ閲覧可能です。<br>
+    <br>
+    個人の血圧記録・健診結果は <a href="/wellness.html" style="color:#10b981;font-weight:700;">🏥 健康管理室</a> から利用できます。
+  </div>
+</div>
+
+<div id="panel" style="display:none;">
+
+  <div id="role-banner" class="banner banner-info"></div>
+
+  <div class="card" style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-left:4px solid #10b981;">
+    <h2 style="color:#047857;">🔄 健康管理室ループ <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">現場の声 → AI集約 → 施策 → 実行 → アナウンス → 運管フィードバック</span></h2>
+    <div id="loop-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
+      <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #d1fae5;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">📝 POST(30日)</div>
+        <div style="font-size:28px;font-weight:800;color:#0891b2;" id="ls-posts">0</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #d1fae5;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">🎯 施策候補</div>
+        <div style="font-size:28px;font-weight:800;color:#d97706;" id="ls-candidates">0</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #d1fae5;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">⚙ 実行中</div>
+        <div style="font-size:28px;font-weight:800;color:#7c3aed;" id="ls-progress">0</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #d1fae5;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">✅ 完了(30日)</div>
+        <div style="font-size:28px;font-weight:800;color:#059669;" id="ls-completed">0</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #d1fae5;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">🔁 ループ完成率</div>
+        <div style="font-size:28px;font-weight:800;color:#0f172a;" id="ls-rate">—</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" id="btn-ai" style="background:#7c3aed;" onclick="runAiInsights()">🧠 AI で集約</button>
+      <button class="btn btn-ghost" id="btn-new" onclick="openNewActionModal()">+ 新規施策</button>
+      <span style="color:#64748b;font-size:11px;margin-left:8px;">月1の健康管理室会議で「AI集約」→施策候補確認→ボードに登録→実行→完了で全社アナウンス</span>
+    </div>
+    <div id="ai-insights-box" style="display:none;margin-top:14px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>🎯 施策ボード <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">候補 → 承認待ち → 承認済 → 実行中 → 完了</span></h2>
+    <div class="row">
+      <select id="action-status-filter" onchange="loadActions()">
+        <option value="">すべてのステータス</option>
+        <option value="候補">候補</option>
+        <option value="承認待ち">承認待ち</option>
+        <option value="承認済">承認済</option>
+        <option value="実行中">実行中</option>
+        <option value="完了">完了</option>
+        <option value="却下">却下</option>
+      </select>
+      <button class="btn btn-ghost" onclick="loadActions()">再読込</button>
+      <span id="action-count" style="margin-left:auto;color:#64748b;font-size:12px;align-self:center;"></span>
+    </div>
+    <div style="max-height:520px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr>
+          <th style="width:50px;">#</th>
+          <th style="width:90px;">状態</th>
+          <th>施策</th>
+          <th style="width:80px;">予算</th>
+          <th style="width:90px;">期日</th>
+          <th style="width:100px;">担当</th>
+          <th style="width:200px;">操作</th>
+        </tr></thead>
+        <tbody id="actions-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🩺 現場の声 (運管POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
+    <div class="row">
+      <select id="fv-cat-filter"><option value="">カテゴリすべて</option><option value="体調">体調</option><option value="食事">食事</option><option value="睡眠">睡眠</option><option value="職場環境">職場環境</option><option value="その他">その他</option></select>
+      <select id="fv-urg-filter"><option value="">緊急度すべて</option><option value="高">🔴 高</option><option value="中">🟡 中</option><option value="低">🟢 低</option></select>
+      <input type="number" id="fv-limit" value="50" min="10" max="200" style="max-width:90px;" title="表示件数">
+      <button class="btn" onclick="loadFieldVoice()">再読込</button>
+      <span id="fv-count" style="margin-left:auto;color:#64748b;font-size:12px;align-self:center;"></span>
+    </div>
+    <div style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th></tr></thead>
+        <tbody id="fv-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;padding:8px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:11px;color:#991b1b;line-height:1.6;">
+      🔒 <b>取り扱い注意</b>: 個人の体調・睡眠・食事に関する情報を含みます。閲覧履歴は監査対象です。第三者への共有・SNS掲載は禁止。
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- 施策モーダル -->
+<div id="action-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#10b981,#047857);color:#fff;display:flex;align-items:center;gap:10px;">
+      <div style="font-weight:800;font-size:15px;flex:1;" id="action-modal-title">🎯 新規施策</div>
+      <button onclick="closeActionModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px 22px;">
+      <input type="hidden" id="ac-id">
+      <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">タイトル <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="ac-title" placeholder="例) 営業所Aに電子レンジ追加" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:12px;">
+      <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">詳細</label>
+      <textarea id="ac-description" rows="3" placeholder="背景・実施内容・効果想定など" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:12px;font-family:inherit;resize:vertical;"></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">カテゴリ</label>
+          <select id="ac-category" style="width:100%;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+            <option value="">-</option><option>体調</option><option>食事</option><option>睡眠</option><option>職場環境</option><option>その他</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">予算 (円)</label>
+          <input type="number" id="ac-budget" min="0" step="1000" value="0" style="width:100%;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">期日</label>
+          <input type="date" id="ac-target" style="width:100%;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">担当</label>
+          <select id="ac-owner" style="width:100%;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">-</option></select>
+        </div>
+      </div>
+      <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">紐づけPOST ID (カンマ区切り、任意)</label>
+      <input type="text" id="ac-source-posts" placeholder="例) 3, 5, 7" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:12px;">
+      <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">アナウンス文 (完了時に全社配信、空なら自動生成)</label>
+      <textarea id="ac-announce" rows="2" placeholder="例) 🏥 営業所Aに電子レンジを追加しました。お弁当の温めにご利用ください。" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:12px;font-family:inherit;resize:vertical;"></textarea>
+      <div id="ac-err" style="color:#dc2626;font-size:12px;min-height:14px;margin-bottom:6px;"></div>
+    </div>
+    <div style="padding:12px 22px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeActionModal()">キャンセル</button>
+      <button class="btn" style="background:#10b981;" onclick="submitAction()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let _meta = null, _ownersCache = null, _aiInsightsCache = null;
+
+function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+(async function init() {
+  if (!token) { location.href = '/wellness.html'; return; }
+  try {
+    const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 401) { location.href = '/wellness.html'; return; }
+    const m = await r.json();
+    _meta = m;
+    document.getElementById('loading').style.display = 'none';
+    if (!m.can_access_wellness) {
+      document.getElementById('no-access').style.display = 'block';
+      return;
+    }
+    const userJson = localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}';
+    let user = {}; try { user = JSON.parse(userJson); } catch(e) {}
+    document.getElementById('who').textContent = (user && user.display_name) || '';
+    document.getElementById('panel').style.display = 'block';
+    // ロールバナー
+    const banner = document.getElementById('role-banner');
+    if (m.is_guest_reviewer) {
+      banner.className = 'banner banner-guest';
+      banner.innerHTML = '🎓 <b>ゲストレビュアー (' + escapeHtml(user.guest_org || '外部') + ')</b><br>施策ボード閲覧+精査コメント可。専門家の視点でアクションプランの精査をお願いします。<br>(起票/編集/承認は管理職権限が必要)';
+    } else if (m.can_approve_actions) {
+      banner.className = 'banner banner-info';
+      banner.innerHTML = '✅ <b>管理職権限</b>: 施策の起票/編集/承認/却下/完了アナウンス まで実行可能';
+    } else if (m.is_field_promoter) {
+      banner.className = 'banner banner-warn';
+      banner.innerHTML = '⚠ <b>推進メンバー権限</b>: 起票/編集可、承認/却下は管理職に依頼してください';
+    }
+    // ゲストは編集系ボタン非表示
+    if (!m.can_edit_actions) {
+      document.getElementById('btn-ai').style.display = 'none';
+      document.getElementById('btn-new').style.display = 'none';
+    }
+    loadFieldVoice(); loadActions(); loadLoopStats();
+  } catch (e) {
+    document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
+  }
+})();
+
+// ===== ループ統計 =====
+async function loadLoopStats() {
+  try {
+    const [postsRes, actsRes] = await Promise.all([
+      fetch('/api/wellness/posts?limit=300', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+      fetch('/api/wellness/actions?limit=300', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+    ]);
+    const since = Date.now() - 30 * 24 * 3600 * 1000;
+    const posts30 = (postsRes.posts || []).filter(p => new Date(p.created_at + 'Z').getTime() >= since).length;
+    const acts = actsRes.actions || [];
+    const candidates = acts.filter(a => a.status === '候補' || a.status === '承認待ち').length;
+    const progress = acts.filter(a => a.status === '承認済' || a.status === '実行中').length;
+    const completed30 = acts.filter(a => a.status === '完了' && a.completed_at && new Date(a.completed_at + 'Z').getTime() >= since).length;
+    const total = acts.length;
+    const completedAll = acts.filter(a => a.status === '完了').length;
+    const rate = total ? Math.round((completedAll / total) * 100) + '%' : '—';
+    document.getElementById('ls-posts').textContent = posts30;
+    document.getElementById('ls-candidates').textContent = candidates;
+    document.getElementById('ls-progress').textContent = progress;
+    document.getElementById('ls-completed').textContent = completed30;
+    document.getElementById('ls-rate').textContent = rate;
+  } catch (e) { console.warn('loadLoopStats', e.message); }
+}
+
+// ===== AI集約 =====
+async function runAiInsights() {
+  const box = document.getElementById('ai-insights-box');
+  box.style.display = 'block';
+  box.innerHTML = '<div style="color:#7c3aed;font-size:13px;padding:8px;">🧠 Geminiで集約中… (10〜20秒)</div>';
+  try {
+    const r = await fetch('/api/wellness/insights', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ days: 30 }),
+    });
+    const j = await r.json();
+    if (!j.success) { box.innerHTML = '<div style="color:#dc2626;">' + escapeHtml(j.msg || '失敗') + '</div>'; return; }
+    if (!j.insights) { box.innerHTML = '<div style="color:#94a3b8;">' + escapeHtml(j.msg || 'データ不足') + '</div>'; return; }
+    _aiInsightsCache = j.insights;
+    renderAiInsights(j);
+  } catch (e) {
+    box.innerHTML = '<div style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+function renderAiInsights(j) {
+  const box = document.getElementById('ai-insights-box');
+  const ins = j.insights;
+  const themes = (ins.themes || []).map(t => {
+    const ids = (t.post_ids || []).map(i => '#' + i).join(', ');
+    const urg = t.urgency_max === '高' ? '🔴' : t.urgency_max === '中' ? '🟡' : '🟢';
+    return `<div style="padding:8px 10px;background:#f8fafc;border-radius:6px;margin:6px 0;border-left:3px solid #7c3aed;">
+      <div style="font-weight:700;color:#0f172a;">${urg} ${escapeHtml(t.name)} <span style="color:#64748b;font-weight:400;font-size:11px;">×${t.count || 0} (${escapeHtml(ids || '-')})</span></div>
+      <div style="font-size:11px;color:#475569;margin-top:2px;">${escapeHtml(t.note || '')}</div>
+    </div>`;
+  }).join('');
+  const dist = (ins.company_distribution || []).map(d =>
+    `<span style="display:inline-block;background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin:2px;">${escapeHtml(d.company)}: ${d.count}</span>`
+  ).join('');
+  const actions = (ins.actions || []).map((a, i) =>
+    `<div style="padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin:6px 0;">
+      <div style="font-weight:800;color:#047857;font-size:13px;">${i + 1}. ${escapeHtml(a.title)} <span style="font-size:10px;background:#a7f3d0;color:#065f46;padding:1px 6px;border-radius:6px;">${escapeHtml(a.category || '-')}</span></div>
+      <div style="font-size:12px;color:#0f172a;margin-top:4px;">${escapeHtml(a.description || '')}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">💡 ${escapeHtml(a.rationale || '')} <span style="color:#94a3b8;">(POST: ${(a.source_post_ids || []).map(x => '#' + x).join(', ') || '-'})</span></div>
+      <button class="btn" style="background:#10b981;margin-top:6px;font-size:11px;padding:4px 10px;" onclick='openNewActionModalFromAi(${i})'>📋 ボードへ登録</button>
+    </div>`
+  ).join('');
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <span style="font-weight:800;color:#7c3aed;">🧠 AI 集約</span>
+      <span style="font-size:11px;color:#64748b;">対象: 過去${j.window_days}日 / POST ${j.counts.posts}件 + 議論 ${j.counts.disc_msgs}件</span>
+    </div>
+    <div style="background:#faf5ff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:12px;line-height:1.7;color:#0f172a;">${escapeHtml(ins.summary || '')}</div>
+    ${dist ? '<div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:700;color:#64748b;">営業所別: </span>' + dist + '</div>' : ''}
+    ${themes ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;">📊 テーマ集計</div>' + themes + '</div>' : ''}
+    ${actions ? '<div><div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;">🎯 施策候補</div>' + actions + '</div>' : ''}
+  `;
+}
+
+function openNewActionModalFromAi(idx) {
+  const a = _aiInsightsCache && _aiInsightsCache.actions && _aiInsightsCache.actions[idx];
+  if (!a) return;
+  openNewActionModal();
+  document.getElementById('ac-title').value = a.title || '';
+  document.getElementById('ac-description').value = (a.description || '') + (a.rationale ? '\n\n💡 効果想定: ' + a.rationale : '');
+  document.getElementById('ac-category').value = a.category || '';
+  document.getElementById('ac-source-posts').value = (a.source_post_ids || []).join(', ');
+}
+
+// ===== 施策ボード =====
+async function loadActions() {
+  const tb = document.getElementById('actions-tbody');
+  const cnt = document.getElementById('action-count');
+  const status = document.getElementById('action-status-filter').value;
+  tb.innerHTML = '<tr><td colspan="7" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
+  try {
+    const url = '/api/wellness/actions' + (status ? '?status=' + encodeURIComponent(status) : '');
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success) { tb.innerHTML = '<tr><td colspan="7" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    cnt.textContent = (j.actions || []).length + '件';
+    if (!j.actions.length) {
+      tb.innerHTML = '<tr><td colspan="7" style="color:#94a3b8;text-align:center;padding:20px;">該当なし</td></tr>';
+      return;
+    }
+    const canApprove = !!(_meta && _meta.can_approve_actions);
+    const canEdit = !!(_meta && _meta.can_edit_actions);
+    const statusBadge = s => {
+      const map = { '候補': '#94a3b8', '承認待ち': '#f59e0b', '承認済': '#3b82f6', '実行中': '#7c3aed', '完了': '#10b981', '却下': '#ef4444' };
+      return `<span style="background:${map[s] || '#cbd5e1'};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${escapeHtml(s)}</span>`;
+    };
+    tb.innerHTML = j.actions.map(a => {
+      let ops = '';
+      if (canEdit) {
+        if (a.status === '候補') {
+          ops = `<button class="btn" style="font-size:11px;padding:3px 8px;background:#f59e0b;" onclick="changeActionStatus(${a.id}, '承認待ち')">承認依頼</button>`;
+        } else if (a.status === '承認待ち') {
+          if (canApprove) {
+            ops = `<button class="btn" style="font-size:11px;padding:3px 8px;background:#3b82f6;" onclick="approveAction(${a.id})">承認</button>
+                   <button class="btn" style="font-size:11px;padding:3px 8px;background:#ef4444;" onclick="rejectAction(${a.id})">却下</button>`;
+          } else {
+            ops = `<span style="font-size:11px;color:#94a3b8;">管理職の承認待ち</span>`;
+          }
+        } else if (a.status === '承認済') {
+          ops = `<button class="btn" style="font-size:11px;padding:3px 8px;background:#7c3aed;" onclick="startAction(${a.id})">▶ 実行開始</button>
+                 <button class="btn" style="font-size:11px;padding:3px 8px;background:#10b981;" onclick="completeAction(${a.id})">✅ 完了+アナウンス</button>`;
+        } else if (a.status === '実行中') {
+          ops = `<button class="btn" style="font-size:11px;padding:3px 8px;background:#10b981;" onclick="completeAction(${a.id})">✅ 完了+アナウンス</button>`;
+        }
+        ops += ` <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;" onclick="openEditActionModal(${a.id})">編集</button>`;
+      } else {
+        ops = `<span style="font-size:10px;color:#94a3b8;">閲覧のみ</span>`;
+      }
+      const aiTag = a.is_ai_suggested ? '<span style="font-size:9px;background:#ede9fe;color:#5b21b6;padding:1px 4px;border-radius:4px;margin-left:4px;">AI</span>' : '';
+      return `<tr>
+        <td style="font-size:11px;color:#94a3b8;font-weight:700;">#${a.id}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td><div style="font-weight:700;font-size:13px;color:#0f172a;">${escapeHtml(a.title)}${aiTag}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">${escapeHtml((a.description || '').slice(0, 80))}${(a.description || '').length > 80 ? '…' : ''}</div></td>
+        <td style="font-size:11px;color:#475569;">${a.budget_jpy ? '¥' + a.budget_jpy.toLocaleString() : '-'}</td>
+        <td style="font-size:11px;color:#475569;">${escapeHtml(a.target_date || '-')}</td>
+        <td style="font-size:11px;color:#475569;">${escapeHtml(a.owner_name || '-')}</td>
+        <td>${ops}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="7" style="color:#dc2626;">通信エラー</td></tr>';
+  }
+  loadLoopStats();
+}
+
+async function loadOwnersIfNeeded() {
+  if (_ownersCache) return _ownersCache;
+  try {
+    const r = await fetch('/api/wellness/owners', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    _ownersCache = (j && j.users) || [];
+  } catch (e) { _ownersCache = []; }
+  return _ownersCache;
+}
+
+async function openNewActionModal() {
+  document.getElementById('action-modal-title').textContent = '🎯 新規施策';
+  document.getElementById('ac-id').value = '';
+  document.getElementById('ac-title').value = '';
+  document.getElementById('ac-description').value = '';
+  document.getElementById('ac-category').value = '';
+  document.getElementById('ac-budget').value = 0;
+  document.getElementById('ac-target').value = '';
+  document.getElementById('ac-source-posts').value = '';
+  document.getElementById('ac-announce').value = '';
+  document.getElementById('ac-err').textContent = '';
+  const owner = document.getElementById('ac-owner');
+  const users = await loadOwnersIfNeeded();
+  owner.innerHTML = '<option value="">-</option>' + users.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.display_name)}</option>`).join('');
+  document.getElementById('action-modal').style.display = 'flex';
+}
+
+async function openEditActionModal(id) {
+  try {
+    const r = await fetch('/api/wellness/actions', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    const a = (j.actions || []).find(x => x.id === id);
+    if (!a) { alert('見つかりません'); return; }
+    await openNewActionModal();
+    document.getElementById('action-modal-title').textContent = '✏️ 施策編集 #' + id;
+    document.getElementById('ac-id').value = id;
+    document.getElementById('ac-title').value = a.title || '';
+    document.getElementById('ac-description').value = a.description || '';
+    document.getElementById('ac-category').value = a.category || '';
+    document.getElementById('ac-budget').value = a.budget_jpy || 0;
+    document.getElementById('ac-target').value = a.target_date || '';
+    document.getElementById('ac-owner').value = a.owner_id || '';
+    document.getElementById('ac-source-posts').value = a.source_post_ids ? (JSON.parse(a.source_post_ids) || []).join(', ') : '';
+    document.getElementById('ac-announce').value = a.announce_message || '';
+  } catch (e) { alert('読込失敗: ' + e.message); }
+}
+function closeActionModal() { document.getElementById('action-modal').style.display = 'none'; }
+async function submitAction() {
+  const id = document.getElementById('ac-id').value;
+  const errEl = document.getElementById('ac-err');
+  errEl.textContent = '';
+  const title = document.getElementById('ac-title').value.trim();
+  if (!title) { errEl.textContent = 'タイトル必須'; return; }
+  const payload = {
+    title,
+    description: document.getElementById('ac-description').value,
+    category: document.getElementById('ac-category').value || null,
+    budget_jpy: parseInt(document.getElementById('ac-budget').value) || 0,
+    target_date: document.getElementById('ac-target').value || null,
+    owner_id: document.getElementById('ac-owner').value || null,
+    announce_message: document.getElementById('ac-announce').value,
+    source_post_ids: (document.getElementById('ac-source-posts').value || '').split(/[,\s]+/).map(s => parseInt(s)).filter(n => !isNaN(n)),
+    is_ai_suggested: !!_aiInsightsCache,
+  };
+  try {
+    let r;
+    if (id) {
+      r = await fetch('/api/wellness/actions/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) });
+    } else {
+      r = await fetch('/api/wellness/actions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) });
+    }
+    const j = await r.json();
+    if (!j.success) { errEl.textContent = j.msg || '保存失敗'; return; }
+    closeActionModal();
+    loadActions();
+  } catch (e) { errEl.textContent = '通信エラー: ' + e.message; }
+}
+async function changeActionStatus(id, status) {
+  try {
+    await fetch('/api/wellness/actions/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ status }) });
+    loadActions();
+  } catch (e) { alert(e.message); }
+}
+async function approveAction(id) {
+  if (!confirm('この施策を承認しますか？')) return;
+  const r = await fetch('/api/wellness/actions/' + id + '/approve', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json();
+  if (!j.success) { alert('失敗: ' + (j.msg || '')); return; }
+  loadActions();
+}
+async function rejectAction(id) {
+  const reason = prompt('却下理由 (任意)');
+  const r = await fetch('/api/wellness/actions/' + id + '/reject', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ reason: reason || '' }) });
+  const j = await r.json();
+  if (!j.success) { alert('失敗: ' + (j.msg || '')); return; }
+  loadActions();
+}
+async function startAction(id) {
+  await fetch('/api/wellness/actions/' + id + '/start', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+  loadActions();
+}
+async function completeAction(id) {
+  if (!confirm('完了マーク + 全社アナウンス + 運管へDM配信します。よろしいですか？')) return;
+  const r = await fetch('/api/wellness/actions/' + id + '/complete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({}) });
+  const j = await r.json();
+  if (!j.success) { alert('失敗: ' + (j.msg || '')); return; }
+  alert('✅ 完了処理を実行しました');
+  loadActions();
+}
+
+// ===== 現場の声 =====
+async function loadFieldVoice() {
+  const tb = document.getElementById('fv-tbody');
+  const cnt = document.getElementById('fv-count');
+  const limit = parseInt(document.getElementById('fv-limit').value) || 50;
+  tb.innerHTML = '<tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
+  try {
+    const r = await fetch('/api/wellness/posts?limit=' + limit, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    const catFilter = document.getElementById('fv-cat-filter').value;
+    const urgFilter = document.getElementById('fv-urg-filter').value;
+    const filtered = (d.posts || []).filter(p =>
+      (!catFilter || p.category === catFilter) && (!urgFilter || p.urgency === urgFilter)
+    );
+    cnt.textContent = filtered.length + '件 / 全' + (d.posts || []).length + '件';
+    if (!filtered.length) {
+      tb.innerHTML = '<tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
+      return;
+    }
+    const urgIcon = u => u === '高' ? '🔴' : u === '中' ? '🟡' : '🟢';
+    const urgColor = u => u === '高' ? '#dc2626' : u === '中' ? '#d97706' : '#059669';
+    const idColor = m => m === '本人特定可' ? '#0891b2' : m === '匿名' ? '#7c3aed' : '#64748b';
+    tb.innerHTML = filtered.map(p => {
+      const dtime = new Date(p.created_at + 'Z').toLocaleString('ja-JP');
+      return `<tr>
+        <td style="font-size:11px;color:#94a3b8;font-weight:700;">#${p.id}</td>
+        <td style="font-size:11px;color:#64748b;white-space:nowrap;">${dtime}</td>
+        <td style="font-size:12px;">${escapeHtml(p.poster_name || '-')}</td>
+        <td style="font-size:11px;color:#64748b;">${escapeHtml(p.company_code || '-')}</td>
+        <td style="font-size:12px;font-weight:600;">${escapeHtml(p.category)}</td>
+        <td style="font-size:11px;color:${urgColor(p.urgency)};font-weight:700;">${urgIcon(p.urgency)} ${escapeHtml(p.urgency)}</td>
+        <td style="font-size:11px;color:${idColor(p.identity_mode)};">${escapeHtml(p.identity_mode)}</td>
+        <td style="font-size:12px;line-height:1.5;">${escapeHtml(p.memo || '').replace(/\n/g, '<br>') || '<span style="color:#cbd5e1;">(なし)</span>'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';
+  }
+}
+</script>
+</body>
+</html>
