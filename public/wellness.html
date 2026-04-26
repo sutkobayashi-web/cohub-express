@@ -471,11 +471,12 @@ async function checkAccessAndShow(user) {
     document.getElementById('no-access').style.display = 'none';
     document.getElementById('panel').style.display = 'block';
     document.getElementById('who').textContent = (user && user.display_name) || '';
-    // 運営タブは 管理職 or 推進メンバー or system admin のみ表示
+    // 運営タブは 管理職 / 推進メンバー / システムadmin / ゲストレビュアー (大学/NPO等)
     const isManager = !!(m.is_wellness_manager || m.is_field_promoter || (user && user.role === 'admin'));
-    if (isManager) {
+    const isGuest = !!m.is_guest_reviewer;
+    if (isManager || isGuest) {
       document.getElementById('tab-ops-btn').style.display = 'inline-flex';
-      // 管理者は運営タブをデフォルト表示
+      // 管理者/ゲストは運営タブをデフォルト表示
       switchTab('ops');
     } else {
       switchTab('bp');
@@ -506,6 +507,12 @@ function switchTab(t) {
       } else if (_meta.is_field_promoter) {
         banner.className = 'banner banner-warn';
         banner.textContent = '⚠ 推進メンバー権限: 起票/編集可、承認/却下は管理職に依頼';
+      } else if (_meta.is_guest_reviewer) {
+        banner.className = 'banner banner-warn';
+        banner.style.background = '#ede9fe';
+        banner.style.borderLeftColor = '#7c3aed';
+        banner.style.color = '#5b21b6';
+        banner.textContent = '🎓 ゲストレビュアー: 施策ボード閲覧+コメント可。専門家の視点で精査をお願いします';
       }
       banner.style.display = 'block';
     }

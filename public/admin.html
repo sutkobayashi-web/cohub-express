@@ -71,6 +71,9 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <option value="IBA_SANWA">IBA三和</option>
         <option value="SUZUE">スズエ</option>
         <option value="ADMIN">管理職</option>
+        <option value="UNIVERSITY">🎓 大学・研究機関</option>
+        <option value="NPO">🏥 NPO法人</option>
+        <option value="GUEST">👥 ゲスト</option>
       </select>
       <input type="text" id="new-pass" placeholder="初期パスワード">
       <select id="new-type">
@@ -89,6 +92,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <option value="3">3 役員/社長</option>
       </select>
       <input type="date" id="new-birth" title="生年月日 (健診Box連携・年齢別分析用)" style="max-width:160px;">
+      <input type="text" id="new-guest-org" placeholder="所属組織 (例: 帝京大学公衆衛生)" style="max-width:200px;">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fef3c7;padding:6px 10px;border-radius:6px;cursor:pointer;" title="施策ボードのレビュー権限を付与 (大学/NPOの専門家用)">
+        <input type="checkbox" id="new-guest-rev"> 🎓ゲストレビュアー
+      </label>
       <button class="btn" onclick="addUser()">追加</button>
     </div>
     <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
@@ -257,6 +264,9 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
             <option value="IBA_SANWA">IBA三和</option>
             <option value="SUZUE">スズエ</option>
             <option value="ADMIN">管理職</option>
+            <option value="UNIVERSITY">🎓 大学・研究機関</option>
+            <option value="NPO">🏥 NPO法人</option>
+            <option value="GUEST">👥 ゲスト</option>
           </select>
         </div>
         <div><label style="font-size:12px;font-weight:600;color:#475569;">権限</label>
@@ -296,6 +306,14 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎂 生年月日 <span style="font-size:10px;font-weight:400;color:#64748b;">健診Box連携・年齢別分析用</span></div>
         <input type="date" id="edit-birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎓 ゲストレビュアー (大学/NPO等の外部専門家)</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-guest-rev"> 施策ボードのレビュー権限を付与 (閲覧+コメント可、起票/編集/承認は不可)
+        </label>
+        <input type="text" id="edit-guest-org" placeholder="所属組織 (例: 帝京大学公衆衛生学研究科 / NPO法人ヘルスケアネットワーク)" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+        <div style="font-size:10px;color:#64748b;margin-top:4px;">ゲストは社員と区別して表示されます。健康管理室の運営タブから施策にコメント可能。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔑 パスワードリセット (任意)</div>
@@ -825,6 +843,8 @@ async function addUser() {
     dm_group: document.getElementById('new-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('new-dm-rank').value) || 0,
     birth_date: document.getElementById('new-birth').value || null,
+    is_guest_reviewer: document.getElementById('new-guest-rev').checked,
+    guest_org: document.getElementById('new-guest-org').value.trim(),
   };
   const msg = document.getElementById('add-msg');
   const r = await fetch('/api/admin/users', {
@@ -839,6 +859,8 @@ async function addUser() {
   document.getElementById('new-name').value = '';
   document.getElementById('new-pass').value = '';
   document.getElementById('new-birth').value = '';
+  document.getElementById('new-guest-rev').checked = false;
+  document.getElementById('new-guest-org').value = '';
   loadUsers();
 }
 
@@ -870,6 +892,8 @@ function openEditModal(id) {
   document.getElementById('edit-dm-group').value = u.dm_group || '';
   document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
   document.getElementById('edit-birth').value = u.birth_date || '';
+  document.getElementById('edit-guest-rev').checked = !!u.is_guest_reviewer;
+  document.getElementById('edit-guest-org').value = u.guest_org || '';
   document.getElementById('edit-new-password').value = '';
   document.getElementById('edit-err').textContent = '';
   // DMグループのdatalistを既存メンバーから収集
@@ -895,6 +919,8 @@ async function submitEdit() {
     dm_group: document.getElementById('edit-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('edit-dm-rank').value) || 0,
     birth_date: document.getElementById('edit-birth').value || null,
+    is_guest_reviewer: document.getElementById('edit-guest-rev').checked,
+    guest_org: document.getElementById('edit-guest-org').value.trim(),
   };
   if (!payload.display_name) { err.textContent = '表示名は必須です'; return; }
   btn.disabled = true; btn.textContent = '保存中…';

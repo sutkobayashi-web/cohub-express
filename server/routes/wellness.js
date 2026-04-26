@@ -24,10 +24,16 @@ function isWellnessManager(uid) {
   return !!(r && r.employee_type === 'admin');
 }
 
-// 健康管理室ページの閲覧権限: 管理職 or 推進メンバー
+// ゲストレビュアー (大学/NPO等の外部専門家) — 施策ボードのレビュー権限
+function isGuestReviewer(uid) {
+  const r = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
+  return !!(r && r.is_guest_reviewer);
+}
+
+// 健康管理室ページの閲覧権限: 管理職 or 推進メンバー or ゲストレビュアー
 // (一般のシステム管理者は除外 — ドライバーの体調/睡眠/食事POSTを見せない方針)
 function canAccessWellness(uid) {
-  return isWellnessManager(uid) || isFieldPromoter(uid);
+  return isWellnessManager(uid) || isFieldPromoter(uid) || isGuestReviewer(uid);
 }
 
 // POST /api/wellness/post  現場の声を1件登録 + 推進メンバーグループに自動配信
@@ -114,11 +120,14 @@ router.get('/posts', authUser, (req, res) => {
 router.get('/meta', authUser, (req, res) => {
   const wm = isWellnessManager(req.uid);
   const fp = isFieldPromoter(req.uid);
+  const gr = isGuestReviewer(req.uid);
   res.json({
     is_field_promoter: fp,
-    is_wellness_manager: wm,           // 管理職 (employee_type='admin')
-    can_access_wellness: wm || fp,     // 健康管理室ページ閲覧可否
-    can_approve_actions: wm,           // 施策承認/却下は管理職のみ
+    is_wellness_manager: wm,
+    is_guest_reviewer: gr,             // 大学/NPO等の外部レビュアー
+    can_access_wellness: wm || fp || gr,
+    can_approve_actions: wm,           // 承認/却下は管理職のみ (ゲストはレビューコメントのみ)
+    can_edit_actions: wm || fp,        // 起票/編集は管理職+推進メンバー (ゲストは閲覧のみ)
     group_id: PROMOTER_GROUP_ID,
     disc_group_id: WELLNESS_DISC_ID,
     categories: CATEGORIES,
@@ -143,11 +152,15 @@ router.get('/owners', authUser, (req, res) => {
 // 月次施策ボード (Wellness Actions)
 // =============================================================
 
-// 施策ボード管理: 管理職 or 推進メンバー (=canAccessWellness と同等)
+// 施策ボード閲覧: 管理職 or 推進メンバー or ゲストレビュアー
 function canManageActions(req) {
   return canAccessWellness(req.uid);
 }
-// 承認/却下は管理職のみ (system admin role でも不可)
+// 起票/編集: 管理職+推進メンバー (ゲストは閲覧のみ)
+function canEditActions(req) {
+  return isWellnessManager(req.uid) || isFieldPromoter(req.uid);
+}
+// 承認/却下: 管理職のみ
 function canApprove(req) {
   return isWellnessManager(req.uid);
 }
@@ -174,9 +187,9 @@ router.get('/actions', authUser, (req, res) => {
   res.json({ success: true, actions: rows });
 });
 
-// POST /api/wellness/actions  新規施策作成 (推進メンバー or admin)
+// POST /api/wellness/actions  新規施策作成 (管理職+推進メンバーのみ。ゲストは閲覧のみ)
 router.post('/actions', authUser, express.json(), (req, res) => {
-  if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '起票権限なし (ゲストは閲覧のみ)' });
   const b = req.body || {};
   const title = String(b.title || '').trim().slice(0, 200);
   if (!title) return res.status(400).json({ success: false, msg: 'タイトル必須' });
@@ -201,7 +214,7 @@ router.post('/actions', authUser, express.json(), (req, res) => {
 
 // PUT /api/wellness/actions/:id  更新 (オーナー指定/期日/予算/ステータスなど)
 router.put('/actions/:id', authUser, express.json(), (req, res) => {
-  if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '編集権限なし (ゲストは閲覧のみ)' });
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ success: false, msg: 'ID不正' });
   const db = getDb();
@@ -255,7 +268,7 @@ router.post('/actions/:id/reject', authUser, express.json(), (req, res) => {
 
 // POST /api/wellness/actions/:id/start  実行中マーク
 router.post('/actions/:id/start', authUser, (req, res) => {
-  if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
   const id = parseInt(req.params.id);
   const db = getDb();
   const cur = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
@@ -267,7 +280,7 @@ router.post('/actions/:id/start', authUser, (req, res) => {
 
 // POST /api/wellness/actions/:id/complete  完了マーク + 全社アナウンス + 運管DM
 router.post('/actions/:id/complete', authUser, express.json(), (req, res) => {
-  if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
   const id = parseInt(req.params.id);
   const db = getDb();
   const cur = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);

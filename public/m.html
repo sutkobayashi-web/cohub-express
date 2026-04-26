@@ -755,8 +755,8 @@ function startApp() {
   document.getElementById('app').style.display = 'flex';
   applyPrefsToUI();
   renderMe();
-  // 管理職/推進メンバー/system admin のみ健康管理室メニュー表示
-  if (user && (user.employee_type === 'admin' || user.is_field_promoter || user.role === 'admin')) {
+  // 管理職/推進メンバー/system admin/ゲストレビュアー のみ健康管理室メニュー表示
+  if (user && (user.employee_type === 'admin' || user.is_field_promoter || user.role === 'admin' || user.is_guest_reviewer)) {
     const w = document.getElementById('qa-wellness-mgmt');
     if (w) w.style.display = 'block';
   }

@@ -21,7 +21,7 @@ const recUpload = multer({
 
 // ユーザー一覧
 router.get('/users', authAdmin, (req, res) => {
-  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.avatar_url, u.birth_date,
+  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
 });
@@ -44,7 +44,7 @@ function normalizeBirthDate(s) {
 
 // ユーザー作成（1件）
 router.post('/users', authAdmin, (req, res) => {
-  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank, birth_date } = req.body;
+  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org } = req.body;
   if (!login_id || !display_name || !company_code || !password) {
     return res.status(400).json({ success: false, msg: '必須項目が不足しています' });
   }
@@ -57,14 +57,16 @@ router.post('/users', authAdmin, (req, res) => {
   const dg = (dm_group || '').toString().trim().slice(0, 40) || null;
   const dr = normalizeRank(dm_rank);
   const bd = normalizeBirthDate(birth_date);
-  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, bd);
+  const guest = is_guest_reviewer ? 1 : 0;
+  const gorg = (guest_org || '').toString().trim().slice(0, 100) || null;
+  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, bd, guest, gorg);
   res.json({ success: true, id });
 });
 
 // ユーザー更新 (dm_group, dm_rank 等の編集)
 router.patch('/users/:id', authAdmin, (req, res) => {
-  const { display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date } = req.body;
+  const { display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org } = req.body;
   const db = getDb();
   const u = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
@@ -86,6 +88,12 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   }
   if (birth_date !== undefined) {
     updates.push('birth_date = ?'); params.push(birth_date === null || birth_date === '' ? null : normalizeBirthDate(birth_date));
+  }
+  if (is_guest_reviewer !== undefined) {
+    updates.push('is_guest_reviewer = ?'); params.push(is_guest_reviewer ? 1 : 0);
+  }
+  if (guest_org !== undefined) {
+    updates.push('guest_org = ?'); params.push((guest_org || '').toString().trim().slice(0, 100) || null);
   }
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.id);

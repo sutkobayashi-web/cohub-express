@@ -30,6 +30,13 @@ function getDb() {
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
   // 生年月日 (健診Box連携・年齢別分析用、本人と管理者のみ閲覧)
   ensureColumn(_db, 'users', 'birth_date', 'birth_date TEXT');
+  // ゲスト (大学・NPO等の外部レビュアー) フラグ — 施策ボードレビュー権限
+  ensureColumn(_db, 'users', 'is_guest_reviewer', 'is_guest_reviewer INTEGER DEFAULT 0');
+  ensureColumn(_db, 'users', 'guest_org', 'guest_org TEXT');
+  // 大学・NPO法人 会社コード追加 (ゲスト用所属)
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('UNIVERSITY', '大学・研究機関', '#7c3aed')").run();
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('NPO', 'NPO法人', '#0891b2')").run();
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('GUEST', 'ゲスト', '#94a3b8')").run();
   // 現場の声POST 構造化テーブル
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
