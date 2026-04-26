@@ -83,12 +83,9 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 <main>
 
 <div id="login-redirect" class="card" style="display:none;max-width:420px;margin:40px auto;text-align:center;">
-  <div style="font-size:40px;margin-bottom:12px;">🔑</div>
-  <h2>ログインが必要です</h2>
-  <div style="font-size:13px;color:#64748b;line-height:1.7;margin:12px 0;">
-    CoHubにログインしてからアクセスしてください。
-  </div>
-  <button class="btn" onclick="location.href='/'">CoHubへログイン</button>
+  <div style="font-size:40px;margin-bottom:12px;">🔄</div>
+  <div style="font-size:14px;color:#475569;">CoHubメイン画面に移動中…</div>
+  <div style="font-size:11px;color:#94a3b8;margin-top:6px;">ログイン後、左メニューの🏥健康管理室から戻れます</div>
 </div>
 
 <div id="panel" style="display:none;">
@@ -282,8 +279,18 @@ function escapeHtml(s) {
 }
 
 function showLoginRedirect() {
+  // ローカルの古いトークンを破棄してCoHubメインへ自動リダイレクト
+  // (再ログイン後、メインから「健康管理室」をクリックすれば戻れる)
+  try {
+    localStorage.removeItem('cohub_token');
+    localStorage.removeItem('cohub_admin_token');
+    localStorage.removeItem('cohub_user');
+    localStorage.removeItem('cohub_admin_user');
+  } catch (e) {}
+  // 短時間表示してからリダイレクト (画面遷移の意図を示す)
   document.getElementById('login-redirect').style.display = 'block';
   document.getElementById('panel').style.display = 'none';
+  setTimeout(() => { location.href = '/?from=wellness'; }, 800);
 }
 
 async function checkAccessAndShow(user) {
