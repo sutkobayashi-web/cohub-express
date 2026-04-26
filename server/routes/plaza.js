@@ -98,16 +98,23 @@ router.get('/posts', authUser, (req, res) => {
     WHEN cp.category LIKE '%Tips%' OR cp.category LIKE '%ヒント%' THEN '健康Tips'
     ELSE '雑談'
   END`;
+  // CoWell の image_url を実体ホストに書き換え (/uploads/food_xxx.jpg → CoWell本体)
+  const COWELL_HOST = process.env.COWELL_HOST || 'https://health.biz-terrace.org';
+  function rewriteCwImage(url) {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    if (url.startsWith('/uploads/')) return COWELL_HOST + url;
+    return url;
+  }
   let archive = [];
   if (includeArchive && !before) {
     let asql = `SELECT cp.cw_post_id AS id, cp.cw_user_id AS author_cw_id, cp.content,
                        cp.image_url, cp.nutrition_scores, ${CW_CAT_NORMALIZE} AS category,
-                       cp.category AS cw_orig_category, cp.cw_created_at AS created_at,
-                       cu.cohub_uid AS author_id, cu.nickname AS cw_nickname, cu.real_name AS cw_real_name,
-                       u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
+                       cp.category AS cw_orig_category, cp.nickname AS cw_post_nickname,
+                       cp.cw_created_at AS created_at,
+                       cu.cohub_uid AS author_id, cu.nickname AS cw_nickname, cu.real_name AS cw_real_name
                 FROM cw_posts cp
                 LEFT JOIN cw_users cu ON cu.cw_id = cp.cw_user_id
-                LEFT JOIN users u ON u.id = cu.cohub_uid
                 WHERE 1=1`;
     const aparams = [];
     if (cat && CATEGORIES.includes(cat)) {
@@ -115,12 +122,27 @@ router.get('/posts', authUser, (req, res) => {
       aparams.push(cat);
     }
     asql += ' ORDER BY cp.cw_created_at DESC LIMIT 80';
-    archive = db.prepare(asql).all(...aparams).map(p => ({
-      ...p,
-      kind: 'archive',
-      author_name: p.author_name || p.cw_real_name || p.cw_nickname,
-      reactions: {}, my_reactions: {}, comment_count: 0, can_delete: false,
-    }));
+    archive = db.prepare(asql).all(...aparams).map(p => {
+      // CoWellのプライバシー保持: nicknameのみ表示、実名は出さない
+      // 画像URLはCoWell本体に書き換え、「【写真】なし」placeholderは画像があれば隠す
+      const nick = p.cw_post_nickname || p.cw_nickname || '匿名';
+      let content = p.content || '';
+      if (content.startsWith('【写真】なし')) content = content.replace(/^【写真】なし/, '').trim();
+      else if (content.startsWith('【写真】')) content = content.replace(/^【写真】/, '').trim();
+      return {
+        ...p,
+        kind: 'archive',
+        content: content,
+        image_url: rewriteCwImage(p.image_url),
+        author_name: nick + ' (CoWell)',
+        author_avatar: null,  // CoHubアバターを出すと実名アバターが見えてしまう
+        author_company: null,
+        is_cowell_archive: true,
+        is_anonymous: 0,
+        is_mine: false,
+        reactions: {}, my_reactions: {}, comment_count: 0, can_delete: false,
+      };
+    });
   }
   const merged = [...enriched, ...archive].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, limit);
   res.json({ success: true, posts: merged });
