@@ -94,6 +94,29 @@ function getDb() {
     deleted_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_bc_post ON board_comments(post_id, created_at);`);
+  // 重要告知 (Phase2) — 経営/管理職→全社の確実配信、既読率追跡
+  _db.exec(`CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'normal',
+    requires_ack INTEGER NOT NULL DEFAULT 0,
+    target TEXT NOT NULL DEFAULT 'all',
+    expires_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_an_at ON announcements(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_an_level ON announcements(level, created_at DESC);
+  CREATE TABLE IF NOT EXISTS announcement_reads (
+    announcement_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    read_at TEXT DEFAULT (datetime('now')),
+    acked_at TEXT,
+    PRIMARY KEY (announcement_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_ar_user ON announcement_reads(user_id);`);
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用

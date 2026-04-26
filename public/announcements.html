@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>📢 告知 — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json?v=2">
+<meta name="theme-color" content="#dc2626">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f1f5f9; color: #0f172a; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #dc2626, #b91c1c); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header a { color: #fff; text-decoration: none; font-size: 12px; opacity: 0.9; }
+main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
+
+.tabs { display: flex; gap: 4px; background: #fff; border-radius: 10px; padding: 4px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.tab { flex: 1; padding: 10px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; }
+.tab.active { background: #dc2626; color: #fff; }
+.tab .b { display: inline-block; background: #fff; color: #dc2626; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+.tab.active .b { background: #fff; color: #dc2626; }
+
+.card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); position: relative; }
+.card.unread { border-left: 4px solid #dc2626; }
+.card.urgent { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-left-color: #b91c1c; }
+.card.important { border-left-color: #ea580c; }
+.card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.lvl { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.lvl.normal { background: #94a3b8; }
+.lvl.important { background: #ea580c; }
+.lvl.urgent { background: #b91c1c; }
+.title { font-weight: 800; font-size: 15px; flex: 1; }
+.meta { font-size: 11px; color: #94a3b8; }
+.body { font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; margin: 8px 0; }
+.btn { padding: 9px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn-ghost { background: #e2e8f0; color: #0f172a; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+.empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
+.empty .ico { font-size: 48px; margin-bottom: 12px; }
+
+/* 作成フォーム */
+.composer { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.composer h3 { margin: 0 0 10px; font-size: 14px; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+.field input, .field textarea, .field select { width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; }
+.field textarea { min-height: 80px; resize: vertical; }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220,38,38,0.1); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 8px 10px; background: #f8fafc; border-radius: 8px; }
+
+/* 既読率モーダル */
+#reads-modal { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 200; display: none; align-items: center; justify-content: center; padding: 12px; }
+#reads-modal.open { display: flex; }
+.modal-body { background: #fff; border-radius: 14px; max-width: 600px; width: 100%; max-height: 88vh; overflow-y: auto; }
+.modal-head { padding: 14px 18px; background: linear-gradient(135deg,#dc2626,#b91c1c); color: #fff; display: flex; align-items: center; gap: 10px; }
+.modal-head .close { margin-left: auto; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 18px; }
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
+.stat { background: #f8fafc; border-radius: 10px; padding: 12px; text-align: center; }
+.stat .n { font-size: 26px; font-weight: 800; color: #dc2626; }
+.stat .l { font-size: 11px; color: #64748b; font-weight: 700; }
+.reads-tbl { padding: 0 14px 14px; }
+.reads-tbl table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.reads-tbl th, .reads-tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+.reads-tbl th { background: #f8fafc; color: #475569; }
+.bdg-r { background: #d1fae5; color: #065f46; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+.bdg-u { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+
+/* ログイン */
+.login { max-width: 380px; margin: 60px auto; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.login h2 { margin: 0 0 16px; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📢 告知</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:12px;"></div>
+  <a href="/" style="margin-left:14px;">空間へ戻る</a>
+</header>
+
+<main id="main">
+  <div id="login" class="login" style="display:none;">
+    <h2>ログイン</h2>
+    <input type="text" id="li-id" placeholder="ログインID" autocomplete="username">
+    <input type="password" id="li-pw" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="err" id="li-err"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="tabs">
+      <button class="tab active" data-tab="all" onclick="switchTab('all')">📋 すべて <span class="b" id="cnt-all">0</span></button>
+      <button class="tab" data-tab="unread" onclick="switchTab('unread')">🔴 未読 <span class="b" id="cnt-unread">0</span></button>
+      <button class="tab" id="tab-create" data-tab="create" onclick="switchTab('create')" style="display:none;">✏️ 作成</button>
+    </div>
+
+    <div id="pane-all"></div>
+    <div id="pane-unread" style="display:none;"></div>
+
+    <div id="pane-create" class="composer" style="display:none;">
+      <h3>新規告知</h3>
+      <div class="field">
+        <label>タイトル *</label>
+        <input type="text" id="cmp-title" maxlength="100" placeholder="例) 5月の連休前後の業務について">
+      </div>
+      <div class="field">
+        <label>本文 *</label>
+        <textarea id="cmp-body" maxlength="4000" placeholder="告知の詳細をここに記入。改行可。"></textarea>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>優先度</label>
+          <select id="cmp-level">
+            <option value="normal">普通</option>
+            <option value="important">⚠ 重要</option>
+            <option value="urgent">🚨 緊急</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>対象</label>
+          <select id="cmp-target">
+            <option value="all">全員</option>
+            <option value="building:office">事務所棟のみ</option>
+            <option value="building:field">現場棟のみ</option>
+            <option value="company:SU_HQ">SU本社</option>
+            <option value="company:SU_SAITAMA">SU埼玉</option>
+            <option value="company:SU_MKANTO">SU南関東</option>
+            <option value="company:SU_ZAMA">SU座間</option>
+            <option value="company:IBA_KASHIMA">IBA鹿島</option>
+            <option value="company:IBA_SANWA">IBA三和</option>
+            <option value="company:SUZUE">スズエ</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>掲載期限</label>
+          <input type="date" id="cmp-expires">
+        </div>
+      </div>
+      <div class="field">
+        <label class="chk"><input type="checkbox" id="cmp-ack"> ✅ 確認ボタンを必須化 (受信者全員に押させる)</label>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="switchTab('all')">キャンセル</button>
+        <button class="btn" id="cmp-submit" onclick="submitCreate()">📢 配信</button>
+      </div>
+      <div class="err" id="cmp-err"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 既読率モーダル -->
+<div id="reads-modal" onclick="if(event.target.id==='reads-modal') closeReads()">
+  <div class="modal-body">
+    <div class="modal-head">
+      <span style="font-weight:800;font-size:14px;flex:1;" id="reads-title">📊 既読状況</span>
+      <button class="close" onclick="closeReads()">×</button>
+    </div>
+    <div id="reads-content"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let me = null;
+let _list = [];
+let _socket = null;
+let _curTab = 'all';
+
+function escapeHtml(s) {
+  return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin('セッションが切れました'); throw new Error('401'); }
+  return r.json();
+}
+
+function showLogin(err) {
+  document.getElementById('login').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  if (err) document.getElementById('li-err').textContent = err;
+}
+
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login_id: id, password: pw })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || 'ログイン失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    initApp();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+function initApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('who').textContent = (me && me.display_name) || '';
+  // 管理職のみ作成タブ表示
+  if (me && (me.employee_type === 'admin' || me.role === 'admin')) {
+    document.getElementById('tab-create').style.display = 'inline-block';
+  }
+  loadList();
+  setupSocket();
+  // ハッシュで個別告知へ
+  if (location.hash.startsWith('#a-')) {
+    setTimeout(() => {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  }
+}
+
+function setupSocket() {
+  if (_socket || !window.io) return;
+  try {
+    _socket = io({ auth: { token } });
+    _socket.on('announcement:new', () => loadList());
+  } catch (e) { console.warn('socket', e.message); }
+}
+
+function switchTab(t) {
+  _curTab = t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.getElementById('pane-all').style.display = t === 'all' ? 'block' : 'none';
+  document.getElementById('pane-unread').style.display = t === 'unread' ? 'block' : 'none';
+  document.getElementById('pane-create').style.display = t === 'create' ? 'block' : 'none';
+}
+
+async function loadList() {
+  const d = await api('/api/announcements?limit=100');
+  if (!d.success) return;
+  _list = d.announcements || [];
+  render();
+}
+
+function render() {
+  const all = _list;
+  const unread = _list.filter(a => !a.read_at || (a.requires_ack && !a.acked_at));
+  document.getElementById('cnt-all').textContent = all.length;
+  document.getElementById('cnt-unread').textContent = unread.length;
+  document.getElementById('pane-all').innerHTML = all.length ? all.map(card).join('') : emptyHtml('告知はまだありません');
+  document.getElementById('pane-unread').innerHTML = unread.length ? unread.map(card).join('') : emptyHtml('🎉 すべて確認済みです');
+}
+
+function emptyHtml(msg) {
+  return `<div class="empty"><div class="ico">📭</div><div>${escapeHtml(msg)}</div></div>`;
+}
+
+function card(a) {
+  const isUnread = !a.read_at;
+  const needsAck = a.requires_ack && !a.acked_at;
+  const cls = ['card', a.level, (isUnread || needsAck) ? 'unread' : ''].join(' ');
+  const lvlLabel = a.level === 'urgent' ? '🚨 緊急' : a.level === 'important' ? '⚠ 重要' : '普通';
+  const tgt = a.target === 'all' ? '全員'
+    : a.target.startsWith('company:') ? a.target.slice(8)
+    : a.target.startsWith('building:') ? (a.target.slice(9) === 'office' ? '事務所棟' : a.target.slice(9) === 'field' ? '現場棟' : a.target.slice(9))
+    : a.target;
+  let actions = '';
+  if (needsAck) {
+    actions += `<button class="btn btn-sm" onclick="ackOne(${a.id})">✅ 確認しました</button>`;
+  } else if (isUnread) {
+    actions += `<button class="btn btn-sm btn-ghost" onclick="readOne(${a.id})">既読にする</button>`;
+  } else {
+    actions += `<span style="font-size:11px;color:#10b981;font-weight:700;">✓ 確認済</span>`;
+  }
+  // 作成者or管理職には統計+削除
+  const canManage = me && (me.uid === a.author_id || me.employee_type === 'admin' || me.role === 'admin');
+  if (canManage) {
+    actions += `<button class="btn btn-sm btn-ghost" onclick="openReads(${a.id})">📊 既読率</button>`;
+    actions += `<button class="btn btn-sm btn-ghost" style="color:#dc2626;" onclick="delAnnouncement(${a.id})">🗑</button>`;
+  }
+  const expIcon = a.expires_at ? `<span style="font-size:10px;color:#94a3b8;">期限: ${escapeHtml(a.expires_at.slice(0,10))}</span>` : '';
+  const ackBadge = a.requires_ack ? '<span style="font-size:10px;background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:6px;font-weight:700;">要確認</span>' : '';
+  return `<article class="card ${cls}" id="a-${a.id}">
+    <div class="card-head">
+      <span class="lvl ${a.level}">${lvlLabel}</span>
+      ${ackBadge}
+      <div class="title">${escapeHtml(a.title)}</div>
+    </div>
+    <div class="meta">${escapeHtml(a.author_name || '不明')} · ${relTime(a.created_at)} · 対象: ${escapeHtml(tgt)} ${expIcon}</div>
+    <div class="body">${escapeHtml(a.body)}</div>
+    <div class="actions">${actions}</div>
+  </article>`;
+}
+
+async function readOne(id) {
+  await api('/api/announcements/' + id + '/read', { method: 'POST' });
+  loadList();
+}
+async function ackOne(id) {
+  await api('/api/announcements/' + id + '/ack', { method: 'POST' });
+  loadList();
+}
+async function delAnnouncement(id) {
+  if (!confirm('この告知を削除しますか？')) return;
+  const r = await api('/api/announcements/' + id, { method: 'DELETE' });
+  if (r.success) loadList();
+}
+
+async function submitCreate() {
+  const title = document.getElementById('cmp-title').value.trim();
+  const body = document.getElementById('cmp-body').value.trim();
+  const errEl = document.getElementById('cmp-err');
+  errEl.textContent = '';
+  if (!title || !body) { errEl.textContent = 'タイトルと本文を入力してください'; return; }
+  const payload = {
+    title, body,
+    level: document.getElementById('cmp-level').value,
+    target: document.getElementById('cmp-target').value,
+    requires_ack: document.getElementById('cmp-ack').checked,
+    expires_at: document.getElementById('cmp-expires').value || null,
+  };
+  const btn = document.getElementById('cmp-submit');
+  btn.disabled = true; btn.textContent = '配信中…';
+  try {
+    const r = await api('/api/announcements', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!r.success) { errEl.textContent = r.msg || '失敗'; return; }
+    document.getElementById('cmp-title').value = '';
+    document.getElementById('cmp-body').value = '';
+    document.getElementById('cmp-ack').checked = false;
+    document.getElementById('cmp-expires').value = '';
+    document.getElementById('cmp-level').value = 'normal';
+    document.getElementById('cmp-target').value = 'all';
+    switchTab('all');
+    loadList();
+  } catch (e) { errEl.textContent = '通信エラー: ' + e.message; }
+  finally { btn.disabled = false; btn.textContent = '📢 配信'; }
+}
+
+async function openReads(id) {
+  document.getElementById('reads-modal').classList.add('open');
+  document.getElementById('reads-content').innerHTML = '<div style="padding:20px;color:#94a3b8;">読み込み中…</div>';
+  const d = await api('/api/announcements/' + id + '/reads');
+  if (!d.success) { document.getElementById('reads-content').innerHTML = '<div style="padding:20px;color:#dc2626;">取得失敗</div>'; return; }
+  document.getElementById('reads-title').textContent = '📊 ' + d.announcement.title;
+  const ackHtml = d.announcement.requires_ack
+    ? `<div class="stat"><div class="n">${d.ack_count}</div><div class="l">確認済</div></div>`
+    : `<div class="stat"><div class="n">—</div><div class="l">確認不要</div></div>`;
+  const rate = d.target_count ? Math.round((d.read_count / d.target_count) * 100) : 0;
+  document.getElementById('reads-content').innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="n">${d.target_count}</div><div class="l">対象人数</div></div>
+      <div class="stat"><div class="n">${d.read_count}</div><div class="l">既読 (${rate}%)</div></div>
+      ${ackHtml}
+    </div>
+    <div class="reads-tbl">
+      <table>
+        <thead><tr><th>名前</th><th>所属</th><th style="text-align:center;">既読</th><th style="text-align:center;">確認</th><th>時刻</th></tr></thead>
+        <tbody>
+          ${d.rows.map(r => `<tr>
+            <td>${escapeHtml(r.display_name || '')}</td>
+            <td style="font-size:10px;color:#64748b;">${escapeHtml(r.company_code || '')}</td>
+            <td style="text-align:center;">${r.read_at ? '<span class="bdg-r">既読</span>' : '<span class="bdg-u">未読</span>'}</td>
+            <td style="text-align:center;">${d.announcement.requires_ack ? (r.acked_at ? '<span class="bdg-r">✓</span>' : '<span class="bdg-u">未</span>') : '—'}</td>
+            <td style="font-size:10px;color:#94a3b8;">${r.read_at ? relTime(r.read_at) : ''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function closeReads() { document.getElementById('reads-modal').classList.remove('open'); }
+
+// 自動ログイン
+(async function() {
+  if (!token) { showLogin(''); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
+    if (u && u.uid) { me = u; initApp(); }
+    else showLogin('');
+  } catch (e) { showLogin(''); }
+})();
+</script>
+</body>
+</html>

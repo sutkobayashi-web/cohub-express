@@ -273,6 +273,11 @@
             <div class="i">📋</div>
             <div>掲示板</div>
           </div>
+          <div class="qa-item" id="qa-announce" onclick="location.href='/announcements.html'" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c;position:relative;">
+            <div class="i">📢</div>
+            <div>告知</div>
+            <span id="qa-announce-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
+          </div>
           <div class="qa-item" onclick="switchTab('members')">
             <div class="i">👥</div>
             <div>メンバー</div>
@@ -739,6 +744,69 @@ function startApp() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
+  // 告知バッジ + 重要告知ポップアップ
+  checkAnnouncements();
+  setInterval(checkAnnouncements, 90 * 1000);
+}
+
+// ===== 📢 告知バッジ + 重要告知ポップアップ =====
+let _announcePopupShown = {};
+async function checkAnnouncements() {
+  try {
+    const r = await fetch('/api/announcements/unread-count', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success) return;
+    const badge = document.getElementById('qa-announce-cnt');
+    if (badge) {
+      if (j.count > 0) { badge.textContent = j.count; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
+    if (j.has_important_unread) showAnnouncePopup();
+  } catch (e) {}
+}
+async function showAnnouncePopup() {
+  try {
+    const r = await fetch('/api/announcements/popup-next', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success || !j.announcement) return;
+    const a = j.announcement;
+    if (_announcePopupShown[a.id]) return;
+    _announcePopupShown[a.id] = true;
+    renderAnnouncePopup(a);
+  } catch (e) {}
+}
+function renderAnnouncePopup(a) {
+  let modal = document.getElementById('announce-popup');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'announce-popup';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(modal);
+  }
+  const lvl = a.level === 'urgent' ? '🚨 緊急' : '⚠ 重要';
+  const ackBtn = a.requires_ack
+    ? `<button onclick="ackAnnouncePopup(${a.id})" style="padding:14px;background:#10b981;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;">✅ 確認しました</button>`
+    : `<button onclick="closeAnnouncePopup(${a.id})" style="padding:14px;background:#0891b2;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">既読にして閉じる</button>`;
+  modal.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.4);">
+    <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;">
+      <div style="font-size:12px;font-weight:800;margin-bottom:4px;opacity:0.9;">${lvl}</div>
+      <div style="font-size:17px;font-weight:800;line-height:1.4;">${escapeHtml(a.title)}</div>
+    </div>
+    <div style="padding:16px 18px;font-size:14px;line-height:1.7;color:#0f172a;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(a.body)}</div>
+    <div style="padding:10px 18px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;">${escapeHtml(a.author_name || '')} · 重要なため確認をお願いします</div>
+    <div style="padding:14px 18px 18px;">${ackBtn}</div>
+  </div>`;
+  modal.style.display = 'flex';
+}
+async function ackAnnouncePopup(id) {
+  try { await fetch('/api/announcements/' + id + '/ack', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }); } catch (e) {}
+  document.getElementById('announce-popup').style.display = 'none';
+  setTimeout(checkAnnouncements, 500);
+}
+async function closeAnnouncePopup(id) {
+  try { await fetch('/api/announcements/' + id + '/read', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }); } catch (e) {}
+  document.getElementById('announce-popup').style.display = 'none';
+  setTimeout(checkAnnouncements, 500);
 }
 
 function renderMe() {
