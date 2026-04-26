@@ -135,8 +135,8 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <button class="btn" style="background:#7c3aed;" onclick="addGuest()">🎓 ゲスト追加</button>
     </div>
     <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
-      💡 自動付与: パスワード(ランダム12桁) / 雇用区分=事務 / ロール=一般 / ☑施策レビュー権限<br>
-      💡 登録完了時にパスワードがアラートで表示されるので、本人にお知らせください
+      💡 自動付与: パスワード=<code style="background:#fef3c7;padding:1px 6px;border-radius:4px;">00112233</code> (デフォルト) / 雇用区分=事務 / ロール=一般 / ☑施策レビュー権限<br>
+      💡 ログイン後、本人が「設定 → パスワード変更」から変更できます
     </div>
     <div id="g-msg"></div>
   </div>
@@ -1018,7 +1018,8 @@ async function addGuest() {
   if (!/^[a-zA-Z0-9._-]+$/.test(login_id)) {
     msg.className = 'err'; msg.textContent = 'ログインIDは英数字 . _ - のみ使用可'; return;
   }
-  const password = genTempPw();
+  // デフォルトパスワード: 全社共通 00112233 (本人がログイン後に変更)
+  const password = '00112233';
   const r = await fetch('/api/admin/users', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -1080,8 +1081,8 @@ async function loadUnmappedCw() {
           <input type="text" value="${escapeHtml(suggestLoginId(u))}" id="mig-login-${i}" placeholder="ログインID" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
           <input type="text" value="${escapeHtml(u.real_name || u.nickname || '')}" id="mig-name-${i}" placeholder="表示名" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
           <div style="display:flex;gap:3px;">
-            <input type="text" value="${escapeHtml(genTempPw())}" id="mig-pw-${i}" placeholder="パスワード" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;font-family:monospace;">
-            <button class="btn btn-ghost" style="padding:3px 6px;font-size:10px;" onclick="document.getElementById('mig-pw-${i}').value=genTempPw()" title="再生成">🔄</button>
+            <input type="text" value="00112233" id="mig-pw-${i}" placeholder="パスワード" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;font-family:monospace;">
+            <button class="btn btn-ghost" style="padding:3px 6px;font-size:10px;" onclick="document.getElementById('mig-pw-${i}').value='00112233'" title="既定に戻す">↺</button>
           </div>
           <div style="display:flex;gap:3px;">
             <select id="mig-co-${i}" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
