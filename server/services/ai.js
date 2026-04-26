@@ -270,7 +270,7 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
         { text: prompt },
       ],
     }],
-    generationConfig: { temperature: 0.5, maxOutputTokens: 500 },
+    generationConfig: { temperature: 0.5, maxOutputTokens: 2500, responseMimeType: 'application/json' },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -291,8 +291,20 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
   let parsed;
   try { parsed = JSON.parse(text); }
   catch (e) {
-    console.warn('[analyzeFoodImage] JSON parse failed:', e.message, 'text=', text.slice(0, 300));
-    throw new Error('AI応答解析失敗: ' + text.slice(0, 100));
+    // 切詰フォールバック: 開きカッコ過多なら閉じる
+    let fixed = text;
+    const opens = (fixed.match(/\{/g) || []).length;
+    const closes = (fixed.match(/\}/g) || []).length;
+    if (opens > closes) {
+      // 文字列途中切れ対応: 末尾が " で終わっていなければ "" を補完
+      if (!/["\d\}]\s*$/.test(fixed)) fixed += '"';
+      fixed += '}'.repeat(opens - closes);
+    }
+    try { parsed = JSON.parse(fixed); }
+    catch (e2) {
+      console.warn('[analyzeFoodImage] JSON parse failed:', e.message, 'text=', text.slice(0, 300));
+      throw new Error('AI応答解析失敗 (出力切詰の可能性、再投稿してください)');
+    }
   }
   console.log('[analyzeFoodImage] parsed:', JSON.stringify(parsed).slice(0, 200));
   return parsed;
@@ -324,7 +336,8 @@ async function analyzeBPImage(imageBuffer, mimeType) {
         { text: prompt },
       ],
     }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 300 },
+    // Gemini 2.5 は内部 thinking にもトークン消費するため余裕を持たせる
+    generationConfig: { temperature: 0.2, maxOutputTokens: 1200, responseMimeType: 'application/json' },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -336,14 +349,23 @@ async function analyzeBPImage(imageBuffer, mimeType) {
   const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   let text = '';
   if (parts) for (const p of parts) if (p.text) text += p.text;
+  console.log('[analyzeBP] raw:', text.slice(0, 200));
   text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
   const m = text.match(/\{[\s\S]*\}/);
   if (m) text = m[0];
   let parsed;
   try { parsed = JSON.parse(text); }
   catch (e) {
-    console.warn('[analyzeBP] parse fail:', text.slice(0, 200));
-    throw new Error('AI応答解析失敗');
+    // 切詰時のフォールバック: } を補ってもう一度トライ
+    let fixed = text;
+    const opens = (fixed.match(/\{/g) || []).length;
+    const closes = (fixed.match(/\}/g) || []).length;
+    if (opens > closes) fixed += '"'.repeat(0) + '}'.repeat(opens - closes);
+    try { parsed = JSON.parse(fixed); }
+    catch (e2) {
+      console.warn('[analyzeBP] parse fail:', text.slice(0, 200));
+      throw new Error('AI応答解析失敗 (画像が血圧計か確認してください)');
+    }
   }
   return parsed;
 }
