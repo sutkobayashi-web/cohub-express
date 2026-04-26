@@ -118,6 +118,29 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div id="bulk-msg"></div>
   </div>
 
+  <div class="card" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);border-left:4px solid #7c3aed;">
+    <h2 style="color:#5b21b6;">🎓 ゲスト追加 (大学・NPO等) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">外部の保健師・研究者を施策ボード精査メンバーとして登録</span></h2>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.6;">
+      所属組織と表示名を入れるだけで登録完了。パスワードは自動生成、施策レビュー権限は自動付与。
+    </div>
+    <div class="row">
+      <input type="text" id="g-login" placeholder="ログインID (例: prof_fukuda)" style="min-width:160px;">
+      <input type="text" id="g-name" placeholder="表示名 (例: 福田吉治)" style="min-width:140px;">
+      <select id="g-org-type" style="min-width:160px;">
+        <option value="UNIVERSITY">🎓 大学・研究機関</option>
+        <option value="NPO">🏥 NPO法人</option>
+        <option value="GUEST">👥 その他ゲスト</option>
+      </select>
+      <input type="text" id="g-org" placeholder="所属組織 (例: 帝京大学公衆衛生学研究科)" style="flex:1;min-width:240px;">
+      <button class="btn" style="background:#7c3aed;" onclick="addGuest()">🎓 ゲスト追加</button>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
+      💡 自動付与: パスワード(ランダム12桁) / 雇用区分=事務 / ロール=一般 / ☑施策レビュー権限<br>
+      💡 登録完了時にパスワードがアラートで表示されるので、本人にお知らせください
+    </div>
+    <div id="g-msg"></div>
+  </div>
+
   <div class="card" style="background:linear-gradient(135deg,#ecfeff,#f0fdfa);border-left:4px solid #06b6d4;">
     <h2 style="color:#0e7490;">📦 CoWellユーザー移行 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">CoHub未登録のCoWellユーザーをCoHubに作成して紐付け</span></h2>
     <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.6;">
@@ -982,6 +1005,41 @@ function suggestLoginId(cw) {
   // real_name 苗字+名 を hepburn ローマ字化 (主要漢字のみ簡易)
   return 'cw_' + (cw.cw_id || '').slice(0, 8);
 }
+async function addGuest() {
+  const msg = document.getElementById('g-msg');
+  msg.className = ''; msg.textContent = '';
+  const login_id = document.getElementById('g-login').value.trim();
+  const display_name = document.getElementById('g-name').value.trim();
+  const company_code = document.getElementById('g-org-type').value;
+  const guest_org = document.getElementById('g-org').value.trim();
+  if (!login_id || !display_name) {
+    msg.className = 'err'; msg.textContent = 'ログインIDと表示名は必須です'; return;
+  }
+  if (!/^[a-zA-Z0-9._-]+$/.test(login_id)) {
+    msg.className = 'err'; msg.textContent = 'ログインIDは英数字 . _ - のみ使用可'; return;
+  }
+  const password = genTempPw();
+  const r = await fetch('/api/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({
+      login_id, display_name, company_code, password,
+      role: 'member', employee_type: 'office',
+      is_guest_reviewer: true, guest_org,
+    }),
+  });
+  const d = await r.json();
+  if (!d.success) { msg.className = 'err'; msg.textContent = d.msg || '失敗'; return; }
+  msg.className = 'ok';
+  msg.innerHTML = '✅ <b>' + escapeHtml(display_name) + '</b> (' + escapeHtml(login_id) + ') を登録しました<br>'
+    + '<span style="font-family:monospace;background:#fef3c7;padding:3px 8px;border-radius:4px;">パスワード: ' + escapeHtml(password) + '</span>'
+    + '<br><span style="font-size:11px;">→ 本人にログインIDとパスワードをお知らせください</span>';
+  document.getElementById('g-login').value = '';
+  document.getElementById('g-name').value = '';
+  document.getElementById('g-org').value = '';
+  loadUsers();
+}
+
 function genTempPw() {
   // 大小英数+記号、12文字
   const a = 'abcdefghjkmnpqrstuvwxyz', b = 'ABCDEFGHJKMNPQRSTUVWXYZ', c = '23456789', d = '!@#$%';
