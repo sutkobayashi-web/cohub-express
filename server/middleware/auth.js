@@ -21,14 +21,9 @@ function authUser(req, res, next) {
     const payload = verifyToken(token);
     req.user = payload;
     req.uid = payload.uid;
-    if (payload.sid) {
-      try {
-        const u = getDb().prepare('SELECT session_token FROM users WHERE id = ?').get(payload.uid);
-        if (u && u.session_token && u.session_token !== payload.sid) {
-          return res.status(401).json({ success: false, msg: '別端末でログインされました', code: 'SESSION_EXPIRED' });
-        }
-      } catch (e) {}
-    }
+    // 多端末対応: PC + モバイル + 別ブラウザを同時にログイン可能にするため
+    // session_token (sid) の単一セッション制約を撤去。
+    // JWT自体の有効期限 (30日) で十分なセキュリティ確保。
     next();
   } catch (e) {
     res.status(401).json({ success: false, msg: 'トークンが無効です' });
