@@ -79,29 +79,16 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
   <div class="spacer"></div>
   <div id="who" style="font-size:13px;"></div>
   <button onclick="location.href='/'" style="margin-left:16px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
-  <a href="javascript:doLogout()" style="margin-left:12px;">ログアウト</a>
 </header>
 <main>
 
-<div id="login-box" class="card" style="max-width:420px;margin:40px auto;">
-  <h2>健康管理室ログイン</h2>
-  <div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.6;">
-    閲覧できるのは <b>管理職</b> または <b>現場の声 推進メンバー</b> のみです。
-  </div>
-  <div class="row"><input type="text" id="adm-id" placeholder="ログインID"></div>
-  <div class="row"><input type="password" id="adm-pw" placeholder="パスワード"></div>
-  <button class="btn" onclick="doLogin()">ログイン</button>
-  <div class="err" id="adm-err"></div>
-</div>
-
-<div id="no-access" class="card" style="display:none;max-width:520px;margin:40px auto;text-align:center;">
-  <div style="font-size:48px;margin-bottom:12px;">🔒</div>
-  <h2 style="color:#dc2626;">アクセス権がありません</h2>
+<div id="login-redirect" class="card" style="display:none;max-width:420px;margin:40px auto;text-align:center;">
+  <div style="font-size:40px;margin-bottom:12px;">🔑</div>
+  <h2>ログインが必要です</h2>
   <div style="font-size:13px;color:#64748b;line-height:1.7;margin:12px 0;">
-    このページは <b>管理職</b> または <b>現場の声 推進メンバー</b> のみ閲覧可能です。<br>
-    必要な場合はシステム管理者にお問い合わせください。
+    CoHubにログインしてからアクセスしてください。
   </div>
-  <button class="btn btn-ghost" onclick="doLogout()">別ユーザーでログイン</button>
+  <button class="btn" onclick="location.href='/'">CoHubへログイン</button>
 </div>
 
 <div id="panel" style="display:none;">
@@ -283,7 +270,7 @@ let _aiInsightsCache = null;
     const r = await _origFetch(url, opts);
     try {
       if (r.status === 401 && typeof url === 'string' && url.indexOf('/api/') === 0) {
-        showLogin('セッションが切れています。再ログインしてください');
+        showLoginRedirect();
       }
     } catch (e) {}
     return r;
@@ -294,55 +281,18 @@ function escapeHtml(s) {
   return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function showLogin(errMsg) {
-  document.getElementById('login-box').style.display = 'block';
+function showLoginRedirect() {
+  document.getElementById('login-redirect').style.display = 'block';
   document.getElementById('panel').style.display = 'none';
-  document.getElementById('no-access').style.display = 'none';
-  if (errMsg) document.getElementById('adm-err').textContent = errMsg;
-}
-
-function showNoAccess(name) {
-  document.getElementById('login-box').style.display = 'none';
-  document.getElementById('panel').style.display = 'none';
-  document.getElementById('no-access').style.display = 'block';
-  document.getElementById('who').textContent = name || '';
-}
-
-async function doLogin() {
-  const id = document.getElementById('adm-id').value.trim();
-  const pw = document.getElementById('adm-pw').value;
-  const err = document.getElementById('adm-err');
-  err.textContent = '';
-  try {
-    const r = await fetch('/api/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login_id: id, password: pw })
-    });
-    const d = await r.json();
-    if (!d.success) { err.textContent = d.msg || 'ログイン失敗'; return; }
-    token = d.token;
-    localStorage.setItem('cohub_token', token);
-    localStorage.setItem('cohub_user', JSON.stringify(d.user));
-    await checkAccessAndShow(d.user);
-  } catch (e) { err.textContent = '通信エラー'; }
-}
-
-function doLogout() {
-  // wellness ページからのログアウトは cohub 側のセッションは温存 (ボタン再読込で空間に戻れる)
-  token = '';
-  document.getElementById('adm-id').value = '';
-  document.getElementById('adm-pw').value = '';
-  showLogin('');
 }
 
 async function checkAccessAndShow(user) {
   try {
     const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
-    if (r.status === 401) { showLogin('セッションが切れています'); return; }
+    if (r.status === 401) { showLoginRedirect(); return; }
     const m = await r.json();
     _meta = m;
-    document.getElementById('login-box').style.display = 'none';
-    document.getElementById('no-access').style.display = 'none';
+    document.getElementById('login-redirect').style.display = 'none';
     document.getElementById('panel').style.display = 'block';
     document.getElementById('who').textContent = (user && user.display_name) || '';
     // 推進メンバー / 管理職 / システムadmin / ゲストレビュアー (大学/NPO等) のみ運営入口表示
@@ -362,7 +312,7 @@ async function checkAccessAndShow(user) {
     }
     switchTab('bp');
   } catch (e) {
-    showLogin('読み込みエラー: ' + (e.message || ''));
+    showLoginRedirect();
   }
 }
 
@@ -545,13 +495,13 @@ async function delCheckup(id) {
   loadCheckups();
 }
 
-// ===== 自動ログイン =====
+// ===== 自動ログイン (CoHub既存セッション利用) =====
 (async function() {
-  if (!token) { showLogin(''); return; }
+  if (!token) { showLoginRedirect(); return; }
   try {
     const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
     await checkAccessAndShow(u);
-  } catch (e) { showLogin(''); }
+  } catch (e) { showLoginRedirect(); }
 })();
 </script>
 </body>
