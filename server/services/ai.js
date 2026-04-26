@@ -238,25 +238,27 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo) {
   const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
   const prompt = `この食事画像を栄養面で分析してください。${userMemo ? '\n投稿者メモ: ' + userMemo.slice(0, 200) : ''}
 
-以下の純粋なJSON (Markdownや前置き不要) で回答:
+以下の純粋なJSON (Markdownや前置き不要、コードブロック禁止) で回答してください。
+全ての値は指定された型を厳守すること:
+
 {
   "scores": {
-    "protein":  1〜5の整数,
-    "fat":      1〜5の整数,
-    "carb":     1〜5の整数,
-    "vitamin":  1〜5の整数,
-    "mineral":  1〜5の整数,
-    "salt":     1〜5の整数
+    "protein": 整数 (1〜5),
+    "fat":     整数 (1〜5),
+    "carb":    整数 (1〜5),
+    "vitamin": 整数 (1〜5),
+    "mineral": 整数 (1〜5),
+    "salt":    整数 (1〜5)
   },
-  "comment": "60字以内の前向きなコメント (改善1点 + 良い点1点)"
+  "comment": "1行の文字列 (60字以内)。良い点と改善点を自然な日本語1文にまとめる"
 }
 
-スコア基準:
+重要:
+- comment は必ず string 型 (object/array禁止)。例: "野菜が豊富で◎、塩分は少し控えめにすると更に良いです"
+- scores は必ず integer 型 (string禁止)
 - 1=とても少ない, 3=ちょうどよい目安, 5=多め
-- saltは少ないほど健康的だが、ここは「含まれている量」のスコア
 - vitamin/mineral は野菜・果物の量で評価
-
-不適切な画像 (食事ではない/読み取れない) の場合は scores 全て null、comment に理由を入れる。`;
+- 不適切な画像 (食事ではない/読み取れない) の場合は scores 全て null、comment に理由文字列`;
 
   const body = {
     contents: [{

@@ -333,7 +333,8 @@ function postHtml(p) {
     try {
       const ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
       const bars = NUTRI_KEYS.map(k => {
-        const v = ns[k] != null ? ns[k] : 0;
+        const raw = ns[k];
+        const v = (raw == null || raw === '') ? 0 : (parseInt(raw) || 0);
         const pct = (Math.max(0, Math.min(5, v)) / 5) * 100;
         return `<div class="nutri-bar">
           <div class="l">${NUTRI_LABELS[k]}</div>
@@ -341,10 +342,14 @@ function postHtml(p) {
           <div class="v">${v || '-'}</div>
         </div>`;
       }).join('');
+      // ai_comment が object (旧データ "[object Object]"等) の場合も安全に表示
+      let cmt = p.ai_comment;
+      if (cmt && typeof cmt === 'object') cmt = Object.values(cmt).filter(v => typeof v === 'string').join(' / ');
+      if (cmt === '[object Object]' || cmt === 'undefined' || cmt === 'null') cmt = '';
       nutri = `<div class="nutri">
         <div class="nutri-head">🍱 AI栄養分析</div>
         <div class="nutri-bars">${bars}</div>
-        ${p.ai_comment ? `<div class="ai-cmt">💬 ${escapeHtml(p.ai_comment)}</div>` : ''}
+        ${cmt ? `<div class="ai-cmt">💬 ${escapeHtml(cmt)}</div>` : ''}
       </div>`;
     } catch (e) {}
   }

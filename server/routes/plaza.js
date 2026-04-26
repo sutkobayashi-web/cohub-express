@@ -120,8 +120,24 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
     try {
       const buf = fs.readFileSync(req.file.path);
       const r = await analyzeFoodImage(buf, req.file.mimetype, content);
-      if (r && r.scores) nutritionScores = JSON.stringify(r.scores);
-      if (r && r.comment) aiComment = r.comment;
+      if (r && r.scores && typeof r.scores === 'object') {
+        // 各スコアを整数に正規化 (string→int, 範囲外はclamp)
+        const norm = {};
+        for (const k of ['protein', 'fat', 'carb', 'vitamin', 'mineral', 'salt']) {
+          const v = parseInt(r.scores[k]);
+          norm[k] = isNaN(v) ? null : Math.max(1, Math.min(5, v));
+        }
+        nutritionScores = JSON.stringify(norm);
+      }
+      // コメントが object なら適切に文字列化
+      if (r && r.comment != null) {
+        if (typeof r.comment === 'string') aiComment = r.comment;
+        else if (typeof r.comment === 'object') {
+          // {improvement, good} 等のキー形式 → 連結
+          aiComment = Object.values(r.comment).filter(v => typeof v === 'string').join(' / ');
+        }
+        if (aiComment) aiComment = aiComment.slice(0, 200);
+      }
     } catch (e) { console.warn('food AI fail:', e.message); }
   }
 
