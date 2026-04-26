@@ -516,6 +516,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-announce" onclick="location.href='/announcements.html'" title="告知" style="background:rgba(220,38,38,0.10);border:1px solid rgba(220,38,38,0.35);color:#b91c1c;">
       <span>📢</span><span class="lbl">告知</span><span class="cnt" id="rail-announce-cnt" style="display:none;">0</span>
     </button>
+    <button class="rail-btn" id="rail-ops" onclick="location.href='/ops.html'" title="業務連絡 (車両不具合/事故/遅延)" style="background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.35);color:#6d28d9;">
+      <span>🚛</span><span class="lbl">業務連絡</span><span class="cnt" id="rail-ops-cnt" style="display:none;">0</span>
+    </button>
     <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
       <span>🎨</span><span class="lbl">アバター</span>
     </button>
@@ -1325,7 +1328,20 @@ function enterSpace() {
   refreshUserMe();
   // 告知の未読チェック (バッジ + 重要告知の自動ポップアップ)
   checkAnnouncements();
-  setInterval(checkAnnouncements, 90 * 1000);
+  checkOpsPending();
+  setInterval(() => { checkAnnouncements(); checkOpsPending(); }, 90 * 1000);
+}
+
+async function checkOpsPending() {
+  try {
+    const r = await fetch('/api/ops/pending-count', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    const badge = document.getElementById('rail-ops-cnt');
+    if (badge) {
+      if (j.success && j.count > 0) { badge.textContent = j.count; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
+  } catch (e) {}
 }
 
 // ===== 📢 告知バッジ + 重要告知ポップアップ =====

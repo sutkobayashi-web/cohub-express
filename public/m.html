@@ -278,6 +278,11 @@
             <div>告知</div>
             <span id="qa-announce-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
+          <div class="qa-item" id="qa-ops" onclick="location.href='/ops.html'" style="background:linear-gradient(135deg,#faf5ff,#ede9fe);color:#6d28d9;position:relative;">
+            <div class="i">🚛</div>
+            <div>業務連絡</div>
+            <span id="qa-ops-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#7c3aed;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
+          </div>
           <div class="qa-item" onclick="switchTab('members')">
             <div class="i">👥</div>
             <div>メンバー</div>
@@ -744,9 +749,22 @@ function startApp() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
-  // 告知バッジ + 重要告知ポップアップ
+  // 告知バッジ + 重要告知ポップアップ + 業務連絡未対応バッジ
   checkAnnouncements();
-  setInterval(checkAnnouncements, 90 * 1000);
+  checkOpsPending();
+  setInterval(() => { checkAnnouncements(); checkOpsPending(); }, 90 * 1000);
+}
+
+async function checkOpsPending() {
+  try {
+    const r = await fetch('/api/ops/pending-count', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    const badge = document.getElementById('qa-ops-cnt');
+    if (badge) {
+      if (j.success && j.count > 0) { badge.textContent = j.count; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
+  } catch (e) {}
 }
 
 // ===== 📢 告知バッジ + 重要告知ポップアップ =====

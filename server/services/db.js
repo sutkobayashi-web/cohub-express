@@ -117,6 +117,33 @@ function getDb() {
     PRIMARY KEY (announcement_id, user_id)
   );
   CREATE INDEX IF NOT EXISTS idx_ar_user ON announcement_reads(user_id);`);
+  // 業務日常連絡 (Phase3) — 車両不具合/事故ヒヤリハット/遅延/その他をドライバーから一発報告
+  _db.exec(`CREATE TABLE IF NOT EXISTS ops_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reporter_id TEXT NOT NULL,
+    category TEXT NOT NULL,
+    urgency TEXT NOT NULL DEFAULT '中',
+    vehicle_no TEXT,
+    location TEXT,
+    description TEXT,
+    image_url TEXT,
+    status TEXT NOT NULL DEFAULT '受付',
+    assignee_id TEXT,
+    resolution_note TEXT,
+    resolved_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_ops_at ON ops_reports(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_ops_status ON ops_reports(status, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_ops_reporter ON ops_reports(reporter_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS ops_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id INTEGER NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_oc_report ON ops_comments(report_id, created_at);`);
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用

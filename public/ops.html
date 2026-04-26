@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🚛 業務連絡 — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json?v=2">
+<meta name="theme-color" content="#7c3aed">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f1f5f9; color: #0f172a; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header a { color: #fff; text-decoration: none; font-size: 12px; opacity: 0.9; }
+main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
+
+.tabs { display: flex; gap: 4px; background: #fff; border-radius: 10px; padding: 4px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.tab { flex: 1; padding: 10px 8px; border: none; background: transparent; font-size: 12px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; }
+.tab.active { background: #7c3aed; color: #fff; }
+.tab .b { display: inline-block; background: #fff; color: #7c3aed; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+
+.btn { padding: 10px 18px; background: #7c3aed; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn-ghost { background: #e2e8f0; color: #0f172a; }
+.btn-success { background: #10b981; }
+.btn-warn { background: #f59e0b; }
+.btn-danger { background: #ef4444; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+
+/* 投稿フォーム */
+.composer { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.composer h3 { margin: 0 0 10px; font-size: 14px; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+.field input, .field select, .field textarea { width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; }
+.field textarea { min-height: 70px; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124,58,237,0.1); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.cat-btn { padding: 12px 8px; border: 2px solid #e2e8f0; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; color: #475569; text-align: center; }
+.cat-btn.sel { border-color: #7c3aed; background: #faf5ff; color: #7c3aed; }
+.urg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.urg-btn { padding: 10px 8px; border: 2px solid #e2e8f0; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; color: #475569; text-align: center; }
+.urg-btn.sel-low { border-color: #10b981; background: #ecfdf5; color: #047857; }
+.urg-btn.sel-mid { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
+.urg-btn.sel-high { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
+.preview-img-wrap { position: relative; margin-top: 8px; display: inline-block; }
+.preview-img { max-width: 200px; max-height: 200px; border-radius: 8px; }
+.preview-clear { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
+
+/* レポートカード */
+.rep { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); border-left: 4px solid #cbd5e1; }
+.rep.urg-高 { border-left-color: #ef4444; }
+.rep.urg-中 { border-left-color: #f59e0b; }
+.rep.urg-低 { border-left-color: #10b981; }
+.rep-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.bdg { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.bdg-cat { background: #7c3aed; }
+.bdg-urg-高 { background: #ef4444; }
+.bdg-urg-中 { background: #f59e0b; }
+.bdg-urg-低 { background: #10b981; }
+.bdg-status-受付 { background: #94a3b8; }
+.bdg-status-対応中 { background: #3b82f6; }
+.bdg-status-完了 { background: #10b981; }
+.bdg-status-却下 { background: #ef4444; }
+.rep-meta { font-size: 11px; color: #94a3b8; }
+.rep-body { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; margin: 8px 0; }
+.rep-img { max-width: 100%; max-height: 320px; border-radius: 8px; margin-top: 8px; cursor: pointer; }
+.rep-info { font-size: 11px; color: #64748b; margin: 4px 0; }
+.rep-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+.rep-resnote { background: #ecfdf5; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #065f46; margin-top: 6px; }
+
+/* コメントスレッド */
+.cmts { margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; display: none; }
+.cmts.open { display: block; }
+.cmt { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.cmt:last-child { border-bottom: 0; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: #cbd5e1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.cmt img.avatar { background: transparent; object-fit: cover; }
+.cmt-body { flex: 1; min-width: 0; }
+.cmt-author { font-size: 12px; font-weight: 700; }
+.cmt-time { font-size: 10px; color: #94a3b8; margin-left: 6px; }
+.cmt-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+.cmt-form { display: flex; gap: 6px; margin-top: 8px; }
+.cmt-form input { flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 18px; font-size: 13px; outline: none; }
+.cmt-form button { padding: 7px 14px; background: #7c3aed; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 12px; font-weight: 700; }
+
+.empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
+.empty .ico { font-size: 48px; margin-bottom: 12px; }
+
+#img-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+#img-modal.open { display: flex; }
+#img-modal img { max-width: 100%; max-height: 100%; }
+#img-modal .close { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; }
+
+.login { max-width: 380px; margin: 60px auto; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.login h2 { margin: 0 0 16px; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #7c3aed; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚛 業務連絡</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:12px;"></div>
+  <a href="/" style="margin-left:14px;">空間へ戻る</a>
+</header>
+
+<main>
+  <div id="login" class="login" style="display:none;">
+    <h2>ログイン</h2>
+    <input type="text" id="li-id" placeholder="ログインID" autocomplete="username">
+    <input type="password" id="li-pw" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="err" id="li-err"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="tabs">
+      <button class="tab active" data-tab="post" onclick="switchTab('post')">📝 報告する</button>
+      <button class="tab" data-tab="mine" onclick="switchTab('mine')">📜 自分の履歴</button>
+      <button class="tab" id="tab-all" data-tab="all" onclick="switchTab('all')" style="display:none;">📊 全件管理 <span class="b" id="cnt-pending">0</span></button>
+    </div>
+
+    <!-- 投稿 -->
+    <div id="pane-post" class="composer">
+      <h3>新規報告 (車両・運行・荷主)</h3>
+      <div class="field">
+        <label>カテゴリ *</label>
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+      <div class="field">
+        <label>緊急度 *</label>
+        <div class="urg-grid">
+          <button type="button" class="urg-btn" data-urg="低" onclick="setUrgency('低')">🟢 低</button>
+          <button type="button" class="urg-btn sel-mid" data-urg="中" onclick="setUrgency('中')">🟡 中</button>
+          <button type="button" class="urg-btn" data-urg="高" onclick="setUrgency('高')">🔴 高</button>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>車両番号 (任意)</label>
+          <input type="text" id="cmp-vehicle" maxlength="30" placeholder="例) 1234">
+        </div>
+        <div class="field">
+          <label>場所 (任意)</label>
+          <input type="text" id="cmp-location" maxlength="100" placeholder="例) 圏央道海老名IC付近">
+        </div>
+      </div>
+      <div class="field">
+        <label>詳細 *</label>
+        <textarea id="cmp-desc" maxlength="1000" placeholder="状況・対応希望など"></textarea>
+      </div>
+      <div class="field">
+        <label>写真 (任意)</label>
+        <button type="button" class="btn-ghost btn" onclick="document.getElementById('cmp-file').click()">📷 撮影 / 選択</button>
+        <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
+        <div id="cmp-preview" class="preview-img-wrap" style="display:none;">
+          <img id="cmp-preview-img" class="preview-img">
+          <button class="preview-clear" onclick="clearImage()">×</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+        <span id="cmp-msg" style="font-size:12px;color:#64748b;flex:1;">配信先: 管理職と運管に即通知されます</span>
+        <button class="btn" id="cmp-submit" onclick="submitReport()">🚛 送信</button>
+      </div>
+      <div class="err" id="cmp-err"></div>
+    </div>
+
+    <div id="pane-mine" style="display:none;"></div>
+    <div id="pane-all" style="display:none;"></div>
+  </div>
+</main>
+
+<div id="img-modal" onclick="closeImgModal()">
+  <button class="close" onclick="closeImgModal()">×</button>
+  <img id="img-modal-img" alt="">
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let me = null;
+let _meta = null;
+let _imageFile = null;
+let _curUrgency = '中';
+let _curCategory = '';
+let _curTab = 'post';
+let _socket = null;
+
+function escapeHtml(s) {
+  return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin('セッションが切れました'); throw new Error('401'); }
+  return r.json();
+}
+function showLogin(err) {
+  document.getElementById('login').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  if (err) document.getElementById('li-err').textContent = err;
+}
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login_id: id, password: pw })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || 'ログイン失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    initApp();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+async function initApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('who').textContent = (me && me.display_name) || '';
+  const meta = await api('/api/ops/meta');
+  _meta = meta;
+  if (meta.can_manage) {
+    document.getElementById('tab-all').style.display = 'inline-flex';
+    refreshPendingCount();
+  }
+  // カテゴリボタン構築
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = meta.categories.map(c => `<button type="button" class="cat-btn" data-cat="${escapeHtml(c)}" onclick="setCategory('${escapeHtml(c)}')">${escapeHtml(c)}</button>`).join('');
+  setupSocket();
+  if (location.hash.startsWith('#r-')) {
+    switchTab(_meta.can_manage ? 'all' : 'mine');
+  }
+}
+
+function setupSocket() {
+  if (_socket || !window.io) return;
+  try {
+    _socket = io({ auth: { token } });
+    _socket.on('ops:new', () => { if (_curTab !== 'post') refreshList(); refreshPendingCount(); });
+    _socket.on('ops:update', () => { refreshList(); refreshPendingCount(); });
+  } catch (e) {}
+}
+
+function setCategory(c) {
+  _curCategory = c;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('sel', b.dataset.cat === c));
+}
+function setUrgency(u) {
+  _curUrgency = u;
+  document.querySelectorAll('.urg-btn').forEach(b => {
+    b.className = 'urg-btn';
+    if (b.dataset.urg === u) {
+      b.classList.add(u === '低' ? 'sel-low' : u === '中' ? 'sel-mid' : 'sel-high');
+    }
+  });
+}
+
+function onPickImage(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  if (f.size > 10 * 1024 * 1024) { alert('10MB以下にしてください'); return; }
+  _imageFile = f;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('cmp-preview-img').src = e.target.result;
+    document.getElementById('cmp-preview').style.display = 'inline-block';
+  };
+  reader.readAsDataURL(f);
+}
+function clearImage() {
+  _imageFile = null;
+  document.getElementById('cmp-file').value = '';
+  document.getElementById('cmp-preview').style.display = 'none';
+}
+
+async function submitReport() {
+  const errEl = document.getElementById('cmp-err');
+  errEl.textContent = '';
+  if (!_curCategory) { errEl.textContent = 'カテゴリを選択してください'; return; }
+  const desc = document.getElementById('cmp-desc').value.trim();
+  if (!desc && !_imageFile) { errEl.textContent = '詳細または写真を入力してください'; return; }
+  const btn = document.getElementById('cmp-submit');
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    const fd = new FormData();
+    fd.append('category', _curCategory);
+    fd.append('urgency', _curUrgency);
+    fd.append('vehicle_no', document.getElementById('cmp-vehicle').value);
+    fd.append('location', document.getElementById('cmp-location').value);
+    fd.append('description', desc);
+    if (_imageFile) fd.append('image', _imageFile);
+    const r = await fetch('/api/ops/reports', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const d = await r.json();
+    if (!d.success) { errEl.textContent = d.msg || '送信失敗'; return; }
+    alert('🚛 報告を送信しました (#' + d.report.id + ')');
+    document.getElementById('cmp-vehicle').value = '';
+    document.getElementById('cmp-location').value = '';
+    document.getElementById('cmp-desc').value = '';
+    clearImage();
+    setCategory('');
+    setUrgency('中');
+    switchTab('mine');
+  } catch (e) { errEl.textContent = '通信エラー: ' + e.message; }
+  finally { btn.disabled = false; btn.textContent = '🚛 送信'; }
+}
+
+function switchTab(t) {
+  _curTab = t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.getElementById('pane-post').style.display = t === 'post' ? 'block' : 'none';
+  document.getElementById('pane-mine').style.display = t === 'mine' ? 'block' : 'none';
+  document.getElementById('pane-all').style.display = t === 'all' ? 'block' : 'none';
+  if (t === 'mine' || t === 'all') refreshList();
+}
+
+async function refreshList() {
+  if (_curTab === 'post') return;
+  const scope = _curTab === 'all' ? 'all' : 'mine';
+  const d = await api('/api/ops/reports?limit=100&scope=' + scope);
+  if (!d.success) return;
+  const pane = document.getElementById('pane-' + _curTab);
+  if (!d.reports.length) { pane.innerHTML = '<div class="empty"><div class="ico">📭</div><div>報告はまだありません</div></div>'; return; }
+  pane.innerHTML = d.reports.map(repHtml).join('');
+}
+
+async function refreshPendingCount() {
+  if (!(_meta && _meta.can_manage)) return;
+  try {
+    const r = await api('/api/ops/pending-count');
+    const el = document.getElementById('cnt-pending');
+    if (el) el.textContent = r.count || 0;
+  } catch (e) {}
+}
+
+function repHtml(r) {
+  const canManage = !!(_meta && _meta.can_manage);
+  let actions = '';
+  if (canManage) {
+    if (r.status === '受付') {
+      actions += `<button class="btn btn-sm btn-warn" onclick="assignReport(${r.id})">🛠 対応開始 (自分担当)</button>`;
+      actions += `<button class="btn btn-sm btn-danger" onclick="rejectReport(${r.id})">却下</button>`;
+    } else if (r.status === '対応中') {
+      actions += `<button class="btn btn-sm btn-success" onclick="completeReport(${r.id})">✅ 完了</button>`;
+    }
+  }
+  actions += `<button class="btn btn-sm btn-ghost" onclick="toggleComments(${r.id})" style="margin-left:auto;">💬 ${r.comment_count || 0}</button>`;
+  const img = r.image_url ? `<img class="rep-img" src="${escapeHtml(r.image_url)}" onclick="openImgModal('${escapeHtml(r.image_url)}')">` : '';
+  const vehicle = r.vehicle_no ? `🚚 車両 ${escapeHtml(r.vehicle_no)}` : '';
+  const loc = r.location ? `📍 ${escapeHtml(r.location)}` : '';
+  const info = [vehicle, loc].filter(Boolean).join(' · ');
+  const resNote = r.status === '完了' && r.resolution_note
+    ? `<div class="rep-resnote">✅ ${escapeHtml(r.resolution_note)}</div>` : '';
+  return `<article class="rep urg-${r.urgency}" id="r-${r.id}">
+    <div class="rep-head">
+      <span class="bdg bdg-cat">${escapeHtml(r.category)}</span>
+      <span class="bdg bdg-urg-${r.urgency}">${r.urgency === '高' ? '🔴' : r.urgency === '中' ? '🟡' : '🟢'} ${r.urgency}</span>
+      <span class="bdg bdg-status-${r.status}">${escapeHtml(r.status)}</span>
+      <span style="font-size:11px;color:#94a3b8;font-weight:700;">#${r.id}</span>
+    </div>
+    <div class="rep-meta">${escapeHtml(r.reporter_name || '')} (${escapeHtml(r.reporter_company || '')}) · ${relTime(r.created_at)}${r.assignee_name ? ' · 担当: ' + escapeHtml(r.assignee_name) : ''}</div>
+    ${info ? `<div class="rep-info">${info}</div>` : ''}
+    ${r.description ? `<div class="rep-body">${escapeHtml(r.description)}</div>` : ''}
+    ${img}
+    ${resNote}
+    <div class="rep-actions">${actions}</div>
+    <div class="cmts" id="cmts-${r.id}"></div>
+  </article>`;
+}
+
+async function assignReport(id) {
+  if (!confirm('自分が担当して対応を開始しますか？')) return;
+  const r = await api('/api/ops/reports/' + id + '/assign', { method: 'POST' });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  refreshList(); refreshPendingCount();
+}
+async function completeReport(id) {
+  const note = prompt('完了内容のメモ (空でもOK)') || '';
+  const r = await api('/api/ops/reports/' + id + '/complete', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  refreshList(); refreshPendingCount();
+}
+async function rejectReport(id) {
+  const note = prompt('却下理由') || '';
+  if (!note) return;
+  const r = await api('/api/ops/reports/' + id + '/reject', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  refreshList(); refreshPendingCount();
+}
+
+async function toggleComments(id) {
+  const box = document.getElementById('cmts-' + id);
+  if (box.classList.contains('open')) { box.classList.remove('open'); return; }
+  box.classList.add('open');
+  box.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:6px;">読み込み中…</div>';
+  const d = await api('/api/ops/reports/' + id + '/comments');
+  if (!d.success) { box.innerHTML = '<div style="color:#dc2626;font-size:12px;">取得失敗</div>'; return; }
+  const list = (d.comments || []).map(c => {
+    const av = c.author_avatar ? `<img class="avatar" src="${escapeHtml(c.author_avatar)}">` : `<div class="avatar">${escapeHtml((c.author_name || '?').slice(0,2))}</div>`;
+    return `<div class="cmt">${av}<div class="cmt-body">
+      <span class="cmt-author">${escapeHtml(c.author_name || '不明')}</span><span class="cmt-time">${relTime(c.created_at)}</span>
+      <div class="cmt-text">${escapeHtml(c.content)}</div>
+    </div></div>`;
+  }).join('');
+  box.innerHTML = list + `<form class="cmt-form" onsubmit="postComment(event, ${id});return false;">
+    <input type="text" placeholder="コメントを書く…" maxlength="500" id="cmt-input-${id}">
+    <button type="submit">送信</button>
+  </form>`;
+  document.getElementById('cmt-input-' + id).focus();
+}
+
+async function postComment(ev, id) {
+  ev.preventDefault();
+  const inp = document.getElementById('cmt-input-' + id);
+  const content = inp.value.trim();
+  if (!content) return;
+  const r = await api('/api/ops/reports/' + id + '/comments', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  inp.value = '';
+  toggleComments(id); toggleComments(id);
+}
+
+function openImgModal(url) {
+  document.getElementById('img-modal-img').src = url;
+  document.getElementById('img-modal').classList.add('open');
+}
+function closeImgModal() {
+  document.getElementById('img-modal').classList.remove('open');
+}
+
+(async function() {
+  if (!token) { showLogin(''); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
+    if (u && u.uid) { me = u; initApp(); }
+    else showLogin('');
+  } catch (e) { showLogin(''); }
+})();
+</script>
+</body>
+</html>
