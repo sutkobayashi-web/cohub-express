@@ -143,7 +143,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
     </div>
     <div style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
       <table style="margin:0;">
-        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th></tr></thead>
+        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th><th style="width:80px;">議論</th></tr></thead>
         <tbody id="fv-tbody"></tbody>
       </table>
     </div>
@@ -489,6 +489,7 @@ async function loadActions() {
           ops = `<button class="btn" style="font-size:11px;padding:3px 8px;background:#10b981;" onclick="completeAction(${a.id})">✅ 完了+アナウンス</button>`;
         }
         ops += ` <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;" onclick="openEditActionModal(${a.id})">編集</button>`;
+      ops += ` <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;background:#ede9fe;color:#5b21b6;" onclick="toggleActionDiscuss(${a.id})">💬議論+AI評議</button>`;
       } else {
         ops = `<span style="font-size:10px;color:#94a3b8;">閲覧のみ</span>`;
       }
@@ -502,7 +503,10 @@ async function loadActions() {
         <td style="font-size:11px;color:#475569;">${escapeHtml(a.target_date || '-')}</td>
         <td style="font-size:11px;color:#475569;">${escapeHtml(a.owner_name || '-')}</td>
         <td>${ops}</td>
-      </tr>`;
+      </tr>
+      <tr id="action-discuss-${a.id}" style="display:none;"><td colspan="7" style="background:#f8fafc;padding:10px;">
+        <div id="action-discuss-area-${a.id}"></div>
+      </td></tr>`;
     }).join('');
   } catch (e) {
     tb.innerHTML = '<tr><td colspan="7" style="color:#dc2626;">通信エラー</td></tr>';
@@ -621,6 +625,126 @@ async function completeAction(id) {
 }
 
 // ===== 現場の声 =====
+// ===== 現場の声: 共感+議論 =====
+const POST_EMOJIS = ['🙏', '💪', '😢', '⚠'];
+const EMOJI_LABEL = { '🙏': '共感', '💪': '応援', '😢': '辛い', '⚠': '要注意' };
+
+async function togglePostDiscuss(postId) {
+  const row = document.getElementById('post-discuss-' + postId);
+  if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+  row.style.display = '';
+  await renderPostDiscuss(postId);
+}
+async function renderPostDiscuss(postId) {
+  const area = document.getElementById('post-discuss-area-' + postId);
+  area.innerHTML = '<div style="color:#94a3b8;font-size:12px;">読み込み中…</div>';
+  const [reactRes, discRes] = await Promise.all([
+    fetch('/api/wellness/posts/' + postId + '/reactions', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+    fetch('/api/wellness/posts/' + postId + '/discussions', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+  ]);
+  const counts = (reactRes && reactRes.counts) || {};
+  const my = (reactRes && reactRes.my) || {};
+  const reactBtns = POST_EMOJIS.map(e => {
+    const ct = counts[e] || 0;
+    const mine = !!my[e];
+    return `<button class="btn ${mine ? '' : 'btn-ghost'}" style="font-size:12px;padding:4px 10px;${mine?'background:#7c3aed;':''}" onclick="reactPost(${postId}, '${e}')">${e} ${EMOJI_LABEL[e]} ${ct||''}</button>`;
+  }).join(' ');
+  const discs = (discRes && discRes.discussions) || [];
+  const discHtml = discs.length ? discs.map(d => `<div style="background:#fff;border-left:3px solid #7c3aed;padding:6px 10px;margin-bottom:4px;border-radius:4px;">
+    <div style="font-size:11px;color:#7c3aed;font-weight:700;">${escapeHtml(d.author_name || '不明')} · ${escapeHtml((d.created_at||'').slice(0,16).replace('T',' '))}</div>
+    <div style="font-size:13px;line-height:1.5;white-space:pre-wrap;color:#0f172a;">${escapeHtml(d.content)}</div>
+  </div>`).join('') : '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだ議論はありません</div>';
+  area.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">📊 共感 (推進メンバー)</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${reactBtns}</div>
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">💬 議論</div>
+    <div style="margin-bottom:8px;">${discHtml}</div>
+    <div style="display:flex;gap:6px;">
+      <input type="text" id="post-disc-input-${postId}" placeholder="議論を投稿…" style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;">
+      <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="postPostDisc(${postId})">送信</button>
+    </div>`;
+  document.getElementById('post-disc-input-' + postId).focus();
+}
+async function reactPost(postId, emoji) {
+  await fetch('/api/wellness/posts/' + postId + '/react', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ emoji }),
+  });
+  renderPostDiscuss(postId);
+}
+async function postPostDisc(postId) {
+  const inp = document.getElementById('post-disc-input-' + postId);
+  const content = inp.value.trim();
+  if (!content) return;
+  await fetch('/api/wellness/posts/' + postId + '/discussions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ content }),
+  });
+  inp.value = '';
+  renderPostDiscuss(postId);
+}
+
+// ===== 施策ボード: 議論+AI評議会 =====
+async function toggleActionDiscuss(actionId) {
+  const row = document.getElementById('action-discuss-' + actionId);
+  if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+  row.style.display = '';
+  await renderActionDiscuss(actionId);
+}
+async function renderActionDiscuss(actionId) {
+  const area = document.getElementById('action-discuss-area-' + actionId);
+  area.innerHTML = '<div style="color:#94a3b8;font-size:12px;">読み込み中…</div>';
+  const [discRes, councilRes] = await Promise.all([
+    fetch('/api/wellness/actions/' + actionId + '/discussions', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+    fetch('/api/wellness/actions/' + actionId + '/ai-council', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+  ]);
+  const discs = (discRes && discRes.discussions) || [];
+  const council = (councilRes && councilRes.council) || [];
+  const discHtml = discs.length ? discs.map(d => `<div style="background:#fff;border-left:3px solid #06b6d4;padding:6px 10px;margin-bottom:4px;border-radius:4px;">
+    <div style="font-size:11px;color:#0e7490;font-weight:700;">${escapeHtml(d.author_name || '不明')} · ${escapeHtml((d.created_at||'').slice(0,16).replace('T',' '))}</div>
+    <div style="font-size:13px;line-height:1.5;white-space:pre-wrap;color:#0f172a;">${escapeHtml(d.content)}</div>
+  </div>`).join('') : '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだ議論はありません</div>';
+  const councilHtml = council.length ? council.map(c => `<div style="background:#faf5ff;border-left:3px solid #7c3aed;padding:8px 10px;margin-bottom:4px;border-radius:4px;">
+    <div style="font-size:11px;color:#7c3aed;font-weight:700;">${escapeHtml(c.avatar||'🤖')} ${escapeHtml(c.role || 'AI')}</div>
+    <div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#0f172a;margin-top:2px;">${escapeHtml(c.message)}</div>
+  </div>`).join('') : '<div style="color:#94a3b8;font-size:12px;padding:6px;">未実施。下のボタンで5専門家に評議させる</div>';
+  area.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px;">💬 推進メンバーの議論</div>
+    <div style="margin-bottom:8px;">${discHtml}</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <input type="text" id="action-disc-input-${actionId}" placeholder="議論を投稿…" style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;">
+      <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="postActionDisc(${actionId})">送信</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+      🤖 AI評議会 (5専門家)
+      <button class="btn" style="background:#7c3aed;font-size:11px;padding:4px 10px;" onclick="runActionCouncil(${actionId})">${council.length ? '🔄 再実行' : '▶ 評議開始'}</button>
+    </div>
+    <div>${councilHtml}</div>`;
+}
+async function postActionDisc(actionId) {
+  const inp = document.getElementById('action-disc-input-' + actionId);
+  const content = inp.value.trim();
+  if (!content) return;
+  await fetch('/api/wellness/actions/' + actionId + '/discussions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ content }),
+  });
+  inp.value = '';
+  renderActionDiscuss(actionId);
+}
+async function runActionCouncil(actionId) {
+  const area = document.getElementById('action-discuss-area-' + actionId);
+  area.insertAdjacentHTML('beforeend', '<div id="council-loading-' + actionId + '" style="margin-top:10px;color:#7c3aed;font-size:13px;">🤖 AI評議会開催中… (15〜30秒)</div>');
+  try {
+    const r = await fetch('/api/wellness/actions/' + actionId + '/ai-council', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = await r.json();
+    if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+    renderActionDiscuss(actionId);
+  } catch (e) { alert('通信エラー: ' + e.message); }
+}
+
 async function loadFieldVoice() {
   const tb = document.getElementById('fv-tbody');
   const cnt = document.getElementById('fv-count');
@@ -637,7 +761,7 @@ async function loadFieldVoice() {
     );
     cnt.textContent = filtered.length + '件 / 全' + (d.posts || []).length + '件';
     if (!filtered.length) {
-      tb.innerHTML = '<tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
+      tb.innerHTML = '<tr><td colspan="9" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
       return;
     }
     const urgIcon = u => u === '高' ? '🔴' : u === '中' ? '🟡' : '🟢';
@@ -654,7 +778,11 @@ async function loadFieldVoice() {
         <td style="font-size:11px;color:${urgColor(p.urgency)};font-weight:700;">${urgIcon(p.urgency)} ${escapeHtml(p.urgency)}</td>
         <td style="font-size:11px;color:${idColor(p.identity_mode)};">${escapeHtml(p.identity_mode)}</td>
         <td style="font-size:12px;line-height:1.5;">${escapeHtml(p.memo || '').replace(/\n/g, '<br>') || '<span style="color:#cbd5e1;">(なし)</span>'}</td>
-      </tr>`;
+        <td style="font-size:11px;"><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="togglePostDiscuss(${p.id})">💬議論</button></td>
+      </tr>
+      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="9" style="background:#f8fafc;padding:10px;">
+        <div id="post-discuss-area-${p.id}"></div>
+      </td></tr>`;
     }).join('');
   } catch (e) {
     tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';

@@ -452,4 +452,169 @@ ${discLines || '(なし)'}
   }
 });
 
+// ============================================================
+// 現場の声: 共感 + 議論スレッド (推進メンバー間の議論用)
+// ============================================================
+const POST_EMOJIS = ['🙏', '💪', '😢', '⚠'];  // 共感/応援/共有痛み/要注意
+
+router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const emoji = String((req.body && req.body.emoji) || '');
+  if (!POST_EMOJIS.includes(emoji)) return res.status(400).json({ success: false, msg: '不正' });
+  const db = getDb();
+  const exists = db.prepare('SELECT 1 FROM wellness_post_reactions WHERE post_id=? AND user_id=? AND emoji=?').get(id, req.uid, emoji);
+  if (exists) {
+    db.prepare('DELETE FROM wellness_post_reactions WHERE post_id=? AND user_id=? AND emoji=?').run(id, req.uid, emoji);
+    res.json({ success: true, added: false });
+  } else {
+    db.prepare('INSERT INTO wellness_post_reactions (post_id, user_id, emoji) VALUES (?, ?, ?)').run(id, req.uid, emoji);
+    res.json({ success: true, added: true });
+  }
+});
+
+router.get('/posts/:id/reactions', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const rows = getDb().prepare('SELECT emoji, user_id FROM wellness_post_reactions WHERE post_id = ?').all(parseInt(req.params.id));
+  const counts = {}; const mine = {};
+  for (const e of POST_EMOJIS) { counts[e] = 0; mine[e] = false; }
+  for (const r of rows) {
+    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    if (r.user_id === req.uid) mine[r.emoji] = true;
+  }
+  res.json({ success: true, counts, my: mine });
+});
+
+router.get('/posts/:id/discussions', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const rows = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+    FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id
+    WHERE d.post_id = ? AND d.deleted_at IS NULL ORDER BY d.id ASC LIMIT 200`).all(parseInt(req.params.id));
+  res.json({ success: true, discussions: rows });
+});
+
+router.post('/posts/:id/discussions', authUser, express.json(), (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
+  if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
+  const ins = getDb().prepare('INSERT INTO wellness_post_discussions (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
+  const c = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+    FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id WHERE d.id = ?`).get(ins.lastInsertRowid);
+  res.json({ success: true, discussion: c });
+});
+
+router.delete('/posts/discussions/:id', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const d = db.prepare('SELECT author_id FROM wellness_post_discussions WHERE id = ? AND deleted_at IS NULL').get(id);
+  if (!d) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (d.author_id !== req.uid && !isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  db.prepare("UPDATE wellness_post_discussions SET deleted_at = datetime('now') WHERE id = ?").run(id);
+  res.json({ success: true });
+});
+
+// ============================================================
+// 施策ボード: 議論スレッド + AI評議会 (5専門家)
+// ============================================================
+router.get('/actions/:id/discussions', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const rows = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+    FROM wellness_action_discussions d LEFT JOIN users u ON u.id = d.author_id
+    WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id ASC LIMIT 200`).all(parseInt(req.params.id));
+  res.json({ success: true, discussions: rows });
+});
+
+router.post('/actions/:id/discussions', authUser, express.json(), (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
+  if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
+  const ins = getDb().prepare('INSERT INTO wellness_action_discussions (action_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
+  const c = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+    FROM wellness_action_discussions d LEFT JOIN users u ON u.id = d.author_id WHERE d.id = ?`).get(ins.lastInsertRowid);
+  res.json({ success: true, discussion: c });
+});
+
+// AI評議会 (5専門家) — 施策候補に対して
+router.post('/actions/:id/ai-council', authUser, async (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+
+  // 議論文脈も含める
+  const discussions = db.prepare(`SELECT d.content, u.display_name AS name FROM wellness_action_discussions d
+    LEFT JOIN users u ON u.id = d.author_id WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(id);
+  const discText = discussions.length ? discussions.map(d => `${d.name||'匿名'}: ${d.content}`).join('\n') : '(議論なし)';
+
+  const prompt = `あなたは中小運送会社の健康推進施策を評価する「AI評議会」です。
+5名の専門家が順番に論点を整理してください。
+
+【専門家メンバー】
+1. AIメディカルアドバイザー(🩺) — 医学的妥当性、エビデンス
+2. AIヘルスアドバイザー(💉) — 産業保健、労働安全衛生
+3. AI食事アドバイザー(🥗) — 栄養学、食習慣改善
+4. AI経営アドバイザー(📊) — コスト対効果、経営インパクト
+5. AI現場アドバイザー(🚛) — ドライバー実態、現場実現可能性
+
+【施策案】
+タイトル: ${a.title}
+詳細: ${a.description || '(なし)'}
+予算: ¥${a.budget_jpy || 0}　期日: ${a.target_date || '未定'}
+カテゴリ: ${a.category || '-'}
+
+【推進メンバーの議論】
+${discText}
+
+【発言ルール】
+- まず結論 (賛成/条件付き賛成/要検討) を明示
+- 論点を1〜2点に絞り具体的に (各80〜120字)
+- ドライバー実態 (長時間運転/コンビニ食/不規則生活) を踏まえる
+
+純粋なJSON配列のみで回答 (前置き禁止):
+[{"role":"AIメディカルアドバイザー","avatar":"🩺","message":"..."},{"role":"AIヘルスアドバイザー","avatar":"💉","message":"..."},{"role":"AI食事アドバイザー","avatar":"🥗","message":"..."},{"role":"AI経営アドバイザー","avatar":"📊","message":"..."},{"role":"AI現場アドバイザー","avatar":"🚛","message":"..."}]`;
+
+  try {
+    const aiText = await generateText(prompt, { maxTokens: 4000, responseMimeType: 'application/json' });
+    let cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const m = cleaned.match(/\[[\s\S]*\]/);
+    if (m) cleaned = m[0];
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch (e) {
+      let fixed = cleaned;
+      const opens = (fixed.match(/\{/g) || []).length;
+      const closes = (fixed.match(/\}/g) || []).length;
+      const obs = (fixed.match(/\[/g) || []).length;
+      const cbs = (fixed.match(/\]/g) || []).length;
+      if (opens > closes) fixed += '"}'.slice(0,1).repeat(0) + '}'.repeat(opens - closes);
+      if (obs > cbs) fixed += ']'.repeat(obs - cbs);
+      try { parsed = JSON.parse(fixed); }
+      catch (e2) { return res.status(500).json({ success: false, msg: 'AI解析失敗', raw: cleaned.slice(0, 300) }); }
+    }
+    if (!Array.isArray(parsed)) return res.status(500).json({ success: false, msg: 'AI応答が配列でない' });
+
+    // 既存の評議会記録は削除して新規 (再実行可)
+    db.prepare('DELETE FROM wellness_action_council WHERE action_id = ?').run(id);
+    const ins = db.prepare('INSERT INTO wellness_action_council (action_id, role, avatar, message) VALUES (?, ?, ?, ?)');
+    for (const c of parsed) {
+      const role = String(c.role || 'AI専門家').slice(0, 50);
+      const avatar = String(c.avatar || '🤖').slice(0, 4);
+      const msg = String(c.message || '').slice(0, 800);
+      if (msg) ins.run(id, role, avatar, msg);
+    }
+    res.json({ success: true, council: parsed });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: 'AI失敗: ' + e.message });
+  }
+});
+
+router.get('/actions/:id/ai-council', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const rows = getDb().prepare('SELECT role, avatar, message, created_at FROM wellness_action_council WHERE action_id = ? ORDER BY id').all(parseInt(req.params.id));
+  res.json({ success: true, council: rows });
+});
+
 module.exports = router;

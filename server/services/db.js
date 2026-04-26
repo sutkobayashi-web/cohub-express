@@ -398,6 +398,42 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_kpi_challenge ON kpi_records(challenge_id, record_date DESC);
   CREATE INDEX IF NOT EXISTS idx_kpi_user ON kpi_records(user_id, record_date DESC);`);
+  // 推進メンバー議論機能 (CoWell移植) — 現場の声/施策へのコメント+共感+AI評議会
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_post_reactions (
+    post_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    emoji TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (post_id, user_id, emoji)
+  );
+  CREATE INDEX IF NOT EXISTS idx_wpr_post ON wellness_post_reactions(post_id);
+  CREATE TABLE IF NOT EXISTS wellness_post_discussions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_wpd_post ON wellness_post_discussions(post_id, created_at);
+  CREATE TABLE IF NOT EXISTS wellness_action_council (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action_id INTEGER NOT NULL,
+    role TEXT NOT NULL,                -- AIメディカル/AIヘルス/AI食事/AI経営/AI現場
+    avatar TEXT,
+    message TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_wac_action ON wellness_action_council(action_id, created_at);
+  CREATE TABLE IF NOT EXISTS wellness_action_discussions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action_id INTEGER NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_wad_action ON wellness_action_discussions(action_id, created_at);`);
   // 既定イベント: 🐠 水族館 (CoWell)
   const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
   if (!eventExists) {
