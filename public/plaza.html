@@ -401,26 +401,59 @@ function postHtml(p) {
   if (p.nutrition_scores) {
     try {
       const ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
+      // CoWell新形式 ({value:40, unit:"g"}) と 旧形式 (int 1-5) 両対応
+      // 新形式の場合は g/mg/kcal の絶対値→1〜5スコアに正規化
+      function toScore(k, raw) {
+        if (raw == null || raw === '') return 0;
+        if (typeof raw === 'number') return Math.max(0, Math.min(5, parseInt(raw) || 0));
+        if (typeof raw === 'object' && raw.value != null) {
+          const v = parseFloat(raw.value);
+          if (isNaN(v)) return 0;
+          // 各栄養素の標準摂取目安に対する比率で 1〜5 スコア化 (1食分基準)
+          const ref = { protein: 25, fat: 25, carb: 90, vitamin: 100, mineral: 200, salt: 3 };
+          const r = ref[k] || 100;
+          if (v <= r * 0.2) return 1;
+          if (v <= r * 0.6) return 2;
+          if (v <= r * 1.2) return 3;
+          if (v <= r * 1.8) return 4;
+          return 5;
+        }
+        const n = parseInt(raw);
+        return isNaN(n) ? 0 : Math.max(0, Math.min(5, n));
+      }
+      function rawValue(raw) {
+        if (raw == null) return null;
+        if (typeof raw === 'object' && raw.value != null) return raw.value + (raw.unit || '');
+        if (typeof raw === 'number') return raw;
+        return null;
+      }
+      // CoWell新形式の "carbs" にも対応
+      const ns2 = { ...ns };
+      if (ns2.carbs != null && ns2.carb == null) ns2.carb = ns2.carbs;
       const bars = NUTRI_KEYS.map(k => {
-        const raw = ns[k];
-        const v = (raw == null || raw === '') ? 0 : (parseInt(raw) || 0);
-        const pct = (Math.max(0, Math.min(5, v)) / 5) * 100;
-        return `<div class="nutri-bar">
+        const raw = ns2[k];
+        const v = toScore(k, raw);
+        const rv = rawValue(raw);
+        const pct = (v / 5) * 100;
+        return `<div class="nutri-bar" title="${rv != null ? escapeHtml(String(rv)) : ''}">
           <div class="l">${NUTRI_LABELS[k]}</div>
           <div class="b"><div class="fill" style="height:${pct}%"></div></div>
           <div class="v">${v || '-'}</div>
         </div>`;
       }).join('');
-      // ai_comment が object (旧データ "[object Object]"等) の場合も安全に表示
+      const cal = ns.calories && ns.calories.value;
+      const calBadge = cal ? `<span style="background:#fef3c7;color:#78350f;padding:1px 8px;border-radius:8px;font-size:10px;font-weight:800;margin-left:6px;">${Math.round(cal)} kcal</span>` : '';
       let cmt = p.ai_comment;
       if (cmt && typeof cmt === 'object') cmt = Object.values(cmt).filter(v => typeof v === 'string').join(' / ');
       if (cmt === '[object Object]' || cmt === 'undefined' || cmt === 'null') cmt = '';
+      // CoWell の analysis は長文markdown。アーカイブは200字でtruncate
+      if (p.kind === 'archive' && cmt && cmt.length > 240) cmt = cmt.slice(0, 240) + '…';
       nutri = `<div class="nutri">
-        <div class="nutri-head">🍱 AI栄養分析</div>
+        <div class="nutri-head">🍱 AI栄養分析${calBadge}</div>
         <div class="nutri-bars">${bars}</div>
         ${cmt ? `<div class="ai-cmt">💬 ${escapeHtml(cmt)}</div>` : ''}
       </div>`;
-    } catch (e) {}
+    } catch (e) { console.warn('nutri parse fail', e.message, p.nutrition_scores); }
   }
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';
   const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 匿名で投稿中</span>' : '<span class="anon-bdg">🎭 匿名</span>') : '';

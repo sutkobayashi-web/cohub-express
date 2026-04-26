@@ -109,7 +109,7 @@ router.get('/posts', authUser, (req, res) => {
   let archive = [];
   if (includeArchive && !before) {
     let asql = `SELECT cp.cw_post_id AS id, cp.cw_user_id AS author_cw_id, cp.content,
-                       cp.image_url, cp.nutrition_scores, ${CW_CAT_NORMALIZE} AS category,
+                       cp.image_url, cp.nutrition_scores, cp.analysis, ${CW_CAT_NORMALIZE} AS category,
                        cp.category AS cw_orig_category, cp.nickname AS cw_post_nickname,
                        cp.cw_created_at AS created_at,
                        cu.cohub_uid AS author_id, cu.nickname AS cw_nickname, cu.real_name AS cw_real_name
@@ -134,6 +134,7 @@ router.get('/posts', authUser, (req, res) => {
         kind: 'archive',
         content: content,
         image_url: rewriteCwImage(p.image_url),
+        ai_comment: p.analysis || null,  // CoWell の分析テキストをコメントとして渡す
         author_name: nick + ' (CoWell)',
         author_avatar: null,  // CoHubアバターを出すと実名アバターが見えてしまう
         author_company: null,
