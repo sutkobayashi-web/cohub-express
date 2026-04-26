@@ -256,6 +256,7 @@ function getDb() {
     image_url TEXT,
     nutrition_scores TEXT,
     ai_comment TEXT,
+    is_anonymous INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     deleted_at TEXT
   );
@@ -278,6 +279,8 @@ function getDb() {
     deleted_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_pc_post ON plaza_comments(post_id, created_at);`);
+  // 既存DBに is_anonymous 追加 (idempotent migration)
+  ensureColumn(_db, 'plaza_posts', 'is_anonymous', 'is_anonymous INTEGER DEFAULT 0');
   // イベント (Phase7) — 健康チャレンジ/水族館等の「開催中」リスト
   _db.exec(`CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

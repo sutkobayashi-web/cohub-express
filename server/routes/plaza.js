@@ -41,7 +41,7 @@ router.get('/posts', authUser, (req, res) => {
   const db = getDb();
 
   let sql = `SELECT p.id, p.author_id, p.category, p.content, p.image_url, p.nutrition_scores,
-                    p.ai_comment, p.created_at,
+                    p.ai_comment, p.is_anonymous, p.created_at,
                     u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
              FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id
              WHERE p.deleted_at IS NULL`;
@@ -70,14 +70,24 @@ router.get('/posts', authUser, (req, res) => {
       if (counts[r.emoji] !== undefined) counts[r.emoji]++;
       if (r.user_id === me && mine[r.emoji] !== undefined) mine[r.emoji] = true;
     }
-    return {
+    const isAuthor = p.author_id === me;
+    const enr = {
       ...p,
       kind: 'plaza',
       reactions: counts,
       my_reactions: mine,
       comment_count: cmtMap[p.id] || 0,
-      can_delete: p.author_id === me,
+      can_delete: isAuthor,
+      is_mine: isAuthor,
     };
+    // 匿名投稿: 投稿者本人以外には author_id/name/avatar/company を隠す
+    if (p.is_anonymous && !isAuthor) {
+      enr.author_id = null;
+      enr.author_name = '匿名';
+      enr.author_avatar = null;
+      enr.author_company = null;
+    }
+    return enr;
   });
 
   // 初回のみ過去アーカイブ (cw_posts) も取り込んで時系列マージ
@@ -112,6 +122,7 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   const content = String((req.body && req.body.content) || '').slice(0, MAX_CONTENT).trim();
   const imageUrl = req.file ? '/uploads/plaza/' + req.file.filename : null;
   if (!content && !imageUrl) return res.status(400).json({ success: false, msg: '本文または画像が必要' });
+  const isAnonymous = (req.body && (req.body.is_anonymous === '1' || req.body.is_anonymous === 'true')) ? 1 : 0;
 
   // 食事カテゴリ + 画像あり → AI 栄養分析を試行 (失敗しても投稿は成立)
   let nutritionScores = null;
@@ -145,8 +156,8 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   }
 
   const db = getDb();
-  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment)
-    VALUES (?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment);
+  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous);
   const post = db.prepare(`SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
                            FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id WHERE p.id = ?`).get(ins.lastInsertRowid);
   post.kind = 'plaza';
@@ -154,9 +165,20 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   post.my_reactions = Object.fromEntries(ALLOWED_EMOJIS.map(e => [e, false]));
   post.comment_count = 0;
   post.can_delete = true;
+  post.is_mine = true;
 
+  // 全員配信用の匿名化版 (本人以外向け)
+  const anonymizedPost = isAnonymous ? {
+    ...post,
+    author_id: null,
+    author_name: '匿名',
+    author_avatar: null,
+    author_company: null,
+    is_mine: false,
+    can_delete: false,
+  } : post;
   const io = req.app && req.app.locals && req.app.locals.io;
-  if (io) io.emit('plaza:new', { post });
+  if (io) io.emit('plaza:new', { post: anonymizedPost });
   res.json({ success: true, post });
 });
 

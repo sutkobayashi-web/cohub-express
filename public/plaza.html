@@ -38,7 +38,12 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .composer { background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
 .composer textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; }
 .composer textarea:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
-.composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.anon-toggle { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; background: #f8fafc; border-radius: 16px; font-size: 12px; cursor: pointer; user-select: none; color: #475569; font-weight: 600; }
+.anon-toggle input { margin: 0; cursor: pointer; }
+.anon-toggle:has(input:checked) { background: #fef3c7; color: #78350f; }
+.anon-bdg { display: inline-block; background: #475569; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 6px; font-weight: 700; margin-left: 4px; }
+.mine-anon-tag { display: inline-block; background: #fef3c7; color: #78350f; font-size: 9px; padding: 1px 6px; border-radius: 6px; font-weight: 700; margin-left: 4px; }
 .btn { padding: 9px 16px; background: #0d9488; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-icon { padding: 8px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; }
@@ -153,6 +158,9 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
       <div class="composer-bar">
         <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真">📷</button>
         <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
+        <label class="anon-toggle" title="名前を伏せて投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
+          <input type="checkbox" id="cmp-anon"> <span>🎭 匿名で投稿</span>
+        </label>
         <div class="composer-meta"><span id="cmp-count">0</span>/500</div>
         <button class="btn" id="cmp-submit" onclick="submitPost()">投稿</button>
       </div>
@@ -331,6 +339,7 @@ async function submitPost() {
     const fd = new FormData();
     fd.append('category', _curCat);
     fd.append('content', text);
+    if (document.getElementById('cmp-anon').checked) fd.append('is_anonymous', '1');
     if (_imageFile) fd.append('image', _imageFile);
     const r = await fetch('/api/plaza/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
     if (!r.ok) {
@@ -343,6 +352,7 @@ async function submitPost() {
     if (!d.success) { errEl.textContent = d.msg || '保存失敗'; return; }
     document.getElementById('cmp-text').value = '';
     document.getElementById('cmp-count').textContent = '0';
+    document.getElementById('cmp-anon').checked = false;
     clearImage();
     // 食事+AI が成功してれば nutrition_scores が入っている
     if (_curCat === '食事' && _imageFile && !d.post.nutrition_scores) {
@@ -413,13 +423,17 @@ function postHtml(p) {
     } catch (e) {}
   }
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';
+  const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 匿名で投稿中</span>' : '<span class="anon-bdg">🎭 匿名</span>') : '';
   const author = p.author_name || (isArchive ? '(過去ユーザー)' : '不明');
+  // 匿名投稿は他人にはアバター隠す (本人には自分のアバター見える)
+  const showAvatar = !(p.is_anonymous && !p.is_mine);
+  const avatarBlock = showAvatar ? avatarHtml(p.author_avatar, author) : `<div class="avatar-fallback" style="background:linear-gradient(135deg,#94a3b8,#64748b);">🎭</div>`;
   const cat = p.category || '雑談';
   return `<article class="post ${isArchive ? 'archive' : ''}" id="post-${p.id}" data-id="${p.id}">
     <div class="post-head">
-      ${avatarHtml(p.author_avatar, author)}
+      ${avatarBlock}
       <div class="post-meta">
-        <div class="post-author">${escapeHtml(author)} ${archiveTag}</div>
+        <div class="post-author">${escapeHtml(author)} ${archiveTag}${anonBadge}</div>
         <div class="post-time"><span class="cat-bdg ${escapeHtml(cat)}">${escapeHtml(cat)}</span> · ${relTime(p.created_at)}</div>
       </div>
       ${delBtn}
