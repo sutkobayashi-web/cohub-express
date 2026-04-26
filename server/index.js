@@ -223,6 +223,8 @@ app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/board', require('./routes/board'));
 app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/ops', require('./routes/ops'));
+app.use('/api/videos', require('./routes/videos'));
+app.use('/api/cw-archive', require('./routes/cw_archive'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {

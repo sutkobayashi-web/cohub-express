@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🎬 動画ライブラリ — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<meta name="theme-color" content="#0f172a">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f1f5f9; color: #0f172a; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header a { color: #fff; text-decoration: none; font-size: 12px; opacity: 0.9; }
+main { max-width: 1100px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
+
+.cat-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.cat-pill { padding: 8px 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; }
+.cat-pill.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+.btn { padding: 10px 18px; background: #0f172a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn-ghost { background: #e2e8f0; color: #0f172a; }
+
+/* グリッド */
+.vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.vcard { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); cursor: pointer; transition: transform 0.15s; }
+.vcard:hover { transform: translateY(-2px); }
+.vthumb { width: 100%; aspect-ratio: 16 / 9; background: linear-gradient(135deg, #1e293b, #0f172a); position: relative; overflow: hidden; }
+.vthumb img { width: 100%; height: 100%; object-fit: cover; }
+.vthumb .play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 38px; color: #fff; opacity: 0.85; text-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+.vthumb .dur { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.75); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.vthumb .badge-r { position: absolute; top: 6px; left: 6px; background: #dc2626; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; }
+.vthumb .badge-c { position: absolute; top: 6px; right: 6px; background: #10b981; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; }
+.vinfo { padding: 10px 12px 12px; }
+.vtitle { font-size: 14px; font-weight: 700; line-height: 1.4; margin-bottom: 4px; }
+.vmeta { font-size: 11px; color: #94a3b8; }
+.vcat { display: inline-block; background: #f1f5f9; color: #475569; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-right: 4px; }
+
+.empty { padding: 80px 20px; text-align: center; color: #94a3b8; grid-column: 1 / -1; }
+.empty .ico { font-size: 60px; margin-bottom: 14px; }
+
+/* アップロード */
+.upload-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); display: none; }
+.upload-card.open { display: block; }
+.upload-card h3 { margin: 0 0 10px; font-size: 14px; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+.field input, .field select, .field textarea { width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; }
+.field textarea { min-height: 60px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.up-btns { display: flex; gap: 8px; align-items: center; }
+.up-progress { width: 100%; background: #e2e8f0; border-radius: 8px; height: 6px; overflow: hidden; margin: 8px 0; display: none; }
+.up-progress.show { display: block; }
+.up-progress-fill { height: 100%; background: linear-gradient(90deg, #0891b2, #06b6d4); transition: width 0.3s; }
+
+/* プレイヤーモーダル */
+#player-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+#player-modal.open { display: flex; }
+.player-box { width: 100%; max-width: 900px; max-height: 92vh; display: flex; flex-direction: column; }
+#video-el { width: 100%; max-height: 70vh; background: #000; border-radius: 8px; }
+.player-info { background: #fff; padding: 14px 16px; border-radius: 0 0 10px 10px; }
+.player-info h2 { margin: 0 0 4px; font-size: 16px; }
+.player-info .desc { font-size: 13px; color: #475569; line-height: 1.6; white-space: pre-wrap; margin-top: 6px; }
+.player-close { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 22px; cursor: pointer; z-index: 10; }
+
+/* 統計モーダル */
+#stats-modal { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 250; display: none; align-items: center; justify-content: center; padding: 12px; }
+#stats-modal.open { display: flex; }
+.stats-box { background: #fff; border-radius: 14px; max-width: 600px; width: 100%; max-height: 88vh; overflow-y: auto; }
+.stats-head { padding: 14px 18px; background: linear-gradient(135deg,#0f172a,#1e293b); color: #fff; display: flex; align-items: center; }
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
+.stat { background: #f8fafc; border-radius: 10px; padding: 12px; text-align: center; }
+.stat .n { font-size: 24px; font-weight: 800; color: #0f172a; }
+.stat .l { font-size: 11px; color: #64748b; font-weight: 700; }
+.stats-tbl table { width: 100%; border-collapse: collapse; font-size: 12px; padding: 0 14px; }
+.stats-tbl th, .stats-tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+.bdg-c { background: #d1fae5; color: #065f46; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+.bdg-i { background: #fef3c7; color: #78350f; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+.bdg-x { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+
+/* ログイン */
+.login { max-width: 380px; margin: 60px auto; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.login h2 { margin: 0 0 16px; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎬 動画ライブラリ</h1>
+  <div class="spacer"></div>
+  <button id="upload-toggle" class="btn" style="display:none;font-size:12px;padding:6px 14px;" onclick="toggleUpload()">+ 新規</button>
+  <div id="who" style="font-size:12px;margin-left:8px;"></div>
+  <a href="/" style="margin-left:14px;">空間へ戻る</a>
+</header>
+
+<main>
+  <div id="login" class="login" style="display:none;">
+    <h2>ログイン</h2>
+    <input type="text" id="li-id" placeholder="ログインID" autocomplete="username">
+    <input type="password" id="li-pw" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="err" id="li-err"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div id="upload-card" class="upload-card">
+      <h3>新規動画アップロード</h3>
+      <div class="field">
+        <label>タイトル *</label>
+        <input type="text" id="up-title" maxlength="200" placeholder="例) 安全衛生研修 2026年5月">
+      </div>
+      <div class="field">
+        <label>説明 (任意)</label>
+        <textarea id="up-desc" maxlength="1000"></textarea>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>カテゴリ</label>
+          <select id="up-cat"></select>
+        </div>
+        <div class="field">
+          <label>対象</label>
+          <select id="up-target">
+            <option value="all">全員</option>
+            <option value="building:office">事務所棟のみ</option>
+            <option value="building:field">現場棟のみ</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" id="up-required"> ⚠ 必須視聴 (Push通知 + 視聴率トラッキング)</label>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>動画ファイル * (最大200MB / mp4 推奨)</label>
+          <input type="file" id="up-video" accept="video/mp4,video/webm,video/*">
+        </div>
+        <div class="field">
+          <label>サムネイル (任意 / 画像)</label>
+          <input type="file" id="up-thumb" accept="image/*">
+        </div>
+      </div>
+      <div class="up-progress" id="up-progress"><div class="up-progress-fill" id="up-progress-fill" style="width:0%;"></div></div>
+      <div class="up-btns">
+        <button class="btn btn-ghost" onclick="toggleUpload()">キャンセル</button>
+        <button class="btn" id="up-submit" onclick="submitUpload()">⬆ アップロード</button>
+      </div>
+      <div class="err" id="up-err"></div>
+    </div>
+
+    <div class="cat-bar" id="cat-bar"></div>
+    <div class="vgrid" id="vgrid"></div>
+  </div>
+</main>
+
+<div id="player-modal" onclick="if(event.target.id==='player-modal') closePlayer()">
+  <button class="player-close" onclick="closePlayer()">×</button>
+  <div class="player-box">
+    <video id="video-el" controls playsinline></video>
+    <div class="player-info" id="player-info"></div>
+  </div>
+</div>
+
+<div id="stats-modal" onclick="if(event.target.id==='stats-modal') closeStats()">
+  <div class="stats-box">
+    <div class="stats-head">
+      <span style="font-weight:800;font-size:14px;flex:1;" id="stats-title">📊 視聴状況</span>
+      <button onclick="closeStats()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let me = null;
+let _meta = null;
+let _curCat = '';
+let _curVideo = null;
+let _videoStartTime = 0;
+let _videoSavedDuration = false;
+
+function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDur(sec) {
+  if (!sec) return '';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+function fmtSize(b) {
+  if (!b) return '';
+  if (b < 1024 * 1024) return Math.round(b / 1024) + 'KB';
+  return Math.round(b / 1024 / 1024) + 'MB';
+}
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin('セッションが切れました'); throw new Error('401'); }
+  return r.json();
+}
+function showLogin(err) {
+  document.getElementById('login').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  if (err) document.getElementById('li-err').textContent = err;
+}
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login_id: id, password: pw }) });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || 'ログイン失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    initApp();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+async function initApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('who').textContent = (me && me.display_name) || '';
+  const meta = await api('/api/videos/meta');
+  _meta = meta;
+  if (meta.can_upload) document.getElementById('upload-toggle').style.display = 'inline-block';
+  // カテゴリピル
+  const bar = document.getElementById('cat-bar');
+  bar.innerHTML = '<button class="cat-pill active" onclick="filterCat(\'\')">📂 すべて</button>' +
+    meta.categories.map(c => `<button class="cat-pill" onclick="filterCat('${escapeHtml(c)}')">${escapeHtml(c)}</button>`).join('');
+  // アップロードフォームのカテゴリ
+  document.getElementById('up-cat').innerHTML = meta.categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  loadList();
+}
+
+function filterCat(c) {
+  _curCat = c;
+  document.querySelectorAll('.cat-pill').forEach((b, i) => {
+    const isAll = i === 0;
+    if ((isAll && !c) || (!isAll && b.textContent === c)) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+  loadList();
+}
+
+async function loadList() {
+  const url = '/api/videos' + (_curCat ? '?category=' + encodeURIComponent(_curCat) : '');
+  const d = await api(url);
+  if (!d.success) return;
+  const grid = document.getElementById('vgrid');
+  if (!d.videos.length) {
+    grid.innerHTML = '<div class="empty"><div class="ico">🎬</div><div>動画がまだありません</div></div>';
+    return;
+  }
+  grid.innerHTML = d.videos.map(vcard).join('');
+}
+
+function vcard(v) {
+  const thumb = v.thumbnail_url ? `<img src="${escapeHtml(v.thumbnail_url)}">` : '';
+  const dur = v.duration_sec ? `<span class="dur">${fmtDur(v.duration_sec)}</span>` : '';
+  const reqBdg = v.is_required ? '<span class="badge-r">必須</span>' : '';
+  const compBdg = v.completed_at ? '<span class="badge-c">✓ 視聴済</span>' : '';
+  const showStats = !!(_meta && _meta.can_upload);
+  return `<div class="vcard" id="v-${v.id}" onclick="openPlayer(${v.id})">
+    <div class="vthumb">${thumb}<div class="play">▶</div>${dur}${reqBdg}${compBdg}</div>
+    <div class="vinfo">
+      <div class="vtitle">${escapeHtml(v.title)}</div>
+      <div class="vmeta">
+        <span class="vcat">${escapeHtml(v.category)}</span>
+        ${escapeHtml(v.uploader_name || '')} · ${relTime(v.created_at)} · ${fmtSize(v.file_size)}
+        ${showStats ? `<a href="javascript:openStats(${v.id})" onclick="event.stopPropagation();" style="float:right;color:#0891b2;">📊 視聴率</a>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function openPlayer(id) {
+  const d = await api('/api/videos?');
+  const v = (d.videos || []).find(x => x.id === id);
+  if (!v) { alert('見つかりません'); return; }
+  _curVideo = v;
+  _videoSavedDuration = v.duration_sec > 0;
+  const ve = document.getElementById('video-el');
+  ve.src = v.file_url;
+  ve.currentTime = v.last_position_sec || 0;
+  document.getElementById('player-info').innerHTML = `
+    <h2>${escapeHtml(v.title)}</h2>
+    <div style="font-size:12px;color:#94a3b8;">${escapeHtml(v.category)} · ${escapeHtml(v.uploader_name || '')} · ${relTime(v.created_at)}</div>
+    ${v.description ? `<div class="desc">${escapeHtml(v.description)}</div>` : ''}
+  `;
+  document.getElementById('player-modal').classList.add('open');
+  ve.play().catch(() => {});
+  _videoStartTime = Date.now();
+}
+
+function closePlayer() {
+  const ve = document.getElementById('video-el');
+  // 進捗保存
+  if (_curVideo) {
+    const pos = Math.floor(ve.currentTime || 0);
+    fetch('/api/videos/' + _curVideo.id + '/view', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ position_sec: pos })
+    }).catch(() => {});
+  }
+  ve.pause();
+  ve.src = '';
+  document.getElementById('player-modal').classList.remove('open');
+  _curVideo = null;
+  loadList();
+}
+
+document.getElementById('video-el').addEventListener('loadedmetadata', () => {
+  if (_curVideo && !_videoSavedDuration) {
+    const dur = Math.floor(document.getElementById('video-el').duration || 0);
+    if (dur > 0) {
+      fetch('/api/videos/' + _curVideo.id + '/duration', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ duration_sec: dur })
+      }).catch(() => {});
+      _videoSavedDuration = true;
+    }
+  }
+});
+
+document.getElementById('video-el').addEventListener('ended', () => {
+  if (_curVideo) {
+    fetch('/api/videos/' + _curVideo.id + '/view', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ position_sec: Math.floor(document.getElementById('video-el').duration || 0), completed: true })
+    }).catch(() => {});
+  }
+});
+
+// 30秒ごとに進捗保存
+setInterval(() => {
+  if (_curVideo && document.getElementById('player-modal').classList.contains('open')) {
+    const pos = Math.floor(document.getElementById('video-el').currentTime || 0);
+    if (pos > 0) {
+      fetch('/api/videos/' + _curVideo.id + '/view', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ position_sec: pos })
+      }).catch(() => {});
+    }
+  }
+}, 30 * 1000);
+
+function toggleUpload() {
+  document.getElementById('upload-card').classList.toggle('open');
+}
+
+async function submitUpload() {
+  const errEl = document.getElementById('up-err');
+  errEl.textContent = '';
+  const title = document.getElementById('up-title').value.trim();
+  const file = document.getElementById('up-video').files[0];
+  if (!title) { errEl.textContent = 'タイトル必須'; return; }
+  if (!file) { errEl.textContent = '動画ファイルを選択してください'; return; }
+  if (file.size > 200 * 1024 * 1024) { errEl.textContent = '200MB以下にしてください'; return; }
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', document.getElementById('up-desc').value);
+  fd.append('category', document.getElementById('up-cat').value);
+  fd.append('target', document.getElementById('up-target').value);
+  if (document.getElementById('up-required').checked) fd.append('is_required', '1');
+  fd.append('video', file);
+  const thumb = document.getElementById('up-thumb').files[0];
+  if (thumb) fd.append('thumbnail', thumb);
+
+  const btn = document.getElementById('up-submit');
+  btn.disabled = true; btn.textContent = 'アップロード中…';
+  const progBox = document.getElementById('up-progress');
+  const progFill = document.getElementById('up-progress-fill');
+  progBox.classList.add('show');
+  progFill.style.width = '0%';
+
+  // XHR で進捗追跡
+  const xhr = new XMLHttpRequest();
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) progFill.style.width = Math.round((e.loaded / e.total) * 100) + '%';
+  };
+  xhr.onload = () => {
+    btn.disabled = false; btn.textContent = '⬆ アップロード';
+    progBox.classList.remove('show');
+    if (xhr.status === 200) {
+      try {
+        const d = JSON.parse(xhr.responseText);
+        if (d.success) {
+          alert('🎬 アップロード完了');
+          document.getElementById('up-title').value = '';
+          document.getElementById('up-desc').value = '';
+          document.getElementById('up-required').checked = false;
+          document.getElementById('up-video').value = '';
+          document.getElementById('up-thumb').value = '';
+          toggleUpload();
+          loadList();
+          return;
+        } else { errEl.textContent = d.msg || '失敗'; return; }
+      } catch (e) {}
+    }
+    errEl.textContent = '送信失敗 (' + xhr.status + ')';
+  };
+  xhr.onerror = () => { btn.disabled = false; btn.textContent = '⬆ アップロード'; progBox.classList.remove('show'); errEl.textContent = '通信エラー'; };
+  xhr.open('POST', '/api/videos');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+  xhr.send(fd);
+}
+
+async function openStats(id) {
+  document.getElementById('stats-modal').classList.add('open');
+  document.getElementById('stats-content').innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8;">読み込み中…</div>';
+  const d = await api('/api/videos/' + id + '/views');
+  if (!d.success) { document.getElementById('stats-content').innerHTML = '<div style="padding:30px;color:#dc2626;">取得失敗</div>'; return; }
+  document.getElementById('stats-title').textContent = '📊 ' + d.video.title;
+  const startRate = d.target_count ? Math.round((d.started_count / d.target_count) * 100) : 0;
+  const compRate = d.target_count ? Math.round((d.completed_count / d.target_count) * 100) : 0;
+  document.getElementById('stats-content').innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="n">${d.target_count}</div><div class="l">対象</div></div>
+      <div class="stat"><div class="n">${d.started_count}</div><div class="l">視聴開始 (${startRate}%)</div></div>
+      <div class="stat"><div class="n">${d.completed_count}</div><div class="l">完了 (${compRate}%)</div></div>
+    </div>
+    <div class="stats-tbl" style="padding-bottom:14px;">
+      <table>
+        <thead><tr><th>名前</th><th>所属</th><th style="text-align:center;">状態</th><th>進捗</th></tr></thead>
+        <tbody>
+          ${d.rows.map(r => {
+            const st = r.completed_at ? '<span class="bdg-c">完了</span>'
+              : r.started_at ? '<span class="bdg-i">途中</span>'
+              : '<span class="bdg-x">未視聴</span>';
+            const pos = r.last_position_sec ? fmtDur(r.last_position_sec) : '-';
+            return `<tr><td>${escapeHtml(r.display_name)}</td><td style="font-size:10px;color:#64748b;">${escapeHtml(r.company_code || '')}</td><td style="text-align:center;">${st}</td><td style="font-size:11px;color:#64748b;">${pos}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function closeStats() { document.getElementById('stats-modal').classList.remove('open'); }
+
+(async function() {
+  if (!token) { showLogin(''); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
+    if (u && u.uid) { me = u; initApp(); }
+    else showLogin('');
+  } catch (e) { showLogin(''); }
+})();
+</script>
+</body>
+</html>

@@ -144,6 +144,107 @@ function getDb() {
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_oc_report ON ops_comments(report_id, created_at);`);
+  // 動画ライブラリ (Phase4) — 安全教育/業務マニュアル/経営メッセージ等
+  _db.exec(`CREATE TABLE IF NOT EXISTS videos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL DEFAULT 'その他',
+    file_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    duration_sec INTEGER DEFAULT 0,
+    file_size INTEGER DEFAULT 0,
+    uploaded_by TEXT NOT NULL,
+    is_required INTEGER DEFAULT 0,
+    target TEXT NOT NULL DEFAULT 'all',
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_v_at ON videos(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_v_cat ON videos(category, created_at DESC);
+  CREATE TABLE IF NOT EXISTS video_views (
+    video_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    started_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT,
+    last_position_sec INTEGER DEFAULT 0,
+    PRIMARY KEY (video_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_vv_user ON video_views(user_id);`);
+  // CoWell アーカイブ取込 (Phase5) — health DB の主要テーブルを cw_* で保持
+  _db.exec(`CREATE TABLE IF NOT EXISTS cw_users (
+    cw_id TEXT PRIMARY KEY,
+    nickname TEXT,
+    real_name TEXT,
+    department TEXT,
+    avatar TEXT,
+    cohub_uid TEXT,                    -- マッピング先 cohub users.id (NULL=未マップ)
+    map_method TEXT,                   -- auto_realname / manual / unmapped
+    cw_created_at TEXT,
+    imported_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_cwu_cohub ON cw_users(cohub_uid);
+  CREATE TABLE IF NOT EXISTS cw_posts (
+    cw_post_id TEXT PRIMARY KEY,
+    cw_user_id TEXT NOT NULL,
+    content TEXT,
+    analysis TEXT,
+    nickname TEXT,
+    image_url TEXT,
+    category TEXT,
+    nutrition_scores TEXT,
+    status TEXT,
+    cw_created_at TEXT,
+    imported_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_cwp_user ON cw_posts(cw_user_id, cw_created_at DESC);
+  CREATE TABLE IF NOT EXISTS cw_buddy_messages (
+    cw_id INTEGER PRIMARY KEY,
+    cw_user_id TEXT NOT NULL,
+    role TEXT,
+    content TEXT,
+    cw_created_at TEXT,
+    imported_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_cwbm_user ON cw_buddy_messages(cw_user_id, cw_created_at);
+  CREATE TABLE IF NOT EXISTS cw_step_log (
+    cw_user_id TEXT NOT NULL,
+    step_date TEXT NOT NULL,
+    steps INTEGER DEFAULT 0,
+    PRIMARY KEY (cw_user_id, step_date)
+  );
+  CREATE TABLE IF NOT EXISTS cw_food_weekly_reports (
+    cw_report_id TEXT PRIMARY KEY,
+    cw_user_id TEXT NOT NULL,
+    nickname TEXT,
+    week_start TEXT,
+    week_end TEXT,
+    meal_count INTEGER,
+    report_text TEXT,
+    admin_comment TEXT,
+    nutrition_scores TEXT,
+    cw_created_at TEXT,
+    imported_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_cwfwr_user ON cw_food_weekly_reports(cw_user_id, cw_created_at DESC);
+  CREATE TABLE IF NOT EXISTS cw_blood_pressure (
+    cw_id INTEGER PRIMARY KEY,
+    cw_user_id TEXT NOT NULL,
+    systolic INTEGER,
+    diastolic INTEGER,
+    pulse INTEGER,
+    measured_at TEXT,
+    cw_created_at TEXT,
+    imported_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS cw_import_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_name TEXT,
+    rows_inserted INTEGER,
+    rows_updated INTEGER,
+    notes TEXT,
+    ran_at TEXT DEFAULT (datetime('now'))
+  );`);
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用
