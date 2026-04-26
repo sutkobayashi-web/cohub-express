@@ -88,10 +88,12 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <option value="2">2 課長/部長</option>
         <option value="3">3 役員/社長</option>
       </select>
+      <input type="date" id="new-birth" title="生年月日 (健診Box連携・年齢別分析用)" style="max-width:160px;">
       <button class="btn" onclick="addUser()">追加</button>
     </div>
     <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
-      💡 <b>DMグループ・階層</b>: レポートライン保護のための設定。同じグループは常にDM可、別グループへはrank差1まで許可 (例: 一般→部長 はブロック)。管理者ロールは階層無視。
+      💡 <b>DMグループ・階層</b>: レポートライン保護のための設定。同じグループは常にDM可、別グループへはrank差1まで許可 (例: 一般→部長 はブロック)。管理者ロールは階層無視。<br>
+      💡 <b>生年月日</b>: 健診Box連携 (氏名×生年月日でPDF照合) と年齢別健康分析に使用。本人と管理者のみ閲覧。
     </div>
     <div id="add-msg"></div>
   </div>
@@ -99,9 +101,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div class="card">
     <h2>CSV一括登録</h2>
     <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-      形式: <code>login_id,display_name,company_code,password,role(省略可)</code><br>
+      形式: <code>login_id,display_name,company_code,password,role,employee_type,dm_group,dm_rank,birth_date</code> (5列目以降は省略可)<br>
       所属コード: SU_HQ / SU_SAITAMA / SU_MKANTO / SU_ZAMA / IBA_KASHIMA / IBA_SANWA / SUZUE / ADMIN<br>
-      例: <code>taro,山田太郎,SU_HQ,Pass1234</code> / <code>hanako,鈴木花子,IBA_KASHIMA,Init2026,admin</code>
+      生年月日: YYYY-MM-DD (健診Box連携用、空欄可)<br>
+      例: <code>taro,山田太郎,SU_HQ,Pass1234,member,office,営業部,0,1985-04-15</code>
     </div>
     <textarea id="csv-input" placeholder="taro,山田太郎,SU_HQ,Pass1234"></textarea>
     <div style="margin-top:8px;"><button class="btn" onclick="bulkAdd()">一括登録</button></div>
@@ -279,6 +282,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
           </div>
         </div>
         <div style="font-size:10px;color:#64748b;line-height:1.6;">別グループへのDMは rank差1まで許可。例: 一般(0)→部長(2)はブロック。</div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎂 生年月日 <span style="font-size:10px;font-weight:400;color:#64748b;">健診Box連携・年齢別分析用</span></div>
+        <input type="date" id="edit-birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔑 パスワードリセット (任意)</div>
@@ -807,6 +814,7 @@ async function addUser() {
     employee_type: document.getElementById('new-type').value,
     dm_group: document.getElementById('new-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('new-dm-rank').value) || 0,
+    birth_date: document.getElementById('new-birth').value || null,
   };
   const msg = document.getElementById('add-msg');
   const r = await fetch('/api/admin/users', {
@@ -820,6 +828,7 @@ async function addUser() {
   document.getElementById('new-login').value = '';
   document.getElementById('new-name').value = '';
   document.getElementById('new-pass').value = '';
+  document.getElementById('new-birth').value = '';
   loadUsers();
 }
 
@@ -850,6 +859,7 @@ function openEditModal(id) {
   document.getElementById('edit-employee-type').value = u.employee_type || 'office';
   document.getElementById('edit-dm-group').value = u.dm_group || '';
   document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
+  document.getElementById('edit-birth').value = u.birth_date || '';
   document.getElementById('edit-new-password').value = '';
   document.getElementById('edit-err').textContent = '';
   // DMグループのdatalistを既存メンバーから収集
@@ -874,6 +884,7 @@ async function submitEdit() {
     employee_type: document.getElementById('edit-employee-type').value,
     dm_group: document.getElementById('edit-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('edit-dm-rank').value) || 0,
+    birth_date: document.getElementById('edit-birth').value || null,
   };
   if (!payload.display_name) { err.textContent = '表示名は必須です'; return; }
   btn.disabled = true; btn.textContent = '保存中…';

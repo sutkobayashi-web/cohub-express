@@ -28,6 +28,8 @@ function getDb() {
   ensureColumn(_db, 'users', 'last_wellness_dm_date', 'last_wellness_dm_date TEXT');
   // 推進メンバー(運管型) フラグ — 健康管理室 現場の声POST権限
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
+  // 生年月日 (健診Box連携・年齢別分析用、本人と管理者のみ閲覧)
+  ensureColumn(_db, 'users', 'birth_date', 'birth_date TEXT');
   // 現場の声POST 構造化テーブル
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

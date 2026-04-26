@@ -21,7 +21,7 @@ const recUpload = multer({
 
 // ユーザー一覧
 router.get('/users', authAdmin, (req, res) => {
-  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.avatar_url,
+  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.avatar_url, u.birth_date,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
 });
@@ -32,9 +32,19 @@ function normalizeRank(r) {
   return Math.max(0, Math.min(3, n));
 }
 
+// 生年月日のバリデーション (YYYY-MM-DD)
+function normalizeBirthDate(s) {
+  if (!s) return null;
+  const m = String(s).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!m) return null;
+  const y = parseInt(m[1]), mo = parseInt(m[2]), d = parseInt(m[3]);
+  if (y < 1900 || y > 2099 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
 // ユーザー作成（1件）
 router.post('/users', authAdmin, (req, res) => {
-  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank } = req.body;
+  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank, birth_date } = req.body;
   if (!login_id || !display_name || !company_code || !password) {
     return res.status(400).json({ success: false, msg: '必須項目が不足しています' });
   }
@@ -46,14 +56,15 @@ router.post('/users', authAdmin, (req, res) => {
   const etype = (employee_type === 'field' || employee_type === 'admin') ? employee_type : 'office';
   const dg = (dm_group || '').toString().trim().slice(0, 40) || null;
   const dr = normalizeRank(dm_rank);
-  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr);
+  const bd = normalizeBirthDate(birth_date);
+  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, bd);
   res.json({ success: true, id });
 });
 
 // ユーザー更新 (dm_group, dm_rank 等の編集)
 router.patch('/users/:id', authAdmin, (req, res) => {
-  const { display_name, company_code, role, employee_type, dm_group, dm_rank } = req.body;
+  const { display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date } = req.body;
   const db = getDb();
   const u = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
@@ -73,6 +84,9 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   if (dm_rank !== undefined) {
     updates.push('dm_rank = ?'); params.push(normalizeRank(dm_rank));
   }
+  if (birth_date !== undefined) {
+    updates.push('birth_date = ?'); params.push(birth_date === null || birth_date === '' ? null : normalizeBirthDate(birth_date));
+  }
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.id);
   db.prepare('UPDATE users SET ' + updates.join(', ') + ' WHERE id = ?').run(...params);
@@ -91,27 +105,28 @@ router.post('/users/bulk', authAdmin, (req, res) => {
   const validEtypes = new Set(['office', 'field', 'admin']);
   // 既知の company コード一覧 (UNKNOWN は弾く)
   const validCompanies = new Set(db.prepare('SELECT code FROM companies').all().map(r => r.code));
-  const insert = db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const insert = db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const txn = db.transaction(() => {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line || line.startsWith('#')) continue;
       const parts = line.split(',').map(s => s.trim());
       if (parts.length < 4) { results.errors.push(`行${i+1}: 列不足 (4列以上必要)`); continue; }
-      const [login_id, display_name, company_code, password, roleRaw, etypeRaw, dmGroupRaw, dmRankRaw] = parts;
+      const [login_id, display_name, company_code, password, roleRaw, etypeRaw, dmGroupRaw, dmRankRaw, birthRaw] = parts;
       if (!login_id || !display_name || !company_code || !password) { results.errors.push(`行${i+1}: 必須項目空欄`); continue; }
       if (!validCompanies.has(company_code)) { results.errors.push(`行${i+1}: 会社コード '${company_code}' が未定義`); continue; }
       const role = validRoles.has(roleRaw) ? roleRaw : 'member';
       const etype = validEtypes.has(etypeRaw) ? etypeRaw : 'office';
       const dg = (dmGroupRaw || '').slice(0, 40) || null;
       const dr = normalizeRank(dmRankRaw);
+      const bd = normalizeBirthDate(birthRaw);
       if (password.length < 8) { results.errors.push(`行${i+1}: パスワード短すぎ (8文字以上)`); continue; }
       const exists = db.prepare('SELECT 1 FROM users WHERE login_id = ?').get(login_id);
       if (exists) { results.skipped++; continue; }
       const id = crypto.randomUUID();
       const hash = bcrypt.hashSync(password, 10);
-      insert.run(id, login_id, hash, display_name, company_code, role, etype, dg, dr);
+      insert.run(id, login_id, hash, display_name, company_code, role, etype, dg, dr, bd);
       results.created++;
     }
   });
@@ -127,7 +142,7 @@ router.get('/users/csv-template', authAdmin, (req, res) => {
   const tpl = '\uFEFF' + [
     '# CoHub メンバー一括登録CSV テンプレート',
     '# ───────────────────────────────────────────────',
-    '# 列: login_id,display_name,company_code,password,role,employee_type,dm_group,dm_rank',
+    '# 列: login_id,display_name,company_code,password,role,employee_type,dm_group,dm_rank,birth_date',
     '#  login_id        : ログインID (英数字, 重複不可)',
     '#  display_name    : 表示名 (日本語OK, 例: 山田太郎)',
     '#  company_code    : 所属会社コード (下記から選択)',
@@ -138,15 +153,16 @@ router.get('/users/csv-template', authAdmin, (req, res) => {
     '#  dm_group        : DMグループ (例: 営業部 / 経理 / 現場_座間 / 経営層) 空欄可(無制限)',
     '#  dm_rank         : DM階層 0=一般 1=主任係長 2=課長部長 3=役員社長 (省略時 0)',
     '#                    レポートライン保護: 別グループへのDMは rank差1まで許可',
+    '#  birth_date      : 生年月日 YYYY-MM-DD (健診Box連携・年齢別分析用、省略可)',
     '#',
     '# 利用可能な会社コード:',
     compList,
     '#',
     '# 「#」で始まる行はコメント。空行は無視されます。',
     '# サンプル(下の3行は削除して、本データに置き換えてください):',
-    'taro_yamada,山田太郎,SU_HQ,Init#Pass2026,member,office,営業部,0',
-    'hanako_suzuki,鈴木花子,SU_SAITAMA,Init#Pass2026,member,office,経理,1',
-    'driver_sato,佐藤健一,SU_ZAMA,Init#Pass2026,member,field,現場_座間,0',
+    'taro_yamada,山田太郎,SU_HQ,Init#Pass2026,member,office,営業部,0,1985-04-15',
+    'hanako_suzuki,鈴木花子,SU_SAITAMA,Init#Pass2026,member,office,経理,1,1978-09-03',
+    'driver_sato,佐藤健一,SU_ZAMA,Init#Pass2026,member,field,現場_座間,0,',
   ].join('\n') + '\n';
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="cohub_members_template.csv"');
