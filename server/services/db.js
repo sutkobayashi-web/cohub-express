@@ -64,8 +64,8 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_wa_status ON wellness_actions(status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wa_at ON wellness_actions(created_at DESC);`);
-  // 労働安全健康推進室への名称統一 (旧: 安全衛生健康管理室)
-  _db.prepare("UPDATE floors SET name = '労働安全健康推進室' WHERE code = 'wellness_room'").run();
+  // 健康管理室への名称統一 (旧: 労働安全健康推進室 / 安全衛生健康管理室)
+  _db.prepare("UPDATE floors SET name = '健康管理室' WHERE code = 'wellness_room'").run();
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用

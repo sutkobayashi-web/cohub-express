@@ -45,7 +45,11 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 <main>
 
 <div id="login-box" class="card" style="max-width:420px;margin:40px auto;">
-  <h2>管理者ログイン</h2>
+  <h2>管理職ログイン</h2>
+  <div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.6;">
+    システム管理権限は <b>管理職 (employee_type=admin)</b> のみに付与されています。<br>
+    健康管理室の操作（現場の声/施策ボード等）は <a href="/wellness.html">/wellness.html</a> をご利用ください。
+  </div>
   <div class="row"><input type="text" id="adm-id" placeholder="ログインID"></div>
   <div class="row"><input type="password" id="adm-pw" placeholder="パスワード"></div>
   <button class="btn" onclick="doAdminLogin()">ログイン</button>
@@ -350,7 +354,10 @@ async function doAdminLogin() {
     });
     const d = await r.json();
     if (!d.success) { err.textContent = d.msg; return; }
-    if (d.user.role !== 'admin') { err.textContent = '管理者権限がありません'; return; }
+    if (d.user.role !== 'admin' || d.user.employee_type !== 'admin') {
+      err.textContent = '管理職のみログイン可能です。健康管理室の操作は /wellness.html をご利用ください。';
+      return;
+    }
     token = d.token;
     localStorage.setItem('cohub_admin_token', token);
     localStorage.setItem('cohub_admin_user', JSON.stringify(d.user));
@@ -1003,12 +1010,12 @@ async function exportChatCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-// 自動ログイン
+// 自動ログイン (管理職のみ)
 (function() {
   if (!token) return;
   try {
     const user = JSON.parse(localStorage.getItem('cohub_admin_user') || '{}');
-    if (user && user.role === 'admin') showPanel(user);
+    if (user && user.role === 'admin' && user.employee_type === 'admin') showPanel(user);
   } catch(e) {}
 })();
 </script>

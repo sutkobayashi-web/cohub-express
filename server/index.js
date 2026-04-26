@@ -79,12 +79,12 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 
-// 葵から労働安全健康推進室のCoWellイベント案内DM (1日1回、ロビー入室時)
+// 葵から健康管理室のCoWellイベント案内DM (1日1回、ロビー入室時)
 // 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
-const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🏥 労働安全健康推進室より
+const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🏥 健康管理室より
 
 CoWellで健康づくりを始めませんか？
-左メニュー「🏥 労働安全健康推進室」からいつでもアクセスできます。
+左メニュー「🏥 健康管理室」からいつでもアクセスできます。
 
 🎯 今週のイベント
 ・毎日の歩数記録で『健康の海』を冒険
@@ -118,7 +118,7 @@ async function maybeSendWellnessAnnouncement(uid) {
     }
     sendPushToUser(uid, {
       title: '🏥 葵',
-      body: '労働安全健康推進室のCoWellイベント案内を送りました',
+      body: '健康管理室のCoWellイベント案内を送りました',
       tag: 'wellness-greet',
       url: '/',
     }).catch(() => {});
@@ -180,7 +180,7 @@ app.use(helmet({
       connectSrc: ["'self'", "wss:", "ws:", "https://cloudflareinsights.com", "https://cdn.jsdelivr.net"],
       workerSrc: ["'self'", "blob:"],
       childSrc: ["'self'", "blob:", "https://health.biz-terrace.org"],
-      // 安全衛生健康管理室でCoWell (health) をiframe埋込するため
+      // 健康管理室でCoWell (health) をiframe埋込するため
       frameSrc: ["'self'", "https://health.biz-terrace.org"],
     }
   },

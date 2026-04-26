@@ -35,9 +35,19 @@ function authUser(req, res, next) {
   }
 }
 
+// 管理画面 (admin.html) アクセス権: role='admin' かつ employee_type='admin' (=管理職)
+// 推進メンバーが role='admin' を持っていてもチャットログ等は閲覧不可にする
 function authAdmin(req, res, next) {
   authUser(req, res, () => {
     if (req.user.role !== 'admin') return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+    try {
+      const u = getDb().prepare('SELECT employee_type FROM users WHERE id = ?').get(req.uid);
+      if (!u || u.employee_type !== 'admin') {
+        return res.status(403).json({ success: false, msg: '管理職権限が必要です (employee_type=admin)' });
+      }
+    } catch (e) {
+      return res.status(500).json({ success: false, msg: '権限確認エラー' });
+    }
     next();
   });
 }
