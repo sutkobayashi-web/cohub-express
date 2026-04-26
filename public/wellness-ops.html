@@ -58,8 +58,19 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
   <div id="role-banner" class="banner banner-info"></div>
 
+  <!-- 推進メンバー向け 3ソース情報入り口 -->
+  <div class="card" style="background:linear-gradient(135deg,#fef3c7,#fffbeb);border-left:4px solid #f59e0b;">
+    <h2 style="color:#92400e;">📊 推進メンバーが見る3つの情報源 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">過去30日</span></h2>
+    <div id="sources-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+      <div style="color:#94a3b8;font-size:12px;">読み込み中…</div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:#78350f;line-height:1.7;">
+      💡 <b>推進メンバーの仕事</b>: ① 各POSTに共感+議論 → ② AI集約で施策候補化 → ③ 施策議論+AI評議会で精査 → ④ 管理職の承認+全社展開
+    </div>
+  </div>
+
   <div class="card" style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-left:4px solid #10b981;">
-    <h2 style="color:#047857;">🔄 健康管理室ループ <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">現場の声 → AI集約 → 施策 → 実行 → アナウンス → 運管フィードバック</span></h2>
+    <h2 style="color:#047857;">🔄 健康管理室ループ <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">3ソース → AI集約 → 議論 → AI評議会 → 施策 → 全社アナウンス</span></h2>
     <div id="loop-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
       <div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border:1px solid #d1fae5;">
         <div style="font-size:11px;color:#64748b;font-weight:700;">📝 POST(30日)</div>
@@ -242,7 +253,7 @@ function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','
       document.getElementById('btn-ai').style.display = 'none';
       document.getElementById('btn-new').style.display = 'none';
     }
-    loadFieldVoice(); loadActions(); loadLoopStats(); loadThemes();
+    loadFieldVoice(); loadActions(); loadLoopStats(); loadThemes(); loadSourcesSummary();
     if (!m.can_edit_actions) document.getElementById('btn-theme-ai').style.display = 'none';
   } catch (e) {
     document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
@@ -429,7 +440,7 @@ function renderAiInsights(j) {
   box.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <span style="font-weight:800;color:#7c3aed;">🧠 AI 集約</span>
-      <span style="font-size:11px;color:#64748b;">対象: 過去${j.window_days}日 / POST ${j.counts.posts}件 + 議論 ${j.counts.disc_msgs}件</span>
+      <span style="font-size:11px;color:#64748b;">対象: 過去${j.window_days}日 / 🩺運管 ${j.counts.unkan_posts||j.counts.posts||0}件 + 🌳社員の声 ${j.counts.plaza_posts||0}件 + 🍱食事 ${j.counts.food_posts||0}件 + 💬議論 ${j.counts.disc_msgs||0}件</span>
     </div>
     <div style="background:#faf5ff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:12px;line-height:1.7;color:#0f172a;">${escapeHtml(ins.summary || '')}</div>
     ${dist ? '<div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:700;color:#64748b;">営業所別: </span>' + dist + '</div>' : ''}
@@ -625,6 +636,26 @@ async function completeAction(id) {
 }
 
 // ===== 現場の声 =====
+// ===== 3ソース情報サマリ =====
+async function loadSourcesSummary() {
+  try {
+    const r = await fetch('/api/wellness/sources-summary?days=30', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) return;
+    const s = d.sources;
+    const card = (k, sub, color, click) => `<div onclick="${click||''}" style="background:#fff;border-radius:10px;padding:12px;border:1px solid #e2e8f0;${click?'cursor:pointer;':''}">
+      <div style="font-size:11px;color:#64748b;font-weight:700;margin-bottom:4px;">${escapeHtml(s[k].label)}</div>
+      <div style="font-size:24px;font-weight:800;color:${color};">${s[k].count}<span style="font-size:11px;color:#94a3b8;font-weight:400;"> 件/30日</span></div>
+      ${sub ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px;">${sub}</div>` : ''}
+    </div>`;
+    document.getElementById('sources-grid').innerHTML =
+      card('unkan', s.unkan.urgent ? `🔴 緊急度高 ${s.unkan.urgent}件` : '', '#0891b2', "document.getElementById('fv-tbody')&&document.getElementById('fv-tbody').scrollIntoView({behavior:'smooth'})") +
+      card('plaza', '匿名/相談含む', '#0d9488', "window.open('/plaza.html','_blank')") +
+      card('food', s.food.salt_over || s.food.veg_low ? `⚠ 塩分過多 ${s.food.salt_over} / 野菜不足 ${s.food.veg_low}` : '栄養バランス分析済', '#d97706', "window.open('/plaza.html#food','_blank')") +
+      card('disc', '事務側議論', '#7c3aed');
+  } catch (e) { console.warn('loadSourcesSummary', e); }
+}
+
 // ===== 現場の声: 共感+議論 =====
 const POST_EMOJIS = ['🙏', '💪', '😢', '⚠'];
 const EMOJI_LABEL = { '🙏': '共感', '💪': '応援', '😢': '辛い', '⚠': '要注意' };

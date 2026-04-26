@@ -352,9 +352,47 @@ router.post('/actions/:id/complete', authUser, express.json(), (req, res) => {
 });
 
 // =============================================================
-// AI 集計 (運管POST + ディスカッションGC を Gemini に食わせて要約)
+// AI 集計 (運管POST + 社員自発の声 + 食事分析 + ディスカッションGC)
 // =============================================================
 const { generateText } = require('../services/ai');
+
+// 3ソース集計サマリ (推進メンバーモーダル用)
+router.get('/sources-summary', authUser, (req, res) => {
+  if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const days = Math.min(parseInt(req.query.days) || 30, 90);
+  const sinceISO = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  const db = getDb();
+  const unkanCount = db.prepare('SELECT COUNT(*) AS c FROM wellness_posts WHERE created_at >= ?').get(sinceISO).c;
+  const plazaCount = db.prepare("SELECT COUNT(*) AS c FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category != '食事'").get(sinceISO).c;
+  const foodCount = db.prepare("SELECT COUNT(*) AS c FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category = '食事'").get(sinceISO).c;
+  const discCount = db.prepare("SELECT COUNT(*) AS c FROM messages WHERE room_code = ? AND created_at >= ?").get('grp_' + WELLNESS_DISC_ID, sinceISO).c;
+  // urgency高 のwellness_posts件数 (注意喚起用)
+  const urgentCount = db.prepare("SELECT COUNT(*) AS c FROM wellness_posts WHERE created_at >= ? AND urgency = '高'").get(sinceISO).c;
+  // 食事の塩分過多/野菜不足カウント (簡易)
+  let saltOver = 0, vegLow = 0;
+  try {
+    const foods = db.prepare("SELECT nutrition_scores FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category = '食事' AND nutrition_scores IS NOT NULL").all(sinceISO);
+    for (const f of foods) {
+      try {
+        const ns = JSON.parse(f.nutrition_scores);
+        const salt = ns.salt && ns.salt.value;
+        const veg = ns.vitamin && ns.vitamin.value;
+        if (salt && Number(salt) > 2.5) saltOver++;
+        if (veg != null && Number(veg) < 80) vegLow++;
+      } catch (e) {}
+    }
+  } catch (e) {}
+  res.json({
+    success: true,
+    window_days: days,
+    sources: {
+      unkan: { count: unkanCount, urgent: urgentCount, label: '🩺 運管・現場責任者POST' },
+      plaza: { count: plazaCount, label: '🌳 社員の自発的な声' },
+      food: { count: foodCount, salt_over: saltOver, veg_low: vegLow, label: '🍱 食事分析' },
+      disc: { count: discCount, label: '💬 健康管理室議論' },
+    },
+  });
+});
 
 router.post('/insights', authUser, express.json(), async (req, res) => {
   if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
@@ -362,15 +400,33 @@ router.post('/insights', authUser, express.json(), async (req, res) => {
   const db = getDb();
   const sinceISO = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
 
-  // 運管POST取得
-  const posts = db.prepare(`
+  // 系統A: 運管POST (wellness_posts)
+  const unkanPosts = db.prepare(`
     SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code, wp.created_at,
            u.display_name as poster_name
     FROM wellness_posts wp LEFT JOIN users u ON u.id = wp.poster_id
     WHERE wp.created_at >= ? ORDER BY wp.id ASC
   `).all(sinceISO);
 
-  // 健康管理室ディスカッションGC のメッセージ取得
+  // 系統B: 社員の自発的な声 (ひろば posts、食事以外)
+  const plazaPosts = db.prepare(`
+    SELECT pp.id, pp.category, pp.content, pp.is_anonymous, pp.created_at,
+           u.display_name as author_name, u.company_code
+    FROM plaza_posts pp LEFT JOIN users u ON u.id = pp.author_id
+    WHERE pp.deleted_at IS NULL AND pp.created_at >= ? AND pp.category != '食事'
+    ORDER BY pp.id DESC LIMIT 200
+  `).all(sinceISO);
+
+  // 系統C: 食事分析 (ひろば 食事カテゴリ + nutrition_scores)
+  const foodPosts = db.prepare(`
+    SELECT pp.id, pp.content, pp.nutrition_scores, pp.ai_comment, pp.is_anonymous, pp.created_at,
+           u.display_name as author_name, u.company_code
+    FROM plaza_posts pp LEFT JOIN users u ON u.id = pp.author_id
+    WHERE pp.deleted_at IS NULL AND pp.created_at >= ? AND pp.category = '食事'
+    ORDER BY pp.id DESC LIMIT 200
+  `).all(sinceISO);
+
+  // 健康管理室ディスカッション (事務側)
   const discMsgs = db.prepare(`
     SELECT m.id, m.content, m.created_at, u.display_name as sender_name
     FROM messages m LEFT JOIN users u ON u.id = m.sender_id
@@ -378,24 +434,43 @@ router.post('/insights', authUser, express.json(), async (req, res) => {
     ORDER BY m.id ASC LIMIT 200
   `).all('grp_' + WELLNESS_DISC_ID, sinceISO);
 
-  if (!posts.length && !discMsgs.length) {
+  if (!unkanPosts.length && !plazaPosts.length && !foodPosts.length && !discMsgs.length) {
     return res.json({ success: true, insights: null, msg: 'データが不足しています' });
   }
 
-  // プロンプト構成 — 簡潔・断定回避・施策候補3案まで
-  const postLines = posts.map(p =>
+  const unkanLines = unkanPosts.map(p =>
     `[#${p.id}|${p.category}|緊急度${p.urgency}|${p.company_code || '-'}|${p.created_at}|by ${p.poster_name || '不明'}|${p.identity_mode}] ${p.memo || '(メモなし)'}`
   ).join('\n');
+  const plazaLines = plazaPosts.map(p =>
+    `[#${p.id}|${p.category}|${p.company_code || '-'}|${p.created_at}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0, 200)}`
+  ).join('\n');
+  const foodLines = foodPosts.map(p => {
+    let nutri = '';
+    try {
+      const ns = JSON.parse(p.nutrition_scores || '{}');
+      const cal = ns.calories && ns.calories.value;
+      const salt = ns.salt && ns.salt.value;
+      const veg = ns.vitamin && ns.vitamin.value;
+      nutri = `(cal:${cal||'-'}kcal塩:${salt||'-'}g野菜:${veg||'-'}g)`;
+    } catch (e) {}
+    return `[#${p.id}|${p.created_at}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0,80)} ${nutri}`;
+  }).join('\n');
   const discLines = discMsgs.map(m =>
     `[${m.created_at}|${m.sender_name || '不明'}] ${(m.content || '').slice(0, 200)}`
   ).join('\n');
 
-  const prompt = `あなたは中小運送業の健康管理室の補助役です。以下の2系統のテキストを分析し、健康管理室会議で議論する材料として整理してください。
+  const prompt = `あなたは中小運送業の健康管理室の補助役です。3系統の異なるソースから集まったテキストを分析し、健康管理室会議で議論する材料として整理してください。
 
-【系統A: 運行管理者からの "現場の声" POST】
-${postLines || '(なし)'}
+【系統A: 運管・現場責任者の "現場の声" POST (構造化)】
+${unkanLines || '(なし)'}
 
-【系統B: 健康管理室ディスカッション(事務側議論)】
+【系統B: 社員の自発的な声 (ひろば: 相談/雑談/Tips)】
+${plazaLines || '(なし)'}
+
+【系統C: 食事分析 (ひろば食事投稿+AI栄養データ)】
+${foodLines || '(なし)'}
+
+【系統D: 健康管理室ディスカッション(事務側議論)】
 ${discLines || '(なし)'}
 
 以下の形式の純粋なJSONで回答してください (Markdownや前置きは不要):
@@ -413,7 +488,8 @@ ${discLines || '(なし)'}
 - actions は最大3案、現実的に1〜2週間で動かせる小さな施策に絞る
 - 個人を特定しない (匿名/集計のみのPOSTは個人名を出さない)
 - 緊急度高のテーマがあれば actions の優先順位を上げる
-- データが薄い場合は無理に作らず空配列で良い`;
+- データが薄い場合は無理に作らず空配列で良い
+- 3系統 (運管POST/社員の声/食事分析) を横断的に見て、複数ソースで裏付けが取れるテーマを優先`;
 
   try {
     // Gemini 2.5 は thinking にもトークン消費するため余裕を持たせる
@@ -443,7 +519,13 @@ ${discLines || '(なし)'}
       success: true,
       generated_at: new Date().toISOString(),
       window_days: days,
-      counts: { posts: posts.length, disc_msgs: discMsgs.length },
+      counts: {
+        unkan_posts: unkanPosts.length,
+        plaza_posts: plazaPosts.length,
+        food_posts: foodPosts.length,
+        disc_msgs: discMsgs.length,
+        posts: unkanPosts.length, // 後方互換
+      },
       insights: parsed,
     });
   } catch (e) {
