@@ -91,10 +91,18 @@ router.get('/posts', authUser, (req, res) => {
   });
 
   // 初回のみ過去アーカイブ (cw_posts) も取り込んで時系列マージ
+  // CoWell の category (🍱 食事・栄養 等) を plaza の category (食事 等) に正規化
+  const CW_CAT_NORMALIZE = `CASE
+    WHEN cp.category LIKE '%食事%' OR cp.category LIKE '%栄養%' THEN '食事'
+    WHEN cp.category LIKE '%相談%' OR cp.category LIKE '%提案%' THEN '相談'
+    WHEN cp.category LIKE '%Tips%' OR cp.category LIKE '%ヒント%' THEN '健康Tips'
+    ELSE '雑談'
+  END`;
   let archive = [];
   if (includeArchive && !before) {
     let asql = `SELECT cp.cw_post_id AS id, cp.cw_user_id AS author_cw_id, cp.content,
-                       cp.image_url, cp.nutrition_scores, cp.category, cp.cw_created_at AS created_at,
+                       cp.image_url, cp.nutrition_scores, ${CW_CAT_NORMALIZE} AS category,
+                       cp.category AS cw_orig_category, cp.cw_created_at AS created_at,
                        cu.cohub_uid AS author_id, cu.nickname AS cw_nickname, cu.real_name AS cw_real_name,
                        u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
                 FROM cw_posts cp
@@ -102,8 +110,11 @@ router.get('/posts', authUser, (req, res) => {
                 LEFT JOIN users u ON u.id = cu.cohub_uid
                 WHERE 1=1`;
     const aparams = [];
-    if (cat && CATEGORIES.includes(cat)) { asql += ' AND cp.category = ?'; aparams.push(cat); }
-    asql += ' ORDER BY cp.cw_created_at DESC LIMIT 30';
+    if (cat && CATEGORIES.includes(cat)) {
+      asql += ` AND ${CW_CAT_NORMALIZE} = ?`;
+      aparams.push(cat);
+    }
+    asql += ' ORDER BY cp.cw_created_at DESC LIMIT 80';
     archive = db.prepare(asql).all(...aparams).map(p => ({
       ...p,
       kind: 'archive',
