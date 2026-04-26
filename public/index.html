@@ -1595,6 +1595,10 @@ function connectSocket() {
       if (prevCode && prevCode !== data.floor.code && voice.enabled) {
         disableVoice();
       }
+      // ロビー入室アナウンス (本人向け、初回ログイン or 別フロアからロビー移動時)
+      if (data.floor.code === 'lobby' && prevCode !== 'lobby') {
+        try { announceLobbyWelcome(); } catch (e) {}
+      }
       WORLD_W = data.floor.world_w || 1344;
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
@@ -3328,6 +3332,24 @@ function speakEnterLeave(name, isEnter) {
   const reading = readingOf(name);
   const text = (reading || 'どなたか') + 'さんが' + (isEnter ? 'ログイン' : 'ログアウト') + 'しました';
   speakViaTTS(text, { speed: 1.15 });
+}
+
+// ロビー入室時に本人向けの挨拶 (チャイム+「○○さんおかえりなさい」)
+let _lobbyWelcomeShown = 0;
+function announceLobbyWelcome() {
+  if (!speakerOn) return;
+  const now = Date.now();
+  // 5分以内の連発は抑止 (再ロード等)
+  if (now - _lobbyWelcomeShown < 5 * 60 * 1000) return;
+  _lobbyWelcomeShown = now;
+  const myUser = users[me] || currentUser || {};
+  const myName = (myUser && (myUser.name || myUser.display_name)) || 'あなた';
+  const reading = readingOf(myName) || myName;
+  playEnterLeaveChime(true);
+  const hour = new Date().getHours();
+  const greet = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
+  setTimeout(() => speakViaTTS(greet + '、' + reading + 'さん。CoHubへようこそ', { speed: 1.1 }), CHIME_DURATION_MS + 200);
+  console.log('[cohub] lobby welcome', myName);
 }
 
 function announceEnterLeave(uid, name, isEnter) {
