@@ -24,14 +24,18 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .evt-desc { font-size: 11px; color: #475569; line-height: 1.5; }
 .evt-tag { display: inline-block; background: #14b8a6; color: #fff; font-size: 10px; padding: 1px 8px; border-radius: 8px; font-weight: 700; margin-bottom: 6px; }
 
+/* タブ (カテゴリ切替) */
+.tab-bar { display: flex; gap: 4px; background: #fff; border-radius: 12px; padding: 4px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow-x: auto; }
+.tab { flex: 1 0 auto; padding: 10px 12px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.tab:hover { background: #f1f5f9; }
+.tab.active.t-all { background: #475569; color: #fff; }
+.tab.active.t-食事 { background: #f59e0b; color: #fff; }
+.tab.active.t-相談 { background: #ef4444; color: #fff; }
+.tab.active.t-雑談 { background: #06b6d4; color: #fff; }
+.tab.active.t-健康Tips { background: #10b981; color: #fff; }
+
 /* 投稿フォーム */
 .composer { background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-.cat-pills { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
-.cp { padding: 6px 12px; background: #f1f5f9; border: 1px solid transparent; border-radius: 16px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; }
-.cp.sel-食事 { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
-.cp.sel-相談 { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
-.cp.sel-雑談 { background: #ecfeff; color: #0e7490; border-color: #06b6d4; }
-.cp.sel-健康Tips { background: #ecfdf5; color: #047857; border-color: #10b981; }
 .composer textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; }
 .composer textarea:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
 .composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
@@ -135,24 +139,27 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
     <div class="section-ttl">📅 開催中のイベント</div>
     <div class="events" id="events"></div>
 
-    <div class="section-ttl">✏️ 投稿</div>
+    <!-- カテゴリタブ (フィード絞り込み + 投稿カテゴリ自動連動) -->
+    <div class="tab-bar" id="tab-bar"></div>
+
+    <div class="section-ttl">✏️ <span id="cmp-section-ttl">雑談を投稿</span></div>
     <div class="composer">
-      <div class="cat-pills" id="cat-pills"></div>
       <textarea id="cmp-text" placeholder="今、何食べた？気になることある？シェアしましょう"></textarea>
       <div id="cmp-preview" class="preview-img-wrap" style="display:none;">
         <img id="cmp-preview-img" class="preview-img">
         <button class="preview-clear" onclick="clearImage()">×</button>
       </div>
-      <div class="ai-tip" id="ai-tip">🍱 食事カテゴリ + 写真付きなら AI が栄養スコアを自動分析します</div>
+      <div class="ai-tip" id="ai-tip">🍱 食事カテゴリ + 写真付きなら AI が栄養スコアを自動分析します (10〜20秒)</div>
       <div class="composer-bar">
         <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真">📷</button>
         <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
         <div class="composer-meta"><span id="cmp-count">0</span>/500</div>
         <button class="btn" id="cmp-submit" onclick="submitPost()">投稿</button>
       </div>
+      <div class="err" id="cmp-err"></div>
     </div>
 
-    <div class="section-ttl">🌳 みんなの投稿</div>
+    <div class="section-ttl"><span id="feed-section-ttl">🌳 みんなの投稿</span></div>
     <div id="feed"></div>
   </div>
 </main>
@@ -168,6 +175,7 @@ let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_a
 let me = null;
 let _imageFile = null;
 let _curCat = '雑談';
+let _curTab = 'all';
 let _socket = null;
 let _categories = [];
 const EMOJIS = ['❤️', '🎉', '👍', '😊', '👏'];
@@ -227,22 +235,43 @@ async function initApp() {
   document.getElementById('who').textContent = (me && me.display_name) || '';
   const meta = await api('/api/plaza/meta');
   _categories = meta.categories;
-  // カテゴリピル
-  const pills = document.getElementById('cat-pills');
-  pills.innerHTML = _categories.map(c => `<button class="cp" data-cat="${escapeHtml(c)}" onclick="setCat('${escapeHtml(c)}')">${escapeHtml(c)}</button>`).join('');
-  setCat('雑談');
+  // タブ構築 (全部 + 各カテゴリ)
+  const TAB_META = {
+    'all': { label: '🌳 全部', placeholder: '今、何食べた？気になることある？シェア' },
+    '食事': { label: '🍱 食事', placeholder: '今日の食事をシェア (写真→AI栄養分析)', requireImage: true },
+    '相談': { label: '🆘 相談', placeholder: '健康・体調・職場で気になること、相談してみよう' },
+    '雑談': { label: '💬 雑談', placeholder: '思ったこと、共有したいことを自由に' },
+    '健康Tips': { label: '💡 Tips', placeholder: '健康に関する豆知識・コツをシェア' },
+  };
+  const bar = document.getElementById('tab-bar');
+  let html = `<button class="tab active t-all" data-tab="all" onclick="setTab('all')">${TAB_META.all.label}</button>`;
+  for (const c of _categories) {
+    const m = TAB_META[c] || { label: c };
+    html += `<button class="tab t-${c}" data-tab="${escapeHtml(c)}" onclick="setTab('${escapeHtml(c)}')">${m.label}</button>`;
+  }
+  bar.innerHTML = html;
+  window._TAB_META = TAB_META;
+  setTab('all');
   loadEvents();
   loadFeed();
   setupSocket();
 }
 
-function setCat(c) {
-  _curCat = c;
-  document.querySelectorAll('.cp').forEach(b => {
-    b.className = 'cp';
-    if (b.dataset.cat === c) b.classList.add('sel-' + c);
-  });
-  document.getElementById('ai-tip').classList.toggle('show', c === '食事');
+function setTab(t) {
+  _curTab = t;
+  // 投稿カテゴリは選択中タブと連動 (全部タブの時は雑談を既定に)
+  _curCat = (t === 'all') ? '雑談' : t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  // 投稿フォーム見出し+プレースホルダー切り替え
+  const meta = (window._TAB_META || {})[_curCat] || {};
+  const sectionTtl = (t === 'all') ? '雑談を投稿' : (meta.label || _curCat) + ' を投稿';
+  document.getElementById('cmp-section-ttl').textContent = sectionTtl;
+  document.getElementById('cmp-text').placeholder = meta.placeholder || '';
+  document.getElementById('ai-tip').classList.toggle('show', _curCat === '食事');
+  // フィード見出し
+  const feedTtl = (t === 'all') ? '🌳 みんなの投稿' : (meta.label || t) + ' の投稿';
+  document.getElementById('feed-section-ttl').textContent = feedTtl;
+  loadFeed();
 }
 
 function setupSocket() {
@@ -290,31 +319,61 @@ function clearImage() {
 }
 
 async function submitPost() {
+  const errEl = document.getElementById('cmp-err');
+  errEl.textContent = '';
   const text = document.getElementById('cmp-text').value.trim();
-  if (!text && !_imageFile) { alert('本文か画像が必要'); return; }
+  if (!text && !_imageFile) { errEl.textContent = '本文か画像を入力してください'; return; }
+  if (_curCat === '食事' && !_imageFile && !text) { errEl.textContent = '食事カテゴリは写真付きをおすすめ'; return; }
   const btn = document.getElementById('cmp-submit');
-  btn.disabled = true; btn.textContent = _curCat === '食事' && _imageFile ? '🧠 AI分析中…' : '投稿中…';
+  const isAI = _curCat === '食事' && _imageFile;
+  btn.disabled = true; btn.textContent = isAI ? '🧠 AI分析中…' : '投稿中…';
   try {
     const fd = new FormData();
     fd.append('category', _curCat);
     fd.append('content', text);
     if (_imageFile) fd.append('image', _imageFile);
     const r = await fetch('/api/plaza/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    if (!r.ok) {
+      let msg = 'HTTP ' + r.status;
+      try { const j = await r.json(); msg = j.msg || msg; } catch(e){}
+      errEl.textContent = '送信失敗: ' + msg;
+      return;
+    }
     const d = await r.json();
-    if (!d.success) { alert(d.msg || '失敗'); return; }
+    if (!d.success) { errEl.textContent = d.msg || '保存失敗'; return; }
     document.getElementById('cmp-text').value = '';
     document.getElementById('cmp-count').textContent = '0';
     clearImage();
-    prependPost(d.post);
-  } catch (e) { alert('通信エラー: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = '投稿'; }
+    // 食事+AI が成功してれば nutrition_scores が入っている
+    if (_curCat === '食事' && _imageFile && !d.post.nutrition_scores) {
+      errEl.style.color = '#b45309';
+      errEl.textContent = '⚠ AI栄養分析に失敗しました(投稿は保存済)。画像が食事と認識されなかった可能性。';
+      setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#dc2626'; }, 6000);
+    }
+    // 投稿カテゴリと合うタブにいれば即表示。違うタブなら教える
+    if (_curTab === 'all' || _curTab === _curCat) {
+      prependPost(d.post);
+    } else {
+      errEl.style.color = '#0f766e';
+      errEl.textContent = '✓ 投稿しました ([' + _curCat + ']タブで確認)';
+      setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#dc2626'; }, 4000);
+    }
+  } catch (e) {
+    errEl.textContent = '通信エラー: ' + (e.message || e);
+  } finally { btn.disabled = false; btn.textContent = '投稿'; }
 }
 
 async function loadFeed() {
-  const d = await api('/api/plaza/posts?limit=30');
+  const url = '/api/plaza/posts?limit=30' + (_curTab !== 'all' ? '&category=' + encodeURIComponent(_curTab) : '');
+  const d = await api(url);
   if (!d.success) return;
   const feed = document.getElementById('feed');
-  if (!d.posts.length) { feed.innerHTML = '<div class="empty"><div class="ico">🌳</div><div>まだ投稿がありません。<br>最初の一投目を!</div></div>'; return; }
+  if (!d.posts.length) {
+    const tabName = (window._TAB_META && window._TAB_META[_curTab] && window._TAB_META[_curTab].label) || _curTab;
+    const msg = _curTab === 'all' ? 'まだ投稿がありません。<br>最初の一投目を!' : tabName + ' の投稿はまだありません';
+    feed.innerHTML = '<div class="empty"><div class="ico">🌳</div><div>' + msg + '</div></div>';
+    return;
+  }
   feed.innerHTML = d.posts.map(postHtml).join('');
 }
 
@@ -378,6 +437,8 @@ function postHtml(p) {
 
 function prependPost(p) {
   if (document.getElementById('post-' + p.id) && p.kind !== 'archive') return;
+  // タブフィルタ: 全部以外は同じカテゴリのみ
+  if (_curTab !== 'all' && p.category !== _curTab) return;
   document.getElementById('feed').insertAdjacentHTML('afterbegin', postHtml(p));
 }
 function removePost(id) {
