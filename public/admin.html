@@ -111,6 +111,16 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div id="bulk-msg"></div>
   </div>
 
+  <div class="card" style="background:linear-gradient(135deg,#ecfeff,#f0fdfa);border-left:4px solid #06b6d4;">
+    <h2 style="color:#0e7490;">📦 CoWellユーザー移行 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">CoHub未登録のCoWellユーザーをCoHubに作成して紐付け</span></h2>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.6;">
+      CoWellの過去投稿/バディー会話/血圧データは <code>cw_users</code> に保管済。<br>
+      未マップユーザーをCoHubに新規作成すると、本人がログインしてCoWellデータを引き継ぎ閲覧できます。
+    </div>
+    <button class="btn" onclick="loadUnmappedCw()">🔄 未マップ一覧を読込</button>
+    <div id="cw-migrate-area" style="margin-top:14px;"></div>
+  </div>
+
   <div class="card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border-left:4px solid #10b981;">
     <h2 style="color:#047857;">🏥 健康管理室 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">現場の声・施策ボード・AI集約は専用ページに移動しました</span></h2>
     <div style="font-size:13px;color:#065f46;line-height:1.8;margin-bottom:12px;">
@@ -934,6 +944,118 @@ async function delUser(id, name) {
 
 function escapeHtml(s) {
   return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
+// 📦 CoWellユーザー移行
+// ============================================================
+function suggestLoginId(cw) {
+  // 候補: real_name のローマ字 (簡易) or nickname
+  const nick = (cw.nickname || '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  if (nick && /^[a-z0-9]/.test(nick)) return nick;
+  // real_name 苗字+名 を hepburn ローマ字化 (主要漢字のみ簡易)
+  return 'cw_' + (cw.cw_id || '').slice(0, 8);
+}
+function genTempPw() {
+  // 大小英数+記号、12文字
+  const a = 'abcdefghjkmnpqrstuvwxyz', b = 'ABCDEFGHJKMNPQRSTUVWXYZ', c = '23456789', d = '!@#$%';
+  let p = a[Math.floor(Math.random()*a.length)] + b[Math.floor(Math.random()*b.length)] + c[Math.floor(Math.random()*c.length)] + d[Math.floor(Math.random()*d.length)];
+  for (let i = 0; i < 8; i++) {
+    const all = a + b + c;
+    p += all[Math.floor(Math.random()*all.length)];
+  }
+  return p.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+async function loadUnmappedCw() {
+  const area = document.getElementById('cw-migrate-area');
+  area.innerHTML = '<div style="color:#94a3b8;font-size:12px;">読み込み中…</div>';
+  const r = await fetch('/api/cw-archive/unmapped-users', { headers: { 'Authorization': 'Bearer ' + token } });
+  const d = await r.json();
+  if (!d.success) { area.innerHTML = '<div style="color:#dc2626;">取得失敗</div>'; return; }
+  if (!d.users.length) { area.innerHTML = '<div style="color:#10b981;font-weight:700;padding:14px;text-align:center;background:#ecfdf5;border-radius:8px;">🎉 すべてマップ済です</div>'; return; }
+  // CoHub既存ユーザー (link 用)
+  const cohubUsers = (cachedUsers || []).slice().sort((a,b) => (a.display_name || '').localeCompare(b.display_name || ''));
+  const cohubOpts = '<option value="">- CoHubユーザー選択 -</option>' + cohubUsers.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.display_name)} (${escapeHtml(u.login_id)})</option>`).join('');
+  area.innerHTML = `<table>
+    <thead><tr>
+      <th style="width:120px;">CoWell ID</th>
+      <th style="width:140px;">実名</th>
+      <th style="width:80px;">データ件数</th>
+      <th>新規作成 (CoHubに作る)</th>
+      <th>or 既存に紐付け</th>
+    </tr></thead>
+    <tbody>` + d.users.map((u, i) => {
+    const cnt = (u.post_count || 0) + (u.msg_count || 0) + (u.bp_count || 0);
+    return `<tr id="cw-mig-${i}">
+      <td style="font-size:12px;"><div style="font-weight:700;">${escapeHtml(u.nickname || '-')}</div><div style="font-size:9px;color:#94a3b8;">${escapeHtml(u.cw_id || '')}</div></td>
+      <td style="font-size:12px;">${escapeHtml(u.real_name || '-')}<br><span style="font-size:10px;color:#94a3b8;">${escapeHtml(u.department || '')}</span></td>
+      <td style="font-size:11px;color:#475569;">投稿${u.post_count}<br>会話${u.msg_count}<br>血圧${u.bp_count}</td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <input type="text" value="${escapeHtml(suggestLoginId(u))}" id="mig-login-${i}" placeholder="ログインID" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+          <input type="text" value="${escapeHtml(u.real_name || u.nickname || '')}" id="mig-name-${i}" placeholder="表示名" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+          <div style="display:flex;gap:3px;">
+            <input type="text" value="${escapeHtml(genTempPw())}" id="mig-pw-${i}" placeholder="パスワード" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;font-family:monospace;">
+            <button class="btn btn-ghost" style="padding:3px 6px;font-size:10px;" onclick="document.getElementById('mig-pw-${i}').value=genTempPw()" title="再生成">🔄</button>
+          </div>
+          <div style="display:flex;gap:3px;">
+            <select id="mig-co-${i}" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+              <option value="SU_HQ">SU本社</option><option value="SU_SAITAMA">SU埼玉</option><option value="SU_MKANTO">SU南関東</option>
+              <option value="SU_ZAMA">SU座間</option><option value="IBA_KASHIMA">IBA鹿島</option><option value="IBA_SANWA">IBA三和</option>
+              <option value="SUZUE">スズエ</option><option value="ADMIN">管理職</option>
+            </select>
+            <select id="mig-type-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+              <option value="office">事務</option><option value="field">現場</option><option value="admin">管理職</option>
+            </select>
+          </div>
+          <button class="btn" style="background:#06b6d4;font-size:11px;padding:6px 10px;" onclick="migrateOne('${escapeHtml(u.cw_id)}', ${i})">✓ 作成して紐付け</button>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <select id="mig-link-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;max-width:180px;">${cohubOpts}</select>
+          <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px;" onclick="linkExisting('${escapeHtml(u.cw_id)}', ${i})">🔗 既存に紐付け</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') + '</tbody></table>';
+}
+
+async function migrateOne(cwId, idx) {
+  const payload = {
+    login_id: document.getElementById('mig-login-' + idx).value.trim(),
+    display_name: document.getElementById('mig-name-' + idx).value.trim(),
+    password: document.getElementById('mig-pw-' + idx).value,
+    company_code: document.getElementById('mig-co-' + idx).value,
+    employee_type: document.getElementById('mig-type-' + idx).value,
+    role: 'member',
+  };
+  const r = await fetch('/api/cw-archive/migrate-user/' + encodeURIComponent(cwId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(payload),
+  });
+  const d = await r.json();
+  if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+  alert('✓ ' + d.msg + '\n\nログインID: ' + d.login_id + '\nパスワード: ' + payload.password + '\n\n→ ご本人にお知らせください');
+  document.getElementById('cw-mig-' + idx).remove();
+  loadUsers();
+}
+
+async function linkExisting(cwId, idx) {
+  const cohubUid = document.getElementById('mig-link-' + idx).value;
+  if (!cohubUid) { alert('CoHubユーザーを選択してください'); return; }
+  if (!confirm('既存のCoHubユーザーにこのCoWellデータを紐付けます。本当によろしいですか？')) return;
+  const r = await fetch('/api/cw-archive/link-user/' + encodeURIComponent(cwId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ cohub_uid: cohubUid }),
+  });
+  const d = await r.json();
+  if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+  alert('✓ ' + d.msg);
+  document.getElementById('cw-mig-' + idx).remove();
 }
 
 // ===== チャットログ（管理者向け） =====
