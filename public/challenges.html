@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏆 チャレンジ — CoHub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<meta name="theme-color" content="#f59e0b">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #fffbeb; color: #0f172a; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+main { max-width: 760px; margin: 0 auto; padding: 14px; padding-bottom: 100px; }
+.card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.btn { padding: 9px 16px; background: #f59e0b; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn-success { background: #10b981; }
+.btn-ghost { background: #e2e8f0; color: #0f172a; }
+.btn-danger { background: #ef4444; }
+.cha-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.cha-icon { font-size: 32px; }
+.cha-title { font-weight: 800; font-size: 15px; }
+.cha-meta { font-size: 11px; color: #94a3b8; }
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; color: #fff; }
+.s-draft { background: #94a3b8; }
+.s-active { background: #10b981; }
+.s-closed { background: #64748b; }
+.kpi-form { background: #fffbeb; padding: 12px; border-radius: 10px; margin-top: 10px; }
+.kpi-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.kpi-row label { font-size: 12px; font-weight: 700; color: #78350f; min-width: 100px; }
+.kpi-row input, .kpi-row select { padding: 7px 10px; border: 1px solid #fcd34d; border-radius: 6px; font-size: 13px; }
+.history-grid { display: grid; grid-template-columns: repeat(auto-fill, 28px); gap: 4px; margin-top: 10px; }
+.day { width: 28px; height: 28px; border-radius: 6px; background: #e2e8f0; font-size: 9px; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: help; }
+.day.has { background: #10b981; color: #fff; font-weight: 700; }
+.empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
+.empty .ico { font-size: 48px; margin-bottom: 12px; }
+.login-redirect { max-width: 420px; margin: 60px auto; background: #fff; border-radius: 14px; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏆 チャレンジ</h1>
+  <div class="spacer"></div>
+  <div id="who" style="font-size:12px;"></div>
+  <button id="btn-admin" onclick="location.href='/challenges-admin.html'" style="display:none;margin-left:14px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">⚙ 管理</button>
+  <button onclick="location.href='/'" style="margin-left:8px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">✕ 閉じる</button>
+</header>
+<main>
+  <div id="login-redirect" class="login-redirect" style="display:none;">
+    <div style="font-size:40px;margin-bottom:12px;">🔄</div>
+    <div>CoHubへ移動中…</div>
+  </div>
+  <div id="content" style="display:none;">
+    <div id="active-section">
+      <div style="font-size:13px;font-weight:700;color:#78350f;margin-bottom:8px;padding-left:4px;">🔥 開催中のチャレンジ</div>
+      <div id="active-list"></div>
+    </div>
+    <div id="closed-section" style="margin-top:20px;">
+      <div style="font-size:13px;font-weight:700;color:#64748b;margin-bottom:8px;padding-left:4px;">📦 終了したチャレンジ</div>
+      <div id="closed-list"></div>
+    </div>
+  </div>
+</main>
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let me = null, _meta = null;
+function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function init() {
+  if (!token) { showRedirect(); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
+    me = u;
+    if (u && (u.employee_type === 'admin' || u.is_field_promoter || u.role === 'admin')) {
+      document.getElementById('btn-admin').style.display = 'inline-flex';
+    }
+    document.getElementById('who').textContent = (u.display_name || '');
+    document.getElementById('content').style.display = 'block';
+    await loadList();
+  } catch (e) { showRedirect(); }
+}
+function showRedirect() {
+  document.getElementById('login-redirect').style.display = 'block';
+  document.getElementById('content').style.display = 'none';
+  setTimeout(() => location.href = '/', 800);
+}
+async function api(p, opts) {
+  opts = opts || {}; opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(p, opts);
+  if (r.status === 401) { showRedirect(); throw new Error('401'); }
+  return r.json();
+}
+
+async function loadList() {
+  const d = await api('/api/challenges?limit=100');
+  if (!d.success) return;
+  const all = d.challenges || [];
+  const active = all.filter(c => c.status === 'active');
+  const closed = all.filter(c => c.status !== 'active');
+  document.getElementById('active-list').innerHTML = active.length ? active.map(cardHtml).join('') :
+    '<div class="empty"><div class="ico">🌱</div><div>開催中のチャレンジはありません</div></div>';
+  document.getElementById('closed-list').innerHTML = closed.length ? closed.map(cardHtml).join('') :
+    '<div style="color:#94a3b8;font-size:12px;padding:14px;">過去のチャレンジはありません</div>';
+}
+
+function cardHtml(c) {
+  const sCls = 's-' + c.status;
+  const sLbl = { active: '🔥 開催中', draft: '📝 準備中', closed: '✅ 終了' }[c.status] || c.status;
+  let kpiItems = []; try { kpiItems = JSON.parse(c.kpi_items || '[]'); } catch(e) {}
+  const periodTxt = (c.period_start || c.period_end) ? `${c.period_start || '-'} 〜 ${c.period_end || '-'}` : '期間未設定';
+  const joined = c.i_joined > 0;
+  return `<article class="card" id="cha-${c.id}">
+    <div class="cha-header">
+      <div class="cha-icon">${c.icon || '💪'}</div>
+      <div style="flex:1;">
+        <div class="cha-title">${escapeHtml(c.title)} <span class="status-badge ${sCls}">${sLbl}</span></div>
+        <div class="cha-meta">${escapeHtml(periodTxt)} · 参加者 ${c.participant_count}名</div>
+      </div>
+    </div>
+    ${c.description ? `<div style="font-size:13px;line-height:1.6;color:#475569;white-space:pre-wrap;margin:6px 0;">${escapeHtml(c.description)}</div>` : ''}
+    ${c.status === 'active' ? (
+      joined
+        ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-success" onclick="openKpiForm(${c.id})">📝 今日のKPI記録</button>
+            <button class="btn btn-ghost" onclick="loadHistory(${c.id})">📊 自分の履歴</button>
+            <button class="btn btn-ghost" style="margin-left:auto;" onclick="leave(${c.id})">参加解除</button>
+          </div>`
+        : `<button class="btn" style="margin-top:10px;" onclick="join(${c.id})">🙋 参加する</button>`
+    ) : ''}
+    <div id="kpi-area-${c.id}"></div>
+    <div id="hist-area-${c.id}"></div>
+    ${kpiItems.length ? `<details style="margin-top:8px;"><summary style="font-size:11px;color:#94a3b8;cursor:pointer;">KPI項目 ${kpiItems.length}件</summary>
+      <ul style="font-size:11px;color:#64748b;margin:6px 0 0 20px;">${kpiItems.map(k => `<li>${escapeHtml(k.label||k.key)}${k.target ? ' (目標:' + escapeHtml(String(k.target)) + ')' : ''}</li>`).join('')}</ul>
+    </details>` : ''}
+  </article>`;
+}
+
+async function join(id) {
+  await api('/api/challenges/' + id + '/join', { method: 'POST' });
+  loadList();
+}
+async function leave(id) {
+  if (!confirm('このチャレンジへの参加を解除しますか？\n(記録は残ります)')) return;
+  await api('/api/challenges/' + id + '/leave', { method: 'POST' });
+  loadList();
+}
+
+async function openKpiForm(id) {
+  const area = document.getElementById('kpi-area-' + id);
+  if (area.innerHTML) { area.innerHTML = ''; return; }
+  const d = await api('/api/challenges/' + id);
+  if (!d.success) return;
+  const items = JSON.parse(d.challenge.kpi_items || '[]');
+  if (!items.length) { area.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">KPI項目が未設定です</div>'; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  area.innerHTML = `<div class="kpi-form">
+    <div style="font-size:12px;font-weight:700;color:#78350f;margin-bottom:8px;">📝 ${today} のKPI</div>
+    ${items.map(k => kpiInput(id, k)).join('')}
+    <div class="kpi-row"><label>コメント</label><input type="text" id="cmt-${id}" placeholder="(任意) 今日の様子・気付き"></div>
+    <button class="btn btn-success" onclick="submitKpi(${id})">保存</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('kpi-area-${id}').innerHTML=''">キャンセル</button>
+  </div>`;
+}
+
+function kpiInput(cid, k) {
+  const id = 'kpi-' + cid + '-' + (k.key || k.label).replace(/[^a-zA-Z0-9]/g, '_');
+  if (k.type === 'bool') {
+    return `<div class="kpi-row"><label>${escapeHtml(k.label||k.key)}</label>
+      <select id="${id}" data-key="${escapeHtml(k.key||k.label)}">
+        <option value="">-</option>
+        <option value="1">✓ できた</option>
+        <option value="0">✗ できなかった</option>
+      </select>${k.unit ? `<span style="font-size:11px;color:#94a3b8;">${escapeHtml(k.unit)}</span>` : ''}</div>`;
+  }
+  if (k.type === 'choice' && Array.isArray(k.options)) {
+    return `<div class="kpi-row"><label>${escapeHtml(k.label||k.key)}</label>
+      <select id="${id}" data-key="${escapeHtml(k.key||k.label)}">
+        <option value="">-</option>
+        ${k.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+      </select></div>`;
+  }
+  return `<div class="kpi-row"><label>${escapeHtml(k.label||k.key)}</label>
+    <input type="number" id="${id}" data-key="${escapeHtml(k.key||k.label)}" placeholder="${escapeHtml(String(k.target||''))}">
+    ${k.unit ? `<span style="font-size:11px;color:#94a3b8;">${escapeHtml(k.unit)}</span>` : ''}
+    ${k.target ? `<span style="font-size:10px;color:#94a3b8;">目標 ${escapeHtml(String(k.target))}</span>` : ''}</div>`;
+}
+
+async function submitKpi(id) {
+  const inputs = document.querySelectorAll('#kpi-area-' + id + ' [data-key]');
+  const values = {};
+  inputs.forEach(el => {
+    const k = el.dataset.key;
+    const v = el.value;
+    if (v !== '') values[k] = (el.tagName === 'INPUT' && el.type === 'number') ? Number(v) : v;
+  });
+  const comment = document.getElementById('cmt-' + id).value || '';
+  const r = await api('/api/challenges/' + id + '/kpi', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values, comment }),
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  document.getElementById('kpi-area-' + id).innerHTML = '<div style="background:#d1fae5;color:#065f46;padding:8px;border-radius:6px;font-size:12px;margin-top:6px;">✓ 記録しました</div>';
+  setTimeout(() => { document.getElementById('kpi-area-' + id).innerHTML = ''; loadList(); }, 1500);
+}
+
+async function loadHistory(id) {
+  const area = document.getElementById('hist-area-' + id);
+  if (area.innerHTML) { area.innerHTML = ''; return; }
+  const d = await api('/api/challenges/' + id + '/my-kpi');
+  if (!d.success) return;
+  if (!d.records.length) { area.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">記録なし</div>'; return; }
+  // 最近30日のヒートマップ
+  const today = new Date();
+  const map = new Map(d.records.map(r => [r.record_date, r]));
+  let cells = '';
+  for (let i = 29; i >= 0; i--) {
+    const d2 = new Date(today.getTime() - i * 86400000);
+    const ds = d2.toISOString().slice(0, 10);
+    const has = map.has(ds);
+    cells += `<div class="day ${has ? 'has' : ''}" title="${ds}${has ? ' ✓' : ''}">${d2.getDate()}</div>`;
+  }
+  area.innerHTML = `<div style="margin-top:10px;font-size:12px;font-weight:700;color:#475569;">📊 直近30日の記録</div>
+    <div class="history-grid">${cells}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:8px;">記録日数: <b>${d.records.length}日</b></div>`;
+}
+
+init();
+</script>
+</body>
+</html>

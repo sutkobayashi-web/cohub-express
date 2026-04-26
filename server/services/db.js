@@ -364,6 +364,40 @@ function getDb() {
     PRIMARY KEY (theme_id, user_id)
   );
   CREATE INDEX IF NOT EXISTS idx_wtv_theme ON wellness_theme_votes(theme_id);`);
+  // チャレンジ + KPI (Phase11) — CoWell移植
+  _db.exec(`CREATE TABLE IF NOT EXISTS challenges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    theme_id INTEGER,
+    title TEXT NOT NULL,
+    description TEXT,
+    icon TEXT DEFAULT '💪',
+    period_start TEXT,
+    period_end TEXT,
+    kpi_items TEXT DEFAULT '[]',  -- JSON: [{key,label,unit,target,type:'number|bool|choice'}]
+    status TEXT NOT NULL DEFAULT 'draft',
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_ch_status ON challenges(status, period_end DESC);
+  CREATE TABLE IF NOT EXISTS challenge_participants (
+    challenge_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    joined_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (challenge_id, user_id)
+  );
+  CREATE TABLE IF NOT EXISTS kpi_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    challenge_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    record_date TEXT NOT NULL,
+    kpi_values TEXT DEFAULT '{}',  -- JSON: {kpi_key: value}
+    comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(challenge_id, user_id, record_date)
+  );
+  CREATE INDEX IF NOT EXISTS idx_kpi_challenge ON kpi_records(challenge_id, record_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_kpi_user ON kpi_records(user_id, record_date DESC);`);
   // 既定イベント: 🐠 水族館 (CoWell)
   const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
   if (!eventExists) {

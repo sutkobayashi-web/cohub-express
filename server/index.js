@@ -196,6 +196,15 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 3000, standardHeaders: true, legacyHeaders: false });
+// 認証系は別の厳格な制限 (ブルートフォース対策)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 30,
+  standardHeaders: true, legacyHeaders: false,
+  message: { success: false, msg: 'ログイン試行が多すぎます。15分後に再試行してください' },
+  skipSuccessfulRequests: true,  // 成功は数えない
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
 app.use('/api/', apiLimiter);
 
 app.use(express.static(path.join(__dirname, '..', 'public'), {
@@ -229,6 +238,7 @@ app.use('/api/plaza', require('./routes/plaza'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/myhealth', require('./routes/health'));
 app.use('/api/themes', require('./routes/themes'));
+app.use('/api/challenges', require('./routes/challenges'));
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {
