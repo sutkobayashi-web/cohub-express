@@ -236,29 +236,19 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
   const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
-  const prompt = `この食事画像を栄養面で分析してください。${userMemo ? '\n投稿者メモ: ' + userMemo.slice(0, 200) : ''}
+  const prompt = `あなたは管理栄養士です。この食事画像を見て、栄養スコアと一言コメントを返してください。
+${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
+判定が難しくても必ず「見た目から推測した best estimate」のスコアを返すこと。
+判定不能 (食事ではない等) の場合のみ scores を全て null にする。
 
-以下の純粋なJSON (Markdownや前置き不要、コードブロック禁止) で回答してください。
-全ての値は指定された型を厳守すること:
+返答形式: JSON のみ。前置き、コードフェンス、説明文を一切付けない。
 
-{
-  "scores": {
-    "protein": 整数 (1〜5),
-    "fat":     整数 (1〜5),
-    "carb":    整数 (1〜5),
-    "vitamin": 整数 (1〜5),
-    "mineral": 整数 (1〜5),
-    "salt":    整数 (1〜5)
-  },
-  "comment": "1行の文字列 (60字以内)。良い点と改善点を自然な日本語1文にまとめる"
-}
+{"scores":{"protein":3,"fat":3,"carb":3,"vitamin":3,"mineral":3,"salt":3},"comment":"野菜が豊富で◎、塩分を少し控えめにするとさらに良いです"}
 
-重要:
-- comment は必ず string 型 (object/array禁止)。例: "野菜が豊富で◎、塩分は少し控えめにすると更に良いです"
-- scores は必ず integer 型 (string禁止)
-- 1=とても少ない, 3=ちょうどよい目安, 5=多め
+ルール:
+- 各スコアは 1〜5 の整数 (1=非常に少ない, 3=適量, 5=多い)
 - vitamin/mineral は野菜・果物の量で評価
-- 不適切な画像 (食事ではない/読み取れない) の場合は scores 全て null、comment に理由文字列`;
+- comment は string、60字以内、改善1点+良い点1点を自然な1文で`;
 
   const body = {
     contents: [{
@@ -268,22 +258,31 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo) {
         { text: prompt },
       ],
     }],
-    generationConfig: { temperature: 0.4, maxOutputTokens: 600, responseMimeType: 'application/json' },
+    generationConfig: { temperature: 0.5, maxOutputTokens: 500 },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!resp.ok) {
     const txt = await resp.text();
-    throw new Error('Gemini vision error: ' + resp.status + ' ' + txt.slice(0, 200));
+    throw new Error('Gemini vision HTTP ' + resp.status + ': ' + txt.slice(0, 200));
   }
   const data = await resp.json();
   const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   let text = '';
   if (parts) for (const p of parts) if (p.text) text += p.text;
-  text = text.replace(/^```json\s*|```\s*$/g, '').trim();
+  console.log('[analyzeFoodImage] raw AI response:', text.slice(0, 300));
+  // コードフェンス除去 (```json ... ``` パターン全部)
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  // JSON部分だけ抽出 (前後にゴミ文字があっても拾う)
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) text = m[0];
   let parsed;
   try { parsed = JSON.parse(text); }
-  catch (e) { throw new Error('AI応答解析失敗: ' + text.slice(0, 200)); }
+  catch (e) {
+    console.warn('[analyzeFoodImage] JSON parse failed:', e.message, 'text=', text.slice(0, 300));
+    throw new Error('AI応答解析失敗: ' + text.slice(0, 100));
+  }
+  console.log('[analyzeFoodImage] parsed:', JSON.stringify(parsed).slice(0, 200));
   return parsed;
 }
 

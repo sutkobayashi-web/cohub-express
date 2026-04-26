@@ -64,8 +64,9 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_wa_status ON wellness_actions(status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wa_at ON wellness_actions(created_at DESC);`);
-  // 健康管理室への名称統一 (旧: 労働安全健康推進室 / 安全衛生健康管理室)
-  _db.prepare("UPDATE floors SET name = '健康管理室' WHERE code = 'wellness_room'").run();
+  // 健康管理室フロア廃止 (2026-04-26): /plaza.html (ひろば) に一本化
+  _db.prepare("UPDATE positions SET floor_code = 'lobby' WHERE floor_code = 'wellness_room'").run();
+  _db.prepare("DELETE FROM floors WHERE code = 'wellness_room'").run();
   // 社内タイムライン (掲示板) — Phase1 コミュニケーション基盤強化
   _db.exec(`CREATE TABLE IF NOT EXISTS board_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

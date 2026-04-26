@@ -117,28 +117,31 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   let nutritionScores = null;
   let aiComment = null;
   if (category === '食事' && req.file) {
+    console.log('[plaza] AI analysis start: file=' + req.file.filename + ' mime=' + req.file.mimetype);
     try {
       const buf = fs.readFileSync(req.file.path);
       const r = await analyzeFoodImage(buf, req.file.mimetype, content);
       if (r && r.scores && typeof r.scores === 'object') {
         // 各スコアを整数に正規化 (string→int, 範囲外はclamp)
         const norm = {};
+        let hasAny = false;
         for (const k of ['protein', 'fat', 'carb', 'vitamin', 'mineral', 'salt']) {
           const v = parseInt(r.scores[k]);
-          norm[k] = isNaN(v) ? null : Math.max(1, Math.min(5, v));
+          if (!isNaN(v)) { norm[k] = Math.max(1, Math.min(5, v)); hasAny = true; }
+          else norm[k] = null;
         }
-        nutritionScores = JSON.stringify(norm);
+        if (hasAny) nutritionScores = JSON.stringify(norm);
       }
       // コメントが object なら適切に文字列化
       if (r && r.comment != null) {
         if (typeof r.comment === 'string') aiComment = r.comment;
         else if (typeof r.comment === 'object') {
-          // {improvement, good} 等のキー形式 → 連結
           aiComment = Object.values(r.comment).filter(v => typeof v === 'string').join(' / ');
         }
-        if (aiComment) aiComment = aiComment.slice(0, 200);
+        if (aiComment) aiComment = String(aiComment).slice(0, 200);
       }
-    } catch (e) { console.warn('food AI fail:', e.message); }
+      console.log('[plaza] AI analysis done: scores=' + (nutritionScores ? 'YES' : 'no') + ' comment=' + (aiComment ? aiComment.slice(0, 60) : 'no'));
+    } catch (e) { console.warn('[plaza] food AI fail:', e.message); }
   }
 
   const db = getDb();
