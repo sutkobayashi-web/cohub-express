@@ -647,6 +647,10 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
   <!-- キャンバス領域 (会議室時は上にビデオ、下にアバター空間) -->
   <div id="space-canvas-wrap">
+    <!-- ロビー専用: 工事中バナー (lobbyフロアの時のみJSで表示) -->
+    <div id="lobby-construction-banner" style="display:none;position:absolute;top:48px;left:50%;transform:translateX(-50%);z-index:8;padding:10px 22px;background:repeating-linear-gradient(45deg,#fde047 0 14px,#1f2937 14px 28px);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.25);pointer-events:none;">
+      <div style="background:#fff;color:#1f2937;font-weight:800;font-size:15px;padding:8px 18px;border-radius:6px;letter-spacing:1px;border:2px solid #1f2937;">🚧 只今、工事中 🚧</div>
+    </div>
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
     <!-- 健康管理室: CoWell ネイティブの「ひろば」を iframe で表示 -->
@@ -1727,6 +1731,8 @@ function connectSocket() {
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
       if (fname) fname.textContent = (data.floor.icon ? data.floor.icon + ' ' : '') + data.floor.name;
+      const cbn = document.getElementById('lobby-construction-banner');
+      if (cbn) cbn.style.display = (data.floor.code === 'lobby') ? 'block' : 'none';
       loadBackground(data.floor.bg_image);
       applyFloorLayout(data.floor);
       resize();
