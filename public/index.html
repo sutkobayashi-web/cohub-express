@@ -2480,26 +2480,15 @@ let conciergeFull = null; // { canvas, w, h } — 透過処理済みキャンバ
 })();
 
 // ===== ドラッグ&クリック移動 =====
-// 全身ヒット判定: 頭円(r=35) または 体矩形(横±30, 縦 cy+15 〜 cy+90)
-function hitTestAvatarBody(worldX, worldY, ucx, ucy) {
-  const dx = worldX - ucx, dy = worldY - ucy;
-  // 頭
-  if (dx * dx + dy * dy < 35 * 35) return true;
-  // 体 (頭下 15px から 90px までの矩形、横 60px)
-  if (Math.abs(dx) < 30 && dy > 15 && dy < 90) return true;
-  return false;
-}
-
 function hitTestPeer(worldX, worldY) {
-  // 自分以外のオンラインアバターを当たり判定 (頭+体)
-  // 距離が近い(=頭中心に近い)順に優先するため d2 を比較スコアとして使う
+  // 自分以外のオンラインアバターを当たり判定 (半径35px)
+  const HR2 = 35 * 35;
   let hit = null;
-  let bestD = Infinity;
+  let bestD = HR2;
   for (const uid in users) {
     if (uid === me) continue;
     const u = users[uid];
     if (!u || u.cx == null || u.status === 'offline') continue;
-    if (!hitTestAvatarBody(worldX, worldY, u.cx, u.cy)) continue;
     const dx = worldX - u.cx, dy = worldY - u.cy;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestD) { bestD = d2; hit = u; }
@@ -2508,10 +2497,11 @@ function hitTestPeer(worldX, worldY) {
 }
 
 function hitTestSelf(worldX, worldY) {
-  // 自分のアバター当たり判定 (頭+体)
+  // 自分のアバター当たり判定 (半径32px ≒ アバター本体)
   if (!me || !users[me] || users[me].cx == null) return false;
   const u = users[me];
-  return hitTestAvatarBody(worldX, worldY, u.cx, u.cy);
+  const dx = worldX - u.cx, dy = worldY - u.cy;
+  return (dx * dx + dy * dy) < (32 * 32);
 }
 
 function onPointerDown(e) {
@@ -2932,46 +2922,6 @@ function drawConciergeStanding(u) {
   ctx.restore();
 }
 
-// アバター体シルエット (頭の下に描く簡易な胴体)
-// リングカラーをそのまま体色に使うので、会社識別が体まで広がる効果がある
-function drawAvatarBody(cx, cy, r, ringColor) {
-  const bodyTop = cy + r * 0.55;     // 頭円の少し内側から開始 (首が見えるように)
-  const bodyH = 60;                  // 体の高さ
-  const shoulderW = r * 2.0;         // 肩幅 ≈ 56px
-  const waistW = r * 1.45;           // 腰幅 ≈ 41px
-  const bodyBottom = bodyTop + bodyH;
-  ctx.save();
-  // 体の輪郭 (台形に角を丸めたシルエット)
-  ctx.fillStyle = ringColor;
-  ctx.beginPath();
-  // 左肩 (角丸)
-  ctx.moveTo(cx - shoulderW / 2, bodyTop + 7);
-  ctx.quadraticCurveTo(cx - shoulderW / 2, bodyTop, cx - shoulderW / 2 + 7, bodyTop);
-  // 上辺 → 右肩
-  ctx.lineTo(cx + shoulderW / 2 - 7, bodyTop);
-  ctx.quadraticCurveTo(cx + shoulderW / 2, bodyTop, cx + shoulderW / 2, bodyTop + 7);
-  // 右辺 → 右腰
-  ctx.lineTo(cx + waistW / 2 + 2, bodyBottom - 4);
-  ctx.quadraticCurveTo(cx + waistW / 2, bodyBottom, cx + waistW / 2 - 4, bodyBottom);
-  // 底辺 → 左腰
-  ctx.lineTo(cx - waistW / 2 + 4, bodyBottom);
-  ctx.quadraticCurveTo(cx - waistW / 2, bodyBottom, cx - waistW / 2 - 2, bodyBottom - 4);
-  ctx.closePath();
-  ctx.fill();
-  // 内側に薄いハイライト (上 1/3 を白でオーバーレイ → 立体感)
-  const grad = ctx.createLinearGradient(cx, bodyTop, cx, bodyBottom);
-  grad.addColorStop(0, 'rgba(255,255,255,0.18)');
-  grad.addColorStop(0.5, 'rgba(255,255,255,0)');
-  grad.addColorStop(1, 'rgba(0,0,0,0.12)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-  // 縁を少し濃く
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.restore();
-}
-
 function drawAvatar(u) {
   // 受付AI 葵 は立ち姿で描画 (cy=足元 基準)
   if (u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas) {
@@ -2993,8 +2943,6 @@ function drawAvatar(u) {
   ctx.save();
   // フェードイン不透明度
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
-  // ===== 体シルエット (頭の下) — 頭より先に描いて頭の後ろになるように =====
-  drawAvatarBody(cx, cy, r, u.ring || '#475569');
   // ハドル所属外周リング (紫)
   if (huddleZones.length && userHuddleCode(u)) {
     ctx.beginPath();
@@ -3062,18 +3010,17 @@ function drawAvatar(u) {
   }
   ctx.shadowColor = 'transparent';
 
-  // 名前バッジ (体の下に表示するため位置を下げた)
+  // 名前バッジ
   ctx.font = '600 11px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const label = (u.name || '') + (u.status && u.status !== 'online' ? ' (' + u.status + ')' : '');
   const tw = Math.round(ctx.measureText(label).width + 14);
-  const labelY = cy + r + 70;  // 体(60px)の下に配置
   ctx.fillStyle = 'rgba(15,23,42,0.85)';
-  roundRect(cx - Math.round(tw / 2), labelY, tw, 20, 10);
+  roundRect(cx - Math.round(tw / 2), cy + r + 4, tw, 20, 10);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.fillText(label, cx, labelY + 10);
+  ctx.fillText(label, cx, cy + r + 14);
 
   // ステータスドット
   const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : u.status === '集中中' ? '#8b5cf6' : '#10b981';
