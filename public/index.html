@@ -2524,8 +2524,6 @@ function onPointerDown(e) {
     return;
   }
   hidePeerMenu();
-  // 1Fロビー (一人称視点) では床移動は無効: 玄関で立ち止まっているイメージ
-  if (currentFloor && currentFloor.code === 'lobby') return;
   canvas.setPointerCapture(e.pointerId);
   dragging = true;
   canvas.classList.add('dragging');
@@ -2570,32 +2568,17 @@ function moveTo(x, y) {
 function render() {
   if (!ctx) return;
 
-  // 1Fロビー (一人称視点モード) — 受付に葵が立ち、他の人はソファ等の所定位置に着座
-  // 床移動は無効化、各ユーザーは uid ハッシュで決まる座席に固定配置
+  // 1Fロビー (一人称視点モード) — 葵だけ受付に固定、一般ユーザーは自由に移動可
   const isLobbyView = currentFloor && currentFloor.code === 'lobby';
-  const LOBBY_BOT_POS = { x: 560, y: 510 };  // 葵: 受付カウンター背後 (頭+胸が見える位置・少し下げ)
+  const LOBBY_BOT_POS = { x: 560, y: 510 };  // 葵: 受付カウンター背後 (頭+胸が見える位置)
   const LOBBY_COUNTER_TOP_Y = 480;            // 受付カウンター上端 (この線でクリップ→葵の腰下が隠れる)
-  const LOBBY_SEATS = [
-    { x: 145, y: 580 },  // 左ソファ 1人目
-    { x: 245, y: 580 },  // 左ソファ 2人目
-    { x: 345, y: 620 },  // ソファ前 立ち位置
-    { x: 560, y: 760 },  // 中央 (受付に向かう人)
-    { x: 820, y: 600 },  // 右側
-    { x: 940, y: 600 },  // エレベーター前
-  ];
-  function lobbySeatFor(uid) {
-    if (uid === 'bot_aoi') return LOBBY_BOT_POS;
-    let h = 0;
-    for (let i = 0; i < uid.length; i++) h = ((h << 5) - h + uid.charCodeAt(i)) | 0;
-    return LOBBY_SEATS[Math.abs(h) % LOBBY_SEATS.length];
-  }
 
   // 補間: targets → users[uid].cx/cy に近づける (ease-out、ゴール付近スナップで発振防止)
   for (const uid in targets) {
     if (!users[uid]) continue;
     let t = targets[uid];
-    // ロビーは座席自動配置で targets を上書き
-    if (isLobbyView) t = lobbySeatFor(uid);
+    // ロビーでは葵だけ受付の固定位置に強制 (一般ユーザーは自由移動)
+    if (isLobbyView && uid === 'bot_aoi') t = LOBBY_BOT_POS;
     const u = users[uid];
     if (u.cx == null) { u.cx = t.x; u.cy = t.y; continue; }
     const dx = t.x - u.cx;
@@ -2885,8 +2868,8 @@ function drawFloorEntrance(x, y, floorCode) {
 
 // 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
 function drawConciergeStanding(u) {
-  // ロビー時は少し大きめ (240) でカウンターに堂々と立つ感じ、他フロア時は従来 210
-  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 240 : 210;
+  // ロビー時は 1.2倍 大きめ (288) でカウンターに堂々と立つ感じ、他フロア時は従来 210
+  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 288 : 210;
   const aspect = conciergeFull.w / conciergeFull.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
