@@ -867,20 +867,24 @@ io.on('connection', (socket) => {
 
   // ささやき: 接触している相手にだけ本文配信。それ以外の同フロア在席者には💭インジケーターのみ
   // DB保存なし、自分のログにも残らない (完全揮発)
-  socket.on('chat:whisper', (data) => {
+  socket.on('chat:whisper', async (data) => {
     const content = (data && data.content || '').toString().trim().slice(0, 500);
     if (!content) return;
     const sender = presence.get(uid);
     if (!sender) return;
-    // 同フロアの在席者から接触距離以内の相手を抽出 (= ささやき参加者)
+    // 同フロアの在席者から接触距離以内の相手を抽出 (= ささやき参加者) — bot も含む
     const peers = [];
+    const botPeers = [];
     for (const [u, v] of presence) {
       if (u === uid) continue;
       if (v.floor !== sender.floor) continue;
       if (v.status === 'offline') continue;
       const dx = sender.x - v.x, dy = sender.y - v.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= WHISPER_TOUCH_DISTANCE) peers.push(u);
+      if (dist <= WHISPER_TOUCH_DISTANCE) {
+        peers.push(u);
+        if (v.isBot) botPeers.push(u);
+      }
     }
     if (!peers.length) return;  // 誰も接触していない時はそもそも送らせない (UI側でも抑止)
     const at = new Date().toISOString();
@@ -890,6 +894,7 @@ io.on('connection', (socket) => {
     for (const peerUid of peers) {
       const tp = presence.get(peerUid);
       if (!tp) continue;
+      if (tp.isBot) continue;  // bot は socket がないのでスキップ (後で AI応答を別途生成)
       const s = io.sockets.sockets.get(tp.socketId);
       if (s) s.emit('chat:whisper-msg', msgPayload);
     }
@@ -899,9 +904,48 @@ io.on('connection', (socket) => {
       if (u === uid) continue;
       if (v.floor !== sender.floor) continue;
       if (v.status === 'offline') continue;
-      if (peers.includes(u)) continue;  // 参加者には既に本文を送ったのでスキップ
+      if (peers.includes(u)) continue;
+      if (v.isBot) continue;  // bot にはインジケーターを送らない
       const s = io.sockets.sockets.get(v.socketId);
       if (s) s.emit('chat:whisper-indicator', indicatorPayload);
+    }
+    // ===== bot ささやき応答 (テスト用にも便利) =====
+    // 接触相手に bot がいたら AI 応答を whisper-msg として全参加者+周囲💭に流す
+    for (const botId of botPeers) {
+      const bot = presence.get(botId);
+      if (!bot) continue;
+      try {
+        const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || 'あなた';
+        // ささやきトーン: 短く・小声で・絵文字控えめ
+        const promptMsg = '【ささやき会話・90文字以内・絵文字控えめ・敬語で短く】 ' + senderName + 'さんから: ' + content;
+        const reply = await chatBot(botId, promptMsg, []);
+        const replyText = String(reply || '').slice(0, 200).trim();
+        if (!replyText) continue;
+        const replyAt = new Date().toISOString();
+        const replyPayload = { uid: botId, content: replyText, x: bot.x, y: bot.y, at: replyAt };
+        // 参加者全員 (送信者+他のpeer) に応答配信
+        socket.emit('chat:whisper-msg', replyPayload);
+        for (const peerUid of peers) {
+          if (peerUid === botId) continue;
+          const tp = presence.get(peerUid);
+          if (!tp || tp.isBot) continue;
+          const s = io.sockets.sockets.get(tp.socketId);
+          if (s) s.emit('chat:whisper-msg', replyPayload);
+        }
+        // 周囲には bot の💭も追加 (応答してることが伝わる)
+        const replyIndicator = { uid: botId, peers: [uid, ...peers.filter(p => p !== botId)], at: replyAt };
+        for (const [u, v] of presence) {
+          if (u === uid) continue;
+          if (v.floor !== sender.floor) continue;
+          if (v.status === 'offline') continue;
+          if (peers.includes(u)) continue;
+          if (v.isBot) continue;
+          const s = io.sockets.sockets.get(v.socketId);
+          if (s) s.emit('chat:whisper-indicator', replyIndicator);
+        }
+      } catch (e) {
+        console.warn('[whisper bot reply fail]', botId, e.message);
+      }
     }
   });
 
