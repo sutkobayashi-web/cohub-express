@@ -78,6 +78,8 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
+// ささやきモード: 自分と相手の近接円が触れ合う距離 (= 半径×2) 以内で発動。揮発、ログなし
+const WHISPER_TOUCH_DISTANCE = PROXIMITY_RADIUS * 2;
 
 // 葵から健康管理室のひろば案内DM (1日1回、ロビー入室時)
 // 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
@@ -239,6 +241,15 @@ app.use('/api/events', require('./routes/events'));
 app.use('/api/myhealth', require('./routes/health'));
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/challenges', require('./routes/challenges'));
+
+// モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
+const { authUser } = require('./middleware/auth');
+app.get('/api/floor-presence/:code', authUser, (req, res) => {
+  const code = req.params.code;
+  const inFloor = floorUserList(code).filter(u => u.floor === code && u.status !== 'offline');
+  // 自分自身は除外
+  res.json({ success: true, floor: code, members: inFloor.filter(u => u.uid !== req.uid) });
+});
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {
@@ -854,6 +865,46 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ささやき: 接触している相手にだけ本文配信。それ以外の同フロア在席者には💭インジケーターのみ
+  // DB保存なし、自分のログにも残らない (完全揮発)
+  socket.on('chat:whisper', (data) => {
+    const content = (data && data.content || '').toString().trim().slice(0, 500);
+    if (!content) return;
+    const sender = presence.get(uid);
+    if (!sender) return;
+    // 同フロアの在席者から接触距離以内の相手を抽出 (= ささやき参加者)
+    const peers = [];
+    for (const [u, v] of presence) {
+      if (u === uid) continue;
+      if (v.floor !== sender.floor) continue;
+      if (v.status === 'offline') continue;
+      const dx = sender.x - v.x, dy = sender.y - v.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= WHISPER_TOUCH_DISTANCE) peers.push(u);
+    }
+    if (!peers.length) return;  // 誰も接触していない時はそもそも送らせない (UI側でも抑止)
+    const at = new Date().toISOString();
+    // 参加者(送信者+接触相手)に本文配信
+    const msgPayload = { uid, content, x: sender.x, y: sender.y, at };
+    socket.emit('chat:whisper-msg', msgPayload);  // 自分も自分の発言を見る
+    for (const peerUid of peers) {
+      const tp = presence.get(peerUid);
+      if (!tp) continue;
+      const s = io.sockets.sockets.get(tp.socketId);
+      if (s) s.emit('chat:whisper-msg', msgPayload);
+    }
+    // それ以外の同フロア在席者には💭インジケーターだけ送る (本人2人がささやき中だと分かる)
+    const indicatorPayload = { uid, peers, at };
+    for (const [u, v] of presence) {
+      if (u === uid) continue;
+      if (v.floor !== sender.floor) continue;
+      if (v.status === 'offline') continue;
+      if (peers.includes(u)) continue;  // 参加者には既に本文を送ったのでスキップ
+      const s = io.sockets.sockets.get(v.socketId);
+      if (s) s.emit('chat:whisper-indicator', indicatorPayload);
+    }
+  });
+
   // グループチャット
   socket.on('chat:group', (data) => {
     const gid = (data && data.group_id || '').toString();
@@ -1211,6 +1262,32 @@ setInterval(() => {
   try {
     getDb().prepare("DELETE FROM messages WHERE created_at < datetime('now', '-60 days')").run();
   } catch (e) {}
+}, 60 * 60 * 1000);
+
+// 健康管理室: 投票期間 7日経過の施策を自動締切 (1時間ごと)
+setInterval(() => {
+  try {
+    const db = getDb();
+    const expired = db.prepare(`SELECT id FROM wellness_actions
+      WHERE status = '投票中' AND vote_started_at IS NOT NULL
+      AND datetime(vote_started_at, '+7 days') <= datetime('now')`).all();
+    for (const r of expired) {
+      const sm = db.prepare(`SELECT COUNT(*) AS total, AVG(score) AS avg_score,
+        SUM(CASE WHEN score >= 4 THEN 1 ELSE 0 END) AS pos,
+        SUM(CASE WHEN score <= 2 THEN 1 ELSE 0 END) AS neg
+        FROM wellness_action_votes WHERE action_id = ?`).get(r.id);
+      const passed = (sm.pos || 0) > (sm.neg || 0);
+      const result = { total: sm.total||0, avg: sm.avg_score, pos: sm.pos||0, neg: sm.neg||0, passed, auto: true };
+      if (passed) {
+        db.prepare(`UPDATE wellness_actions SET status = '保健師最終', vote_closed_at = datetime('now'), vote_result_json = ? WHERE id = ?`)
+          .run(JSON.stringify(result), r.id);
+      } else {
+        db.prepare(`UPDATE wellness_actions SET status = '却下', vote_closed_at = datetime('now'), vote_result_json = ?, rejection_reason = '社員投票で賛成が反対を超えませんでした (自動締切)' WHERE id = ?`)
+          .run(JSON.stringify(result), r.id);
+      }
+      console.log('[wellness] auto-closed vote', r.id, passed ? 'PASS→保健師最終' : 'FAIL→却下');
+    }
+  } catch (e) { console.warn('[wellness vote auto-close] fail:', e.message); }
 }, 60 * 60 * 1000);
 
 // 受付AI案内員(BOT) を初期化 + presenceに常駐

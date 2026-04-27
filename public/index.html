@@ -704,12 +704,15 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     </button>
     <div class="dock-sep"></div>
 
-    <!-- チャット入力 -->
+    <!-- チャット入力 (ささやきモード時は紫枠+placeholder変更で視覚的に区別) -->
     <div id="dock-chat-wrap">
       <button class="attach-btn" onclick="document.getElementById('chat-file').click()" title="ファイル添付">📎</button>
       <input type="file" id="chat-file" style="display:none;" onchange="onChatFilePick(this)">
       <input type="text" id="chat-input" placeholder="話しかける…" maxlength="500">
       <button id="dock-chat-send" onclick="sendChat()" title="送信">➤</button>
+    </div>
+    <div id="whisper-hint" style="position:absolute;bottom:88px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;padding:6px 14px;border-radius:14px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(139,92,246,0.35);display:none;pointer-events:none;z-index:25;white-space:nowrap;">
+      🔒 ささやきモード — 接触相手のみに届きます
     </div>
 
     <!-- 退席 -->
@@ -1556,7 +1559,40 @@ let proximityRadius = 220;
 let canvas, ctx;
 let bgImage = null;
 let avatarImages = {}; // uid → Image
-const bubbles = []; // { uid, content, at, isEmoji }
+const bubbles = []; // { uid, content, at, isEmoji, whisper? }
+// ささやきモード: 接触相手の uid → 最終接触時刻 (grace期間内は維持)
+const whisperPeers = new Map();
+const WHISPER_GRACE_MS = 2500;
+// 他の人がささやき中であることを示す💭インジケーター: uid → expiresAt
+const whisperIndicators = new Map();
+const WHISPER_INDICATOR_LIFE = 4500; // 4.5秒で💭が消える (短すぎず長すぎず)
+function isWhisperMode() {
+  // grace期間内に1人でも接触相手が居ればささやきモード
+  const now = Date.now();
+  for (const [, lastAt] of whisperPeers) {
+    if (now - lastAt < WHISPER_GRACE_MS) return true;
+  }
+  return false;
+}
+
+// ささやきモードのDOM反映 (入力欄の見た目+ヒント表示)。状態変化時のみDOMを触る
+let _lastWhisperState = false;
+function updateWhisperUI() {
+  const cur = isWhisperMode();
+  if (cur === _lastWhisperState) return;
+  _lastWhisperState = cur;
+  const hint = document.getElementById('whisper-hint');
+  const input = document.getElementById('chat-input');
+  const wrap = document.getElementById('dock-chat-wrap');
+  if (hint) hint.style.display = cur ? 'block' : 'none';
+  if (input) {
+    input.placeholder = cur ? '🔒 ささやく…(接触相手のみ)' : '話しかける…';
+    input.style.background = cur ? '#faf5ff' : '';
+    input.style.color = cur ? '#5b21b6' : '';
+  }
+  if (wrap) wrap.style.boxShadow = cur ? '0 0 0 2px #8b5cf6, 0 8px 24px rgba(139,92,246,0.3)' : '';
+}
+setInterval(updateWhisperUI, 250);
 
 // チャットログ (受信したメッセージを永続化)
 let chatLog = [];          // { id, uid, name, content, at, self, isEmoji, readBy[] }
@@ -2317,6 +2353,23 @@ function connectSocket() {
     if (currentTab === 'chat') renderChatLog();
   });
 
+  // ささやき本文受信 (接触相手のみ。揮発: chatLogには残さない)
+  socket.on('chat:whisper-msg', (m) => {
+    bubbles.push({ uid: m.uid, content: m.content, at: Date.now(), isEmoji: false, whisper: true });
+    while (bubbles.length > 40) bubbles.shift();
+    // 効果音控えめ (ささやきなのでメンションも肩たたきもなし)
+    if (m.uid !== me && speakerOn) { try { playBeep(false); } catch (e) {} }
+  });
+
+  // ささやき💭インジケーター受信 (非参加者として「あの2人話してるな」を示す)
+  socket.on('chat:whisper-indicator', (d) => {
+    const now = Date.now();
+    whisperIndicators.set(d.uid, now + WHISPER_INDICATOR_LIFE);
+    if (Array.isArray(d.peers)) {
+      for (const p of d.peers) whisperIndicators.set(p, now + WHISPER_INDICATOR_LIFE);
+    }
+  });
+
   socket.on('chat:read-receipt', (r) => {
     // 自分の送信メッセージを、r.reader が読んだ
     let changed = false;
@@ -2583,18 +2636,60 @@ function render() {
     ctx.fillText(z.name, z.x1 + 16, z.y1 + 19);
   }
 
-  // 近接範囲（自分中心）
+  // ささやき接触検知: 同フロア在席者で円が触れ合う(中心距離 ≤ 半径×2)相手を検出
+  // 接触中の相手はwhisperPeersに記録 (grace期間中は離れても維持)
+  if (me && users[me]) {
+    const myU = users[me];
+    const touchDistance = proximityRadius * 2;
+    const now = Date.now();
+    for (const uid in users) {
+      if (uid === me) continue;
+      const u = users[uid];
+      if (!u || u.cx == null || u.status === 'offline') continue;
+      const dx = (u.x != null ? u.x : u.cx) - (myU.x != null ? myU.x : myU.cx);
+      const dy = (u.y != null ? u.y : u.cy) - (myU.y != null ? myU.y : myU.cy);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= touchDistance) {
+        whisperPeers.set(uid, now);
+      }
+    }
+    // grace期間切れの相手を掃除
+    for (const [uid, lastAt] of whisperPeers) {
+      if (now - lastAt >= WHISPER_GRACE_MS) whisperPeers.delete(uid);
+    }
+  }
+
+  // 近接範囲（自分中心）— ささやきモード時は紫、通常は水色
   if (me && users[me]) {
     const u = users[me];
+    const whispering = isWhisperMode();
     ctx.beginPath();
     ctx.arc(u.cx, u.cy, proximityRadius, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(6,182,212,0.08)';
+    ctx.fillStyle = whispering ? 'rgba(139,92,246,0.14)' : 'rgba(6,182,212,0.08)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(6,182,212,0.3)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = whispering ? 'rgba(139,92,246,0.55)' : 'rgba(6,182,212,0.3)';
+    ctx.lineWidth = whispering ? 2 : 1.5;
     ctx.setLineDash([6, 6]);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+  // 接触相手側の円も紫で表示 (ささやき参加者全員に色変更)
+  if (me && users[me] && whisperPeers.size > 0) {
+    const now = Date.now();
+    for (const [puid, lastAt] of whisperPeers) {
+      if (now - lastAt >= WHISPER_GRACE_MS) continue;
+      const pu = users[puid];
+      if (!pu || pu.cx == null || pu.status === 'offline') continue;
+      ctx.beginPath();
+      ctx.arc(pu.cx, pu.cy, proximityRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(139,92,246,0.10)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(139,92,246,0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 
   // 自分のハドルゾーン在籍判定 + 入退場トースト
@@ -2622,16 +2717,32 @@ function render() {
   // 吹き出し (葵は立ち姿210pxなので頭上まで引き上げる)
   const now = Date.now();
   const bubbleLife = 10000;
+  const whisperBubbleLife = 6000; // ささやきは少し短命
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i];
-    if (now - b.at > bubbleLife) { bubbles.splice(i, 1); continue; }
+    const life = b.whisper ? whisperBubbleLife : bubbleLife;
+    if (now - b.at > life) { bubbles.splice(i, 1); continue; }
     const u = users[b.uid];
     if (!u || u.cx == null) continue;
     const isConcierge = u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas;
-    const bubbleAnchorY = isConcierge ? (u.cy - 118) : (u.cy - 50);  // 葵は頭上(head top cy-105)の少し上
-    const emojiAnchorY = isConcierge ? (u.cy - 110) : u.cy;           // 葵は頭上、一般は中心
-    if (b.isEmoji) drawEmojiBubble(u.cx, emojiAnchorY, b.content, (now - b.at) / bubbleLife);
-    else drawBubble(u.cx, bubbleAnchorY, b.content, Math.max(0, 1 - (now - b.at) / bubbleLife));
+    const bubbleAnchorY = isConcierge ? (u.cy - 118) : (u.cy - 50);
+    const emojiAnchorY = isConcierge ? (u.cy - 110) : u.cy;
+    const alpha = Math.max(0, 1 - (now - b.at) / life);
+    if (b.isEmoji) drawEmojiBubble(u.cx, emojiAnchorY, b.content, (now - b.at) / life);
+    else drawBubble(u.cx, bubbleAnchorY, b.content, alpha, !!b.whisper);
+  }
+
+  // 💭ささやきインジケーター (非参加者として外から「あの人ささやき中」を表示)
+  for (const [uid, exp] of whisperIndicators) {
+    if (now > exp) { whisperIndicators.delete(uid); continue; }
+    // 自分自身がささやき中ならインジケーターは出さない (本人は本文吹き出し+紫円で十分)
+    if (uid === me) continue;
+    const u = users[uid];
+    if (!u || u.cx == null || u.status === 'offline') continue;
+    const isConcierge = u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas;
+    const anchorY = isConcierge ? (u.cy - 110) : (u.cy - 50);
+    const fadeAlpha = Math.max(0.4, Math.min(1, (exp - now) / WHISPER_INDICATOR_LIFE));
+    drawWhisperIndicator(u.cx, anchorY, fadeAlpha);
   }
 
   ctx.restore();
@@ -2935,10 +3046,10 @@ function drawAvatar(u) {
   ctx.restore();
 }
 
-function drawBubble(x, y, text, alpha) {
+function drawBubble(x, y, text, alpha, whisper) {
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.font = '13px sans-serif';
+  ctx.font = (whisper ? 'italic ' : '') + '13px sans-serif';
   const maxW = 200;
   const lines = wrapText(text, maxW);
   const lineH = 16;
@@ -2949,9 +3060,10 @@ function drawBubble(x, y, text, alpha) {
   const bubbleH = lines.length * lineH + padding * 2;
   const bx = x - bubbleW / 2;
   const by = y - bubbleH;
-  ctx.fillStyle = '#fff';
-  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-  ctx.lineWidth = 1;
+  // ささやきは薄紫の塗り＋紫枠線で「秘密の会話」感を出す
+  ctx.fillStyle = whisper ? '#f5f3ff' : '#fff';
+  ctx.strokeStyle = whisper ? 'rgba(139,92,246,0.45)' : 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = whisper ? 1.5 : 1;
   roundRect(bx, by, bubbleW, bubbleH, 10);
   ctx.fill();
   ctx.stroke();
@@ -2960,12 +3072,26 @@ function drawBubble(x, y, text, alpha) {
   ctx.lineTo(x, by + bubbleH + 8);
   ctx.lineTo(x + 6, by + bubbleH);
   ctx.closePath();
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = whisper ? '#f5f3ff' : '#fff';
   ctx.fill();
-  ctx.fillStyle = '#0f172a';
+  ctx.fillStyle = whisper ? '#5b21b6' : '#0f172a';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + padding, by + padding + i * lineH);
+  ctx.restore();
+}
+
+// 💭ささやきインジケーター: 「あの人、近くの誰かと内緒話してる」を外部に伝える
+function drawWhisperIndicator(cx, cy, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = '20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // ふんわり小さく揺らめく
+  const t = Date.now() / 600;
+  const yOff = Math.sin(t) * 1.5;
+  ctx.fillText('💭', cx, cy + yOff);
   ctx.restore();
 }
 
@@ -4645,12 +4771,18 @@ function helpKeyHandler(e) { if (e.key === 'Escape') closeHelp(); }
 function helpBgClick(e) { if (e.target === document.getElementById('help-modal')) closeHelp(); }
 
 // ===== チャット =====
+// 接触中(=ささやきモード)なら chat:whisper、そうでなければ通常の chat (近接吹き出し)
 function sendChat() {
   const input = document.getElementById('chat-input');
   const content = input.value.trim();
   if (!content || !socket) return;
-  const mentions = parseMentions(content);
-  socket.emit('chat', { content, mentions });
+  if (isWhisperMode()) {
+    // ささやき: 接触相手だけに本文、他は💭インジケーター。ログに残らない
+    socket.emit('chat:whisper', { content });
+  } else {
+    const mentions = parseMentions(content);
+    socket.emit('chat', { content, mentions });
+  }
   input.value = '';
   const pop = document.getElementById('mention-pop');
   if (pop) pop.classList.remove('show');
