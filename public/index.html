@@ -3109,102 +3109,32 @@ function drawBubble(x, y, text, alpha, whisper) {
   const maxW = 200;
   const lines = wrapText(text, maxW);
   const lineH = 16;
-  const padding = whisper ? 12 : 8;  // 雲は端のバンプに食われるので余白広めに
+  const padding = 8;
   let bubbleW = 0;
   for (const l of lines) bubbleW = Math.max(bubbleW, ctx.measureText(l).width);
   bubbleW += padding * 2;
   const bubbleH = lines.length * lineH + padding * 2;
-
-  if (whisper) {
-    // 雲形ささやき: 複数の円を重ねて雲シルエット + 下にトレイル状の小さな円3つ
-    drawCloudBubble(x, y, bubbleW, bubbleH);
-    // テキスト (雲の中央)
-    const bx = x - bubbleW / 2;
-    const cloudCy = y - bubbleH / 2 - 14;     // 雲中心のy
-    const by = cloudCy - bubbleH / 2;
-    ctx.fillStyle = '#5b21b6';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + padding, by + padding + i * lineH);
-  } else {
-    const bx = x - bubbleW / 2;
-    const by = y - bubbleH;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 1;
-    roundRect(bx, by, bubbleW, bubbleH, 10);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x - 6, by + bubbleH);
-    ctx.lineTo(x, by + bubbleH + 8);
-    ctx.lineTo(x + 6, by + bubbleH);
-    ctx.closePath();
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + padding, by + padding + i * lineH);
-  }
-  ctx.restore();
-}
-
-// 雲形吹き出し: 単一の閉じたパスで描くため内部に継ぎ目が出ない
-// 上下に複数のバンプ(半円)、左右にも1つずつバンプを配置して clockwise に一筆書き
-function drawCloudBubble(speakerX, speakerBottomY, contentW, contentH) {
-  const PI = Math.PI;
-  const cloudW = contentW + 24;   // バンプ分の余裕
-  const cloudH = contentH + 10;
-  const cx = speakerX;
-  const cy = speakerBottomY - cloudH / 2 - 16;
-  const halfW = cloudW / 2;
-  const halfH = cloudH / 2;
-  const r = Math.max(13, cloudH * 0.34);            // バンプ半径
-  const numTop = Math.max(3, Math.round(cloudW / (1.9 * r)));
-  const numBottom = Math.max(2, numTop - 1);
-  const topStep = cloudW / numTop;
-  const bottomStep = cloudW / numBottom;
-  // ===== ① 単一の閉じたパスとして雲の輪郭を組み立てる =====
-  ctx.beginPath();
-  // 最初の上バンプの左端から開始
-  ctx.moveTo(cx - halfW + topStep / 2 - r, cy - halfH);
-  // 上バンプ (左→右、各半円が上に膨らむ): 角度 π → 2π を CW
-  for (let i = 0; i < numTop; i++) {
-    ctx.arc(cx - halfW + topStep * (i + 0.5), cy - halfH, r, PI, 2 * PI, false);
-  }
-  // 右側バンプ (上→下、右に膨らむ): 角度 3π/2 → π/2 を CW (右側通過)
-  ctx.arc(cx + halfW, cy, r * 0.85, 1.5 * PI, 0.5 * PI, false);
-  // 下バンプ (右→左、各半円が下に膨らむ): 角度 0 → π を CW
-  for (let i = 0; i < numBottom; i++) {
-    ctx.arc(cx + halfW - bottomStep * (i + 0.5), cy + halfH, r * 0.9, 0, PI, false);
-  }
-  // 左側バンプ (下→上、左に膨らむ): 角度 π/2 → 3π/2 を CW (左側通過)
-  ctx.arc(cx - halfW, cy, r * 0.85, 0.5 * PI, 1.5 * PI, false);
-  ctx.closePath();
-  // ===== ② 塗り(薄紫) + 線(紫) — 単一パスなので内部に継ぎ目は出ない =====
-  ctx.fillStyle = '#f5f3ff';
+  const bx = x - bubbleW / 2;
+  const by = y - bubbleH;
+  // ささやきは薄紫の塗り＋紫枠線で「秘密の会話」感を出す
+  ctx.fillStyle = whisper ? '#f5f3ff' : '#fff';
+  ctx.strokeStyle = whisper ? 'rgba(139,92,246,0.45)' : 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = whisper ? 1.5 : 1;
+  roundRect(bx, by, bubbleW, bubbleH, 10);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(139,92,246,0.6)';
-  ctx.lineWidth = 1.6;
   ctx.stroke();
-  // ===== ③ トレイル: 雲の下からアバター方向に小さな円 3つ =====
-  const tailX = cx - cloudW * 0.20;
-  const tailStartY = cy + halfH + 6;
-  const tails = [
-    { x: tailX,       y: tailStartY,      r: 5 },
-    { x: tailX - 4,   y: tailStartY + 11, r: 3.5 },
-    { x: tailX - 7,   y: tailStartY + 20, r: 2.2 },
-  ];
-  for (const t of tails) {
-    ctx.beginPath();
-    ctx.arc(t.x, t.y, t.r, 0, 2 * PI);
-    ctx.fillStyle = '#f5f3ff';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(139,92,246,0.6)';
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-  }
+  ctx.beginPath();
+  ctx.moveTo(x - 6, by + bubbleH);
+  ctx.lineTo(x, by + bubbleH + 8);
+  ctx.lineTo(x + 6, by + bubbleH);
+  ctx.closePath();
+  ctx.fillStyle = whisper ? '#f5f3ff' : '#fff';
+  ctx.fill();
+  ctx.fillStyle = whisper ? '#5b21b6' : '#0f172a';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + padding, by + padding + i * lineH);
+  ctx.restore();
 }
 
 // 💭ささやきインジケーター: 「あの人、近くの誰かと内緒話してる」を外部に伝える
