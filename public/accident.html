@@ -60,6 +60,16 @@
   .detail-grid { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; line-height: 1.7; }
   .detail-grid .lbl { color: #64748b; font-weight: 600; }
   .detail-grid .val { color: #0f172a; word-break: break-word; }
+  /* 写真 */
+  .photo-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .photo-thumb { width: 90px; height: 90px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid #e2e8f0; background: #f1f5f9; }
+  .photo-thumb-large { max-width: 100%; max-height: 70vh; border-radius: 8px; }
+  .photo-upload { padding: 14px; border: 2px dashed #cbd5e1; border-radius: 8px; text-align: center; color: #64748b; cursor: pointer; transition: 0.15s; }
+  .photo-upload:hover { border-color: #dc2626; color: #dc2626; }
+  .photo-upload input { display: none; }
+  .photo-list-row { display: flex; align-items: center; gap: 6px; padding: 4px; background: #f8fafc; border-radius: 6px; margin-top: 4px; font-size: 11px; color: #64748b; }
+  .photo-list-row img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+  .photo-list-row .rm { margin-left: auto; background: transparent; border: none; color: #dc2626; cursor: pointer; padding: 4px 8px; }
 </style>
 </head>
 <body>
@@ -199,13 +209,15 @@ function renderList() {
     list.innerHTML = _list.map(r => {
       const status = r.status || 'submitted';
       const statusLabel = { draft: '下書き', submitted: '提出済', approved: '承認済', rejected: '差し戻し' }[status] || status;
+      const photos = parseMedia(r.media_paths);
       return `<div class="card">
         <div class="head">
           <span class="lvl ${escapeHtml(status)}">${escapeHtml(statusLabel)}</span>
           <div class="title">[${escapeHtml(r.accident_date)}] ${escapeHtml(r.product_name || r.accident_type || '製品破損')}</div>
         </div>
-        <div class="meta">📍 ${escapeHtml(r.location_floor || '')} ${escapeHtml(r.location_area || '')} · 報告: ${escapeHtml(r.reporter_name)} · ${escapeHtml((r.created_at || '').slice(0,16))}</div>
+        <div class="meta">📍 ${escapeHtml(r.location_floor || '')} ${escapeHtml(r.location_area || '')} · 報告: ${escapeHtml(r.reporter_name)} · ${escapeHtml((r.created_at || '').slice(0,16))} ${photos.length ? `· 📷 ${photos.length}枚` : ''}</div>
         ${r.cause_detail ? `<div class="body">${escapeHtml(String(r.cause_detail).slice(0, 160))}${r.cause_detail.length > 160 ? '…' : ''}</div>` : ''}
+        ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => `<img class="photo-thumb" src="${escapeHtml(p)}" loading="lazy" onclick="openPhotoModal('${escapeHtml(p)}')" onerror="this.style.display='none'">`).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
           ${(isManager || r.reporter_name === (me && me.display_name)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
@@ -216,14 +228,16 @@ function renderList() {
     list.innerHTML = _list.map(r => {
       const status = r.status || 'submitted';
       const statusLabel = { draft: '下書き', submitted: '提出済', approved: '承認済', rejected: '差し戻し' }[status] || status;
+      const photos = parseMedia(r.media_paths);
       return `<div class="card">
         <div class="head">
           <span class="lvl ${escapeHtml(status)}">${escapeHtml(statusLabel)}</span>
           <div class="title">[${escapeHtml(r.accident_date)}] ${escapeHtml(r.accident_type || '車両事故')} ${r.vehicle_no ? '(' + escapeHtml(r.vehicle_no) + ')' : ''}</div>
         </div>
-        <div class="meta">📍 ${escapeHtml(r.location || '')} · 報告: ${escapeHtml(r.reporter_display || r.reporter_name || '')} · ${escapeHtml((r.created_at || '').slice(0,16))}</div>
+        <div class="meta">📍 ${escapeHtml(r.location || '')} · 報告: ${escapeHtml(r.reporter_display || r.reporter_name || '')} · ${escapeHtml((r.created_at || '').slice(0,16))} ${photos.length ? `· 📷 ${photos.length}枚` : ''}</div>
         ${r.injury_status && r.injury_status !== '無し' ? `<div class="body" style="color:#dc2626;font-weight:700;">⚠ 負傷: ${escapeHtml(r.injury_status)}</div>` : ''}
         ${r.description ? `<div class="body">${escapeHtml(String(r.description).slice(0, 160))}${r.description.length > 160 ? '…' : ''}</div>` : ''}
+        ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => `<img class="photo-thumb" src="${escapeHtml(p)}" loading="lazy" onclick="openPhotoModal('${escapeHtml(p)}')" onerror="this.style.display='none'">`).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
           ${(isManager || r.reporter_id === (me && me.uid)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
@@ -307,6 +321,7 @@ function productFormHtml(d) {
         <select id="f-cost-status">${['未定','確定','請求済','支払済'].map(s => `<option ${d.cost_status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
       </div>
     </div>
+    ${photoFieldHtml(parseMedia(d.media_paths))}
     <div class="err" id="f-err"></div>
   `;
 }
@@ -351,8 +366,72 @@ function vehicleFormHtml(d) {
       <div class="field"><label>修理状況</label><input type="text" id="f-repair" placeholder="例: 工場入庫済み・5/2納車予定" value="${escapeHtml(d.repair_status || '')}"></div>
       <div class="field"><label>費用見込み (円)</label><input type="number" id="f-cost" value="${escapeHtml(d.cost_amount || '')}"></div>
     </div>
+    ${photoFieldHtml(parseMedia(d.media_paths))}
     <div class="err" id="f-err"></div>
   `;
+}
+
+// 写真フィールド共通HTML + 状態保持
+let _photoUrls = [];
+function parseMedia(s) {
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  try { const a = JSON.parse(s); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+function photoFieldHtml(initialUrls) {
+  _photoUrls = (initialUrls || []).slice();
+  return `
+    <div class="field">
+      <label>📷 事故写真 <span style="font-weight:400;color:#94a3b8;">(複数可、各10MBまで)</span></label>
+      <label class="photo-upload" id="f-photo-drop">
+        <div style="font-size:24px;">📷</div>
+        <div>タップして写真を追加 (撮影 or 選択)</div>
+        <input type="file" id="f-photo-input" accept="image/*" capture="environment" multiple onchange="onPhotoPick(event)">
+      </label>
+      <div id="f-photo-list">${renderPhotoList()}</div>
+    </div>`;
+}
+function renderPhotoList() {
+  if (!_photoUrls.length) return '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">未登録</div>';
+  return _photoUrls.map((u, i) => `
+    <div class="photo-list-row">
+      <img src="${escapeHtml(u)}" alt="" onerror="this.style.display='none'">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(u.split('/').pop())}</span>
+      <button class="rm" type="button" onclick="removePhoto(${i})">削除</button>
+    </div>`).join('');
+}
+function refreshPhotoList() {
+  const el = document.getElementById('f-photo-list');
+  if (el) el.innerHTML = renderPhotoList();
+}
+function removePhoto(i) {
+  _photoUrls.splice(i, 1);
+  refreshPhotoList();
+}
+async function onPhotoPick(ev) {
+  const files = ev.target.files;
+  if (!files || !files.length) return;
+  const drop = document.getElementById('f-photo-drop');
+  const original = drop.innerHTML;
+  drop.innerHTML = '<div style="font-size:14px;color:#dc2626;">📤 アップロード中…</div>';
+  try {
+    const fd = new FormData();
+    for (const f of files) fd.append('photos', f);
+    const r = await fetch('/api/accident/upload', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: fd,
+    });
+    const d = await r.json();
+    if (!d || !d.success) throw new Error((d && d.msg) || 'アップロード失敗');
+    _photoUrls = _photoUrls.concat(d.urls || []);
+    refreshPhotoList();
+  } catch (e) {
+    alert('アップロード失敗: ' + e.message);
+  } finally {
+    drop.innerHTML = original;
+    ev.target.value = '';
+  }
 }
 
 async function submitForm() {
@@ -382,6 +461,7 @@ async function submitForm() {
       handling: document.getElementById('f-handling').value,
       cost_amount: parseInt(document.getElementById('f-cost').value) || null,
       cost_status: document.getElementById('f-cost-status').value,
+      media_paths: _photoUrls,
     };
   } else {
     body = {
@@ -399,6 +479,7 @@ async function submitForm() {
       description: document.getElementById('f-desc').value,
       repair_status: document.getElementById('f-repair').value,
       cost_amount: parseInt(document.getElementById('f-cost').value) || null,
+      media_paths: _photoUrls,
     };
   }
   if (!body.accident_date) { errEl.textContent = '事故発生日が必須です'; btn.disabled = false; return; }
@@ -437,6 +518,17 @@ function closeDetail() {
   document.getElementById('detail-modal').classList.remove('open');
 }
 
+function detailPhotosHtml(r) {
+  const photos = parseMedia(r.media_paths);
+  if (!photos.length) return '';
+  return `<div style="margin-top:14px;">
+    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📷 事故写真 (${photos.length}枚)</div>
+    <div class="photo-grid">
+      ${photos.map(p => `<img class="photo-thumb" src="${escapeHtml(p)}" loading="lazy" onclick="openPhotoModal('${escapeHtml(p)}')" onerror="this.style.display='none'">`).join('')}
+    </div>
+  </div>`;
+}
+
 function productDetailHtml(r) {
   const rows = [
     ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
@@ -460,7 +552,7 @@ function productDetailHtml(r) {
     ['承認者', r.approved_by],
     ['管理者コメント', r.manager_comment],
   ];
-  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>`;
+  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${detailPhotosHtml(r)}`;
 }
 
 function vehicleDetailHtml(r) {
@@ -484,7 +576,21 @@ function vehicleDetailHtml(r) {
     ['承認者', r.approved_by],
     ['管理者コメント', r.manager_comment],
   ];
-  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>`;
+  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${detailPhotosHtml(r)}`;
+}
+
+// 写真拡大モーダル (詳細画面/一覧から開く)
+function openPhotoModal(url) {
+  let m = document.getElementById('photo-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'photo-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out;';
+    m.onclick = () => m.remove();
+    document.body.appendChild(m);
+  }
+  m.innerHTML = `<img src="${escapeHtml(url)}" class="photo-thumb-large" onclick="event.stopPropagation()">
+    <button onclick="document.getElementById('photo-modal').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;">×</button>`;
 }
 
 async function approveOne(id) {

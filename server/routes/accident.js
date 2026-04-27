@@ -2,8 +2,36 @@
 // 製品事故 (kbc_accident_reports) と 車両事故 (vehicle_accident_reports) の2系統
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
+
+// 事故報告書 写真アップロード先 — /opt/cohub/uploads/ に直置き
+// (CoLink から移行した既存写真もここにあり、URL は /uploads/<filename> で配信)
+const accidentDir = path.join(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(accidentDir)) fs.mkdirSync(accidentDir, { recursive: true });
+const accidentUpload = multer({
+  storage: multer.diskStorage({
+    destination: accidentDir,
+    filename: (req, file, cb) => {
+      const ext = (path.extname(file.originalname || '').slice(0, 8) || '.jpg').replace(/[^a-zA-Z0-9.]/g, '');
+      cb(null, 'accident_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10) + ext);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!/^image\//.test(file.mimetype || '')) return cb(new Error('画像のみアップロード可'));
+    cb(null, true);
+  },
+});
+
+// 写真アップロード (複数ファイル対応、最大10枚)
+router.post('/upload', authUser, accidentUpload.array('photos', 10), (req, res) => {
+  const urls = (req.files || []).map(f => '/uploads/' + f.filename);
+  res.json({ success: true, urls });
+});
 
 // 管理職判定 (employee_type='admin' または role='admin')
 function isManager(uid) {
