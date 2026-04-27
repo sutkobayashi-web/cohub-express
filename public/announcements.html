@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>📢 告知 — CoHub</title>
+<title>📢 告知 — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json?v=2">
@@ -280,6 +280,92 @@ function render() {
   document.getElementById('cnt-unread').textContent = unread.length;
   document.getElementById('pane-all').innerHTML = all.length ? all.map(card).join('') : emptyHtml('告知はまだありません');
   document.getElementById('pane-unread').innerHTML = unread.length ? unread.map(card).join('') : emptyHtml('🎉 すべて確認済みです');
+  // 自動既読の監視を開始: 画面に1.5秒以上見えたら read マーク (要確認は除く=明示的にボタン押させる)
+  setupAutoReadObserver();
+}
+
+// ===== 自動既読 (IntersectionObserver) =====
+// カードが viewport 内に 50%以上入って 1.5秒経過したら既読マーク
+// 要確認(requires_ack)は対象外: ユーザーに「✅ 確認しました」を意識的に押させたいため
+let _autoReadObserver = null;
+const _autoReadTimers = new Map();   // announcement id → setTimeout handle
+const _autoReadSent = new Set();     // 既に既読送信済みの id (重複防止)
+const AUTO_READ_DELAY_MS = 1500;
+
+function setupAutoReadObserver() {
+  // 既存observerがあれば破棄して作り直す (リスト再描画のたびに DOM 入れ替わるため)
+  if (_autoReadObserver) _autoReadObserver.disconnect();
+  if (typeof IntersectionObserver === 'undefined') return; // 古いブラウザ
+  _autoReadObserver = new IntersectionObserver((entries) => {
+    for (const ent of entries) {
+      const id = parseInt(ent.target.dataset.aid);
+      if (!id || _autoReadSent.has(id)) continue;
+      if (ent.isIntersecting && ent.intersectionRatio >= 0.5) {
+        // 1.5秒タイマー開始 (既にタイマーがあれば何もしない)
+        if (!_autoReadTimers.has(id)) {
+          const t = setTimeout(() => {
+            _autoReadTimers.delete(id);
+            autoMarkRead(id);
+          }, AUTO_READ_DELAY_MS);
+          _autoReadTimers.set(id, t);
+        }
+      } else {
+        // 画面外に出た: タイマーキャンセル (見えてた時間が短すぎ)
+        const t = _autoReadTimers.get(id);
+        if (t) { clearTimeout(t); _autoReadTimers.delete(id); }
+      }
+    }
+  }, { threshold: [0, 0.5, 1] });
+  // 各カードを監視対象に登録 (要確認は除外)
+  for (const a of _list) {
+    if (a.read_at) continue;             // 既読済はスキップ
+    if (a.requires_ack) continue;        // 要確認は明示的ボタン操作のみ
+    const el = document.getElementById('a-' + a.id);
+    if (el) {
+      el.dataset.aid = String(a.id);
+      _autoReadObserver.observe(el);
+    }
+  }
+}
+
+async function autoMarkRead(id) {
+  if (_autoReadSent.has(id)) return;
+  _autoReadSent.add(id);
+  try {
+    const r = await api('/api/announcements/' + id + '/read', { method: 'POST' });
+    if (!r.success) { _autoReadSent.delete(id); return; }
+    // ローカル _list を更新して見た目を即反映 (再fetchはしない)
+    const a = _list.find(x => x.id === id);
+    if (a) a.read_at = new Date().toISOString();
+    // 当該カードの class と actions を即時更新
+    const el = document.getElementById('a-' + id);
+    if (el) {
+      el.classList.remove('unread');
+      const actBox = el.querySelector('.actions');
+      if (actBox) actBox.innerHTML = '<span style="font-size:11px;color:#10b981;font-weight:700;">✓ 自動既読</span>';
+    }
+    // 未読タブのカウントとリストを更新
+    refreshCountsAndUnreadPane();
+    // 親ウィンドウ(index.html)の告知バッジも更新
+    notifyParentReadChange();
+  } catch (e) {
+    _autoReadSent.delete(id);
+  }
+}
+
+function refreshCountsAndUnreadPane() {
+  const unread = _list.filter(a => !a.read_at || (a.requires_ack && !a.acked_at));
+  document.getElementById('cnt-unread').textContent = unread.length;
+  document.getElementById('pane-unread').innerHTML = unread.length ? unread.map(card).join('') : emptyHtml('🎉 すべて確認済みです');
+  // 未読タブを再描画したので observer も付け直し (ただし当該IDは _autoReadSent で重複防止済み)
+  setupAutoReadObserver();
+}
+
+function notifyParentReadChange() {
+  // /announcements.html が同タブに直接遷移している場合は親なし。
+  // PWA運用で別タブ/iframeの場合に備え、postMessage で通知 (受信側がいなくても無害)
+  try { if (window.opener) window.opener.postMessage({ type: 'announcement:read' }, '*'); } catch (e) {}
+  try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'announcement:read' }, '*'); } catch (e) {}
 }
 
 function emptyHtml(msg) {
