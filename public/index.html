@@ -2570,8 +2570,8 @@ function render() {
 
   // 1Fロビー (一人称視点モード) — 葵だけ受付に固定、一般ユーザーは自由に移動可
   const isLobbyView = currentFloor && currentFloor.code === 'lobby';
-  const LOBBY_BOT_POS = { x: 560, y: 605 };  // 葵: 受付カウンター背後 (1cm下に移動)
-  const LOBBY_COUNTER_TOP_Y = 560;            // 受付カウンター上端 (葵の見える比率を維持するため一緒に下げる)
+  const LOBBY_BOT_POS = { x: 620, y: 575 };  // 葵: 受付カウンター背後 (5mm上+1cm右)
+  const LOBBY_COUNTER_TOP_Y = 530;            // 受付カウンター上端 (葵の見える比率を維持)
 
   // 補間: targets → users[uid].cx/cy に近づける (ease-out、ゴール付近スナップで発振防止)
   for (const uid in targets) {
@@ -2887,7 +2887,7 @@ function drawConciergeStanding(u) {
   // 1Fロビー: 受付カウンター下端より下を非表示 (奥に立っているように見せる)
   if (currentFloor && currentFloor.code === 'lobby') {
     ctx.beginPath();
-    ctx.rect(0, 0, WORLD_W, 560);  // カウンター上端まで描画
+    ctx.rect(0, 0, WORLD_W, 530);  // カウンター上端まで描画
     ctx.clip();
   }
   // 足元の楕円影 (ロビーではクリップで自動的に隠れる)
