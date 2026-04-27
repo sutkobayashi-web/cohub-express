@@ -127,14 +127,22 @@ async function transcribeRecording(audioBase64, mimeType) {
 
 // 受付AI案内員 → Gemini で返答
 const CONCIERGE_PROMPTS = {
-  bot_aoi: `あなたは「葵(あおい)」、**スタンダード運輸グループ バーチャルオフィス** (CoHub Express) の1F受付案内員です。
+  bot_aoi: `あなたは「葵(あおい)」、「スタンダード運輸グループ コミュニケーション＆ウエルネス サイト」の1F受付案内員です。
 明るく親しみやすい性格で、機能案内・操作トラブルの両方を担当します。回答は2-3文で簡潔に。語尾は「〜ですね」「〜ですよ」など丁寧かつ柔らかく。
 
-【ここの呼び方 (重要)】
-- 「ここはどこ?」「会社名は?」「何のサイト?」と聞かれたら必ず **「スタンダード運輸グループ バーチャルオフィスです」** と答えてください。
-- 「CoHub」というシステム名は社内呼称として補足程度に触れる。
+【出力形式 (重要・音声読上対応)】
+- アスタリスク (*, **) や強調記号 (__, \`) は絶対に使わないでください。音声でそのまま「アスタリスク」と読み上げられてしまいます。
+- 強調したい箇所は「」(かぎ括弧) で囲むか、語尾で表現してください。
+- Markdown記号 (#, >, -) も使わず、自然な日本語の文章で答えてください。
 
-【CoHubの構成】
+【ここの呼び方 (重要)】
+- 「ここはどこ?」「会社名は?」「何のサイト?」と聞かれたら必ず「スタンダード運輸グループ コミュニケーション＆ウエルネス サイト です」と答えてください。
+- 通称・略称として「CoWell」が使われることがありますが、ユーザー向けには正式名称「コミュニケーション＆ウエルネス サイト」を優先して案内してください。
+- 略称を読み上げる際は「コーウエル」と発音します。
+- 業務連絡・健康管理・ひろば・水族館などを統合した社内プラットフォームです。
+- 旧 CoWell (海の冒険RPG) は「CoWell Classic (コーウエル クラシック)」と区別して呼んでください。
+
+【サイトの構成】
 - 1Fロビー: 訪問者受付・待合(私はここに居ます)
 - 2F事務フロア: メンバーの溜まり場、近接音声220px、右上に「🎙️ハドル席」(独立音声)
 - 3F役員会議室/会議室B/大会議室: 施錠+承認制で機密保持
@@ -201,17 +209,25 @@ async function chatBot(botId, userMessage, history) {
 }
 
 // 汎用テキスト生成 (プロンプト→テキスト) — 健康管理室AI集計などで使用
+// Gemini 2.5 Flash は内部 thinking で maxTokens を食い尽くすため、
+// JSON 出力時は thinkingBudget を絞り、出力にトークン枠を残す。
 async function generateText(prompt, opts) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
   opts = opts || {};
+  const generationConfig = {
+    temperature: opts.temperature != null ? opts.temperature : 0.5,
+    maxOutputTokens: opts.maxTokens || 2000,
+    responseMimeType: opts.responseMimeType || undefined,
+  };
+  // 構造化JSON 要求時は thinking を 0 に (出力切詰防止)。明示指定があればそれを優先。
+  const thinkingBudget = opts.thinkingBudget != null
+    ? opts.thinkingBudget
+    : (opts.responseMimeType === 'application/json' ? 0 : undefined);
+  if (thinkingBudget != null) generationConfig.thinkingConfig = { thinkingBudget };
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: opts.temperature != null ? opts.temperature : 0.5,
-      maxOutputTokens: opts.maxTokens || 2000,
-      responseMimeType: opts.responseMimeType || undefined,
-    },
+    generationConfig,
   };
   const model = opts.model || 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -225,10 +241,19 @@ async function generateText(prompt, opts) {
     throw new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 300));
   }
   const data = await resp.json();
-  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-  if (!parts) throw new Error('Gemini応答なし');
-  for (const p of parts) if (p.text) return p.text.trim();
-  throw new Error('応答テキストなし');
+  const cand = data.candidates && data.candidates[0];
+  const finishReason = cand && cand.finishReason;
+  const parts = cand && cand.content && cand.content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  if (!text) {
+    const usage = data.usageMetadata || {};
+    throw new Error(`応答テキストなし (finish=${finishReason||'?'} thoughts=${usage.thoughtsTokenCount||0} out=${usage.candidatesTokenCount||0})`);
+  }
+  if (finishReason === 'MAX_TOKENS') {
+    console.warn('[generateText] MAX_TOKENS hit, output may be truncated. len=', text.length);
+  }
+  return text.trim();
 }
 
 // 食事画像を Gemini Vision で栄養分析 (CoWell ひろば 互換のスコア形式)
