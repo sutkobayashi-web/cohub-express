@@ -2678,11 +2678,11 @@ function render() {
     ctx.fillText(z.name, z.x1 + 16, z.y1 + 19);
   }
 
-  // ささやき接触検知: 同フロア在席者で円が触れ合う(中心距離 ≤ 半径×2)相手を検出
+  // ささやき接触検知: 同フロア在席者でアバター本体が触れ合う距離(70px)以内の相手を検出
   // 接触中の相手はwhisperPeersに記録 (grace期間中は離れても維持)
   if (me && users[me]) {
     const myU = users[me];
-    const touchDistance = proximityRadius * 2;
+    const touchDistance = 70; // アバター半径28+28=56px の軽い接触
     const now = Date.now();
     for (const uid in users) {
       if (uid === me) continue;
@@ -2701,21 +2701,35 @@ function render() {
     }
   }
 
-  // 近接範囲（自分中心）— ささやきモード時は紫、通常は水色
+  // 近接範囲（自分中心）— ささやきモードは「密着するインティメート円(50px)」を別途表示、通常は水色の大きな近接円
+  const whispering = isWhisperMode();
   if (me && users[me]) {
     const u = users[me];
-    const whispering = isWhisperMode();
-    ctx.beginPath();
-    ctx.arc(u.cx, u.cy, proximityRadius, 0, Math.PI * 2);
-    ctx.fillStyle = whispering ? 'rgba(139,92,246,0.14)' : 'rgba(6,182,212,0.08)';
-    ctx.fill();
-    ctx.strokeStyle = whispering ? 'rgba(139,92,246,0.55)' : 'rgba(6,182,212,0.3)';
-    ctx.lineWidth = whispering ? 2 : 1.5;
-    ctx.setLineDash([6, 6]);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (whispering) {
+      // インティメート円: アバターのすぐ周囲だけ紫で囲む
+      ctx.beginPath();
+      ctx.arc(u.cx, u.cy, 50, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(139,92,246,0.18)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(139,92,246,0.7)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      // 通常: 220px の薄い水色近接円
+      ctx.beginPath();
+      ctx.arc(u.cx, u.cy, proximityRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(6,182,212,0.08)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(6,182,212,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
-  // 接触相手側の円も紫で表示 (ささやき参加者全員に色変更)
+  // 接触相手側にもインティメート円を表示 (ささやき参加者全員に色変更)
   if (me && users[me] && whisperPeers.size > 0) {
     const now = Date.now();
     for (const [puid, lastAt] of whisperPeers) {
@@ -2723,10 +2737,10 @@ function render() {
       const pu = users[puid];
       if (!pu || pu.cx == null || pu.status === 'offline') continue;
       ctx.beginPath();
-      ctx.arc(pu.cx, pu.cy, proximityRadius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(139,92,246,0.10)';
+      ctx.arc(pu.cx, pu.cy, 50, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(139,92,246,0.14)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(139,92,246,0.45)';
+      ctx.strokeStyle = 'rgba(139,92,246,0.55)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 6]);
       ctx.stroke();

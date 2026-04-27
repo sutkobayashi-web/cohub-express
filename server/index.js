@@ -78,8 +78,9 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
-// ささやきモード: 自分と相手の近接円が触れ合う距離 (= 半径×2) 以内で発動。揮発、ログなし
-const WHISPER_TOUCH_DISTANCE = PROXIMITY_RADIUS * 2;
+// ささやきモード: アバター本体 (半径28px) が触れ合う距離で発動。揮発、ログなし
+// 28+28=56 が完全密着、70px で「軽く触れた」感覚 (耳打ちできる距離)
+const WHISPER_TOUCH_DISTANCE = parseInt(process.env.WHISPER_TOUCH_DISTANCE || '70', 10);
 
 // 葵から健康管理室のひろば案内DM (1日1回、ロビー入室時)
 // 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
