@@ -2524,6 +2524,8 @@ function onPointerDown(e) {
     return;
   }
   hidePeerMenu();
+  // 1Fロビー (一人称視点) では床移動は無効: 玄関で立ち止まっているイメージ
+  if (currentFloor && currentFloor.code === 'lobby') return;
   canvas.setPointerCapture(e.pointerId);
   dragging = true;
   canvas.classList.add('dragging');
@@ -2568,10 +2570,31 @@ function moveTo(x, y) {
 function render() {
   if (!ctx) return;
 
+  // 1Fロビー (一人称視点モード) — 受付に葵が立ち、他の人はソファ等の所定位置に着座
+  // 床移動は無効化、各ユーザーは uid ハッシュで決まる座席に固定配置
+  const isLobbyView = currentFloor && currentFloor.code === 'lobby';
+  const LOBBY_BOT_POS = { x: 560, y: 380 };  // 葵: 受付カウンター背後
+  const LOBBY_SEATS = [
+    { x: 145, y: 580 },  // 左ソファ 1人目
+    { x: 245, y: 580 },  // 左ソファ 2人目
+    { x: 345, y: 620 },  // ソファ前 立ち位置
+    { x: 560, y: 760 },  // 中央 (受付に向かう人)
+    { x: 820, y: 600 },  // 右側
+    { x: 940, y: 600 },  // エレベーター前
+  ];
+  function lobbySeatFor(uid) {
+    if (uid === 'bot_aoi') return LOBBY_BOT_POS;
+    let h = 0;
+    for (let i = 0; i < uid.length; i++) h = ((h << 5) - h + uid.charCodeAt(i)) | 0;
+    return LOBBY_SEATS[Math.abs(h) % LOBBY_SEATS.length];
+  }
+
   // 補間: targets → users[uid].cx/cy に近づける (ease-out、ゴール付近スナップで発振防止)
   for (const uid in targets) {
     if (!users[uid]) continue;
-    const t = targets[uid];
+    let t = targets[uid];
+    // ロビーは座席自動配置で targets を上書き
+    if (isLobbyView) t = lobbySeatFor(uid);
     const u = users[uid];
     if (u.cx == null) { u.cx = t.x; u.cy = t.y; continue; }
     const dx = t.x - u.cx;
@@ -2633,20 +2656,8 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1Fロビー: 受付背面の壁にスタンダード運輸ロゴを描画 (壁に沿って縦方向に圧縮+軽い視点角度)
-  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    const logoW = 160;
-    const logoH = logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth);
-    const cx = WORLD_W / 2;
-    const cy = 114;  // 5mm(約19px)上へ戻す
-    ctx.save();
-    ctx.translate(cx, cy);
-    // 壁に沿った見え方を再現: 縦方向0.55倍に圧縮 (俯瞰からの遠近感風)
-    ctx.scale(1.0, 0.55);
-    ctx.globalAlpha = 0.95;
-    ctx.drawImage(stdLogo, -logoW / 2, -logoH / 2, logoW, logoH);
-    ctx.restore();
-  }
+  // 1Fロビー: 受付背面のロゴは新背景画像に焼き込み済み (一人称視点モード)
+  // 旧:手描きオーバーレイは廃止
   // 大会議室: スタンダード運輸ロゴを床の透かしとして描画 (従来通り)
   if (currentFloor && currentFloor.code === 'meeting_c' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
     const logoW = 170;
@@ -2707,8 +2718,9 @@ function render() {
   }
 
   // 近接範囲（自分中心）— ささやきモードは「密着するインティメート円(50px)」を別途表示、通常は水色の大きな近接円
+  // ※ロビーは一人称視点なので円は描かない (現実空間として違和感を避ける)
   const whispering = isWhisperMode();
-  if (me && users[me]) {
+  if (me && users[me] && !isLobbyView) {
     const u = users[me];
     if (whispering) {
       // インティメート円: アバターのすぐ周囲だけ紫で囲む
@@ -2734,8 +2746,8 @@ function render() {
       ctx.setLineDash([]);
     }
   }
-  // 接触相手側にもインティメート円を表示 (ささやき参加者全員に色変更)
-  if (me && users[me] && whisperPeers.size > 0) {
+  // 接触相手側にもインティメート円を表示 (ささやき参加者全員に色変更) — ロビーでは非表示
+  if (me && users[me] && whisperPeers.size > 0 && !isLobbyView) {
     const now = Date.now();
     for (const [puid, lastAt] of whisperPeers) {
       if (now - lastAt >= WHISPER_GRACE_MS) continue;
