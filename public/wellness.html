@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🏥 健康管理室 — CoHub Express</title>
+<title>🏥 健康管理室 — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
@@ -62,10 +62,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 .ck-year { font-size: 18px; font-weight: 800; color: #047857; }
 .ck-name { font-size: 12px; color: #475569; margin: 4px 0; word-break: break-all; }
 
-/* eラーニング */
-.elearn-card { background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; }
-.elearn-card:hover { opacity: 0.9; }
-
 /* ヘルプ */
 .help-section { margin-bottom: 18px; }
 .help-section h3 { color: #047857; font-size: 14px; margin: 0 0 8px; padding-left: 8px; border-left: 3px solid #10b981; }
@@ -84,13 +80,24 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
 <div id="login-redirect" class="card" style="display:none;max-width:420px;margin:40px auto;text-align:center;">
   <div style="font-size:40px;margin-bottom:12px;">🔄</div>
-  <div style="font-size:14px;color:#475569;">CoHubメイン画面に移動中…</div>
+  <div style="font-size:14px;color:#475569;">CoWellメイン画面に移動中…</div>
   <div style="font-size:11px;color:#94a3b8;margin-top:6px;">ログイン後、左メニューの🏥健康管理室から戻れます</div>
 </div>
 
 <div id="panel" style="display:none;">
 
   <div id="role-banner" class="banner banner-info" style="display:none;"></div>
+
+  <!-- 🗳 社員投票カード (投票中の施策があれば表示) -->
+  <div id="voting-card" class="card" style="display:none;background:linear-gradient(135deg,#dbeafe,#e0e7ff);border-left:4px solid #3b82f6;">
+    <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#1d4ed8;margin-bottom:4px;">🗳 NOW VOTING</div>
+    <h2 style="margin:0 0 6px;font-size:16px;color:#1e3a8a;">📢 今週、みんなで決めたい施策があります</h2>
+    <div style="font-size:12px;color:#1e40af;margin-bottom:12px;line-height:1.7;">
+      推進メンバーと保健師・役員が議論して練り上げた施策です。あなたの1票で会社が動きます。<br>
+      <span style="font-size:11px;color:#64748b;">1〜5点で評価 (5=強く賛成)。賛成が反対より多ければ採用、複数案あれば全採用も可。</span>
+    </div>
+    <div id="voting-list"></div>
+  </div>
 
   <!-- 推進メンバー/管理職/NPO・大学関係者向けの別入口 -->
   <div id="ops-entry" class="card" style="display:none;background:linear-gradient(135deg,#ede9fe,#fae8ff);border-left:4px solid #7c3aed;text-align:center;">
@@ -109,7 +116,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
     <button class="active" data-tab="bp" onclick="switchTab('bp')">🩸 血圧</button>
     <button data-tab="notes" onclick="switchTab('notes')">📝 健康メモ</button>
     <button data-tab="checkup" onclick="switchTab('checkup')">📋 健診結果</button>
-    <button data-tab="elearn" onclick="switchTab('elearn')">🎬 eラーニング</button>
     <button data-tab="help" onclick="switchTab('help')">❓ ヘルプ</button>
   </div>
 
@@ -158,45 +164,19 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
     </div>
   </div>
 
-  <!-- 📋 健診結果 -->
+  <!-- 📋 健診結果 (Box参照のみ。アップロード機能は廃止) -->
   <div class="tab-pane" id="pane-checkup">
     <div class="card" style="background:linear-gradient(135deg,#ede9fe,#fae8ff);border-left:4px solid #7c3aed;">
       <h2>📥 Boxから健診データ取得</h2>
-      <div style="font-size:12px;color:#475569;margin-bottom:10px;">会社の Box に登録された健診結果(判定結果xlsm)から、氏名と生年月日でご自身のデータを表示します。</div>
+      <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.7;">
+        会社の Box に登録された健診結果 (判定結果xlsm) から、<b>登録された氏名と生年月日</b>でご自身のデータを表示します。<br>
+        <span style="font-size:11px;color:#7c3aed;">💡 設定 → プロフィールで「氏名」「生年月日」が登録されていることをご確認ください。</span>
+      </div>
       <button class="btn" style="background:#7c3aed;" onclick="fetchBoxCheckup()">📥 Boxから取得</button>
       <div id="box-result" style="margin-top:14px;"></div>
     </div>
-    <div class="card">
-      <h2>📋 健診結果ファイル</h2>
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">PDF/画像をアップロードして年別に保管 + AI分析 (本人のみ閲覧可、最大20MB)</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="number" id="ck-year" placeholder="年度" value="" style="max-width:120px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
-        <input type="file" id="ck-file" accept="application/pdf,image/*">
-        <button class="btn" onclick="submitCheckup()">アップロード</button>
-      </div>
-      <div class="err" id="ck-err"></div>
-      <div class="checkup-grid" id="ck-grid" style="margin-top:14px;"></div>
-      <div style="margin-top:14px;padding:10px;background:#ecfeff;border-radius:8px;font-size:12px;color:#0e7490;">
-        💡 過去の健診食事レポート (CoWell由来) は <a href="/wellness-archive.html" style="color:#0891b2;font-weight:700;">📦 CoWell履歴アーカイブ</a> から閲覧できます。
-      </div>
-    </div>
-    <div id="ck-ai-result" style="margin-top:14px;"></div>
-  </div>
-
-  <!-- 🎬 eラーニング -->
-  <div class="tab-pane" id="pane-elearn">
-    <div class="card">
-      <h2>🎬 eラーニング</h2>
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">健康・安全教育の動画ライブラリです</div>
-      <div class="elearn-card" onclick="location.href='/videos.html'">
-        <div style="font-size:48px;margin-bottom:10px;">🎬</div>
-        <div style="font-size:18px;font-weight:800;margin-bottom:6px;">動画ライブラリへ</div>
-        <div style="font-size:13px;opacity:0.85;">安全教育 / 業務マニュアル / 経営メッセージ / 新人教育</div>
-        <div style="margin-top:12px;font-size:11px;opacity:0.7;">タップして開く →</div>
-      </div>
-      <div style="margin-top:14px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#065f46;">
-        💡 <b>必須視聴動画</b>がある場合はホーム画面にPush通知が届きます。視聴完了は記録され、管理職が視聴率を確認できます。
-      </div>
+    <div style="margin-top:14px;padding:10px;background:#ecfeff;border-radius:8px;font-size:12px;color:#0e7490;">
+      💡 過去の健診食事レポート (CoWell Classic由来) は <a href="/wellness-archive.html" style="color:#0891b2;font-weight:700;">📦 CoWell Classic履歴アーカイブ</a> から閲覧できます。
     </div>
   </div>
 
@@ -213,7 +193,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           <li>収縮期(上) / 拡張期(下) / 脈拍 を手入力も可</li>
           <li>判定6段階: 至適 / 正常 / 正常高値 / I度高血圧 / II度 / III度</li>
           <li>7日平均カードで推移を可視化</li>
-          <li>過去のCoWell由来 (cw_blood_pressure) も統合表示</li>
+          <li>過去のCoWell Classic由来 (cw_blood_pressure) も統合表示</li>
           <li><b>本人のみ閲覧可</b>。管理者にも見えません</li>
         </ul>
       </div>
@@ -235,19 +215,9 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           <li><b>📥 Boxから取得</b>: 会社のBox上の判定結果xlsmから、氏名+生年月日でご自身のデータを表示 (DB保存なし)</li>
           <li><b>📋 ファイルアップロード</b>: 過去PDF/画像を年度別に保管 (最大20MB、本人のみ)</li>
           <li><b>🧠 AI分析</b>: 各ファイルの「AI分析」ボタンで Gemini が総合所見+主要数値+ハイライト+行動アドバイスを生成</li>
-          <li>過去のCoWell食事週次レポートは「📦 CoWell履歴アーカイブ」から</li>
+          <li>過去のCoWell食事週次レポートは「📦 CoWell Classic履歴アーカイブ」から</li>
         </ul>
         <p style="font-size:11px;color:#94a3b8;">※ Box連携には事前に<b>生年月日</b>の登録が必要 (admin画面で管理者が設定)</p>
-      </div>
-
-      <div class="help-section">
-        <h3>🎬 eラーニング</h3>
-        <p>動画ライブラリ (/videos.html) へのリンク。</p>
-        <ul>
-          <li>カテゴリ: 安全教育 / 業務マニュアル / 経営メッセージ / 新人教育</li>
-          <li>必須視聴フラグ付き動画はPush通知が届く</li>
-          <li>視聴完了は記録され、管理職が視聴率を確認可能</li>
-        </ul>
       </div>
 
       <div class="help-section">
@@ -288,11 +258,11 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
       <div class="help-section">
         <h3>🐠 イベント: 水族館の冒険</h3>
-        <p>歩数で海を旅して魚を発見するCoWellのRPG。ひろば上部の「開催中イベント」から入れます (CoWell本体に遷移)。</p>
+        <p>歩数で海を旅して魚を発見するCoWell Classic の冒険RPG。ひろば上部の「開催中イベント」から入れます (CoWell Classic本体に遷移)。</p>
       </div>
 
       <div class="help-section">
-        <h3>📦 CoWell履歴アーカイブ</h3>
+        <h3>📦 CoWell Classic履歴アーカイブ</h3>
         <p>2026年4月までのCoWell時代の個人データ:</p>
         <ul>
           <li>食事投稿+栄養分析 / バディー会話 / 歩数 / 食事週次レポート / 血圧</li>
@@ -324,7 +294,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
 
 <script>
-// 既存のCoHubトークンと共有 (cohub_admin_token優先、なければcohub_token)
+// 既存のCoWellトークンと共有 (cohub_admin_token優先、なければcohub_token)
 let token = localStorage.getItem('cohub_admin_token') || localStorage.getItem('cohub_token') || '';
 let _meta = null;       // /api/wellness/meta レスポンス
 let _ownersCache = null;
@@ -349,7 +319,7 @@ function escapeHtml(s) {
 }
 
 function showLoginRedirect() {
-  // ローカルの古いトークンを破棄してCoHubメインへ自動リダイレクト
+  // ローカルの古いトークンを破棄してCoWellメインへ自動リダイレクト
   // (再ログイン後、メインから「健康管理室」をクリックすれば戻れる)
   try {
     localStorage.removeItem('cohub_token');
@@ -388,9 +358,53 @@ async function checkAccessAndShow(user) {
       entry.style.display = 'block';
     }
     switchTab('bp');
+    loadVotingActions();
   } catch (e) {
     showLoginRedirect();
   }
+}
+
+// ===== 🗳 社員投票 =====
+async function loadVotingActions() {
+  try {
+    const r = await fetch('/api/wellness/voting-actions', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success || !d.actions || !d.actions.length) return;
+    const card = document.getElementById('voting-card');
+    const list = document.getElementById('voting-list');
+    list.innerHTML = d.actions.map(a => {
+      const myScore = a.my_score || 0;
+      const dots = [1,2,3,4,5].map(n => `<button onclick="voteAction(${a.id}, ${n})" style="width:36px;height:36px;border-radius:50%;border:2px solid ${myScore===n?'#1d4ed8':'#cbd5e1'};background:${myScore===n?'linear-gradient(135deg,#60a5fa,#3b82f6)':'#fff'};color:${myScore===n?'#fff':'#3b82f6'};font-weight:800;font-size:14px;cursor:pointer;">${n}</button>`).join('');
+      const labels = ['', '強く反対', '反対', '中立', '賛成', '強く賛成'];
+      return `<div style="background:#fff;border:1px solid #c7d2fe;border-radius:14px;padding:14px;margin-bottom:10px;">
+        <div style="font-weight:800;font-size:14px;color:#1e3a8a;">${escapeHtml(a.title)}</div>
+        <div style="font-size:12px;color:#475569;margin:6px 0 10px;line-height:1.6;">${escapeHtml((a.description||'').slice(0,160))}${(a.description||'').length>160?'…':''}</div>
+        <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;color:#dc2626;width:60px;text-align:right;">反対</span>
+          ${dots}
+          <span style="font-size:11px;color:#10b981;width:60px;">賛成</span>
+        </div>
+        <div style="text-align:center;font-size:12px;color:#1d4ed8;font-weight:700;min-height:18px;">
+          ${myScore ? `あなたの投票: ${myScore}点 (${labels[myScore]})` : 'タップして1〜5点を選んでください'}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:6px;">
+          <span>📊 すでに ${a.vote_count}人 が投票</span>
+          <span>⏳ 残り ${a.days_left}日</span>
+        </div>
+      </div>`;
+    }).join('');
+    card.style.display = 'block';
+  } catch (e) { console.warn('loadVotingActions', e); }
+}
+async function voteAction(id, score) {
+  const comment = prompt('一言コメント (任意、500字まで)') || '';
+  const r = await fetch('/api/wellness/actions/' + id + '/vote', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ score, comment }),
+  });
+  const j = await r.json();
+  if (!j.success) { alert('失敗: ' + (j.msg || '')); return; }
+  loadVotingActions();
 }
 
 // タブ切替 (個人記録のみ。運営は別ページ /wellness-ops.html)
@@ -401,7 +415,7 @@ function switchTab(t) {
   if (pane) pane.classList.add('active');
   if (t === 'bp') loadBP();
   else if (t === 'notes') loadNotes();
-  else if (t === 'checkup') loadCheckups();
+  // checkup タブは手動でBox取得ボタンを押す方式 (自動ロードなし)
 }
 
 // ===== 🩸 血圧 =====
@@ -558,81 +572,6 @@ async function delNote(id) {
   loadNotes();
 }
 
-// ===== 📋 健診結果 =====
-async function loadCheckups() {
-  const r = await fetch('/api/myhealth/checkups', { headers: { Authorization: 'Bearer ' + token } });
-  const d = await r.json();
-  if (!d.success) return;
-  const grid = document.getElementById('ck-grid');
-  if (!d.checkups.length) { grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:14px;text-align:center;grid-column:1/-1;">健診ファイルはまだアップロードされていません</div>'; return; }
-  grid.innerHTML = d.checkups.map(c => {
-    const isPdf = (c.file_url || '').toLowerCase().endsWith('.pdf');
-    return `<div class="ck-card">
-      <div class="ck-year">${c.year || '-'}年度 ${isPdf ? '📄' : '🖼'}</div>
-      <div class="ck-name" title="${escapeHtml(c.file_name || '')}">${escapeHtml((c.file_name || '').slice(0, 30))}${(c.file_name || '').length > 30 ? '…' : ''}</div>
-      <div style="font-size:10px;color:#94a3b8;">${Math.round((c.file_size || 0) / 1024)}KB · ${escapeHtml((c.uploaded_at || '').slice(0, 10))}</div>
-      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openCheckup(${c.id})">開く</button>
-        <button class="btn" style="font-size:11px;padding:5px 10px;background:#7c3aed;" onclick="analyzeCheckup(${c.id})">🧠 AI分析</button>
-        <button class="btn btn-danger" style="font-size:11px;padding:5px 10px;" onclick="delCheckup(${c.id})">削除</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-async function openCheckup(id) {
-  const r = await fetch('/api/myhealth/checkup-file/' + id, { headers: { Authorization: 'Bearer ' + token } });
-  if (!r.ok) { alert('取得失敗'); return; }
-  const blob = await r.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-async function submitCheckup() {
-  const errEl = document.getElementById('ck-err');
-  errEl.textContent = '';
-  const file = document.getElementById('ck-file').files[0];
-  if (!file) { errEl.textContent = 'ファイルを選択してください'; return; }
-  const fd = new FormData();
-  const year = document.getElementById('ck-year').value || new Date().getFullYear();
-  fd.append('year', year);
-  fd.append('file', file);
-  const r = await fetch('/api/myhealth/checkups', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd });
-  const d = await r.json();
-  if (!d.success) { errEl.textContent = d.msg || '失敗'; return; }
-  document.getElementById('ck-file').value = '';
-  loadCheckups();
-}
-async function delCheckup(id) {
-  if (!confirm('健診ファイルを削除しますか？')) return;
-  await fetch('/api/myhealth/checkups/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
-  loadCheckups();
-}
-
-async function analyzeCheckup(id) {
-  const box = document.getElementById('ck-ai-result');
-  box.innerHTML = '<div class="card" style="background:#faf5ff;color:#7c3aed;padding:14px;font-size:13px;">🧠 AI分析中… (10〜30秒)</div>';
-  try {
-    const r = await fetch('/api/myhealth/checkups/' + id + '/analyze', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
-    const d = await r.json();
-    if (!d.success) { box.innerHTML = '<div class="card" style="color:#dc2626;">' + escapeHtml(d.msg || '失敗') + '</div>'; return; }
-    const a = d.analysis;
-    const sevColor = { good: '#10b981', caution: '#f59e0b', warning: '#ea580c', danger: '#dc2626' };
-    const sevLabel = { good: '✓ 良好', caution: '⚠ 注意', warning: '⚠ 警告', danger: '🚨 要医療' };
-    box.innerHTML = `<div class="card" style="border-left:4px solid #7c3aed;">
-      <h2>🧠 AI健診分析</h2>
-      <div style="background:#faf5ff;padding:12px;border-radius:8px;font-size:13px;line-height:1.7;color:#0f172a;margin-bottom:12px;white-space:pre-wrap;">${escapeHtml(a.summary || '')}</div>
-      ${(a.highlights || []).length ? '<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">🔍 ハイライト</div>' +
-        a.highlights.map(h => `<div style="padding:8px 10px;background:${(sevColor[h.level]||'#94a3b8')}11;border-left:3px solid ${(sevColor[h.level]||'#94a3b8')};border-radius:6px;margin-bottom:6px;">
-          <div style="font-size:11px;font-weight:700;color:${sevColor[h.level]||'#475569'};">${escapeHtml(h.category||'')} · ${sevLabel[h.level]||h.level||''}</div>
-          <div style="font-size:13px;color:#0f172a;margin-top:2px;">${escapeHtml(h.message||'')}</div>
-        </div>`).join('') : ''}
-      ${(a.values || []).length ? '<div style="font-size:12px;font-weight:700;color:#475569;margin:10px 0 6px;">📊 主要数値</div>' +
-        '<table style="font-size:12px;width:100%;"><thead><tr><th>項目</th><th>値</th><th>判定</th><th>基準</th></tr></thead><tbody>' +
-        a.values.map(v => `<tr><td>${escapeHtml(v.name||'')}</td><td><b>${escapeHtml(String(v.value||''))}</b> ${escapeHtml(v.unit||'')}</td><td>${escapeHtml(v.judgment||'')}</td><td style="color:#94a3b8;">${escapeHtml(v.ref_range||'')}</td></tr>`).join('') + '</tbody></table>' : ''}
-      ${a.advice ? '<div style="margin-top:12px;padding:10px 12px;background:#ecfdf5;border-left:3px solid #10b981;border-radius:6px;font-size:13px;line-height:1.7;color:#065f46;white-space:pre-wrap;">💡 ' + escapeHtml(a.advice) + '</div>' : ''}
-    </div>`;
-  } catch (e) { box.innerHTML = '<div class="card" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</div>'; }
-}
 
 async function fetchBoxCheckup() {
   const box = document.getElementById('box-result');
@@ -667,12 +606,12 @@ async function fetchBoxCheckup() {
         <tr><td>中性脂肪</td><td>${escapeHtml(String(v.中性脂肪||'-'))}</td><td>空腹時血糖</td><td>${escapeHtml(String(v.空腹時血糖||'-'))}</td></tr>
         <tr><td>AST</td><td>${escapeHtml(String(v.AST||'-'))}</td><td>ALT</td><td>${escapeHtml(String(v.ALT||'-'))}</td></tr>
       </table>
-      <div style="margin-top:10px;font-size:10px;color:#94a3b8;">🔒 このデータは表示のみ。CoHub DBには保存されません。</div>
+      <div style="margin-top:10px;font-size:10px;color:#94a3b8;">🔒 このデータは表示のみ。CoWell DBには保存されません。</div>
     </div>`;
   } catch (e) { box.innerHTML = '<div style="color:#dc2626;font-size:13px;">通信エラー: ' + escapeHtml(e.message) + '</div>'; }
 }
 
-// ===== 自動ログイン (CoHub既存セッション利用) =====
+// ===== 自動ログイン (CoWell既存セッション利用) =====
 (async function() {
   if (!token) { showLoginRedirect(); return; }
   try {
