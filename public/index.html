@@ -1094,6 +1094,7 @@ function doLogout() {
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} });
   localStorage.removeItem('cohub_token');
   localStorage.removeItem('cohub_user');
+  localStorage.removeItem('cohub_lobby_welcome_at');
   // cohub_login_id は意図的に残す → 次回ログイン画面でプリフィル
   // ブラウザに自動再ログインを抑止 (パスワード保存は維持)
   try { if (navigator.credentials && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess(); } catch (e) {}
@@ -3463,13 +3464,19 @@ function speakEnterLeave(name, isEnter) {
 }
 
 // ロビー入室時に本人向けの挨拶 (チャイム+「○○さんおかえりなさい」)
-let _lobbyWelcomeShown = 0;
+// localStorageで永続化: 管理画面等から戻ってきた際の再ロードでも30分以内は抑止
+const _LOBBY_WELCOME_COOLDOWN_MS = 30 * 60 * 1000;
+function _getLobbyWelcomeShown() {
+  try { return parseInt(localStorage.getItem('cohub_lobby_welcome_at') || '0') || 0; } catch (e) { return 0; }
+}
+function _setLobbyWelcomeShown(t) {
+  try { localStorage.setItem('cohub_lobby_welcome_at', String(t)); } catch (e) {}
+}
 function announceLobbyWelcome() {
   if (!speakerOn) return;
   const now = Date.now();
-  // 5分以内の連発は抑止 (再ロード等)
-  if (now - _lobbyWelcomeShown < 5 * 60 * 1000) return;
-  _lobbyWelcomeShown = now;
+  if (now - _getLobbyWelcomeShown() < _LOBBY_WELCOME_COOLDOWN_MS) return;
+  _setLobbyWelcomeShown(now);
   const myUser = users[me] || currentUser || {};
   const myName = (myUser && (myUser.name || myUser.display_name)) || 'あなた';
   const reading = readingOf(myName) || myName;
