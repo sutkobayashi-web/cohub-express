@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>📦 関東BC管理 — CoWell</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background: #f1f5f9; color: #0f172a; padding-bottom: 40px; }
+  header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #0891b2, #0e7490); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  header h1 { margin: 0; font-size: 17px; flex: 1; }
+  header button.back { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  main { max-width: 1080px; margin: 0 auto; padding: 14px; }
+  .tabs { display: flex; gap: 4px; background: #fff; border-radius: 10px; padding: 4px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-wrap: wrap; }
+  .tab { flex: 1; min-width: 120px; padding: 11px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; }
+  .tab.active { background: #0891b2; color: #fff; }
+  .actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .btn { padding: 10px 18px; background: #0891b2; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+  .btn-ghost { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-danger { background: #dc2626; }
+  .card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+  .meta { font-size: 11px; color: #94a3b8; }
+  .body-text { font-size: 13px; color: #334155; margin-top: 4px; line-height: 1.5; }
+  .pill { background: #ecfeff; color: #155e75; padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 700; }
+  .pill-warn { background: #fef3c7; color: #92400e; }
+  .pill-ok { background: #d1fae5; color: #065f46; }
+  .pill-pri-h { background: #fee2e2; color: #991b1b; }
+  .pill-pri-m { background: #fef3c7; color: #92400e; }
+  .pill-pri-l { background: #ecfdf5; color: #065f46; }
+  .stats { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .stat { background: #fff; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 120px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .stat .v { font-size: 20px; font-weight: 800; color: #0891b2; }
+  .stat .l { font-size: 11px; color: #64748b; }
+  .month-strip { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+  .month-strip::-webkit-scrollbar { height: 4px; }
+  .mb { padding: 6px 12px; background: #fff; border-radius: 8px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; white-space: nowrap; border: 1px solid #e2e8f0; }
+  .mb.active { background: #0891b2; color: #fff; border-color: #0891b2; }
+  .empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
+  .empty .ico { font-size: 36px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+  th { background: #f8fafc; font-weight: 700; color: #475569; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  /* Modal */
+  .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding: 12px; overflow-y: auto; }
+  .modal.open { display: flex; }
+  .modal-body { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; margin: 16px auto; max-height: 92vh; overflow-y: auto; }
+  .modal-head { padding: 12px 16px; background: linear-gradient(135deg, #0891b2, #0e7490); color: #fff; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; }
+  .modal-head h3 { margin: 0; font-size: 15px; flex: 1; }
+  .modal-head .close { background: rgba(255,255,255,0.18); border: none; color: #fff; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
+  .modal-content { padding: 14px 16px; }
+  .modal-footer { padding: 10px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 3px; }
+  .field input, .field select, .field textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 13px; font-family: inherit; }
+  .field textarea { min-height: 60px; resize: vertical; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  @media (max-width: 540px) {
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+  }
+  .err { color: #dc2626; font-size: 12px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back" onclick="location.href='/'">‹ 戻る</button>
+  <h1>📦 関東BC管理</h1>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="daily" onclick="switchTab('daily')">📅 日報</button>
+    <button class="tab" data-tab="claims" onclick="switchTab('claims')">⚠ クレーム</button>
+    <button class="tab" data-tab="bc" onclick="switchTab('bc')">📋 BC報告</button>
+    <button class="tab" data-tab="actions" onclick="switchTab('actions')">📌 改善施策</button>
+  </div>
+
+  <div id="pane-daily" class="pane">
+    <div class="month-strip" id="month-strip"></div>
+    <div id="daily-stats" class="stats"></div>
+    <div class="actions">
+      <button class="btn" onclick="openDailyForm()">＋ 日報入力</button>
+    </div>
+    <div id="daily-list"></div>
+  </div>
+
+  <div id="pane-claims" class="pane" style="display:none;">
+    <div id="claims-stats" class="stats"></div>
+    <div class="actions">
+      <button class="btn" onclick="openClaimForm()">＋ クレーム登録</button>
+    </div>
+    <div id="claims-list"></div>
+  </div>
+
+  <div id="pane-bc" class="pane" style="display:none;">
+    <div class="actions">
+      <button class="btn" onclick="openBcForm()">＋ BC報告作成</button>
+    </div>
+    <div id="bc-list"></div>
+  </div>
+
+  <div id="pane-actions" class="pane" style="display:none;">
+    <div class="actions">
+      <button class="btn" onclick="openActionForm()">＋ 施策追加</button>
+    </div>
+    <div id="actions-list"></div>
+  </div>
+</main>
+
+<div class="modal" id="form-modal" onclick="if (event.target.id === 'form-modal') closeForm()">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h3 id="form-title">入力</h3>
+      <button class="close" onclick="closeForm()">×</button>
+    </div>
+    <div class="modal-content" id="form-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeForm()">キャンセル</button>
+      <button class="btn" id="form-submit" onclick="submitForm()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token');
+let me = null;
+try { me = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch (e) {}
+if (!token) location.href = '/';
+const isManager = me && (me.employee_type === 'admin' || me.role === 'admin');
+
+async function api(path, opts = {}) {
+  const init = Object.assign({ headers: { Authorization: 'Bearer ' + token } }, opts);
+  if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
+    init.headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers);
+    init.body = JSON.stringify(init.body);
+  }
+  const r = await fetch(path, init);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.href = '/'; return; }
+  return r.json();
+}
+
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+function fmtNum(n) { return (n || 0).toLocaleString(); }
+
+let currentTab = 'daily';
+let _currentMonth = null;
+let _formMode = null;  // {tab, id} or null
+
+function switchTab(t) {
+  currentTab = t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.querySelectorAll('.pane').forEach(p => p.style.display = 'none');
+  document.getElementById('pane-' + t).style.display = '';
+  loadCurrent();
+}
+
+function loadCurrent() {
+  if (currentTab === 'daily') loadDaily();
+  else if (currentTab === 'claims') loadClaims();
+  else if (currentTab === 'bc') loadBc();
+  else if (currentTab === 'actions') loadActions();
+}
+
+// ============================================================
+// 日報
+// ============================================================
+async function loadDaily() {
+  const d = await api('/api/kbc/daily/months');
+  if (!d || !d.success) return;
+  const months = d.months;
+  if (!_currentMonth && months.length) _currentMonth = months[0].month;
+  document.getElementById('month-strip').innerHTML = months.map(m =>
+    `<button class="mb ${m.month === _currentMonth ? 'active' : ''}" onclick="selectMonth('${m.month}')">${m.month} (${m.cnt})</button>`
+  ).join('');
+  if (_currentMonth) {
+    const r = await api('/api/kbc/daily?month=' + encodeURIComponent(_currentMonth));
+    if (!r || !r.success) return;
+    renderDailyStats(r.totals);
+    renderDailyList(r.reports);
+  }
+}
+function selectMonth(m) { _currentMonth = m; loadDaily(); }
+
+function renderDailyStats(t) {
+  if (!t || !t.days) { document.getElementById('daily-stats').innerHTML = ''; return; }
+  document.getElementById('daily-stats').innerHTML = `
+    <div class="stat"><div class="v">${t.days}</div><div class="l">日数</div></div>
+    <div class="stat"><div class="v">${fmtNum(t.shipping)}</div><div class="l">出荷合計</div></div>
+    <div class="stat"><div class="v">${fmtNum(t.inbound)}</div><div class="l">入庫合計</div></div>
+    <div class="stat"><div class="v">${fmtNum(t.outbound)}</div><div class="l">出庫合計</div></div>
+    <div class="stat"><div class="v">${(t.avg_workers || 0).toFixed(1)}</div><div class="l">平均人員</div></div>
+  `;
+}
+
+function renderDailyList(rows) {
+  const el = document.getElementById('daily-list');
+  if (!rows.length) { el.innerHTML = '<div class="empty"><div class="ico">📅</div>この月の日報はありません</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>日付</th><th>担当</th><th>稼働</th>
+      <th class="num">人員</th><th class="num">入庫</th><th class="num">出庫</th><th class="num">出荷</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td>${escapeHtml(r.report_date)}</td>
+      <td>${escapeHtml(r.user_name)}</td>
+      <td>${escapeHtml((r.start_time || '') + (r.end_time ? '〜' + r.end_time : ''))}</td>
+      <td class="num">${(r.workers || 0).toFixed(1)}</td>
+      <td class="num">${fmtNum(r.inbound_total)}</td>
+      <td class="num">${fmtNum(r.outbound_total)}</td>
+      <td class="num">${fmtNum(r.shipping_total)}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openDailyForm(${r.id})">編集</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function openDailyForm(id) {
+  _formMode = { tab: 'daily', id: id || null };
+  let initial = {};
+  if (id) {
+    const d = await api('/api/kbc/daily/' + id);
+    if (!d || !d.success) return alert('読込失敗');
+    initial = d.report;
+  }
+  document.getElementById('form-title').textContent = '📅 日報 ' + (id ? '編集' : '入力');
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('form-content').innerHTML = `
+    <div class="grid2">
+      <div class="field"><label>日付 *</label><input type="date" id="f-date" value="${escapeHtml(initial.report_date || today)}" ${id ? 'disabled' : ''}></div>
+      <div class="field"><label>担当者</label><input type="text" id="f-user" value="${escapeHtml(initial.user_name || (me && me.display_name) || '')}"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>開始時刻</label><input type="time" id="f-start" value="${escapeHtml(initial.start_time || '')}"></div>
+      <div class="field"><label>終了時刻</label><input type="time" id="f-end" value="${escapeHtml(initial.end_time || '')}"></div>
+      <div class="field"><label>休憩(分)</label><input type="number" id="f-break" value="${initial.break_minutes || 60}"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>正社員</label><input type="number" id="f-staff" value="${initial.staff || 0}"></div>
+      <div class="field"><label>派遣</label><input type="number" id="f-temp" value="${initial.temp_workers || 0}"></div>
+      <div class="field"><label>パート</label><input type="number" id="f-part" value="${initial.part_workers || 0}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>稼働人員(換算)</label><input type="number" step="0.1" id="f-workers" value="${initial.workers || 0}"></div>
+      <div class="field"><label>出荷合計</label><input type="number" id="f-shipping" value="${initial.shipping_total || 0}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>入庫合計</label><input type="number" id="f-in" value="${initial.inbound_total || 0}"></div>
+      <div class="field"><label>出庫合計</label><input type="number" id="f-out" value="${initial.outbound_total || 0}"></div>
+    </div>
+    <div class="field"><label>メモ</label><textarea id="f-memo">${escapeHtml(initial.memo || '')}</textarea></div>
+    <div class="err" id="f-err"></div>
+  `;
+  document.getElementById('form-modal').classList.add('open');
+}
+
+// ============================================================
+// クレーム
+// ============================================================
+async function loadClaims() {
+  const d = await api('/api/kbc/claims');
+  if (!d || !d.success) return;
+  const total = d.claims.reduce((a, c) => a + (c.amount || 0), 0);
+  document.getElementById('claims-stats').innerHTML = `
+    <div class="stat"><div class="v">${d.claims.length}</div><div class="l">件数 (全期間)</div></div>
+    <div class="stat"><div class="v">${fmtNum(total)}</div><div class="l">金額合計 (円)</div></div>
+    ${d.byMonth[0] ? `<div class="stat"><div class="v">${d.byMonth[0].cnt}</div><div class="l">${d.byMonth[0].claim_month} 件数</div></div>` : ''}
+  `;
+  const el = document.getElementById('claims-list');
+  if (!d.claims.length) { el.innerHTML = '<div class="empty"><div class="ico">⚠</div>クレームはありません</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>月</th><th>商品</th><th class="num">数量</th><th class="num">金額</th><th>地域</th><th>原因</th><th>報告者</th><th></th></tr></thead>
+    <tbody>${d.claims.map(c => `<tr>
+      <td>${escapeHtml(c.claim_month)}</td>
+      <td>${escapeHtml(c.product_category)} / ${escapeHtml(c.product_name || '')}</td>
+      <td class="num">${c.quantity || 0}</td>
+      <td class="num">${fmtNum(c.amount)}</td>
+      <td>${escapeHtml(c.area || '')}</td>
+      <td>${escapeHtml(c.cause || '')}</td>
+      <td>${escapeHtml(c.reporter || '')}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openClaimForm(${c.id})">編集</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function openClaimForm(id) {
+  _formMode = { tab: 'claims', id: id || null };
+  let initial = {};
+  if (id) {
+    const d = await api('/api/kbc/claims');
+    initial = d.claims.find(c => c.id === id) || {};
+  }
+  document.getElementById('form-title').textContent = '⚠ クレーム ' + (id ? '編集' : '登録');
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  document.getElementById('form-content').innerHTML = `
+    <div class="grid2">
+      <div class="field"><label>発生月 *</label><input type="month" id="f-month" value="${escapeHtml(initial.claim_month || thisMonth)}"></div>
+      <div class="field"><label>商品カテゴリ *</label><input type="text" id="f-cat" value="${escapeHtml(initial.product_category || '')}"></div>
+    </div>
+    <div class="field"><label>商品名</label><input type="text" id="f-name" value="${escapeHtml(initial.product_name || '')}"></div>
+    <div class="grid2">
+      <div class="field"><label>数量</label><input type="number" id="f-qty" value="${initial.quantity || 1}"></div>
+      <div class="field"><label>金額 (円)</label><input type="number" id="f-amount" value="${initial.amount || 0}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>地域・営業所</label><input type="text" id="f-area" value="${escapeHtml(initial.area || '')}"></div>
+      <div class="field"><label>原因</label><input type="text" id="f-cause" value="${escapeHtml(initial.cause || '')}"></div>
+    </div>
+    <div class="field"><label>報告者</label><input type="text" id="f-reporter" value="${escapeHtml(initial.reporter || (me && me.display_name) || '')}"></div>
+    <div class="field"><label>メモ</label><textarea id="f-memo">${escapeHtml(initial.memo || '')}</textarea></div>
+    <div class="err" id="f-err"></div>
+  `;
+  document.getElementById('form-modal').classList.add('open');
+}
+
+// ============================================================
+// BC報告
+// ============================================================
+async function loadBc() {
+  const d = await api('/api/kbc/bc-reports');
+  if (!d || !d.success) return;
+  const el = document.getElementById('bc-list');
+  if (!d.reports.length) { el.innerHTML = '<div class="empty"><div class="ico">📋</div>BC報告はありません</div>'; return; }
+  el.innerHTML = d.reports.map(r => {
+    const statusPill = r.status === 'confirmed' ? 'pill-ok' : 'pill-warn';
+    return `<div class="card">
+      <div class="head">
+        <span class="pill ${statusPill}">${escapeHtml(r.status || 'new')}</span>
+        <span class="pill">${escapeHtml(r.report_type || '破損')}</span>
+        <strong>${escapeHtml(r.product_name || '')}</strong>
+        <span class="meta">${escapeHtml(r.created_at || '')}</span>
+      </div>
+      <div class="body-text"><b>場所:</b> ${escapeHtml(r.location || '-')} / <b>原因:</b> ${escapeHtml(r.cause || '-')}</div>
+      ${r.damage_detail ? `<div class="body-text"><b>損害:</b> ${escapeHtml(r.damage_detail)}</div>` : ''}
+      ${r.action_taken ? `<div class="body-text"><b>対処:</b> ${escapeHtml(r.action_taken)}</div>` : ''}
+      <div class="meta" style="margin-top:6px;">報告: ${escapeHtml(r.reporter || '')}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <button class="btn btn-sm btn-ghost" onclick="openBcForm(${r.id})">編集</button>
+        ${isManager ? `<button class="btn btn-sm btn-danger" onclick="deleteItem('bc', ${r.id})">削除</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openBcForm(id) {
+  _formMode = { tab: 'bc', id: id || null };
+  let initial = {};
+  if (id) {
+    const d = await api('/api/kbc/bc-reports');
+    initial = d.reports.find(r => r.id === id) || {};
+  }
+  document.getElementById('form-title').textContent = '📋 BC報告 ' + (id ? '編集' : '作成');
+  document.getElementById('form-content').innerHTML = `
+    <div class="grid2">
+      <div class="field"><label>種別</label>
+        <select id="f-type">${['破損','汚損','紛失','誤配送','その他'].map(t => `<option ${initial.report_type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>発生時刻</label><input type="datetime-local" id="f-time" value="${escapeHtml(initial.occurrence_time || '')}"></div>
+    </div>
+    <div class="field"><label>場所</label><input type="text" id="f-loc" value="${escapeHtml(initial.location || '')}"></div>
+    <div class="grid2">
+      <div class="field"><label>商品コード</label><input type="text" id="f-code" value="${escapeHtml(initial.product_code || '')}"></div>
+      <div class="field"><label>商品名</label><input type="text" id="f-name" value="${escapeHtml(initial.product_name || '')}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>数量</label><input type="number" id="f-qty" value="${initial.quantity || 1}"></div>
+      <div class="field"><label>破損部位</label><input type="text" id="f-item" value="${escapeHtml(initial.damaged_item || '')}"></div>
+    </div>
+    <div class="field"><label>原因</label><input type="text" id="f-cause" value="${escapeHtml(initial.cause || '')}"></div>
+    <div class="field"><label>損害詳細</label><textarea id="f-damage">${escapeHtml(initial.damage_detail || '')}</textarea></div>
+    <div class="field"><label>対処</label><textarea id="f-action">${escapeHtml(initial.action_taken || '')}</textarea></div>
+    <div class="field"><label>再発防止策</label><textarea id="f-prevent">${escapeHtml(initial.prevention || '')}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label>状態</label>
+        <select id="f-status">${['new','sent','confirmed','rejected'].map(s => `<option ${initial.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>報告者</label><input type="text" id="f-reporter" value="${escapeHtml(initial.reporter || (me && me.display_name) || '')}"></div>
+    </div>
+    <div class="err" id="f-err"></div>
+  `;
+  document.getElementById('form-modal').classList.add('open');
+}
+
+// ============================================================
+// 改善施策
+// ============================================================
+async function loadActions() {
+  const d = await api('/api/kbc/action-plans');
+  if (!d || !d.success) return;
+  const el = document.getElementById('actions-list');
+  if (!d.plans.length) { el.innerHTML = '<div class="empty"><div class="ico">📌</div>施策はありません</div>'; return; }
+  el.innerHTML = d.plans.map(p => {
+    const priCls = p.priority === '高' ? 'pill-pri-h' : p.priority === '低' ? 'pill-pri-l' : 'pill-pri-m';
+    const statusCls = p.status === '完了' ? 'pill-ok' : (p.status === '対応中' ? 'pill-warn' : 'pill');
+    return `<div class="card">
+      <div class="head">
+        <span class="pill ${priCls}">${escapeHtml(p.priority || '中')}</span>
+        <span class="pill ${statusCls}">${escapeHtml(p.status || '未着手')}</span>
+        ${p.category ? `<span class="meta">${escapeHtml(p.category)}</span>` : ''}
+        ${p.deadline ? `<span class="meta">期限: ${escapeHtml(p.deadline)}</span>` : ''}
+      </div>
+      <div class="body-text"><b>課題:</b> ${escapeHtml(p.issue || '')}</div>
+      ${p.action ? `<div class="body-text"><b>対策:</b> ${escapeHtml(p.action)}</div>` : ''}
+      ${p.person ? `<div class="meta" style="margin-top:6px;">担当: ${escapeHtml(p.person)}</div>` : ''}
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <button class="btn btn-sm btn-ghost" onclick="openActionForm(${p.id})">編集</button>
+        ${isManager ? `<button class="btn btn-sm btn-danger" onclick="deleteItem('action', ${p.id})">削除</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openActionForm(id) {
+  _formMode = { tab: 'actions', id: id || null };
+  let initial = {};
+  if (id) {
+    const d = await api('/api/kbc/action-plans');
+    initial = d.plans.find(p => p.id === id) || {};
+  }
+  document.getElementById('form-title').textContent = '📌 改善施策 ' + (id ? '編集' : '追加');
+  document.getElementById('form-content').innerHTML = `
+    <div class="grid3">
+      <div class="field"><label>優先度</label>
+        <select id="f-pri">${['高','中','低'].map(p => `<option ${initial.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>カテゴリ</label><input type="text" id="f-cat" value="${escapeHtml(initial.category || '')}"></div>
+      <div class="field"><label>状態</label>
+        <select id="f-status">${['未着手','対応中','完了','保留'].map(s => `<option ${initial.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field"><label>課題内容 *</label><textarea id="f-issue">${escapeHtml(initial.issue || '')}</textarea></div>
+    <div class="field"><label>対策・アクション</label><textarea id="f-action">${escapeHtml(initial.action || '')}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label>担当者</label><input type="text" id="f-person" value="${escapeHtml(initial.person || '')}"></div>
+      <div class="field"><label>期限</label><input type="date" id="f-deadline" value="${escapeHtml(initial.deadline || '')}"></div>
+    </div>
+    <div class="err" id="f-err"></div>
+  `;
+  document.getElementById('form-modal').classList.add('open');
+}
+
+// ============================================================
+// フォーム共通
+// ============================================================
+function closeForm() {
+  document.getElementById('form-modal').classList.remove('open');
+  _formMode = null;
+}
+
+async function submitForm() {
+  const errEl = document.getElementById('f-err');
+  errEl.textContent = '';
+  const btn = document.getElementById('form-submit');
+  btn.disabled = true;
+  let path, body;
+  try {
+    if (_formMode.tab === 'daily') {
+      body = {
+        report_date: document.getElementById('f-date').value,
+        user_name: document.getElementById('f-user').value,
+        start_time: document.getElementById('f-start').value || null,
+        end_time: document.getElementById('f-end').value || null,
+        break_minutes: parseInt(document.getElementById('f-break').value) || 60,
+        staff: parseInt(document.getElementById('f-staff').value) || 0,
+        temp_workers: parseInt(document.getElementById('f-temp').value) || 0,
+        part_workers: parseInt(document.getElementById('f-part').value) || 0,
+        workers: parseFloat(document.getElementById('f-workers').value) || 0,
+        shipping_total: parseInt(document.getElementById('f-shipping').value) || 0,
+        inbound_total: parseInt(document.getElementById('f-in').value) || 0,
+        outbound_total: parseInt(document.getElementById('f-out').value) || 0,
+        memo: document.getElementById('f-memo').value,
+      };
+      path = '/api/kbc/daily' + (_formMode.id ? '/' + _formMode.id : '');
+    } else if (_formMode.tab === 'claims') {
+      body = {
+        claim_month: document.getElementById('f-month').value,
+        product_category: document.getElementById('f-cat').value,
+        product_name: document.getElementById('f-name').value,
+        quantity: parseInt(document.getElementById('f-qty').value) || 1,
+        amount: parseInt(document.getElementById('f-amount').value) || 0,
+        area: document.getElementById('f-area').value,
+        cause: document.getElementById('f-cause').value,
+        reporter: document.getElementById('f-reporter').value,
+        memo: document.getElementById('f-memo').value,
+      };
+      path = '/api/kbc/claims' + (_formMode.id ? '/' + _formMode.id : '');
+    } else if (_formMode.tab === 'bc') {
+      body = {
+        report_type: document.getElementById('f-type').value,
+        occurrence_time: document.getElementById('f-time').value,
+        location: document.getElementById('f-loc').value,
+        product_code: document.getElementById('f-code').value,
+        product_name: document.getElementById('f-name').value,
+        quantity: parseInt(document.getElementById('f-qty').value) || 1,
+        damaged_item: document.getElementById('f-item').value,
+        cause: document.getElementById('f-cause').value,
+        damage_detail: document.getElementById('f-damage').value,
+        action_taken: document.getElementById('f-action').value,
+        prevention: document.getElementById('f-prevent').value,
+        status: document.getElementById('f-status').value,
+        reporter: document.getElementById('f-reporter').value,
+      };
+      path = '/api/kbc/bc-reports' + (_formMode.id ? '/' + _formMode.id : '');
+    } else if (_formMode.tab === 'actions') {
+      body = {
+        priority: document.getElementById('f-pri').value,
+        category: document.getElementById('f-cat').value,
+        status: document.getElementById('f-status').value,
+        issue: document.getElementById('f-issue').value,
+        action: document.getElementById('f-action').value,
+        person: document.getElementById('f-person').value,
+        deadline: document.getElementById('f-deadline').value || null,
+      };
+      if (!body.issue) { errEl.textContent = '課題必須'; btn.disabled = false; return; }
+      path = '/api/kbc/action-plans' + (_formMode.id ? '/' + _formMode.id : '');
+    }
+    const method = _formMode.id ? 'PUT' : 'POST';
+    const d = await api(path, { method, body });
+    if (!d || !d.success) { errEl.textContent = (d && d.msg) || '保存失敗'; btn.disabled = false; return; }
+    closeForm();
+    loadCurrent();
+  } catch (e) {
+    errEl.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false;
+  }
+}
+
+async function deleteItem(kind, id) {
+  if (!confirm('削除しますか?')) return;
+  const path = kind === 'bc' ? '/api/kbc/bc-reports/' + id : '/api/kbc/action-plans/' + id;
+  const d = await api(path, { method: 'DELETE' });
+  if (d && d.success) loadCurrent();
+}
+
+// 初期化
+loadCurrent();
+</script>
+
+</body>
+</html>
