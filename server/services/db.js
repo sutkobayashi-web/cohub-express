@@ -558,6 +558,192 @@ function getDb() {
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')
                  AND (entry_x <> 672 OR entry_y <> 678)`).run();
+
+  // ============================================================
+  // CoLink 吸収 (2026-04-28): 関東BC 倉庫向け機能を CoHub に統合
+  // 製品事故報告書・日報・クレーム・BC報告・施策一覧を保持。FK なし(reporter は TEXT)
+  // ============================================================
+  // 製品事故報告書 (CoLink accident_reports と互換)
+  _db.exec(`CREATE TABLE IF NOT EXISTS kbc_accident_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    accident_date TEXT NOT NULL,
+    accident_time TEXT,
+    weather TEXT,
+    timing TEXT,
+    location_floor TEXT,
+    location_area TEXT,
+    reporter_name TEXT NOT NULL,
+    accident_type TEXT DEFAULT '製品破損',
+    product_code TEXT,
+    product_name TEXT,
+    product_category TEXT,
+    quantity INTEGER DEFAULT 1,
+    cause_category TEXT,
+    cause_detail TEXT,
+    situation_template TEXT,
+    situation_detail TEXT,
+    damage_description TEXT,
+    media_paths TEXT DEFAULT '[]',
+    label_photo_path TEXT,
+    reporter_reflection TEXT,
+    similar_accident_known TEXT DEFAULT '有',
+    handling TEXT DEFAULT '関東BCへ連絡済み・指示待ち',
+    handling_instruction TEXT,
+    cost_amount INTEGER,
+    cost_status TEXT DEFAULT '未定',
+    status TEXT DEFAULT 'draft',
+    manager_comment TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    rejected_reason TEXT,
+    pdf_path TEXT,
+    reported_to TEXT,
+    reported_where TEXT,
+    police_contact TEXT DEFAULT '無し',
+    legacy_colink_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_kar_date ON kbc_accident_reports(accident_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_kar_reporter ON kbc_accident_reports(reporter_name);
+
+  CREATE TABLE IF NOT EXISTS kbc_accident_cause_master (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    template TEXT NOT NULL,
+    keywords TEXT,
+    sort_order INTEGER DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS kbc_accident_product_master (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_category TEXT NOT NULL,
+    product_name TEXT,
+    sort_order INTEGER DEFAULT 0
+  );
+
+  -- 日報 (1464件のXLSインポート履歴あり)
+  CREATE TABLE IF NOT EXISTS kbc_daily_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_name TEXT NOT NULL,
+    report_date TEXT NOT NULL,
+    start_time TEXT,
+    end_time TEXT,
+    break_minutes INTEGER DEFAULT 60,
+    staff INTEGER DEFAULT 0,
+    temp_workers INTEGER DEFAULT 0,
+    part_workers INTEGER DEFAULT 0,
+    workers REAL DEFAULT 0,
+    shipping_total INTEGER DEFAULT 0,
+    memo TEXT DEFAULT '',
+    phase1_at TEXT,
+    floor_1f_in INTEGER, floor_1f_out INTEGER,
+    floor_2f_in INTEGER, floor_2f_out INTEGER,
+    floor_3f_in INTEGER, floor_3f_out INTEGER,
+    floor_4f_in INTEGER, floor_4f_out INTEGER,
+    floor_5f_in INTEGER, floor_5f_out INTEGER,
+    inbound_total INTEGER DEFAULT 0,
+    outbound_total INTEGER DEFAULT 0,
+    phase2_at TEXT,
+    legacy_colink_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(user_name, report_date)
+  );
+  CREATE INDEX IF NOT EXISTS idx_kdr_date ON kbc_daily_reports(report_date DESC);
+
+  -- クレーム
+  CREATE TABLE IF NOT EXISTS kbc_claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_month TEXT NOT NULL,
+    product_category TEXT NOT NULL,
+    product_name TEXT,
+    quantity INTEGER DEFAULT 1,
+    amount INTEGER DEFAULT 0,
+    area TEXT,
+    cause TEXT,
+    reporter TEXT,
+    memo TEXT,
+    legacy_colink_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_kclm_month ON kbc_claims(claim_month DESC);
+
+  -- BC報告 (荷主向け)
+  CREATE TABLE IF NOT EXISTS kbc_bc_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_report_id INTEGER,
+    report_type TEXT DEFAULT '破損',
+    occurrence_time TEXT,
+    location TEXT,
+    product_code TEXT,
+    product_name TEXT,
+    quantity INTEGER DEFAULT 1,
+    damaged_item TEXT,
+    cause TEXT,
+    damage_detail TEXT,
+    action_taken TEXT,
+    prevention TEXT,
+    inspection_code TEXT,
+    inspection_name TEXT,
+    inspection_qty INTEGER DEFAULT 1,
+    inspection_detail TEXT,
+    inspection_result TEXT,
+    reporter TEXT,
+    photo_path TEXT,
+    status TEXT DEFAULT 'new',
+    client_comment TEXT DEFAULT '',
+    confirmed_at TEXT,
+    confirmed_by TEXT,
+    media_paths TEXT DEFAULT '[]',
+    legacy_colink_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_kbr_status ON kbc_bc_reports(status, created_at DESC);
+
+  -- アクションプラン (改善施策一覧)
+  CREATE TABLE IF NOT EXISTS kbc_action_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    priority TEXT,
+    category TEXT,
+    issue TEXT,
+    action TEXT,
+    person TEXT,
+    deadline TEXT,
+    status TEXT DEFAULT '未着手',
+    legacy_colink_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_kap_status ON kbc_action_plans(status);
+
+  -- 車両事故報告書 (新規・運送ドライバー向け、製品事故とは独立)
+  CREATE TABLE IF NOT EXISTS vehicle_accident_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    accident_date TEXT NOT NULL,
+    accident_time TEXT,
+    weather TEXT,
+    location TEXT,
+    reporter_id TEXT NOT NULL,
+    reporter_name TEXT,
+    vehicle_no TEXT,
+    accident_type TEXT,        -- 単独/追突/出会い頭/施設接触/物損のみ等
+    counter_party TEXT,         -- 相手車両/相手側情報
+    injury_status TEXT DEFAULT '無し',  -- 無し/軽傷/重傷/死亡
+    police_contact TEXT DEFAULT '無し',
+    insurance_status TEXT,
+    cause_summary TEXT,
+    description TEXT,
+    media_paths TEXT DEFAULT '[]',
+    repair_status TEXT,
+    cost_amount INTEGER,
+    status TEXT DEFAULT 'draft',
+    manager_comment TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_var_date ON vehicle_accident_reports(accident_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_var_reporter ON vehicle_accident_reports(reporter_id);`);
+
   return _db;
 }
 
