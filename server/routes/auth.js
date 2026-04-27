@@ -5,6 +5,10 @@ const router = express.Router();
 const { getDb } = require('../services/db');
 const { generateToken, authUser } = require('../middleware/auth');
 
+// 利用規約・プライバシーポリシー バージョン
+// ポリシー本文を変更したらここを更新 → 全ユーザーに再同意を要求
+const CONSENT_VERSION = '1.0.0_20260427';
+
 // パスワードポリシー (強度評価)
 function evaluatePassword(pw, loginId, displayName) {
   const errors = [];
@@ -41,6 +45,8 @@ router.post('/login', (req, res) => {
     ON CONFLICT(user_id) DO UPDATE SET status='online', updated_at=datetime('now')`)
     .run(user.id, 400 + Math.floor(Math.random() * 200) - 100, 300 + Math.floor(Math.random() * 200) - 100);
   const token = generateToken({ uid: user.id, role: user.role, sid });
+  // bot系はそもそも対人ログイン経路に乗らないが念のため除外
+  const needsConsent = user.role !== 'bot' && user.consent_version !== CONSENT_VERSION;
   res.json({
     success: true,
     token,
@@ -56,14 +62,21 @@ router.post('/login', (req, res) => {
       is_guest_reviewer: !!user.is_guest_reviewer,
       guest_org: user.guest_org || null,
       birth_date: user.birth_date || null,
+      nickname: user.nickname || null,
+      needs_nickname_setup: !user.nickname,
+      consent_version: user.consent_version || null,
+      consent_accepted_at: user.consent_accepted_at || null,
+      needs_consent: needsConsent,
+      current_consent_version: CONSENT_VERSION,
     }
   });
 });
 
 // 自分の最新ユーザー情報 (フラグ追加時に既存ログイン中ユーザーが再取得できるよう)
 router.get('/me', authUser, (req, res) => {
-  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, role, employee_type, avatar_url, is_field_promoter, is_guest_reviewer, guest_org, birth_date FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, role, employee_type, avatar_url, is_field_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at FROM users WHERE id = ?').get(req.uid);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
+  const needsConsent = u.role !== 'bot' && u.consent_version !== CONSENT_VERSION;
   res.json({
     success: true,
     user: {
@@ -78,8 +91,65 @@ router.get('/me', authUser, (req, res) => {
       is_guest_reviewer: !!u.is_guest_reviewer,
       guest_org: u.guest_org || null,
       birth_date: u.birth_date || null,
+      nickname: u.nickname || null,
+      needs_nickname_setup: !u.nickname,
+      consent_version: u.consent_version || null,
+      consent_accepted_at: u.consent_accepted_at || null,
+      needs_consent: needsConsent,
+      current_consent_version: CONSENT_VERSION,
     },
   });
+});
+
+// 利用規約・プライバシーポリシー 同意エンドポイント
+// 3項目すべてチェックされている必要あり (UI側でも検証するが、サーバー側でも必須化)
+router.post('/consent', authUser, express.json(), (req, res) => {
+  const b = req.body || {};
+  const acceptedLog = !!b.accepted_log;
+  const acceptedPrivacy = !!b.accepted_privacy;
+  const acceptedPolicy = !!b.accepted_policy;
+  if (!acceptedLog || !acceptedPrivacy || !acceptedPolicy) {
+    return res.status(400).json({ success: false, msg: '3つの項目すべてに同意が必要です' });
+  }
+  // クライアントから送られたバージョンが現行と一致することを確認 (古いポリシーへの同意を防ぐ)
+  if (b.version && b.version !== CONSENT_VERSION) {
+    return res.status(409).json({ success: false, msg: 'ポリシーが更新されました。画面を再読み込みしてください', current: CONSENT_VERSION });
+  }
+  const db = getDb();
+  const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').toString().split(',')[0].trim().slice(0, 64);
+  const ua = String(req.headers['user-agent'] || '').slice(0, 256);
+  // 監査ログに記録 (削除しない)
+  db.prepare(`INSERT INTO consent_logs (user_id, consent_version, accepted_log, accepted_privacy, accepted_policy, ip_address, user_agent)
+              VALUES (?, ?, 1, 1, 1, ?, ?)`).run(req.uid, CONSENT_VERSION, ip, ua);
+  // ユーザーレコード更新
+  db.prepare("UPDATE users SET consent_version = ?, consent_accepted_at = datetime('now') WHERE id = ?")
+    .run(CONSENT_VERSION, req.uid);
+  res.json({ success: true, version: CONSENT_VERSION });
+});
+
+// 同意履歴 (本人のみ閲覧可) — 設定画面で「いつ何に同意したか」を確認できる
+router.get('/consent/history', authUser, (req, res) => {
+  const rows = getDb().prepare(`SELECT consent_version, accepted_at, ip_address
+                                  FROM consent_logs WHERE user_id = ? ORDER BY accepted_at DESC LIMIT 20`).all(req.uid);
+  res.json({ success: true, current_version: CONSENT_VERSION, history: rows });
+});
+
+// ニックネーム設定 (本人のみ、初回ログイン時に強制)
+router.post('/nickname', authUser, express.json(), (req, res) => {
+  const nick = String((req.body && req.body.nickname) || '').trim();
+  if (nick.length < 2 || nick.length > 20) {
+    return res.status(400).json({ success: false, msg: 'ニックネームは2〜20文字で設定してください' });
+  }
+  // 禁止文字: 制御文字
+  if (/[\x00-\x1f\x7f]/.test(nick)) {
+    return res.status(400).json({ success: false, msg: '使えない文字が含まれています' });
+  }
+  const db = getDb();
+  // 重複チェック (大文字小文字無視で完全一致)
+  const dupe = db.prepare('SELECT id FROM users WHERE LOWER(nickname) = LOWER(?) AND id != ?').get(nick, req.uid);
+  if (dupe) return res.status(400).json({ success: false, msg: 'そのニックネームは既に使われています。別のものをお試しください' });
+  db.prepare('UPDATE users SET nickname = ? WHERE id = ?').run(nick, req.uid);
+  res.json({ success: true, nickname: nick });
 });
 
 // パスワード変更 (本人のみ)

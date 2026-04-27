@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CoHub セキュリティについて</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --sub: #475569;
+    --muted: #94a3b8;
+    --line: #e5e7eb;
+    --accent: #0f4d3a;
+    --warn-bg: #fef3c7;
+    --warn-ink: #78350f;
+    --good-bg: #ecfdf5;
+    --good-ink: #065f46;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.7; font-size: 15px;
+    padding-bottom: 40px;
+  }
+  header {
+    background: linear-gradient(135deg, #0f4d3a 0%, #134e4a 100%);
+    color: #fff; padding: 28px 20px 24px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  header .icon { font-size: 36px; margin-bottom: 6px; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+  header p { margin: 6px 0 0; opacity: 0.9; font-size: 13px; }
+  main { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  .card {
+    background: var(--card); border-radius: 12px;
+    margin-top: 16px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--line);
+  }
+  .card h2 {
+    margin: 0 0 12px; font-size: 17px; color: var(--accent);
+    padding-bottom: 8px; border-bottom: 2px solid var(--accent);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .num {
+    background: var(--accent); color: #fff;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .card h3 { font-size: 14px; color: var(--sub); margin: 16px 0 6px; }
+  .card p { margin: 8px 0; color: var(--ink); }
+  .card ul, .card ol { margin: 8px 0; padding-left: 22px; }
+  .card li { margin: 4px 0; }
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 10px 0; font-size: 13px;
+  }
+  th, td {
+    padding: 8px 10px; border: 1px solid var(--line);
+    text-align: left; vertical-align: top;
+  }
+  th { background: #f1f5f9; font-weight: 700; color: var(--sub); }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrap table { min-width: 560px; }
+  .ours { background: #ecfdf5; font-weight: 600; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 700;
+    background: #e0e7ff; color: #3730a3;
+  }
+  .warn {
+    background: var(--warn-bg); color: var(--warn-ink);
+    padding: 12px 14px; border-radius: 8px; margin: 12px 0;
+    font-size: 13px; border-left: 4px solid #f59e0b;
+  }
+  .good {
+    background: var(--good-bg); color: var(--good-ink);
+    padding: 12px 14px; border-radius: 8px; margin: 12px 0;
+    font-size: 13px; border-left: 4px solid #10b981;
+  }
+  .footnote {
+    font-size: 12px; color: var(--muted); margin-top: 16px;
+    line-height: 1.6;
+  }
+  .nav {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 12px 16px; max-width: 760px; margin: 12px auto 0;
+  }
+  .nav a {
+    background: #fff; color: var(--accent); text-decoration: none;
+    padding: 6px 12px; border-radius: 16px; font-size: 12px;
+    border: 1px solid var(--line); font-weight: 600;
+  }
+  .back {
+    display: inline-block; margin: 24px 16px 0; padding: 10px 18px;
+    background: var(--accent); color: #fff; text-decoration: none;
+    border-radius: 8px; font-size: 13px; font-weight: 700;
+  }
+  details { margin: 8px 0; }
+  details summary {
+    cursor: pointer; padding: 8px 12px; background: #f1f5f9;
+    border-radius: 6px; font-size: 13px; font-weight: 600;
+  }
+  details[open] summary { background: #e2e8f0; }
+  details > div { padding: 10px 12px; }
+  @media (max-width: 480px) {
+    body { font-size: 14px; }
+    header h1 { font-size: 17px; }
+    .card { padding: 16px; }
+    .card h2 { font-size: 15px; }
+    th, td { padding: 6px 8px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="icon">🔒</div>
+  <h1>CoHub セキュリティについて</h1>
+  <p>大切な情報をどう守っているか、正直にお伝えします</p>
+</header>
+
+<nav class="nav">
+  <a href="#policy">基本方針</a>
+  <a href="#tech">技術対策</a>
+  <a href="#operation">運用</a>
+  <a href="#compare">他社比較</a>
+  <a href="#honest">強みと弱み</a>
+  <a href="#incident">緊急時</a>
+  <a href="#contact">問い合わせ</a>
+</nav>
+
+<main>
+
+<section class="card" id="policy">
+  <h2><span class="num">1</span>基本方針</h2>
+  <p>CoHub(コハブ)は<b>スタンダード運輸グループ専用の自社運用システム</b>です。
+  LINEやTeamsのような不特定多数が使うクラウドサービスとは性格が異なります。</p>
+  <p>会話・健康情報・業務記録は<b>すべてグループ内に閉じる</b>設計で、社外の第三者には流れません。
+  自社運用だからこそ、皆さまの「こうしてほしい」をその日のうちに反映できます。</p>
+  <div class="good">
+    💡 大手SaaSのような圧倒的な堅牢性ではありませんが、
+    「<b>当社の事情に最適化された安全性</b>」を目指しています。
+  </div>
+</section>
+
+<section class="card" id="tech">
+  <h2><span class="num">2</span>技術的なセキュリティ対策</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>項目</th><th>内容</th></tr>
+      <tr><td>通信の暗号化</td><td>TLS 1.3 / HTTPS(金融機関と同等)</td></tr>
+      <tr><td>保存時の暗号化</td><td>サーバーディスク・バックアップを暗号化</td></tr>
+      <tr><td>サーバー所在地</td><td><b>日本国内</b>(ConoHa VPS / GMOインターネット)</td></tr>
+      <tr><td>パスワード保管</td><td>bcryptで一方向ハッシュ化(復元不可)</td></tr>
+      <tr><td>パスワード強度</td><td>10文字以上・英大小+数字+記号必須・予測語ブロック</td></tr>
+      <tr><td>ファイアウォール</td><td>UFWで不要ポート全閉鎖</td></tr>
+      <tr><td>同時ログイン</td><td>1アカウント1セッション(乗っ取り検知容易)</td></tr>
+      <tr><td>ログイン試行制限</td><td>15分30回でブロック(ブルートフォース防止)</td></tr>
+      <tr><td>バックアップ</td><td>Box(SOC2 Type II準拠)に暗号化保存・世代管理</td></tr>
+      <tr><td>CSRF/XSS対策</td><td>Helmet・入力サニタイズ・CSP適用</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="card" id="operation">
+  <h2><span class="num">3</span>運用面のセキュリティ</h2>
+  <ul>
+    <li><b>権限の最小化</b>:管理者・推進メンバー・一般ユーザーで閲覧範囲を分離</li>
+    <li><b>アクセスログ</b>:いつ誰が何を閲覧したか全て記録(監査可能)</li>
+    <li><b>第三者開発者なし</b>:すべて代表(小林)と社内技術陣の管理下で開発</li>
+    <li><b>外部委託なし</b>:海外エンジニア・外部ベンダーへのデータ開示は一切なし</li>
+    <li><b>AI学習への流用なし</b>:会話内容を生成AIの学習データに使用しません</li>
+    <li><b>退職時対応</b>:アカウント停止+個人特定情報の削除を即実施</li>
+  </ul>
+</section>
+
+<section class="card" id="compare">
+  <h2><span class="num">4</span>LINE・Teamsとの比較</h2>
+  <p>業務利用を想定した、率直な比較表です。</p>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>項目</th>
+        <th>個人LINE</th>
+        <th>LINE WORKS</th>
+        <th>Teams</th>
+        <th class="ours">CoHub</th>
+      </tr>
+      <tr>
+        <td>データ所在地</td>
+        <td>日本+海外※1</td>
+        <td>日本中心</td>
+        <td>米国中心※2</td>
+        <td class="ours"><b>日本国内のみ</b></td>
+      </tr>
+      <tr>
+        <td>運営主体</td>
+        <td>LINEヤフー</td>
+        <td>LINEヤフー</td>
+        <td>米Microsoft</td>
+        <td class="ours"><b>当社自社</b></td>
+      </tr>
+      <tr>
+        <td>ベンダー社員のアクセス</td>
+        <td>技術的に可能</td>
+        <td>技術的に可能</td>
+        <td>監査付きで可能</td>
+        <td class="ours"><b>当社管理者のみ</b></td>
+      </tr>
+      <tr>
+        <td>業務記録としての保管</td>
+        <td>不向き</td>
+        <td>可</td>
+        <td>可</td>
+        <td class="ours"><b>業務専用設計</b></td>
+      </tr>
+      <tr>
+        <td>法令開示の経路</td>
+        <td>海外含む可能性</td>
+        <td>日本中心</td>
+        <td>米国法影響あり</td>
+        <td class="ours"><b>日本国内法のみ</b></td>
+      </tr>
+      <tr>
+        <td>AI学習への利用</td>
+        <td>一部利用の可能性</td>
+        <td>設定次第</td>
+        <td>既定で不使用設定可</td>
+        <td class="ours"><b>一切なし</b></td>
+      </tr>
+      <tr>
+        <td>第三者認証</td>
+        <td>ISO27001等</td>
+        <td>ISMS</td>
+        <td>ISO27001/SOC等</td>
+        <td class="ours">なし(中小企業)</td>
+      </tr>
+      <tr>
+        <td>カスタマイズ性</td>
+        <td>不可</td>
+        <td>限定的</td>
+        <td>限定的</td>
+        <td class="ours"><b>完全自由</b></td>
+      </tr>
+      <tr>
+        <td>障害時の影響範囲</td>
+        <td>数億人規模</td>
+        <td>数百万社規模</td>
+        <td>全世界規模</td>
+        <td class="ours"><b>当社のみ</b></td>
+      </tr>
+    </table>
+  </div>
+  <div class="footnote">
+    ※1 2021年、LINEのユーザーデータに対し中国の業務委託先からアクセス可能な状態だったことが報道されました(現在は是正済み)。<br>
+    ※2 米国CLOUD法により、米国政府は米国企業のクラウドデータに開示請求できる場合があります。
+  </div>
+</section>
+
+<section class="card" id="honest">
+  <h2><span class="num">5</span>正直に申し上げる、CoHubの強みと弱み</h2>
+
+  <h3>✅ 強み</h3>
+  <ul>
+    <li><b>データ主権</b>:会話内容も健康情報も、社外に出ません</li>
+    <li><b>ベンダーロックインなし</b>:仕様変更も削除も自社判断で即実行</li>
+    <li><b>ログの完全所有</b>:退職者対応・労務監査がスムーズ</li>
+    <li><b>ご意見の即反映</b>:「使いにくい」が翌日修正されることも</li>
+  </ul>
+
+  <h3>⚠️ 弱み(隠さずお伝えします)</h3>
+  <div class="warn">
+    透明性のため、現時点で大手SaaSに劣る点を明記します。
+  </div>
+  <ul>
+    <li><b>第三者によるセキュリティ認証は未取得</b>(ISO27001、Pマーク等)。中小企業規模のため取得コストの問題</li>
+    <li><b>E2E暗号化は未実装</b>:管理者は技術的に内容閲覧可能(だからこそ社内向け業務システムとしての位置付け)</li>
+    <li><b>大手のような24時間SOC体制はなし</b>:脆弱性対応は代表と技術陣の手動対応</li>
+    <li><b>障害時の冗長性は限定的</b>:単一VPS構成、Boxバックアップで復旧</li>
+  </ul>
+  <div class="good">
+    つまり、「世界最高水準の堅牢性」ではなく、<b>「LINEやTeamsより我が社の事情に最適化された安全性」</b>という位置付けです。
+  </div>
+</section>
+
+<section class="card" id="byod">
+  <h2><span class="num">6</span>個人LINE・個人SNSとの使い分けのお願い</h2>
+  <p>業務連絡はCoHubに集約してください。理由は3つあります。</p>
+  <ol>
+    <li>個人LINEに業務情報を残すと、退職時にデータが社外に残ります(情報漏洩リスク)</li>
+    <li>個人端末の紛失時、業務情報まで流出します</li>
+    <li>公私の境界が曖昧になり、休日労働やハラスメント問題の温床になります</li>
+  </ol>
+  <p>CoHubは退職時にアカウントを停止すれば、業務データは会社に残り、個人情報は削除できます。</p>
+</section>
+
+<section class="card" id="incident">
+  <h2><span class="num">7</span>インシデント時の対応</h2>
+  <p>万一、不正アクセスや情報漏洩が疑われた場合の対応手順です。</p>
+  <ol>
+    <li><b>即時通報</b>:代表 小林(su.t.kobayashi@gmail.com)</li>
+    <li><b>24時間以内</b>に該当アカウント凍結・調査開始</li>
+    <li><b>影響範囲</b>を全ユーザーに通知</li>
+    <li><b>個人情報保護委員会</b>への報告(法令に基づき必要な場合)</li>
+  </ol>
+  <details>
+    <summary>こんな時はすぐご連絡ください</summary>
+    <div>
+      <ul>
+        <li>身に覚えのないログイン通知が届いた</li>
+        <li>パスワードが勝手に変更されていた</li>
+        <li>知らない端末からのアクセス履歴がある</li>
+        <li>不審なメッセージを受信した・送信した覚えがある</li>
+        <li>スマホ・タブレットを紛失した</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section class="card" id="contact">
+  <h2><span class="num">8</span>お問い合わせ</h2>
+  <ul>
+    <li><b>システムに関するご質問</b>:IT推進担当 立石</li>
+    <li><b>セキュリティに関するご懸念</b>:代表 小林</li>
+    <li><b>データ削除・訂正のご依頼</b>:所属部署の管理者または推進メンバー</li>
+  </ul>
+  <p class="footnote">
+    本ページの記載内容は予告なく更新されることがあります。<br>
+    重要な変更がある場合は、CoHub上で事前にお知らせします。
+  </p>
+</section>
+
+<div style="text-align:center;">
+  <a href="javascript:history.back()" class="back">← 戻る</a>
+</div>
+
+</main>
+
+</body>
+</html>

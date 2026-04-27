@@ -1014,7 +1014,12 @@ async function doLogin() {
         navigator.credentials.store(cred).catch(() => {});
       }
     } catch (e) {}
-    // 初回ログイン: ニックネーム未設定なら強制設定モーダル
+    // 初回ログイン or ポリシー改定: 同意モーダルを最優先で表示
+    if (userData && userData.needs_consent) {
+      showConsentModal(userData);
+      return;
+    }
+    // 同意済みでニックネーム未設定なら強制設定モーダル
     if (userData && userData.needs_nickname_setup) {
       showNicknameSetupModal();
       return;
@@ -1028,6 +1033,159 @@ async function doLogin() {
   } catch(e) {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
   }
+}
+
+// 利用規約・プライバシーポリシー同意モーダル (初回ログイン or 改定時に強制表示)
+function showConsentModal(u) {
+  // ログイン後ニックネームが空 = 新規。既ログインのポリシー改定再同意か区別
+  const isFirstTime = !(u && u.consent_accepted_at);
+  let modal = document.getElementById('consent-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'consent-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;margin:20px auto;box-shadow:0 16px 48px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0f4d3a 0%,#134e4a 100%);color:#fff;padding:20px 22px;">
+        <div style="font-size:30px;text-align:center;margin-bottom:4px;">🔒</div>
+        <h2 style="margin:0;text-align:center;font-size:18px;font-weight:700;">${isFirstTime ? 'ご利用にあたっての確認事項' : 'プライバシーポリシー改定のお知らせ'}</h2>
+        <p style="margin:6px 0 0;text-align:center;font-size:12px;opacity:0.9;">${isFirstTime ? 'ニックネームを決める前に、データの取り扱いについてご確認ください。' : '内容が更新されたため、再度ご確認をお願いします。'}</p>
+      </div>
+      <div style="padding:20px 22px;max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:#0f172a;">
+
+        <div style="margin-bottom:16px;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:4px solid #0f4d3a;">
+          <div style="font-weight:700;color:#0f4d3a;margin-bottom:6px;font-size:13px;">① 記録されるログについて</div>
+          <div style="font-size:12px;color:#334155;">CoHub では業務改善・安全配慮のため以下を記録します。</div>
+          <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#334155;">
+            <li>チャット・DM・グループ投稿の本文と日時</li>
+            <li>音声送信・通話の音声データ</li>
+            <li>入退室・在席フロア・移動履歴</li>
+            <li>「現場の声」POST・健診結果・血圧などの健康関連データ</li>
+            <li>ログイン日時・端末情報・IPアドレス(セキュリティ監査用)</li>
+          </ul>
+          <div style="margin-top:8px;padding:8px 10px;background:#fef3c7;border-radius:6px;font-size:11px;color:#78350f;">
+            ⚠️ 業務システムである性質上、上司・管理者・推進メンバーが業務上必要な範囲でログを閲覧することがあります。完全にプライベートな会話の場ではない点をご理解ください。
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:4px solid #0f4d3a;">
+          <div style="font-weight:700;color:#0f4d3a;margin-bottom:6px;font-size:13px;">② 個人情報の取り扱いについて</div>
+          <div style="font-size:12px;color:#334155;">スタンダード運輸グループが責任をもって管理します。</div>
+          <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#334155;">
+            <li>氏名・ニックネーム・所属・役職</li>
+            <li>メールアドレス・連絡先</li>
+            <li>アバター画像・プロフィール</li>
+            <li>健診データ・血圧等の健康情報(任意入力分のみ)</li>
+          </ul>
+          <div style="font-size:12px;color:#334155;margin-top:6px;"><b>利用目的:</b> 社内コミュニケーション円滑化 / 安全運行・労働安全衛生 / 健康経営の推進 / 業務改善(統計加工)</div>
+          <div style="font-size:12px;color:#334155;margin-top:6px;"><b>第三者提供は行いません。</b>ただし法令に基づく開示要請、健康管理上の緊急事態(重篤リスク検知時)には産業医・保健師・経営層へ共有することがあります。</div>
+        </div>
+
+        <div style="margin-bottom:8px;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:4px solid #0f4d3a;">
+          <div style="font-weight:700;color:#0f4d3a;margin-bottom:6px;font-size:13px;">③ プライバシーポリシー要旨</div>
+          <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#334155;">
+            <li>データはConoHa VPS(国内サーバー)に保管、HTTPSで保護</li>
+            <li>バックアップはBox(SOC2準拠)に暗号化のうえ保存</li>
+            <li>ご自身のデータの閲覧・訂正・削除依頼はいつでも可能</li>
+            <li>退職時には業務記録に必要な部分以外、個人特定情報は速やかに削除</li>
+            <li>ポリシー変更時はCoHub上で事前にお知らせ</li>
+          </ul>
+        </div>
+
+        <div style="text-align:center;margin:14px 0 6px;">
+          <a href="/security.html" target="_blank" rel="noopener" style="color:#0f4d3a;font-size:12px;font-weight:700;text-decoration:underline;">📖 セキュリティとLINE/Teams比較を詳しく見る</a>
+        </div>
+
+        <div style="border-top:1px solid #e5e7eb;padding-top:14px;margin-top:10px;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;padding:8px 0;font-size:13px;">
+            <input type="checkbox" id="consent-c1" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;cursor:pointer;" onchange="updateConsentBtn()">
+            <span>① ログが記録され、業務上必要な範囲で管理者等が閲覧することを理解しました</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;padding:8px 0;font-size:13px;">
+            <input type="checkbox" id="consent-c2" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;cursor:pointer;" onchange="updateConsentBtn()">
+            <span>② 個人情報の利用目的に同意します</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;padding:8px 0;font-size:13px;">
+            <input type="checkbox" id="consent-c3" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;cursor:pointer;" onchange="updateConsentBtn()">
+            <span>③ プライバシーポリシーに同意します</span>
+          </label>
+        </div>
+
+        <div id="consent-err" style="color:#dc2626;font-size:12px;min-height:16px;text-align:center;margin:8px 0;"></div>
+      </div>
+      <div style="padding:14px 22px 18px;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;gap:10px;">
+        <button onclick="declineConsent()" style="flex:0 0 auto;padding:11px 16px;background:#fff;color:#64748b;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">同意せず終了</button>
+        <button id="consent-submit" disabled onclick="submitConsent()" style="flex:1;padding:12px;background:#94a3b8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:not-allowed;transition:background 0.2s;">3項目すべてチェックしてください</button>
+      </div>
+      <div style="padding:8px 22px 14px;font-size:10px;color:#94a3b8;text-align:center;background:#f8fafc;">
+        ポリシーバージョン: ${(u && u.current_consent_version) || '-'} / 同意日時はサーバーに記録されます
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function updateConsentBtn() {
+  const c1 = document.getElementById('consent-c1');
+  const c2 = document.getElementById('consent-c2');
+  const c3 = document.getElementById('consent-c3');
+  const btn = document.getElementById('consent-submit');
+  if (!c1 || !c2 || !c3 || !btn) return;
+  const ok = c1.checked && c2.checked && c3.checked;
+  btn.disabled = !ok;
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+  btn.style.background = ok ? '#0f4d3a' : '#94a3b8';
+  btn.textContent = ok ? '✓ 同意してニックネーム設定へ' : '3項目すべてチェックしてください';
+}
+
+async function submitConsent() {
+  const err = document.getElementById('consent-err');
+  const btn = document.getElementById('consent-submit');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    const r = await fetch('/api/auth/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({
+        accepted_log: true,
+        accepted_privacy: true,
+        accepted_policy: true,
+        version: userData && userData.current_consent_version,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      err.textContent = d.msg || '同意の保存に失敗しました';
+      btn.disabled = false; updateConsentBtn();
+      return;
+    }
+    // userData更新
+    if (userData) {
+      userData.consent_version = d.version;
+      userData.consent_accepted_at = new Date().toISOString();
+      userData.needs_consent = false;
+      localStorage.setItem('cohub_user', JSON.stringify(userData));
+    }
+    document.getElementById('consent-modal').remove();
+    // 同意完了 → 次のステップ
+    if (userData && userData.needs_nickname_setup) {
+      showNicknameSetupModal();
+      return;
+    }
+    if (userData && shouldRedirectToMobile(userData)) { location.href = '/m'; return; }
+    enterSpace();
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; updateConsentBtn();
+  }
+}
+
+function declineConsent() {
+  if (!confirm('CoHubのご利用には同意が必要です。\n同意せずログアウトしますか?')) return;
+  fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} }).catch(() => {});
+  localStorage.removeItem('cohub_token');
+  localStorage.removeItem('cohub_user');
+  location.reload();
 }
 // 初回ログイン: ニックネーム強制設定モーダル
 function showNicknameSetupModal() {
@@ -4079,11 +4237,72 @@ function renderRailMenu() {
     <button onclick="openAvatarModal()">🎨 アバター作り直し</button>
     <button onclick="openPasswordModal()">🔑 パスワード変更</button>
     <button onclick="openCalModal()">📅 カレンダー連携</button>
+    <button onclick="window.open('/security.html','_blank')">🔒 セキュリティについて</button>
+    <button onclick="openConsentHistory()">📜 同意履歴・再確認</button>
     <button onclick="location.href='/mylog'">📜 自分のログ</button>
     <button onclick="openOverviewWindow()">🗺 全フロアビュー</button>
     <button onclick="switchToMobile()">📱 モバイル版に切替</button>
     <button onclick="doLogout()" style="color:#dc2626;">🚪 ログアウト</button>
   `;
+}
+
+// 同意履歴モーダル (PC版)
+async function openConsentHistory() {
+  let modal = document.getElementById('consent-hist-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'consent-hist-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:520px;width:100%;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;font-size:16px;color:#0f4d3a;">📜 同意履歴</h3>
+        <button onclick="document.getElementById('consent-hist-modal').remove()" style="background:transparent;border:none;font-size:22px;color:#64748b;cursor:pointer;">×</button>
+      </div>
+      <div id="consent-hist-body" style="font-size:13px;color:#64748b;">読み込み中…</div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;gap:8px;">
+        <a href="/security.html" target="_blank" style="flex:1;text-align:center;padding:10px;background:#f1f5f9;color:#0f4d3a;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700;">📖 セキュリティ詳細</a>
+        <button onclick="reShowConsent()" style="flex:1;padding:10px;background:#fff;color:#0f4d3a;border:1px solid #0f4d3a;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📝 同意内容を再確認</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  try {
+    const r = await fetch('/api/auth/consent/history', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    const body = document.getElementById('consent-hist-body');
+    if (!d.success) { body.textContent = '取得に失敗しました'; return; }
+    if (!d.history || !d.history.length) {
+      body.innerHTML = '<div style="text-align:center;padding:24px;">同意履歴はまだありません</div>';
+      return;
+    }
+    body.innerHTML = '<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">現行ポリシーバージョン: ' + escapeHtml(d.current_version) + '</div>' +
+      d.history.map(h => `
+        <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:700;color:#0f4d3a;">v${escapeHtml(h.consent_version)}</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">同意日時: ${escapeHtml((h.accepted_at || '').replace('T',' ').slice(0,19))}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">IP: ${escapeHtml(h.ip_address || '-')}</div>
+        </div>`).join('');
+  } catch (e) {
+    document.getElementById('consent-hist-body').textContent = '通信エラー: ' + e.message;
+  }
+}
+
+function reShowConsent() {
+  document.getElementById('consent-hist-modal').remove();
+  showConsentModal(userData);
+  // 任意再表示なので閉じれるように×を追加
+  setTimeout(() => {
+    const inner = document.querySelector('#consent-modal > div');
+    if (inner && !inner.querySelector('.consent-close-x')) {
+      const x = document.createElement('button');
+      x.className = 'consent-close-x';
+      x.textContent = '×';
+      x.style.cssText = 'position:absolute;top:10px;right:14px;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:24px;width:34px;height:34px;border-radius:50%;cursor:pointer;';
+      x.onclick = () => document.getElementById('consent-modal').remove();
+      inner.style.position = 'relative';
+      inner.insertBefore(x, inner.firstChild);
+    }
+  }, 50);
 }
 
 // ===== ヘルプ =====
@@ -6122,15 +6341,15 @@ if (token && userData) {
         userData = d.user;
         localStorage.setItem('cohub_user', JSON.stringify(userData));
       }
-      if (userData && userData.needs_nickname_setup) {
-        showNicknameSetupModal();
-        return;
-      }
+      // 同意 → ニックネーム → 通常画面 の優先順位
+      if (userData && userData.needs_consent) { showConsentModal(userData); return; }
+      if (userData && userData.needs_nickname_setup) { showNicknameSetupModal(); return; }
       if (shouldRedirectToMobile(userData)) location.href = '/m';
       else enterSpace();
     })
     .catch(() => {
       // /me 失敗時はキャッシュを信用
+      if (userData && userData.needs_consent) { showConsentModal(userData); return; }
       if (userData && userData.needs_nickname_setup) { showNicknameSetupModal(); return; }
       if (shouldRedirectToMobile(userData)) location.href = '/m';
       else enterSpace();

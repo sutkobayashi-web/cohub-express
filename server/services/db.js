@@ -30,6 +30,24 @@ function getDb() {
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
   // 生年月日 (健診Box連携・年齢別分析用、本人と管理者のみ閲覧)
   ensureColumn(_db, 'users', 'birth_date', 'birth_date TEXT');
+  // ニックネーム (本人が初回ログイン時に設定。匿名投稿時の表示名として使用)
+  ensureColumn(_db, 'users', 'nickname', 'nickname TEXT');
+  // 利用規約・プライバシーポリシー同意 (バージョン文字列で管理 / 改定時に再同意要求)
+  ensureColumn(_db, 'users', 'consent_version', 'consent_version TEXT');
+  ensureColumn(_db, 'users', 'consent_accepted_at', 'consent_accepted_at TEXT');
+  // 同意履歴 (監査・法的証跡用) — IP/UA を記録、削除しない
+  _db.exec(`CREATE TABLE IF NOT EXISTS consent_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    consent_version TEXT NOT NULL,
+    accepted_log INTEGER NOT NULL DEFAULT 0,
+    accepted_privacy INTEGER NOT NULL DEFAULT 0,
+    accepted_policy INTEGER NOT NULL DEFAULT 0,
+    ip_address TEXT,
+    user_agent TEXT,
+    accepted_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_cl_user ON consent_logs(user_id, accepted_at DESC);`);
   // ゲスト (大学・NPO等の外部レビュアー) フラグ — 施策ボードレビュー権限
   ensureColumn(_db, 'users', 'is_guest_reviewer', 'is_guest_reviewer INTEGER DEFAULT 0');
   ensureColumn(_db, 'users', 'guest_org', 'guest_org TEXT');
@@ -73,6 +91,9 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_wa_status ON wellness_actions(status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wa_at ON wellness_actions(created_at DESC);`);
+  // 配車センター追加 (2026-04-27): 現場棟内、未実装ページ
+  _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
+    VALUES ('field_dispatch', '配車センター', '/assets/floor_field_rest.png', 1344, 768, 672, 678, 11, '🗺', 'field')`).run();
   // 健康管理室フロア廃止 (2026-04-26): /plaza.html (ひろば) に一本化
   _db.prepare("UPDATE positions SET floor_code = 'lobby' WHERE floor_code = 'wellness_room'").run();
   _db.prepare("DELETE FROM floors WHERE code = 'wellness_room'").run();
@@ -434,6 +455,69 @@ function getDb() {
     deleted_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_wad_action ON wellness_action_discussions(action_id, created_at);`);
+  // ===== v2 パイプライン拡張 (2026-04-27) =====
+  // wellness_actions: 候補→評議→推進確定→保健師中→役員→投票→保健師末→実行→完了
+  ensureColumn(_db, 'wellness_actions', 'final_draft', 'final_draft TEXT');
+  ensureColumn(_db, 'wellness_actions', 'final_draft_at', 'final_draft_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'finalized_by', 'finalized_by TEXT');
+  ensureColumn(_db, 'wellness_actions', 'finalized_at', 'finalized_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'nurse_mid_comment', 'nurse_mid_comment TEXT');
+  ensureColumn(_db, 'wellness_actions', 'nurse_mid_by', 'nurse_mid_by TEXT');
+  ensureColumn(_db, 'wellness_actions', 'nurse_mid_at', 'nurse_mid_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'nurse_final_comment', 'nurse_final_comment TEXT');
+  ensureColumn(_db, 'wellness_actions', 'nurse_final_by', 'nurse_final_by TEXT');
+  ensureColumn(_db, 'wellness_actions', 'nurse_final_at', 'nurse_final_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'executive_approver_id', 'executive_approver_id TEXT');
+  ensureColumn(_db, 'wellness_actions', 'executive_approved_at', 'executive_approved_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'vote_started_at', 'vote_started_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'vote_closed_at', 'vote_closed_at TEXT');
+  ensureColumn(_db, 'wellness_actions', 'vote_result_json', 'vote_result_json TEXT');
+  // 7軸priority評価 (legal/risk/freq/urgency/safety/value/needs 各1-5点)
+  ensureColumn(_db, 'wellness_actions', 'priority_axes', 'priority_axes TEXT');
+  // AI凝縮 永続化 + 候補ごとの議論
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_by TEXT,
+    generated_at TEXT DEFAULT (datetime('now')),
+    days_window INTEGER,
+    summary TEXT,
+    candidates_json TEXT,
+    counts_json TEXT,
+    status TEXT DEFAULT 'active'
+  );
+  CREATE INDEX IF NOT EXISTS idx_wi_at ON wellness_insights(generated_at DESC);
+  CREATE TABLE IF NOT EXISTS wellness_insight_threads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    insight_id INTEGER NOT NULL,
+    candidate_idx INTEGER NOT NULL DEFAULT -1,
+    author_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    content TEXT,
+    registered_action_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_wit_insight ON wellness_insight_threads(insight_id, candidate_idx);`);
+  // 社員投票 (1〜5点)
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_action_votes (
+    action_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (action_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_wav_action ON wellness_action_votes(action_id);`);
+  // 一般投稿/食事投稿への推進メンバーコメント (3つの柱の右側コメント、AI凝縮の補強材料)
+  _db.exec(`CREATE TABLE IF NOT EXISTS plaza_post_promoter_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_ppc_post ON plaza_post_promoter_comments(post_id, created_at);`);
   // 既定イベント: 🐠 水族館 (CoWell)
   const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
   if (!eventExists) {
