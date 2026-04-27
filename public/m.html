@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#f3f4f6">
-<title>CoHub モバイル</title>
+<title>CoWell モバイル</title>
+<script>
+// 既ログイン状態でlobbyに戻った時のログイン画面チラつき防止
+(function() {
+  try {
+    if (localStorage.getItem('cohub_token') && localStorage.getItem('cohub_user')) {
+      document.documentElement.classList.add('boot-auth');
+    }
+  } catch (e) {}
+})();
+</script>
+<style>html.boot-auth #login { display: none; }</style>
 <link rel="manifest" href="/manifest.json?v=2">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
@@ -67,6 +78,29 @@
   .qa-item .i { font-size: 24px; }
   .qa-item.aoi { background: linear-gradient(135deg, #fdf4ff, #fce7f3); border-color: #f9a8d4; color: #831843; }
   .qa-item.wellness { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-color: #86efac; color: #166534; }
+  /* 棟・フロア (各ボタンが横向き=アイコン左+ラベル右、行ごと横スクロール) */
+  .floor-grid { display: flex; flex-direction: column; gap: 8px; }
+  .bldg-hdr { padding: 8px 14px; font-size: 13px; font-weight: 800; color: #fff; border-radius: 10px 10px 0 0; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+  .bldg-hdr.office { background: linear-gradient(135deg, #0891b2, #0e7490); }
+  .bldg-hdr.field { background: linear-gradient(135deg, #ea580c, #c2410c); }
+  .floor-row { display: flex; gap: 8px; flex-wrap: nowrap; padding: 10px; border: 2px solid; border-top: none; border-radius: 0 0 10px 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
+  .floor-row::-webkit-scrollbar { height: 4px; }
+  .floor-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+  .bldg-hdr.office + .floor-row { border-color: #0891b2; background: rgba(8,145,178,0.06); }
+  .bldg-hdr.field + .floor-row { border-color: #ea580c; background: rgba(234,88,12,0.06); }
+  /* ★各ボタンを横向き (アイコン左+ラベル右) */
+  .floor-btn { flex: 0 0 auto; min-height: 56px; padding: 10px 14px; border-radius: 10px; background: #fff; border: 1.5px solid #e2e8f0; display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 700; color: #1f2937; cursor: pointer; position: relative; scroll-snap-align: start; }
+  .floor-btn:active { transform: scale(0.96); }
+  .floor-btn .ico { font-size: 24px; line-height: 1; flex-shrink: 0; }
+  .floor-btn .lbl { font-size: 13px; line-height: 1.25; font-weight: 700; white-space: nowrap; }
+  .floor-btn .cnt { position: relative; background: #06b6d4; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 8px; min-width: 18px; text-align: center; margin-left: 4px; }
+  .floor-btn.locked { opacity: 0.55; }
+  .bldg-hdr.office + .floor-row .floor-btn { border-color: rgba(8,145,178,0.3); }
+  .bldg-hdr.field + .floor-row .floor-btn { border-color: rgba(234,88,12,0.3); }
+  /* 文字サイズクイック (控えめサイズ) */
+  .font-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .font-quick button { padding: 6px 4px; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; font-weight: 700; color: #475569; cursor: pointer; font-size: 11px; min-height: 30px; }
+  .font-quick button.active { background: #06b6d4; color: #fff; border-color: #0891b2; }
 
   /* オンライン中ストリップ (横スクロールアバター) */
   .online-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 6px; -webkit-overflow-scrolling: touch; }
@@ -218,7 +252,7 @@
 <!-- ========== ログイン ========== -->
 <div id="login">
   <div id="login-card">
-    <h1>CoHub</h1>
+    <h1>CoWell</h1>
     <div class="subtitle">スタンダード運輸グループ</div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
       <label for="li">ログインID</label>
@@ -234,7 +268,7 @@
 <!-- ========== メインアプリ ========== -->
 <div id="app">
   <div id="topbar">
-    <div class="ttl">CoHub</div>
+    <div class="ttl">CoWell</div>
     <div class="status-pill" onclick="openStatusSheet()" title="タップで切替"><span class="dot" id="top-sdot"></span><span id="top-status">在席</span> <span style="font-size:9px;color:#94a3b8;">▾</span></div>
     <button class="mute-btn" id="mute-btn" onclick="toggleMute()" title="音声">🔊</button>
   </div>
@@ -277,6 +311,10 @@
             <div class="i">🏥</div>
             <div>健康管理室</div>
           </div>
+          <div class="qa-item" onclick="openMealDiag()" style="background:linear-gradient(135deg,#fef3c7,#fef9c3);color:#92400e;">
+            <div class="i">🍱</div>
+            <div>食事診断</div>
+          </div>
           <div class="qa-item" onclick="location.href='/board.html'" style="background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490;">
             <div class="i">📋</div>
             <div>掲示板</div>
@@ -297,12 +335,37 @@
           </div>
           <div class="qa-item" onclick="location.href='/wellness-archive.html'" style="background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490;">
             <div class="i">📦</div>
-            <div>CoWell履歴</div>
+            <div>CoWell Classic履歴</div>
           </div>
           <div class="qa-item" onclick="switchTab('members')">
             <div class="i">👥</div>
             <div>メンバー</div>
           </div>
+        </div>
+      </div>
+
+      <!-- 棟・フロア (PC版バーチャルオフィスへの入口) -->
+      <div class="section">
+        <div class="section-ttl">棟・フロア</div>
+        <div class="floor-grid" id="floor-grid">
+          <div class="bldg-hdr office">🏢 事務所棟</div>
+          <div class="floor-row" id="floor-office"><div style="color:#94a3b8;font-size:11px;padding:4px;">読み込み中…</div></div>
+          <div class="bldg-hdr field">🚚 現場棟</div>
+          <div class="floor-row" id="floor-field"><div style="color:#94a3b8;font-size:11px;padding:4px;">読み込み中…</div></div>
+        </div>
+      </div>
+
+      <!-- 文字サイズ クイック切替 (ホームから即座にアクセス) -->
+      <div class="section">
+        <div class="section-ttl" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>🔡 文字サイズ</span>
+          <span style="font-size:10px;color:#94a3b8;">読みやすい大きさに</span>
+        </div>
+        <div class="font-quick" id="font-quick">
+          <button data-fs="0.9" onclick="setFontScale(0.9)">A 小</button>
+          <button data-fs="1" class="active" onclick="setFontScale(1)">A 中</button>
+          <button data-fs="1.15" onclick="setFontScale(1.15)">A 大</button>
+          <button data-fs="1.3" onclick="setFontScale(1.3)">A 特大</button>
         </div>
       </div>
 
@@ -380,6 +443,9 @@
         <div class="set-item" id="set-calendar" onclick="openCalModal()">
           <div class="i">📅</div><div class="l">カレンダー連携</div><div class="r">›</div>
         </div>
+        <div class="set-item" onclick="openNicknameModal()">
+          <div class="i">🎭</div><div class="l">ニックネーム</div><div class="r" id="set-nick-val" style="color:#0f172a;font-weight:700;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">-</div>
+        </div>
         <div class="set-item" onclick="openPwModal()">
           <div class="i">🔑</div><div class="l">パスワード変更</div><div class="r">›</div>
         </div>
@@ -393,7 +459,7 @@
           <div class="i">🚪</div><div class="l">ログアウト</div><div class="r">›</div>
         </div>
       </div>
-      <div style="text-align:center;padding:20px;color:#94a3b8;font-size:10px;">CoHub Express Mobile</div>
+      <div style="text-align:center;padding:20px;color:#94a3b8;font-size:10px;">CoWell Mobile</div>
     </div>
   </div>
 
@@ -573,6 +639,9 @@ const NAME_READINGS = {
   '小林 猛': 'コバヤシ タケシ',
   '小林　猛': 'コバヤシ タケシ',
   '小林猛': 'コバヤシ タケシ',
+  '金子 力': 'カネコ チカラ',
+  '金子　力': 'カネコ チカラ',
+  '金子力': 'カネコ チカラ',
 };
 function readingOf(name) {
   if (!name) return name;
@@ -726,10 +795,74 @@ async function doLogin() {
     localStorage.setItem('cohub_token', token);
     localStorage.setItem('cohub_user', JSON.stringify(user));
     localStorage.setItem('cohub_login_id', li);
+    if (user && user.needs_nickname_setup) {
+      openNicknameModal(true); // forced=true (初回必須モード)
+      return;
+    }
     startApp();
   } catch (e) {
     err.textContent = '通信エラー: ' + e.message;
     btn.disabled = false; btn.textContent = 'ログイン';
+  }
+}
+
+// ニックネーム設定/編集モーダル (初回ログイン時は forced=true で閉じられない)
+function openNicknameModal(forced) {
+  let modal = document.getElementById('nick-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'nick-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const isForced = !!forced;
+  const closeBtn = isForced ? '' : '<button onclick="document.getElementById(\'nick-modal\').remove()" style="position:absolute;top:8px;right:10px;background:transparent;border:none;font-size:22px;color:#64748b;cursor:pointer;">×</button>';
+  modal.innerHTML = `
+    <div style="position:relative;background:#fff;border-radius:14px;max-width:420px;width:100%;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+      ${closeBtn}
+      <div style="text-align:center;font-size:36px;margin-bottom:6px;">🎭</div>
+      <h2 style="margin:0 0 4px;text-align:center;color:#111827;font-size:17px;">ニックネーム${isForced?'を決めてください':'の変更'}</h2>
+      <div style="font-size:12px;color:#6b7280;text-align:center;line-height:1.7;margin-bottom:16px;">
+        ひろばや健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
+        本名や個人特定できる情報は避け、<b>2〜20文字</b>でどうぞ。
+      </div>
+      <input type="text" id="nick-input" placeholder="例: 朝寝坊 / おこめ / 海好き" maxlength="20"
+        value="${escapeHtml((user && user.nickname) || '')}"
+        style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:16px;margin-bottom:6px;-webkit-appearance:none;">
+      <div id="nick-err" style="color:#dc2626;font-size:12px;min-height:14px;margin-bottom:8px;"></div>
+      <button id="nick-submit" onclick="submitNickname(${isForced?1:0})"
+        style="width:100%;padding:12px;background:#374151;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
+        ✨ ${isForced?'このニックネームに決定':'保存する'}
+      </button>
+      ${!isForced ? '<div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.6;">既に投稿している匿名コメントの表示にも反映されます</div>' : ''}
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { const inp = document.getElementById('nick-input'); if (inp) inp.focus(); }, 80);
+}
+async function submitNickname(forced) {
+  const inp = document.getElementById('nick-input');
+  const err = document.getElementById('nick-err');
+  const btn = document.getElementById('nick-submit');
+  const v = inp.value.trim();
+  err.textContent = '';
+  if (v.length < 2 || v.length > 20) { err.textContent = '2〜20文字で入力してください'; return; }
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const r = await fetch('/api/auth/nickname', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ nickname: v }),
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '失敗'; btn.disabled = false; btn.textContent = forced ? '✨ このニックネームに決定' : '✨ 保存する'; return; }
+    if (user) {
+      user.nickname = d.nickname;
+      user.needs_nickname_setup = false;
+      localStorage.setItem('cohub_user', JSON.stringify(user));
+    }
+    document.getElementById('nick-modal').remove();
+    if (forced) startApp();
+    else renderMe();
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = forced ? '✨ このニックネームに決定' : '✨ 保存する';
   }
 }
 
@@ -769,6 +902,8 @@ function startApp() {
   // 告知バッジ + 重要告知ポップアップ + 業務連絡未対応バッジ
   checkAnnouncements();
   checkOpsPending();
+  // 棟・フロア一覧
+  loadFloorList();
   setInterval(() => { checkAnnouncements(); checkOpsPending(); }, 90 * 1000);
 }
 
@@ -862,9 +997,13 @@ function renderMe() {
   if (user.company_code) metaParts.push(user.company_code);
   if (user.role === 'admin') metaParts.push('管理者');
   if (user.employee_type === 'field') metaParts.push('現場');
+  if (user.nickname) metaParts.push('🎭' + user.nickname);
   const meta = metaParts.join(' / ');
   document.getElementById('me-meta').textContent = meta;
   document.getElementById('set-meta').textContent = meta;
+  // 設定画面のニックネーム表示
+  const sn = document.getElementById('set-nick-val');
+  if (sn) sn.textContent = user.nickname || '未設定 ›';
   // 現場スタッフはカレンダー連携項目を隠す
   const calItem = document.getElementById('set-calendar');
   if (calItem) calItem.style.display = (user.employee_type === 'field') ? 'none' : 'flex';
@@ -1503,7 +1642,27 @@ function stopAoiSpeech() {
   try { sessionStorage.removeItem('cohub_prefer_pc'); } catch (e) {}
   const savedUser = localStorage.getItem('cohub_user');
   if (token && savedUser) {
-    try { user = JSON.parse(savedUser); startApp(); return; } catch (e) {}
+    try { user = JSON.parse(savedUser); } catch (e) { user = null; }
+    if (user) {
+      // 最新userを取得してnickname設定状態を確認
+      try {
+        const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+        const d = await r.json();
+        if (d && d.success && d.user) {
+          user = d.user;
+          localStorage.setItem('cohub_user', JSON.stringify(user));
+        }
+      } catch (e) {}
+      if (user.needs_nickname_setup) {
+        // ログイン画面ではなく強制モーダルだけ出す
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('app').style.display = 'none';
+        openNicknameModal(true);
+        return;
+      }
+      startApp();
+      return;
+    }
   }
   const savedLogin = localStorage.getItem('cohub_login_id');
   if (savedLogin) document.getElementById('li').value = savedLogin;
@@ -1525,7 +1684,7 @@ document.addEventListener('keydown', (e) => {
 function applyPrefsToUI() {
   // 文字サイズ
   const fs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m-fs')) || 1;
-  document.querySelectorAll('#font-toggle button').forEach(b => {
+  document.querySelectorAll('#font-toggle button, #font-quick button').forEach(b => {
     b.classList.toggle('active', Math.abs(parseFloat(b.dataset.fs) - fs) < 0.01);
   });
   // 通知音
@@ -1544,6 +1703,144 @@ function setFontScale(v) {
   document.documentElement.style.setProperty('--m-fs', String(v));
   try { localStorage.setItem('m_font_scale', String(v)); } catch (e) {}
   applyPrefsToUI();
+}
+
+// 棟・フロア一覧 + メンバー数 (バーチャルオフィスへの入口)
+async function loadFloorList() {
+  try {
+    const r = await fetch('/api/chat/floors', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) return;
+    const officeBox = document.getElementById('floor-office');
+    const fieldBox = document.getElementById('floor-field');
+    if (!officeBox || !fieldBox) return;
+    const renderFloor = (f) => {
+      const isDispatch = f.code === 'field_dispatch';
+      const lockMark = f.locked ? ' 🔒' : (f.approval_mode ? ' 🔔' : '');
+      const lockClass = isDispatch ? 'locked' : '';
+      const handler = isDispatch
+        ? `alert('🗺 配車センター\\n\\n現在実装中です。次回のアップデートで開放予定。')`
+        : `openFloor('${f.code}', ${JSON.stringify(f.name).replace(/"/g,'&quot;')})`;
+      const cnt = (window._floorCounts && window._floorCounts[f.code]) || 0;
+      // フロア名から先頭の "1F" "現場" 等のプレフィックス除去 (主要部分だけ表示)
+      const shortName = String(f.name).replace(/^(\d+F|現場)\s*/, '');
+      return `<button class="floor-btn ${lockClass}" onclick="${handler}">
+        <span class="ico">${escapeHtml(f.icon || '🏢')}</span>
+        <span class="lbl">${escapeHtml(shortName)}${lockMark}</span>
+        ${cnt ? `<span class="cnt">${cnt}</span>` : ''}
+      </button>`;
+    };
+    const office = (d.floors || []).filter(f => !f.building || f.building === 'office');
+    const field = (d.floors || []).filter(f => f.building === 'field');
+    // 健康管理室ボタン (DBフロアではないが事務所棟の大会議室の後に挿入)
+    const wellnessBtn = `<button class="floor-btn" style="background:rgba(16,185,129,0.08);border-color:#10b981;" onclick="location.href='/wellness.html'">
+      <span class="ico">🏥</span>
+      <span class="lbl" style="color:#047857;">健康管理室</span>
+    </button>`;
+    let officeHtml = '';
+    for (const f of office) {
+      officeHtml += renderFloor(f);
+      if (f.code === 'meeting_c') officeHtml += wellnessBtn;
+    }
+    officeBox.innerHTML = officeHtml || '<div style="color:#94a3b8;font-size:11px;">フロアなし</div>';
+    fieldBox.innerHTML = field.map(renderFloor).join('') || '<div style="color:#94a3b8;font-size:11px;">フロアなし</div>';
+  } catch (e) { console.warn('loadFloorList', e); }
+}
+
+// フロアタップ → そのフロアにいる人のリストモーダルを表示 (モバイル縦持ち最適)
+async function openFloor(code, name) {
+  // モーダル生成
+  let modal = document.getElementById('floor-people-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'floor-people-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:#fff;width:100%;max-height:85vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;animation:slideUp 0.2s ease-out;">
+      <div style="padding:14px 18px;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;display:flex;align-items:center;gap:8px;">
+        <div style="font-size:20px;">🏢</div>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:15px;">${escapeHtml(name)}</div>
+          <div style="font-size:10px;opacity:0.9;" id="floor-people-count">読み込み中…</div>
+        </div>
+        <button onclick="document.getElementById('floor-people-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+      </div>
+      <div id="floor-people-list" style="flex:1;overflow-y:auto;padding:10px;background:#f8fafc;">
+        <div style="text-align:center;color:#94a3b8;padding:20px;font-size:13px;">読み込み中…</div>
+      </div>
+      <div style="padding:10px 14px;border-top:1px solid #e2e8f0;background:#fff;">
+        <button onclick="enterFloorPC('${escapeHtml(code)}')" style="width:100%;padding:12px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;">
+          🖥️ PC版で本格的に入室する (要横向き)
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  // CSS animation
+  if (!document.getElementById('mobile-modal-keyframes')) {
+    const s = document.createElement('style');
+    s.id = 'mobile-modal-keyframes';
+    s.textContent = '@keyframes slideUp { from{transform:translateY(100%);} to{transform:translateY(0);} }';
+    document.head.appendChild(s);
+  }
+  // データ読込
+  try {
+    const r = await fetch('/api/floor-presence/' + encodeURIComponent(code), { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) {
+      document.getElementById('floor-people-list').innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;font-size:13px;">取得失敗: ' + escapeHtml(d.msg||'') + '</div>';
+      return;
+    }
+    const members = d.members || [];
+    document.getElementById('floor-people-count').textContent = members.length + '人 が在室中';
+    if (!members.length) {
+      document.getElementById('floor-people-list').innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px;">このフロアに今いる人はいません<br><span style="font-size:11px;color:#cbd5e1;">PC版で入室すると最初の1人になれます</span></div>';
+      return;
+    }
+    const statusColor = { 'active': '#10b981', '退席中': '#eab308', '会議中': '#ef4444', '集中中': '#8b5cf6' };
+    const statusLabel = { 'active': '在席', '退席中': '退席', '会議中': '取込中', '集中中': '集中' };
+    document.getElementById('floor-people-list').innerHTML = members.map(m => {
+      const initial = (m.name || '?').slice(0, 2);
+      const av = m.avatar
+        ? `<img src="${escapeHtml(m.avatar)}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid ${escapeHtml(m.ring||'#cbd5e1')};">`
+        : `<div style="width:42px;height:42px;border-radius:50%;background:${escapeHtml(m.ring||'#cbd5e1')};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">${escapeHtml(initial)}</div>`;
+      const stColor = statusColor[m.status] || '#94a3b8';
+      const stLbl = statusLabel[m.status] || m.status;
+      const adminBdg = m.role === 'admin' ? '<span style="background:#7c3aed;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:4px;">管</span>' : '';
+      const fieldBdg = m.employee_type === 'field' ? '<span style="background:#ea580c;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:4px;">現場</span>' : '';
+      return `<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+        <div style="position:relative;">${av}<span style="position:absolute;bottom:-2px;right:-2px;width:12px;height:12px;background:${stColor};border:2px solid #fff;border-radius:50%;"></span></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.name||'')}${adminBdg}${fieldBdg}</div>
+          <div style="font-size:11px;color:#64748b;">${stLbl}${m.status_text ? ' · ' + escapeHtml(m.status_text) : ''}</div>
+        </div>
+        <button onclick="document.getElementById('floor-people-modal').remove();openDmFromUid('${escapeHtml(m.uid)}','${escapeHtml((m.name||'').replace(/'/g,'')) }')" style="background:#06b6d4;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">💬 DM</button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('floor-people-list').innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;">通信エラー: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// PC版で本格入室: 横向き促しがあるので一旦離脱
+function enterFloorPC(code) {
+  if (!confirm('PC版バーチャルオフィスへ移動します。\nスマホは横向きにしてください。')) return;
+  try { sessionStorage.setItem('cohub_prefer_pc', '1'); } catch (e) {}
+  location.href = '/?floor=' + encodeURIComponent(code);
+}
+
+// DM起動 (UIDから既存のチャット導線を流用)
+function openDmFromUid(uid, name) {
+  if (typeof openDM === 'function') {
+    const u = users[uid] || {};
+    openDM(uid, name, u.avatar || '', false);
+  } else {
+    switchTab('chat');
+  }
+}
+
+// 食事診断 (ひろば食事タブ + 撮影ボタン即起動)
+function openMealDiag() {
+  location.href = '/plaza.html?action=food';
 }
 function setChimeOn(on) {
   chimeOn = !!on;
@@ -1576,7 +1873,7 @@ function pickStatus(s) {
   closeStatusSheet();
 }
 
-// ===== 健康管理室への導線 (CoHub内「ひろば」へ) =====
+// ===== 健康管理室への導線 (CoWell内「ひろば」へ) =====
 function openWellness() {
   location.href = '/plaza.html';
   return;

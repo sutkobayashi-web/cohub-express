@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CoHub Express</title>
+<title>CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
@@ -11,7 +11,27 @@
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="CoHub">
+<meta name="apple-mobile-web-app-title" content="CoWell">
+<script>
+// 既ログイン状態でlobbyに戻った時のログイン画面チラつき防止 (告知/業務ページから戻る時など)
+// ストレージにtoken+userがあるなら DOMContentLoaded でも login-screen に active を付けない
+(function() {
+  try {
+    var hasAuth = !!(localStorage.getItem('cohub_token') && localStorage.getItem('cohub_user'));
+    if (!hasAuth) {
+      document.addEventListener('DOMContentLoaded', function() {
+        var el = document.getElementById('login-screen');
+        if (el) el.classList.add('active');
+      });
+    }
+  } catch (e) {
+    document.addEventListener('DOMContentLoaded', function() {
+      var el = document.getElementById('login-screen');
+      if (el) el.classList.add('active');
+    });
+  }
+})();
+</script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/selfie_segmentation.js" crossorigin="anonymous"></script>
 <style>
@@ -43,10 +63,17 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #left-rail .brand { width: 76px; height: 52px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 4px; margin-bottom: 6px; box-shadow: 0 2px 6px rgba(15,23,42,0.12); border: 1px solid rgba(15,23,42,0.06); }
 #left-rail .brand img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 #left-rail .rail-section { width: 100%; padding: 6px 0 2px; font-size: 9px; color: #64748b; font-weight: 800; letter-spacing: 1.5px; text-align: center; text-transform: uppercase; }
-#left-rail .rail-subsection { width: 90%; padding: 6px 0; font-size: 9px; font-weight: 800; text-align: center; margin: 14px auto 4px; border-radius: 4px; }
+/* 棟ヘッダー (色分け、濃いめ) */
+#left-rail .rail-subsection { width: 90%; padding: 8px 0 6px; font-size: 10px; font-weight: 800; text-align: center; margin: 12px auto 0; border-radius: 8px 8px 0 0; letter-spacing: 0.5px; line-height: 1.2; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
 #left-rail .rail-subsection:first-of-type { margin-top: 4px; }
-#left-rail .rail-subsection.office { color: #0e7490; background: rgba(6,182,212,0.28); border: 1px solid rgba(6,182,212,0.55); }
-#left-rail .rail-subsection.field { color: #9a3412; background: rgba(249,115,22,0.28); border: 1px solid rgba(249,115,22,0.55); }
+#left-rail .rail-subsection .ico { font-size: 22px; display: block; line-height: 1; margin-bottom: 2px; }
+#left-rail .rail-subsection.office { background: linear-gradient(180deg, #0891b2, #0e7490); border: 1px solid #0e7490; border-bottom: none; }
+#left-rail .rail-subsection.field { background: linear-gradient(180deg, #ea580c, #c2410c); border: 1px solid #c2410c; border-bottom: none; }
+/* 棟内のボタン群を濃い色で囲む */
+#left-rail .rail-wing { width: 90%; margin: 0 auto 12px; padding: 4px 0 6px; border-radius: 0 0 10px 10px; border: 2px solid; border-top: none; }
+#left-rail .rail-wing.office { background: rgba(8,145,178,0.12); border-color: #0891b2; }
+#left-rail .rail-wing.field { background: rgba(234,88,12,0.12); border-color: #ea580c; }
+#left-rail .rail-wing .rail-btn { width: 95%; margin: 2px auto; }
 #left-rail .rail-btn { width: 82px; min-height: 52px; border-radius: 10px; background: transparent; border: none; color: #475569; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 18px; transition: all 0.12s; position: relative; padding: 6px 4px; }
 #left-rail .rail-btn .lbl { font-size: 10px; line-height: 1.1; text-align: center; font-weight: 600; }
 #left-rail .rail-btn:hover { background: rgba(15,23,42,0.06); color: #0f172a; }
@@ -474,10 +501,30 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 </head>
 <body>
 
+<!-- 📱 小さな常時フローティングボタン: スマホ画面サイズなら必ず右上に出る -->
+<a id="mobile-escape" href="/m"
+  onclick="try{sessionStorage.removeItem('cohub_prefer_pc');}catch(e){}"
+  style="display:none;position:fixed;top:8px;right:8px;background:#dc2626;color:#fff;text-decoration:none;padding:8px 14px;border-radius:18px;font-size:12px;font-weight:800;z-index:99000;box-shadow:0 4px 12px rgba(220,38,38,0.4);white-space:nowrap;">
+  📱 スマホ版に切替
+</a>
+<script>
+(function() {
+  function checkSmall() {
+    const el = document.getElementById('mobile-escape');
+    if (!el) return;
+    el.style.display = (window.innerWidth <= 900) ? 'inline-block' : 'none';
+  }
+  window.addEventListener('resize', checkSmall);
+  window.addEventListener('orientationchange', () => setTimeout(checkSmall, 200));
+  if (document.readyState !== 'loading') checkSmall();
+  else document.addEventListener('DOMContentLoaded', checkSmall);
+})();
+</script>
+
 <!-- ログイン -->
-<div id="login-screen" class="screen active">
+<div id="login-screen" class="screen">
   <form class="login-card" id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
-    <h1>🏢 CoHub Express</h1>
+    <h1>🏢 CoWell</h1>
     <div class="tag">グループ統合バーチャルオフィス</div>
     <div class="field"><label for="login-id">ログインID</label><input type="text" id="login-id" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
     <div class="field"><label for="login-pw">パスワード</label><input type="password" id="login-pw" name="password" autocomplete="current-password"></div>
@@ -513,9 +560,6 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
       <span>🌳</span><span class="lbl">ひろば</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/wellness.html'" title="健康管理室 (血圧/健診/メモ/eラーニング)" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
-      <span>🏥</span><span class="lbl">健康管理室</span>
-    </button>
     <button class="rail-btn" onclick="location.href='/challenges.html'" title="チャレンジ" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);color:#b45309;">
       <span>🏆</span><span class="lbl">チャレンジ</span>
     </button>
@@ -531,8 +575,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" onclick="location.href='/videos.html'" title="動画ライブラリ">
       <span>🎬</span><span class="lbl">動画</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/wellness-archive.html'" title="CoWell履歴アーカイブ">
-      <span>📦</span><span class="lbl">CoWell履歴</span>
+    <button class="rail-btn" onclick="location.href='/wellness-archive.html'" title="CoWell Classic履歴アーカイブ">
+      <span>📦</span><span class="lbl">Classic履歴</span>
     </button>
     <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
       <span>🎨</span><span class="lbl">アバター</span>
@@ -605,7 +649,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- 健康管理室: CoHub ネイティブの「ひろば」を iframe で表示 -->
+    <!-- 健康管理室: CoWell ネイティブの「ひろば」を iframe で表示 -->
     <iframe id="wellness-iframe" src="about:blank"
       style="display:none;position:absolute;inset:40px 0 0 0;width:100%;height:calc(100% - 40px);border:0;z-index:5;background:#f8fafc;"
       allow="camera; microphone; fullscreen; clipboard-read; clipboard-write"
@@ -966,6 +1010,11 @@ async function doLogin() {
         navigator.credentials.store(cred).catch(() => {});
       }
     } catch (e) {}
+    // 初回ログイン: ニックネーム未設定なら強制設定モーダル
+    if (userData && userData.needs_nickname_setup) {
+      showNicknameSetupModal();
+      return;
+    }
     // 現場スタッフ or スマホアクセスは自動でモバイル版 /m へ (PC優先フラグ時はスキップ)
     if (userData && shouldRedirectToMobile(userData)) {
       location.href = '/m';
@@ -976,6 +1025,71 @@ async function doLogin() {
     err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'ログイン';
   }
 }
+// 初回ログイン: ニックネーム強制設定モーダル
+function showNicknameSetupModal() {
+  // 既存modal要素があれば再利用、なければ生成
+  let modal = document.getElementById('nick-setup-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'nick-setup-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+        <div style="text-align:center;font-size:36px;margin-bottom:8px;">🎭</div>
+        <h2 style="margin:0 0 6px;text-align:center;color:#111827;font-size:18px;">ニックネームを決めてください</h2>
+        <div style="font-size:12px;color:#6b7280;text-align:center;line-height:1.7;margin-bottom:18px;">
+          ひろばや健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
+          ご自身の本名や個人を特定できる情報は避け、<br>
+          <b>2〜20文字</b>で気に入ったものを設定してください。
+        </div>
+        <input type="text" id="nick-input" placeholder="例: 朝寝坊 / おこめ / 海好き" maxlength="20"
+          style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:16px;margin-bottom:8px;">
+        <div id="nick-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-bottom:10px;"></div>
+        <button id="nick-submit" onclick="submitNickname()"
+          style="width:100%;padding:12px;background:#374151;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
+          ✨ このニックネームに決定
+        </button>
+        <div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.6;">
+          設定後も「設定 → ニックネーム変更」でいつでも変えられます
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    setTimeout(() => document.getElementById('nick-input').focus(), 100);
+    document.getElementById('nick-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitNickname(); });
+  } else {
+    modal.style.display = 'flex';
+  }
+}
+async function submitNickname() {
+  const inp = document.getElementById('nick-input');
+  const err = document.getElementById('nick-err');
+  const btn = document.getElementById('nick-submit');
+  const v = inp.value.trim();
+  err.textContent = '';
+  if (v.length < 2 || v.length > 20) { err.textContent = '2〜20文字で入力してください'; return; }
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const r = await fetch('/api/auth/nickname', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ nickname: v }),
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '失敗'; btn.disabled = false; btn.textContent = '✨ このニックネームに決定'; return; }
+    // 保存成功 → userData更新 → モーダル閉じてログイン続行
+    if (userData) {
+      userData.nickname = d.nickname;
+      userData.needs_nickname_setup = false;
+      localStorage.setItem('cohub_user', JSON.stringify(userData));
+    }
+    document.getElementById('nick-setup-modal').remove();
+    if (userData && shouldRedirectToMobile(userData)) { location.href = '/m'; return; }
+    enterSpace();
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = '✨ このニックネームに決定';
+  }
+}
+
 function doLogout() {
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} });
   localStorage.removeItem('cohub_token');
@@ -1587,6 +1701,15 @@ function connectSocket() {
   socket.on('snapshot', (data) => {
     me = data.me;
     proximityRadius = data.proximity || 220;
+    // ?floor=xxx URL パラメータ (モバイル「棟・フロア」から遷移時) → 指定フロアへ自動移動
+    try {
+      const urlFloor = new URLSearchParams(location.search).get('floor');
+      if (urlFloor && data.floor && data.floor.code !== urlFloor) {
+        // 一度だけ実行 (URLからパラメータを除去)
+        history.replaceState({}, '', location.pathname);
+        setTimeout(() => switchFloor(urlFloor), 200);
+      }
+    } catch (e) {}
     // フロア情報
     if (data.floor) {
       const prevCode = currentFloor && currentFloor.code;
@@ -1892,7 +2015,7 @@ function connectSocket() {
       renderMemberList();
       const sender = users[peerUid] || {};
       showNotifCard({ name: '[DM] ' + (sender.name || '誰か'), content: m.content, avatar: sender.avatar || '', mention: true });
-      // OS通知(Windowsデフォルト大音量音源) + CoHub内部Web Audio音
+      // OS通知(Windowsデフォルト大音量音源) + CoWell内部Web Audio音
       fireOSNotif('[DM] ' + (sender.name || ''), m.content, () => openDM(peerUid));
       if (speakerOn) playBeep(true);
       // 音声DM: 取込中でも強制読み上げ (speakerOn無視)
@@ -2010,7 +2133,7 @@ function connectSocket() {
       });
       // OS通知はメンション時のみ (通常チャットはカードで充分、OS音の二重を避ける)
       if (isMentioned) {
-        const title = '[メンション] ' + (sender.name || 'CoHub');
+        const title = '[メンション] ' + (sender.name || 'CoWell');
         fireOSNotif(title, m.content, () => { switchTab('chat'); });
       }
       const notReading = document.visibilityState !== 'visible';
@@ -2806,7 +2929,7 @@ function escapeHtml(s) {
 }
 
 // ===== 通知系 (favicon / タイトル / OS通知 / カードトースト) =====
-const ORIGINAL_TITLE = 'CoHub Express';
+const ORIGINAL_TITLE = 'CoWell';
 let faviconLink = null;
 
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
@@ -3246,6 +3369,9 @@ const NAME_READINGS = {
   '小林 猛': 'コバヤシ タケシ',
   '小林　猛': 'コバヤシ タケシ',
   '小林猛': 'コバヤシ タケシ',
+  '金子 力': 'カネコ チカラ',
+  '金子　力': 'カネコ チカラ',
+  '金子力': 'カネコ チカラ',
 };
 function readingOf(name) {
   if (!name) return name;
@@ -3350,7 +3476,7 @@ function announceLobbyWelcome() {
   playEnterLeaveChime(true);
   const hour = new Date().getHours();
   const greet = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
-  setTimeout(() => speakViaTTS(greet + '、' + reading + 'さん。CoHubへようこそ', { speed: 1.1 }), CHIME_DURATION_MS + 200);
+  setTimeout(() => speakViaTTS(greet + '、' + reading + 'さん。CoWellへようこそ', { speed: 1.1 }), CHIME_DURATION_MS + 200);
   console.log('[cohub] lobby welcome', myName);
 }
 
@@ -3697,14 +3823,36 @@ function renderRailFloors() {
       ${count ? `<span class="cnt">${count}</span>` : ''}
     </button>`;
   };
+  // 健康管理室 ボタン (フロアではないがオフィス事業所内のページとして大会議室の下に挿入)
+  const wellnessBtn = `<button class="rail-btn wing-office" onclick="location.href='/wellness.html'" title="健康管理室 (血圧/健診/メモ/eラーニング)" style="border-left-color:#10b981;background:rgba(16,185,129,0.08);color:#047857;">
+    <span style="font-size:14px;line-height:1;">🏥</span>
+    <span class="lbl">健康管理室</span>
+  </button>`;
+  // 大会議室 (meeting_c) の直後に挿入
+  const officeHtml = officeFloors.map(f => {
+    const btn = renderBtn(f);
+    if (f.code === 'meeting_c') return btn + wellnessBtn;
+    return btn;
+  }).join('');
+  // 現場棟: 未実装フロア (field_dispatch) は薄く表示してクリック時に案内
+  const fieldHtml = fieldFloors.map(f => {
+    if (f.code === 'field_dispatch') {
+      return `<button class="rail-btn wing-field" onclick="alert('🗺 配車センター\\n\\n現在実装中です。次回のアップデートで開放予定。\\n\\n予定機能:\\n・運行スケジュール\\n・ドライバー位置\\n・配車変更フロー\\n・点呼連携')" title="配車センター (実装中)" style="opacity:0.55;">
+        <span style="font-size:14px;line-height:1;">🗺 ${escapeHtml(f.name.replace(/^.*\s/,''))}</span>
+        <span class="lbl">配車センター</span>
+        <span style="position:absolute;top:2px;right:4px;background:#fbbf24;color:#78350f;font-size:8px;padding:1px 5px;border-radius:6px;font-weight:800;">準備中</span>
+      </button>`;
+    }
+    return renderBtn(f);
+  }).join('');
   let html = '';
   if (officeFloors.length) {
-    html += '<div class="rail-subsection office">🏢 事務所棟</div>';
-    html += officeFloors.map(renderBtn).join('');
+    html += '<div class="rail-subsection office"><span class="ico">🏢</span>事務所棟</div>';
+    html += '<div class="rail-wing office">' + officeHtml + '</div>';
   }
   if (fieldFloors.length) {
-    html += '<div class="rail-subsection field">🚚 現場棟</div>';
-    html += fieldFloors.map(renderBtn).join('');
+    html += '<div class="rail-subsection field"><span class="ico">🚚</span>現場棟</div>';
+    html += '<div class="rail-wing field">' + fieldHtml + '</div>';
   }
   host.innerHTML = html;
 }
@@ -3968,7 +4116,7 @@ const HELP_SECTIONS = [
       <li>全発言60日保存、管理者モニタリング可能</li>
       <li>新着で PWAプッシュ通知(スマホに直接)</li>
     </ul>
-    <div class="tip">💡 業務LINEをCoHubグループに移行することで、退職時リスクや情報漏洩を根本解決。</div>
+    <div class="tip">💡 業務LINEをCoWellグループに移行することで、退職時リスクや情報漏洩を根本解決。</div>
     <h3>✉ DM (1対1)</h3>
     <p>メンバー行の<b>✉</b>ボタンでダイレクトメッセージ。本人2名 + 管理者のみ閲覧可。</p>
     <h3>メンション @名前</h3>
@@ -3999,7 +4147,7 @@ const HELP_SECTIONS = [
     <ul>
       <li><b>なし</b> — 生カメラ</li>
       <li><b>🌫 ぼかし</b> — 人物だけ鮮明、背景ぼかし</li>
-      <li><b>🚪 ロビー / 💼 事務所 / 👔 役員室</b> — CoHubの各フロア画像を背景に</li>
+      <li><b>🚪 ロビー / 💼 事務所 / 👔 役員室</b> — CoWell Classicの各フロア画像を背景に</li>
       <li><b>黒</b> — プライバシー最強</li>
     </ul>
     <p>MediaPipe の人物セグメンテーションで合成。在宅時の部屋隠しに最適。</p>
@@ -4041,7 +4189,7 @@ const HELP_SECTIONS = [
     <p>oVice時代の「気づかない」問題を解決するため、重要度に応じた多層通知:</p>
     <ul>
       <li><b>🏷 faviconバッジ</b> — タブアイコンに赤い数字</li>
-      <li><b>💬 タブタイトル</b> — 未読あれば <code>💬(3) CoHub Express</code></li>
+      <li><b>💬 タブタイトル</b> — 未読あれば <code>💬(3) CoWell</code></li>
       <li><b>🗨 カードトースト</b> — 画面上部に送信者+内容を3.8秒表示</li>
       <li><b>🔔 OS通知</b> — タブ非アクティブ時に Windows/Mac の通知センター</li>
       <li><b>📲 PWAプッシュ通知</b> — <b>タブを閉じててもスマホ/PCに届く</b>(DM・メンション時のみ)</li>
@@ -4090,7 +4238,7 @@ const HELP_SECTIONS = [
       <li><b>会社案内</b>: 「ここはどこ?」と聞くと「スタンダード運輸グループ バーチャルオフィス」と答えます</li>
     </ul>
     <h4>技術</h4>
-    <p>Gemini 2.5 Flash + CoHub仕様を網羅したシステムプロンプト。直近10件の会話履歴を文脈として保持。</p>
+    <p>Gemini 2.5 Flash + CoWell仕様を網羅したシステムプロンプト。直近10件の会話履歴を文脈として保持。</p>
     <div class="warn">⚠ ボットはサーバー側のAIなので、音声通話・挙手・肩たたき返しなどのインタラクションはできません。あくまで案内役です。</div>
     <div class="tip">💡 葵はメンバーリスト/フロア人数カウントには含まれません(受付スタッフ扱い)。</div>
   ` },
@@ -4181,20 +4329,20 @@ const HELP_SECTIONS = [
       <li>管理者アカウントの<b>貸与禁止</b>(監査記録が汚れる)</li>
       <li>機密会議は録音開始前に<b>全員の同意を確認</b></li>
       <li>退職時は管理画面から<b>即アカウント削除</b></li>
-      <li>LINE業務利用は段階的に CoHub グループへ移行</li>
+      <li>LINE業務利用は段階的に CoWell グループへ移行</li>
     </ul>
     <div class="warn">⚠ 大企業監査水準 (SOX法/J-SOX対応) には上記「未実装」項目、特に 2FA・管理者操作ログ・DB暗号化 の追加実装が必要です。</div>
 
     <h4>📊 他ツール比較</h4>
     <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px;">
-      <tr style="background:#f1f5f9;"><th style="text-align:left;padding:4px;">項目</th><th style="padding:4px;">CoHub</th><th style="padding:4px;">LINE業務</th><th style="padding:4px;">Zoom</th><th style="padding:4px;">Teams</th></tr>
+      <tr style="background:#f1f5f9;"><th style="text-align:left;padding:4px;">項目</th><th style="padding:4px;">CoWell</th><th style="padding:4px;">LINE業務</th><th style="padding:4px;">Zoom</th><th style="padding:4px;">Teams</th></tr>
       <tr><td style="padding:4px;">管理者の発言閲覧</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">△</td><td style="text-align:center;">✅</td></tr>
       <tr><td style="padding:4px;">国内データ完結</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
       <tr><td style="padding:4px;">退職時の記録保全</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">△</td><td style="text-align:center;">✅</td></tr>
       <tr><td style="padding:4px;">2FA</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td></tr>
       <tr><td style="padding:4px;">E2E暗号化(DM)</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">有料</td><td style="text-align:center;">有料</td></tr>
     </table>
-    <p style="font-size:11px;color:#64748b;margin-top:6px;">CoHubは「内部統制重視」でLINEより優位、Teams/Zoomに対しては国内完結・管理者視認性で勝ち、2FA/E2Eで劣る構図。</p>
+    <p style="font-size:11px;color:#64748b;margin-top:6px;">CoWellは「内部統制重視」でLINEより優位、Teams/Zoomに対しては国内完結・管理者視認性で勝ち、2FA/E2Eで劣る構図。</p>
   ` },
 ];
 
@@ -4206,7 +4354,7 @@ function openHelp() {
   }
   modal.innerHTML =
     '<div class="help-window">' +
-      '<div class="help-head"><div class="ttl">❓ CoHub ヘルプ</div><button class="close" onclick="closeHelp()">×</button></div>' +
+      '<div class="help-head"><div class="ttl">❓ CoWell ヘルプ</div><button class="close" onclick="closeHelp()">×</button></div>' +
       '<div class="help-body">' +
         '<div class="help-tabs">' + tabsHtml + '</div>' +
         '<div class="help-content" id="help-content">読み込み中...</div>' +
@@ -4297,8 +4445,19 @@ async function speakAoi(text) {
   try {
     stopAoiSpeech();
     const cleaned = String(text)
-      .replace(/[🤖📅✨🔊🔇🎯🎙️🚪💼👔🅱🏛☕📦📋🔒🔔🎨🔑📜👋💬📎➤🟢🔴⭕]/g, '')
+      // markdown 強調記号 (**foo**, *foo*, __foo__) を削除して中身だけ残す
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*\n]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      // 製品名の読み (英字をTTSが読み違えるため日本語表記に置換)
+      .replace(/CoWell\s*Classic/gi, 'コーウエル クラシック')
+      .replace(/CoWell/gi, 'コーウエル')
+      // 装飾アイコン除去 (絵文字)
+      .replace(/[🤖📅✨🔊🔇🎯🎙️🚪💼👔🅱🏛☕📦📋🔒🔔🎨🔑📜👋💬📎➤🟢🔴⭕🏥🚛🌳🩺🆕🆗🏆🎬]/g, '')
+      // 行頭の箇条書き記号
       .replace(/^[\s・\-\*]+/gm, '')
+      // 残ったアスタリスク・マークダウン記号
+      .replace(/[*_`#>]/g, '')
       .replace(/【[^】]*】/g, '、')
       .replace(/\n+/g, '。')
       .replace(/\s{2,}/g, ' ')
@@ -4981,7 +5140,7 @@ function wbClearConfirm() {
 function applyFloorLayout(floor) {
   const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
   const isWellness = floor && floor.code === 'wellness_room';
-  // 健康管理室: CoHubネイティブの「ひろば」を全面表示 (旧: CoWell iframe)
+  // 健康管理室: CoWellネイティブの「ひろば」を全面表示 (旧: CoWell iframe)
   const ifr = document.getElementById('wellness-iframe');
   if (ifr) {
     if (isWellness) {
@@ -5914,12 +6073,28 @@ function shouldRedirectToMobile(u) {
 
 // 自動ログイン or ログインIDをプリフィル
 if (token && userData) {
-  // 現場スタッフ or スマホアクセスは /m へ (PC優先フラグ時はスキップ)
-  if (shouldRedirectToMobile(userData)) {
-    location.href = '/m';
-  } else {
-    enterSpace();
-  }
+  // 既存ユーザーでもニックネーム未設定なら強制設定
+  // (新機能リリース後の既存ユーザー対応: サーバから最新userを取り直して判定)
+  fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.success && d.user) {
+        userData = d.user;
+        localStorage.setItem('cohub_user', JSON.stringify(userData));
+      }
+      if (userData && userData.needs_nickname_setup) {
+        showNicknameSetupModal();
+        return;
+      }
+      if (shouldRedirectToMobile(userData)) location.href = '/m';
+      else enterSpace();
+    })
+    .catch(() => {
+      // /me 失敗時はキャッシュを信用
+      if (userData && userData.needs_nickname_setup) { showNicknameSetupModal(); return; }
+      if (shouldRedirectToMobile(userData)) location.href = '/m';
+      else enterSpace();
+    });
 } else {
   const savedId = localStorage.getItem('cohub_login_id');
   if (savedId) {
