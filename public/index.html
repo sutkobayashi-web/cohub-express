@@ -3150,57 +3150,60 @@ function drawBubble(x, y, text, alpha, whisper) {
   ctx.restore();
 }
 
-// 雲形吹き出し: アバターの上に表示し、下にトレイル状の小さな円3つ (漫画の思考雲スタイル)
-// 複数円を重ねて outline → main の二段塗りで内部の継ぎ目を消す
+// 雲形吹き出し: 単一の閉じたパスで描くため内部に継ぎ目が出ない
+// 上下に複数のバンプ(半円)、左右にも1つずつバンプを配置して clockwise に一筆書き
 function drawCloudBubble(speakerX, speakerBottomY, contentW, contentH) {
-  // 雲の本体は contentW x contentH より少し大きく (バンプ分)
-  const cloudW = contentW + 28;
-  const cloudH = contentH + 16;
+  const PI = Math.PI;
+  const cloudW = contentW + 24;   // バンプ分の余裕
+  const cloudH = contentH + 10;
   const cx = speakerX;
-  const cy = speakerBottomY - cloudH / 2 - 14;  // アバター上に少し浮く
-  const rBase = cloudH * 0.5;
-  // バンプの位置と半径 (上方が大きく、左右と下が小さい = ふんわり cumulus 風)
-  const bumps = [
-    { dx: -cloudW * 0.42, dy: 0,                r: rBase * 0.78 },
-    { dx: -cloudW * 0.22, dy: -cloudH * 0.18,   r: rBase * 0.95 },
-    { dx: 0,              dy: -cloudH * 0.25,   r: rBase * 1.05 },
-    { dx: cloudW * 0.22,  dy: -cloudH * 0.18,   r: rBase * 0.95 },
-    { dx: cloudW * 0.42,  dy: 0,                r: rBase * 0.78 },
-    { dx: cloudW * 0.27,  dy: cloudH * 0.22,    r: rBase * 0.75 },
-    { dx: 0,              dy: cloudH * 0.28,    r: rBase * 0.82 },
-    { dx: -cloudW * 0.27, dy: cloudH * 0.22,    r: rBase * 0.75 },
-  ];
-  // ① outline (各バンプを少し大きく濃い紫で塗る → 重なり部分が消えて外周だけ残る)
-  ctx.fillStyle = 'rgba(139,92,246,0.55)';
-  for (const b of bumps) {
-    ctx.beginPath();
-    ctx.arc(cx + b.dx, cy + b.dy, b.r + 1.5, 0, Math.PI * 2);
-    ctx.fill();
+  const cy = speakerBottomY - cloudH / 2 - 16;
+  const halfW = cloudW / 2;
+  const halfH = cloudH / 2;
+  const r = Math.max(13, cloudH * 0.34);            // バンプ半径
+  const numTop = Math.max(3, Math.round(cloudW / (1.9 * r)));
+  const numBottom = Math.max(2, numTop - 1);
+  const topStep = cloudW / numTop;
+  const bottomStep = cloudW / numBottom;
+  // ===== ① 単一の閉じたパスとして雲の輪郭を組み立てる =====
+  ctx.beginPath();
+  // 最初の上バンプの左端から開始
+  ctx.moveTo(cx - halfW + topStep / 2 - r, cy - halfH);
+  // 上バンプ (左→右、各半円が上に膨らむ): 角度 π → 2π を CW
+  for (let i = 0; i < numTop; i++) {
+    ctx.arc(cx - halfW + topStep * (i + 0.5), cy - halfH, r, PI, 2 * PI, false);
   }
-  // ② main fill (薄紫で塗り直して内側を埋める)
+  // 右側バンプ (上→下、右に膨らむ): 角度 3π/2 → π/2 を CW (右側通過)
+  ctx.arc(cx + halfW, cy, r * 0.85, 1.5 * PI, 0.5 * PI, false);
+  // 下バンプ (右→左、各半円が下に膨らむ): 角度 0 → π を CW
+  for (let i = 0; i < numBottom; i++) {
+    ctx.arc(cx + halfW - bottomStep * (i + 0.5), cy + halfH, r * 0.9, 0, PI, false);
+  }
+  // 左側バンプ (下→上、左に膨らむ): 角度 π/2 → 3π/2 を CW (左側通過)
+  ctx.arc(cx - halfW, cy, r * 0.85, 0.5 * PI, 1.5 * PI, false);
+  ctx.closePath();
+  // ===== ② 塗り(薄紫) + 線(紫) — 単一パスなので内部に継ぎ目は出ない =====
   ctx.fillStyle = '#f5f3ff';
-  for (const b of bumps) {
-    ctx.beginPath();
-    ctx.arc(cx + b.dx, cy + b.dy, b.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // ③ トレイル: 雲の下からアバター方向に小さな円 3つ
-  const tailX = cx - cloudW * 0.18;
-  const tailStartY = cy + cloudH * 0.42 + 4;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(139,92,246,0.6)';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  // ===== ③ トレイル: 雲の下からアバター方向に小さな円 3つ =====
+  const tailX = cx - cloudW * 0.20;
+  const tailStartY = cy + halfH + 6;
   const tails = [
     { x: tailX,       y: tailStartY,      r: 5 },
     { x: tailX - 4,   y: tailStartY + 11, r: 3.5 },
     { x: tailX - 7,   y: tailStartY + 20, r: 2.2 },
   ];
   for (const t of tails) {
-    ctx.fillStyle = 'rgba(139,92,246,0.55)';
     ctx.beginPath();
-    ctx.arc(t.x, t.y, t.r + 1, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(t.x, t.y, t.r, 0, 2 * PI);
     ctx.fillStyle = '#f5f3ff';
-    ctx.beginPath();
-    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(139,92,246,0.6)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
   }
 }
 
