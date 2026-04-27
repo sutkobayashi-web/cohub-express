@@ -2573,7 +2573,8 @@ function render() {
   // 1Fロビー (一人称視点モード) — 受付に葵が立ち、他の人はソファ等の所定位置に着座
   // 床移動は無効化、各ユーザーは uid ハッシュで決まる座席に固定配置
   const isLobbyView = currentFloor && currentFloor.code === 'lobby';
-  const LOBBY_BOT_POS = { x: 560, y: 380 };  // 葵: 受付カウンター背後
+  const LOBBY_BOT_POS = { x: 560, y: 440 };  // 葵: 受付カウンター背後 (頭+胸が見える位置)
+  const LOBBY_COUNTER_TOP_Y = 470;            // 受付カウンター上端 (この線でクリップ→葵の腰下が隠れる)
   const LOBBY_SEATS = [
     { x: 145, y: 580 },  // 左ソファ 1人目
     { x: 245, y: 580 },  // 左ソファ 2人目
@@ -2628,20 +2629,20 @@ function render() {
   const ox = (w - dw) / 2;
   const oy = (h - dh) / 2;
 
-  // ロビー工事中バナーを葵 (bot_aoi) の真下に追従させる
+  // ロビー工事中バナー: 受付カウンター下のフロアエリアに固定 (葵に追従ではなく画面下寄り)
   if (currentFloor && currentFloor.code === 'lobby') {
     const cbn = document.getElementById('lobby-construction-banner');
-    const bot = users && users['bot_aoi'];
-    if (cbn && bot && bot.cx != null) {
+    if (cbn) {
       const wrap = document.getElementById('space-canvas-wrap');
       const wrapR = wrap ? wrap.getBoundingClientRect() : { left: 0, top: 0 };
-      const screenX = (r.left - wrapR.left) + ox + bot.cx * viewScale;
-      const screenY = (r.top - wrapR.top) + oy + bot.cy * viewScale;
+      // 画面中央水平、カウンター下のフロア部分(world y≈790)に配置
+      const bannerWorldX = WORLD_W / 2;
+      const bannerWorldY = 790;
+      const screenX = (r.left - wrapR.left) + ox + bannerWorldX * viewScale;
+      const screenY = (r.top - wrapR.top) + oy + bannerWorldY * viewScale;
       cbn.style.left = screenX + 'px';
-      cbn.style.top = (screenY + 56) + 'px';
+      cbn.style.top = screenY + 'px';
       cbn.style.display = 'block';
-    } else if (cbn) {
-      cbn.style.display = 'none';
     }
   }
 
@@ -2899,7 +2900,13 @@ function drawConciergeStanding(u) {
   const headY = feetY - FIG_H;
   ctx.save();
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
-  // 足元の楕円影
+  // 1Fロビー: 受付カウンター下端より下を非表示 (奥に立っているように見せる)
+  if (currentFloor && currentFloor.code === 'lobby') {
+    ctx.beginPath();
+    ctx.rect(0, 0, WORLD_W, 470);  // y<470 (カウンター上端まで) のみ描画
+    ctx.clip();
+  }
+  // 足元の楕円影 (ロビーではクリップで自動的に隠れる)
   ctx.save();
   ctx.fillStyle = 'rgba(15,23,42,0.22)';
   ctx.beginPath();
