@@ -253,6 +253,7 @@
 <div id="login">
   <div id="login-card">
     <h1>CoWell</h1>
+    <div class="subtitle" style="font-size:10px;letter-spacing:1.5px;color:#0f4d3a;font-weight:700;margin-bottom:2px;">Communication &amp; Wellness</div>
     <div class="subtitle">スタンダード運輸グループ</div>
     <form id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
       <label for="li">ログインID</label>
@@ -462,7 +463,7 @@
           <div class="i">🚪</div><div class="l">ログアウト</div><div class="r">›</div>
         </div>
       </div>
-      <div style="text-align:center;padding:20px;color:#94a3b8;font-size:10px;">CoWell Mobile</div>
+      <div style="text-align:center;padding:20px;color:#94a3b8;font-size:10px;line-height:1.6;">CoWell Mobile<br><span style="font-size:9px;letter-spacing:0.5px;color:#0f4d3a;font-weight:700;">Communication &amp; Wellness</span></div>
     </div>
   </div>
 
@@ -863,7 +864,7 @@ function openConsentModal() {
             <li>バックアップはBox(SOC2準拠)に暗号化保存</li>
             <li>閲覧・訂正・削除依頼はいつでも可能</li>
             <li>退職時には個人特定情報を速やかに削除</li>
-            <li>ポリシー変更時はCoHub上で事前にお知らせ</li>
+            <li>ポリシー変更時はCoWell上で事前にお知らせ</li>
           </ul>
         </div>
 
@@ -952,7 +953,7 @@ async function submitConsentM() {
 }
 
 function declineConsentM() {
-  if (!confirm('CoHubのご利用には同意が必要です。\n同意せずログアウトしますか?')) return;
+  if (!confirm('CoWellのご利用には同意が必要です。\n同意せずログアウトしますか?')) return;
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} }).catch(() => {});
   localStorage.removeItem('cohub_token');
   localStorage.removeItem('cohub_user');

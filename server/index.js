@@ -1297,5 +1297,5 @@ for (const b of CONCIERGE_BOTS) {
 }
 
 server.listen(PORT, () => {
-  console.log('CoHub Express サーバー起動: http://localhost:' + PORT);
+  console.log('CoWell (Communication & Wellness) サーバー起動: http://localhost:' + PORT);
 });

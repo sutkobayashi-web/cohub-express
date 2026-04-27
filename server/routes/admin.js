@@ -148,7 +148,7 @@ router.get('/users/csv-template', authAdmin, (req, res) => {
   const companies = db.prepare('SELECT code, name FROM companies ORDER BY code').all();
   const compList = companies.map(c => `#   ${c.code.padEnd(14)} = ${c.name}`).join('\n');
   const tpl = '\uFEFF' + [
-    '# CoHub メンバー一括登録CSV テンプレート',
+    '# CoWell メンバー一括登録CSV テンプレート',
     '# ───────────────────────────────────────────────',
     '# 列: login_id,display_name,company_code,password,role,employee_type,dm_group,dm_rank,birth_date',
     '#  login_id        : ログインID (英数字, 重複不可)',

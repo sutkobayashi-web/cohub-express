@@ -524,7 +524,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 <div id="login-screen" class="screen">
   <form class="login-card" id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
     <h1>🏢 CoWell</h1>
-    <div class="tag">グループ統合バーチャルオフィス</div>
+    <div class="tag" style="font-weight:700;color:#0f4d3a;letter-spacing:0.5px;">Communication &amp; Wellness</div>
+    <div class="tag" style="margin-top:-12px;">グループ統合バーチャルオフィス</div>
     <div class="field"><label for="login-id">ログインID</label><input type="text" id="login-id" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
     <div class="field"><label for="login-pw">パスワード</label><input type="password" id="login-pw" name="password" autocomplete="current-password"></div>
     <button type="submit" class="btn-primary" id="login-btn">ログイン</button>
@@ -1057,7 +1058,7 @@ function showConsentModal(u) {
 
         <div style="margin-bottom:16px;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:4px solid #0f4d3a;">
           <div style="font-weight:700;color:#0f4d3a;margin-bottom:6px;font-size:13px;">① 記録されるログについて</div>
-          <div style="font-size:12px;color:#334155;">CoHub では業務改善・安全配慮のため以下を記録します。</div>
+          <div style="font-size:12px;color:#334155;">CoWell では業務改善・安全配慮のため以下を記録します。</div>
           <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#334155;">
             <li>チャット・DM・グループ投稿の本文と日時</li>
             <li>音声送信・通話の音声データ</li>
@@ -1090,7 +1091,7 @@ function showConsentModal(u) {
             <li>バックアップはBox(SOC2準拠)に暗号化のうえ保存</li>
             <li>ご自身のデータの閲覧・訂正・削除依頼はいつでも可能</li>
             <li>退職時には業務記録に必要な部分以外、個人特定情報は速やかに削除</li>
-            <li>ポリシー変更時はCoHub上で事前にお知らせ</li>
+            <li>ポリシー変更時はCoWell上で事前にお知らせ</li>
           </ul>
         </div>
 
@@ -1183,7 +1184,7 @@ async function submitConsent() {
 }
 
 function declineConsent() {
-  if (!confirm('CoHubのご利用には同意が必要です。\n同意せずログアウトしますか?')) return;
+  if (!confirm('CoWellのご利用には同意が必要です。\n同意せずログアウトしますか?')) return;
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} }).catch(() => {});
   localStorage.removeItem('cohub_token');
   localStorage.removeItem('cohub_user');
