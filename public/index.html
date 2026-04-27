@@ -44,8 +44,27 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #login-screen.active { display: flex; }
 #space-screen.active { display: block; }
 .login-card { background: #fff; color: #0f172a; border-radius: 16px; padding: 32px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(15,23,42,0.25); }
-.login-card h1 { margin: 0 0 4px; font-size: 22px; text-align: center; }
+.login-card h1 { margin: 0 0 4px; font-size: 22px; text-align: center; opacity: 0; animation: titleFadeIn 0.9s ease-out 0.2s forwards; }
 .login-card .tag { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 24px; }
+
+/* ===== オープニング演出: タグラインの一文字ずつ出現+グロウ ===== */
+.tag-anim { display: inline-block; font-weight: 700; letter-spacing: 1.2px;
+  background: linear-gradient(90deg, #0f4d3a 0%, #10b981 25%, #34d399 50%, #10b981 75%, #0f4d3a 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 0 rgba(16,185,129,0));
+  animation: shimmer 3.4s ease-in-out 1.6s infinite, tagGlow 3.4s ease-in-out 1.6s infinite; }
+.tag-anim .ch { display: inline-block; opacity: 0; transform: translateY(6px) scale(0.92);
+  animation: chReveal 0.55s cubic-bezier(0.25, 0.85, 0.45, 1) forwards; }
+.tag-anim .sp { display: inline-block; width: 0.35em; }
+@keyframes chReveal { to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes shimmer { 0%, 100% { background-position: -150% 0; } 50% { background-position: 250% 0; } }
+@keyframes tagGlow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(16,185,129,0.25)); }
+  50%      { filter: drop-shadow(0 0 14px rgba(16,185,129,0.7)); }
+}
+@keyframes titleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 12px; color: #475569; margin-bottom: 4px; }
 .field input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
@@ -524,8 +543,31 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 <div id="login-screen" class="screen">
   <form class="login-card" id="login-form" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
     <h1>🏢 CoWell</h1>
-    <div class="tag" style="font-weight:700;color:#0f4d3a;letter-spacing:0.5px;">Communication &amp; Wellness</div>
-    <div class="tag" style="margin-top:-12px;">グループ統合バーチャルオフィス</div>
+    <div class="tag" style="margin-bottom:6px;"><span class="tag-anim" id="tag-anim-pc">Communication &amp; Wellness</span></div>
+    <div class="tag" style="margin-top:0;opacity:0;animation:titleFadeIn 0.8s ease-out 1.5s forwards;">グループ統合バーチャルオフィス</div>
+    <script>
+      (function () {
+        // 一文字ずつ span でラップ → CSS animation-delay を段階的に付与して順次出現
+        var el = document.getElementById('tag-anim-pc');
+        if (!el || el.dataset.split) return;
+        var text = el.textContent;
+        el.textContent = '';
+        var delay = 0;
+        for (var i = 0; i < text.length; i++) {
+          var c = text[i];
+          if (c === ' ') {
+            var sp = document.createElement('span'); sp.className = 'sp'; el.appendChild(sp);
+          } else {
+            var s = document.createElement('span'); s.className = 'ch';
+            s.textContent = c;
+            s.style.animationDelay = (0.25 + delay) + 's';
+            el.appendChild(s);
+            delay += 0.05;
+          }
+        }
+        el.dataset.split = '1';
+      })();
+    </script>
     <div class="field"><label for="login-id">ログインID</label><input type="text" id="login-id" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
     <div class="field"><label for="login-pw">パスワード</label><input type="password" id="login-pw" name="password" autocomplete="current-password"></div>
     <button type="submit" class="btn-primary" id="login-btn">ログイン</button>
