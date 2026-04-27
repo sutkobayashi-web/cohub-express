@@ -5495,14 +5495,21 @@ function checkBotProximity() {
   if (!socket) return;
   if (!me || !users[me] || users[me].cx == null) return;
   const myU = users[me];
+  const now = Date.now();
   for (const uid in users) {
     const u = users[uid];
     if (!u || u.role !== 'bot' || u.cx == null) continue;
     if (currentFloor && u.floor && u.floor !== currentFloor.code) continue;
     const dx = myU.cx - u.cx, dy = myU.cy - u.cy;
     const d = Math.sqrt(dx * dx + dy * dy);
-    const st = _botProximity[uid] || { in: false, lastTrigger: 0 };
-    const now = Date.now();
+    let st = _botProximity[uid];
+    if (!st) {
+      // 初回判定: 既に半径内なら "in状態" として記録し、tap-shoulderは打たない
+      // (管理画面等から戻った時、保存位置がbot近傍だと自動再挨拶される問題の回避)
+      st = { in: d <= BOT_TRIGGER_R, lastTrigger: d <= BOT_TRIGGER_R ? now : 0 };
+      _botProximity[uid] = st;
+      continue;
+    }
     if (!st.in && d <= BOT_TRIGGER_R && now - st.lastTrigger > BOT_REARM_MS) {
       st.in = true;
       st.lastTrigger = now;
