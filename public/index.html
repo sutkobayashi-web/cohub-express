@@ -647,9 +647,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
   <!-- キャンバス領域 (会議室時は上にビデオ、下にアバター空間) -->
   <div id="space-canvas-wrap">
-    <!-- ロビー専用: 工事中バナー (lobbyフロアの時のみJSで表示) -->
-    <div id="lobby-construction-banner" style="display:none;position:absolute;top:48px;left:50%;transform:translateX(-50%);z-index:8;padding:10px 22px;background:repeating-linear-gradient(45deg,#fde047 0 14px,#1f2937 14px 28px);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.25);pointer-events:none;">
-      <div style="background:#fff;color:#1f2937;font-weight:800;font-size:15px;padding:8px 18px;border-radius:6px;letter-spacing:1px;border:2px solid #1f2937;">🚧 只今、工事中 🚧</div>
+    <!-- ロビー専用: 工事中バナー (葵の真下に配置、lobbyフロアの時のみJSで位置/表示制御) -->
+    <div id="lobby-construction-banner" style="display:none;position:absolute;left:0;top:0;transform:translate(-50%,0);z-index:8;padding:8px 16px;background:repeating-linear-gradient(45deg,#fde047 0 12px,#1f2937 12px 24px);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.25);pointer-events:none;">
+      <div style="background:#fff;color:#1f2937;font-weight:800;font-size:13px;padding:6px 14px;border-radius:6px;letter-spacing:1px;border:2px solid #1f2937;white-space:nowrap;">🚧 只今、工事中 🚧</div>
     </div>
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
@@ -1731,8 +1731,11 @@ function connectSocket() {
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
       if (fname) fname.textContent = (data.floor.icon ? data.floor.icon + ' ' : '') + data.floor.name;
-      const cbn = document.getElementById('lobby-construction-banner');
-      if (cbn) cbn.style.display = (data.floor.code === 'lobby') ? 'block' : 'none';
+      // ロビー以外なら工事中バナー即非表示 (位置更新はrender()で毎フレーム)
+      if (data.floor.code !== 'lobby') {
+        const cbn = document.getElementById('lobby-construction-banner');
+        if (cbn) cbn.style.display = 'none';
+      }
       loadBackground(data.floor.bg_image);
       applyFloorLayout(data.floor);
       resize();
@@ -2343,6 +2346,23 @@ function render() {
   const dh = WORLD_H * viewScale;
   const ox = (w - dw) / 2;
   const oy = (h - dh) / 2;
+
+  // ロビー工事中バナーを葵 (bot_aoi) の真下に追従させる
+  if (currentFloor && currentFloor.code === 'lobby') {
+    const cbn = document.getElementById('lobby-construction-banner');
+    const bot = users && users['bot_aoi'];
+    if (cbn && bot && bot.cx != null) {
+      const wrap = document.getElementById('space-canvas-wrap');
+      const wrapR = wrap ? wrap.getBoundingClientRect() : { left: 0, top: 0 };
+      const screenX = (r.left - wrapR.left) + ox + bot.cx * viewScale;
+      const screenY = (r.top - wrapR.top) + oy + bot.cy * viewScale;
+      cbn.style.left = screenX + 'px';
+      cbn.style.top = (screenY + 56) + 'px';
+      cbn.style.display = 'block';
+    } else if (cbn) {
+      cbn.style.display = 'none';
+    }
+  }
 
   ctx.save();
   ctx.translate(ox, oy);
