@@ -242,6 +242,7 @@ app.use('/api/events', require('./routes/events'));
 app.use('/api/myhealth', require('./routes/health'));
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/challenges', require('./routes/challenges'));
+app.use('/api/accident', require('./routes/accident'));
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
 const { authUser } = require('./middleware/auth');

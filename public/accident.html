@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🚨 事故報告書 — CoWell</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background: #f1f5f9; color: #0f172a; padding-bottom: 60px; }
+  header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #b91c1c, #991b1b); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  header h1 { margin: 0; font-size: 17px; flex: 1; }
+  header button.back { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  main { max-width: 880px; margin: 0 auto; padding: 14px; }
+  .tabs { display: flex; gap: 6px; background: #fff; border-radius: 10px; padding: 4px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .tab { flex: 1; padding: 11px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; }
+  .tab.active { background: #dc2626; color: #fff; }
+  .tab .b { display: inline-block; background: #fff; color: #dc2626; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+  .actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .btn { padding: 10px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+  .btn-ghost { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card.unread { border-left: 4px solid #dc2626; }
+  .card .head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .card .title { font-size: 14px; font-weight: 700; color: #0f172a; flex: 1; min-width: 160px; }
+  .card .meta { font-size: 11px; color: #94a3b8; }
+  .card .body { font-size: 13px; color: #334155; margin-top: 6px; line-height: 1.6; }
+  .lvl { font-size: 11px; color: #fff; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
+  .lvl.draft { background: #94a3b8; }
+  .lvl.submitted { background: #f59e0b; }
+  .lvl.approved { background: #10b981; }
+  .lvl.rejected { background: #6b7280; }
+  .stat-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; font-size: 12px; }
+  .stat-pill { background: #fef2f2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-weight: 700; }
+  .empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
+  .empty .ico { font-size: 36px; margin-bottom: 8px; }
+  /* Modal */
+  .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .modal.open { display: flex; }
+  .modal-body { background: #fff; border-radius: 14px; max-width: 720px; width: 100%; margin: 16px auto; max-height: 92vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.3); }
+  .modal-head { padding: 14px 18px; background: linear-gradient(135deg, #b91c1c, #991b1b); color: #fff; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 1; }
+  .modal-head h3 { margin: 0; font-size: 15px; flex: 1; }
+  .modal-head .close { background: rgba(255,255,255,0.18); border: none; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 18px; }
+  .modal-content { padding: 16px 18px; }
+  .modal-footer { padding: 12px 18px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  /* Form */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+  .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .field textarea { min-height: 70px; resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #dc2626; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 540px) {
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+  }
+  .err { color: #dc2626; font-size: 12px; min-height: 16px; margin: 6px 0; }
+  .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; line-height: 1.5; }
+  .detail-grid { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; line-height: 1.7; }
+  .detail-grid .lbl { color: #64748b; font-weight: 600; }
+  .detail-grid .val { color: #0f172a; word-break: break-word; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back" onclick="location.href='/'">‹ 戻る</button>
+  <h1>🚨 事故報告書</h1>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="product" onclick="switchTab('product')">📦 製品事故 <span class="b" id="cnt-product">0</span></button>
+    <button class="tab" data-tab="vehicle" onclick="switchTab('vehicle')">🚗 車両事故 <span class="b" id="cnt-vehicle">0</span></button>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="new-btn" onclick="openForm()">＋ 新規報告</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadList()">🔄 更新</button>
+  </div>
+
+  <div id="stat-row" class="stat-row"></div>
+
+  <div id="list"></div>
+</main>
+
+<!-- 新規/編集モーダル -->
+<div class="modal" id="form-modal" onclick="if (event.target.id === 'form-modal') closeForm()">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h3 id="form-title">📦 製品事故 新規報告</h3>
+      <button class="close" onclick="closeForm()">×</button>
+    </div>
+    <div class="modal-content" id="form-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeForm()">キャンセル</button>
+      <button class="btn" id="form-submit" onclick="submitForm()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="modal" id="detail-modal" onclick="if (event.target.id === 'detail-modal') closeDetail()">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h3 id="detail-title">詳細</h3>
+      <button class="close" onclick="closeDetail()">×</button>
+    </div>
+    <div class="modal-content" id="detail-content"></div>
+    <div class="modal-footer" id="detail-footer"></div>
+  </div>
+</div>
+
+<script>
+// ========================================================
+// 認証 (cohub_token を使用)
+// ========================================================
+let token = localStorage.getItem('cohub_token');
+let me = null;
+try { me = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch (e) {}
+if (!token) location.href = '/';
+
+async function api(path, opts = {}) {
+  const init = Object.assign({ headers: { Authorization: 'Bearer ' + token } }, opts);
+  if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
+    init.headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers);
+    init.body = JSON.stringify(init.body);
+  }
+  const r = await fetch(path, init);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.href = '/'; return; }
+  return r.json();
+}
+
+const isManager = me && (me.employee_type === 'admin' || me.role === 'admin');
+let currentTab = 'product';
+let _list = [];
+let _causes = [];
+let _products = [];
+let _editingId = null;
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+function fmtDate(s) {
+  if (!s) return '-';
+  return String(s).replace('T', ' ').slice(0, 16);
+}
+
+function switchTab(t) {
+  currentTab = t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  loadList();
+}
+
+async function loadList() {
+  const path = currentTab === 'product' ? '/api/accident/product?limit=200' : '/api/accident/vehicle?limit=200';
+  const d = await api(path);
+  if (!d || !d.success) return;
+  _list = d.reports || [];
+  document.getElementById('cnt-' + currentTab).textContent = _list.length;
+  renderList();
+  if (currentTab === 'product') loadMasters();
+  loadSummary();
+}
+
+async function loadMasters() {
+  if (_causes.length && _products.length) return;
+  const c = await api('/api/accident/causes');
+  const p = await api('/api/accident/products');
+  if (c && c.success) _causes = c.causes || [];
+  if (p && p.success) _products = p.products || [];
+}
+
+async function loadSummary() {
+  const d = await api('/api/accident/summary');
+  if (!d || !d.success) return;
+  const s = currentTab === 'product' ? d.product : d.vehicle;
+  const pills = [];
+  pills.push(`<span class="stat-pill">📊 総件数 ${s.total}</span>`);
+  if (s.byType && s.byType.length) {
+    for (const t of s.byType.slice(0, 3)) {
+      if (t.accident_type) pills.push(`<span class="stat-pill">${escapeHtml(t.accident_type)} ${t.cnt}</span>`);
+    }
+  }
+  if (s.byMonth && s.byMonth[0]) {
+    pills.push(`<span class="stat-pill">今月 ${s.byMonth[0].cnt}</span>`);
+  }
+  document.getElementById('stat-row').innerHTML = pills.join('');
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  if (!_list.length) {
+    list.innerHTML = '<div class="empty"><div class="ico">📭</div><div>事故報告はまだありません</div></div>';
+    return;
+  }
+  if (currentTab === 'product') {
+    list.innerHTML = _list.map(r => {
+      const status = r.status || 'submitted';
+      const statusLabel = { draft: '下書き', submitted: '提出済', approved: '承認済', rejected: '差し戻し' }[status] || status;
+      return `<div class="card">
+        <div class="head">
+          <span class="lvl ${escapeHtml(status)}">${escapeHtml(statusLabel)}</span>
+          <div class="title">[${escapeHtml(r.accident_date)}] ${escapeHtml(r.product_name || r.accident_type || '製品破損')}</div>
+        </div>
+        <div class="meta">📍 ${escapeHtml(r.location_floor || '')} ${escapeHtml(r.location_area || '')} · 報告: ${escapeHtml(r.reporter_name)} · ${escapeHtml((r.created_at || '').slice(0,16))}</div>
+        ${r.cause_detail ? `<div class="body">${escapeHtml(String(r.cause_detail).slice(0, 160))}${r.cause_detail.length > 160 ? '…' : ''}</div>` : ''}
+        <div style="margin-top:8px;display:flex;gap:6px;">
+          <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
+          ${(isManager || r.reporter_name === (me && me.display_name)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    list.innerHTML = _list.map(r => {
+      const status = r.status || 'submitted';
+      const statusLabel = { draft: '下書き', submitted: '提出済', approved: '承認済', rejected: '差し戻し' }[status] || status;
+      return `<div class="card">
+        <div class="head">
+          <span class="lvl ${escapeHtml(status)}">${escapeHtml(statusLabel)}</span>
+          <div class="title">[${escapeHtml(r.accident_date)}] ${escapeHtml(r.accident_type || '車両事故')} ${r.vehicle_no ? '(' + escapeHtml(r.vehicle_no) + ')' : ''}</div>
+        </div>
+        <div class="meta">📍 ${escapeHtml(r.location || '')} · 報告: ${escapeHtml(r.reporter_display || r.reporter_name || '')} · ${escapeHtml((r.created_at || '').slice(0,16))}</div>
+        ${r.injury_status && r.injury_status !== '無し' ? `<div class="body" style="color:#dc2626;font-weight:700;">⚠ 負傷: ${escapeHtml(r.injury_status)}</div>` : ''}
+        ${r.description ? `<div class="body">${escapeHtml(String(r.description).slice(0, 160))}${r.description.length > 160 ? '…' : ''}</div>` : ''}
+        <div style="margin-top:8px;display:flex;gap:6px;">
+          <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
+          ${(isManager || r.reporter_id === (me && me.uid)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ============================================================
+// フォーム
+// ============================================================
+async function openForm(id) {
+  _editingId = id || null;
+  await loadMasters();
+  const isEdit = !!id;
+  let initial = {};
+  if (isEdit) {
+    const path = currentTab === 'product' ? `/api/accident/product/${id}` : `/api/accident/vehicle/${id}`;
+    const d = await api(path);
+    if (!d || !d.success) { alert('読み込みに失敗しました'); return; }
+    initial = d.report;
+  }
+  document.getElementById('form-title').textContent = (currentTab === 'product' ? '📦 製品事故' : '🚗 車両事故') + ' ' + (isEdit ? '編集' : '新規報告');
+  document.getElementById('form-content').innerHTML = currentTab === 'product' ? productFormHtml(initial) : vehicleFormHtml(initial);
+  document.getElementById('form-modal').classList.add('open');
+}
+
+function closeForm() {
+  document.getElementById('form-modal').classList.remove('open');
+  _editingId = null;
+}
+
+function productFormHtml(d) {
+  const causeOptions = _causes.map(c => `<option value="${escapeHtml(c.category)}" ${d.cause_category === c.category ? 'selected' : ''}>${escapeHtml(c.category)}</option>`).join('');
+  const productOptions = [...new Set(_products.map(p => p.product_category))].map(c => `<option value="${escapeHtml(c)}" ${d.product_category === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+  const today = new Date().toISOString().slice(0, 10);
+  return `
+    <div class="grid2">
+      <div class="field"><label>事故発生日 *</label><input type="date" id="f-date" value="${escapeHtml(d.accident_date || today)}"></div>
+      <div class="field"><label>発生時刻</label><input type="time" id="f-time" value="${escapeHtml(d.accident_time || '')}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>天気</label>
+        <select id="f-weather"><option value="">-</option>
+          ${['晴', '曇', '雨', '雪', '霧'].map(w => `<option ${d.weather === w ? 'selected' : ''}>${w}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>発生階・場所</label><input type="text" id="f-floor" placeholder="例: 3F・通路A" value="${escapeHtml(d.location_floor || '')}"></div>
+    </div>
+    <div class="field"><label>場所詳細</label><input type="text" id="f-area" placeholder="より詳細な位置・棚番号など" value="${escapeHtml(d.location_area || '')}"></div>
+    <div class="grid2">
+      <div class="field"><label>商品カテゴリ</label>
+        <select id="f-prod-cat"><option value="">-</option>${productOptions}</select>
+      </div>
+      <div class="field"><label>商品名</label><input type="text" id="f-prod-name" value="${escapeHtml(d.product_name || '')}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>商品コード</label><input type="text" id="f-prod-code" value="${escapeHtml(d.product_code || '')}"></div>
+      <div class="field"><label>数量</label><input type="number" id="f-qty" min="1" value="${escapeHtml(d.quantity || 1)}"></div>
+    </div>
+    <div class="field"><label>原因カテゴリ</label>
+      <select id="f-cause-cat"><option value="">-</option>${causeOptions}</select>
+    </div>
+    <div class="field"><label>原因詳細</label><textarea id="f-cause-detail" placeholder="どのような状況で発生したか">${escapeHtml(d.cause_detail || '')}</textarea></div>
+    <div class="field"><label>状況詳細</label><textarea id="f-situation" placeholder="作業中の様子・周囲の状況">${escapeHtml(d.situation_detail || '')}</textarea></div>
+    <div class="field"><label>損害内容</label><textarea id="f-damage" placeholder="破損部位・破損の程度">${escapeHtml(d.damage_description || '')}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label>類似事故</label>
+        <select id="f-similar"><option ${d.similar_accident_known === '有' ? 'selected' : ''}>有</option><option ${d.similar_accident_known === '無' ? 'selected' : ''}>無</option></select>
+      </div>
+      <div class="field"><label>警察連絡</label>
+        <select id="f-police"><option ${(d.police_contact || '無し') === '無し' ? 'selected' : ''}>無し</option><option ${d.police_contact === '有り' ? 'selected' : ''}>有り</option></select>
+      </div>
+    </div>
+    <div class="field"><label>報告者の振り返り (再発防止のため)</label><textarea id="f-reflect" placeholder="自分なりの反省点・気をつけるべきこと">${escapeHtml(d.reporter_reflection || '')}</textarea></div>
+    <div class="field"><label>対応・処置</label><input type="text" id="f-handling" value="${escapeHtml(d.handling || '関東BCへ連絡済み・指示待ち')}"></div>
+    <div class="grid2">
+      <div class="field"><label>費用 (円)</label><input type="number" id="f-cost" value="${escapeHtml(d.cost_amount || '')}"></div>
+      <div class="field"><label>費用ステータス</label>
+        <select id="f-cost-status">${['未定','確定','請求済','支払済'].map(s => `<option ${d.cost_status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="err" id="f-err"></div>
+  `;
+}
+
+function vehicleFormHtml(d) {
+  const today = new Date().toISOString().slice(0, 10);
+  return `
+    <div class="grid2">
+      <div class="field"><label>事故発生日 *</label><input type="date" id="f-date" value="${escapeHtml(d.accident_date || today)}"></div>
+      <div class="field"><label>発生時刻</label><input type="time" id="f-time" value="${escapeHtml(d.accident_time || '')}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>天気</label>
+        <select id="f-weather"><option value="">-</option>
+          ${['晴', '曇', '雨', '雪', '霧'].map(w => `<option ${d.weather === w ? 'selected' : ''}>${w}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>発生場所</label><input type="text" id="f-loc" placeholder="例: 国道246号・東名厚木IC付近" value="${escapeHtml(d.location || '')}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>車両番号</label><input type="text" id="f-vehicle" placeholder="例: 横浜100あ1234" value="${escapeHtml(d.vehicle_no || '')}"></div>
+      <div class="field"><label>事故種別</label>
+        <select id="f-type">
+          <option value="">-</option>
+          ${['単独事故','追突','出会い頭','左折巻込','右折時','施設・物損','駐車中接触','その他'].map(t => `<option ${d.accident_type === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>相手側情報</label><input type="text" id="f-counter" placeholder="相手車両ナンバー・運転者氏名・連絡先" value="${escapeHtml(d.counter_party || '')}"></div>
+    <div class="grid2">
+      <div class="field"><label>負傷状況</label>
+        <select id="f-injury">${['無し','軽傷','重傷','死亡'].map(s => `<option ${(d.injury_status || '無し') === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>警察連絡</label>
+        <select id="f-police">${['無し','現場連絡済','事故証明取得済'].map(s => `<option ${(d.police_contact || '無し') === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field"><label>保険対応状況</label><input type="text" id="f-insurance" placeholder="保険会社連絡済み・担当者名等" value="${escapeHtml(d.insurance_status || '')}"></div>
+    <div class="field"><label>原因 (簡潔に)</label><input type="text" id="f-cause" placeholder="例: 前方不注意・路面凍結・体調不良" value="${escapeHtml(d.cause_summary || '')}"></div>
+    <div class="field"><label>状況詳細・経緯</label><textarea id="f-desc" placeholder="事故発生時の状況をできるだけ詳細に記述">${escapeHtml(d.description || '')}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label>修理状況</label><input type="text" id="f-repair" placeholder="例: 工場入庫済み・5/2納車予定" value="${escapeHtml(d.repair_status || '')}"></div>
+      <div class="field"><label>費用見込み (円)</label><input type="number" id="f-cost" value="${escapeHtml(d.cost_amount || '')}"></div>
+    </div>
+    <div class="err" id="f-err"></div>
+  `;
+}
+
+async function submitForm() {
+  const errEl = document.getElementById('f-err');
+  errEl.textContent = '';
+  const btn = document.getElementById('form-submit');
+  btn.disabled = true;
+  let body = {};
+  if (currentTab === 'product') {
+    body = {
+      accident_date: document.getElementById('f-date').value,
+      accident_time: document.getElementById('f-time').value,
+      weather: document.getElementById('f-weather').value,
+      location_floor: document.getElementById('f-floor').value,
+      location_area: document.getElementById('f-area').value,
+      product_category: document.getElementById('f-prod-cat').value,
+      product_name: document.getElementById('f-prod-name').value,
+      product_code: document.getElementById('f-prod-code').value,
+      quantity: parseInt(document.getElementById('f-qty').value) || 1,
+      cause_category: document.getElementById('f-cause-cat').value,
+      cause_detail: document.getElementById('f-cause-detail').value,
+      situation_detail: document.getElementById('f-situation').value,
+      damage_description: document.getElementById('f-damage').value,
+      similar_accident_known: document.getElementById('f-similar').value,
+      police_contact: document.getElementById('f-police').value,
+      reporter_reflection: document.getElementById('f-reflect').value,
+      handling: document.getElementById('f-handling').value,
+      cost_amount: parseInt(document.getElementById('f-cost').value) || null,
+      cost_status: document.getElementById('f-cost-status').value,
+    };
+  } else {
+    body = {
+      accident_date: document.getElementById('f-date').value,
+      accident_time: document.getElementById('f-time').value,
+      weather: document.getElementById('f-weather').value,
+      location: document.getElementById('f-loc').value,
+      vehicle_no: document.getElementById('f-vehicle').value,
+      accident_type: document.getElementById('f-type').value,
+      counter_party: document.getElementById('f-counter').value,
+      injury_status: document.getElementById('f-injury').value,
+      police_contact: document.getElementById('f-police').value,
+      insurance_status: document.getElementById('f-insurance').value,
+      cause_summary: document.getElementById('f-cause').value,
+      description: document.getElementById('f-desc').value,
+      repair_status: document.getElementById('f-repair').value,
+      cost_amount: parseInt(document.getElementById('f-cost').value) || null,
+    };
+  }
+  if (!body.accident_date) { errEl.textContent = '事故発生日が必須です'; btn.disabled = false; return; }
+  const path = (currentTab === 'product' ? '/api/accident/product' : '/api/accident/vehicle') + (_editingId ? '/' + _editingId : '');
+  const method = _editingId ? 'PUT' : 'POST';
+  try {
+    const d = await api(path, { method, body });
+    if (!d || !d.success) { errEl.textContent = (d && d.msg) || '保存失敗'; btn.disabled = false; return; }
+    closeForm();
+    loadList();
+  } catch (e) {
+    errEl.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false;
+  }
+}
+
+// ============================================================
+// 詳細表示
+// ============================================================
+async function openDetail(id) {
+  const path = currentTab === 'product' ? `/api/accident/product/${id}` : `/api/accident/vehicle/${id}`;
+  const d = await api(path);
+  if (!d || !d.success) { alert('読み込みに失敗しました'); return; }
+  const r = d.report;
+  document.getElementById('detail-title').textContent = (currentTab === 'product' ? '📦 製品事故' : '🚗 車両事故') + ' #' + r.id;
+  document.getElementById('detail-content').innerHTML = currentTab === 'product' ? productDetailHtml(r) : vehicleDetailHtml(r);
+  // フッター: 管理職なら承認/差し戻し
+  let footer = `<button class="btn btn-ghost" onclick="closeDetail()">閉じる</button>`;
+  if (isManager && r.status !== 'approved') {
+    footer = `<button class="btn" onclick="approveOne(${r.id})">✅ 承認</button>` + footer;
+  }
+  document.getElementById('detail-footer').innerHTML = footer;
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDetail() {
+  document.getElementById('detail-modal').classList.remove('open');
+}
+
+function productDetailHtml(r) {
+  const rows = [
+    ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
+    ['天気', r.weather],
+    ['発生場所', `${r.location_floor || ''} ${r.location_area || ''}`],
+    ['商品', `${r.product_category || ''} / ${r.product_name || ''}`],
+    ['商品コード', r.product_code],
+    ['数量', r.quantity],
+    ['原因カテゴリ', r.cause_category],
+    ['原因詳細', r.cause_detail],
+    ['状況', r.situation_detail],
+    ['損害', r.damage_description],
+    ['振り返り', r.reporter_reflection],
+    ['対応', r.handling],
+    ['費用', r.cost_amount ? r.cost_amount.toLocaleString() + '円 (' + (r.cost_status || '') + ')' : '-'],
+    ['類似事故', r.similar_accident_known],
+    ['警察連絡', r.police_contact],
+    ['報告者', r.reporter_name],
+    ['ステータス', r.status],
+    ['作成日時', r.created_at],
+    ['承認者', r.approved_by],
+    ['管理者コメント', r.manager_comment],
+  ];
+  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>`;
+}
+
+function vehicleDetailHtml(r) {
+  const rows = [
+    ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
+    ['天気', r.weather],
+    ['場所', r.location],
+    ['車両番号', r.vehicle_no],
+    ['事故種別', r.accident_type],
+    ['相手側', r.counter_party],
+    ['負傷状況', r.injury_status],
+    ['警察連絡', r.police_contact],
+    ['保険対応', r.insurance_status],
+    ['原因', r.cause_summary],
+    ['状況詳細', r.description],
+    ['修理状況', r.repair_status],
+    ['費用', r.cost_amount ? r.cost_amount.toLocaleString() + '円' : '-'],
+    ['報告者', r.reporter_display || r.reporter_name],
+    ['ステータス', r.status],
+    ['作成日時', r.created_at],
+    ['承認者', r.approved_by],
+    ['管理者コメント', r.manager_comment],
+  ];
+  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>`;
+}
+
+async function approveOne(id) {
+  if (!confirm('この事故報告を承認しますか?')) return;
+  const path = currentTab === 'product' ? `/api/accident/product/${id}/approve` : `/api/accident/vehicle/${id}/approve`;
+  const d = await api(path, { method: 'POST' });
+  if (!d || !d.success) { alert('承認失敗'); return; }
+  closeDetail();
+  loadList();
+}
+
+// 初期化
+loadList();
+</script>
+
+</body>
+</html>
