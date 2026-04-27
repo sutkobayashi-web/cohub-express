@@ -2573,8 +2573,8 @@ function render() {
   // 1Fロビー (一人称視点モード) — 受付に葵が立ち、他の人はソファ等の所定位置に着座
   // 床移動は無効化、各ユーザーは uid ハッシュで決まる座席に固定配置
   const isLobbyView = currentFloor && currentFloor.code === 'lobby';
-  const LOBBY_BOT_POS = { x: 560, y: 440 };  // 葵: 受付カウンター背後 (頭+胸が見える位置)
-  const LOBBY_COUNTER_TOP_Y = 470;            // 受付カウンター上端 (この線でクリップ→葵の腰下が隠れる)
+  const LOBBY_BOT_POS = { x: 560, y: 510 };  // 葵: 受付カウンター背後 (頭+胸が見える位置・少し下げ)
+  const LOBBY_COUNTER_TOP_Y = 480;            // 受付カウンター上端 (この線でクリップ→葵の腰下が隠れる)
   const LOBBY_SEATS = [
     { x: 145, y: 580 },  // 左ソファ 1人目
     { x: 245, y: 580 },  // 左ソファ 2人目
@@ -2885,7 +2885,8 @@ function drawFloorEntrance(x, y, floorCode) {
 
 // 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
 function drawConciergeStanding(u) {
-  const FIG_H = 210;                    // 全身高さ(px)
+  // ロビー時は少し大きめ (240) でカウンターに堂々と立つ感じ、他フロア時は従来 210
+  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 240 : 210;
   const aspect = conciergeFull.w / conciergeFull.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -2903,7 +2904,7 @@ function drawConciergeStanding(u) {
   // 1Fロビー: 受付カウンター下端より下を非表示 (奥に立っているように見せる)
   if (currentFloor && currentFloor.code === 'lobby') {
     ctx.beginPath();
-    ctx.rect(0, 0, WORLD_W, 470);  // y<470 (カウンター上端まで) のみ描画
+    ctx.rect(0, 0, WORLD_W, 480);  // y<480 (カウンター上端まで) のみ描画
     ctx.clip();
   }
   // 足元の楕円影 (ロビーではクリップで自動的に隠れる)
