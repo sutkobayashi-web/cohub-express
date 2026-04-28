@@ -35,10 +35,14 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .tab.active.t-健康Tips { background: #10b981; color: #fff; }
 
 /* 投稿フォーム */
-.composer { background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.composer { background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: background 0.2s, box-shadow 0.2s; }
+/* 食事モード: 食欲そそる暖色調＋枠強調＋写真CTA優先 */
+.composer.is-food { background: linear-gradient(180deg,#fffbeb 0%, #fff 65%); border: 2px solid #fcd34d; padding: 14px; box-shadow: 0 4px 14px rgba(245,158,11,0.18); }
+.composer.is-food textarea { background: #fffef9; border-color: #fde68a; }
+.composer.is-food textarea:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.18); }
 .composer textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; }
 .composer textarea:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
-.composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .anon-toggle { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; background: #f8fafc; border-radius: 16px; font-size: 12px; cursor: pointer; user-select: none; color: #475569; font-weight: 600; }
 .anon-toggle input { margin: 0; cursor: pointer; }
 .anon-toggle:has(input:checked) { background: #fef3c7; color: #78350f; }
@@ -48,11 +52,19 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-icon { padding: 8px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; }
 .composer-meta { flex: 1; font-size: 11px; color: #94a3b8; }
-.preview-img-wrap { position: relative; margin-top: 8px; display: inline-block; }
-.preview-img { max-width: 200px; max-height: 200px; border-radius: 8px; }
+.preview-img-wrap { position: relative; margin-top: 10px; display: inline-block; }
+.preview-img { max-width: 240px; max-height: 240px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 .preview-clear { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
-.ai-tip { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 6px 10px; font-size: 11px; color: #78350f; border-radius: 4px; margin-top: 6px; display: none; }
+.ai-tip { background: linear-gradient(135deg,#fef3c7,#fde68a); border-left: 4px solid #f59e0b; padding: 10px 12px; font-size: 13px; color: #78350f; border-radius: 8px; margin: 4px 0 10px; line-height: 1.6; font-weight: 600; display: none; }
 .ai-tip.show { display: block; }
+.ai-tip b { color: #92400e; }
+/* 食事モード: 大きな写真CTA (撮影/選択を一発で) */
+.food-photo-cta { display: none; width: 100%; padding: 16px; margin: 4px 0 10px; background: linear-gradient(135deg,#f59e0b,#ef4444); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(245,158,11,0.35); align-items: center; justify-content: center; gap: 10px; transition: transform 0.1s, box-shadow 0.2s; text-align: left; }
+.food-photo-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(245,158,11,0.45); }
+.food-photo-cta:active { transform: translateY(0); }
+.food-photo-cta .ico { font-size: 28px; line-height: 1; }
+.food-photo-cta .sub { display: block; font-size: 11px; font-weight: 600; opacity: 0.9; margin-top: 2px; }
+.composer.is-food:not(.has-image) .food-photo-cta { display: flex; }
 
 /* 投稿カード */
 .post { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
@@ -165,15 +177,19 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
     <div class="tab-bar" id="tab-bar"></div>
 
     <div class="section-ttl">✏️ <span id="cmp-section-ttl">雑談を投稿</span></div>
-    <div class="composer">
+    <div class="composer" id="composer">
+      <div class="ai-tip" id="ai-tip">🍱 <b>写真を撮るだけ</b>で AI が栄養バランスを自動分析します（10〜20秒）。本文は無くてもOK！</div>
+      <button class="food-photo-cta" id="food-photo-cta" onclick="document.getElementById('cmp-file').click()">
+        <span class="ico">📷</span>
+        <span>食事の写真を撮る／選ぶ<span class="sub">タップでカメラ起動</span></span>
+      </button>
       <textarea id="cmp-text" placeholder="今、何食べた？気になることある？シェアしましょう"></textarea>
       <div id="cmp-preview" class="preview-img-wrap" style="display:none;">
         <img id="cmp-preview-img" class="preview-img">
         <button class="preview-clear" onclick="clearImage()">×</button>
       </div>
-      <div class="ai-tip" id="ai-tip">🍱 食事カテゴリ + 写真付きなら AI が栄養スコアを自動分析します (10〜20秒)</div>
       <div class="composer-bar">
-        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真">📷</button>
+        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真を追加">📷</button>
         <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
         <label class="anon-toggle" title="本名ではなくニックネームで投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
           <input type="checkbox" id="cmp-anon" checked> <span>🎭 ニックネームで投稿</span>
@@ -390,6 +406,8 @@ function setTab(t) {
   document.getElementById('cmp-section-ttl').textContent = sectionTtl;
   document.getElementById('cmp-text').placeholder = meta.placeholder || '';
   document.getElementById('ai-tip').classList.toggle('show', _curCat === '食事');
+  // 食事モード: composer全体を暖色に切替＋大型写真CTA表示
+  document.getElementById('composer').classList.toggle('is-food', _curCat === '食事');
   // フィード見出し
   const feedTtl = (t === 'all') ? '🌳 みんなの投稿' : (meta.label || t) + ' の投稿';
   document.getElementById('feed-section-ttl').textContent = feedTtl;
@@ -433,11 +451,13 @@ function onPickImage(ev) {
   const reader = new FileReader();
   reader.onload = e => { document.getElementById('cmp-preview-img').src = e.target.result; document.getElementById('cmp-preview').style.display = 'inline-block'; };
   reader.readAsDataURL(f);
+  document.getElementById('composer').classList.add('has-image');
 }
 function clearImage() {
   _imageFile = null;
   document.getElementById('cmp-file').value = '';
   document.getElementById('cmp-preview').style.display = 'none';
+  document.getElementById('composer').classList.remove('has-image');
 }
 
 async function submitPost() {
