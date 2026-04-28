@@ -2344,9 +2344,9 @@ function connectSocket() {
   socket.on('tap:sent', (data) => {
     const u = users[data && data.targetUid];
     showToast('👋 ' + ((u && u.name) || '相手') + 'に肩たたきを送りました');
-    // bot 宛なら DM パネルを自動オープン
+    // bot 宛: 挨拶吹き出しの後、用件選択モーダルを表示 (旧:いきなりDMを開いていた)
     if (u && u.role === 'bot') {
-      setTimeout(() => { try { openDmWith(u.uid); } catch (e) {} }, 600);
+      setTimeout(() => { try { showAoiActionModal(u.uid, u.name || '葵'); } catch (e) {} }, 800);
     }
   });
   socket.on('chat:msg', (m) => {
@@ -5937,6 +5937,73 @@ const _botProximity = {}; // botUid → { in: bool, lastTrigger: ts }
 const BOT_TRIGGER_R = 100;   // この距離内で発動 (受付台に立つ近さ)
 const BOT_RESET_R = 200;     // この距離超で再武装
 const BOT_REARM_MS = 60000;  // 発動後60秒は再発動しない (DM閉じてから接近)
+// 葵に接近した時の用件選択モーダル
+// 旧:挨拶後すぐ DM パネルを開いていたが、3択 (DM/部屋移動/予定確認) から選べるように
+let _aoiModalOpenAt = 0;
+function showAoiActionModal(botUid, botName) {
+  // 短時間連続表示の抑止 (12秒以内なら再表示しない)
+  const now = Date.now();
+  if (now - _aoiModalOpenAt < 12000) return;
+  if (document.getElementById('aoi-action-modal')) return;
+  _aoiModalOpenAt = now;
+  const modal = document.createElement('div');
+  modal.id = 'aoi-action-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick = (e) => { if (e.target === modal) closeAoiModal(); };
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#06b6d4,#0891b2);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;">🤖</div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#0f172a;">${(botName || '葵').replace(/[<>"&]/g, '')}</div>
+          <div style="font-size:11px;color:#64748b;">いらっしゃいませ。ご用件をお聞かせください。</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+        <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+          <span style="font-size:22px;">💬</span>
+          <div style="flex:1;"><div>DMで話す</div><div style="font-size:11px;font-weight:400;opacity:0.9;">葵に質問やお願いができます</div></div>
+        </button>
+        <button onclick="aoiAction('floor', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+          <span style="font-size:22px;">🛗</span>
+          <div style="flex:1;"><div>別のフロアへ移動</div><div style="font-size:11px;font-weight:400;color:#64748b;">事務所棟・現場棟・会議室など</div></div>
+        </button>
+        <button onclick="aoiAction('schedule', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+          <span style="font-size:22px;">📅</span>
+          <div style="flex:1;"><div>今日の予定を確認</div><div style="font-size:11px;font-weight:400;color:#64748b;">Google カレンダーから取得</div></div>
+        </button>
+      </div>
+      <button onclick="closeAoiModal()" style="display:block;width:100%;margin-top:10px;padding:8px;background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;">後にする ×</button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+function closeAoiModal() {
+  const m = document.getElementById('aoi-action-modal');
+  if (m) m.remove();
+}
+function aoiAction(action, botUid) {
+  closeAoiModal();
+  if (action === 'dm') {
+    openDmWith(botUid);
+  } else if (action === 'floor') {
+    // 画面中央に自分のフロアメニューを表示
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    showSelfFloorMenu(cx, cy);
+  } else if (action === 'schedule') {
+    // DM を開いて自動で「今日の予定を教えてください」を送信 → 葵が Google Calendar 連携で答える
+    openDmWith(botUid);
+    setTimeout(() => {
+      const inp = document.querySelector('#dm-panel textarea, #dm-input, [data-dm-input]');
+      if (socket && socket.emit) {
+        socket.emit('dm', { to: botUid, content: '今日の予定を教えてください' });
+      } else if (inp) {
+        inp.value = '今日の予定を教えてください';
+      }
+    }, 400);
+  }
+}
+
 function checkBotProximity() {
   if (!socket) return;
   if (!me || !users[me] || users[me].cx == null) return;
