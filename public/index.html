@@ -2640,19 +2640,8 @@ function render() {
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
   }
 
-  // 1Fロビー: 背景画像に焼き込まれたロゴはアスペクト比が崩れているので、
-  // 正しい比率の std_logo.png でオーバーレイ上書きする (壁色矩形でカバー → 正しい比率で再描画)
-  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    // 壁色のカバー (元ロゴ全体を確実に隠すため広めに、テキスト下部まで含める)
-    const coverX = 480, coverY = 80, coverW = 400, coverH = 320;
-    ctx.fillStyle = '#ece9e1';   // 生成画像の壁色 (やや黄味のオフホワイト)
-    ctx.fillRect(coverX, coverY, coverW, coverH);
-    // 正しい比率で再描画 (std_logo.png は 1001×838 = アスペクト1.194)
-    const logoW = 240;
-    const logoH = Math.round(logoW * (stdLogo.naturalHeight / stdLogo.naturalWidth));
-    const cx = 680, cy = 240;     // カバー中央付近 (元ロゴの実位置に合わせる)
-    ctx.drawImage(stdLogo, Math.round(cx - logoW / 2), Math.round(cy - logoH / 2), logoW, logoH);
-  }
+  // 1Fロビー: ロゴは背景画像 (Gemini生成・一番最初のデザイン) に焼き込み済み
+  // Canvasオーバーレイは廃止 (元の自然な見え方を尊重)
   // 大会議室: スタンダード運輸ロゴを床の透かしとして描画 (従来通り)
   if (currentFloor && currentFloor.code === 'meeting_c' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
     const logoW = 170;
