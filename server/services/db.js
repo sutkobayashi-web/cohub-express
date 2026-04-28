@@ -94,9 +94,9 @@ function getDb() {
   // 配車センター追加 (2026-04-27): 現場棟内、未実装ページ
   _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
     VALUES ('field_dispatch', '配車センター', '/assets/floor_field_rest.png', 1344, 768, 672, 678, 11, '🗺', 'field')`).run();
-  // 健康管理室フロア廃止 (2026-04-26): /plaza.html (ひろば) に一本化
-  _db.prepare("UPDATE positions SET floor_code = 'lobby' WHERE floor_code = 'wellness_room'").run();
-  _db.prepare("DELETE FROM floors WHERE code = 'wellness_room'").run();
+  // 健康管理室フロア (2026-04-28再設置): AIヘルスアドバイザー (bot_health) 常駐
+  _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
+    VALUES ('wellness_room', '🏥 健康管理室', '/assets/floor_wellness_room.png', 1344, 768, 672, 700, 6, '🏥', 'office')`).run();
   // 社内タイムライン (掲示板) — Phase1 コミュニケーション基盤強化
   _db.exec(`CREATE TABLE IF NOT EXISTS board_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
