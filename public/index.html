@@ -2578,10 +2578,10 @@ function render() {
   // 1Fロビー (一人称視点モード) — 葵だけ受付に固定、一般ユーザーは自由に移動可
   // 一人称視点フロア: ロビー(葵)・健康管理室(ヘルスアドバイザー) 共通の固定配置
   const isLobbyView = currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'wellness_room');
-  // ロビーの葵は受付奥に立つ姿(クリップで腰下隠し)、健康管理室は全身立ち姿(クリップなし)
+  // ロビーの葵は受付奥に立つ姿(クリップで腰下隠し)、健康管理室は全身立ち姿(縮尺合わせのため小さめ)
   const FIRST_PERSON_BOT = {
     'lobby':         { uid: 'bot_aoi',    x: 744, y: 519, clip: true  },
-    'wellness_room': { uid: 'bot_health', x: 420, y: 580, clip: false },
+    'wellness_room': { uid: 'bot_health', x: 420, y: 620, clip: false },
   };
   const LOBBY_COUNTER_TOP_Y = 465;            // 受付/相談デスク上端 (lobby のみクリップ)
 
@@ -2885,10 +2885,14 @@ function drawFloorEntrance(x, y, floorCode) {
 
 // 受付AI 葵 / ヘルスアドバイザー: 立ち姿描画 (透過+影+名札)
 function drawConciergeStanding(u) {
-  // 一人称視点フロア (ロビー / 健康管理室) は大きめ、他フロアは従来 210
   const standing = botStandingImages[u.uid] || conciergeFull;
-  const isFirstPersonFloor = currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'wellness_room');
-  const FIG_H = isFirstPersonFloor ? 360 : 210;
+  // フロア別サイズ:
+  //  ロビー葵 = 360 (受付越しに頭胸のみ見せるため大きめ、クリップで腰下隠し)
+  //  健康管理室 = 200 (全身が部屋の縮尺と合うサイズ)
+  //  他フロア = 210 (従来)
+  let FIG_H = 210;
+  if (currentFloor && currentFloor.code === 'lobby') FIG_H = 360;
+  else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 200;
   const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
