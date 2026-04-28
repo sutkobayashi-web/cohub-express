@@ -5603,38 +5603,12 @@ function wbClearConfirm() {
 // ===== フロア種別で画面レイアウト切替 =====
 function applyFloorLayout(floor) {
   const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
-  const isWellness = floor && floor.code === 'wellness_room';
-  // 健康管理室: CoWellネイティブの「ひろば」を全面表示 (旧: CoWell iframe)
+  // 旧: 健康管理室は plaza.html を iframe で全面表示していた
+  // 新 (4/28): wellness_room はキャンバス一人称視点+AIヘルスアドバイザー、iframe不要
   const ifr = document.getElementById('wellness-iframe');
-  if (ifr) {
-    if (isWellness) {
-      if (ifr.src === 'about:blank' || !ifr.dataset.loaded) {
-        ifr.src = '/plaza.html';
-        ifr.dataset.loaded = '1';
-      }
-      ifr.style.display = 'block';
-    } else {
-      ifr.style.display = 'none';
-    }
-  }
-  document.body.classList.toggle('layout-wellness', !!isWellness);
+  if (ifr) ifr.style.display = 'none';
+  document.body.classList.remove('layout-wellness');
   document.body.classList.toggle('layout-meeting', !!isMeeting);
-  // 健康管理室: 自分PIPに自分のアバター/名前を反映
-  if (isWellness) {
-    const myU = users[me];
-    const pipImg = document.getElementById('self-pip-img');
-    const pipName = document.getElementById('self-pip-name');
-    if (pipImg) {
-      if (myU && myU.avatar) {
-        pipImg.src = myU.avatar;
-        pipImg.style.display = 'block';
-      } else {
-        pipImg.removeAttribute('src');
-        pipImg.style.display = 'none';
-      }
-    }
-    if (pipName) pipName.textContent = (myU && myU.name) || 'あなた';
-  }
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
   const vbBtn = document.getElementById('dock-vb');
