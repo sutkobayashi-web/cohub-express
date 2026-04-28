@@ -2869,8 +2869,8 @@ function drawFloorEntrance(x, y, floorCode) {
 
 // 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
 function drawConciergeStanding(u) {
-  // ロビー時は 240 (1344×768フロアでも視覚的に1.2倍相当に見える適正サイズ)、他フロア時は従来 210
-  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 240 : 210;
+  // ロビー時は 360 (現行240の150%)、他フロア時は従来 210
+  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 360 : 210;
   const aspect = conciergeFull.w / conciergeFull.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
