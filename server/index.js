@@ -393,6 +393,8 @@ io.use((socket, next) => {
 
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
+const lastLogoutAt = new Map(); // uid → ts: 真の離脱時刻 (ナビゲーション再接続のアナウンス抑止用)
+const LOGIN_ANNOUNCE_COOLDOWN_MS = 5 * 60 * 1000; // 5分以内の再接続はログインアナウンスしない (ページ遷移対応)
 
 // REST → ソケット 配信ヘルパー (ルートから呼び出せるようlocalsに登録)
 app.locals.emitToGroupMembers = function(groupId, eventName, payload) {
@@ -554,6 +556,11 @@ io.on('connection', (socket) => {
   const floor = getFloor(floorCode) || getFloor(defaultFloor) || getFloor('lobby');
   const pos = clampForFloor(floor, saved && saved.x, saved && saved.y);
 
+  // ナビゲーション再接続検出: 既存presenceあり or 直前まで離脱中だったら「再接続」扱い
+  const wasConnected = presence.has(uid);
+  const lastOff = lastLogoutAt.get(uid) || 0;
+  const isReconnect = wasConnected || (lastOff && (Date.now() - lastOff) < LOGIN_ANNOUNCE_COOLDOWN_MS);
+  lastLogoutAt.delete(uid);
   presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
   db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
@@ -582,10 +589,14 @@ io.on('connection', (socket) => {
   io.emit('floor:counts', floorCountMap());
   // 全クライアントに「このユーザーがこのフロアにオンライン」を通知
   io.emit('user:floor', { uid, floor: floor.code });
-  // ログインアナウンス (全クライアント対象、自分以外が受信)
+  // ログインアナウンス (真の新規ログインのみ; ページ遷移再接続は抑止)
   const loginName = (fullUser && fullUser.name) || '';
-  socket.broadcast.emit('user:login', { uid, name: loginName });
-  console.log('[cohub] emit user:login', uid, loginName);
+  if (!isReconnect) {
+    socket.broadcast.emit('user:login', { uid, name: loginName });
+    console.log('[cohub] emit user:login', uid, loginName);
+  } else {
+    console.log('[cohub] skip user:login (reconnect/navigation)', uid, loginName);
+  }
 
   // ロビー着地: 当日初回なら葵がカレンダー予定+CoWellイベント案内をDM
   if (floor.code === 'lobby') {
@@ -1364,6 +1375,7 @@ io.on('connection', (socket) => {
         io.emit('user:logout', { uid, name: leaverName });
         console.log('[cohub] emit user:logout', uid, leaverName);
         presence.delete(uid);
+        lastLogoutAt.set(uid, Date.now()); // 5分間は再接続のアナウンスを抑止
       }
     }, 2000);
   });
