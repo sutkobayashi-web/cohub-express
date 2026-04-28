@@ -2701,13 +2701,14 @@ function render() {
     }
   }
 
-  // 近接範囲（自分中心）— ささやきモードは「密着するインティメート円(50px)」を別途表示、通常は水色の大きな近接円
-  // ※ロビーは一人称視点なので円は描かない (現実空間として違和感を避ける)
+  // 近接範囲（自分中心）
+  // ロビー: 一人称視点なので通常の220px近接円は非表示、ただしささやきモードの50px紫円は表示
+  // 他フロア: 通常時は220px水色、ささやき時は50px紫
   const whispering = isWhisperMode();
-  if (me && users[me] && !isLobbyView) {
+  if (me && users[me]) {
     const u = users[me];
     if (whispering) {
-      // インティメート円: アバターのすぐ周囲だけ紫で囲む
+      // インティメート円: アバターのすぐ周囲だけ紫で囲む (ロビーでも表示)
       ctx.beginPath();
       ctx.arc(u.cx, u.cy, 50, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(139,92,246,0.18)';
@@ -2717,8 +2718,8 @@ function render() {
       ctx.setLineDash([6, 6]);
       ctx.stroke();
       ctx.setLineDash([]);
-    } else {
-      // 通常: 220px の薄い水色近接円
+    } else if (!isLobbyView) {
+      // 通常: 220px の薄い水色近接円 (ロビーでは非表示)
       ctx.beginPath();
       ctx.arc(u.cx, u.cy, proximityRadius, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(6,182,212,0.08)';
@@ -2730,8 +2731,8 @@ function render() {
       ctx.setLineDash([]);
     }
   }
-  // 接触相手側にもインティメート円を表示 (ささやき参加者全員に色変更) — ロビーでは非表示
-  if (me && users[me] && whisperPeers.size > 0 && !isLobbyView) {
+  // 接触相手側にもインティメート円を表示 (ささやき参加者全員に色変更) — ロビーでも表示
+  if (me && users[me] && whisperPeers.size > 0) {
     const now = Date.now();
     for (const [puid, lastAt] of whisperPeers) {
       if (now - lastAt >= WHISPER_GRACE_MS) continue;
