@@ -2570,8 +2570,8 @@ function render() {
 
   // 1Fロビー (一人称視点モード) — 葵だけ受付に固定、一般ユーザーは自由に移動可
   const isLobbyView = currentFloor && currentFloor.code === 'lobby';
-  const LOBBY_BOT_POS = { x: 620, y: 575 };  // 葵: 受付カウンター背後 (5mm上+1cm右)
-  const LOBBY_COUNTER_TOP_Y = 530;            // 受付カウンター上端 (葵の見える比率を維持)
+  const LOBBY_BOT_POS = { x: 744, y: 519 };  // 葵: 受付カウンター背後 (1344×768フロアで再計算)
+  const LOBBY_COUNTER_TOP_Y = 465;            // 受付カウンター上端 (この線でクリップ)
 
   // 補間: targets → users[uid].cx/cy に近づける (ease-out、ゴール付近スナップで発振防止)
   for (const uid in targets) {
@@ -2620,7 +2620,7 @@ function render() {
       const wrapR = wrap ? wrap.getBoundingClientRect() : { left: 0, top: 0 };
       // 画面中央水平、カウンター下のフロア部分(world y≈790)に配置
       const bannerWorldX = WORLD_W / 2;
-      const bannerWorldY = 790;
+      const bannerWorldY = 720;
       const screenX = (r.left - wrapR.left) + ox + bannerWorldX * viewScale;
       const screenY = (r.top - wrapR.top) + oy + bannerWorldY * viewScale;
       cbn.style.left = screenX + 'px';
@@ -2868,8 +2868,8 @@ function drawFloorEntrance(x, y, floorCode) {
 
 // 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
 function drawConciergeStanding(u) {
-  // ロビー時は 1.2倍 大きめ (288) でカウンターに堂々と立つ感じ、他フロア時は従来 210
-  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 288 : 210;
+  // ロビー時は 240 (1344×768フロアでも視覚的に1.2倍相当に見える適正サイズ)、他フロア時は従来 210
+  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 240 : 210;
   const aspect = conciergeFull.w / conciergeFull.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -2887,7 +2887,7 @@ function drawConciergeStanding(u) {
   // 1Fロビー: 受付カウンター下端より下を非表示 (奥に立っているように見せる)
   if (currentFloor && currentFloor.code === 'lobby') {
     ctx.beginPath();
-    ctx.rect(0, 0, WORLD_W, 530);  // カウンター上端まで描画
+    ctx.rect(0, 0, WORLD_W, 465);  // カウンター上端まで描画 (1344×768用)
     ctx.clip();
   }
   // 足元の楕円影 (ロビーではクリップで自動的に隠れる)

@@ -19,7 +19,8 @@ const prompt = `参考画像はスタンダード運輸グループ (Standard Tr
 
 【視点・構図】
 - 玄関を入って受付に向かう人間の目線(身長170cm程度の視点)
-- 横長 16:9 の写真リアル風 (1344×768 推奨、最低1024×576)
+- **必ず 16:9 横長アスペクト比** (1344×768 px、横が縦の約1.75倍) — これは絶対条件
+- 写真リアル風
 - 中央〜やや右に**白い受付カウンター**(腰高、明るい木目縁)、その奥に若い女性受付係が立つスペース
 - 受付カウンターの背後の壁に**スタンダード運輸グループのロゴ**を控えめに(壁の20〜22%サイズ)はっきり配置 ※前回より一回り小さめ
 - 左側に**待合エリア**(モダンなブルーグレーのソファ2-3席+小さな丸テーブル)
@@ -59,9 +60,21 @@ const prompt = `参考画像はスタンダード運輸グループ (Standard Tr
     if (inline && inline.data) {
       // 既存のロビー画像をバックアップ
       try { fs.copyFileSync(outPath, outPath + '.bak.' + Date.now()); } catch (e) {}
-      fs.writeFileSync(outPath, Buffer.from(inline.data, 'base64'));
-      const stats = fs.statSync(outPath);
-      console.log('✅ 生成完了:', outPath, '(' + Math.round(stats.size / 1024) + ' KB)');
+      const tmpPath = outPath + '.raw.png';
+      fs.writeFileSync(tmpPath, Buffer.from(inline.data, 'base64'));
+      console.log('生成画像保存:', tmpPath);
+      // Gemini の出力は 1120x928 等になりがちなので、他フロアと同じ 1344x768 (16:9) にクロップ&リサイズ
+      const { execSync } = require('child_process');
+      try {
+        execSync(`ffmpeg -y -i ${tmpPath} -vf "crop=in_w:in_w*9/16:0:(in_h-in_w*9/16)/2,scale=1344:768" -update 1 -frames:v 1 ${outPath}`, { stdio: 'inherit' });
+        fs.unlinkSync(tmpPath);
+        const stats = fs.statSync(outPath);
+        console.log('✅ 16:9クロップ完了:', outPath, '(' + Math.round(stats.size / 1024) + ' KB)');
+      } catch (e) {
+        // ffmpeg失敗時は素のまま使う
+        fs.renameSync(tmpPath, outPath);
+        console.warn('ffmpeg失敗、素の画像を使用:', e.message);
+      }
       return;
     } else if (p.text) {
       console.log('[Gemini text]', p.text.slice(0, 200));
