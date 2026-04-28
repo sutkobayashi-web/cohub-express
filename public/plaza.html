@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>🌳 ひろば — CoHub</title>
+<title>🌳 ひろば — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <meta name="theme-color" content="#0d9488">
 <style>
@@ -100,6 +100,17 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .cmt-btn:hover { background: #f1f5f9; }
 .comments { margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; display: none; }
 .comments.open { display: block; }
+/* 推進メンバー専用コメント (健康管理室向け、AI凝縮の補強材料) */
+.pcmt-btn { background: #fdf2f8; border: 1px solid #fbcfe8; color: #be185d; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 4px; }
+.pcmt-btn:hover { background: #fce7f3; }
+.pcmts { margin-top: 8px; padding: 10px 12px; background: linear-gradient(135deg,#fdf2f8,#fff1f2); border: 1px solid #fbcfe8; border-radius: 12px; display: none; }
+.pcmts.open { display: block; }
+.pcmts .pcmt-head { font-size: 11px; font-weight: 700; color: #9d174d; margin-bottom: 6px; }
+.pcmts .pcmt-item { background: #fff; border-left: 3px solid #f9a8d4; padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 12px; }
+.pcmts .pcmt-author { font-size: 10px; color: #be185d; font-weight: 700; }
+.pcmts .pcmt-input { display: flex; gap: 6px; margin-top: 6px; }
+.pcmts .pcmt-input input { flex: 1; padding: 6px 10px; border: 1px solid #fbcfe8; border-radius: 8px; font-size: 12px; background: #fff; }
+.pcmts .pcmt-input button { background: linear-gradient(135deg,#f472b6,#ec4899); color: #fff; border: none; border-radius: 8px; padding: 4px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .cmt { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
 .cmt:last-child { border-bottom: 0; }
 .cmt .avatar, .cmt .avatar-fallback { width: 28px; height: 28px; font-size: 11px; }
@@ -164,8 +175,8 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
       <div class="composer-bar">
         <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真">📷</button>
         <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
-        <label class="anon-toggle" title="名前を伏せて投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
-          <input type="checkbox" id="cmp-anon"> <span>🎭 匿名で投稿</span>
+        <label class="anon-toggle" title="本名ではなくニックネームで投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
+          <input type="checkbox" id="cmp-anon" checked> <span>🎭 ニックネームで投稿</span>
         </label>
         <div class="composer-meta"><span id="cmp-count">0</span>/500</div>
         <button class="btn" id="cmp-submit" onclick="submitPost()">投稿</button>
@@ -352,7 +363,17 @@ async function initApp() {
   }
   bar.innerHTML = html;
   window._TAB_META = TAB_META;
-  setTab('all');
+  // ?action=food でモバイル「食事診断」から直接来た場合: 食事タブ+カメラ即起動
+  const urlAction = new URLSearchParams(location.search).get('action');
+  if (urlAction === 'food') {
+    setTab('食事');
+    setTimeout(() => {
+      const cam = document.getElementById('cmp-file');
+      if (cam) cam.click();
+    }, 250);
+  } else {
+    setTab('all');
+  }
   loadEvents();
   loadFeed();
   setupSocket();
@@ -445,7 +466,7 @@ async function submitPost() {
     if (!d.success) { errEl.textContent = d.msg || '保存失敗'; return; }
     document.getElementById('cmp-text').value = '';
     document.getElementById('cmp-count').textContent = '0';
-    document.getElementById('cmp-anon').checked = false;
+    document.getElementById('cmp-anon').checked = true;
     clearImage();
     // 食事+AI が成功してれば nutrition_scores が入っている
     if (_curCat === '食事' && _imageFile && !d.post.nutrition_scores) {
@@ -495,7 +516,7 @@ function postHtml(p) {
     try {
       let ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
       nutri = buildNutritionBar(ns);
-      // AI コメント (CoWell の analysis or 新規の ai_comment)
+      // AI コメント (CoWell Classic の analysis or 新規の ai_comment)
       let cmt = p.ai_comment;
       if (cmt && typeof cmt === 'object') cmt = Object.values(cmt).filter(v => typeof v === 'string').join(' / ');
       if (cmt === '[object Object]' || cmt === 'undefined' || cmt === 'null') cmt = '';
@@ -504,12 +525,17 @@ function postHtml(p) {
     } catch (e) { console.warn('nutri parse fail', e.message, p.nutrition_scores); }
   }
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';
-  const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 匿名で投稿中</span>' : '<span class="anon-bdg">🎭 匿名</span>') : '';
+  const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 ニックネームで投稿中</span>' : '') : '';
   const author = p.author_name || (isArchive ? '(過去ユーザー)' : '不明');
   // 匿名投稿は他人にはアバター隠す (本人には自分のアバター見える)
   const showAvatar = !(p.is_anonymous && !p.is_mine);
   const avatarBlock = showAvatar ? avatarHtml(p.author_avatar, author) : `<div class="avatar-fallback" style="background:linear-gradient(135deg,#94a3b8,#64748b);">🎭</div>`;
   const cat = p.category || '雑談';
+  // 推進メンバー専用: 健康管理室向けコメント (柱への注釈、AI凝縮の補強材料)
+  const isPromoter = !!(me && (me.is_field_promoter || me.employee_type === 'admin'));
+  const promoterBlock = (!isArchive && isPromoter) ? `
+    <button class="pcmt-btn" onclick="togglePromoterComments(${p.id})" title="健康管理室向け推進メンバーコメント">🩺 推進コメント</button>
+    <div class="pcmts" id="pcmts-${p.id}"></div>` : '';
   return `<article class="post ${isArchive ? 'archive' : ''}" id="post-${p.id}" data-id="${p.id}">
     <div class="post-head">
       ${avatarBlock}
@@ -525,8 +551,10 @@ function postHtml(p) {
     ${!isArchive ? `<div class="post-actions">
       ${reactions}
       <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>
+      ${isPromoter ? `<button class="pcmt-btn" onclick="togglePromoterComments(${p.id})" title="健康管理室向け推進コメント">🩺<span class="cmt-ct" id="pcmt-ct-${p.id}"></span></button>` : ''}
     </div>
-    <div class="comments" id="cmts-${p.id}"></div>` : ''}
+    <div class="comments" id="cmts-${p.id}"></div>
+    <div class="pcmts" id="pcmts-${p.id}"></div>` : ''}
   </article>`;
 }
 
@@ -572,6 +600,43 @@ async function deletePost(id) {
   if (!confirm('この投稿を削除しますか？')) return;
   const r = await api('/api/plaza/posts/' + id, { method: 'DELETE' });
   if (r.success) removePost(id);
+}
+
+async function togglePromoterComments(id) {
+  const box = document.getElementById('pcmts-' + id);
+  if (box.classList.contains('open')) { box.classList.remove('open'); return; }
+  box.classList.add('open');
+  box.innerHTML = '<div style="font-size:12px;color:#9d174d;padding:6px;">読み込み中…</div>';
+  try {
+    const d = await api('/api/wellness/plaza-comments/' + id);
+    if (!d.success) { box.innerHTML = '<div style="font-size:12px;color:#dc2626;">' + escapeHtml(d.msg || '取得失敗') + '</div>'; return; }
+    const list = (d.comments || []).map(c => `<div class="pcmt-item">
+      <div class="pcmt-author">🩺 ${escapeHtml(c.author_name||'')} · ${relTime(c.created_at)}</div>
+      <div style="color:#3f3f46;margin-top:2px;">${escapeHtml(c.content)}</div>
+    </div>`).join('');
+    box.innerHTML = `<div class="pcmt-head">🩺 推進メンバー専用コメント (健康管理室向け、AI凝縮の補強材料)</div>
+      ${list || '<div style="font-size:11px;color:#a78bfa;padding:6px;">まだコメントはありません</div>'}
+      <form class="pcmt-input" onsubmit="postPromoterComment(event, ${id});return false;">
+        <input type="text" placeholder="この投稿への気付きを書く…" maxlength="1000" id="pcmt-input-${id}">
+        <button type="submit">送信</button>
+      </form>`;
+    const cnt = (d.comments || []).length;
+    const ct = document.getElementById('pcmt-ct-' + id);
+    if (ct) ct.textContent = cnt ? ' ' + cnt : '';
+  } catch (e) { box.innerHTML = '<div style="font-size:12px;color:#dc2626;">通信エラー</div>'; }
+}
+
+async function postPromoterComment(ev, id) {
+  ev.preventDefault();
+  const inp = document.getElementById('pcmt-input-' + id);
+  const content = inp.value.trim();
+  if (!content) return;
+  const r = await api('/api/wellness/plaza-comments/' + id, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content })
+  });
+  if (!r.success) { alert(r.msg || '失敗'); return; }
+  inp.value = '';
+  togglePromoterComments(id); togglePromoterComments(id); // 閉じて再展開で反映
 }
 
 async function toggleComments(id) {
