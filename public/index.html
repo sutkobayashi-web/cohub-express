@@ -2028,16 +2028,11 @@ function connectSocket() {
       renderMemberList();
     }
   });
-  // ログイン/ログアウトアナウンス (入退室音声は本イベントに限定、フロア移動では鳴らさない)
+  // ログインアナウンスのみ (ログアウトは無音で離脱)
   socket.on('user:login', (d) => {
     if (!d || !d.uid) return;
     if (d.uid === me) return;
     announceEnterLeave(d.uid, d.name, true);
-  });
-  socket.on('user:logout', (d) => {
-    if (!d || !d.uid) return;
-    if (d.uid === me) return;
-    announceEnterLeave(d.uid, d.name, false);
   });
 
   // ===== 音声シグナリング =====

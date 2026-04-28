@@ -1315,10 +1315,7 @@ function connectSocket() {
     if (!d || !d.uid || !user || d.uid === user.uid) return;
     announceEnterLeave(d.uid, d.name, true);
   });
-  socket.on('user:logout', (d) => {
-    if (!d || !d.uid || !user || d.uid === user.uid) return;
-    announceEnterLeave(d.uid, d.name, false);
-  });
+  // ログアウトは無音で離脱 (アナウンス削除)
   socket.on('user:update', (d) => {
     const u = users[d.uid] || {};
     Object.assign(u, d);
