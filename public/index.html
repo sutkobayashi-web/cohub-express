@@ -2446,9 +2446,15 @@ function loadAvatar(u) {
   avatarImages[u.uid] = img;
 }
 
-// ===== 受付AI 葵: 立ち姿画像 (四隅flood-fillで背景透過) =====
-let conciergeFull = null; // { canvas, w, h } — 透過処理済みキャンバス
-(function loadConciergeFull() {
+// ===== AI受付/アドバイザー 立ち姿画像 (四隅flood-fillで背景透過) =====
+// botUid → { canvas, w, h } のマップ。新bot追加時は BOT_STANDING に画像URLを足すだけ
+const BOT_STANDING = {
+  'bot_aoi':    '/assets/concierge_aoi_full.png',
+  'bot_health': '/assets/concierge_health_full.png',
+};
+const botStandingImages = {};   // botUid → { canvas, w, h }
+let conciergeFull = null;       // 後方互換: bot_aoi のショートカット参照
+function loadBotStanding(botUid, src) {
   const img = new Image();
   img.onload = () => {
     try {
@@ -2461,7 +2467,6 @@ let conciergeFull = null; // { canvas, w, h } — 透過処理済みキャンバ
       const data = id.data;
       const visited = new Uint8Array(w * h);
       const stack = [];
-      // 四隅からflood-fill (白〜淡色を透明化)
       stack.push(0, w - 1, (h - 1) * w, (h - 1) * w + w - 1);
       const THRESH = 235;
       while (stack.length) {
@@ -2478,11 +2483,13 @@ let conciergeFull = null; // { canvas, w, h } — 透過処理済みキャンバ
         if (idx - w >= 0) stack.push(idx - w);
       }
       cx2.putImageData(id, 0, 0);
-      conciergeFull = { canvas: c, w, h };
-    } catch (e) { console.warn('concierge transparency failed', e.message); }
+      botStandingImages[botUid] = { canvas: c, w, h };
+      if (botUid === 'bot_aoi') conciergeFull = botStandingImages[botUid];
+    } catch (e) { console.warn('bot standing transparency failed', botUid, e.message); }
   };
-  img.src = '/assets/concierge_aoi_full.png';
-})();
+  img.src = src;
+}
+Object.entries(BOT_STANDING).forEach(([uid, src]) => loadBotStanding(uid, src));
 
 // ===== ドラッグ&クリック移動 =====
 function hitTestPeer(worldX, worldY) {
@@ -2569,16 +2576,24 @@ function render() {
   if (!ctx) return;
 
   // 1Fロビー (一人称視点モード) — 葵だけ受付に固定、一般ユーザーは自由に移動可
-  const isLobbyView = currentFloor && currentFloor.code === 'lobby';
-  const LOBBY_BOT_POS = { x: 744, y: 519 };  // 葵: 受付カウンター背後 (1344×768フロアで再計算)
-  const LOBBY_COUNTER_TOP_Y = 465;            // 受付カウンター上端 (この線でクリップ)
+  // 一人称視点フロア: ロビー(葵)・健康管理室(ヘルスアドバイザー) 共通の固定配置
+  const isLobbyView = currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'wellness_room');
+  const FIRST_PERSON_BOT = {
+    'lobby': { uid: 'bot_aoi', x: 744, y: 519 },
+    'wellness_room': { uid: 'bot_health', x: 744, y: 519 },
+  };
+  const LOBBY_COUNTER_TOP_Y = 465;            // 受付/相談デスク上端 (この線でクリップ)
 
   // 補間: targets → users[uid].cx/cy に近づける (ease-out、ゴール付近スナップで発振防止)
   for (const uid in targets) {
     if (!users[uid]) continue;
     let t = targets[uid];
     // ロビーでは葵だけ受付の固定位置に強制 (一般ユーザーは自由移動)
-    if (isLobbyView && uid === 'bot_aoi') t = LOBBY_BOT_POS;
+    // 一人称視点フロアでは該当フロア専属のbotだけ受付/デスク背後に固定
+    if (isLobbyView && currentFloor) {
+      const fp = FIRST_PERSON_BOT[currentFloor.code];
+      if (fp && uid === fp.uid) t = { x: fp.x, y: fp.y };
+    }
     const u = users[uid];
     if (u.cx == null) { u.cx = t.x; u.cy = t.y; continue; }
     const dx = t.x - u.cx;
@@ -2782,7 +2797,7 @@ function render() {
     if (now - b.at > life) { bubbles.splice(i, 1); continue; }
     const u = users[b.uid];
     if (!u || u.cx == null) continue;
-    const isConcierge = u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas;
+    const isConcierge = u.role === 'bot' && botStandingImages[u.uid] && botStandingImages[u.uid].canvas;
     const bubbleAnchorY = isConcierge ? (u.cy - 118) : (u.cy - 50);
     const emojiAnchorY = isConcierge ? (u.cy - 110) : u.cy;
     const alpha = Math.max(0, 1 - (now - b.at) / life);
@@ -2797,7 +2812,7 @@ function render() {
     if (uid === me) continue;
     const u = users[uid];
     if (!u || u.cx == null || u.status === 'offline') continue;
-    const isConcierge = u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas;
+    const isConcierge = u.role === 'bot' && botStandingImages[u.uid] && botStandingImages[u.uid].canvas;
     const anchorY = isConcierge ? (u.cy - 110) : (u.cy - 50);
     const fadeAlpha = Math.max(0.4, Math.min(1, (exp - now) / WHISPER_INDICATOR_LIFE));
     drawWhisperIndicator(u.cx, anchorY, fadeAlpha);
@@ -2867,11 +2882,13 @@ function drawFloorEntrance(x, y, floorCode) {
   ctx.restore();
 }
 
-// 受付AI 葵: 立ち姿描画 (大理石ロビーに合うよう透過+影+名札)
+// 受付AI 葵 / ヘルスアドバイザー: 立ち姿描画 (透過+影+名札)
 function drawConciergeStanding(u) {
-  // ロビー時は 360 (現行240の150%)、他フロア時は従来 210
-  const FIG_H = (currentFloor && currentFloor.code === 'lobby') ? 360 : 210;
-  const aspect = conciergeFull.w / conciergeFull.h;
+  // 一人称視点フロア (ロビー / 健康管理室) は大きめ、他フロアは従来 210
+  const standing = botStandingImages[u.uid] || conciergeFull;
+  const isFirstPersonFloor = currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'wellness_room');
+  const FIG_H = isFirstPersonFloor ? 360 : 210;
+  const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
   let sx = 0;
@@ -2885,10 +2902,10 @@ function drawConciergeStanding(u) {
   const headY = feetY - FIG_H;
   ctx.save();
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
-  // 1Fロビー: 受付カウンター下端より下を非表示 (奥に立っているように見せる)
-  if (currentFloor && currentFloor.code === 'lobby') {
+  // 一人称視点フロアではカウンター下端より下を非表示 (奥に立っているように見せる)
+  if (isFirstPersonFloor) {
     ctx.beginPath();
-    ctx.rect(0, 0, WORLD_W, 465);  // カウンター上端まで描画 (1344×768用)
+    ctx.rect(0, 0, WORLD_W, 465);  // カウンター上端まで描画 (両フロア共通)
     ctx.clip();
   }
   // 足元の楕円影 (ロビーではクリップで自動的に隠れる)
@@ -2907,7 +2924,7 @@ function drawConciergeStanding(u) {
   ctx.fillStyle = grad;
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
   // 本体
-  ctx.drawImage(conciergeFull.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
+  ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
   // 頭上BOTバッジ
   ctx.font = '700 10px sans-serif';
   const botLabel = '🤖 AI 受付';
@@ -2932,8 +2949,8 @@ function drawConciergeStanding(u) {
 }
 
 function drawAvatar(u) {
-  // 受付AI 葵 は立ち姿で描画 (cy=足元 基準)
-  if (u.uid === 'bot_aoi' && conciergeFull && conciergeFull.canvas) {
+  // 受付AI 葵 / ヘルスアドバイザー は立ち姿で描画 (cy=足元 基準)
+  if (u.role === 'bot' && botStandingImages[u.uid] && botStandingImages[u.uid].canvas) {
     drawConciergeStanding(u);
     return;
   }

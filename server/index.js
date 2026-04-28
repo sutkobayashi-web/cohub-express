@@ -17,7 +17,8 @@ const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
-  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 672, y: 380 },
+  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 744, y: 519 },
+  { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_full.png', floor: 'wellness_room', x: 744, y: 519 },
 ];
 const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
 function ensureConciergeBots() {
@@ -1072,6 +1073,70 @@ io.on('connection', (socket) => {
               }
             } else {
               userMessage = `[この社員はGoogleカレンダー未連携です]\n\n[社員からの質問]\n${content}`;
+            }
+          }
+          // bot_health 向けはユーザー健康データを context として先頭に注入 (パーソナライズ)
+          if (to === 'bot_health') {
+            try {
+              const sinceMonth = new Date(Date.now() - 90 * 86400 * 1000).toISOString().slice(0, 10);
+              // 血圧 (直近30日 + 90日平均)
+              const bp30 = db.prepare(`SELECT AVG(systolic) AS sys, AVG(diastolic) AS dia, AVG(pulse) AS pulse, COUNT(*) AS n
+                FROM bp_records WHERE user_id = ? AND measured_at >= datetime('now','-30 days')`).get(uid);
+              const bp90 = db.prepare(`SELECT AVG(systolic) AS sys, AVG(diastolic) AS dia, COUNT(*) AS n
+                FROM bp_records WHERE user_id = ? AND measured_at >= ?`).get(uid, sinceMonth);
+              // 健康メモ (直近5件)
+              const notes = db.prepare(`SELECT note, tag, created_at FROM health_notes
+                WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 5`).all(uid);
+              // 健診ファイル (年度別)
+              const checkups = db.prepare(`SELECT year, file_name, uploaded_at FROM health_checkups
+                WHERE user_id = ? AND deleted_at IS NULL ORDER BY year DESC LIMIT 3`).all(uid);
+              // ひろば食事投稿の栄養スコア平均 (直近30日)
+              const nut = db.prepare(`SELECT nutrition_scores FROM plaza_posts
+                WHERE author_id = ? AND deleted_at IS NULL AND nutrition_scores IS NOT NULL
+                  AND created_at >= datetime('now','-30 days') ORDER BY id DESC LIMIT 30`).all(uid);
+              // 歩数 (CoWell archive、直近30日平均)
+              const cwUid = (db.prepare("SELECT cw_id FROM cw_users WHERE cohub_uid = ?").get(uid) || {}).cw_id;
+              let stepStats = null;
+              if (cwUid) {
+                stepStats = db.prepare(`SELECT AVG(steps) AS avg_steps, COUNT(*) AS days
+                  FROM cw_step_log WHERE cw_user_id = ? AND step_date >= date('now','-30 days')`).get(cwUid);
+              }
+              const lines = ['[社員の健康データ context — エビデンスとして根拠提示に使用]'];
+              if (bp30 && bp30.n > 0) {
+                lines.push(`・血圧30日: 収縮期${Math.round(bp30.sys)}/拡張期${Math.round(bp30.dia)}mmHg, 脈拍${Math.round(bp30.pulse||0)}, 計測${bp30.n}回`);
+              } else {
+                lines.push('・血圧: 直近30日の記録なし');
+              }
+              if (bp90 && bp90.n > bp30.n) {
+                lines.push(`・血圧90日: 収縮期${Math.round(bp90.sys)}/拡張期${Math.round(bp90.dia)}mmHg, 計測${bp90.n}回`);
+              }
+              if (notes.length) {
+                lines.push('・健康メモ直近: ' + notes.map(n => `「${(n.note||'').slice(0,40)}」`).join(', '));
+              }
+              if (checkups.length) {
+                lines.push('・健診ファイル: ' + checkups.map(c => `${c.year}年度`).join(', '));
+              }
+              if (nut.length) {
+                let totals = { calories: 0, protein: 0, vegetables: 0, fiber: 0, sodium: 0 }, nValid = 0;
+                for (const r of nut) {
+                  try { const s = JSON.parse(r.nutrition_scores);
+                    if (s && typeof s === 'object') {
+                      ['calories','protein','vegetables','fiber','sodium'].forEach(k => { if (typeof s[k] === 'number') totals[k] += s[k]; });
+                      nValid++;
+                    }
+                  } catch(e) {}
+                }
+                if (nValid) {
+                  lines.push(`・食事栄養スコア30日 (${nValid}投稿の平均): ` +
+                    `カロリー${Math.round(totals.calories/nValid)}, タンパク${Math.round(totals.protein/nValid)}, 野菜${Math.round(totals.vegetables/nValid)}, 食物繊維${Math.round(totals.fiber/nValid)}, 塩分${Math.round(totals.sodium/nValid)}`);
+                }
+              }
+              if (stepStats && stepStats.days > 0) {
+                lines.push(`・歩数30日平均: ${Math.round(stepStats.avg_steps).toLocaleString()}歩/日 (${stepStats.days}日分の記録)`);
+              }
+              userMessage = lines.join('\n') + '\n\n[社員からの質問]\n' + (userMessage === content ? content : userMessage);
+            } catch (e) {
+              console.warn('[bot_health context fail]', e.message);
             }
           }
           const replyText = await chatBot(to, userMessage, history);
