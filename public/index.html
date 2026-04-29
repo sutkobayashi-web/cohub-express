@@ -1980,6 +1980,8 @@ function connectSocket() {
       if (data.floor.code === 'lobby' && prevCode !== 'lobby') {
         try { announceLobbyWelcome(); } catch (e) {}
       }
+      // フロア切替: bot メニューFAB を更新 (ロビー=葵 / 健康管理室=ヘルス / その他=非表示)
+      try { updateBotMenuFab(); } catch (e) {}
       WORLD_W = data.floor.world_w || 1344;
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
@@ -6673,6 +6675,74 @@ if (token && userData) {
     if (idEl) idEl.value = savedId;
   }
 }
+
+// ===== bot メニュー FAB (フロアの bot を いつでも呼び出せる固定ボタン) =====
+// 「音声+モーダルが消えた後に何をしたら良いか分からない」UX問題への対策。
+// フロア切替時 updateBotMenuFab() で表示/非表示・キャラ切替が走る。
+(function setupBotMenuFab(){
+  if (document.getElementById('bot-menu-fab')) return;
+  const fab = document.createElement('button');
+  fab.id = 'bot-menu-fab';
+  fab.style.cssText = 'display:none;position:fixed;bottom:22px;right:22px;z-index:200;border:none;border-radius:50px;padding:14px 20px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.28);align-items:center;gap:10px;transition:transform 0.15s, box-shadow 0.2s;animation:fabPulse 3s ease-in-out infinite;';
+  fab.onmouseover = () => { fab.style.transform = 'translateY(-2px)'; fab.style.boxShadow = '0 12px 28px rgba(0,0,0,0.35)'; };
+  fab.onmouseout = () => { fab.style.transform = 'translateY(0)'; fab.style.boxShadow = '0 8px 24px rgba(0,0,0,0.28)'; };
+  fab.innerHTML = '<span id="bot-menu-fab-icon" style="font-size:20px;line-height:1;"></span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;"><span id="bot-menu-fab-sub" style="font-size:9px;font-weight:600;opacity:0.9;letter-spacing:0.5px;"></span><span id="bot-menu-fab-label"></span></span>';
+  fab.onclick = () => {
+    const uid = fab.dataset.uid;
+    const name = fab.dataset.name;
+    if (uid) try { showAoiActionModal(uid, name); } catch (e) {}
+  };
+  document.body.appendChild(fab);
+  // パルス animation
+  if (!document.getElementById('fab-pulse-style')) {
+    const style = document.createElement('style');
+    style.id = 'fab-pulse-style';
+    style.textContent = '@keyframes fabPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }';
+    document.head.appendChild(style);
+  }
+})();
+
+window.updateBotMenuFab = function() {
+  const fab = document.getElementById('bot-menu-fab');
+  if (!fab || !currentFloor) { if(fab) fab.style.display='none'; return; }
+  const code = currentFloor.code;
+  if (code === 'lobby') {
+    fab.style.display = 'flex';
+    fab.style.background = 'linear-gradient(135deg,#06b6d4,#0891b2)';
+    fab.dataset.uid = 'bot_aoi';
+    fab.dataset.name = '葵';
+    document.getElementById('bot-menu-fab-icon').textContent = '🌸';
+    document.getElementById('bot-menu-fab-sub').textContent = '受付AI 葵';
+    document.getElementById('bot-menu-fab-label').textContent = 'メニュー';
+  } else if (code === 'wellness_room') {
+    fab.style.display = 'flex';
+    fab.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+    fab.dataset.uid = 'bot_health';
+    fab.dataset.name = 'ヘルスアドバイザー';
+    document.getElementById('bot-menu-fab-icon').textContent = '🩺';
+    document.getElementById('bot-menu-fab-sub').textContent = 'ヘルスアドバイザー';
+    document.getElementById('bot-menu-fab-label').textContent = '相談メニュー';
+  } else {
+    fab.style.display = 'none';
+  }
+};
+
+// モーダルを閉じた直後の補助トースト ("いつでも右下から呼べるよ")
+const _origCloseAoiModal = window.closeAoiModal;
+if (typeof _origCloseAoiModal === 'function') {
+  window.closeAoiModal = function() {
+    try { _origCloseAoiModal.apply(this, arguments); } catch (e) {}
+    const fab = document.getElementById('bot-menu-fab');
+    if (fab && fab.style.display !== 'none') {
+      try { showToast('💡 メニューはいつでも右下のボタンから開けます'); } catch (e) {}
+      // FAB を3秒間ハイライト
+      const orig = fab.style.boxShadow;
+      fab.style.boxShadow = '0 0 0 6px rgba(16,185,129,0.35), 0 12px 28px rgba(0,0,0,0.35)';
+      setTimeout(() => { fab.style.boxShadow = orig; }, 3000);
+    }
+  };
+}
+
 </script>
 </body>
 </html>
