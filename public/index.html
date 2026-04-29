@@ -1980,8 +1980,6 @@ function connectSocket() {
       if (data.floor.code === 'lobby' && prevCode !== 'lobby') {
         try { announceLobbyWelcome(); } catch (e) {}
       }
-      // フロア切替: bot メニューFAB を更新 (ロビー=葵 / 健康管理室=ヘルス / その他=非表示)
-      try { updateBotMenuFab(); } catch (e) {}
       WORLD_W = data.floor.world_w || 1344;
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
@@ -2523,6 +2521,20 @@ function hitTestPeer(worldX, worldY) {
   return hit;
 }
 
+// bot 頭上の「メニューを開く」ボタン当たり判定
+// _botMenuButtons は bot 描画時に逐次更新される (uid → world rect)
+let _botMenuButtons = {};
+function hitTestBotMenuButton(worldX, worldY) {
+  for (const uid in _botMenuButtons) {
+    const r = _botMenuButtons[uid];
+    if (!r) continue;
+    if (worldX >= r.x1 && worldX <= r.x2 && worldY >= r.y1 && worldY <= r.y2) {
+      return { uid, name: r.name };
+    }
+  }
+  return null;
+}
+
 function hitTestSelf(worldX, worldY) {
   // 自分のアバター当たり判定 (半径32px ≒ アバター本体)
   if (!me || !users[me] || users[me].cx == null) return false;
@@ -2534,6 +2546,12 @@ function hitTestSelf(worldX, worldY) {
 function onPointerDown(e) {
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+  // 最優先: bot 頭上の「メニューを開く」ボタン (移動せずにメニュー即開)
+  const btn = hitTestBotMenuButton(world.x, world.y);
+  if (btn) {
+    try { showAoiActionModal(btn.uid, btn.name); } catch (err) {}
+    return;
+  }
   // 自分のアバタータップ: タッチのみメニュー (タッチ端末用)。マウスはダブルクリック専用
   if (hitTestSelf(world.x, world.y) && e.pointerType !== 'mouse') {
     showSelfFloorMenu(e.clientX, e.clientY);
@@ -2952,8 +2970,8 @@ function drawConciergeStanding(u) {
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
   // 本体
   ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
-  // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (クリック可能感)
-  // bot 本体クリックで showAoiActionModal が直接開くようにしてあるので、視覚的にも「ボタン」にする
+  // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (クリック可能感+当たり判定)
+  // 当たり判定矩形を _botMenuButtons に記録 → onPointerDown で先読みしてモーダル即開
   ctx.font = '800 11px sans-serif';
   const botLabel = u.uid === 'bot_aoi' ? '🌸 メニューを開く'
                   : u.uid === 'bot_health' ? '🩺 メニューを開く'
@@ -2961,6 +2979,16 @@ function drawConciergeStanding(u) {
   const tw = Math.round(ctx.measureText(botLabel).width + 22);
   const btnH = 22;
   const btnY = headY - 26;
+  // 当たり判定矩形 (world座標、tap時の先読み判定用)
+  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health')) {
+    _botMenuButtons[u.uid] = {
+      x1: cx - Math.round(tw / 2) - 6, // タップしやすいように padding +6
+      y1: btnY - 6,
+      x2: cx + Math.round(tw / 2) + 6,
+      y2: btnY + btnH + 6,
+      name: u.name || (u.uid === 'bot_health' ? 'ヘルスアドバイザー' : '葵'),
+    };
+  }
   // ボタン グラデーション (bot 種別に応じた色)
   const isHealthBot = u.uid === 'bot_health';
   const isAoiBot = u.uid === 'bot_aoi';
@@ -6708,73 +6736,7 @@ if (token && userData) {
   }
 }
 
-// ===== bot メニュー FAB (フロアの bot を いつでも呼び出せる固定ボタン) =====
-// 「音声+モーダルが消えた後に何をしたら良いか分からない」UX問題への対策。
-// フロア切替時 updateBotMenuFab() で表示/非表示・キャラ切替が走る。
-(function setupBotMenuFab(){
-  if (document.getElementById('bot-menu-fab')) return;
-  const fab = document.createElement('button');
-  fab.id = 'bot-menu-fab';
-  fab.style.cssText = 'display:none;position:fixed;bottom:22px;right:22px;z-index:200;border:none;border-radius:50px;padding:14px 20px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.28);align-items:center;gap:10px;transition:transform 0.15s, box-shadow 0.2s;animation:fabPulse 3s ease-in-out infinite;';
-  fab.onmouseover = () => { fab.style.transform = 'translateY(-2px)'; fab.style.boxShadow = '0 12px 28px rgba(0,0,0,0.35)'; };
-  fab.onmouseout = () => { fab.style.transform = 'translateY(0)'; fab.style.boxShadow = '0 8px 24px rgba(0,0,0,0.28)'; };
-  fab.innerHTML = '<span id="bot-menu-fab-icon" style="font-size:20px;line-height:1;"></span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;"><span id="bot-menu-fab-sub" style="font-size:9px;font-weight:600;opacity:0.9;letter-spacing:0.5px;"></span><span id="bot-menu-fab-label"></span></span>';
-  fab.onclick = () => {
-    const uid = fab.dataset.uid;
-    const name = fab.dataset.name;
-    if (uid) try { showAoiActionModal(uid, name); } catch (e) {}
-  };
-  document.body.appendChild(fab);
-  // パルス animation
-  if (!document.getElementById('fab-pulse-style')) {
-    const style = document.createElement('style');
-    style.id = 'fab-pulse-style';
-    style.textContent = '@keyframes fabPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }';
-    document.head.appendChild(style);
-  }
-})();
-
-window.updateBotMenuFab = function() {
-  const fab = document.getElementById('bot-menu-fab');
-  if (!fab || !currentFloor) { if(fab) fab.style.display='none'; return; }
-  const code = currentFloor.code;
-  if (code === 'lobby') {
-    fab.style.display = 'flex';
-    fab.style.background = 'linear-gradient(135deg,#06b6d4,#0891b2)';
-    fab.dataset.uid = 'bot_aoi';
-    fab.dataset.name = '葵';
-    document.getElementById('bot-menu-fab-icon').textContent = '🌸';
-    document.getElementById('bot-menu-fab-sub').textContent = '受付AI 葵';
-    document.getElementById('bot-menu-fab-label').textContent = 'メニュー';
-  } else if (code === 'wellness_room') {
-    fab.style.display = 'flex';
-    fab.style.background = 'linear-gradient(135deg,#10b981,#059669)';
-    fab.dataset.uid = 'bot_health';
-    fab.dataset.name = 'ヘルスアドバイザー';
-    document.getElementById('bot-menu-fab-icon').textContent = '🩺';
-    document.getElementById('bot-menu-fab-sub').textContent = 'ヘルスアドバイザー';
-    document.getElementById('bot-menu-fab-label').textContent = '相談メニュー';
-  } else {
-    fab.style.display = 'none';
-  }
-};
-
-// モーダルを閉じた直後の補助トースト ("いつでも右下から呼べるよ")
-const _origCloseAoiModal = window.closeAoiModal;
-if (typeof _origCloseAoiModal === 'function') {
-  window.closeAoiModal = function() {
-    try { _origCloseAoiModal.apply(this, arguments); } catch (e) {}
-    const fab = document.getElementById('bot-menu-fab');
-    if (fab && fab.style.display !== 'none') {
-      try { showToast('💡 メニューはいつでも右下のボタンから開けます'); } catch (e) {}
-      // FAB を3秒間ハイライト
-      const orig = fab.style.boxShadow;
-      fab.style.boxShadow = '0 0 0 6px rgba(16,185,129,0.35), 0 12px 28px rgba(0,0,0,0.35)';
-      setTimeout(() => { fab.style.boxShadow = orig; }, 3000);
-    }
-  };
-}
-
+// (旧FABは廃止 - 頭上ボタン+bot本体タップで充足)
 </script>
 </body>
 </html>
