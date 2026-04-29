@@ -286,18 +286,31 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
 
 <script>
-// 既存のCoWellトークンと共有 (cohub_admin_token優先、なければcohub_token)
-let token = localStorage.getItem('cohub_admin_token') || localStorage.getItem('cohub_token') || '';
+// 既存のCoWellトークンと共有 (cohub_token を優先 — 古い admin_token が残ってると expired で401になる事故を防ぐ)
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
 let _meta = null;       // /api/wellness/meta レスポンス
 let _ownersCache = null;
 let _aiInsightsCache = null;
 
-// fetch wrap: 401は ソフト警告 のみ (旧: 自動でトークン全破棄+リダイレクト → 一時的401で再ログイン地獄)
+// fetch wrap: 401時にもう一方のトークンでリトライ → それでもダメならソフト警告
 (function() {
   const _origFetch = window.fetch.bind(window);
   let _401Notified = false;
+  let _altTokenTried = false;
   window.fetch = async function(url, opts) {
-    const r = await _origFetch(url, opts);
+    let r = await _origFetch(url, opts);
+    // 401 + APIエンドポイント: もう一方のトークンで1回だけリトライ
+    if (r.status === 401 && typeof url === 'string' && url.indexOf('/api/') === 0 && !_altTokenTried) {
+      _altTokenTried = true;
+      const altToken = localStorage.getItem('cohub_admin_token');
+      if (altToken && altToken !== token) {
+        console.log('[wellness] 401 retry with admin_token');
+        token = altToken;
+        const newOpts = Object.assign({}, opts || {});
+        newOpts.headers = Object.assign({}, (opts && opts.headers) || {}, { Authorization: 'Bearer ' + token });
+        r = await _origFetch(url, newOpts);
+      }
+    }
     try {
       if (r.status === 401 && typeof url === 'string' && url.indexOf('/api/') === 0 && !_401Notified) {
         _401Notified = true;
@@ -358,8 +371,12 @@ function showLoginRedirect() {
 async function checkAccessAndShow(user) {
   try {
     const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
+    console.log('[wellness] /meta status=' + r.status);
     if (r.status === 401) {
-      // ソフト警告は global fetch wrap で表示済。panelは表示しないがバナー出ているのでOK
+      // 401でもpanel表示 (空の状態でも見えるようにする)。ソフトバナーは fetch wrap で表示済
+      document.getElementById('panel').style.display = 'block';
+      document.getElementById('login-redirect').style.display = 'none';
+      document.getElementById('who').textContent = (user && user.display_name) || '';
       return;
     }
     const m = await r.json();
@@ -638,11 +655,21 @@ async function fetchBoxCheckup() {
 
 // ===== 自動ログイン (CoWell既存セッション利用) =====
 (async function() {
-  if (!token) { showLoginRedirect(); return; }
+  console.log('[wellness] init token=' + (token ? token.slice(0, 20) + '...' : '(none)') + ' len=' + token.length);
+  // token無し: ソフト警告表示 (旧: 強制リダイレクト)
+  if (!token) {
+    showSoftAuthBanner();
+    document.getElementById('panel').style.display = 'block';
+    return;
+  }
   try {
     const u = JSON.parse(localStorage.getItem('cohub_user') || localStorage.getItem('cohub_admin_user') || '{}');
     await checkAccessAndShow(u);
-  } catch (e) { showLoginRedirect(); }
+  } catch (e) {
+    console.warn('[wellness] init err:', e.message);
+    showSoftAuthBanner();
+    document.getElementById('panel').style.display = 'block';
+  }
 })();
 </script>
 </body>
