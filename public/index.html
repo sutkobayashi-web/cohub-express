@@ -2970,22 +2970,22 @@ function drawConciergeStanding(u) {
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
   // 本体
   ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
-  // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (クリック可能感+当たり判定)
-  // 当たり判定矩形を _botMenuButtons に記録 → onPointerDown で先読みしてモーダル即開
-  ctx.font = '800 11px sans-serif';
+  // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (タップしやすい大型ボタン)
+  // 視覚36px tall (世界座標) + 当たり判定 padding +30px で大きめタップ目標を確保
+  ctx.font = '800 15px sans-serif';
   const botLabel = u.uid === 'bot_aoi' ? '🌸 メニューを開く'
                   : u.uid === 'bot_health' ? '🩺 メニューを開く'
                   : (u.name || 'AI');
-  const tw = Math.round(ctx.measureText(botLabel).width + 22);
-  const btnH = 22;
-  const btnY = headY - 26;
-  // 当たり判定矩形 (world座標、tap時の先読み判定用)
+  const tw = Math.round(ctx.measureText(botLabel).width + 32);
+  const btnH = 36;
+  const btnY = headY - 44;
+  // 当たり判定矩形 (world座標) - 視覚より大幅に大きい padding でタップ容易化
   if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health')) {
     _botMenuButtons[u.uid] = {
-      x1: cx - Math.round(tw / 2) - 6, // タップしやすいように padding +6
-      y1: btnY - 6,
-      x2: cx + Math.round(tw / 2) + 6,
-      y2: btnY + btnH + 6,
+      x1: cx - Math.round(tw / 2) - 30,
+      y1: btnY - 30,
+      x2: cx + Math.round(tw / 2) + 30,
+      y2: btnY + btnH + 30,
       name: u.name || (u.uid === 'bot_health' ? 'ヘルスアドバイザー' : '葵'),
     };
   }
@@ -3005,17 +3005,17 @@ function drawConciergeStanding(u) {
   }
   // 影
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.25)';
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 3;
   ctx.fillStyle = grad2;
-  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 11);
+  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 18);
   ctx.fill();
   ctx.restore();
   // 白縁取り (ボタン感を強調)
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 1.5;
-  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 11);
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = 2;
+  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 18);
   ctx.stroke();
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
