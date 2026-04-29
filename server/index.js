@@ -792,28 +792,11 @@ io.on('connection', (socket) => {
     if ((tapTimestamps.get(key) || 0) > now - 30000) return;
     tapTimestamps.set(key, now);
     const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
-    // bot宛: 吹き出しで挨拶を返す (DMしてくださいと案内)
-    // ※ 挨拶はチャットログに残さない (揮発、emit のみ)。負のIDで永続メッセージと区別
+    // bot宛: チャット吹き出しは出さず、TTSで挨拶 → クライアントで再生
+    // tap:sent に botGreeting を載せる。クライアントが bot uid に応じた声で speakViaTTS する
     if (target.isBot) {
-      const greetings = [
-        senderName + 'さん、こんにちは！💬DMで何でも聞いてくださいね',
-        'はい、' + senderName + 'さん。気軽にDMで話しかけてください✨',
-        senderName + 'さん、お声がけありがとうございます。DMでお手伝いしますね！',
-      ];
-      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-      const payload = {
-        id: -Date.now(),  // 揮発挨拶 (DBに保存しない)。負IDでクライアント側スキップ可能
-        uid: targetUid,
-        content: greeting,
-        x: target.x, y: target.y,
-        at: new Date().toISOString(),
-        mentions: [],
-        room: target.floor,
-        attach: null,
-        ephemeral: true,
-      };
-      io.to('floor:' + target.floor).emit('chat:msg', payload);
-      socket.emit('tap:sent', { targetUid });
+      const greeting = senderName + 'さん、お疲れ様です。';
+      socket.emit('tap:sent', { targetUid, botGreeting: greeting });
       return;
     }
     const tgtSocket = io.sockets.sockets.get(target.socketId);

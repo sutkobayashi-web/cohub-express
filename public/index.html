@@ -2351,9 +2351,15 @@ function connectSocket() {
   socket.on('tap:sent', (data) => {
     const u = users[data && data.targetUid];
     showToast('👋 ' + ((u && u.name) || '相手') + 'に肩たたきを送りました');
-    // bot 宛: 挨拶吹き出しの後、用件選択モーダルを表示 (旧:いきなりDMを開いていた)
+    // bot 宛: TTS で挨拶を喋らせて用件選択モーダルを表示 (チャットには残さない)
     if (u && u.role === 'bot') {
-      setTimeout(() => { try { showAoiActionModal(u.uid, u.name || '葵'); } catch (e) {} }, 800);
+      const greeting = (data && data.botGreeting) || '';
+      if (greeting) {
+        // 葵=Neural2-B / ヘルスアドバイザー=Wavenet-A pitch低め で別キャラ感
+        try { speakViaTTS(greeting, Object.assign({ force: true }, ttsOptsForBot(u.uid))); } catch (e) {}
+      }
+      // 喋り終わるタイミング (約1.4秒) でモーダル表示
+      setTimeout(() => { try { showAoiActionModal(u.uid, u.name || '葵'); } catch (e) {} }, 1400);
     }
   });
   socket.on('chat:msg', (m) => {
@@ -3799,27 +3805,28 @@ function readingOf(name) {
 
 // ===== Google Cloud TTS による汎用読み上げ (葵と同じ /api/voice/tts を使用) =====
 // メリット: ブラウザSpeechSynthesisと違い環境差ゼロ、Neural2-B高品質
-const _ttsBlobCache = new Map();  // text -> blobURL (同じ文言は1度だけ生成)
+// 葵=Neural2-B (明るい若い女性), ヘルスアドバイザー=Wavenet-A (落ち着いた女性、pitch低め)
+const _ttsBlobCache = new Map();  // (text|voice|speed|pitch) -> blobURL
 async function speakViaTTS(text, opts) {
   opts = opts || {};
   if (!text) return;
-  // opts.force=true なら speakerOn を無視 (音声DMなど強制再生用)
   if (!opts.force && !speakerOn) return;
   const speed = opts.speed || 1.15;
   const voice = opts.voice || 'ja-JP-Neural2-B';
+  const pitch = (opts.pitch != null) ? opts.pitch : 0;
+  const cacheKey = text + '|' + voice + '|' + speed + '|' + pitch;
   try {
-    let url = _ttsBlobCache.get(text);
+    let url = _ttsBlobCache.get(cacheKey);
     if (!url) {
       const res = await fetch('/api/voice/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
-        body: JSON.stringify({ text, voice, speed }),
+        body: JSON.stringify({ text, voice, speed, pitch }),
       });
       if (!res.ok) { console.warn('[cohub] tts http', res.status); return; }
       const blob = await res.blob();
       url = URL.createObjectURL(blob);
-      _ttsBlobCache.set(text, url);
-      // 同一文言100件までキャッシュ、超えたら古いもの破棄
+      _ttsBlobCache.set(cacheKey, url);
       if (_ttsBlobCache.size > 100) {
         const first = _ttsBlobCache.keys().next().value;
         try { URL.revokeObjectURL(_ttsBlobCache.get(first)); } catch (e) {}
@@ -3828,9 +3835,15 @@ async function speakViaTTS(text, opts) {
     }
     const audio = new Audio(url);
     audio.volume = 1.0;
-    console.log('[cohub] TTS play:', text);
+    console.log('[cohub] TTS play:', text, 'voice=' + voice);
     await audio.play();
   } catch (e) { console.warn('[cohub] speakViaTTS failed', e.message || e); }
+}
+
+// bot uid → TTS声プリセット (葵=明るい / ヘルスアドバイザー=落ち着いた)
+function ttsOptsForBot(botUid) {
+  if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-A', speed: 1.0, pitch: -2 };
+  return { voice: 'ja-JP-Neural2-B', speed: 1.15, pitch: 0 };  // 葵 (デフォルト)
 }
 
 // 音声DM: 送信者が「音声モード」で送ったメッセージ本文をそのまま読み上げ。
@@ -5964,7 +5977,7 @@ function showAoiActionModal(botUid, botName) {
   if (document.getElementById('aoi-action-modal')) return;
   _aoiModalOpenAt = now;
   const isHealth = botUid === 'bot_health';
-  const greetSub = isHealth ? '体調や健康のことで気になることはありますか?' : 'いらっしゃいませ。ご用件をお聞かせください。';
+  const greetSub = isHealth ? 'ご用件をお選びください' : 'ご用件をお選びください';
   const dmSub = isHealth ? '健康データを踏まえてアドバイスします' : 'AIに質問やお願いができます';
   // ヘルスアドバイザー: 「アクションプラン作成」をDMより上の主役ボタンに
   const planBtn = isHealth
