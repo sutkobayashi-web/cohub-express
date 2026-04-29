@@ -32,6 +32,51 @@ router.get('/meta', authUser, (req, res) => {
   res.json({ success: true, categories: CATEGORIES });
 });
 
+// 過去7日(最大7件)の食事ログを収集 (CoHub plaza_posts + CoWell Classic ミラー cw_posts)
+// AI ヘルスアドバイザーに傾向ベースの次回提案をさせるための要約配列を返す
+function collectRecentMeals(uid) {
+  const db = getDb();
+  const rows = [];
+  // 1) CoHub plaza_posts (本人の食事カテゴリ)
+  try {
+    const r1 = db.prepare(`SELECT created_at AS ts, nutrition_scores AS ns FROM plaza_posts
+      WHERE author_id=? AND category='食事' AND nutrition_scores IS NOT NULL AND deleted_at IS NULL
+      AND created_at >= datetime('now','-7 days')
+      ORDER BY created_at DESC LIMIT 7`).all(uid);
+    rows.push(...r1);
+  } catch (e) {}
+  // 2) CoWell Classic ミラー (cw_users で cohub_uid=uid のレコードに紐づく cw_posts)
+  try {
+    const cwIds = db.prepare(`SELECT cw_id FROM cw_users WHERE cohub_uid=?`).all(uid).map(r => r.cw_id);
+    if (cwIds.length) {
+      const ph = cwIds.map(() => '?').join(',');
+      const r2 = db.prepare(`SELECT cw_created_at AS ts, nutrition_scores AS ns FROM cw_posts
+        WHERE cw_user_id IN (${ph}) AND category LIKE '%食事%' AND nutrition_scores IS NOT NULL
+        AND cw_created_at >= datetime('now','-7 days')
+        ORDER BY cw_created_at DESC LIMIT 7`).all(...cwIds);
+      rows.push(...r2);
+    }
+  } catch (e) {}
+  // 統合・新着順・要約
+  rows.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+  const summarize = (ns) => {
+    let s; try { s = typeof ns === 'string' ? JSON.parse(ns) : ns; } catch { return null; }
+    const v = (k) => { const x = s && s[k]; return (x && typeof x === 'object') ? Number(x.value) : (typeof x === 'number' ? x : 0); };
+    return {
+      kcal: v('calories'), protein: v('protein'), fat: v('fat'), carbs: v('carbs'),
+      veg: v('vitamin'), ca: v('mineral'), salt: v('salt'), fiber: v('fiber'), alc: v('alcohol'),
+    };
+  };
+  const result = [];
+  for (const r of rows) {
+    const sm = summarize(r.ns);
+    if (!sm) continue;
+    result.push({ date: (r.ts || '').slice(0, 10), ...sm });
+    if (result.length >= 7) break;
+  }
+  return result;
+}
+
 // 一覧 (新着順、過去アーカイブと統合表示)
 router.get('/posts', authUser, (req, res) => {
   const cat = req.query.category;
@@ -42,7 +87,8 @@ router.get('/posts', authUser, (req, res) => {
 
   let sql = `SELECT p.id, p.author_id, p.category, p.content, p.image_url, p.nutrition_scores,
                     p.ai_comment, p.is_anonymous, p.created_at,
-                    u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
+                    u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
+                    u.nickname AS author_nickname
              FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id
              WHERE p.deleted_at IS NULL`;
   const params = [];
@@ -81,12 +127,14 @@ router.get('/posts', authUser, (req, res) => {
       is_mine: isAuthor,
     };
     // 匿名投稿: 投稿者本人以外には author_id/name/avatar/company を隠す
+    // ニックネームが設定されていれば表示 (本人のみ実名と紐付け可能)
     if (p.is_anonymous && !isAuthor) {
       enr.author_id = null;
-      enr.author_name = '匿名';
+      enr.author_name = p.author_nickname ? '🎭 ' + p.author_nickname : '🎭 匿名';
       enr.author_avatar = null;
       enr.author_company = null;
     }
+    delete enr.author_nickname;
     return enr;
   });
 
@@ -169,13 +217,23 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
     console.log('[plaza] AI analysis start: file=' + req.file.filename + ' mime=' + req.file.mimetype);
     try {
       const buf = fs.readFileSync(req.file.path);
-      const r = await analyzeFoodImage(buf, req.file.mimetype, content);
+      // 過去7日の食事ログを収集 (CoHub plaza_posts + CoWell Classic ミラー cw_posts)
+      const recentMeals = collectRecentMeals(req.uid);
+      console.log('[plaza] recent meals for trend:', recentMeals.length);
+      const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals);
       if (r && typeof r === 'object') {
-        // comment と nutrition データを分離
-        if (r.comment != null) {
-          if (typeof r.comment === 'string') aiComment = r.comment;
-          else if (typeof r.comment === 'object') aiComment = Object.values(r.comment).filter(v => typeof v === 'string').join(' / ');
-          if (aiComment) aiComment = String(aiComment).slice(0, 400);
+        // 2アドバイザー形式 (comment_nutrition + comment_health) を結合保存
+        // 旧形式 (comment) もフォールバック
+        const cn = typeof r.comment_nutrition === 'string' ? r.comment_nutrition.trim() : '';
+        const ch = typeof r.comment_health === 'string' ? r.comment_health.trim() : '';
+        if (cn || ch) {
+          const parts = [];
+          if (cn) parts.push('【AI栄養アドバイザー】\n' + cn);
+          if (ch) parts.push('【AIヘルスアドバイザー】\n' + ch);
+          aiComment = parts.join('\n\n').slice(0, 1500);
+        } else if (r.comment != null) {
+          // 後方互換: 旧形式 comment 単一フィールド
+          aiComment = (typeof r.comment === 'string' ? r.comment : Object.values(r.comment).filter(v => typeof v === 'string').join(' / ')).slice(0, 1500);
         }
         // CoWellフォーマットの数値項目を抽出してJSON保存
         const NUTRI_KEYS = ['calories', 'protein', 'fat', 'carbs', 'vitamin', 'mineral', 'salt', 'fiber', 'alcohol'];
@@ -191,14 +249,14 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
         if (r.confidence != null) scores.confidence = r.confidence;
         if (hasAny) nutritionScores = JSON.stringify(scores);
       }
-      console.log('[plaza] AI done: scores=' + (nutritionScores ? 'YES' : 'no') + ' comment=' + (aiComment ? aiComment.slice(0, 60) : 'no'));
+      console.log('[plaza] AI done: scores=' + (nutritionScores ? 'YES' : 'no') + ' comment_len=' + (aiComment ? aiComment.length : 0));
     } catch (e) { console.warn('[plaza] food AI fail:', e.message); }
   }
 
   const db = getDb();
   const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous)
     VALUES (?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous);
-  const post = db.prepare(`SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
+  const post = db.prepare(`SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company, u.nickname AS author_nickname
                            FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id WHERE p.id = ?`).get(ins.lastInsertRowid);
   post.kind = 'plaza';
   post.reactions = Object.fromEntries(ALLOWED_EMOJIS.map(e => [e, 0]));
@@ -207,13 +265,14 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   post.can_delete = true;
   post.is_mine = true;
 
-  // 全員配信用の匿名化版 (本人以外向け)
+  // 全員配信用の匿名化版 (本人以外向け、ニックネームがあれば表示)
   const anonymizedPost = isAnonymous ? {
     ...post,
     author_id: null,
-    author_name: '匿名',
+    author_name: post.author_nickname ? '🎭 ' + post.author_nickname : '🎭 匿名',
     author_avatar: null,
     author_company: null,
+    author_nickname: undefined,
     is_mine: false,
     can_delete: false,
   } : post;

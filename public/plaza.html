@@ -101,6 +101,12 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .nutri-conf .badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
 .nutri-foot { text-align: right; font-size: 9px; color: #aaa; margin-top: 6px; }
 .ai-cmt-block { font-size: 12px; color: #1a3c34; margin-top: 6px; padding: 8px 10px; background: linear-gradient(135deg,#f0faf4,#edf4ff); border-radius: 8px; line-height: 1.6; border-left: 3px solid #20c997; white-space: pre-wrap; word-wrap: break-word; }
+.ai-cmt-pair { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ai-cmt-card { padding: 10px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.65; word-wrap: break-word; }
+.ai-cmt-card:nth-child(1) { background: linear-gradient(135deg,#f0faf4,#e8f5e9); border-left: 3px solid #20c997; color: #1a3c34; }
+.ai-cmt-card:nth-child(2) { background: linear-gradient(135deg,#eff6ff,#e0f2fe); border-left: 3px solid #3b82f6; color: #1e3a8a; }
+.ai-cmt-hdr { font-weight: 700; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.3px; }
+.ai-cmt-body { font-size: 12.5px; }
 
 .post-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .react-btn { padding: 6px 10px; background: #f8fafc; border: 1px solid transparent; border-radius: 16px; cursor: pointer; font-size: 13px; }
@@ -328,6 +334,35 @@ function buildNutritionBar(sc) {
   return html;
 }
 
+// AI コメントを 2アドバイザー形式 (【AI栄養アドバイザー】...【AIヘルスアドバイザー】...) で整形
+// 旧形式 (単一テキスト) はそのままバブル表示
+function renderAdvisorComment(cmt) {
+  if (!cmt) return '';
+  const text = String(cmt);
+  // 【XX】... 形式のセクションヘッダーを検出
+  const sections = [];
+  const re = /【([^】]+)】([\s\S]*?)(?=【[^】]+】|$)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const hdr = m[1].trim();
+    const body = m[2].trim();
+    if (body) sections.push({ hdr, body });
+  }
+  if (!sections.length) {
+    // ヘッダーなし旧形式: 改行を保ってバブル表示
+    return `<div class="ai-cmt-block">💬 ${escapeHtml(text).replace(/\n/g, '<br>')}</div>`;
+  }
+  // ヘッダー付き: アイコン振り分け
+  const iconFor = (h) => {
+    if (/栄養/.test(h)) return '🥗';
+    if (/ヘルス|健康/.test(h)) return '🩺';
+    return '💬';
+  };
+  return '<div class="ai-cmt-pair">' + sections.map(s =>
+    `<div class="ai-cmt-card"><div class="ai-cmt-hdr">${iconFor(s.hdr)} ${escapeHtml(s.hdr)}</div><div class="ai-cmt-body">${escapeHtml(s.body).replace(/\n/g, '<br>')}</div></div>`
+  ).join('') + '</div>';
+}
+
 async function api(p, opts) {
   opts = opts || {}; opts.headers = opts.headers || {};
   opts.headers['Authorization'] = 'Bearer ' + token;
@@ -540,8 +575,7 @@ function postHtml(p) {
       let cmt = p.ai_comment;
       if (cmt && typeof cmt === 'object') cmt = Object.values(cmt).filter(v => typeof v === 'string').join(' / ');
       if (cmt === '[object Object]' || cmt === 'undefined' || cmt === 'null') cmt = '';
-      if (p.kind === 'archive' && cmt && cmt.length > 320) cmt = cmt.slice(0, 320) + '…';
-      if (cmt) nutri += `<div class="ai-cmt-block">💬 ${escapeHtml(cmt)}</div>`;
+      if (cmt) nutri += renderAdvisorComment(cmt);
     } catch (e) { console.warn('nutri parse fail', e.message, p.nutrition_scores); }
   }
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';

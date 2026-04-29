@@ -299,18 +299,29 @@ async function generateText(prompt, opts) {
 }
 
 // 食事画像を Gemini Vision で栄養分析 (CoWell ひろば 互換のスコア形式)
-async function analyzeFoodImage(imageBuffer, mimeType, userMemo) {
+// recentMeals: 過去食事サマリ配列 [{date, kcal, protein, fat, carbs, veg, ca, salt, fiber, alc}]
+async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
   const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
-  const prompt = `あなたは食事を見るのが好きな栄養のプロです。友達に「これ食べたよ」と見せられたときの自然な反応をしてください。国立長寿医療研究センター「栄養改善パック」(2020) に基づき分析。
-${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
-画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
+  const trendBlock = (Array.isArray(recentMeals) && recentMeals.length)
+    ? `\n## この投稿者の最近の食事ログ (新しい順、最大7件)\n` +
+      recentMeals.slice(0, 7).map(m =>
+        `- ${m.date}: ${m.kcal}kcal / P${m.protein}g F${m.fat}g C${m.carbs}g / 野菜${m.veg}g Ca${m.ca}mg 食塩${m.salt}g 繊維${m.fiber}g 酒${m.alc}g`
+      ).join('\n') +
+      `\n→ AIヘルスアドバイザーは上記から「習慣的な不足/過剰」を特定し、次回の食事に向けた具体提案 (実在の料理名 1-2品) を盛り込んでください。\n`
+    : '\n（過去ログなし → AIヘルスアドバイザーは今日の食事から推奨される次回バランスを提案してください）\n';
+  const prompt = `あなたは2人体制の食事アドバイザーチームです。食事の写真を見て JSON で回答します。
+1) AI栄養アドバイザー: 栄養士キャラ。今日の食事の栄養面を評価 (良い点 + 軽い改善)
+2) AIヘルスアドバイザー: 健康管理士キャラ。過去ログを見て次回の食事提案を具体的に行う
+
+国立長寿医療研究センター「栄養改善パック」(2020) およびスマートミール基準に基づき分析。
+${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
 それ以外は箸/茶碗/手等の基準物から実重量を推定し、食品成分表で算出。
+${trendBlock}
+★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。改行は \\n で。
 
-★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。
-
-{"comment":"60〜120字の自然な感想 (良い点+軽い改善提案)","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由"}}
+{"comment_nutrition":"AI栄養アドバイザー (180-260字)。今日の食事の栄養面評価。良い点を具体食材で挙げ、過剰/不足項目を1-2点指摘。親しみある口調。","comment_health":"AIヘルスアドバイザー (180-260字)。過去ログ傾向に言及し、習慣的な過不足を踏まえた次回提案を具体料理名 1-2品で。なければ今日の食事の補完提案。専門的だが優しい口調。","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由"}}
 
 各値:
 - calories: kcal (目標 450-650/食)
@@ -327,7 +338,7 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
 - confidence.reason: 上記の理由文
 
 数値はカンマ無し。実数または推定実数 (小数点1桁まで)。
-不適切画像 (食事ではない) の場合は全 value を 0、comment に理由。`;
+不適切画像 (食事ではない) の場合は全 value を 0、comment_nutrition に理由、comment_health は空文字。`;
 
   const body = {
     contents: [{
@@ -338,7 +349,8 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
       ],
     }],
     // thinkingBudget=0 で内部 thinking 無効化 (JSON出力のみで思考不要、出力トークン枯渇防止)
-    generationConfig: { temperature: 0.5, maxOutputTokens: 4000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+    // 2人体制コメント (各260字) + 9栄養素 → 余裕持って 6000
+    generationConfig: { temperature: 0.6, maxOutputTokens: 6000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
