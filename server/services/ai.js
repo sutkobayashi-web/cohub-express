@@ -337,7 +337,8 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
         { text: prompt },
       ],
     }],
-    generationConfig: { temperature: 0.5, maxOutputTokens: 2500, responseMimeType: 'application/json' },
+    // thinkingBudget=0 で内部 thinking 無効化 (JSON出力のみで思考不要、出力トークン枯渇防止)
+    generationConfig: { temperature: 0.5, maxOutputTokens: 4000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -346,9 +347,13 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}
     throw new Error('Gemini vision HTTP ' + resp.status + ': ' + txt.slice(0, 200));
   }
   const data = await resp.json();
-  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const cand = data.candidates && data.candidates[0];
+  const finishReason = cand && cand.finishReason;
+  const usage = data.usageMetadata || {};
+  const parts = cand && cand.content && cand.content.parts;
   let text = '';
   if (parts) for (const p of parts) if (p.text) text += p.text;
+  console.log(`[analyzeFoodImage] finish=${finishReason||'?'} thoughts=${usage.thoughtsTokenCount||0} out=${usage.candidatesTokenCount||0} len=${text.length}`);
   console.log('[analyzeFoodImage] raw AI response:', text.slice(0, 300));
   // コードフェンス除去 (```json ... ``` パターン全部)
   text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
