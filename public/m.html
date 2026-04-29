@@ -21,11 +21,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  :root { --m-fs: 1; }   /* 文字スケール (小=0.9 / 中=1 / 大=1.15 / 特大=1.3) */
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f3f4f6; color: #0f172a; -webkit-tap-highlight-color: transparent; font-size: 15px; }
-  /* 文字サイズ切替: zoom で body 全体を比例拡大 (固定 px font-size 156箇所に CSS 変数が効かないため) */
-  /* iOS Safari 16+/Chrome/Edge/Firefox 126+ で動作。文字も padding も画像も同比例で拡大される */
-  body { zoom: var(--m-fs); }
+  /* 文字サイズ切替: 新方式は #content への transform: scale (旧 --m-fs body zoom は廃止) */
   button, input, textarea { font-family: inherit; font-size: inherit; }
   button { cursor: pointer; }
   a { color: #0891b2; text-decoration: none; }
@@ -129,10 +126,6 @@
   .floor-btn.locked { opacity: 0.55; }
   .bldg-hdr.office + .floor-row .floor-btn { border-color: rgba(8,145,178,0.3); }
   .bldg-hdr.field + .floor-row .floor-btn { border-color: rgba(234,88,12,0.3); }
-  /* 文字サイズクイック (控えめサイズ) */
-  .font-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-  .font-quick button { padding: 6px 4px; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; font-weight: 700; color: #475569; cursor: pointer; font-size: 11px; min-height: 30px; }
-  .font-quick button.active { background: #06b6d4; color: #fff; border-color: #0891b2; }
 
   /* オンライン中ストリップ (横スクロールアバター) */
   .online-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 6px; -webkit-overflow-scrolling: touch; }
@@ -417,20 +410,6 @@
         </div>
       </div>
 
-      <!-- 文字サイズ クイック切替 (ホームから即座にアクセス) -->
-      <div class="section">
-        <div class="section-ttl" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>🔡 文字サイズ</span>
-          <span style="font-size:10px;color:#94a3b8;">読みやすい大きさに</span>
-        </div>
-        <div class="font-quick" id="font-quick">
-          <button data-fs="0.9" onclick="setFontScale(0.9)">A 小</button>
-          <button data-fs="1" class="active" onclick="setFontScale(1)">A 中</button>
-          <button data-fs="1.15" onclick="setFontScale(1.15)">A 大</button>
-          <button data-fs="1.3" onclick="setFontScale(1.3)">A 特大</button>
-        </div>
-      </div>
-
       <div class="section">
         <div class="section-ttl">オンライン中 <span id="online-count" style="color:#0891b2;font-weight:800;margin-left:4px;">0</span></div>
         <div class="online-strip" id="online-strip"></div>
@@ -480,12 +459,7 @@
       <div class="set-list">
         <div class="set-item">
           <div class="i">🔡</div><div class="l">文字サイズ</div>
-          <div class="ctrl set-toggle" id="font-toggle">
-            <button data-fs="0.9" onclick="setFontScale(0.9)">小</button>
-            <button data-fs="1" class="active" onclick="setFontScale(1)">中</button>
-            <button data-fs="1.15" onclick="setFontScale(1.15)">大</button>
-            <button data-fs="1.3" onclick="setFontScale(1.3)">特</button>
-          </div>
+          <div class="ctrl" style="font-size:11px;color:#94a3b8;">画面上部の <b style="color:#1e3a8a;">[A·A]</b> ボタンから切替</div>
         </div>
         <div class="set-item">
           <div class="i">🔊</div><div class="l">通知音</div>
@@ -647,8 +621,9 @@ const AOI_VOICE = 'ja-JP-Neural2-B';
 // ===== 永続化設定の復元 =====
 (function loadPrefs() {
   try {
-    const fs = parseFloat(localStorage.getItem('m_font_scale') || '1');
-    if (!isNaN(fs) && fs >= 0.8 && fs <= 1.5) document.documentElement.style.setProperty('--m-fs', String(fs));
+    // 旧 m_font_scale (--m-fs body zoom方式) は廃止。新方式は m_fz (#content transform)
+    // 旧データが残っていれば一度だけクリーンアップ
+    if (localStorage.getItem('m_font_scale') !== null) localStorage.removeItem('m_font_scale');
     const co = localStorage.getItem('m_chime_on');
     if (co === '0') chimeOn = false;
     const sp = parseFloat(localStorage.getItem('m_speech_speed') || '1.15');
@@ -1979,11 +1954,6 @@ document.addEventListener('keydown', (e) => {
 // 設定UI (文字サイズ/通知音/読み上げ速度) と各種拡張機能
 // ============================================================
 function applyPrefsToUI() {
-  // 文字サイズ
-  const fs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m-fs')) || 1;
-  document.querySelectorAll('#font-toggle button, #font-quick button').forEach(b => {
-    b.classList.toggle('active', Math.abs(parseFloat(b.dataset.fs) - fs) < 0.01);
-  });
   // 通知音
   document.querySelectorAll('#chime-toggle button').forEach(b => {
     b.classList.toggle('active', (b.dataset.v === '1') === chimeOn);
@@ -1995,11 +1965,6 @@ function applyPrefsToUI() {
   // ミュートボタン
   const mb = document.getElementById('mute-btn');
   if (mb) mb.textContent = speakerOn ? '🔊' : '🔇';
-}
-function setFontScale(v) {
-  document.documentElement.style.setProperty('--m-fs', String(v));
-  try { localStorage.setItem('m_font_scale', String(v)); } catch (e) {}
-  applyPrefsToUI();
 }
 
 // 棟・フロア一覧 + メンバー数 (バーチャルオフィスへの入口)
