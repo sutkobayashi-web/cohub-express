@@ -289,8 +289,24 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 // 既存のCoWellトークンと共有 (cohub_token を優先 — 古い admin_token が残ってると expired で401になる事故を防ぐ)
 let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
 
-// デバッグ表示は console.log のみに (画面表示は撤去)
-function _debugInfo(msg) { try { console.log('[wellness]', msg); } catch (e) {} }
+// 🐛 一時デバッグ表示 (画面上部、原因特定後に削除)
+function _debugInfo(msg) {
+  try { console.log('[wellness]', msg); } catch (e) {}
+  let box = document.getElementById('debug-info');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'debug-info';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1f2937;color:#10b981;font-family:monospace;font-size:11px;padding:8px 12px;line-height:1.5;max-height:240px;overflow-y:auto;border-bottom:2px solid #10b981;';
+    box.innerHTML = '<button onclick="this.parentNode.remove()" style="float:right;background:#dc2626;color:#fff;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px;">×</button><b style="color:#fbbf24;">🐛 DEBUG</b><br>';
+    document.body.appendChild(box);
+  }
+  box.innerHTML += '<div>' + new Date().toISOString().slice(11, 19) + ' ' + msg + '</div>';
+}
+_debugInfo('cohub_token len=' + (localStorage.getItem('cohub_token') || '').length);
+_debugInfo('使用中token len=' + token.length);
+// グローバルエラーキャッチ (uncaught例外も拾う)
+window.addEventListener('error', e => _debugInfo('🚨 GLOBAL ERROR: ' + e.message + ' @ ' + (e.filename || '?').split('/').pop() + ':' + e.lineno));
+window.addEventListener('unhandledrejection', e => _debugInfo('🚨 PROMISE REJECT: ' + (e.reason && e.reason.message || e.reason || '?')));
 let _meta = null;       // /api/wellness/meta レスポンス
 let _ownersCache = null;
 let _aiInsightsCache = null;
@@ -318,6 +334,7 @@ let _aiInsightsCache = null;
 // ソフト認証警告: 「セッションが切れた可能性。再ログインボタンで戻る」を上部に表示
 // トークンは破棄しない (他タブで生きている可能性、不要なログアウトを避ける)
 function showSoftAuthBanner() {
+  try { _debugInfo('🚨 showSoftAuthBanner CALLED from: ' + (new Error().stack || '?').split('\n').slice(1, 4).join(' | ')); } catch (e) {}
   if (document.getElementById('soft-auth-banner')) return;
   const banner = document.createElement('div');
   banner.id = 'soft-auth-banner';
