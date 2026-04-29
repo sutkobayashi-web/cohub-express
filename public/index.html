@@ -1910,7 +1910,7 @@ function resize() {
 let stdLogo = null;
 function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = (src || '/assets/office_bg.png') + '?v=28';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=29';
   if (!stdLogo) {
     stdLogo = new Image();
     stdLogo.src = '/assets/std_logo.png?v=1';
@@ -2707,28 +2707,8 @@ function render() {
     try { drawWellnessWhiteboard(); } catch (e) {}
   }
 
-  // 1Fロビー (v2): 背壁の空白フレームにスタンダード運輸ロゴを Canvas overlay で表示
-  // (背景は空フレームのみ生成、ロゴはここで合成 → AI再現崩れを回避、ロゴ差替えも画像置換だけ)
-  if (currentFloor && currentFloor.code === 'lobby' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
-    // フレーム内領域 (世界座標、Gemini生成bgの空額位置に合わせて調整)
-    const frameX = 480, frameY = 130, frameW = 390, frameH = 180;
-    // object-fit:contain でフレーム内に収める
-    const logoAspect = stdLogo.naturalWidth / stdLogo.naturalHeight;
-    const frameAspect = frameW / frameH;
-    let lw, lh;
-    if (logoAspect > frameAspect) {
-      // ロゴが横長 → 幅基準
-      lw = frameW * 0.85;  // 内側にマージン
-      lh = lw / logoAspect;
-    } else {
-      // ロゴが縦長 → 高さ基準
-      lh = frameH * 0.85;
-      lw = lh * logoAspect;
-    }
-    const lx = frameX + (frameW - lw) / 2;
-    const ly = frameY + (frameH - lh) / 2;
-    ctx.drawImage(stdLogo, lx, ly, lw, lh);
-  }
+  // 1Fロビー (v2): 背壁の社章は背景画像に焼き込み済み (Gemini Image にロゴを入力として渡し合成)
+  // → Canvasオーバーレイは不要、自然な照明統合で平面ステッカー感を回避
   // 大会議室: スタンダード運輸ロゴを床の透かしとして描画 (従来通り)
   if (currentFloor && currentFloor.code === 'meeting_c' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
     const logoW = 170;

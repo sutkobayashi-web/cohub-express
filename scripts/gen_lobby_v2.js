@@ -7,10 +7,12 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-const PROMPT = `FIRST-PERSON VIEW, looking INTO a modern Japanese corporate ENTRANCE LOBBY of "CoWell" (Communication & Wellness) from the entrance doorway. The viewer is standing at the door looking forward into a welcoming reception lobby. WIDE 16:9 horizontal canvas. Photorealistic interior architecture, eye-level perspective. Bright, premium, calming corporate atmosphere.
+const PROMPT = `FIRST-PERSON VIEW, looking INTO a modern Japanese corporate ENTRANCE LOBBY from the entrance doorway. The viewer is standing at the door looking forward into a welcoming reception lobby. WIDE 16:9 horizontal canvas. Photorealistic interior architecture, eye-level perspective. Bright, premium, calming corporate atmosphere.
+
+★IMPORTANT: I am providing a COMPANY LOGO image as input. You MUST place THIS EXACT LOGO (preserving the design, colors, and proportions faithfully) on a large brushed-brass framed plaque on the back wall as the central focal point. Do NOT modify, redesign, or stylize the logo — preserve it exactly as provided. Integrate it naturally with the room's recessed warm ceiling lighting (soft highlights on the brass frame, subtle ambient shadow under the plaque, the logo surface gently catching the warm light without being washed out).
 
 Composition (camera POV, what the viewer sees from the door):
-- BACK WALL CENTER (most prominent): A LARGE EMPTY FRAMED PLAQUE on the back wall — a wide rectangular brushed-brass elegant frame surrounding a COMPLETELY BLANK ivory-white panel inside. The frame is well-crafted (about 80cm tall × 130cm wide), eye-level, well-lit by recessed ceiling lighting from above, central focal point of the room. The interior of the frame must be PURE BLANK ivory white with NO logo, NO text, NO image, NO design — just empty white surface (a separate company logo will be overlaid later in canvas).
+- BACK WALL CENTER (most prominent): The provided company logo displayed on an ivory-white panel inside an elegant brushed-brass rectangular frame (about 80cm tall × 130cm wide), eye-level, well-lit by recessed ceiling downlights with a subtle warm glow. The frame casts a soft realistic shadow on the wall behind. The logo should appear as a printed/painted matte sign integrated with the frame, NOT as a flat sticker — it should feel like a real architectural sign with proper lighting/shading.
 - BELOW THE LOGO: a low minimalist console table in light oak wood with a single elegant orchid arrangement.
 - LEFT FOREGROUND: a comfortable WAITING SEATING AREA for visiting employees — L-shaped charcoal grey leather sofa with 3 plush cream cushions, a square dark wood coffee table with a small leather notebook and a glass of water, a tall floor lamp with brass stem and cream shade.
 - RIGHT FOREGROUND: a compact minimalist reception desk in light oak wood (low height, about waist-high, NOT blocking the center floor) with a sleek tablet on top, with 2 modern lounge chairs in soft sage green facing slightly toward the room (additional staying employees can sit here).
@@ -41,11 +43,26 @@ CRITICAL CONSTRAINTS:
       fs.copyFileSync(outFile, outFile + '.bak.' + ts);
     }
   } catch (e) {}
+  // 入力: スタンダード運輸社章ロゴ (Geminiに参考として渡し、壁面に整合的に合成させる)
+  const logoPath = path.join(__dirname, '..', 'public', 'assets', 'std_logo.png');
+  let logoB64 = null;
+  try {
+    if (fs.existsSync(logoPath)) {
+      logoB64 = fs.readFileSync(logoPath).toString('base64');
+      console.log('logo input loaded:', logoPath, fs.statSync(logoPath).size, 'bytes');
+    }
+  } catch (e) { console.warn('logo input load failed:', e.message); }
+
+  const parts = [{ text: PROMPT }];
+  if (logoB64) {
+    parts.unshift({ inlineData: { mimeType: 'image/png', data: logoB64 } });
+  }
+
   const body = {
-    contents: [{ parts: [{ text: PROMPT }] }],
+    contents: [{ parts }],
     generationConfig: {
       responseModalities: ['IMAGE', 'TEXT'],
-      temperature: 0.85,
+      temperature: 0.7,  // やや低め: ロゴ忠実度を上げる
       imageConfig: { aspectRatio: '16:9' },
     },
   };
@@ -56,9 +73,9 @@ CRITICAL CONSTRAINTS:
   });
   if (!r.ok) { console.error('HTTP', r.status, await r.text()); process.exit(1); }
   const d = await r.json();
-  const parts = d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
-  if (!parts) { console.error('no parts'); process.exit(1); }
-  for (const p of parts) {
+  const respParts = d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
+  if (!respParts) { console.error('no parts'); process.exit(1); }
+  for (const p of respParts) {
     const inline = p.inlineData || p.inline_data;
     if (inline && inline.data) {
       fs.writeFileSync(outFile, Buffer.from(inline.data, 'base64'));
