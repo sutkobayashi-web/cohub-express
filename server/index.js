@@ -1144,12 +1144,13 @@ io.on('connection', (socket) => {
             content: replyText,
             at: new Date().toISOString(),
             attach: null,
+            voice: voiceMode,  // 送信者が音声モードならbot応答もvoice再生する
           };
           socket.emit('dm:msg', replyPayload);
         } catch (e) {
           console.error('[bot reply error]', e.message);
           const errMsg = '⚠️ すみません、ただいま応答できません。少し時間を置いてからもう一度お試しください。';
-          socket.emit('dm:msg', { id: 0, from: to, to: uid, content: errMsg, at: new Date().toISOString(), attach: null });
+          socket.emit('dm:msg', { id: 0, from: to, to: uid, content: errMsg, at: new Date().toISOString(), attach: null, voice: voiceMode });
         }
       })();
       return;

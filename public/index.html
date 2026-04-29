@@ -2269,8 +2269,9 @@ function connectSocket() {
       // 自分が開いている = 既読扱いだが、相手からの新着時は控えめな通知音を鳴らす
       if (!isSelf && speakerOn && m.from !== 'bot_aoi') playBeep(false);
       // 音声DMを受信: 取込中でも伝わるようTTSで本文を読み上げ (speakerOn無視、急ぎ連絡用)
-      if (!isSelf && m.voice && m.content && m.from !== 'bot_aoi') {
-        speakVoiceDm(m.content);
+      // botからの音声DM (音声モードDM への返答) も bot 別の声で再生
+      if (!isSelf && m.voice && m.content) {
+        speakVoiceDm(m.content, m.from);
       }
     } else if (!isSelf) {
       dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
@@ -2281,9 +2282,9 @@ function connectSocket() {
       fireOSNotif('[DM] ' + (sender.name || ''), m.content, () => openDM(peerUid));
       if (speakerOn) playBeep(true);
       // 音声DM: 取込中でも強制読み上げ (speakerOn無視)
-      if (m.voice && m.content && m.from !== 'bot_aoi') {
-        speakVoiceDm(m.content);
-      } else if (m.from !== 'bot_aoi' && speakerOn) {
+      if (m.voice && m.content) {
+        speakVoiceDm(m.content, m.from);
+      } else if (m.from !== 'bot_aoi' && m.from !== 'bot_health' && speakerOn) {
         // 通常DM: sender名のみアナウンス
         setTimeout(() => speakDmSender(sender.name || ''), 1200);
       }
@@ -4075,18 +4076,23 @@ function ttsOptsForBot(botUid) {
 
 // 音声DM: 送信者が「音声モード」で送ったメッセージ本文をそのまま読み上げ。
 // speakerOn=OFFでも force で強制再生 (取込中の相手にも伝わるのが本機能の目的)。
-async function speakVoiceDm(content) {
+// fromUid が bot_aoi/bot_health なら bot 別の声 (葵=Neural2-B, ヘルス=Wavenet-A) で再生
+async function speakVoiceDm(content, fromUid) {
   const text = (content || '').slice(0, 500);
   if (!text) return;
-  console.log('[cohub] voice DM play:', text);
-  await speakViaTTS(text, { force: true, speed: 1.1 });
+  let opts = { force: true, speed: 1.1 };
+  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health')) {
+    opts = Object.assign({ force: true }, ttsOptsForBot(fromUid));
+  }
+  console.log('[cohub] voice DM play:', text, 'from=' + (fromUid || '?'));
+  await speakViaTTS(text, opts);
 }
 
 // 受信済み音声DMを手動で再生 (履歴のボタン用)
 function replayVoiceDm(id) {
   const m = (dmLog || []).find(x => x.id == id);
   if (!m || !m.content) return;
-  speakVoiceDm(m.content);
+  speakVoiceDm(m.content, m.from);
 }
 
 // DM送付元名の読み上げ (受信時、送付元名を声でアナウンス)

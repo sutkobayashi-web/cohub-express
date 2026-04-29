@@ -231,7 +231,8 @@ async function chatBot(botId, userMessage, history) {
   const body = {
     systemInstruction: { parts: [{ text: sysPrompt }] },
     contents,
-    generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+    // thinkingBudget=0 で内部thinking 無効化 (出力切詰防止)、maxTokens 800 で十分な長さを確保
+    generationConfig: { temperature: 0.7, maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, {
@@ -244,10 +245,17 @@ async function chatBot(botId, userMessage, history) {
     throw new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 300));
   }
   const data = await resp.json();
-  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const cand = data.candidates && data.candidates[0];
+  const finishReason = cand && cand.finishReason;
+  const usage = data.usageMetadata || {};
+  const parts = cand && cand.content && cand.content.parts;
+  console.log(`[chatBot] finish=${finishReason||'?'} thoughts=${usage.thoughtsTokenCount||0} out=${usage.candidatesTokenCount||0}`);
   if (!parts) throw new Error('Gemini応答なし');
-  for (const p of parts) if (p.text) return p.text.trim();
-  throw new Error('応答テキストなし');
+  let text = '';
+  for (const p of parts) if (p.text) text += p.text;
+  if (!text) throw new Error('応答テキストなし');
+  // MAX_TOKENS で途中切れの場合も部分テキストを返す (空でない限り)
+  return text.trim();
 }
 
 // 汎用テキスト生成 (プロンプト→テキスト) — 健康管理室AI集計などで使用
