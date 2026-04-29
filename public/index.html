@@ -2541,6 +2541,11 @@ function onPointerDown(e) {
   }
   const peer = hitTestPeer(world.x, world.y);
   if (peer) {
+    // bot をタップ → 中間ピアメニューを飛ばして 直接 アクションメニューモーダル
+    if (peer.role === 'bot') {
+      try { showAoiActionModal(peer.uid, peer.name || (peer.uid === 'bot_health' ? 'ヘルスアドバイザー' : '葵')); } catch (err) {}
+      return;
+    }
     // 他人のアバターをタップ → 移動せずピアメニュー表示
     showPeerMenu(peer, e.clientX, e.clientY);
     return;
@@ -2947,20 +2952,47 @@ function drawConciergeStanding(u) {
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
   // 本体
   ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
-  // 頭上BOTバッジ
-  ctx.font = '700 10px sans-serif';
-  // bot 種別ごとに頭上ラベルを切替 (bot_aoi=AI受付, bot_health=AIヘルスアドバイザー, その他は名前)
-  const botLabel = u.uid === 'bot_aoi' ? '🤖 AI 受付'
-                  : u.uid === 'bot_health' ? '🩺 AI ヘルスアドバイザー'
+  // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (クリック可能感)
+  // bot 本体クリックで showAoiActionModal が直接開くようにしてあるので、視覚的にも「ボタン」にする
+  ctx.font = '800 11px sans-serif';
+  const botLabel = u.uid === 'bot_aoi' ? '🌸 メニューを開く'
+                  : u.uid === 'bot_health' ? '🩺 メニューを開く'
                   : (u.name || 'AI');
-  const tw = Math.round(ctx.measureText(botLabel).width + 16);
-  ctx.fillStyle = 'rgba(6,182,212,0.95)';
-  roundRect(cx - Math.round(tw / 2), headY - 20, tw, 18, 9);
+  const tw = Math.round(ctx.measureText(botLabel).width + 22);
+  const btnH = 22;
+  const btnY = headY - 26;
+  // ボタン グラデーション (bot 種別に応じた色)
+  const isHealthBot = u.uid === 'bot_health';
+  const isAoiBot = u.uid === 'bot_aoi';
+  const grad2 = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
+  if (isHealthBot) {
+    grad2.addColorStop(0, 'rgba(16,185,129,1)');
+    grad2.addColorStop(1, 'rgba(5,150,105,1)');
+  } else if (isAoiBot) {
+    grad2.addColorStop(0, 'rgba(6,182,212,1)');
+    grad2.addColorStop(1, 'rgba(8,145,178,1)');
+  } else {
+    grad2.addColorStop(0, 'rgba(100,116,139,1)');
+    grad2.addColorStop(1, 'rgba(71,85,105,1)');
+  }
+  // 影
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = grad2;
+  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 11);
   ctx.fill();
+  ctx.restore();
+  // 白縁取り (ボタン感を強調)
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 1.5;
+  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 11);
+  ctx.stroke();
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(botLabel, cx, headY - 11);
+  ctx.fillText(botLabel, cx, btnY + btnH / 2 + 0.5);
   // 名札 (足元下)
   const label = u.name || '葵';
   ctx.font = '600 12px sans-serif';
