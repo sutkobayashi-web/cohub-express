@@ -716,18 +716,10 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
         <div class="self-pip-hint">🏥 健康管理室にいます<br><span style="color:#06b6d4;font-weight:700;">タップでフロア移動</span></div>
       </div>
     </div>
-    <!-- 健康管理室: 個人健康記録ボタン (全員、左上、血圧/健康メモ/健診ファイル) -->
-    <button id="wellness-records-door" onclick="window.open('/wellness.html','_blank')"
-      style="display:none;position:absolute;top:46px;left:8px;z-index:9;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(16,185,129,0.4);align-items:center;gap:8px;">
-      <span style="font-size:18px;">📋</span>
-      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
-        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">個人専用</span>
-        <span>健康記録 (血圧・健診)</span>
-      </span>
-    </button>
-    <!-- 健康管理室: 推進メンバー専用 運営ダッシュボード入室ボタン (左上、records doorの下) -->
+    <!-- 旧: 健康管理室左上に「📋 健康記録」緑ボタン (撤去: ヘルスメニュー最上位の同ボタンと重複していたため) -->
+    <!-- 健康管理室: 推進メンバー専用 運営ダッシュボード入室ボタン -->
     <button id="wellness-ops-door" onclick="window.open('/wellness-ops.html','_blank')"
-      style="display:none;position:absolute;top:96px;left:8px;z-index:9;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.4);align-items:center;gap:8px;">
+      style="display:none;position:absolute;top:46px;left:8px;z-index:9;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.4);align-items:center;gap:8px;">
       <span style="font-size:16px;">🚪</span>
       <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
         <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">推進メンバー専用</span>
@@ -6029,11 +6021,7 @@ function applyFloorLayout(floor) {
   if (ifr) ifr.style.display = 'none';
   document.body.classList.remove('layout-wellness');
   document.body.classList.toggle('layout-meeting', !!isMeeting);
-  // 健康管理室: 個人健康記録ボタン (全員)
-  const recordsDoor = document.getElementById('wellness-records-door');
-  if (recordsDoor) {
-    recordsDoor.style.display = isWellnessRoom ? 'inline-flex' : 'none';
-  }
+  // (旧: wellness-records-door の表示制御はヘルスメニュー最上位ボタンへ統合済)
   // 健康管理室: 推進メンバー or 管理職にだけ運営ダッシュボード入室ボタンを表示
   const opsDoor = document.getElementById('wellness-ops-door');
   if (opsDoor) {
