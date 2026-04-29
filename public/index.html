@@ -6381,15 +6381,19 @@ function showAoiActionModal(botUid, botName) {
         <div style="flex:1;"><div>相談 → アクションプラン作成</div><div style="font-size:11px;font-weight:600;opacity:0.95;">タップで進める質問に答えるだけ</div></div>
       </button>`
     : '';
-  const thirdBtn = isHealth
-    ? `<button onclick="aoiAction('records', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+  // 個人健康記録ボタン (ヘルスメニュー時の最上位、緑グラデで主役級に)
+  const recordsBtn = isHealth
+    ? `<button onclick="aoiAction('records', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;text-align:left;box-shadow:0 4px 12px rgba(16,185,129,0.3);">
         <span style="font-size:22px;">📋</span>
-        <div style="flex:1;"><div>個人健康記録を見る</div><div style="font-size:11px;font-weight:400;color:#64748b;">血圧・健康メモ・健診結果</div></div>
+        <div style="flex:1;"><div>個人健康記録を見る</div><div style="font-size:11px;font-weight:600;opacity:0.95;">血圧・健康メモ・健診結果</div></div>
       </button>`
-    : `<button onclick="aoiAction('schedule', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+    : '';
+  const scheduleBtn = !isHealth
+    ? `<button onclick="aoiAction('schedule', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
         <span style="font-size:22px;">📅</span>
         <div style="flex:1;"><div>今日の予定を確認</div><div style="font-size:11px;font-weight:400;color:#64748b;">Google カレンダーから取得</div></div>
-      </button>`;
+      </button>`
+    : '';
   const modal = document.createElement('div');
   modal.id = 'aoi-action-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -6404,8 +6408,9 @@ function showAoiActionModal(botUid, botName) {
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+        ${recordsBtn}
         ${planBtn}
-        <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${isHealth ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${isHealth ? 'linear-gradient(135deg,#06b6d4,#0891b2)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
           <span style="font-size:22px;">💬</span>
           <div style="flex:1;"><div>DMで話す</div><div style="font-size:11px;font-weight:400;opacity:0.9;">${dmSub}</div></div>
         </button>
@@ -6413,7 +6418,7 @@ function showAoiActionModal(botUid, botName) {
           <span style="font-size:22px;">🛗</span>
           <div style="flex:1;"><div>別のフロアへ移動</div><div style="font-size:11px;font-weight:400;color:#64748b;">事務所棟・現場棟・会議室など</div></div>
         </button>
-        ${thirdBtn}
+        ${scheduleBtn}
       </div>
       <button onclick="closeAoiModal()" style="display:block;width:100%;margin-top:10px;padding:8px;background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;">後にする ×</button>
     </div>`;
