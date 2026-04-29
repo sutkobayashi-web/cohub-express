@@ -10,6 +10,12 @@ const LOBBY_ANNOUNCE_ROOM = 'lobby';  // 全社アナウンスはロビーフロ
 const CATEGORIES = ['体調', '食事', '睡眠', '職場環境', 'その他'];
 const URGENCIES = ['低', '中', '高'];
 const IDENTITY_MODES = ['本人特定可', '匿名', '集計のみ'];
+// 投稿元区分 (B案): 推進メンバー(運管型) 内の役割区別
+// - 運管: 配車・点呼担当 (ドライバー対応の最前線)
+// - 倉庫: 倉庫管理者 (荷役・庫内作業者対応)
+// - 総務: 総務・人事 (オフィス職員対応、産業医連絡担当)
+// - その他: 上記以外 (店舗担当、特殊業務等)
+const SOURCE_TYPES = ['運管', '倉庫', '総務', 'その他'];
 // v2 パイプライン: 候補→評議→推進確定→保健師中→役員→投票中→保健師末→実行→完了
 const ACTION_STATUSES = ['候補', '評議中', '推進確定', '保健師中間', '役員決済', '投票中', '保健師最終', '実行中', '完了', '却下'];
 // 段階遷移マップ (どこへ進めるか)
@@ -60,14 +66,16 @@ router.post('/post', authUser, express.json(), (req, res) => {
   const urgency = String(body.urgency || '').trim();
   const identityMode = String(body.identity_mode || '').trim();
   const memo = String(body.memo || '').slice(0, 200).trim();
+  const sourceType = String(body.source_type || '運管').trim();
   if (!CATEGORIES.includes(category)) return res.status(400).json({ success: false, msg: 'カテゴリ不正' });
   if (!URGENCIES.includes(urgency)) return res.status(400).json({ success: false, msg: '緊急度不正' });
   if (!IDENTITY_MODES.includes(identityMode)) return res.status(400).json({ success: false, msg: '特定区分不正' });
+  if (!SOURCE_TYPES.includes(sourceType)) return res.status(400).json({ success: false, msg: '投稿元区分不正' });
 
   const db = getDb();
   const poster = db.prepare('SELECT id, display_name, company_code FROM users WHERE id = ?').get(req.uid);
-  const ins = db.prepare(`INSERT INTO wellness_posts (poster_id, company_code, category, urgency, identity_mode, memo)
-    VALUES (?, ?, ?, ?, ?, ?)`).run(poster.id, poster.company_code || '', category, urgency, identityMode, memo);
+  const ins = db.prepare(`INSERT INTO wellness_posts (poster_id, company_code, category, urgency, identity_mode, memo, source_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(poster.id, poster.company_code || '', category, urgency, identityMode, memo, sourceType);
   const postId = ins.lastInsertRowid;
 
   // チャット表示用にフォーマット
@@ -122,7 +130,7 @@ router.get('/posts', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const rows = getDb().prepare(`
     SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code,
-           wp.created_at, u.display_name as poster_name
+           wp.source_type, wp.created_at, u.display_name as poster_name
     FROM wellness_posts wp
     LEFT JOIN users u ON u.id = wp.poster_id
     ORDER BY wp.id DESC LIMIT ?
@@ -147,6 +155,7 @@ router.get('/meta', authUser, (req, res) => {
     categories: CATEGORIES,
     urgencies: URGENCIES,
     identity_modes: IDENTITY_MODES,
+    source_types: SOURCE_TYPES,
     action_statuses: ACTION_STATUSES,
   });
 });

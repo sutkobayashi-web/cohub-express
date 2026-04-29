@@ -848,6 +848,11 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <div style="font-size:11px;color:#64748b;margin-bottom:14px;line-height:1.6;">点呼/帰庫時に現場で気付いたことを30秒で記録。健康管理室の推進メンバーに即共有されます。</div>
     <form id="fieldvoice-form" autocomplete="off" onsubmit="event.preventDefault(); submitFieldVoice();">
       <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;color:#475569;margin-bottom:5px;font-weight:700;">投稿元 <span style="color:#dc2626;">*</span></label>
+        <div id="fv-src-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;"></div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:4px;">運管=配車・点呼 / 倉庫=庫内作業 / 総務=オフィス職員 / その他=店舗等</div>
+      </div>
+      <div style="margin-bottom:12px;">
         <label style="display:block;font-size:12px;color:#475569;margin-bottom:5px;font-weight:700;">カテゴリ <span style="color:#dc2626;">*</span></label>
         <div id="fv-cat-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;"></div>
       </div>
@@ -1350,19 +1355,19 @@ function closePasswordModal() {
 
 // ===== 🩺 現場の声 (推進メンバー専用 POST) =====
 let _fvMeta = null;
-let _fvState = { category: '', urgency: '', identity_mode: '' };
+let _fvState = { source_type: '', category: '', urgency: '', identity_mode: '' };
 async function openFieldVoiceModal() {
   if (!currentUser || !currentUser.is_field_promoter) return;
   document.getElementById('fv-err').textContent = '';
   document.getElementById('fv-memo').value = '';
   document.getElementById('fv-memo-count').textContent = '0';
-  _fvState = { category: '', urgency: '', identity_mode: '' };
+  _fvState = { source_type: '', category: '', urgency: '', identity_mode: '' };
   // メタ情報取得 (初回のみ)
   if (!_fvMeta) {
     try {
       const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
       _fvMeta = await r.json();
-    } catch (e) { _fvMeta = { categories: ['体調','食事','睡眠','職場環境','その他'], urgencies: ['低','中','高'], identity_modes: ['本人特定可','匿名','集計のみ'] }; }
+    } catch (e) { _fvMeta = { categories: ['体調','食事','睡眠','職場環境','その他'], urgencies: ['低','中','高'], identity_modes: ['本人特定可','匿名','集計のみ'], source_types: ['運管','倉庫','総務','その他'] }; }
   }
   // 選択肢ボタン描画
   const renderChoiceGrid = (id, items, key, defaultIdx) => {
@@ -1372,6 +1377,7 @@ async function openFieldVoiceModal() {
     }).join('');
     if (defaultIdx != null && items[defaultIdx]) setFieldVoice(key, items[defaultIdx]);
   };
+  renderChoiceGrid('fv-src-grid', _fvMeta.source_types || ['運管','倉庫','総務','その他'], 'source_type', 0);  // デフォルト=運管
   renderChoiceGrid('fv-cat-grid', _fvMeta.categories || [], 'category');
   renderChoiceGrid('fv-urg-grid', _fvMeta.urgencies || [], 'urgency', 0);  // デフォルト=低
   renderChoiceGrid('fv-id-grid', _fvMeta.identity_modes || [], 'identity_mode', 2);  // デフォルト=集計のみ
@@ -1382,7 +1388,7 @@ function closeFieldVoiceModal() {
 }
 function setFieldVoice(key, v) {
   _fvState[key] = v;
-  const gridId = key === 'category' ? 'fv-cat-grid' : key === 'urgency' ? 'fv-urg-grid' : 'fv-id-grid';
+  const gridId = key === 'source_type' ? 'fv-src-grid' : key === 'category' ? 'fv-cat-grid' : key === 'urgency' ? 'fv-urg-grid' : 'fv-id-grid';
   const host = document.getElementById(gridId);
   if (!host) return;
   host.querySelectorAll('button').forEach(b => {
@@ -1396,6 +1402,7 @@ async function submitFieldVoice() {
   const memo = document.getElementById('fv-memo').value.trim();
   const errEl = document.getElementById('fv-err');
   errEl.textContent = '';
+  if (!_fvState.source_type) { errEl.textContent = '投稿元を選択してください'; return; }
   if (!_fvState.category) { errEl.textContent = 'カテゴリを選択してください'; return; }
   if (!_fvState.urgency) { errEl.textContent = '緊急度を選択してください'; return; }
   if (!_fvState.identity_mode) { errEl.textContent = '特定区分を選択してください'; return; }
@@ -1405,7 +1412,7 @@ async function submitFieldVoice() {
     const r = await fetch('/api/wellness/post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ category: _fvState.category, urgency: _fvState.urgency, identity_mode: _fvState.identity_mode, memo }),
+      body: JSON.stringify({ source_type: _fvState.source_type, category: _fvState.category, urgency: _fvState.urgency, identity_mode: _fvState.identity_mode, memo }),
     });
     const j = await r.json();
     if (!j.success) { errEl.textContent = j.msg || '送信失敗'; btn.disabled = false; btn.textContent = 'POST送信'; return; }

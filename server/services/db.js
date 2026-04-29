@@ -68,6 +68,8 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_wp_at ON wellness_posts(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wp_cat ON wellness_posts(category, created_at DESC);`);
+  // 投稿元区分 (運管/倉庫/総務/その他) - B案で追加
+  ensureColumn(_db, 'wellness_posts', 'source_type', "source_type TEXT DEFAULT '運管'");
   // 健康管理室 月次施策ボード
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

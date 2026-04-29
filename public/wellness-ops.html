@@ -286,6 +286,7 @@ window.addEventListener('DOMContentLoaded', () => {
   <div class="card">
     <h2>🩺 現場の声 (運管POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
     <div class="row">
+      <select id="fv-src-filter"><option value="">投稿元すべて</option><option value="運管">🚛 運管</option><option value="倉庫">📦 倉庫</option><option value="総務">🏢 総務</option><option value="その他">💼 その他</option></select>
       <select id="fv-cat-filter"><option value="">カテゴリすべて</option><option value="体調">体調</option><option value="食事">食事</option><option value="睡眠">睡眠</option><option value="職場環境">職場環境</option><option value="その他">その他</option></select>
       <select id="fv-urg-filter"><option value="">緊急度すべて</option><option value="高">🔴 高</option><option value="中">🟡 中</option><option value="低">🟢 低</option></select>
       <input type="number" id="fv-limit" value="50" min="10" max="200" style="max-width:90px;" title="表示件数">
@@ -294,7 +295,7 @@ window.addEventListener('DOMContentLoaded', () => {
     </div>
     <div style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
       <table style="margin:0;">
-        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th><th style="width:80px;">議論</th></tr></thead>
+        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:80px;">投稿元</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th><th style="width:80px;">議論</th></tr></thead>
         <tbody id="fv-tbody"></tbody>
       </table>
     </div>
@@ -1631,10 +1632,13 @@ async function loadFieldVoice() {
     const r = await fetch('/api/wellness/posts?limit=' + limit, { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
     if (!d.success) { tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    const srcFilter = (document.getElementById('fv-src-filter') || {}).value || '';
     const catFilter = document.getElementById('fv-cat-filter').value;
     const urgFilter = document.getElementById('fv-urg-filter').value;
     const filtered = (d.posts || []).filter(p =>
-      (!catFilter || p.category === catFilter) && (!urgFilter || p.urgency === urgFilter)
+      (!srcFilter || (p.source_type || '運管') === srcFilter)
+      && (!catFilter || p.category === catFilter)
+      && (!urgFilter || p.urgency === urgFilter)
     );
     cnt.textContent = filtered.length + '件 / 全' + (d.posts || []).length + '件';
     if (!filtered.length) {
@@ -1644,11 +1648,15 @@ async function loadFieldVoice() {
     const urgIcon = u => u === '高' ? '🔴' : u === '中' ? '🟡' : '🟢';
     const urgColor = u => u === '高' ? '#dc2626' : u === '中' ? '#d97706' : '#059669';
     const idColor = m => m === '本人特定可' ? '#0891b2' : m === '匿名' ? '#7c3aed' : '#64748b';
+    const srcIcon = s => s === '倉庫' ? '📦' : s === '総務' ? '🏢' : s === 'その他' ? '💼' : '🚛';
+    const srcColor = s => s === '倉庫' ? '#ea580c' : s === '総務' ? '#0e7490' : s === 'その他' ? '#7c3aed' : '#0891b2';
     tb.innerHTML = filtered.map(p => {
       const dtime = new Date(p.created_at + 'Z').toLocaleString('ja-JP');
+      const srcType = p.source_type || '運管';
       return `<tr>
         <td style="font-size:11px;color:#94a3b8;font-weight:700;">#${p.id}</td>
         <td style="font-size:11px;color:#64748b;white-space:nowrap;">${dtime}</td>
+        <td style="font-size:11px;color:${srcColor(srcType)};font-weight:700;">${srcIcon(srcType)} ${escapeHtml(srcType)}</td>
         <td style="font-size:12px;">${escapeHtml(p.poster_name || '-')}</td>
         <td style="font-size:11px;color:#64748b;">${escapeHtml(p.company_code || '-')}</td>
         <td style="font-size:12px;font-weight:600;">${escapeHtml(p.category)}</td>
@@ -1657,7 +1665,7 @@ async function loadFieldVoice() {
         <td style="font-size:12px;line-height:1.5;">${escapeHtml(p.memo || '').replace(/\n/g, '<br>') || '<span style="color:#cbd5e1;">(なし)</span>'}</td>
         <td style="font-size:11px;"><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="togglePostDiscuss(${p.id})">💬議論</button></td>
       </tr>
-      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="9" style="background:#f8fafc;padding:10px;">
+      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="10" style="background:#f8fafc;padding:10px;">
         <div id="post-discuss-area-${p.id}"></div>
       </td></tr>`;
     }).join('');
