@@ -63,11 +63,22 @@
   /* ===== シェル ===== */
   #app { position: fixed; inset: 0; display: none; flex-direction: column; }
   /* ヘッダー */
-  #topbar { flex-shrink: 0; background: #ffffff; color: #0f172a; padding: env(safe-area-inset-top) 14px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
-  #topbar .ttl { flex: 1; font-weight: 800; letter-spacing: 1px; font-size: 15px; color: #0f172a; }
+  #topbar { flex-shrink: 0; background: #ffffff; color: #0f172a; padding: env(safe-area-inset-top) 14px 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+  #topbar .ttl { font-weight: 800; letter-spacing: 1px; font-size: 15px; color: #0f172a; }
+  #topbar .fz-btn { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1px solid #93c5fd; color: #1e3a8a; height: 28px; padding: 0 8px; border-radius: 8px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; line-height: 1; flex-shrink: 0; }
+  #topbar .fz-btn .a-small { font-size: 10px; }
+  #topbar .fz-btn .a-big { font-size: 16px; }
+  #topbar .fz-btn .lvl { font-size: 9px; color: #3b82f6; margin-left: 1px; }
+  #topbar .spacer { flex: 1; }
   #topbar .status-pill { background: #f3f4f6; color: #475569; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
   #topbar .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
   #topbar .mute-btn { background: #f3f4f6; border: none; color: #475569; width: 34px; height: 34px; border-radius: 10px; font-size: 16px; }
+  /* 文字サイズ切替: html font-size ベースで全体スケール (rem/em使ってないため #content を transform:scale で代替) */
+  #content { transform-origin: top left; transition: transform 0.15s ease; }
+  #content.fz-s  { transform: scale(0.9);  width: calc(100% / 0.9); }
+  #content.fz-m  { transform: none; }
+  #content.fz-l  { transform: scale(1.12); width: calc(100% / 1.12); }
+  #content.fz-xl { transform: scale(1.25); width: calc(100% / 1.25); }
 
   /* コンテンツ領域 */
   #content { flex: 1; overflow: hidden; position: relative; }
@@ -312,6 +323,10 @@
 <div id="app">
   <div id="topbar">
     <div class="ttl">CoWell</div>
+    <button class="fz-btn" id="fz-btn" onclick="cycleFontSize()" title="文字サイズ切替">
+      <span class="a-small">A</span><span class="a-big">A</span><span class="lvl" id="fz-lvl">M</span>
+    </button>
+    <div class="spacer"></div>
     <div class="status-pill" onclick="openStatusSheet()" title="タップで切替"><span class="dot" id="top-sdot"></span><span id="top-status">在席</span> <span style="font-size:9px;color:#94a3b8;">▾</span></div>
     <button class="mute-btn" id="mute-btn" onclick="toggleMute()" title="音声">🔊</button>
   </div>
@@ -1856,6 +1871,30 @@ function toggleMute() {
   try { localStorage.setItem('m_speaker_on', speakerOn ? '1' : '0'); } catch (e) {}
   if (!speakerOn) stopAoiSpeech();
 }
+
+// 文字サイズ切替 (s/m/l/xl をタップで循環)
+const FZ_LEVELS = ['s', 'm', 'l', 'xl'];
+const FZ_LABELS = { s: 'S', m: 'M', l: 'L', xl: 'XL' };
+function applyFontSize(level) {
+  const c = document.getElementById('content');
+  if (c) {
+    c.classList.remove('fz-s', 'fz-m', 'fz-l', 'fz-xl');
+    c.classList.add('fz-' + level);
+  }
+  const lbl = document.getElementById('fz-lvl');
+  if (lbl) lbl.textContent = FZ_LABELS[level] || 'M';
+  try { localStorage.setItem('m_fz', level); } catch (e) {}
+}
+function cycleFontSize() {
+  const cur = (function(){ try { return localStorage.getItem('m_fz') || 'm'; } catch(e){ return 'm'; } })();
+  const idx = FZ_LEVELS.indexOf(cur);
+  const next = FZ_LEVELS[(idx + 1) % FZ_LEVELS.length];
+  applyFontSize(next);
+}
+// 起動時に保存サイズを復元
+window.addEventListener('DOMContentLoaded', () => {
+  try { const s = localStorage.getItem('m_fz') || 'm'; applyFontSize(s); } catch (e) {}
+});
 async function speakAoi(text) {
   if (!speakerOn || !text) return;
   try {
