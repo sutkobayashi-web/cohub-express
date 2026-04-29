@@ -2621,7 +2621,7 @@ function render() {
   // ヘルスアドバイザーは全身立ち姿
   const FIRST_PERSON_BOT = {
     'lobby':         { uid: 'bot_aoi',    x: 744, y: 475, clip: true  },
-    'wellness_room': { uid: 'bot_health', x: 420, y: 500, clip: false },
+    'wellness_room': { uid: 'bot_health', x: 1100, y: 560, clip: false },  // 右側スタンディングデスクの後ろ
   };
   const LOBBY_COUNTER_TOP_Y = 465;
 
@@ -2694,6 +2694,11 @@ function render() {
   } else {
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  }
+
+  // 健康管理室: 個人アクション掲示用ホワイトボードを描画 (動的データ)
+  if (currentFloor && currentFloor.code === 'wellness_room') {
+    try { drawWellnessWhiteboard(); } catch (e) {}
   }
 
   // 1Fロビー: ロゴは背景画像 (Gemini生成・一番最初のデザイン) に焼き込み済み
@@ -2921,6 +2926,149 @@ function drawFloorEntrance(x, y, floorCode) {
   ctx.fillStyle = '#fff';
   ctx.fillText(label, x + 20, y - doorH / 2 - 13);
   ctx.restore();
+}
+
+// ===== 健康管理室 ホワイトボード (個人アクション掲示) =====
+let _wellnessFeed = null;
+let _wellnessFeedFetchedAt = 0;
+const WELLNESS_FEED_TTL = 60000;  // 60秒キャッシュ
+
+async function loadWellnessFeed() {
+  const now = Date.now();
+  if (now - _wellnessFeedFetchedAt < WELLNESS_FEED_TTL && _wellnessFeed) return;
+  _wellnessFeedFetchedAt = now;
+  try {
+    const r = await fetch('/api/myplan/feed', { headers: { 'Authorization': 'Bearer ' + (token || '') } });
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.success) _wellnessFeed = d;
+    }
+  } catch (e) {}
+}
+
+// ホワイトボード描画 (背景の上にオーバーレイ)
+// 配置: 上部中央 〜 右側 の壁面想定 world (560, 60) - (1280, 410)
+function drawWellnessWhiteboard() {
+  // データ未取得なら lazy fetch
+  if (!_wellnessFeed) loadWellnessFeed();
+
+  // bot は右側 world (1100, 560), 全身440px → 範囲 880-1320
+  // 背景画像のホワイトボード位置 (中央〜やや左) に重ねて表示することで一体感を出す
+  const x = 380, y = 90;
+  const w = 540, h = 290;
+  // 木製フレーム (外枠)
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  // フレーム
+  const fg = ctx.createLinearGradient(x, y, x, y + h);
+  fg.addColorStop(0, '#a98264');
+  fg.addColorStop(1, '#7a5a3f');
+  ctx.fillStyle = fg;
+  roundRect(x - 10, y - 10, w + 20, h + 20, 14);
+  ctx.fill();
+  ctx.restore();
+  // ホワイトボード本体 (白)
+  const bg = ctx.createLinearGradient(x, y, x, y + h);
+  bg.addColorStop(0, '#ffffff');
+  bg.addColorStop(1, '#f1f5f9');
+  ctx.fillStyle = bg;
+  roundRect(x, y, w, h, 8);
+  ctx.fill();
+  // 上端の磁石飾り
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath(); ctx.arc(x + 30, y + 14, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3b82f6';
+  ctx.beginPath(); ctx.arc(x + w - 30, y + 14, 8, 0, Math.PI * 2); ctx.fill();
+  // タイトル
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#1e3a8a';
+  ctx.font = '900 22px sans-serif';
+  ctx.fillText('📋 みんなの一歩', x + w / 2, y + 30);
+  ctx.font = '600 11px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('〜 今週の取り組み 〜', x + w / 2, y + 52);
+  // 区切り線
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x + 30, y + 68); ctx.lineTo(x + w - 30, y + 68); ctx.stroke();
+
+  // データ未取得 / 空
+  const fd = _wellnessFeed;
+  if (!fd) {
+    ctx.font = '600 14px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('読み込み中…', x + w / 2, y + h / 2 + 30);
+    return;
+  }
+  const cats = (fd.by_category || []);
+  if (!cats.length) {
+    ctx.font = '600 14px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('まだ今週の取り組みはありません', x + w / 2, y + h / 2 + 20);
+    ctx.font = '500 12px sans-serif';
+    ctx.fillText('健康相談を始めると、ここに掲示されます', x + w / 2, y + h / 2 + 42);
+    return;
+  }
+
+  // カテゴリ集計 (左カラム)
+  ctx.textAlign = 'left';
+  ctx.font = '800 12px sans-serif';
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillText('📊 カテゴリ別', x + 22, y + 90);
+  let cy = y + 112;
+  for (const c of cats.slice(0, 5)) {
+    ctx.font = '700 12px sans-serif';
+    ctx.fillStyle = '#334155';
+    ctx.fillText(c.label, x + 22, cy);
+    ctx.font = '900 14px sans-serif';
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillText(c.count + '名', x + 180, cy);
+    cy += 22;
+  }
+  if (fd.today_done) {
+    ctx.font = '700 11px sans-serif';
+    ctx.fillStyle = '#10b981';
+    ctx.fillText(`✅ 今日 ${fd.today_done}名 完了`, x + 22, cy + 6);
+  }
+
+  // 先駆者リスト (右カラム)
+  const px = x + 250;
+  ctx.font = '800 12px sans-serif';
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillText('✨ 先駆者の仲間たち', px, y + 90);
+  let py = y + 112;
+  const pioneers = (fd.pioneers || []).slice(0, 6);
+  if (!pioneers.length) {
+    ctx.font = '500 12px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('まだ公開している人はいません', px, py);
+  } else {
+    for (const p of pioneers) {
+      // 行背景 (薄黄色)
+      ctx.fillStyle = 'rgba(254,243,199,0.75)';
+      roundRect(px - 4, py - 11, 270, 20, 4);
+      ctx.fill();
+      ctx.font = '700 11.5px sans-serif';
+      ctx.fillStyle = '#78350f';
+      ctx.textAlign = 'left';
+      const name = (p.name || '匿名').slice(0, 8);
+      const cat = (p.category_label || '').slice(0, 7);
+      let line = '✨ ' + name + ' → ' + cat;
+      if (p.pioneer_count > 1) line += ' ×' + p.pioneer_count;
+      ctx.fillText(line, px + 4, py + 1);
+      py += 22;
+      if (py > y + h - 28) break;
+    }
+  }
+  // フッター: 取得時刻
+  ctx.font = '500 10px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'right';
+  const ago = Math.floor((Date.now() - _wellnessFeedFetchedAt) / 1000);
+  ctx.fillText('更新: ' + (ago < 60 ? ago + '秒前' : Math.floor(ago/60) + '分前'), x + w - 16, y + h - 12);
 }
 
 // 受付AI 葵 / ヘルスアドバイザー: 立ち姿描画 (透過+影+名札)
