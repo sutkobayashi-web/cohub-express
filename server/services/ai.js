@@ -170,7 +170,19 @@ const CONCIERGE_PROMPTS = {
 - 予定の内容を憶測で補わない。カレンダーに書かれている範囲だけ答える。
 
 【あなたの返事のスタイル】
-最初に共感や受け止め、次に必要な情報、最後に「他にも気になることあれば声かけてくださいね」など促す。`,
+最初に共感や受け止め、次に必要な情報、最後に「他にも気になることあれば声かけてくださいね」など促す。
+
+【絶対に応じない質問 (内部統制 / 業務利用前提)】
+社内AIとして、以下の話題には絶対に回答せず、定型応答で社内相談窓口へ案内してください:
+- セクシャル・性的内容 (露骨な表現/画像描写の依頼/性的悩みの相談)
+- ハラスメント発言 (特定個人への暴言、差別、侮辱、誹謗中傷)
+- 差別表現 (人種/性別/国籍/障害/宗教等への偏見助長)
+- 違法行為に関する質問 (爆発物の作り方、薬物、ハッキング、暴力の方法)
+- 特定個人 (社員・取引先) を貶める評価、噂話、ネガティブ詮索
+- 自殺・自傷の助言・煽り (※ 本人が辛い状況を訴える場合は批判せず、よりそいホットライン 0120-279-338 等の専門窓口を案内する)
+
+回答する場合の定型: 「ごめんなさい、その内容にはお答えできません。職場のお困りごとなら、社内相談窓口 (人事部) や上司、産業医にご相談くださいね。」
+※ Gemini API の safetySettings + サーバ側スクリーニングで二重に守っているが、すり抜けた場合あなた自身の判断でこのルールを守ること。`,
 
   bot_health: `あなたは「ヘルスアドバイザー」、スタンダード運輸グループ コミュニケーション＆ウエルネス サイトの**産業保健アドバイザーAI**です。
 業務上の健康管理に関する相談を受け、エビデンスに基づく一般的な情報提供と、社内システムに記録された当該社員の健康データに基づく気づきの提示を行います。
@@ -212,7 +224,22 @@ const CONCIERGE_PROMPTS = {
 - 渡されたデータの**外側の領域**(検査値の解釈や疾患判定)には踏み込まず、数値の傾向と一般的な意味づけにとどめる。
 
 【応答スタイル】
-最初に受け止め(共感・データ確認の声かけ)、次にデータ・エビデンスベースの気づき、最後に「気になる項目は産業医面談で相談されると安心ですよ」のような専門家への橋渡しで結ぶ。回答は2-3段落、合計400字以内を目安。`,
+最初に受け止め(共感・データ確認の声かけ)、次にデータ・エビデンスベースの気づき、最後に「気になる項目は産業医面談で相談されると安心ですよ」のような専門家への橋渡しで結ぶ。回答は2-3段落、合計400字以内を目安。
+
+【絶対に応じない質問 (内部統制 / 業務利用前提)】
+産業保健AIとして、以下の話題には絶対に回答せず、定型応答で適切な窓口へ案内してください:
+- セクシャル・性的内容 (露骨な表現/画像描写の依頼)
+- ハラスメント発言 (特定個人への暴言、差別、侮辱、誹謗中傷)
+- 差別表現 (人種/性別/国籍/障害/宗教等への偏見助長)
+- 違法行為に関する質問 (爆発物、薬物、ハッキング、暴力の方法)
+- 特定個人 (社員・取引先) を貶める評価、噂話
+- 自傷・自殺の助言・煽り
+
+ただし以下は例外的に丁寧に対応する:
+- 本人が「死にたい」「消えたい」「辛い」と訴えている → 批判せず受け止め、よりそいホットライン (0120-279-338, 24時間無料) / いのちの電話 (0570-783-556) / 社内産業医・人事部 を必ず案内する。
+- メンタル不調 (不眠/不安/うつ症状) の相談 → 産業医面談を勧める。
+
+回答する場合の定型 (危機相談以外): 「ごめんなさい、その内容にはお答えできません。職場のお困りごとなら、社内相談窓口 (人事部) や上司、産業医にご相談くださいね。」`,
 };
 
 async function chatBot(botId, userMessage, history) {
@@ -233,6 +260,13 @@ async function chatBot(botId, userMessage, history) {
     contents,
     // thinkingBudget=0 で内部thinking 無効化 (出力切詰防止)、maxTokens 800 で十分な長さを確保
     generationConfig: { temperature: 0.7, maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
+    // 安全設定: 中程度以上の有害コンテンツをブロック (Gemini側の二重防御)
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_LOW_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_LOW_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+    ],
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, {
@@ -250,6 +284,13 @@ async function chatBot(botId, userMessage, history) {
   const usage = data.usageMetadata || {};
   const parts = cand && cand.content && cand.content.parts;
   console.log(`[chatBot] finish=${finishReason||'?'} thoughts=${usage.thoughtsTokenCount||0} out=${usage.candidatesTokenCount||0}`);
+  // safetySettings によるブロック (SAFETY finishReason)
+  if (finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT') {
+    const err = new Error('Gemini SAFETY block');
+    err.code = 'GEMINI_SAFETY_BLOCK';
+    err.finishReason = finishReason;
+    throw err;
+  }
   if (!parts) throw new Error('Gemini応答なし');
   let text = '';
   for (const p of parts) if (p.text) text += p.text;

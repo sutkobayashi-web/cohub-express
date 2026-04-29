@@ -762,6 +762,26 @@ function getDb() {
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_myplan_user ON myplan_consultations(user_id, created_at DESC);`);
+
+  // AIチャット 不適切質問ログ (内部統制 / 監査用)
+  // L1キーワード検知 / L3 Gemini SAFETY block で記録、推進メンバー/管理者へ即時通報
+  _db.exec(`CREATE TABLE IF NOT EXISTS inappropriate_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    bot_id TEXT NOT NULL,                  -- bot_aoi / bot_health
+    content TEXT NOT NULL,                  -- 検知された入力本文 (フル保存、改ざん防止)
+    detection_layer TEXT NOT NULL,         -- 'L1_keyword' / 'L3_gemini_safety'
+    category TEXT,                         -- sexual / harassment / discrimination 等
+    matched_pattern TEXT,                   -- 一致したキーワード or finishReason
+    severity TEXT DEFAULT 'medium',        -- low / medium / high
+    reviewed_at TEXT,
+    reviewed_by TEXT,
+    review_note TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_ial_user ON inappropriate_logs(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_ial_unreviewed ON inappropriate_logs(reviewed_at, severity);`);
+
   // ニックネーム公開フラグ (段3 先駆者制)
   ensureColumn(_db, 'myplan_consultations', 'share_publicly', 'share_publicly INTEGER DEFAULT 0');
   ensureColumn(_db, 'myplan_consultations', 'share_opted_at', 'share_opted_at TEXT');

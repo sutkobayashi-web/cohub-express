@@ -13,6 +13,7 @@ let webpush = null;
 try { webpush = require('web-push'); } catch (e) { console.warn('web-push未インストール'); }
 const { getDb } = require('./services/db');
 const { chatBot } = require('./services/ai');
+const safety = require('./services/safety');
 const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
@@ -412,6 +413,41 @@ app.locals.emitToGroupMembers = function(groupId, eventName, payload) {
   } catch (e) { console.warn('emitToGroupMembers fail', e.message); return 0; }
 };
 app.locals.sendPushToUser = (uid, p) => sendPushToUser(uid, p);
+
+// AI不適切検知時の管理者+推進メンバー通報
+// (1) 管理者全員にPush通知 (2) 推進メンバーDMにシステム警告メッセージ
+function notifyInappropriateDetection(senderUid, botId, content, hit) {
+  try {
+    const db = getDb();
+    const sender = db.prepare("SELECT display_name, nickname FROM users WHERE id = ?").get(senderUid) || {};
+    const senderName = sender.display_name || sender.nickname || '不明';
+    const targets = db.prepare("SELECT id FROM users WHERE (employee_type='admin' OR is_field_promoter=1) AND role != 'bot'").all();
+    const summary = `🚨 AI不適切検知\n${senderName} → ${botId === 'bot_health' ? 'ヘルス' : '葵'}\nカテゴリ: ${hit.category} (${hit.severity})\n本文先頭: 「${(content||'').slice(0, 60)}…」\n→ /admin で履歴確認`;
+    for (const t of targets) {
+      // Push通知 (オフラインでも届く)
+      sendPushToUser(t.id, {
+        title: '🚨 AI不適切検知',
+        body: senderName + ' / ' + hit.category,
+        tag: 'safety-alert',
+        mention: true,
+        url: '/admin',
+      }).catch(() => {});
+      // システムBOTからDM (管理者の DM 履歴に残る、後で確認可)
+      try {
+        const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_aoi', ?, ?, 'dm')").run(t.id, summary);
+        const tp = presence.get(t.id);
+        if (tp) {
+          const s = io.sockets.sockets.get(tp.socketId);
+          if (s) s.emit('dm:msg', {
+            id: ins.lastInsertRowid, from: 'bot_aoi', to: t.id, content: summary,
+            at: new Date().toISOString(), attach: null,
+          });
+        }
+      } catch (e) {}
+    }
+    console.warn(`[safety notify] sent to ${targets.length} admins/promoters`);
+  } catch (e) { console.warn('[safety notify fail]', e.message); }
+}
 
 // 単一ユーザーへのソケット送信ヘルパー (REST→DM配信用)
 app.locals.emitToUser = function(uid, eventName, payload) {
@@ -1032,6 +1068,30 @@ io.on('connection', (socket) => {
     }
     // bot宛ならGeminiに転送して返答を生成
     if (tp && tp.isBot && content) {
+      // L1: 入力スクリーニング (Geminiに渡す前にキーワードでブロック)
+      const safetyHit = safety.checkInappropriate(content);
+      if (safetyHit) {
+        console.warn(`[safety L1] uid=${uid} bot=${to} category=${safetyHit.category} matched=${safetyHit.matched}`);
+        const refusalText = safety.refusalResponse(safetyHit.category);
+        // 拒否応答を bot からのDMとして送信
+        const ins2 = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
+          .run(to, uid, refusalText);
+        socket.emit('dm:msg', {
+          id: ins2.lastInsertRowid, from: to, to: uid, content: refusalText,
+          at: new Date().toISOString(), attach: null, voice: voiceMode,
+        });
+        // 不適切ログ記録
+        try {
+          db.prepare(`INSERT INTO inappropriate_logs (user_id, bot_id, content, detection_layer, category, matched_pattern, severity)
+            VALUES (?, ?, ?, 'L1_keyword', ?, ?, ?)`)
+            .run(uid, to, content.slice(0, 1000), safetyHit.category, safetyHit.matched, safetyHit.severity);
+        } catch (e) { console.warn('[safety log fail]', e.message); }
+        // 管理者+推進メンバーへ通報 (mental_crisis は除外: 本人を晒さない、専門窓口対応で十分)
+        if (safetyHit.category !== 'mental_crisis') {
+          notifyInappropriateDetection(uid, to, content, safetyHit);
+        }
+        return;
+      }
       (async () => {
         try {
           // 直近10件の履歴 (本人↔bot)
@@ -1148,6 +1208,24 @@ io.on('connection', (socket) => {
           };
           socket.emit('dm:msg', replyPayload);
         } catch (e) {
+          // Gemini SAFETY block: L1で拾えなかった巧妙な入力を Gemini が検知
+          if (e && e.code === 'GEMINI_SAFETY_BLOCK') {
+            console.warn(`[safety L3] uid=${uid} bot=${to} finishReason=${e.finishReason}`);
+            const refusalText = safety.refusalResponse('harassment');
+            const insR = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
+              .run(to, uid, refusalText);
+            socket.emit('dm:msg', {
+              id: insR.lastInsertRowid, from: to, to: uid, content: refusalText,
+              at: new Date().toISOString(), attach: null, voice: voiceMode,
+            });
+            try {
+              db.prepare(`INSERT INTO inappropriate_logs (user_id, bot_id, content, detection_layer, category, matched_pattern, severity)
+                VALUES (?, ?, ?, 'L3_gemini_safety', 'unknown', ?, 'high')`)
+                .run(uid, to, content.slice(0, 1000), e.finishReason || 'SAFETY');
+            } catch (ee) {}
+            notifyInappropriateDetection(uid, to, content, { category: 'L3_gemini_safety', matched: e.finishReason, severity: 'high' });
+            return;
+          }
           console.error('[bot reply error]', e.message);
           const errMsg = '⚠️ すみません、ただいま応答できません。少し時間を置いてからもう一度お試しください。';
           socket.emit('dm:msg', { id: 0, from: to, to: uid, content: errMsg, at: new Date().toISOString(), attach: null, voice: voiceMode });
