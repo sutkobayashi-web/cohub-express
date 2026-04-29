@@ -4142,13 +4142,22 @@ function announceLobbyWelcome() {
 }
 
 // 健康管理室入室時: ヘルスアドバイザーが挨拶+ホワイトボード内容を読み上げ
-let _wellnessIntroAt = 0;
-const _WELLNESS_INTRO_COOLDOWN_MS = 30 * 60 * 1000;  // 30分
+// 30分クールダウン (lobby と同様 localStorage 永続化、リロードでもリセットされない)
+const _WELLNESS_INTRO_COOLDOWN_MS = 30 * 60 * 1000;
+function _getWellnessIntroAt() {
+  try { return parseInt(localStorage.getItem('cohub_wellness_intro_at') || '0') || 0; } catch (e) { return 0; }
+}
+function _setWellnessIntroAt(t) {
+  try { localStorage.setItem('cohub_wellness_intro_at', String(t)); } catch (e) {}
+}
 async function announceWellnessRoomIntro() {
   if (!speakerOn) return;
   const now = Date.now();
-  if (now - _wellnessIntroAt < _WELLNESS_INTRO_COOLDOWN_MS) return;
-  _wellnessIntroAt = now;
+  if (now - _getWellnessIntroAt() < _WELLNESS_INTRO_COOLDOWN_MS) {
+    console.log('[cohub] wellness intro skipped (cooldown)');
+    return;
+  }
+  _setWellnessIntroAt(now);
   const myUser = users[me] || currentUser || {};
   const myName = (myUser && (myUser.name || myUser.display_name)) || 'あなた';
   const reading = readingOf(myName) || myName;
