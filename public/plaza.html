@@ -114,6 +114,7 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .ai-sec:last-child { margin-bottom: 0; }
 .ai-sec-hdr { font-weight: 700; font-size: 12.5px; margin-bottom: 4px; letter-spacing: 0.2px; }
 .ai-sec-body { font-size: 12.5px; line-height: 1.7; color: #1f2937; word-wrap: break-word; }
+.ai-emph { color: #0f766e; font-weight: 700; }
 
 .post-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .react-btn { padding: 6px 10px; background: #f8fafc; border: 1px solid transparent; border-radius: 16px; cursor: pointer; font-size: 13px; }
@@ -342,41 +343,43 @@ function buildNutritionBar(sc) {
 }
 
 // AI ヘルスアドバイザーのコメント整形
-// 新形式: 【良い点】【悪い点】【改善点】【あなたの傾向】【やってみよう！】 の5セクション
-// 旧形式 (栄養/ヘルス アドバイザー2枚 or 単一テキスト) もフォールバック
+// 新形式 (5セクション: 良い点/悪い点/改善点/あなたの傾向/やってみよう！) のときだけ
+// アドバイザーカードで表示。旧形式 (CoWell Classic アーカイブの 食事/ヘルスアドバイザー
+// 2人形式や、本文中に【】強調が散在するもの) は単一バブルで【】を <strong> 化して表示
 function renderAdvisorComment(cmt) {
   if (!cmt) return '';
   const text = String(cmt);
+  // 新形式の5セクションヘッダーホワイトリスト
+  const SEC_META = {
+    '良い点':       { icon: '✅', color: '#10b981' },
+    '悪い点':       { icon: '⚠️', color: '#f59e0b' },
+    '改善点':       { icon: '🔧', color: '#3b82f6' },
+    'あなたの傾向': { icon: '📈', color: '#8b5cf6' },
+    'やってみよう!': { icon: '🎯', color: '#ef4444' },
+  };
   const sections = [];
   const re = /【([^】]+)】([\s\S]*?)(?=【[^】]+】|$)/g;
   let m;
   while ((m = re.exec(text)) !== null) {
-    const hdr = m[1].trim();
+    const hdr = m[1].trim().replace(/[!！]+$/, '!');  // 「やってみよう！」を正規化
     const body = m[2].trim();
-    if (body) sections.push({ hdr, body });
+    if (body && SEC_META[hdr]) sections.push({ hdr, body, meta: SEC_META[hdr] });
   }
-  if (!sections.length) {
-    return `<div class="ai-cmt-block">💬 ${escapeHtml(text).replace(/\n/g, '<br>')}</div>`;
+  // 5セクション中3つ以上検出できたときだけ新形式カード表示
+  if (sections.length >= 3) {
+    return '<div class="ai-advisor-card"><div class="ai-advisor-hdr">🩺 AIヘルスアドバイザーから</div>' +
+      sections.map(s =>
+        `<div class="ai-sec" style="border-left-color:${s.meta.color};">
+          <div class="ai-sec-hdr" style="color:${s.meta.color};">${s.meta.icon} ${escapeHtml(s.hdr)}</div>
+          <div class="ai-sec-body">${escapeHtml(s.body).replace(/\n/g, '<br>')}</div>
+        </div>`
+      ).join('') + '</div>';
   }
-  // セクション種別判定 → アイコン+色クラス
-  const meta = (h) => {
-    if (/良い点|good/i.test(h))      return { icon: '✅', cls: 'sec-good',    cssVar: '#10b981' };
-    if (/悪い点|bad/i.test(h))       return { icon: '⚠️', cls: 'sec-bad',     cssVar: '#f59e0b' };
-    if (/改善|improve/i.test(h))     return { icon: '🔧', cls: 'sec-improve', cssVar: '#3b82f6' };
-    if (/傾向|trend/i.test(h))       return { icon: '📈', cls: 'sec-trend',   cssVar: '#8b5cf6' };
-    if (/やってみよう|try/i.test(h)) return { icon: '🎯', cls: 'sec-try',     cssVar: '#ef4444' };
-    if (/栄養/.test(h))              return { icon: '🥗', cls: 'sec-nutri',   cssVar: '#20c997' };
-    if (/ヘルス|健康/.test(h))       return { icon: '🩺', cls: 'sec-health',  cssVar: '#3b82f6' };
-    return { icon: '💬', cls: '', cssVar: '#64748b' };
-  };
-  return '<div class="ai-advisor-card"><div class="ai-advisor-hdr">🩺 AIヘルスアドバイザーから</div>' +
-    sections.map(s => {
-      const md = meta(s.hdr);
-      return `<div class="ai-sec ${md.cls}" style="border-left-color:${md.cssVar};">
-        <div class="ai-sec-hdr" style="color:${md.cssVar};">${md.icon} ${escapeHtml(s.hdr)}</div>
-        <div class="ai-sec-body">${escapeHtml(s.body).replace(/\n/g, '<br>')}</div>
-      </div>`;
-    }).join('') + '</div>';
+  // 旧形式または単発テキスト: 本文中の【XX】を <strong> 化して単一バブル
+  let safe = escapeHtml(text);
+  safe = safe.replace(/【([^】]+)】/g, '<strong class="ai-emph">【$1】</strong>');
+  safe = safe.replace(/\n/g, '<br>');
+  return `<div class="ai-cmt-block">💬 ${safe}</div>`;
 }
 
 async function api(p, opts) {
