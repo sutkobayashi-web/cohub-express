@@ -1910,7 +1910,7 @@ function resize() {
 let stdLogo = null;
 function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = (src || '/assets/office_bg.png') + '?v=27';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=28';
   if (!stdLogo) {
     stdLogo = new Image();
     stdLogo.src = '/assets/std_logo.png?v=1';
@@ -2468,7 +2468,7 @@ function loadAvatar(u) {
 // botUid → { canvas, w, h } のマップ。新bot追加時は BOT_STANDING に画像URLを足すだけ
 // 末尾の v= は新ポーズ画像差替時のキャッシュバスター
 const BOT_STANDING = {
-  'bot_aoi':    '/assets/concierge_aoi_full.png',
+  'bot_aoi':    '/assets/concierge_aoi_full.png?v=2',
   'bot_health': '/assets/concierge_health_full.png?v=2',
 };
 const botStandingImages = {};   // botUid → { canvas, w, h }
@@ -2626,8 +2626,8 @@ function render() {
   // 葵は受付カウンター越しに頭+胸が自然に見える位置 (clip=true)
   // ヘルスアドバイザーは全身立ち姿
   const FIRST_PERSON_BOT = {
-    'lobby':         { uid: 'bot_aoi',    x: 744, y: 475, clip: true  },
-    'wellness_room': { uid: 'bot_health', x: 1100, y: 500, clip: false, flipH: true },  // 右側、左側のホワイトボード方向にgestureが向くようミラー
+    'lobby':         { uid: 'bot_aoi',    x: 672, y: 500, clip: false },  // 中央フォアグラウンド全身、左手で背壁ロゴを紹介する向き
+    'wellness_room': { uid: 'bot_health', x: 1100, y: 500, clip: false, flipH: true },
   };
   const LOBBY_COUNTER_TOP_Y = 465;
 
@@ -3085,7 +3085,7 @@ function drawConciergeStanding(u) {
   //  健康管理室 = 440 (全身立ち姿、部屋の縮尺合わせ)
   //  他フロア = 210 (従来)
   let FIG_H = 210;
-  if (currentFloor && currentFloor.code === 'lobby') FIG_H = 252;
+  if (currentFloor && currentFloor.code === 'lobby') FIG_H = 520;  // 全身立ち姿 (旧 252 = 受付カウンター越し半身、新画像でカウンター無し化に伴い全身)
   else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 520;  // 一回り大きく
   const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
@@ -3101,13 +3101,9 @@ function drawConciergeStanding(u) {
   const headY = feetY - FIG_H;
   ctx.save();
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
-  // ロビーの葵は受付カウンター越しに見えるようクリップ
-  if (currentFloor && currentFloor.code === 'lobby') {
-    ctx.beginPath();
-    ctx.rect(0, 0, WORLD_W, 465);
-    ctx.clip();
-  }
-  // 足元の楕円影 (ロビーではクリップで自動的に隠れる)
+  // 旧: ロビーの葵を受付カウンター越しにクリップしていたが、
+  // ロビー v2 (2026-04-29) でカウンター撤去+全身表示に変更したため clip 廃止
+  // 足元の楕円影 (フロアに直接落ちる)
   ctx.save();
   ctx.fillStyle = 'rgba(15,23,42,0.22)';
   ctx.beginPath();
