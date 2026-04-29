@@ -3902,14 +3902,10 @@ function announceLobbyWelcome() {
   const now = Date.now();
   if (now - _getLobbyWelcomeShown() < _LOBBY_WELCOME_COOLDOWN_MS) return;
   _setLobbyWelcomeShown(now);
-  const myUser = users[me] || currentUser || {};
-  const myName = (myUser && (myUser.name || myUser.display_name)) || 'あなた';
-  const reading = readingOf(myName) || myName;
+  // チャイム音のみ。スピーチは葵の bot proximity 挨拶 (「○○さん、お疲れ様です。」) に一本化済
+  // (旧: 「CoWellへようこそ」を読み上げ → 葵の挨拶と音声がかぶる問題があったため廃止)
   playEnterLeaveChime(true);
-  const hour = new Date().getHours();
-  const greet = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
-  setTimeout(() => speakViaTTS(greet + '、' + reading + 'さん。CoWellへようこそ', { speed: 1.1 }), CHIME_DURATION_MS + 200);
-  console.log('[cohub] lobby welcome', myName);
+  console.log('[cohub] lobby chime only (welcome speech delegated to bot_aoi)');
 }
 
 function announceEnterLeave(uid, name, isEnter) {
