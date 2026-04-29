@@ -350,6 +350,10 @@
             <div class="i">🤖</div>
             <div>葵に聞く</div>
           </div>
+          <div class="qa-item" onclick="openHealthChat()" style="background:linear-gradient(135deg,#fae8ff,#f5d0fe);color:#86198f;">
+            <div class="i">🩺</div>
+            <div>ヘルスに聞く</div>
+          </div>
           <div class="qa-item" onclick="location.href='/plaza.html'" style="background:linear-gradient(135deg,#ccfbf1,#99f6e4);color:#0f766e;">
             <div class="i">🌳</div>
             <div>ひろば</div>
@@ -530,6 +534,7 @@
     <button id="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()">📎</button>
     <input type="file" id="chat-file-input" style="display:none" onchange="onAttachFile(this)">
     <button id="chat-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">💬</button>
+    <button id="chat-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (葵・ヘルス専用)" style="display:none;background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">🎤</button>
     <textarea id="chat-input" placeholder="メッセージを入力…" rows="1"></textarea>
     <button id="chat-send-btn" onclick="sendChatMessage()">➤</button>
   </div>
@@ -620,7 +625,14 @@ let speakerOn = true;
 let chimeOn = true;            // 入出室/DM到着チャイム (設定で切替)
 let speechSpeed = 1.15;        // TTS読み上げ速度
 const BOT_UID = 'bot_aoi';
+const HEALTH_UID = 'bot_health';
 const AOI_VOICE = 'ja-JP-Neural2-B';
+function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID; }
+// bot uid → TTS声プリセット (PC版と統一: 葵=Neural2-B, ヘルス=Wavenet-A)
+function ttsOptsForBot(uid) {
+  if (uid === HEALTH_UID) return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
+  return { voice: AOI_VOICE, speed: 1.05, pitch: 0 };
+}
 
 // ===== 永続化設定の復元 =====
 (function loadPrefs() {
@@ -1336,11 +1348,23 @@ function connectSocket() {
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === user.uid;
     const peerUid = isSelf ? m.to : m.from;
-    // 葵からの発言は読み上げ
-    if (!isSelf && m.from === BOT_UID && m.content) speakAoi(m.content);
+    // ★ 音声会話モード中: 葵/ヘルスからの返答は専用フロー(TTS+終了後に認識1回再開)
+    if (typeof voiceConvActive !== 'undefined' && voiceConvActive && !isSelf
+        && isBotUid(m.from) && m.content && openPeerUid === m.from) {
+      appendMessage(m, isSelf);
+      playBotForVoiceConv(m.content, m.from);
+      return;
+    }
+    // 葵からの発言は読み上げ (DM画面を開いている時のみ)
+    if (!isSelf && m.from === BOT_UID && m.content && openPeerUid === BOT_UID) speakAoi(m.content);
     // 音声DM受信: 取込中でも本文をTTSで強制再生 (急ぎ連絡用)
-    if (!isSelf && m.voice && m.content && m.from !== BOT_UID) {
+    if (!isSelf && m.voice && m.content && !isBotUid(m.from)) {
       speakVoiceDm(m.content);
+    }
+    // bot からの voice flag 付き返答 (テキストモードで音声切替 → bot応答)
+    if (!isSelf && m.voice && m.content && isBotUid(m.from) && openPeerUid === m.from) {
+      const opts = ttsOptsForBot(m.from);
+      try { speakViaTTS(String(m.content).replace(/[*_`#>~]/g, '').slice(0, 500), Object.assign({ force: true }, opts)); } catch (e) {}
     }
     if (m.voice && m.content) rememberVoiceDm(m);
     if (openPeerUid === peerUid) {
@@ -1350,10 +1374,10 @@ function connectSocket() {
       updateChatBadge();
       loadChatLists();
       const sender = users[peerUid] || {};
-      const name = peerUid === BOT_UID ? '葵' : (sender.name || '');
+      const name = peerUid === BOT_UID ? '葵' : peerUid === HEALTH_UID ? 'ヘルス' : (sender.name || '');
       showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
       // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
-      if (m.from !== BOT_UID && !m.voice) announceDmSender(m.from, sender.name || '');
+      if (!isBotUid(m.from) && !m.voice) announceDmSender(m.from, sender.name || '');
     }
     if (isSelf && openPeerUid === peerUid) {
       // 何もしない (即時追加はsendChatMessage側でOptimistic)
@@ -1410,17 +1434,26 @@ async function loadChatLists() {
   } catch (e) { console.warn('chat lists', e.message); }
 }
 function renderChatLists() {
-  // 葵 (常時上部)
+  // 葵 + ヘルス (常時上部)
   const bl = document.getElementById('bot-list');
-  const botPeer = dmPeers.find(p => p.peer_id === BOT_UID);
+  const aoiPeer = dmPeers.find(p => p.peer_id === BOT_UID);
+  const healthPeer = dmPeers.find(p => p.peer_id === HEALTH_UID);
   bl.innerHTML = renderChatItem({
     peer_id: BOT_UID,
     display_name: '葵',
     avatar_url: '/assets/concierge_aoi.png',
     company_code: 'AI 受付',
-    last_at: botPeer ? botPeer.last_at : null,
+    last_at: aoiPeer ? aoiPeer.last_at : null,
     isBot: true,
     unread: dmUnread[BOT_UID] || 0,
+  }) + renderChatItem({
+    peer_id: HEALTH_UID,
+    display_name: 'ヘルスアドバイザー',
+    avatar_url: '/assets/concierge_health_full.png',
+    company_code: 'AI ヘルス',
+    last_at: healthPeer ? healthPeer.last_at : null,
+    isBot: true,
+    unread: dmUnread[HEALTH_UID] || 0,
   });
   // グループ
   const gl = document.getElementById('group-list');
@@ -1438,9 +1471,9 @@ function renderChatLists() {
       '</div>' +
     '</div>';
   }).join('') || '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px;">参加中のグループはありません</div>';
-  // DMリスト (葵を除外)
+  // DMリスト (botを除外)
   const dl = document.getElementById('dm-list');
-  const peers = dmPeers.filter(p => p.peer_id !== BOT_UID);
+  const peers = dmPeers.filter(p => !isBotUid(p.peer_id));
   dl.innerHTML = peers.map(p => renderChatItem({
     peer_id: p.peer_id,
     display_name: p.display_name,
@@ -1480,6 +1513,9 @@ function updateChatBadge() {
 function openBotChat() {
   openDM(BOT_UID, '葵', '/assets/concierge_aoi.png', true);
 }
+function openHealthChat() {
+  openDM(HEALTH_UID, 'ヘルスアドバイザー', '/assets/concierge_health_full.png', true);
+}
 async function openDM(peerId, name, avatar, isBot) {
   openPeerUid = peerId;
   openGroupId = null;
@@ -1488,7 +1524,8 @@ async function openDM(peerId, name, avatar, isBot) {
   loadChatLists();
   document.getElementById('chat-modal').classList.add('show');
   document.getElementById('chat-h-name').textContent = name;
-  document.getElementById('chat-h-sub').textContent = isBot ? 'AI 受付案内員' : (users[peerId] ? (users[peerId].company || '') : '');
+  const botSub = peerId === HEALTH_UID ? 'AI ヘルスアドバイザー' : 'AI 受付案内員';
+  document.getElementById('chat-h-sub').textContent = isBot ? botSub : (users[peerId] ? (users[peerId].company || '') : '');
   const hav = document.getElementById('chat-h-av');
   if (avatar) hav.innerHTML = '<img src="' + escapeHtml(avatar) + '">';
   else hav.textContent = (name || '?').slice(0, 2);
@@ -1503,6 +1540,7 @@ async function openDM(peerId, name, avatar, isBot) {
   } catch (e) { console.warn(e); }
   dmSendMode = 'text';
   applyDmModeUi();
+  if (typeof updateMicBtn === 'function') updateMicBtn();
   setTimeout(() => document.getElementById('chat-input').focus(), 150);
 }
 async function openGroup(gid, name, icon) {
@@ -1510,6 +1548,7 @@ async function openGroup(gid, name, icon) {
   openPeerUid = null;
   dmSendMode = 'text';
   applyDmModeUi();
+  if (typeof updateMicBtn === 'function') updateMicBtn();
   groupUnread[gid] = 0;
   updateChatBadge();
   loadChatLists();
@@ -1530,6 +1569,7 @@ async function openGroup(gid, name, icon) {
 }
 function closeChatModal() {
   document.getElementById('chat-modal').classList.remove('show');
+  if (typeof stopVoiceConv === 'function') stopVoiceConv();
   openPeerUid = null;
   openGroupId = null;
 }
@@ -1546,8 +1586,12 @@ function appendMessage(m, isSelf) {
 }
 function msgHtml(m, isSelf, showSenderName) {
   const sender = users[m.from] || {};
-  const name = m.from === BOT_UID ? '葵' : (m.sender_name || sender.name || '');
-  const avatar = m.from === BOT_UID ? '/assets/concierge_aoi.png' : sender.avatar || '';
+  const name = m.from === BOT_UID ? '葵'
+            : m.from === HEALTH_UID ? 'ヘルスアドバイザー'
+            : (m.sender_name || sender.name || '');
+  const avatar = m.from === BOT_UID ? '/assets/concierge_aoi.png'
+              : m.from === HEALTH_UID ? '/assets/concierge_health_full.png'
+              : sender.avatar || '';
   const initials = (name || '?').slice(0, 2);
   const avHtml = avatar ? '<img src="' + escapeHtml(avatar) + '">' : escapeHtml(initials);
   let attachHtml = '';
@@ -1644,6 +1688,122 @@ async function sendChatMessage() {
     clearAttach();
     input.style.height = 'auto';
   }
+}
+
+// ===== 🎤 音声会話モード (葵 / ヘルス専用) =====
+// 設計: continuous=false の単発認識を、TTS再生終了→0.8秒後に1回だけ再起動する形で繋ぐ。
+// 自動再開ループ禁止 (memory feedback_voice_no_auto_restart, Android点滅事故対策)。
+let voiceConvActive = false;
+let _vcRecog = null;
+let _vcRecogActive = false;
+const VC_STOP_WORDS = ['ストップ', 'やめて', 'やめる', '終了', '終わり'];
+
+function _vcEnsureRecog() {
+  if (_vcRecog) return _vcRecog;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'ja-JP';
+  r.continuous = false;
+  r.interimResults = false;
+  r.maxAlternatives = 1;
+  r.onresult = (e) => {
+    const txt = ((e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '').trim();
+    if (!txt) return;
+    if (VC_STOP_WORDS.some(w => txt.includes(w))) {
+      stopVoiceConv();
+      try { showToast('音声会話を終了しました'); } catch (err) {}
+      return;
+    }
+    if (!socket || !openPeerUid) return;
+    socket.emit('chat:dm', { to: openPeerUid, content: txt, voice: true });
+    const input = document.getElementById('chat-input');
+    if (input) { input.value = ''; input.style.height = 'auto'; }
+  };
+  r.onend = () => { _vcRecogActive = false; updateMicBtn(); };
+  r.onerror = (ev) => {
+    _vcRecogActive = false; updateMicBtn();
+    if (ev && (ev.error === 'not-allowed' || ev.error === 'permission-denied')) {
+      try { showToast('マイクの使用許可が必要です'); } catch (err) {}
+      stopVoiceConv();
+    }
+  };
+  _vcRecog = r;
+  return r;
+}
+
+function _vcStartOnce() {
+  const r = _vcEnsureRecog();
+  if (!r) { try { showToast('このブラウザは音声認識に未対応 (Chrome推奨)'); } catch (e) {} return; }
+  if (_vcRecogActive) return;
+  try { r.start(); _vcRecogActive = true; updateMicBtn(); }
+  catch (e) { console.warn('[cohub-m] recog.start fail', e.message || e); }
+}
+function _vcStopNow() {
+  if (_vcRecog && _vcRecogActive) { try { _vcRecog.stop(); } catch (e) {} }
+  _vcRecogActive = false;
+}
+
+function startVoiceConv() {
+  if (!openPeerUid || !isBotUid(openPeerUid)) {
+    try { showToast('音声会話は葵・ヘルスとのDMのみ対応'); } catch (e) {}
+    return;
+  }
+  voiceConvActive = true;
+  try { showToast('🎤 音声会話モードON  もう一度押すか「ストップ」で終了'); } catch (e) {}
+  updateMicBtn();
+  _vcStartOnce();
+}
+function stopVoiceConv() {
+  voiceConvActive = false;
+  _vcStopNow();
+  updateMicBtn();
+}
+function toggleVoiceConv() { voiceConvActive ? stopVoiceConv() : startVoiceConv(); }
+
+function updateMicBtn() {
+  const btn = document.getElementById('chat-mic-btn');
+  if (!btn) return;
+  const isBot = isBotUid(openPeerUid);
+  btn.style.display = isBot ? '' : 'none';
+  if (voiceConvActive) {
+    btn.textContent = _vcRecogActive ? '🔴' : '🎤';
+    btn.style.background = '#fef3c7';
+    btn.style.borderColor = '#f59e0b';
+    btn.style.color = '#dc2626';
+    btn.title = '音声会話中(タップで終了)';
+  } else {
+    btn.textContent = '🎤';
+    btn.style.background = 'transparent';
+    btn.style.borderColor = '#cbd5e1';
+    btn.style.color = '#64748b';
+    btn.title = '音声会話 (葵・ヘルス専用)';
+  }
+}
+
+async function playBotForVoiceConv(content, fromUid) {
+  const text = String(content || '').replace(/[*_`#>~]/g, '').replace(/\n+/g, '。').slice(0, 500);
+  if (!text) return;
+  const opts = ttsOptsForBot(fromUid);
+  try {
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+      body: JSON.stringify({ text, voice: opts.voice, speed: opts.speed, pitch: opts.pitch || 0 }),
+    });
+    if (!res.ok) { console.warn('[cohub-m] vc tts http', res.status); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audio.onended = () => {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+      if (voiceConvActive && !_vcRecogActive) {
+        setTimeout(() => { if (voiceConvActive && !_vcRecogActive) _vcStartOnce(); }, 800);
+      }
+    };
+    await audio.play();
+  } catch (e) { console.warn('[cohub-m] vc play fail', e); }
 }
 
 // 添付ファイル
@@ -2194,9 +2354,12 @@ function renderHomeRecentDm() {
     return;
   }
   host.innerHTML = peers.map(p => {
-    const isBot = p.peer_id === BOT_UID;
-    const name = isBot ? '葵' : (p.display_name || '');
-    const avUrl = isBot ? '/assets/concierge_aoi.png' : (p.avatar_url || '');
+    const isBot = isBotUid(p.peer_id);
+    const isHealth = p.peer_id === HEALTH_UID;
+    const name = p.peer_id === BOT_UID ? '葵' : isHealth ? 'ヘルスアドバイザー' : (p.display_name || '');
+    const avUrl = p.peer_id === BOT_UID ? '/assets/concierge_aoi.png'
+                : isHealth ? '/assets/concierge_health_full.png'
+                : (p.avatar_url || '');
     const init = (name || '?').slice(0, 2);
     const av = avUrl
       ? '<img src="' + escapeHtml(avUrl) + '" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(init) + '\'))">'
@@ -2207,7 +2370,7 @@ function renderHomeRecentDm() {
       '<div class="recent-dm-av">' + av + '</div>' +
       '<div class="recent-dm-info">' +
         '<div class="recent-dm-name">' + escapeHtml(name) + (isBot ? ' <span style="font-size:9px;background:#cffafe;color:#155e75;padding:1px 4px;border-radius:6px;font-weight:700;">BOT</span>' : '') + '</div>' +
-        '<div class="recent-dm-snip">' + escapeHtml(p.company_code || (isBot ? 'AI 受付案内員' : '')) + '</div>' +
+        '<div class="recent-dm-snip">' + escapeHtml(p.company_code || (isHealth ? 'AI ヘルスアドバイザー' : isBot ? 'AI 受付案内員' : '')) + '</div>' +
       '</div>' +
       (time ? '<div class="recent-dm-time">' + escapeHtml(time) + '</div>' : '') +
       (unread > 0 ? '<div class="recent-dm-unread">' + unread + '</div>' : '') +

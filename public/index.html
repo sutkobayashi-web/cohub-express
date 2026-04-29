@@ -1014,6 +1014,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <div class="dm-input-wrap">
       <button class="attach-btn" onclick="document.getElementById('dm-file').click()" title="ファイル添付" style="width:36px;height:36px;border-radius:50%;background:transparent;border:none;color:#64748b;cursor:pointer;font-size:16px;">📎</button>
       <button id="dm-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid #cbd5e1;color:#64748b;cursor:pointer;font-size:16px;flex-shrink:0;">💬</button>
+      <button id="dm-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (葵・ヘルス専用)" style="display:none;width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid #cbd5e1;color:#64748b;cursor:pointer;font-size:16px;flex-shrink:0;">🎤</button>
       <input type="text" id="dm-input" placeholder="メッセージ…(Enterで送信)" maxlength="1000">
       <button id="dm-send-btn" onclick="sendDM()" title="送信">➤</button>
     </div>
@@ -2265,6 +2266,16 @@ function connectSocket() {
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === me;
     const peerUid = isSelf ? m.to : m.from;
+    // ★ 音声会話モード中: 葵/ヘルスからの返答は専用フロー(TTS+終了後に認識1回再開)
+    if (typeof voiceConvActive !== 'undefined' && voiceConvActive && !isSelf
+        && (m.from === 'bot_aoi' || m.from === 'bot_health') && m.content && dmPeerUid === m.from) {
+      if (dmPeerUid === peerUid) {
+        dmLog.push({ id: m.id, from: m.from, to: m.to, content: m.content, at: m.at, attach: m.attach || null, voice: !!m.voice });
+        renderDM();
+      }
+      playBotForVoiceConv(m.content, m.from);
+      return;
+    }
     // 葵からのメッセージ読み上げは「葵のDM画面を開いている時のみ」
     // (ロビー入室時の calendar/wellness 自動DM はチャットに溜めるだけ、
     //  入室アナウンスとの重複を避ける)
@@ -4360,6 +4371,7 @@ async function openDM(peerUid) {
   document.getElementById('dm-modal').classList.add('show');
   dmSendMode = 'text';
   applyDmModeUi();
+  if (typeof updateMicBtn === 'function') updateMicBtn();
   setTimeout(() => document.getElementById('dm-input').focus(), 100);
   // 既読扱い + バッジクリア
   delete dmUnread[peerUid];
@@ -4384,6 +4396,7 @@ async function openDM(peerUid) {
 
 function closeDM() {
   document.getElementById('dm-modal').classList.remove('show');
+  if (typeof stopVoiceConv === 'function') stopVoiceConv();
   dmPeerUid = null;
   dmLog = [];
 }
@@ -4456,6 +4469,127 @@ function sendDM() {
   if (dmSendMode === 'voice') payload.voice = true;
   socket.emit('chat:dm', payload);
   input.value = '';
+}
+
+// ===== 🎤 音声会話モード (葵 / ヘルス専用) =====
+// 設計: continuous=false の単発認識を、TTS再生終了→0.8秒後に1回だけ再起動する形で繋ぐ。
+// 自動再開ループ禁止 (Android点滅事故対策、 memory feedback_voice_no_auto_restart)。
+let voiceConvActive = false;
+let _vcRecog = null;
+let _vcRecogActive = false;
+const VC_STOP_WORDS = ['ストップ', 'やめて', 'やめる', '終了', '終わり'];
+
+function _vcEnsureRecog() {
+  if (_vcRecog) return _vcRecog;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'ja-JP';
+  r.continuous = false;
+  r.interimResults = false;
+  r.maxAlternatives = 1;
+  r.onresult = (e) => {
+    const txt = ((e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '').trim();
+    if (!txt) return;
+    if (VC_STOP_WORDS.some(w => txt.includes(w))) {
+      stopVoiceConv();
+      try { showToast('音声会話を終了しました'); } catch (err) {}
+      return;
+    }
+    if (!socket || !dmPeerUid) return;
+    // voice=true で送信 → bot 返答も voice flag 付きで返り、playBotForVoiceConv で読み上げ
+    socket.emit('chat:dm', { to: dmPeerUid, content: txt, voice: true });
+    const input = document.getElementById('dm-input');
+    if (input) input.value = '';
+  };
+  r.onend = () => { _vcRecogActive = false; updateMicBtn(); };
+  r.onerror = (ev) => {
+    _vcRecogActive = false; updateMicBtn();
+    if (ev && (ev.error === 'not-allowed' || ev.error === 'permission-denied')) {
+      try { showToast('マイクの使用許可が必要です'); } catch (err) {}
+      stopVoiceConv();
+    }
+    // no-speech / aborted は黙って終了 (再開しない)
+  };
+  _vcRecog = r;
+  return r;
+}
+
+function _vcStartOnce() {
+  const r = _vcEnsureRecog();
+  if (!r) { try { showToast('このブラウザは音声認識に未対応 (Chrome推奨)'); } catch (e) {} return; }
+  if (_vcRecogActive) return;
+  try { r.start(); _vcRecogActive = true; updateMicBtn(); }
+  catch (e) { console.warn('[cohub] recog.start fail', e.message || e); }
+}
+function _vcStopNow() {
+  if (_vcRecog && _vcRecogActive) { try { _vcRecog.stop(); } catch (e) {} }
+  _vcRecogActive = false;
+}
+
+function startVoiceConv() {
+  if (!dmPeerUid || (dmPeerUid !== 'bot_aoi' && dmPeerUid !== 'bot_health')) {
+    try { showToast('音声会話は葵・ヘルスとのDMのみ対応'); } catch (e) {}
+    return;
+  }
+  voiceConvActive = true;
+  try { showToast('🎤 音声会話モードON  もう一度押すか「ストップ」で終了'); } catch (e) {}
+  updateMicBtn();
+  _vcStartOnce();
+}
+function stopVoiceConv() {
+  voiceConvActive = false;
+  _vcStopNow();
+  updateMicBtn();
+}
+function toggleVoiceConv() { voiceConvActive ? stopVoiceConv() : startVoiceConv(); }
+
+function updateMicBtn() {
+  const btn = document.getElementById('dm-mic-btn');
+  if (!btn) return;
+  const isBot = dmPeerUid === 'bot_aoi' || dmPeerUid === 'bot_health';
+  btn.style.display = isBot ? '' : 'none';
+  if (voiceConvActive) {
+    btn.textContent = _vcRecogActive ? '🔴' : '🎤';
+    btn.style.background = '#fef3c7';
+    btn.style.borderColor = '#f59e0b';
+    btn.style.color = '#dc2626';
+    btn.title = '音声会話中(タップで終了)';
+  } else {
+    btn.textContent = '🎤';
+    btn.style.background = 'transparent';
+    btn.style.borderColor = '#cbd5e1';
+    btn.style.color = '#64748b';
+    btn.title = '音声会話 (葵・ヘルス専用)';
+  }
+}
+
+// 音声会話中の bot 返答: 専用フローでTTS再生 + 終了後に1回だけ認識再開
+async function playBotForVoiceConv(content, fromUid) {
+  const text = String(content || '').replace(/[*_`#>~]/g, '').replace(/\n+/g, '。').slice(0, 500);
+  if (!text) return;
+  const opts = (typeof ttsOptsForBot === 'function')
+    ? ttsOptsForBot(fromUid)
+    : { voice: 'ja-JP-Neural2-B', speed: 1.15, pitch: 0 };
+  try {
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+      body: JSON.stringify({ text, voice: opts.voice, speed: opts.speed, pitch: opts.pitch || 0 }),
+    });
+    if (!res.ok) { console.warn('[cohub] vc tts http', res.status); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audio.onended = () => {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+      if (voiceConvActive && !_vcRecogActive) {
+        setTimeout(() => { if (voiceConvActive && !_vcRecogActive) _vcStartOnce(); }, 800);
+      }
+    };
+    await audio.play();
+  } catch (e) { console.warn('[cohub] vc play fail', e); }
 }
 
 // メンバーをクリック → その人の近くに歩いていく
