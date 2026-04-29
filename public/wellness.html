@@ -289,21 +289,8 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 // 既存のCoWellトークンと共有 (cohub_token を優先 — 古い admin_token が残ってると expired で401になる事故を防ぐ)
 let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
 
-// 🐛 デバッグ表示: 画面上部に状態を表示 (一時的、原因特定後に削除)
-function _debugInfo(msg) {
-  let box = document.getElementById('debug-info');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'debug-info';
-    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1f2937;color:#10b981;font-family:monospace;font-size:11px;padding:8px 12px;line-height:1.5;max-height:200px;overflow-y:auto;border-bottom:2px solid #10b981;';
-    box.innerHTML = '<button onclick="this.parentNode.remove()" style="float:right;background:#dc2626;color:#fff;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px;">×</button><b style="color:#fbbf24;">🐛 DEBUG</b><br>';
-    document.body.appendChild(box);
-  }
-  box.innerHTML += '<div>' + new Date().toISOString().slice(11, 19) + ' ' + msg + '</div>';
-}
-_debugInfo('cohub_token len=' + (localStorage.getItem('cohub_token') || '').length);
-_debugInfo('cohub_admin_token len=' + (localStorage.getItem('cohub_admin_token') || '').length);
-_debugInfo('使用中token len=' + token.length + (token ? ' head=' + token.slice(0, 30) + '...' : ' (空!)'));
+// デバッグ表示は console.log のみに (画面表示は撤去)
+function _debugInfo(msg) { try { console.log('[wellness]', msg); } catch (e) {} }
 let _meta = null;       // /api/wellness/meta レスポンス
 let _ownersCache = null;
 let _aiInsightsCache = null;
@@ -373,14 +360,7 @@ async function checkAccessAndShow(user) {
   try {
     _debugInfo('user=' + (user && user.display_name || '?') + ' uid=' + ((user && user.uid) || '?').slice(0, 10));
     const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
-    _debugInfo('/api/wellness/meta → HTTP ' + r.status + ' (Cache-Control:' + (r.headers.get('cache-control') || '?') + ')');
-    if (r.status === 200) {
-      const j = await r.json().catch(() => ({}));
-      _debugInfo('meta OK. role=' + (j.is_field_promoter ? 'promoter' : (j.is_wellness_manager ? 'manager' : 'general')));
-    } else if (r.status === 401) {
-      const txt = await r.text().catch(() => '');
-      _debugInfo('401 body=' + txt.slice(0, 100));
-    }
+    _debugInfo('/api/wellness/meta → HTTP ' + r.status);
     console.log('[wellness] /meta status=' + r.status);
     if (r.status === 401) {
       // 401でもpanel表示 (空の状態でも見えるようにする)。ソフトバナーは fetch wrap で表示済
@@ -389,7 +369,9 @@ async function checkAccessAndShow(user) {
       document.getElementById('who').textContent = (user && user.display_name) || '';
       return;
     }
+    // r.json() は1度しか呼べない。ここで読んで以降使い回す
     const m = await r.json();
+    _debugInfo('meta OK. role=' + (m.is_field_promoter ? 'promoter' : (m.is_wellness_manager ? 'manager' : 'general')));
     _meta = m;
     document.getElementById('login-redirect').style.display = 'none';
     document.getElementById('panel').style.display = 'block';
