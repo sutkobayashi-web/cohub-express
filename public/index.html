@@ -4745,6 +4745,7 @@ function renderRailMenu() {
     <button onclick="openPasswordModal()">🔑 パスワード変更</button>
     <button onclick="openCalModal()">📅 カレンダー連携</button>
     <button onclick="window.open('/security.html','_blank')">🔒 セキュリティについて</button>
+    <button onclick="window.open('/about-cowell.html','_blank')">📘 CoWell ホワイトペーパー</button>
     <button onclick="openConsentHistory()">📜 同意履歴・再確認</button>
     <button onclick="location.href='/mylog'">📜 自分のログ</button>
     <button onclick="openOverviewWindow()">🗺 全フロアビュー</button>
@@ -4981,25 +4982,120 @@ const HELP_SECTIONS = [
       <li>IBA鹿島:シアン / IBA三和:青 / スズエ:緑 / 管理職:金</li>
     </ul>
   ` },
-  { key: 'concierge', title: '🤖 受付AI 葵', html: `
-    <h3>受付カウンターの葵(あおい)</h3>
-    <p>1F玄関ロビーの受付カウンターには <b>AI案内員 葵</b> が常駐しています。頭上に 🤖 BOT バッジ、シアンの呼吸リング付き。</p>
-    <h4>話しかけ方</h4>
+  { key: 'concierge', title: '🤖 受付AI 葵 / 🩺 ヘルスアドバイザー', html: `
+    <h3>2人のAIアドバイザー</h3>
+    <p>CoWellには <b>2人のAIキャラクター</b> が常駐しています。それぞれ役割と声が異なります。</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;">
+      <tr><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">場所</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">キャラ</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">役割</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">声</th></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">🚪 1Fロビー</td><td style="padding:6px 8px;border:1px solid #e2e8f0;"><b>🌸 葵</b> (あおい)</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">受付・操作案内・予定確認</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">明るく若い (高音)</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">🏥 健康管理室</td><td style="padding:6px 8px;border:1px solid #e2e8f0;"><b>🩺 ヘルスアドバイザー</b></td><td style="padding:6px 8px;border:1px solid #e2e8f0;">健康相談・アクションプラン作成</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">落ち着いた女性 (中音、テンポ良)</td></tr>
+    </table>
+
+    <h4>話しかけ方 (どちらも同じ操作)</h4>
     <ul>
-      <li><b>受付に近づく</b> (100px以内) → 葵が自動で挨拶 + DMパネルが自動オープン</li>
-      <li>アバターをクリック → 「👋 肩をたたく」でも挨拶してくれる</li>
-      <li>DMで直接質問を投げてもOK (LINE風に連続会話可)</li>
+      <li><b>頭上の「🌸/🩺 メニューを開く」ボタンをタップ</b> → 即メニュー表示</li>
+      <li><b>アバター本体をタップ</b> → 即メニュー表示</li>
+      <li><b>近くを通る</b> (proximity) → 自動で「○○さん、お疲れ様です。」と挨拶</li>
+      <li><b>DMで直接質問</b> も可 (連続会話、履歴保持)</li>
     </ul>
-    <h4>得意分野</h4>
+
+    <h4>🌸 葵 ができること</h4>
     <ul>
-      <li><b>機能案内</b>: フロア構成、ハドル席、肩たたき、集中中、DMなど「どこで何ができる?」</li>
-      <li><b>操作トラブル相談</b>: 音声・マイク・通知・会議室入れない・アバター等の困りごと</li>
-      <li><b>会社案内</b>: 「ここはどこ?」と聞くと「スタンダード運輸グループ バーチャルオフィス」と答えます</li>
+      <li><b>機能案内</b>: フロア構成、ハドル席、肩たたき、集中中、DM等の操作ヘルプ</li>
+      <li><b>カレンダー連携</b>: 「今日の予定教えて」で Google Calendar 連携 (連携済の場合)</li>
+      <li><b>会社案内</b>: 「ここはどこ?」「誰がいる?」等の場所/メンバー案内</li>
     </ul>
+
+    <h4>🩺 ヘルスアドバイザー ができること</h4>
+    <ul>
+      <li><b>個人アクションプラン作成</b> → 樹形図相談 (詳細は「🩺 健康管理室」タブ参照)</li>
+      <li><b>健康データ参照</b>: あなたの血圧/食事ログ/歩数を踏まえたDM応答 (一般的アドバイス、診断は行わない)</li>
+      <li><b>個人健康記録</b>: 血圧記録/健康メモ/健診ファイル閲覧画面への案内</li>
+      <li><b>入室時にホワイトボード読上げ</b>: 健康管理室入室で「今週の取り組みは…」と仲間の活動状況をアナウンス</li>
+    </ul>
+
     <h4>技術</h4>
-    <p>Gemini 2.5 Flash + CoWell仕様を網羅したシステムプロンプト。直近10件の会話履歴を文脈として保持。</p>
-    <div class="warn">⚠ ボットはサーバー側のAIなので、音声通話・挙手・肩たたき返しなどのインタラクションはできません。あくまで案内役です。</div>
-    <div class="tip">💡 葵はメンバーリスト/フロア人数カウントには含まれません(受付スタッフ扱い)。</div>
+    <p>Gemini 2.5 Flash + 各 bot 専用システムプロンプト。直近10件の会話履歴を文脈保持。<br>
+    ヘルスアドバイザーは血圧30/90日平均、栄養スコア、歩数等を context として注入し個別化。</p>
+    <p>挨拶 (TTS): Google Cloud Text-to-Speech<br>
+    - 葵: <code>ja-JP-Neural2-B</code> / speed 1.25 / pitch +4<br>
+    - ヘルス: <code>ja-JP-Wavenet-A</code> / speed 1.10 / pitch +2</p>
+
+    <div class="warn">⚠ AIは医療診断・薬剤推奨は行いません。緊急時は119、症状判断は産業医・主治医を優先してください。</div>
+    <div class="tip">💡 挨拶吹き出しはチャットログに残りません (TTS音声のみ揮発)。本物のDMだけが履歴に残ります。</div>
+  ` },
+
+  { key: 'wellness', title: '🩺 健康管理室・アクションプラン', html: `
+    <h3>健康管理室とは</h3>
+    <p>左レール「🩺 健康相談」または「🏥 健康管理室」フロアから入室できる、<b>個人ごとの健康行動を支援する空間</b>です。</p>
+    <p>CoWellは「<b>健診のレッドカード/イエロー対象者を減らす</b>」のが最終目標。健康管理室は、その入口となる「<b>気づきの機会</b>」を提供する場所です。</p>
+
+    <h3>📋 個人アクションプラン (myplan)</h3>
+    <p>9択の樹形図相談に答えるだけで、AIがあなた専用のアクションプランを作ります。所要 <b>約30秒</b>、文章入力ゼロでも可。</p>
+    <h4>使い方</h4>
+    <ol>
+      <li><b>左レール「🩺 健康相談」</b> をタップ → 「相談を始める」</li>
+      <li><b>Layer 1 (9択)</b>: 「最近こんなこと感じてる?」から1つ選択<br>
+        例: 🫃お腹が出てきた / 😴夕方眠い / 🍺飲みすぎ気味 / 🚶階段がしんどい / 🛌寝ても疲れる / 🍱食事が偏ってる / 🩺健診で言われたアレ気になる / 💊薬・サプリ / 🏃体を動かしたい</li>
+      <li><b>Layer 2 (4-6択)</b>: 「どうしたい?」「どんなとき?」を選択 (前向き軸)</li>
+      <li><b>自由記述 (任意)</b>: 補足あればテキスト追加。スキップOK</li>
+      <li><b>仲間に共有 (任意)</b>: ニックネームで「先駆者」として全員に表示するかチェック</li>
+      <li><b>送信</b> → AIが過去7日の食事ログ + 直近の血圧記録 + 選択内容をすべて踏まえてプラン生成 (5-10秒)</li>
+    </ol>
+
+    <h4>生成されるプラン (5セクション)</h4>
+    <ul>
+      <li><b>📍 今のあなた</b>: 現状サマリ (選択+データから読み取れる客観事実)</li>
+      <li><b>✅ 今日からできる1つ</b>: 即時アクション (1個だけ、具体的)</li>
+      <li><b>🎯 1週間チャレンジ</b>: 短期目標 (測定可能、達成感あるもの)</li>
+      <li><b>📅 1ヶ月の目標</b>: 中期ゴール (健診/数値で評価可能)</li>
+      <li><b>📊 数値で見える化</b>: 1〜3個のKPI (現状値→目標値)</li>
+    </ul>
+    <p><b>運動意欲</b> (Layer1で「体を動かしたい」選択 or 自由記述に「運動したい」記入) を検知すると、今日/1週間アクションを<b>運動寄り</b>に自動配置します。</p>
+
+    <h4>ドライバー実務に最適化</h4>
+    <p>運送業の現実を踏まえた制約をAIプロンプトに組込済:</p>
+    <ul>
+      <li>禁止: 信号待ちでストレッチ / ジム通い / 食事制限 / 自炊 / 8時間睡眠 (続かない・危険)</li>
+      <li>推奨: 出庫前後 / 荷下ろし待ち / SA/PA休憩中 / 帰庫後 / コンビニ買い物時 / 寝る前数分</li>
+    </ul>
+
+    <h4>プランの活用 (/myplan.html)</h4>
+    <ul>
+      <li><b>「今日のアクション完了」</b>ボタン → ヘルスアドバイザーから応援DM</li>
+      <li><b>共有トグル</b>: 後からニックネーム公開ON/OFF切替可</li>
+      <li><b>履歴</b>: 過去のプラン10件閲覧可、振り返り用</li>
+      <li><b>もう一度相談する</b>: 状況変わった時に新しいプラン生成</li>
+    </ul>
+  ` },
+
+  { key: 'minna', title: '📋 みんなの一歩 (掲示板)', html: `
+    <h3>「みんなの一歩」=健康管理室のホワイトボード</h3>
+    <p>健康管理室の中央にある <b>動的ホワイトボード</b> には、社員みんなの健康行動が表示されます。<br>
+    <b>「自分だけが頑張ってる気がして孤独」</b>という個人プランの弱点を解消するための仕掛けです。</p>
+
+    <h4>表示される内容</h4>
+    <ul>
+      <li><b>📊 カテゴリ別</b>: 今週何名がどんな取り組みを始めたか (例: 🏃運動 3名 / 🍱食事 1名)</li>
+      <li><b>✨ 先駆者の仲間たち</b>: 共有opt-inした人がニックネームで表示 (例: ✨ ジャックニ → 食事改善)</li>
+      <li><b>今日のアクション完了数</b></li>
+    </ul>
+    <p>入室時にヘルスアドバイザーが内容を音声で読み上げます (30分クールダウン)。</p>
+
+    <h3>3段階の公開度設計</h3>
+    <p>無関心層〜関心層まで段階的にアプローチできるよう、公開度を3段階で設計しています。</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12.5px;">
+      <tr><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">段</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">公開先</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">表示粒度</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">同意</th></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">段1</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">推進メンバーのみ</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">実名+詳細プラン</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">利用規約に組込</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">段2</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">全員 (匿名)</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">「今週N名が…」の集計のみ</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">利用規約に組込</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">段3</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">全員 (ニックネーム公開)</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">「✨ ○○さんが△△始めました」</td><td style="padding:6px 8px;border:1px solid #e2e8f0;"><b>opt-in 必須</b> (デフォルトOFF)</td></tr>
+    </table>
+    <p><b>opt-in したこと自体が「健康意識が向上した」シグナル</b>として推進メンバーが追跡可能です。挫折した人は静かに非表示になります (失敗を晒さない)。</p>
+
+    <h3>✨ 先駆者バッジ</h3>
+    <p>共有opt-inすると累積でカウントされ、「先駆者×N回目」として表彰候補になります。あなたの一歩が、誰かの背中を押す側に回ります。</p>
+
+    <div class="tip">💡 公開はいつでも取り下げ可能。実名は絶対に出ません (ニックネームのみ)。</div>
   ` },
 
   { key: 'account', title: '🔑 アカウント・パスワード', html: `

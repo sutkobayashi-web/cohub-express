@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CoWell ホワイトペーパー — 設計思想とKPI</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --sub: #475569;
+    --muted: #94a3b8;
+    --line: #e5e7eb;
+    --accent: #1e3a8a;
+    --accent2: #3b82f6;
+    --good-bg: #ecfdf5;
+    --good-ink: #065f46;
+    --warn-bg: #fef3c7;
+    --warn-ink: #78350f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75; font-size: 15px;
+    padding-bottom: 60px;
+  }
+  header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: #fff; padding: 40px 20px 32px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  header .icon { font-size: 48px; margin-bottom: 8px; }
+  header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 1px; }
+  header .sub { margin: 8px 0 0; opacity: 0.92; font-size: 13px; }
+  header .ver { display: inline-block; margin-top: 14px; padding: 4px 14px; border-radius: 12px; background: rgba(255,255,255,0.15); font-size: 11px; font-weight: 600; }
+  main { max-width: 800px; margin: 0 auto; padding: 0 16px; }
+  .card { background: var(--card); border-radius: 14px; margin-top: 18px;
+    padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid var(--line); }
+  .card h2 { margin: 0 0 14px; font-size: 18px; color: var(--accent);
+    padding-bottom: 8px; border-bottom: 2px solid var(--accent);
+    display: flex; align-items: center; gap: 10px; }
+  .card h2 .num {
+    background: var(--accent); color: #fff; width: 30px; height: 30px;
+    border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .card h3 { font-size: 15px; color: #1e3a8a; margin: 18px 0 6px; font-weight: 700; }
+  .card h4 { font-size: 14px; color: var(--sub); margin: 14px 0 4px; }
+  .card p { margin: 8px 0; }
+  .card ul, .card ol { margin: 8px 0; padding-left: 22px; }
+  .card li { margin: 4px 0; }
+  .quote { background: linear-gradient(135deg, #f0f9ff, #eff6ff);
+    border-left: 4px solid var(--accent2); padding: 14px 18px;
+    margin: 14px 0; border-radius: 0 8px 8px 0; color: #1e40af; font-weight: 600;
+    line-height: 1.7;
+  }
+  .pillar { background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 8px 0; }
+  .pillar .h { font-weight: 800; color: var(--accent); margin-bottom: 4px; font-size: 14px; }
+  .kpi-box { background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 16px; border-radius: 10px; margin: 12px 0; color: #78350f; }
+  .kpi-box .lbl { font-size: 11px; font-weight: 700; opacity: 0.85; }
+  .kpi-box .num { font-size: 28px; font-weight: 900; line-height: 1.2; margin: 4px 0; color: #92400e; }
+  .kpi-box .sub { font-size: 12px; opacity: 0.85; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 8px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 700; color: var(--sub); }
+  .ours { background: #eff6ff; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .good { background: var(--good-bg); color: var(--good-ink); padding: 12px 14px; border-radius: 8px; margin: 10px 0; }
+  .warn { background: var(--warn-bg); color: var(--warn-ink); padding: 12px 14px; border-radius: 8px; margin: 10px 0; }
+  .layer { display: flex; gap: 12px; margin: 10px 0; align-items: flex-start; }
+  .layer .badge { flex-shrink: 0; width: 60px; padding: 6px 0; border-radius: 6px;
+    text-align: center; font-weight: 800; font-size: 12px; color: #fff; }
+  .layer .badge.l1 { background: #10b981; }
+  .layer .badge.l2 { background: #3b82f6; }
+  .layer .badge.l3 { background: #8b5cf6; }
+  .layer .body { flex: 1; }
+  .toc { background: #f8fafc; border-radius: 10px; padding: 14px 18px; margin: 16px 0; }
+  .toc h3 { margin: 0 0 8px; font-size: 13px; color: var(--sub); }
+  .toc ol { margin: 0; padding-left: 22px; font-size: 14px; }
+  .toc li { margin: 3px 0; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  footer { text-align: center; color: var(--muted); padding: 30px 16px 20px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="icon">📘</div>
+  <h1>CoWell ホワイトペーパー</h1>
+  <div class="sub">設計思想 / 会社KPI / 健康管理アーキテクチャ</div>
+  <div class="ver">version 2026-04-29</div>
+</header>
+
+<main>
+
+<section class="card">
+  <div class="toc">
+    <h3>目次</h3>
+    <ol>
+      <li><a href="#origin">CoWell の存在理由</a></li>
+      <li><a href="#kpi">会社KPI: 健診レッド/イエロー対象者の減少</a></li>
+      <li><a href="#reality">運送業界の現実 (制約条件)</a></li>
+      <li><a href="#strategy">戦略: 強制ではなく「気づきの機会」</a></li>
+      <li><a href="#twolayer">二層構造: 個人プラン × 全社施策</a></li>
+      <li><a href="#myplan">個人アクションプラン (myplan)</a></li>
+      <li><a href="#opt-in">3段階の公開度設計</a></li>
+      <li><a href="#health-room">健康管理室とAIヘルスアドバイザー</a></li>
+      <li><a href="#future">今後のロードマップ</a></li>
+    </ol>
+  </div>
+</section>
+
+<section class="card" id="origin">
+  <h2><span class="num">1</span>CoWell の存在理由</h2>
+  <p>CoWell (Communication & Wellness)は、スタンダード運輸グループの<b>社内コミュニケーションと健康経営を統合したバーチャルオフィス</b>です。
+  単なる業務ツールではなく、<b>無関心層への「気づきの機会」を提供する装置</b>として設計されています。</p>
+
+  <div class="quote">
+    「健康と言った瞬間、人は離れる」<br>
+    だからCoWellは、健康を表に出さずに健康を支える。
+  </div>
+
+  <h3>背景: なぜ作ったか</h3>
+  <ul>
+    <li>運送業ドライバーの健康診断で、約半数が有所見 (要再検査・要精密検査)</li>
+    <li>二次検診の受診率が極めて低く、強制しないと行動しない実態</li>
+    <li>従来の「健康講習」「健康通信」は届かない (無関心層が大半)</li>
+    <li>会社主導の福利厚生は、帰属意識が希薄な業界特性ゆえ機能しにくい</li>
+  </ul>
+  <p>この三重苦に対して、「強制」「義務化」「ノルマ化」ではなく、<b>本人が "ちょっとやってみようかな" と思える瞬間</b>を作ることに振り切ったのがCoWellです。</p>
+</section>
+
+<section class="card" id="kpi">
+  <h2><span class="num">2</span>会社KPI: 健診レッド/イエロー対象者の減少</h2>
+  <p>CoWellの最終的な経営評価軸は、社員の健康診断スコアです。</p>
+
+  <div class="kpi-box">
+    <div class="lbl">最終KPI (遅行指標、年次)</div>
+    <div class="num">健診レッドカード/イエローカード対象者の減少率</div>
+    <div class="sub">取引先・銀行・SDGs/サステナビリティ報告にも乗せられる客観指標</div>
+  </div>
+
+  <h3>先行指標 (週次・月次でモニタリング可能)</h3>
+  <table>
+    <tr><th>指標</th><th>意味</th></tr>
+    <tr><td>個人プラン作成数</td><td>「気づき」が起きた人数</td></tr>
+    <tr><td>段3 opt-in 率</td><td>Awareness → Desire への進行率</td></tr>
+    <tr><td>1ヶ月継続率</td><td>行動継続の定着度</td></tr>
+    <tr><td>「今日のアクション完了」回数</td><td>習慣化の進行</td></tr>
+    <tr><td>健康管理室入室率</td><td>関心の芽生え度</td></tr>
+  </table>
+  <p>遅行指標 (健診結果) は1年待たないと変化が見えませんが、先行指標は週次で動きます。
+  経営/外部説明では <b>「先行指標で芽が育ち、遅行指標で結果が出る」</b> というストーリーで報告します。</p>
+</section>
+
+<section class="card" id="reality">
+  <h2><span class="num">3</span>運送業界の現実 (制約条件)</h2>
+  <p>CoWellは以下の業界特性を前提に設計されています。これらを無視した「健康施策」は届きません。</p>
+  <ul>
+    <li><b>帰属意識が希薄・転職障壁ゼロ</b>: 会社帰属型の福利厚生は原理的に届かない</li>
+    <li><b>有所見半数超</b>: 健診結果を出すこと自体が当事者にとって不利益情報</li>
+    <li><b>不規則シフト</b>: 早朝出庫・深夜配送・週末勤務で「決まった時間に毎日」が成立しない</li>
+    <li><b>外食/弁当中心の食生活</b>: 自炊・カロリー計算は非現実的</li>
+    <li><b>運転中の安全性</b>: 信号待ち中の運動・運転中のながら作業は禁忌</li>
+    <li><b>独身/単身赴任者多</b>: 家族からのサポート体制が薄い</li>
+  </ul>
+  <p>CoWellのAIアクションプランには、これらの制約が明示プロンプトで組み込まれています (推奨は出庫前後・荷下ろし待ち・SA/PA休憩・コンビニ買い物時等の <b>ドライバー実務シーン</b> に限定)。</p>
+</section>
+
+<section class="card" id="strategy">
+  <h2><span class="num">4</span>戦略: 強制ではなく「気づきの機会」</h2>
+  <p>無関心層への到達には、<b>AIDA-A モデルの "A" (Awareness=気づき)</b> を補完する設計が必要です。</p>
+  <table>
+    <tr><th>段階</th><th>状態</th><th>CoWellの仕掛け</th></tr>
+    <tr><td>A (Awareness)</td><td>気づき</td><td>食事AI診断・血圧記録・健診閲覧で「自分の体の今」を可視化</td></tr>
+    <tr><td>I (Interest)</td><td>興味</td><td>樹形図相談で「あるある共感」軸からタップで深掘り</td></tr>
+    <tr><td>D (Desire)</td><td>動機</td><td>個別最適化されたプランで「やってみようかな」を醸成</td></tr>
+    <tr><td>A (Action)</td><td>行動</td><td>「今日からできる1つ」+ヘルスアドバイザーDM応援</td></tr>
+  </table>
+  <div class="warn">⚠ 「健康になりましょう」という直接訴求は無関心層に届きません。CoWellは「健康」という言葉を表に出さず、本人の主観 (「お腹が出てきた気がする」「夕方眠い」) からアプローチします。</div>
+</section>
+
+<section class="card" id="twolayer">
+  <h2><span class="num">5</span>二層構造: 個人プラン × 全社施策</h2>
+  <p>個人プランだけでは「孤独な自助努力」に終わり、全社施策だけでは「無関心層に届かない」。
+  両者を組み合わせることで補完関係を作ります。</p>
+  <div class="layer">
+    <div class="badge l1">個人層</div>
+    <div class="body">
+      <p><b>気づき・興味の芽生え</b><br>
+      樹形図相談 → AIアクションプラン → ヘルスアドバイザーDM応援。
+      無関心層〜少し興味ある層がメインターゲット。</p>
+    </div>
+  </div>
+  <div class="layer">
+    <div class="badge l2">集約層</div>
+    <div class="body">
+      <p><b>推進メンバーDashboard</b><br>
+      個人プランを匿名集計 → 「全社の課題TOP3」を可視化。
+      推進メンバーが議論材料として活用、現場の声を吸い上げる。</p>
+    </div>
+  </div>
+  <div class="layer">
+    <div class="badge l3">全社施策層</div>
+    <div class="body">
+      <p><b>凝集型テーマ・チャレンジ・評議会</b><br>
+      推進メンバーが集約データを根拠に、全社チャレンジを立案。
+      関心層の「peer pressure (社会伝染)」を活用して継続を支援。</p>
+    </div>
+  </div>
+  <p><b>フィードバックループ</b>: 全社施策が立ち上がった後、個人myplanに「今、全社で○○取り組み中、合流しますか?」と優しく案内。
+  個人 → 集約 → 全社 → 個人 のループが閉じる。</p>
+</section>
+
+<section class="card" id="myplan">
+  <h2><span class="num">6</span>個人アクションプラン (myplan)</h2>
+  <p>樹形図相談 (3タップ+任意の自由記述) でAIが個別最適化したアクションプランを生成します。</p>
+
+  <h3>樹形図フロー</h3>
+  <ol>
+    <li><b>Layer 1 (9択)</b>: 「最近こんなこと感じてる?」 (あるある共感軸、健康ワード排除)</li>
+    <li><b>Layer 2 (4-6択)</b>: 「どうしたい?」「どんなとき?」 (前向き軸、問診感を排除)</li>
+    <li><b>自由記述 (任意)</b>: 補足や具体エピソード</li>
+    <li><b>共有opt-in (任意)</b>: ニックネーム公開で「先駆者」になるか</li>
+  </ol>
+
+  <h3>AI入力 (個別化のための context)</h3>
+  <ul>
+    <li>選択ログ + 自由記述</li>
+    <li>過去7日の食事ログ (栄養素別、CoHub plaza_posts + CoWell Classic 統合)</li>
+    <li>直近の血圧記録 (5回分)</li>
+    <li>運動意欲フラグ (検出時は今日/1週間アクションを運動寄りに)</li>
+  </ul>
+
+  <h3>生成プラン (5セクション)</h3>
+  <div class="pillar">
+    <div class="h">📍 今のあなた</div>
+    <p style="margin:0;">現状サマリ。選択+データから読み取れる客観事実 (100-160字)</p>
+  </div>
+  <div class="pillar">
+    <div class="h">✅ 今日からできる1つ</div>
+    <p style="margin:0;">即時アクション。1個に絞り、実行可能な具体行動 (80-140字)</p>
+  </div>
+  <div class="pillar">
+    <div class="h">🎯 1週間チャレンジ</div>
+    <p style="margin:0;">短期目標。測定可能で達成感あるもの (100-160字)</p>
+  </div>
+  <div class="pillar">
+    <div class="h">📅 1ヶ月の目標</div>
+    <p style="margin:0;">中期ゴール。健診/数値で評価できるもの (100-160字)</p>
+  </div>
+  <div class="pillar">
+    <div class="h">📊 数値で見える化 (KPI)</div>
+    <p style="margin:0;">1〜3個の指標 (現状値→目標値)。歩数/体重/塩分/血圧上等</p>
+  </div>
+</section>
+
+<section class="card" id="opt-in">
+  <h2><span class="num">7</span>3段階の公開度設計</h2>
+  <p>無関心層→関心層まで段階的にアプローチできるよう、公開範囲を3段階で分離。
+  デフォルトは「自分だけ」、本人意思で段階的に公開できる仕組み。</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>段</th><th>公開先</th><th>表示粒度</th><th>同意</th></tr>
+      <tr>
+        <td><b>段1</b></td>
+        <td>推進メンバー <br>(健康管理担当 約3名+管理者)</td>
+        <td>実名+詳細プラン本文</td>
+        <td>CoWell利用規約 (個人記録の一環)</td>
+      </tr>
+      <tr>
+        <td><b>段2</b></td>
+        <td>全社員 (匿名集計)</td>
+        <td>「今週N名が△△を始めました」「今日 M名 完了」</td>
+        <td>CoWell利用規約 (個人特定不能)</td>
+      </tr>
+      <tr class="ours">
+        <td><b>段3</b></td>
+        <td>全社員 (ニックネーム公開)</td>
+        <td>「✨ ○○さんが△△始めました (×N回目)」</td>
+        <td><b>opt-in 必須・デフォルトOFF</b></td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>段3 opt-in 自体が KPI</h3>
+  <p>段3 (ニックネーム公開) を opt-in したという行為は、それ自体が <b>「健康行動を他人と接続することへの抵抗がなくなった」=AIDA-A の Awareness を超えて Desire 段階に達した証拠</b> です。
+  推進メンバーは段3 opt-in 率の推移を見ることで、社員全体の健康意識の進行度を週次で測定できます。</p>
+
+  <div class="good">
+    💡 失敗しても晒されない: 一度公開して挫折した人は静かに非表示になります。「失敗を晒さない原則」を遵守。
+  </div>
+</section>
+
+<section class="card" id="health-room">
+  <h2><span class="num">8</span>健康管理室とAIヘルスアドバイザー</h2>
+  <p>健康管理室は、CoWellの<b>個人健康行動の中心地</b>です。一人称視点で部屋に入り、女性のAIヘルスアドバイザー (Wavenetベース音声、ヘルス特化プロンプト) が出迎えます。</p>
+
+  <h3>機能</h3>
+  <ul>
+    <li><b>樹形図相談</b>: 9択タップで個人プラン作成 (頭上ボタン or 本体タップで即起動)</li>
+    <li><b>動的ホワイトボード</b>: 中央背壁に「みんなの一歩」を描画。今週のカテゴリ別取組み数+先駆者リスト</li>
+    <li><b>入室時音声アナウンス</b>: 「今週は食事改善が1名、運動が3名取り組んでいるよ。先駆者として○○さんが…」</li>
+    <li><b>AI DM</b>: 健康データ (血圧/食事/歩数) を context として注入した個別化応答</li>
+    <li><b>個人健康記録</b>: 血圧・健康メモ・健診ファイル閲覧</li>
+  </ul>
+
+  <h3>AIの絶対原則</h3>
+  <ul>
+    <li>個別の医学的診断は行わない (「あなたは高血圧症です」のような断定禁止)</li>
+    <li>薬剤の推奨・処方は行わない</li>
+    <li>提示はガイドラインベースの一般情報・本人記録の傾向解説・専門家への橋渡しのみ</li>
+    <li>緊急医療判断 (胸痛・呼吸困難・意識障害等) は「すぐに救急」と返答</li>
+  </ul>
+</section>
+
+<section class="card" id="future">
+  <h2><span class="num">9</span>今後のロードマップ</h2>
+  <h3>Phase 1 (実装済 / 2026-04-29)</h3>
+  <ul>
+    <li>樹形図相談+AIアクションプラン生成</li>
+    <li>ヘルスアドバイザーAI DM (健康データ context 注入)</li>
+    <li>動的ホワイトボード (公開フィード)</li>
+    <li>推進メンバーDashboard</li>
+    <li>3段階公開度設計 + 先駆者バッジ</li>
+    <li>食事AI診断 (5セクション傾向ベース)</li>
+  </ul>
+
+  <h3>Phase 2 (実装候補)</h3>
+  <ul>
+    <li>健診Boxデータ取込み (本人意思でPDF/写真からAI抽出)</li>
+    <li>アクション完了→既存チャレンジ自動連動</li>
+    <li>過去プランからの「進捗振り返り」差分表示</li>
+    <li>推進メンバー集約データ→全社チャレンジ自動立案フロー</li>
+  </ul>
+
+  <h3>Phase 3 (構想)</h3>
+  <ul>
+    <li>ヘルスケア外販 (NPO 160社ネットワーク経由)</li>
+    <li>個人健康パスポート (会社をまたいで持ち歩ける記録)</li>
+    <li>SBTi等の対外サステナ報告とのKPI連動</li>
+  </ul>
+
+  <div class="quote">
+    本人が "ちょっとやってみようかな" と思った瞬間が、健康経営のスタートライン。<br>
+    CoWellはその瞬間を、量産する装置です。
+  </div>
+</section>
+
+</main>
+
+<footer>
+  © 2026 株式会社スタンダード運輸 / CoWell ホワイトペーパー version 2026-04-29
+</footer>
+
+</body>
+</html>

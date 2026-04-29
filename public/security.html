@@ -132,10 +132,12 @@
   <a href="#policy">基本方針</a>
   <a href="#tech">技術対策</a>
   <a href="#operation">運用</a>
+  <a href="#health-data">健康データ</a>
   <a href="#compare">他社比較</a>
   <a href="#honest">強みと弱み</a>
   <a href="#incident">緊急時</a>
   <a href="#contact">問い合わせ</a>
+  <a href="/about-cowell.html" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:6px;padding:4px 10px;">📘 CoWell ホワイトペーパー</a>
 </nav>
 
 <main>
@@ -184,8 +186,74 @@
   </ul>
 </section>
 
+<section class="card" id="health-data">
+  <h2><span class="num">4</span>個人健康アクションプランのデータ取扱い</h2>
+  <p>CoWellは「<b>健診のレッドカード/イエロー対象者を減らす</b>」を会社KPIとし、社員一人ひとりの<b>気づきと小さな行動</b>を支援する個人アクションプラン機能 (myplan) を持ちます。
+  プランは樹形図相談+AIで作成され、過去7日の食事ログ・直近の血圧記録を踏まえて個別最適化されます。</p>
+
+  <h3>4-1. データの保管範囲</h3>
+  <ul>
+    <li>選択した相談カテゴリ・自由記述・生成プラン本文 → CoWell DB に暗号化保存</li>
+    <li>食事ログ・血圧記録は元々個人記録の一部として CoWell に保存済み</li>
+    <li><b>第三者AI事業者 (Google Gemini) には、その時の相談内容と直近データのみが「単発」で渡され、AI側に学習・蓄積されません</b> (Gemini API契約条件)</li>
+    <li>外部クラウド・分析ツール・取引先には、本人同意なく一切送られません</li>
+  </ul>
+
+  <h3>4-2. 公開度の3段階設計</h3>
+  <p>個人プランの可視範囲は本人がコントロールします。デフォルトは「自分だけ」。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>段</th><th>公開先</th><th>表示粒度</th><th>同意</th></tr>
+      <tr>
+        <td><b>段1</b></td>
+        <td>推進メンバー (健康管理担当 約3名+管理者)</td>
+        <td>実名+詳細プラン本文</td>
+        <td>CoWell利用規約に組込済 (個人記録の一環)</td>
+      </tr>
+      <tr>
+        <td><b>段2</b></td>
+        <td>全社員 (匿名)</td>
+        <td>「今週N名が△△を始めました」の集計のみ。個人特定不能</td>
+        <td>CoWell利用規約に組込済</td>
+      </tr>
+      <tr class="ours">
+        <td><b>段3</b></td>
+        <td>全社員 (ニックネーム公開)</td>
+        <td>「✨ ○○さん が △△ を始めました」</td>
+        <td><b>opt-in 必須・デフォルトOFF・いつでも取り下げ可</b></td>
+      </tr>
+    </table>
+  </div>
+  <p><b>実名は段3でも絶対に出ません</b> (本人ニックネームのみ)。挫折した人は静かに非表示にする運用 (失敗を晒さない原則)。</p>
+
+  <h3>4-3. 推進メンバーが見られる範囲</h3>
+  <ul>
+    <li>個人プラン一覧 + カテゴリ別集計 (<code>/myplan-ops.html</code>)</li>
+    <li>誰がどんなアクションを始めたか (実名 or ニックネーム)</li>
+    <li>今週の完了率・先駆者数</li>
+    <li>推進メンバーは社員に「励ましDM」を送ることができます (本人の名前で送信)</li>
+  </ul>
+  <p><b>管理職・人事部 (推進メンバー以外)は閲覧できません</b>。情報は健康管理目的に限定。</p>
+
+  <h3>4-4. AIが行わないこと</h3>
+  <ul>
+    <li>個別の医学的診断 (「あなたは高血圧症です」のような断定)</li>
+    <li>薬剤の推奨・処方</li>
+    <li>個別医療行為の代替 (緊急時は「すぐに救急」と返答)</li>
+    <li>恋愛・家庭問題・転職等、業務上の健康管理を超える領域への踏込み</li>
+  </ul>
+
+  <h3>4-5. 健診KPI連動 (会社目標との接続)</h3>
+  <p>個人プランの集約データ (匿名)を、推進メンバーが <b>全社的な健康施策の議論材料</b> として活用します。
+  これにより「個人の小さな行動」→「全社の健診スコア改善」のループを回し、最終的に二次検診対象者 (レッド/イエロー)の減少を目指します。</p>
+
+  <div class="good">
+    💡 ICAO・SBTi・サステナビリティ報告等で対外説明する「会社の健康指標」として、匿名集計データを使う場合があります。個人特定情報は一切含めません。
+  </div>
+</section>
+
 <section class="card" id="compare">
-  <h2><span class="num">4</span>LINE・Teamsとの比較</h2>
+  <h2><span class="num">5</span>LINE・Teamsとの比較</h2>
   <p>業務利用を想定した、率直な比較表です。</p>
   <div class="table-wrap">
     <table>
@@ -268,7 +336,7 @@
 </section>
 
 <section class="card" id="honest">
-  <h2><span class="num">5</span>正直に申し上げる、CoWellの強みと弱み</h2>
+  <h2><span class="num">6</span>正直に申し上げる、CoWellの強みと弱み</h2>
 
   <h3>✅ 強み</h3>
   <ul>
@@ -294,7 +362,7 @@
 </section>
 
 <section class="card" id="byod">
-  <h2><span class="num">6</span>個人LINE・個人SNSとの使い分けのお願い</h2>
+  <h2><span class="num">7</span>個人LINE・個人SNSとの使い分けのお願い</h2>
   <p>業務連絡はCoWellに集約してください。理由は3つあります。</p>
   <ol>
     <li>個人LINEに業務情報を残すと、退職時にデータが社外に残ります(情報漏洩リスク)</li>
@@ -305,7 +373,7 @@
 </section>
 
 <section class="card" id="incident">
-  <h2><span class="num">7</span>インシデント時の対応</h2>
+  <h2><span class="num">8</span>インシデント時の対応</h2>
   <p>万一、不正アクセスや情報漏洩が疑われた場合の対応手順です。</p>
   <ol>
     <li><b>即時通報</b>:代表 小林(su.t.kobayashi@gmail.com)</li>
@@ -328,7 +396,7 @@
 </section>
 
 <section class="card" id="contact">
-  <h2><span class="num">8</span>お問い合わせ</h2>
+  <h2><span class="num">9</span>お問い合わせ</h2>
   <ul>
     <li><b>システムに関するご質問</b>:IT推進担当 立石</li>
     <li><b>セキュリティに関するご懸念</b>:代表 小林</li>
