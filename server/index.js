@@ -793,6 +793,7 @@ io.on('connection', (socket) => {
     tapTimestamps.set(key, now);
     const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
     // bot宛: 吹き出しで挨拶を返す (DMしてくださいと案内)
+    // ※ 挨拶はチャットログに残さない (揮発、emit のみ)。負のIDで永続メッセージと区別
     if (target.isBot) {
       const greetings = [
         senderName + 'さん、こんにちは！💬DMで何でも聞いてくださいね',
@@ -800,10 +801,8 @@ io.on('connection', (socket) => {
         senderName + 'さん、お声がけありがとうございます。DMでお手伝いしますね！',
       ];
       const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-      const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, has_mention) VALUES (?, NULL, ?, ?, 0)")
-        .run(targetUid, greeting, target.floor);
       const payload = {
-        id: ins.lastInsertRowid,
+        id: -Date.now(),  // 揮発挨拶 (DBに保存しない)。負IDでクライアント側スキップ可能
         uid: targetUid,
         content: greeting,
         x: target.x, y: target.y,
@@ -811,6 +810,7 @@ io.on('connection', (socket) => {
         mentions: [],
         room: target.floor,
         attach: null,
+        ephemeral: true,
       };
       io.to('floor:' + target.floor).emit('chat:msg', payload);
       socket.emit('tap:sent', { targetUid });
