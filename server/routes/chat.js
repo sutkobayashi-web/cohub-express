@@ -181,9 +181,9 @@ router.get('/groups/:gid/members', authUser, (req, res) => {
   res.json({ success: true, members: rows });
 });
 
-// フロア一覧
+// フロア一覧 (アイコン+棟分類付き、モバイル/管理画面で利用)
 router.get('/floors', authUser, (req, res) => {
-  const rows = getDb().prepare('SELECT code, name FROM floors ORDER BY sort_order').all();
+  const rows = getDb().prepare('SELECT code, name, icon, building, locked, approval_mode FROM floors ORDER BY sort_order').all();
   res.json({ success: true, floors: rows });
 });
 

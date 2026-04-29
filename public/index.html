@@ -601,6 +601,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
       <span>🌳</span><span class="lbl">ひろば</span>
     </button>
+    <button class="rail-btn" onclick="location.href='/myplan.html'" title="健康管理室で相談 → あなたのアクションプラン" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.35);color:#1e3a8a;">
+      <span>🩺</span><span class="lbl">健康相談</span>
+    </button>
     <button class="rail-btn" onclick="location.href='/challenges.html'" title="チャレンジ" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);color:#b45309;">
       <span>🏆</span><span class="lbl">チャレンジ</span>
     </button>
@@ -5963,6 +5966,13 @@ function showAoiActionModal(botUid, botName) {
   const isHealth = botUid === 'bot_health';
   const greetSub = isHealth ? '体調や健康のことで気になることはありますか?' : 'いらっしゃいませ。ご用件をお聞かせください。';
   const dmSub = isHealth ? '健康データを踏まえてアドバイスします' : 'AIに質問やお願いができます';
+  // ヘルスアドバイザー: 「アクションプラン作成」をDMより上の主役ボタンに
+  const planBtn = isHealth
+    ? `<button onclick="aoiAction('plan', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;text-align:left;box-shadow:0 4px 12px rgba(59,130,246,0.3);">
+        <span style="font-size:22px;">🩺</span>
+        <div style="flex:1;"><div>相談 → アクションプラン作成</div><div style="font-size:11px;font-weight:600;opacity:0.95;">タップで進める質問に答えるだけ</div></div>
+      </button>`
+    : '';
   const thirdBtn = isHealth
     ? `<button onclick="aoiAction('records', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
         <span style="font-size:22px;">📋</span>
@@ -5986,6 +5996,7 @@ function showAoiActionModal(botUid, botName) {
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+        ${planBtn}
         <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${isHealth ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
           <span style="font-size:22px;">💬</span>
           <div style="flex:1;"><div>DMで話す</div><div style="font-size:11px;font-weight:400;opacity:0.9;">${dmSub}</div></div>
@@ -6027,6 +6038,9 @@ function aoiAction(action, botUid) {
   } else if (action === 'records') {
     // 個人健康記録ページ (/wellness.html) を別タブで開く
     window.open('/wellness.html', '_blank');
+  } else if (action === 'plan') {
+    // 健康相談 → アクションプラン作成フロー (consult.html)
+    location.href = '/consult.html';
   }
 }
 

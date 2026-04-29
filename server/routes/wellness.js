@@ -10,7 +10,21 @@ const LOBBY_ANNOUNCE_ROOM = 'lobby';  // 全社アナウンスはロビーフロ
 const CATEGORIES = ['体調', '食事', '睡眠', '職場環境', 'その他'];
 const URGENCIES = ['低', '中', '高'];
 const IDENTITY_MODES = ['本人特定可', '匿名', '集計のみ'];
-const ACTION_STATUSES = ['候補', '承認待ち', '承認済', '実行中', '完了', '却下'];
+// v2 パイプライン: 候補→評議→推進確定→保健師中→役員→投票中→保健師末→実行→完了
+const ACTION_STATUSES = ['候補', '評議中', '推進確定', '保健師中間', '役員決済', '投票中', '保健師最終', '実行中', '完了', '却下'];
+// 段階遷移マップ (どこへ進めるか)
+const NEXT_STATUS = {
+  '候補': ['評議中', '推進確定', '却下'],            // AI評議をスキップして推進確定もOK
+  '評議中': ['推進確定', '却下'],
+  '推進確定': ['保健師中間', '却下'],
+  '保健師中間': ['役員決済', '却下'],
+  '役員決済': ['投票中', '却下'],
+  '投票中': ['保健師最終'],                        // CRON or手動で締切→保健師最終へ
+  '保健師最終': ['実行中', '却下'],
+  '実行中': ['完了', '却下'],
+};
+const VOTING_DAYS = 7;       // 投票期間 (1週間)
+const VOTE_PASS_RULE = 'pos_gt_neg'; // 賛成(4-5) > 反対(1-2) で採用、複数案OK
 
 // 推進メンバー判定
 function isFieldPromoter(uid) {
@@ -209,6 +223,16 @@ router.post('/actions', authUser, express.json(), (req, res) => {
     req.uid,
     b.is_ai_suggested ? 1 : 0,
   );
+  // insight からの登録なら thread にも記録 (登録履歴)
+  if (b.insight_id && (typeof b.insight_candidate_idx === 'number')) {
+    try {
+      getDb().prepare(`INSERT INTO wellness_insight_threads (insight_id, candidate_idx, author_id, type, content, registered_action_id)
+        VALUES (?, ?, ?, 'register', ?, ?)`).run(
+        parseInt(b.insight_id), b.insight_candidate_idx, req.uid,
+        '📋 ボードへ登録: ' + title.slice(0, 80), ins.lastInsertRowid
+      );
+    } catch (e) { console.warn('[insight register thread] fail:', e.message); }
+  }
   res.json({ success: true, id: ins.lastInsertRowid });
 });
 
@@ -356,6 +380,62 @@ router.post('/actions/:id/complete', authUser, express.json(), (req, res) => {
 // =============================================================
 const { generateText } = require('../services/ai');
 
+// 推進メンバー貢献度 + 直近ハイライト + フロー進捗 (1リクエストで全部返す)
+router.get('/promoter-board', authUser, (req, res) => {
+  if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const days = Math.min(parseInt(req.query.days) || 30, 90);
+  const sinceISO = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  const db = getDb();
+
+  // フロー進捗 (3ソース→施策化までの数値)
+  const unkanCount = db.prepare('SELECT COUNT(*) AS c FROM wellness_posts WHERE created_at >= ?').get(sinceISO).c;
+  const plazaCount = db.prepare("SELECT COUNT(*) AS c FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category != '食事'").get(sinceISO).c;
+  const foodCount = db.prepare("SELECT COUNT(*) AS c FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category = '食事'").get(sinceISO).c;
+  const totalVoices = unkanCount + plazaCount + foodCount;
+  const aiSuggested = db.prepare("SELECT COUNT(*) AS c FROM wellness_actions WHERE created_at >= ? AND is_ai_suggested = 1").get(sinceISO).c;
+  const inMotion = db.prepare("SELECT COUNT(*) AS c FROM wellness_actions WHERE status IN ('承認待ち','承認済','実行中')").get().c;
+  const completed = db.prepare("SELECT COUNT(*) AS c FROM wellness_actions WHERE status = '完了' AND completed_at >= ?").get(sinceISO).c;
+
+  // 直近の重要な声 (緊急度高 or 直近)
+  const recentVoices = db.prepare(`SELECT wp.id, wp.category, wp.urgency, wp.memo, wp.company_code, wp.created_at,
+    u.display_name as poster_name FROM wellness_posts wp LEFT JOIN users u ON u.id = wp.poster_id
+    WHERE wp.created_at >= ? ORDER BY (wp.urgency = '高') DESC, wp.id DESC LIMIT 5`).all(sinceISO);
+
+  // 進行中の施策 (上位)
+  const ongoingActions = db.prepare(`SELECT id, title, status, category FROM wellness_actions
+    WHERE status IN ('承認待ち','承認済','実行中') ORDER BY id DESC LIMIT 5`).all();
+
+  // 推進メンバー貢献ランキング (POST数+議論数+コメント数)
+  const promoters = db.prepare(`SELECT u.id, u.display_name, u.company_code,
+    (SELECT COUNT(*) FROM wellness_posts WHERE poster_id = u.id AND created_at >= ?) AS post_count,
+    (SELECT COUNT(*) FROM wellness_post_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS post_disc_count,
+    (SELECT COUNT(*) FROM wellness_action_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS action_disc_count,
+    (SELECT COUNT(*) FROM wellness_post_reactions WHERE user_id = u.id AND created_at >= ?) AS react_count
+    FROM users u WHERE u.is_field_promoter = 1 OR u.employee_type = 'admin' OR u.is_guest_reviewer = 1
+    ORDER BY (post_count*3 + post_disc_count*2 + action_disc_count*2 + react_count) DESC LIMIT 12`)
+    .all(sinceISO, sinceISO, sinceISO, sinceISO);
+
+  // 最近完了した施策 (成果として見せる)
+  const recentCompleted = db.prepare(`SELECT id, title, completed_at, announce_message FROM wellness_actions
+    WHERE status = '完了' AND completed_at >= ? ORDER BY completed_at DESC LIMIT 3`).all(sinceISO);
+
+  res.json({
+    success: true,
+    window_days: days,
+    flow: {
+      voices: totalVoices,
+      unkan: unkanCount, plaza: plazaCount, food: foodCount,
+      ai_suggested: aiSuggested,
+      in_motion: inMotion,
+      completed: completed,
+    },
+    recent_voices: recentVoices,
+    ongoing_actions: ongoingActions,
+    promoters,
+    recent_completed: recentCompleted,
+  });
+});
+
 // 3ソース集計サマリ (推進メンバーモーダル用)
 router.get('/sources-summary', authUser, (req, res) => {
   if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
@@ -386,11 +466,11 @@ router.get('/sources-summary', authUser, (req, res) => {
     success: true,
     window_days: days,
     sources: {
-      unkan: { count: unkanCount, urgent: urgentCount, label: '🩺 運管・現場責任者POST' },
-      plaza: { count: plazaCount, label: '🌳 社員の自発的な声' },
-      food: { count: foodCount, salt_over: saltOver, veg_low: vegLow, label: '🍱 食事分析' },
-      disc: { count: discCount, label: '💬 健康管理室議論' },
+      unkan: { count: unkanCount, urgent: urgentCount, label: '🩺 運管・健管POST', desc: '点呼/帰庫時に推進メンバーが拾った構造化された声' },
+      plaza: { count: plazaCount, label: '🌳 一般投稿', desc: '社員が自発的にひろばへ投稿した相談/雑談/Tips' },
+      food: { count: foodCount, salt_over: saltOver, veg_low: vegLow, label: '🍱 食事投稿', desc: '食事写真+AI栄養スコアから見える生活習慣' },
     },
+    discussion: { count: discCount, label: '💬 健康管理室議論GC', desc: '推進メンバー間の議論レイヤー (ソースではなく加工側)' },
   });
 });
 
@@ -438,13 +518,15 @@ router.post('/insights', authUser, express.json(), async (req, res) => {
     return res.json({ success: true, insights: null, msg: 'データが不足しています' });
   }
 
-  const unkanLines = unkanPosts.map(p =>
-    `[#${p.id}|${p.category}|緊急度${p.urgency}|${p.company_code || '-'}|${p.created_at}|by ${p.poster_name || '不明'}|${p.identity_mode}] ${p.memo || '(メモなし)'}`
+  // 各系統 上限80件、メモは200字まで (プロンプト肥大化防止)
+  const cap = (arr, n) => arr.length > n ? arr.slice(0, n) : arr;
+  const unkanLines = cap(unkanPosts, 80).map(p =>
+    `[#${p.id}|${p.category}|緊急度${p.urgency}|${p.company_code || '-'}|by ${p.poster_name || '不明'}] ${(p.memo || '').slice(0, 200) || '(メモなし)'}`
   ).join('\n');
-  const plazaLines = plazaPosts.map(p =>
-    `[#${p.id}|${p.category}|${p.company_code || '-'}|${p.created_at}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0, 200)}`
+  const plazaLines = cap(plazaPosts, 80).map(p =>
+    `[#${p.id}|${p.category}|${p.company_code || '-'}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0, 150)}`
   ).join('\n');
-  const foodLines = foodPosts.map(p => {
+  const foodLines = cap(foodPosts, 80).map(p => {
     let nutri = '';
     try {
       const ns = JSON.parse(p.nutrition_scores || '{}');
@@ -453,10 +535,10 @@ router.post('/insights', authUser, express.json(), async (req, res) => {
       const veg = ns.vitamin && ns.vitamin.value;
       nutri = `(cal:${cal||'-'}kcal塩:${salt||'-'}g野菜:${veg||'-'}g)`;
     } catch (e) {}
-    return `[#${p.id}|${p.created_at}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0,80)} ${nutri}`;
+    return `[#${p.id}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0,80)} ${nutri}`;
   }).join('\n');
-  const discLines = discMsgs.map(m =>
-    `[${m.created_at}|${m.sender_name || '不明'}] ${(m.content || '').slice(0, 200)}`
+  const discLines = cap(discMsgs, 80).map(m =>
+    `[${m.sender_name || '不明'}] ${(m.content || '').slice(0, 150)}`
   ).join('\n');
 
   const prompt = `あなたは中小運送業の健康管理室の補助役です。3系統の異なるソースから集まったテキストを分析し、健康管理室会議で議論する材料として整理してください。
@@ -492,46 +574,155 @@ ${discLines || '(なし)'}
 - 3系統 (運管POST/社員の声/食事分析) を横断的に見て、複数ソースで裏付けが取れるテーマを優先`;
 
   try {
-    // Gemini 2.5 は thinking にもトークン消費するため余裕を持たせる
-    const aiText = await generateText(prompt, { maxTokens: 4000, responseMimeType: 'application/json' });
-    console.log('[insights] raw:', String(aiText || '').slice(0, 300));
+    // thinkingBudget=0 で thinking を切り、出力枠をフルに確保
+    const aiText = await generateText(prompt, {
+      maxTokens: 8000,
+      responseMimeType: 'application/json',
+      thinkingBudget: 0,
+    });
+    console.log('[insights] raw len=', String(aiText || '').length, 'head:', String(aiText || '').slice(0, 200));
     let parsed = null;
     let cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
     const m = cleaned.match(/\{[\s\S]*\}/);
     if (m) cleaned = m[0];
     try { parsed = JSON.parse(cleaned); }
     catch (e) {
-      // 切詰時のフォールバック: 開きカッコ過多なら閉じる
+      // 切詰時のフォールバック: 末尾の壊れた要素を切り捨ててから閉じカッコ補完
       let fixed = cleaned;
+      // 末尾が文字列途中(閉じ"がない)で切れていたら "" を補完
+      // 末尾が , で終わっていたら除去 (JSON で trailing comma は不可)
+      fixed = fixed.replace(/,\s*$/,'');
+      // 末尾の不完全要素 (最後の { または [ 以降) を可能なら捨てる
       const opens = (fixed.match(/\{/g) || []).length;
       const closes = (fixed.match(/\}/g) || []).length;
       const obs = (fixed.match(/\[/g) || []).length;
       const cbs = (fixed.match(/\]/g) || []).length;
+      // 文字列途中切れ(奇数個の") は閉じる
+      const dq = (fixed.match(/"/g) || []).length;
+      if (dq % 2 === 1) fixed += '"';
+      // 末尾に , を再除去
+      fixed = fixed.replace(/,\s*$/,'');
       if (obs > cbs) fixed += ']'.repeat(obs - cbs);
       if (opens > closes) fixed += '}'.repeat(opens - closes);
       try { parsed = JSON.parse(fixed); }
       catch (e2) {
-        console.warn('[insights] parse fail:', cleaned.slice(0, 300));
-        return res.json({ success: false, msg: 'AI出力解析失敗 (出力切詰の可能性)', raw: cleaned.slice(0, 500) });
+        console.warn('[insights] parse fail. len=', cleaned.length, 'tail:', cleaned.slice(-300));
+        return res.json({
+          success: false,
+          msg: 'AI出力解析失敗 (出力切詰の可能性)。対象期間を短くするかPOST数を減らして再試行してください',
+          raw_len: cleaned.length,
+          raw_tail: cleaned.slice(-300),
+        });
+      }
+    }
+    // 永続化: insightを保存
+    const counts = {
+      unkan_posts: unkanPosts.length,
+      plaza_posts: plazaPosts.length,
+      food_posts: foodPosts.length,
+      disc_msgs: discMsgs.length,
+      posts: unkanPosts.length,
+    };
+    let insightId = null;
+    try {
+      const ins = db.prepare(`INSERT INTO wellness_insights (generated_by, days_window, summary, candidates_json, counts_json)
+        VALUES (?, ?, ?, ?, ?)`).run(
+        req.uid, days, parsed.summary || '',
+        JSON.stringify(parsed.actions || []),
+        JSON.stringify(counts)
+      );
+      insightId = ins.lastInsertRowid;
+    } catch (e) { console.warn('[insights] persist fail:', e.message); }
+    // 各AI候補を自動で施策ボードに【候補】として登録 → 既存の💬議論UIで個別議論可能
+    const createdActionIds = [];
+    if (parsed.actions && Array.isArray(parsed.actions)) {
+      for (let i = 0; i < parsed.actions.length; i++) {
+        const a = parsed.actions[i];
+        if (!a || !a.title) continue;
+        const title = String(a.title || '').slice(0, 200);
+        const description = (String(a.description || '') + (a.rationale ? '\n\n💡 効果想定: ' + a.rationale : '')).slice(0, 2000);
+        const sourceSummary = JSON.stringify({ insight_id: insightId, candidate_idx: i, source_post_ids: a.source_post_ids || [] }).slice(0, 1000);
+        const category = CATEGORIES.includes(a.category) ? a.category : null;
+        try {
+          const r = db.prepare(`INSERT INTO wellness_actions
+            (title, description, category, source_post_ids, source_summary, status, created_by, is_ai_suggested)
+            VALUES (?, ?, ?, ?, ?, '候補', ?, 1)`).run(
+            title, description, category,
+            a.source_post_ids ? JSON.stringify(a.source_post_ids) : null,
+            sourceSummary, req.uid
+          );
+          createdActionIds.push(r.lastInsertRowid);
+        } catch (e) { console.warn('[insights auto-create] fail:', e.message); }
       }
     }
     res.json({
       success: true,
+      insight_id: insightId,
       generated_at: new Date().toISOString(),
       window_days: days,
-      counts: {
-        unkan_posts: unkanPosts.length,
-        plaza_posts: plazaPosts.length,
-        food_posts: foodPosts.length,
-        disc_msgs: discMsgs.length,
-        posts: unkanPosts.length, // 後方互換
-      },
+      counts,
       insights: parsed,
+      created_action_ids: createdActionIds,
     });
   } catch (e) {
     console.warn('[insights] error:', e.message);
     res.status(500).json({ success: false, msg: 'AI呼び出し失敗: ' + e.message });
   }
+});
+
+// 直近のAI凝縮結果一覧 (再展開用)
+router.get('/insights', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const rows = getDb().prepare(`SELECT i.id, i.generated_by, i.generated_at, i.days_window, i.summary, i.candidates_json, i.counts_json,
+    u.display_name AS generator_name FROM wellness_insights i LEFT JOIN users u ON u.id = i.generated_by
+    WHERE i.status = 'active' ORDER BY i.id DESC LIMIT 10`).all();
+  res.json({ success: true, insights: rows });
+});
+
+// 個別insight再取得
+router.get('/insights/:id', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const ins = getDb().prepare(`SELECT i.*, u.display_name AS generator_name FROM wellness_insights i
+    LEFT JOIN users u ON u.id = i.generated_by WHERE i.id = ?`).get(id);
+  if (!ins) return res.status(404).json({ success: false, msg: '見つかりません' });
+  res.json({ success: true, insight: ins });
+});
+
+// 候補ごとの議論+共感+登録履歴を取得
+router.get('/insights/:id/threads', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const threads = getDb().prepare(`SELECT t.id, t.candidate_idx, t.author_id, t.type, t.content, t.registered_action_id, t.created_at,
+    u.display_name AS author_name FROM wellness_insight_threads t LEFT JOIN users u ON u.id = t.author_id
+    WHERE t.insight_id = ? AND t.deleted_at IS NULL ORDER BY t.id ASC`).all(id);
+  res.json({ success: true, threads });
+});
+
+// 共感+コメント追加
+router.post('/insights/:id/threads', authUser, express.json(), (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要' });
+  const insightId = parseInt(req.params.id);
+  const b = req.body || {};
+  const candidateIdx = (typeof b.candidate_idx === 'number') ? b.candidate_idx : -1;
+  const type = String(b.type || '');
+  if (!['like', 'comment'].includes(type)) return res.status(400).json({ success: false, msg: 'type は like|comment' });
+  const content = String(b.content || '').slice(0, 1000);
+  if (type === 'comment' && !content.trim()) return res.status(400).json({ success: false, msg: 'コメント本文必須' });
+  const db = getDb();
+  // like は同一ユーザーで重複しない (toggle)
+  if (type === 'like') {
+    const existing = db.prepare(`SELECT id FROM wellness_insight_threads
+      WHERE insight_id = ? AND candidate_idx = ? AND author_id = ? AND type = 'like' AND deleted_at IS NULL`)
+      .get(insightId, candidateIdx, req.uid);
+    if (existing) {
+      db.prepare("UPDATE wellness_insight_threads SET deleted_at = datetime('now') WHERE id = ?").run(existing.id);
+      return res.json({ success: true, action: 'unliked' });
+    }
+  }
+  const ins = db.prepare(`INSERT INTO wellness_insight_threads (insight_id, candidate_idx, author_id, type, content)
+    VALUES (?, ?, ?, ?, ?)`).run(insightId, candidateIdx, req.uid, type, content);
+  res.json({ success: true, id: ins.lastInsertRowid, action: type === 'like' ? 'liked' : 'commented' });
 });
 
 // ============================================================
@@ -719,6 +910,532 @@ router.get('/actions/:id/ai-council', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
   const rows = getDb().prepare('SELECT role, avatar, message, created_at FROM wellness_action_council WHERE action_id = ? ORDER BY id').all(parseInt(req.params.id));
   res.json({ success: true, council: rows });
+});
+
+// =============================================================
+// v2 パイプライン (3つの柱→AI凝縮→候補→評議→推進確定→保健師中→役員→投票→保健師末→実行→完了)
+// =============================================================
+
+// CoWell の image_url は CORP same-origin のためプロキシ経由必須
+function rewriteCwImage(url) {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/uploads/')) {
+    const fname = url.replace(/^\/uploads\//, '');
+    return '/api/cw-archive/img/' + encodeURIComponent(fname);
+  }
+  return url;
+}
+
+// 各柱の最新POST (3つの柱に実コンテンツを表示するため、CoWell移行データもマージ)
+router.get('/pillar-recent', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const limit = Math.min(parseInt(req.query.limit) || 5, 20);
+  const fetchN = limit * 2; // CoHub+CoWell をマージするため余分に取って後で絞る
+  const db = getDb();
+  // 運管POST (CoWellには無い)
+  const unkan = db.prepare(`SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code, wp.created_at,
+    u.display_name as poster_name
+    FROM wellness_posts wp LEFT JOIN users u ON u.id = wp.poster_id
+    ORDER BY wp.id DESC LIMIT ?`).all(limit);
+  unkan.forEach(p => p.source = 'unkan');
+
+  // 一般投稿 (CoHub plaza 食事以外 + CoWell 相談カテゴリ)
+  const plazaCohub = db.prepare(`SELECT pp.id, pp.category, pp.content, pp.image_url, pp.is_anonymous, pp.created_at,
+    u.display_name as author_name, u.company_code, pp.nutrition_scores, pp.ai_comment
+    FROM plaza_posts pp LEFT JOIN users u ON u.id = pp.author_id
+    WHERE pp.deleted_at IS NULL AND pp.category != '食事'
+    ORDER BY pp.id DESC LIMIT ?`).all(fetchN);
+  plazaCohub.forEach(p => p.source = 'plaza');
+  const plazaCw = db.prepare(`SELECT cw_post_id AS id, category, content, image_url, nickname, cw_created_at AS created_at, status, analysis
+    FROM cw_posts WHERE category != '🍱 食事・栄養' ORDER BY cw_created_at DESC LIMIT ?`).all(fetchN);
+  plazaCw.forEach(p => { p.source = 'cw_post'; p.author_name = p.nickname; p.is_archive = true; p.image_url = rewriteCwImage(p.image_url); });
+  const plaza = [...plazaCohub, ...plazaCw]
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, limit);
+
+  // 食事投稿 (CoHub plaza 食事 + CoWell 食事 + CoWell 週間レポート)
+  const foodCohub = db.prepare(`SELECT pp.id, pp.content, pp.image_url, pp.nutrition_scores, pp.ai_comment, pp.is_anonymous, pp.created_at,
+    u.display_name as author_name, u.company_code
+    FROM plaza_posts pp LEFT JOIN users u ON u.id = pp.author_id
+    WHERE pp.deleted_at IS NULL AND pp.category = '食事'
+    ORDER BY pp.id DESC LIMIT ?`).all(fetchN);
+  foodCohub.forEach(p => p.source = 'food');
+  const foodCw = db.prepare(`SELECT cw_post_id AS id, content, image_url, nutrition_scores, nickname, cw_created_at AS created_at, analysis, status
+    FROM cw_posts WHERE category = '🍱 食事・栄養' ORDER BY cw_created_at DESC LIMIT ?`).all(fetchN);
+  foodCw.forEach(p => { p.source = 'cw_post'; p.author_name = p.nickname; p.is_archive = true; p.ai_comment = p.analysis; p.image_url = rewriteCwImage(p.image_url); });
+  const food = [...foodCohub, ...foodCw]
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, limit);
+
+  res.json({ success: true, unkan, plaza, food });
+});
+
+// POST詳細 (3柱共通、source+id で1リクエスト)
+router.get('/post-detail/:source/:id', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const src = req.params.source;
+  const id = req.params.id;
+  const db = getDb();
+  let post = null, comments = [], promoter_comments = [], discussions = [];
+  try {
+    if (src === 'unkan') {
+      post = db.prepare(`SELECT wp.*, u.display_name AS poster_name FROM wellness_posts wp
+        LEFT JOIN users u ON u.id = wp.poster_id WHERE wp.id = ?`).get(parseInt(id));
+      if (post) {
+        discussions = db.prepare(`SELECT d.id, d.content, d.created_at, u.display_name AS author_name
+          FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id
+          WHERE d.post_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(parseInt(id));
+      }
+    } else if (src === 'plaza' || src === 'food') {
+      post = db.prepare(`SELECT pp.*, u.display_name AS author_name FROM plaza_posts pp
+        LEFT JOIN users u ON u.id = pp.author_id WHERE pp.id = ? AND pp.deleted_at IS NULL`).get(parseInt(id));
+      if (post) {
+        comments = db.prepare(`SELECT c.id, c.content, c.created_at, u.display_name AS author_name
+          FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id
+          WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id`).all(parseInt(id));
+        promoter_comments = db.prepare(`SELECT c.id, c.content, c.created_at, u.display_name AS author_name
+          FROM plaza_post_promoter_comments c LEFT JOIN users u ON u.id = c.author_id
+          WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id`).all(parseInt(id));
+      }
+    } else if (src === 'cw_post') {
+      post = db.prepare('SELECT * FROM cw_posts WHERE cw_post_id = ?').get(id);
+      if (post) {
+        post.author_name = post.nickname;
+        post.is_archive = true;
+        post.created_at = post.cw_created_at;
+        post.image_url = rewriteCwImage(post.image_url);
+        // ///SCORE///{json} を analysis から抽出
+        const m = (post.analysis || '').match(/\/\/\/SCORE\/\/\/\s*(\{[\s\S]*?\})/);
+        if (m) {
+          try {
+            const sc = JSON.parse(m[1]);
+            // 7軸だけ抜き出す (is_target/is_planned 等はメタ情報として別保持)
+            const axes = {};
+            ['legal','risk','freq','urgency','safety','value','needs'].forEach(k => {
+              if (sc[k] != null) axes[k] = Math.max(1, Math.min(5, parseInt(sc[k]) || 1));
+            });
+            if (Object.keys(axes).length === 7) post.priority_axes = JSON.stringify(axes);
+            post.cw_meta = { is_target: !!sc.is_target, is_planned: !!sc.is_planned };
+          } catch (e) {}
+          // analysis から ///SCORE///+JSON を削除して表示用 ai_comment へ
+          post.ai_comment = (post.analysis || '').replace(/\/\/\/SCORE\/\/\/[\s\S]*$/, '').trim();
+        } else {
+          post.ai_comment = post.analysis;
+        }
+      }
+    } else if (src === 'cw_weekly') {
+      post = db.prepare('SELECT * FROM cw_food_weekly_reports WHERE cw_report_id = ?').get(id);
+      if (post) {
+        post.author_name = post.nickname;
+        post.is_archive = true;
+        post.is_weekly = true;
+        post.created_at = post.cw_created_at;
+        post.content = post.report_text;
+      }
+    }
+    if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
+    res.json({ success: true, source: src, post, comments, promoter_comments, discussions });
+  } catch (e) {
+    console.warn('[post-detail] fail:', e.message);
+    res.status(500).json({ success: false, msg: e.message });
+  }
+});
+
+// パイプライン件数: トップ画面の「→」可視化用
+router.get('/pipeline', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const days = Math.min(parseInt(req.query.days) || 30, 90);
+  const sinceISO = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  const db = getDb();
+  // 3本柱の件数 + 推進コメント件数 (CoHub + CoWell移行データ合算)
+  const unkanCount = db.prepare('SELECT COUNT(*) AS c FROM wellness_posts WHERE created_at >= ?').get(sinceISO).c;
+  const unkanComments = db.prepare("SELECT COUNT(*) AS c FROM wellness_post_discussions WHERE deleted_at IS NULL AND created_at >= ?").get(sinceISO).c;
+  const unkanUrgent = db.prepare("SELECT COUNT(*) AS c FROM wellness_posts WHERE created_at >= ? AND urgency = '高'").get(sinceISO).c;
+  // 一般投稿 = CoHub plaza(食事以外) + CoWell cw_posts(食事・栄養以外)
+  const plazaCohubN = db.prepare("SELECT COUNT(*) AS c FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category != '食事'").get(sinceISO).c;
+  const plazaCwN = db.prepare("SELECT COUNT(*) AS c FROM cw_posts WHERE category != '🍱 食事・栄養' AND cw_created_at >= ?").get(sinceISO).c;
+  const plazaCount = plazaCohubN + plazaCwN;
+  // 食事投稿 = CoHub plaza(食事) + CoWell cw_posts(食事・栄養)
+  const foodCohubN = db.prepare("SELECT COUNT(*) AS c FROM plaza_posts WHERE deleted_at IS NULL AND created_at >= ? AND category = '食事'").get(sinceISO).c;
+  const foodCwN = db.prepare("SELECT COUNT(*) AS c FROM cw_posts WHERE category = '🍱 食事・栄養' AND cw_created_at >= ?").get(sinceISO).c;
+  const foodCount = foodCohubN + foodCwN;
+  // plaza/food への推進コメント
+  const plazaCommentRows = db.prepare(`
+    SELECT pp.category, COUNT(*) AS c FROM plaza_post_promoter_comments ppc
+    JOIN plaza_posts pp ON pp.id = ppc.post_id
+    WHERE ppc.deleted_at IS NULL AND ppc.created_at >= ? AND pp.deleted_at IS NULL
+    GROUP BY (pp.category = '食事')
+  `).all(sinceISO);
+  let plazaComments = 0, foodComments = 0;
+  for (const r of plazaCommentRows) {
+    if (r.category === '食事') foodComments = r.c;
+    else plazaComments = r.c;
+  }
+  // 各段階の件数 (期間制限なし、現在進行中)
+  const stages = ['候補', '評議中', '推進確定', '保健師中間', '役員決済', '投票中', '保健師最終', '実行中', '完了'];
+  const stageRows = db.prepare("SELECT status, COUNT(*) AS c FROM wellness_actions GROUP BY status").all();
+  const stageMap = {};
+  stages.forEach(s => stageMap[s] = 0);
+  for (const r of stageRows) if (stageMap[r.status] !== undefined) stageMap[r.status] = r.c;
+  // 完了件数だけは期間内のみ
+  stageMap['完了'] = db.prepare("SELECT COUNT(*) AS c FROM wellness_actions WHERE status = '完了' AND completed_at >= ?").get(sinceISO).c;
+  // 24時間以内に新規作成された施策の段階別件数 (NEWバッジ用)
+  const newRows = db.prepare("SELECT status, COUNT(*) AS c FROM wellness_actions WHERE created_at >= datetime('now','-24 hours') GROUP BY status").all();
+  const newMap = {};
+  stages.forEach(s => newMap[s] = 0);
+  for (const r of newRows) if (newMap[r.status] !== undefined) newMap[r.status] = r.c;
+  res.json({
+    success: true,
+    window_days: days,
+    pillars: {
+      unkan: { count: unkanCount, comments: unkanComments, urgent: unkanUrgent, label: '🩺 運管・健管POST', desc: '推進メンバーが点呼/帰庫時に拾った構造化された声' },
+      plaza: { count: plazaCount, comments: plazaComments, label: '🌳 一般投稿', desc: '社員の自発的なひろば投稿 (相談/雑談/Tips)' },
+      food: { count: foodCount, comments: foodComments, label: '🍱 食事投稿', desc: 'AI栄養分析つきの生活習慣記録' },
+    },
+    stages: stageMap,
+    stage_new: newMap,
+    stage_order: stages,
+    stage_labels: {
+      '候補': '🎯 候補', '評議中': '🤖 AI評議',
+      '推進確定': '✏ 推進確定', '保健師中間': '🩺 保健師(中間)',
+      '役員決済': '⚖ 役員決済', '投票中': '🗳 社員投票',
+      '保健師最終': '🩺 保健師(最終)', '実行中': '▶ 実行中', '完了': '✅ 完了',
+    },
+  });
+});
+
+// 段階遷移 (汎用、推進メンバーが手動で進める)
+router.post('/actions/:id/transition', authUser, express.json(), (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const target = String((req.body && req.body.to) || '');
+  const db = getDb();
+  const a = db.prepare('SELECT status FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const allowed = NEXT_STATUS[a.status] || [];
+  if (!allowed.includes(target)) {
+    return res.status(400).json({ success: false, msg: `「${a.status}」から「${target}」へは進めません (許可: ${allowed.join(',') || 'なし'})` });
+  }
+  // 役員決済→投票中 に進める時は管理職権限必須
+  if (target === '投票中' && !isWellnessManager(req.uid)) {
+    return res.status(403).json({ success: false, msg: '役員(管理職)権限が必要です' });
+  }
+  // 投票中 へ遷移時は vote_started_at を打つ
+  if (target === '投票中') {
+    db.prepare("UPDATE wellness_actions SET status = ?, vote_started_at = datetime('now') WHERE id = ?").run(target, id);
+  } else if (target === '実行中') {
+    db.prepare("UPDATE wellness_actions SET status = ? WHERE id = ?").run(target, id);
+  } else {
+    db.prepare("UPDATE wellness_actions SET status = ? WHERE id = ?").run(target, id);
+  }
+  res.json({ success: true, status: target });
+});
+
+// 推進メンバー: AI最終素案生成 (評議+議論を踏まえて)
+const { generateText: gen2 } = require('../services/ai');
+router.post('/actions/:id/final-draft', authUser, express.json(), async (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const council = db.prepare('SELECT role, message FROM wellness_action_council WHERE action_id = ? ORDER BY id').all(id);
+  const discs = db.prepare(`SELECT u.display_name AS name, d.content FROM wellness_action_discussions d
+    LEFT JOIN users u ON u.id = d.author_id WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(id);
+  const prompt = `中小運送業の健康推進施策を、関係者の議論を踏まえて最終的な素案にまとめてください。
+
+【施策タイトル】${a.title}
+【元の説明】${a.description || '(なし)'}
+【カテゴリ】${a.category || '-'}
+【予算】${a.budget_jpy || 0}円
+
+【AI評議会の意見】
+${council.map(c => `- ${c.role}: ${c.message}`).join('\n') || '(なし)'}
+
+【推進メンバーの議論】
+${discs.map(d => `- ${d.name || '不明'}: ${d.content}`).join('\n') || '(なし)'}
+
+以下の純粋なJSON で、議論で出た懸念や賛成意見を踏まえた「実施しやすく効果が出やすい」素案にまとめてください (Markdownや前置き禁止):
+{"title":"30字以内", "description":"180字以内、具体的な実施内容と期待効果", "rationale":"40字以内、なぜこの形に落ち着いたか"}`;
+  try {
+    const aiText = await gen2(prompt, { maxTokens: 2000, responseMimeType: 'application/json', thinkingBudget: 0 });
+    let cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) cleaned = m[0];
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch (e) {
+      const opens = (cleaned.match(/\{/g) || []).length, closes = (cleaned.match(/\}/g) || []).length;
+      const dq = (cleaned.match(/"/g) || []).length;
+      let fixed = cleaned;
+      if (dq % 2 === 1) fixed += '"';
+      if (opens > closes) fixed += '}'.repeat(opens - closes);
+      try { parsed = JSON.parse(fixed); }
+      catch (e2) { return res.json({ success: false, msg: 'AI解析失敗 (再試行してください)' }); }
+    }
+    const draftJson = JSON.stringify(parsed);
+    db.prepare("UPDATE wellness_actions SET final_draft = ?, final_draft_at = datetime('now') WHERE id = ?").run(draftJson, id);
+    res.json({ success: true, draft: parsed });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: 'AI失敗: ' + e.message });
+  }
+});
+
+// 7軸priority評価 (legal/risk/freq/urgency/safety/value/needs 各1-5点) AI算出
+router.post('/actions/:id/priority-axes', authUser, express.json(), async (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const prompt = `中小運送業の健康施策を以下の7軸で評価し、各軸を1〜5点で採点してください。
+
+【施策タイトル】${a.title}
+【説明】${a.description || '(なし)'}
+【カテゴリ】${a.category || '-'}
+
+7軸の意味:
+- legal: 法令・規制対応の重要度 (高いほど法的に必須)
+- risk: 放置した場合のリスク (高いほど危険)
+- freq: 該当事象の発生頻度 (高いほど頻発)
+- urgency: 対応の緊急度 (高いほど急ぐ)
+- safety: 安全性への影響 (高いほど安全に直結)
+- value: 会社/社員にもたらす価値 (高いほど価値大)
+- needs: 社員・現場からのニーズ (高いほど要望強い)
+
+以下の純粋なJSON のみで回答 (前置き禁止):
+{"legal":1-5, "risk":1-5, "freq":1-5, "urgency":1-5, "safety":1-5, "value":1-5, "needs":1-5, "rationale":"30字以内、評価の根拠"}`;
+  try {
+    const aiText = await gen2(prompt, { maxTokens: 800, responseMimeType: 'application/json', thinkingBudget: 0 });
+    let cleaned = String(aiText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) cleaned = m[0];
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch (e) {
+      let fixed = cleaned;
+      const dq = (fixed.match(/"/g) || []).length;
+      if (dq % 2 === 1) fixed += '"';
+      const opens = (fixed.match(/\{/g) || []).length, closes = (fixed.match(/\}/g) || []).length;
+      if (opens > closes) fixed += '}'.repeat(opens - closes);
+      try { parsed = JSON.parse(fixed); }
+      catch (e2) { return res.json({ success: false, msg: 'AI解析失敗' }); }
+    }
+    // クリップ 1-5
+    ['legal','risk','freq','urgency','safety','value','needs'].forEach(k => {
+      let v = parseInt(parsed[k]);
+      if (!Number.isInteger(v)) v = 1;
+      parsed[k] = Math.max(1, Math.min(5, v));
+    });
+    db.prepare("UPDATE wellness_actions SET priority_axes = ? WHERE id = ?").run(JSON.stringify(parsed), id);
+    res.json({ success: true, axes: parsed });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: 'AI失敗: ' + e.message });
+  }
+});
+
+// 推進メンバーで最終確定 (final_draft の内容を本体に反映 → status=推進確定)
+router.post('/actions/:id/finalize', authUser, express.json(), (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const b = req.body || {};
+  // body で title/description を上書き可、なければ final_draft を流用
+  let newTitle = b.title, newDesc = b.description;
+  if ((!newTitle || !newDesc) && a.final_draft) {
+    try { const fd = JSON.parse(a.final_draft); newTitle = newTitle || fd.title; newDesc = newDesc || fd.description; }
+    catch (e) {}
+  }
+  newTitle = String(newTitle || a.title).slice(0, 200);
+  newDesc = String(newDesc || a.description || '').slice(0, 2000);
+  db.prepare(`UPDATE wellness_actions SET title = ?, description = ?, status = '推進確定',
+    finalized_by = ?, finalized_at = datetime('now') WHERE id = ?`).run(newTitle, newDesc, req.uid, id);
+  res.json({ success: true });
+});
+
+// 保健師(中間)レビュー — ゲストレビュアーのみ
+router.post('/actions/:id/nurse-mid', authUser, express.json(), (req, res) => {
+  const u = getDb().prepare('SELECT is_guest_reviewer, employee_type FROM users WHERE id = ?').get(req.uid);
+  if (!u || (!u.is_guest_reviewer && u.employee_type !== 'admin')) return res.status(403).json({ success: false, msg: '保健師(ゲストレビュアー)権限が必要です' });
+  const id = parseInt(req.params.id);
+  const comment = String((req.body && req.body.comment) || '').slice(0, 2000).trim();
+  if (!comment) return res.status(400).json({ success: false, msg: 'コメント必須' });
+  const db = getDb();
+  const a = db.prepare('SELECT status FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  // 中間: 推進確定〜役員決済の間で受付
+  if (!['推進確定', '保健師中間'].includes(a.status)) {
+    return res.status(400).json({ success: false, msg: '今は中間レビューの段階ではありません (現在: ' + a.status + ')' });
+  }
+  db.prepare(`UPDATE wellness_actions SET nurse_mid_comment = ?, nurse_mid_by = ?, nurse_mid_at = datetime('now'), status = '保健師中間' WHERE id = ?`)
+    .run(comment, req.uid, id);
+  res.json({ success: true });
+});
+
+// 保健師(最終)レビュー
+router.post('/actions/:id/nurse-final', authUser, express.json(), (req, res) => {
+  const u = getDb().prepare('SELECT is_guest_reviewer, employee_type FROM users WHERE id = ?').get(req.uid);
+  if (!u || (!u.is_guest_reviewer && u.employee_type !== 'admin')) return res.status(403).json({ success: false, msg: '保健師(ゲストレビュアー)権限が必要です' });
+  const id = parseInt(req.params.id);
+  const comment = String((req.body && req.body.comment) || '').slice(0, 2000).trim();
+  if (!comment) return res.status(400).json({ success: false, msg: 'コメント必須' });
+  const db = getDb();
+  const a = db.prepare('SELECT status FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (!['投票中', '保健師最終'].includes(a.status)) {
+    return res.status(400).json({ success: false, msg: '今は最終レビューの段階ではありません (現在: ' + a.status + ')' });
+  }
+  db.prepare(`UPDATE wellness_actions SET nurse_final_comment = ?, nurse_final_by = ?, nurse_final_at = datetime('now'), status = '保健師最終' WHERE id = ?`)
+    .run(comment, req.uid, id);
+  res.json({ success: true });
+});
+
+// 役員決済 (employee_type='admin' = 管理職を役員とみなす)
+router.post('/actions/:id/exec-approve', authUser, (req, res) => {
+  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '役員(管理職)権限が必要です' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT status, nurse_mid_comment FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (a.status !== '保健師中間') return res.status(400).json({ success: false, msg: '保健師中間レビュー後にのみ決済できます' });
+  if (!a.nurse_mid_comment) return res.status(400).json({ success: false, msg: '保健師中間コメントが未入力です' });
+  db.prepare(`UPDATE wellness_actions SET executive_approver_id = ?, executive_approved_at = datetime('now'), status = '役員決済' WHERE id = ?`)
+    .run(req.uid, id);
+  res.json({ success: true });
+});
+
+// 投票開始 (役員決済→投票中、自動で7日後締切のスケジュール記録)
+router.post('/actions/:id/start-vote', authUser, (req, res) => {
+  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '役員(管理職)権限が必要です' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT status FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (a.status !== '役員決済') return res.status(400).json({ success: false, msg: '役員決済後にのみ投票開始できます' });
+  db.prepare("UPDATE wellness_actions SET status = '投票中', vote_started_at = datetime('now') WHERE id = ?").run(id);
+  res.json({ success: true });
+});
+
+// 社員投票 (1〜5点) — 認証済全員
+router.post('/actions/:id/vote', authUser, express.json(), (req, res) => {
+  const id = parseInt(req.params.id);
+  const score = parseInt(req.body && req.body.score);
+  if (!Number.isInteger(score) || score < 1 || score > 5) return res.status(400).json({ success: false, msg: '点数は1〜5' });
+  const comment = String((req.body && req.body.comment) || '').slice(0, 500);
+  const db = getDb();
+  const a = db.prepare('SELECT status, vote_started_at FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (a.status !== '投票中') return res.status(400).json({ success: false, msg: '投票期間ではありません' });
+  // 期間チェック (7日)
+  if (a.vote_started_at) {
+    const elapsedMs = Date.now() - new Date(a.vote_started_at + 'Z').getTime();
+    if (elapsedMs > VOTING_DAYS * 24 * 3600 * 1000) {
+      return res.status(400).json({ success: false, msg: '投票期間は終了しました' });
+    }
+  }
+  db.prepare(`INSERT INTO wellness_action_votes (action_id, user_id, score, comment) VALUES (?, ?, ?, ?)
+    ON CONFLICT(action_id, user_id) DO UPDATE SET score = excluded.score, comment = excluded.comment, created_at = datetime('now')`)
+    .run(id, req.uid, score, comment);
+  res.json({ success: true });
+});
+
+// 投票結果集計 (誰でも閲覧可、結果は集計のみ・個人名は推進+管理のみ)
+router.get('/actions/:id/votes', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const canSeeNames = canEditActions(req);
+  const summary = db.prepare(`SELECT
+    COUNT(*) AS total,
+    AVG(score) AS avg_score,
+    SUM(CASE WHEN score >= 4 THEN 1 ELSE 0 END) AS pos_count,
+    SUM(CASE WHEN score = 3 THEN 1 ELSE 0 END) AS neutral_count,
+    SUM(CASE WHEN score <= 2 THEN 1 ELSE 0 END) AS neg_count
+    FROM wellness_action_votes WHERE action_id = ?`).get(id);
+  let votes = [];
+  if (canSeeNames) {
+    votes = db.prepare(`SELECT v.score, v.comment, v.created_at, u.display_name, u.company_code
+      FROM wellness_action_votes v LEFT JOIN users u ON u.id = v.user_id
+      WHERE v.action_id = ? ORDER BY v.created_at DESC`).all(id);
+  }
+  res.json({ success: true, summary, votes, can_see_names: canSeeNames });
+});
+
+// 投票締切 (手動 or CRONから) — 賛成>反対なら採用→保健師最終へ、そうでなければ却下
+router.post('/actions/:id/close-vote', authUser, (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const a = db.prepare('SELECT status FROM wellness_actions WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (a.status !== '投票中') return res.status(400).json({ success: false, msg: '投票中ではありません' });
+  const sm = db.prepare(`SELECT COUNT(*) AS total, AVG(score) AS avg_score,
+    SUM(CASE WHEN score >= 4 THEN 1 ELSE 0 END) AS pos,
+    SUM(CASE WHEN score <= 2 THEN 1 ELSE 0 END) AS neg
+    FROM wellness_action_votes WHERE action_id = ?`).get(id);
+  const passed = (sm.pos || 0) > (sm.neg || 0);
+  const result = { total: sm.total||0, avg: sm.avg_score, pos: sm.pos||0, neg: sm.neg||0, passed };
+  if (passed) {
+    db.prepare(`UPDATE wellness_actions SET status = '保健師最終', vote_closed_at = datetime('now'), vote_result_json = ? WHERE id = ?`)
+      .run(JSON.stringify(result), id);
+  } else {
+    db.prepare(`UPDATE wellness_actions SET status = '却下', vote_closed_at = datetime('now'), vote_result_json = ?, rejection_reason = '社員投票で賛成が反対を超えませんでした' WHERE id = ?`)
+      .run(JSON.stringify(result), id);
+  }
+  res.json({ success: true, result });
+});
+
+// 投票中の施策一覧 (社員向け、ロビー/wellness.html で表示用)
+router.get('/voting-actions', authUser, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`SELECT a.id, a.title, a.description, a.category, a.vote_started_at,
+    (SELECT COUNT(*) FROM wellness_action_votes WHERE action_id = a.id) AS vote_count,
+    (SELECT score FROM wellness_action_votes WHERE action_id = a.id AND user_id = ?) AS my_score
+    FROM wellness_actions a WHERE a.status = '投票中' ORDER BY a.vote_started_at DESC`).all(req.uid);
+  // 残り日数
+  const now = Date.now();
+  for (const r of rows) {
+    if (r.vote_started_at) {
+      const elapsedMs = now - new Date(r.vote_started_at + 'Z').getTime();
+      r.days_left = Math.max(0, VOTING_DAYS - Math.floor(elapsedMs / (24 * 3600 * 1000)));
+    } else {
+      r.days_left = VOTING_DAYS;
+    }
+  }
+  res.json({ success: true, voting_days: VOTING_DAYS, actions: rows });
+});
+
+// =============================================================
+// 一般投稿/食事投稿 への 推進メンバーコメント (3つの柱の右側コメント機構)
+// AI凝縮の補強材料として利用
+// =============================================================
+router.get('/plaza-comments/:postId', authUser, (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const postId = parseInt(req.params.postId);
+  const rows = getDb().prepare(`SELECT c.id, c.content, c.created_at, c.author_id, u.display_name AS author_name
+    FROM plaza_post_promoter_comments c LEFT JOIN users u ON u.id = c.author_id
+    WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id ASC LIMIT 100`).all(postId);
+  res.json({ success: true, comments: rows });
+});
+
+router.post('/plaza-comments/:postId', authUser, express.json(), (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const postId = parseInt(req.params.postId);
+  const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
+  if (!content) return res.status(400).json({ success: false, msg: 'コメント必須' });
+  const ins = getDb().prepare('INSERT INTO plaza_post_promoter_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(postId, req.uid, content);
+  res.json({ success: true, id: ins.lastInsertRowid });
+});
+
+router.delete('/plaza-comments/:id', authUser, (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const c = db.prepare('SELECT author_id FROM plaza_post_promoter_comments WHERE id = ? AND deleted_at IS NULL').get(id);
+  if (!c) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (c.author_id !== req.uid && !isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  db.prepare("UPDATE plaza_post_promoter_comments SET deleted_at = datetime('now') WHERE id = ?").run(id);
+  res.json({ success: true });
 });
 
 module.exports = router;

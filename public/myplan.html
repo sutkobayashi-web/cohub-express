@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>📋 あなたのアクションプラン — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<meta name="theme-color" content="#3b82f6">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100%; overscroll-behavior-y: contain; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg,#eff6ff,#f0f9ff); color: #0f172a; padding-bottom: 40px; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg,#3b82f6,#1e3a8a); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; }
+header .close { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 640px; margin: 0 auto; padding: 16px; }
+
+/* アバターヘッダー */
+.advisor { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(59,130,246,0.08); }
+.advisor-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: center top; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.18); flex-shrink: 0; background: #fff; }
+.advisor-text { flex: 1; }
+.advisor-name { font-weight: 800; font-size: 14px; color: #1e3a8a; }
+.advisor-msg { font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.55; }
+.advisor .updated { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+/* メインプランカード */
+.plan-card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.plan-section { margin-bottom: 12px; padding: 12px 14px; border-radius: 10px; border-left: 4px solid #94a3b8; background: #f8fafc; }
+.plan-section:last-child { margin-bottom: 0; }
+.plan-section.now    { border-left-color: #8b5cf6; background: linear-gradient(135deg,#faf5ff,#f3e8ff); }
+.plan-section.today  { border-left-color: #10b981; background: linear-gradient(135deg,#f0fdf4,#dcfce7); }
+.plan-section.week   { border-left-color: #3b82f6; background: linear-gradient(135deg,#eff6ff,#dbeafe); }
+.plan-section.month  { border-left-color: #f59e0b; background: linear-gradient(135deg,#fffbeb,#fef3c7); }
+.plan-section.kpi    { border-left-color: #ef4444; background: linear-gradient(135deg,#fef2f2,#fee2e2); }
+.plan-hdr { font-weight: 800; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.3px; }
+.plan-section.now    .plan-hdr { color: #6b21a8; }
+.plan-section.today  .plan-hdr { color: #047857; }
+.plan-section.week   .plan-hdr { color: #1e40af; }
+.plan-section.month  .plan-hdr { color: #b45309; }
+.plan-section.kpi    .plan-hdr { color: #b91c1c; }
+.plan-body { font-size: 13.5px; line-height: 1.75; color: #1f2937; white-space: pre-wrap; word-wrap: break-word; }
+
+/* 今日のアクション完了ボタン */
+.done-btn { margin-top: 10px; padding: 10px 14px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3); }
+.done-btn.done { background: #94a3b8; box-shadow: none; }
+.done-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* KPI 表 */
+.kpi-table { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; margin-top: 6px; font-size: 12.5px; }
+.kpi-table .h { font-weight: 800; color: #b91c1c; padding-bottom: 4px; border-bottom: 1px solid #fecaca; }
+.kpi-table .c { padding: 6px 4px; border-bottom: 1px dashed #fecaca; color: #1f2937; }
+.kpi-table .c.tar { font-weight: 700; color: #b91c1c; }
+
+/* バッジ */
+.badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.badge { font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; }
+.badge.move { background: #dcfce7; color: #047857; }
+.badge.sel  { background: #e0e7ff; color: #1e3a8a; }
+
+/* 操作ボタン群 */
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.actions .btn { flex: 1; min-width: 140px; padding: 12px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-primary { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+.btn-secondary { background: #fff; color: #475569; border: 1px solid #cbd5e1 !important; }
+
+/* 履歴 */
+.history { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.history h3 { margin: 0 0 10px; font-size: 13px; color: #475569; font-weight: 800; }
+.hist-item { padding: 10px; border-left: 3px solid #cbd5e1; background: #f8fafc; border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: background 0.15s; }
+.hist-item:hover { background: #f1f5f9; }
+.hist-date { font-size: 11px; color: #64748b; }
+.hist-summary { font-size: 12.5px; color: #334155; margin-top: 4px; line-height: 1.5; }
+
+/* 空状態 */
+.empty-state { text-align: center; padding: 40px 20px; color: #64748b; }
+.empty-state .ico { font-size: 48px; margin-bottom: 12px; }
+.empty-state .msg { font-size: 14px; line-height: 1.7; margin-bottom: 16px; }
+.empty-state .btn { padding: 14px 24px; background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border: none; border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+
+/* ローディング/エラー */
+.loading { text-align: center; padding: 40px; color: #64748b; }
+.err-msg { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 10px 0; display: none; }
+.err-msg.show { display: block; }
+
+/* ログイン */
+.login-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+.login-overlay.show { display: flex; }
+.login-card { background: #fff; border-radius: 14px; padding: 24px; max-width: 320px; width: 90%; }
+.login-card h2 { margin: 0 0 16px; font-size: 16px; color: #1e3a8a; }
+.login-card input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+.login-card .btn { width: 100%; padding: 11px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.login-err { color: #ef4444; font-size: 12px; margin-top: 8px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 あなたのアクションプラン</h1>
+  <button class="close" onclick="closePage()">閉じる</button>
+</header>
+
+<main>
+  <div class="err-msg" id="err"></div>
+  <div id="content">
+    <div class="loading">読み込み中…</div>
+  </div>
+</main>
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <h2>📋 アクションプラン</h2>
+    <input type="text" id="li-id" placeholder="社員ID">
+    <input type="password" id="li-pw" placeholder="パスワード">
+    <button class="btn" onclick="doLogin()">ログイン</button>
+    <div class="login-err" id="li-err"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let me = JSON.parse(localStorage.getItem('cohub_user') || 'null');
+let plans = [];
+let currentPlan = null;
+
+async function api(p, opts) {
+  opts = opts || {}; opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(p, opts);
+  if (r.status === 401) { showLogin(); throw new Error('401'); }
+  return r.json();
+}
+
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+function showLogin(err) {
+  document.getElementById('login-overlay').classList.add('show');
+  if (err) document.getElementById('li-err').textContent = err;
+}
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login_id: id, password: pw }) });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    document.getElementById('login-overlay').classList.remove('show');
+    init();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+
+function closePage() {
+  if (history.length > 1) history.back(); else location.href = '/';
+}
+
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+function renderEmpty() {
+  document.getElementById('content').innerHTML =
+    '<div class="empty-state">' +
+    '<div class="ico">📋</div>' +
+    '<div class="msg">まだアクションプランがありません。<br>健康管理室で相談すると、あなたに合ったプランが届きます。</div>' +
+    '<button class="btn" onclick="goConsult()">🩺 相談を始める</button>' +
+    '</div>';
+}
+
+function renderPlan(plan) {
+  if (!plan) { renderEmpty(); return; }
+  const moveBadge = plan.movement_priority ? '<span class="badge move">🏃 運動優先</span>' : '';
+  const selBadges = (plan.selections || []).map(s => `<span class="badge sel">${escapeHtml(s.label)}</span>`).join('');
+  const isDone = !!plan.today_done_at;
+  const kpiHtml = (plan.plan_kpi && plan.plan_kpi.length) ?
+    '<div class="kpi-table">' +
+    '<div class="h">指標</div><div class="h">現状</div><div class="h">1ヶ月後</div>' +
+    plan.plan_kpi.map(k =>
+      `<div class="c">${escapeHtml(k.label || '')}</div>` +
+      `<div class="c">${escapeHtml(k.current || '-')}</div>` +
+      `<div class="c tar">${escapeHtml(k.target || '-')}</div>`
+    ).join('') +
+    '</div>' : '';
+
+  let html = '';
+  html += '<div class="advisor">' +
+    '<img class="advisor-avatar" src="/assets/concierge_health_avatar.png" alt="ヘルスアドバイザー">' +
+    '<div class="advisor-text">' +
+    '<div class="advisor-name">🩺 ヘルスアドバイザーから</div>' +
+    '<div class="advisor-msg">あなたの相談内容と食事ログ・血圧記録から、無理なく続けられそうなプランを作ったよ。</div>' +
+    `<div class="updated">更新: ${escapeHtml((plan.created_at || '').replace('T', ' ').slice(0, 16))}</div>` +
+    '</div></div>';
+
+  if (selBadges || moveBadge) {
+    html += `<div class="badge-row">${moveBadge}${selBadges}</div>`;
+  }
+
+  html += '<div class="plan-card">';
+  if (plan.plan_now)   html += `<div class="plan-section now"><div class="plan-hdr">📍 今のあなた</div><div class="plan-body">${escapeHtml(plan.plan_now)}</div></div>`;
+  if (plan.plan_today) {
+    html += `<div class="plan-section today"><div class="plan-hdr">✅ 今日からできる1つ</div><div class="plan-body">${escapeHtml(plan.plan_today)}</div>` +
+      `<button class="done-btn ${isDone ? 'done' : ''}" onclick="toggleDone(${plan.id})">${isDone ? '✓ 完了済み (取消)' : '今日のアクション完了'}</button></div>`;
+  }
+  if (plan.plan_week)  html += `<div class="plan-section week"><div class="plan-hdr">🎯 1週間チャレンジ</div><div class="plan-body">${escapeHtml(plan.plan_week)}</div></div>`;
+  if (plan.plan_month) html += `<div class="plan-section month"><div class="plan-hdr">📅 1ヶ月の目標</div><div class="plan-body">${escapeHtml(plan.plan_month)}</div></div>`;
+  if (kpiHtml)         html += `<div class="plan-section kpi"><div class="plan-hdr">📊 数値で見える化</div>${kpiHtml}</div>`;
+  html += '</div>';
+
+  html += '<div class="actions">' +
+    '<button class="btn btn-primary" onclick="goConsult()">🔄 もう一度相談する</button>' +
+    '<button class="btn btn-secondary" onclick="goPlaza()">🌳 ひろばへ戻る</button>' +
+    '</div>';
+
+  // 履歴
+  if (plans.length > 1) {
+    html += '<div class="history"><h3>📜 過去のプラン</h3>';
+    for (const p of plans.slice(1, 6)) {
+      const sel = (p.selections && p.selections[0] && p.selections[0].label) || '相談';
+      html += `<div class="hist-item" onclick="showPast(${p.id})">` +
+        `<div class="hist-date">${relTime(p.created_at)} (${escapeHtml((p.created_at||'').slice(0,10))})</div>` +
+        `<div class="hist-summary">${escapeHtml(sel)} → ${escapeHtml((p.plan_today||'').slice(0,40))}…</div>` +
+        '</div>';
+    }
+    html += '</div>';
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function showPast(id) {
+  const p = plans.find(x => x.id === id);
+  if (p) { currentPlan = p; renderPlan(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+}
+
+async function toggleDone(id) {
+  try {
+    const d = await api('/api/myplan/done/' + id, { method: 'POST' });
+    if (d.success) {
+      // 反映
+      const p = plans.find(x => x.id === id);
+      if (p) p.today_done_at = d.today_done_at;
+      if (currentPlan && currentPlan.id === id) currentPlan.today_done_at = d.today_done_at;
+      renderPlan(currentPlan);
+    }
+  } catch (e) {}
+}
+
+function goConsult() { location.href = '/consult.html'; }
+function goPlaza()   { location.href = '/plaza.html'; }
+
+async function init() {
+  const url = new URL(location.href);
+  const targetId = parseInt(url.searchParams.get('id') || '0');
+  try {
+    const d = await api('/api/myplan/list');
+    if (!d.success) {
+      document.getElementById('content').innerHTML = '<div class="loading">読み込み失敗</div>';
+      return;
+    }
+    plans = d.plans || [];
+    if (!plans.length) { renderEmpty(); return; }
+    currentPlan = (targetId && plans.find(p => p.id === targetId)) || plans[0];
+    renderPlan(currentPlan);
+  } catch (e) {
+    document.getElementById('content').innerHTML = '<div class="loading">通信エラー</div>';
+  }
+}
+
+if (!token) { showLogin(); }
+else { init(); }
+</script>
+
+</body>
+</html>

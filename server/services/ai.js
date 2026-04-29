@@ -453,4 +453,92 @@ async function analyzeBPImage(imageBuffer, mimeType) {
   return parsed;
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage };
+// 健康管理室 アクションプラン生成 (社員の選択肢+自由記述+食事/血圧コンテキストから5セクション提案)
+// selections: [{layer, key, label}, ...]、freeText: 任意の追記、context: { recent_meals_7d, bp_recent, age, ... }
+// movementPriority: 運動意欲フラグ (true なら今日/1週間アクションを運動寄りに)
+async function generateActionPlan(selections, freeText, context, movementPriority) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const sels = (Array.isArray(selections) ? selections : []).map(s =>
+    `- L${s.layer}: ${s.label}` + (s.key ? ` (${s.key})` : '')
+  ).join('\n') || '(選択なし)';
+  const meals = (context && Array.isArray(context.recent_meals_7d) && context.recent_meals_7d.length)
+    ? context.recent_meals_7d.slice(0, 7).map(m =>
+        `  ${m.date}: ${m.kcal}kcal / 野菜${m.veg}g Ca${m.ca}mg 食塩${m.salt}g 繊維${m.fiber}g 酒${m.alc}g`
+      ).join('\n')
+    : '  (記録なし)';
+  const bp = (context && Array.isArray(context.bp_recent) && context.bp_recent.length)
+    ? context.bp_recent.slice(0, 5).map(b => `  ${b.date}: ${b.sys}/${b.dia} 脈${b.pulse||'-'}`).join('\n')
+    : '  (記録なし)';
+  const moveDirective = movementPriority
+    ? `\n★優先指示: ユーザーは "運動したい・動きたい" 意思を示している。
+  - plan_today / plan_week は必ず 運動アクション (歩数増・階段使用・ストレッチ・筋トレ等) で埋める
+  - 食事系の提案は plan_month や plan_kpi の補助に回す
+  - 既存の歩数チャレンジへの参加など、現実的に続けられる入口を強く推奨`
+    : '';
+  const prompt = `あなたは健康管理室のヘルスアドバイザーです。社員からの相談を受けて、一人一人に合わせたアクションプランを作成します。
+親しみある専門家の口調 (「〜だね」「〜してみよう」) で、押し付けず背中を押す。
+
+## 社員の選択した相談内容
+${sels}
+
+## 社員の自由記述
+${freeText ? freeText.slice(0, 500) : '(なし)'}
+
+## 直近7日の食事ログ (新しい順)
+${meals}
+
+## 直近の血圧記録
+${bp}
+${moveDirective}
+
+★絶対形式: 純粋な JSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。改行は \\n で。
+
+{"plan_now":"📍今のあなた (現状サマリ 100-160字。選択+データから読み取れる客観的状況)","plan_today":"✅今日からできる1つ (即時アクション 80-140字。1個に絞る、具体的に)","plan_week":"🎯1週間チャレンジ (短期目標 100-160字。測定可能で達成感あるもの)","plan_month":"📅1ヶ月の目標 (中期ゴール 100-160字。健診/数値で評価できるもの)","plan_kpi":[{"label":"指標名 (例: 歩数/体重/塩分/血圧 上)","current":"現状値 (推定可)","target":"1ヶ月後の目標値"}]}
+
+ルール:
+- plan_kpi は 1〜3 個、現状値が不明なら「未測定」と書く
+- 「健康診断を受けてください」「医師に相談してください」等の責任回避フレーズは原則禁止 (本当に必要な数値レベルの異常がある時のみ最後に1行)
+- 重複表現を避け、各セクションは別の角度から書く
+- 運送業界の社員を想定 (長距離運転、不規則シフト、外食/弁当多、晩酌習慣あり)`;
+
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.6, maxOutputTokens: 4000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini plan HTTP ' + resp.status + ': ' + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  const cand = data.candidates && data.candidates[0];
+  const usage = data.usageMetadata || {};
+  const parts = cand && cand.content && cand.content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  console.log(`[generateActionPlan] finish=${cand && cand.finishReason} thoughts=${usage.thoughtsTokenCount||0} out=${usage.candidatesTokenCount||0} len=${text.length}`);
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) text = m[0];
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) {
+    let fixed = text;
+    const opens = (fixed.match(/\{/g) || []).length;
+    const closes = (fixed.match(/\}/g) || []).length;
+    if (opens > closes) {
+      if (!/["\d\}\]]\s*$/.test(fixed)) fixed += '"';
+      fixed += '}'.repeat(opens - closes);
+    }
+    try { parsed = JSON.parse(fixed); }
+    catch (e2) {
+      console.warn('[generateActionPlan] parse fail:', e.message, 'text=', text.slice(0, 300));
+      throw new Error('AIアクションプラン生成失敗 (再試行してください)');
+    }
+  }
+  return parsed;
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, generateActionPlan };

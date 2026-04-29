@@ -744,6 +744,25 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_var_date ON vehicle_accident_reports(accident_date DESC);
   CREATE INDEX IF NOT EXISTS idx_var_reporter ON vehicle_accident_reports(reporter_id);`);
 
+  // 健康管理室 個人アクションプラン (社員ごとの相談履歴+AI生成プラン)
+  _db.exec(`CREATE TABLE IF NOT EXISTS myplan_consultations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    selections_json TEXT NOT NULL,         -- [{layer, key, label}, ...]
+    free_text TEXT,
+    checkup_attached INTEGER DEFAULT 0,    -- 本人が健診データを引っ張ったか (将来用)
+    movement_priority INTEGER DEFAULT 0,   -- 運動意欲 検出フラグ (AI重み付け用)
+    plan_now TEXT,                         -- 📍 今のあなた
+    plan_today TEXT,                       -- ✅ 今日からできる1つ
+    plan_week TEXT,                        -- 🎯 1週間チャレンジ
+    plan_month TEXT,                       -- 📅 1ヶ月の目標
+    plan_kpi TEXT,                         -- 📊 数値で見える化 (JSON文字列)
+    today_done_at TEXT,                    -- 今日のアクション完了日時
+    shared_with_promoter INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_myplan_user ON myplan_consultations(user_id, created_at DESC);`);
+
   return _db;
 }
 

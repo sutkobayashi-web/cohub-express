@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CoHub Express 管理</title>
+<title>CoWell 管理</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
@@ -36,7 +36,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 </head>
 <body>
 <header>
-  <h1>🏢 CoHub Express 管理</h1>
+  <h1>🏢 CoWell 管理</h1>
   <div class="spacer"></div>
   <div id="who" style="font-size:13px;"></div>
   <button onclick="location.href='/'" style="margin-left:16px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
@@ -142,10 +142,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card" style="background:linear-gradient(135deg,#ecfeff,#f0fdfa);border-left:4px solid #06b6d4;">
-    <h2 style="color:#0e7490;">📦 CoWellユーザー移行 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">CoHub未登録のCoWellユーザーをCoHubに作成して紐付け</span></h2>
+    <h2 style="color:#0e7490;">📦 CoWellユーザー移行 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">CoWell未登録のCoWellユーザーをCoWellに作成して紐付け</span></h2>
     <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.6;">
-      CoWellの過去投稿/バディー会話/血圧データは <code>cw_users</code> に保管済。<br>
-      未マップユーザーをCoHubに新規作成すると、本人がログインしてCoWellデータを引き継ぎ閲覧できます。
+      CoWell Classicの過去投稿/バディー会話/血圧データは <code>cw_users</code> に保管済。<br>
+      未マップユーザーをCoWellに新規作成すると、本人がログインしてCoWellデータを引き継ぎ閲覧できます。
     </div>
     <button class="btn" onclick="loadUnmappedCw()">🔄 未マップ一覧を読込</button>
     <div id="cw-migrate-area" style="margin-top:14px;"></div>
@@ -1059,15 +1059,15 @@ async function loadUnmappedCw() {
   const d = await r.json();
   if (!d.success) { area.innerHTML = '<div style="color:#dc2626;">取得失敗</div>'; return; }
   if (!d.users.length) { area.innerHTML = '<div style="color:#10b981;font-weight:700;padding:14px;text-align:center;background:#ecfdf5;border-radius:8px;">🎉 すべてマップ済です</div>'; return; }
-  // CoHub既存ユーザー (link 用)
+  // CoWell既存ユーザー (link 用)
   const cohubUsers = (cachedUsers || []).slice().sort((a,b) => (a.display_name || '').localeCompare(b.display_name || ''));
-  const cohubOpts = '<option value="">- CoHubユーザー選択 -</option>' + cohubUsers.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.display_name)} (${escapeHtml(u.login_id)})</option>`).join('');
+  const cohubOpts = '<option value="">- CoWellユーザー選択 -</option>' + cohubUsers.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.display_name)} (${escapeHtml(u.login_id)})</option>`).join('');
   area.innerHTML = `<table>
     <thead><tr>
       <th style="width:120px;">CoWell ID</th>
       <th style="width:140px;">実名</th>
       <th style="width:80px;">データ件数</th>
-      <th>新規作成 (CoHubに作る)</th>
+      <th>新規作成 (CoWellに作る)</th>
       <th>or 既存に紐付け</th>
     </tr></thead>
     <tbody>` + d.users.map((u, i) => {
@@ -1130,8 +1130,8 @@ async function migrateOne(cwId, idx) {
 
 async function linkExisting(cwId, idx) {
   const cohubUid = document.getElementById('mig-link-' + idx).value;
-  if (!cohubUid) { alert('CoHubユーザーを選択してください'); return; }
-  if (!confirm('既存のCoHubユーザーにこのCoWellデータを紐付けます。本当によろしいですか？')) return;
+  if (!cohubUid) { alert('CoWellユーザーを選択してください'); return; }
+  if (!confirm('既存のCoWellユーザーにこのCoWellデータを紐付けます。本当によろしいですか？')) return;
   const r = await fetch('/api/cw-archive/link-user/' + encodeURIComponent(cwId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },

@@ -241,6 +241,7 @@ app.use('/api/cw-archive', require('./routes/cw_archive'));
 app.use('/api/plaza', require('./routes/plaza'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/myhealth', require('./routes/health'));
+app.use('/api/myplan', require('./routes/myplan'));
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
