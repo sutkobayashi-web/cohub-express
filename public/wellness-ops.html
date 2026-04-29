@@ -86,6 +86,19 @@ th { background: #f9fafb; font-weight: 700; color: #374151; }
 .fz-toggle { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); border-radius: 14px; padding: 2px; display: inline-flex; gap: 1px; flex-shrink: 0; }
 .fz-toggle button { background: transparent; border: none; color: #fff; padding: 3px 8px; min-width: 24px; height: 22px; border-radius: 11px; cursor: pointer; font-weight: 700; line-height: 1; white-space: nowrap; }
 .fz-toggle button.active { background: rgba(255,255,255,0.85); color: #1f2937; }
+
+/* タブ式UI (A案: 受信箱フォーカス) */
+.today-summary { background: linear-gradient(135deg,#fffbeb,#fef3c7); border-left:4px solid #f59e0b; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; font-size: 13px; color: #78350f; line-height: 1.7; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.today-summary .ts-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(255,255,255,0.6); border-radius: 14px; font-weight: 700; font-size: 12px; }
+.today-summary .ts-num { font-size: 16px; font-weight: 900; color: #92400e; }
+.today-summary .ts-empty { font-size: 12px; color: #92400e; opacity: 0.85; }
+.wo-tab-bar { display: flex; gap: 4px; background: #fff; padding: 4px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px; border: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+.wo-tab-bar button { flex: 1; padding: 10px 6px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #6b7280; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s; white-space: nowrap; }
+.wo-tab-bar button:hover { background: #f9fafb; }
+.wo-tab-bar button.active { background: #1f2937; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.wo-tab-bar button .tb-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; border-radius: 9px; margin-left: 2px; }
+.wo-tab-bar button.active .tb-badge { background: #fde68a; color: #92400e; }
+[data-pane] { transition: opacity 0.2s; }
 </style>
 </head>
 <body>
@@ -126,6 +139,84 @@ function setFontSize(s) {
 window.addEventListener('DOMContentLoaded', () => {
   try { const s = localStorage.getItem('cohub_wo_fz'); if (s) setFontSize(s); } catch (e) {}
 });
+
+// タブ切替 (A案: シンプル化)
+let _woActiveTab = 'inbox';
+function switchWoTab(tab) {
+  _woActiveTab = tab;
+  document.querySelectorAll('.wo-tab-bar button').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+  document.querySelectorAll('[data-pane]').forEach(el =>
+    el.style.display = (el.dataset.pane === tab || el.dataset.pane === '*') ? '' : 'none'
+  );
+  // 受信箱のnurse-pendingは display:none を初期化済 (条件付き)
+  // タブ切替時に nurse-pending の元の表示状態を復元
+  if (tab === 'inbox') {
+    const np = document.getElementById('nurse-pending');
+    if (np && (!window._nursePendingHasItems)) np.style.display = 'none';
+  }
+  try { localStorage.setItem('cohub_wo_tab', tab); } catch (e) {}
+}
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    const saved = localStorage.getItem('cohub_wo_tab');
+    if (saved) switchWoTab(saved);
+    else switchWoTab('inbox');
+  } catch (e) { switchWoTab('inbox'); }
+});
+
+// 今日のあなた サマリー更新
+// loadFieldVoice / loadActions / loadNursePending の完了時に呼ばれる想定
+function updateTodaySummary() {
+  const box = document.getElementById('today-summary-box');
+  if (!box) return;
+  // 助言待ち件数 (nurse-pending list の項目数)
+  const nurseList = document.getElementById('nurse-pending-list');
+  const nurseCount = nurseList ? nurseList.querySelectorAll('a, li, [data-pending]').length : 0;
+  const npVisible = document.getElementById('nurse-pending') && document.getElementById('nurse-pending').style.display !== 'none';
+  const nurseN = npVisible ? Math.max(nurseCount, 1) : 0;
+  // 新POST数 (今日)
+  const fvCountText = (document.getElementById('fv-count') || {}).textContent || '';
+  const newPostMatch = fvCountText.match(/(\d+)件/);
+  const newPostN = newPostMatch ? parseInt(newPostMatch[1]) : 0;
+  // 進行中施策 (#actions-tbody の行数 - 簡易)
+  const actBody = document.getElementById('actions-tbody');
+  const activeN = actBody ? actBody.querySelectorAll('tr[data-id]').length : 0;
+
+  const showPill = (id, n) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (n > 0) {
+      el.style.display = '';
+      const numEl = el.querySelector('.ts-num');
+      if (numEl) numEl.textContent = n;
+    } else {
+      el.style.display = 'none';
+    }
+  };
+  showPill('ts-pill-nurse', nurseN);
+  showPill('ts-pill-newpost', newPostN);
+  showPill('ts-pill-active', activeN);
+  const empty = document.getElementById('ts-empty');
+  if (empty) empty.style.display = (nurseN + newPostN + activeN) > 0 ? 'none' : '';
+  box.style.display = '';
+
+  // タブバッジ更新
+  const inboxBadge = document.getElementById('tab-badge-inbox');
+  const inboxN = nurseN + newPostN;
+  if (inboxBadge) {
+    if (inboxN > 0) { inboxBadge.style.display = ''; inboxBadge.textContent = inboxN; }
+    else inboxBadge.style.display = 'none';
+  }
+  const boardBadge = document.getElementById('tab-badge-board');
+  if (boardBadge) {
+    if (activeN > 0) { boardBadge.style.display = ''; boardBadge.textContent = activeN; }
+    else boardBadge.style.display = 'none';
+  }
+}
+// 1秒ごとに更新 (各 load 関数を改修するより簡単)
+setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
 </script>
 <main>
 
@@ -145,15 +236,31 @@ window.addEventListener('DOMContentLoaded', () => {
 
   <div id="role-banner" class="banner banner-info"></div>
 
-  <!-- 🩺 保健師レビュー待ち案件 -->
-  <div id="nurse-pending" class="card" style="display:none;background:#f9fafb;border-left:4px solid #1f2937;">
+  <!-- 🌅 今日のあなた サマリー (常時表示) -->
+  <div id="today-summary-box" class="today-summary" style="display:none;">
+    <span style="font-weight:800;color:#92400e;">🌅 今日のあなた</span>
+    <span class="ts-pill" id="ts-pill-nurse" style="display:none;">🩺 助言待ち <span class="ts-num" id="ts-nurse-num">0</span></span>
+    <span class="ts-pill" id="ts-pill-newpost" style="display:none;">📨 新POST <span class="ts-num" id="ts-newpost-num">0</span></span>
+    <span class="ts-pill" id="ts-pill-active" style="display:none;">🎯 進行中 <span class="ts-num" id="ts-active-num">0</span></span>
+    <span class="ts-empty" id="ts-empty">本日の対応待ち項目はありません。新POSTを起こすか、ボードを進めましょう。</span>
+  </div>
+
+  <!-- タブナビ -->
+  <div class="wo-tab-bar">
+    <button data-tab="inbox" class="active" onclick="switchWoTab('inbox')">📥 受信箱<span class="tb-badge" id="tab-badge-inbox" style="display:none;">0</span></button>
+    <button data-tab="board" onclick="switchWoTab('board')">📋 施策ボード<span class="tb-badge" id="tab-badge-board" style="display:none;">0</span></button>
+    <button data-tab="members" onclick="switchWoTab('members')">👥 メンバー</button>
+  </div>
+
+  <!-- 🩺 保健師レビュー待ち案件 (受信箱タブ) -->
+  <div id="nurse-pending" class="card" data-pane="inbox" style="display:none;background:#f9fafb;border-left:4px solid #1f2937;">
     <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#374151;margin-bottom:4px;">🩺 NURSE REVIEW PENDING</div>
     <h2 style="margin:0 0 6px;font-size:16px;color:#111827;">🩺 あなたの助言を待っている施策があります</h2>
     <div id="nurse-pending-list" style="font-size:12px;color:#374151;"></div>
   </div>
 
-  <!-- 🌱 ミッション -->
-  <div class="card" style="background:#fff;border-left:4px solid #374151;position:relative;overflow:hidden;">
+  <!-- 🌱 ミッション (メンバータブ) -->
+  <div class="card" data-pane="members" style="background:#fff;border-left:4px solid #374151;position:relative;overflow:hidden;">
     <div style="position:absolute;top:-20px;right:-20px;font-size:140px;opacity:0.04;">🌱</div>
     <div style="position:relative;z-index:1;">
       <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#6b7280;margin-bottom:4px;">FOR HEALTH PROMOTERS</div>
@@ -169,7 +276,7 @@ window.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- ━━━ STEP 1 ━━━ 3つの柱 (実POST埋込) -->
-  <div style="margin-top:18px;">
+  <div data-pane="board" style="margin-top:18px;">
     <span class="step-label">STEP 1 — みんなの声を聴く</span>
     <h2 class="step-title">🌸 3つの柱から届いた最新の声</h2>
     <div class="step-sub">直近のPOSTを各柱5件ずつ表示。各カードのタップで全部見られます。</div>
@@ -213,10 +320,10 @@ window.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 
-  <div class="flow-arrow">⌄</div>
+  <div class="flow-arrow" data-pane="board">⌄</div>
 
   <!-- ━━━ STEP 2 ━━━ AI凝縮 -->
-  <div>
+  <div data-pane="board">
     <span class="step-label">STEP 2 — AIにまとめてもらう</span>
     <h2 class="step-title">🧠 集まった声を AI が「施策の候補」にまとめます</h2>
     <div class="condense-bar">
@@ -230,10 +337,10 @@ window.addEventListener('DOMContentLoaded', () => {
     <div id="ai-insights-box" style="display:none;background:#fff;border:1px solid #f3e8ff;border-radius:14px;padding:14px;margin-top:8px;"></div>
   </div>
 
-  <div class="flow-arrow">⌄</div>
+  <div class="flow-arrow" data-pane="board">⌄</div>
 
   <!-- ━━━ STEP 3 ━━━ 施策ボード (パイプライン統合) -->
-  <div class="card">
+  <div class="card" data-pane="board">
     <span class="step-label">STEP 3 — 形にする</span>
     <h2 class="step-title">🎯 施策ボード <span style="color:#71717a;font-weight:400;font-size:12px;margin-left:8px;">9つの段階を経て会社の施策になります</span></h2>
     <div class="step-sub">⬇ 下のパイプラインの段階タブをタップすると、その段階の施策一覧が表示されます。</div>
@@ -283,8 +390,8 @@ window.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 
-  <div class="card">
-    <h2>🩺 現場の声 (運管POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
+  <div class="card" data-pane="inbox">
+    <h2>🩺 現場の声 (運管/倉庫/総務POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
     <div class="row">
       <select id="fv-src-filter"><option value="">投稿元すべて</option><option value="運管">🚛 運管</option><option value="倉庫">📦 倉庫</option><option value="総務">🏢 総務</option><option value="その他">💼 その他</option></select>
       <select id="fv-cat-filter"><option value="">カテゴリすべて</option><option value="体調">体調</option><option value="食事">食事</option><option value="睡眠">睡眠</option><option value="職場環境">職場環境</option><option value="その他">その他</option></select>
@@ -304,8 +411,8 @@ window.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 
-  <!-- ━━━ STEP 4 ━━━ 推進メンバー活動 (最下段に配置) -->
-  <div class="card" style="background:#f9fafb;border:1px solid #e5e7eb;margin-top:18px;">
+  <!-- ━━━ STEP 4 ━━━ 推進メンバー活動 (メンバータブ) -->
+  <div class="card" data-pane="members" style="background:#f9fafb;border:1px solid #e5e7eb;margin-top:18px;">
     <span class="step-label">STEP 4 — みんなの活動</span>
     <h2 class="step-title">🤝 推進メンバーの貢献</h2>
     <div class="step-sub">過去30日 (POST×3 + 議論×2 + 共感×1)。みなさんの一つひとつの行動がループを動かしています。</div>
@@ -1432,7 +1539,8 @@ async function loadNursePending() {
         </div>
       </div>`;
     }).join('');
-    panel.style.display = 'block';
+    window._nursePendingHasItems = true;
+    if (_woActiveTab === 'inbox') panel.style.display = 'block';
   } catch (e) { console.warn('loadNursePending', e); }
 }
 
