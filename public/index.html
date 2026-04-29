@@ -3841,11 +3841,11 @@ async function speakViaTTS(text, opts) {
 }
 
 // bot uid → TTS声プリセット
-// 葵 (受付AI):    Neural2-B 系 + pitch高め + 早口で若い女性らしい印象
-// ヘルス (健康室): Wavenet-D 系 + pitch低め + ゆっくりで大人の女性らしい印象
-// (両者で声質を Neural2 vs Wavenet で完全に分離、pitch差7段階で明確に区別)
+// 葵 (受付AI):    Neural2-B / speed 1.25 / pitch +4 (高く早口で若い)
+// ヘルス (健康室): Wavenet-A / speed 1.10 / pitch +2 (明るめWavenet女性、躍動的+テンポ良)
+// → 両者ともに若い女性だが、エンジン (Neural2 vs Wavenet) と pitch 差で別キャラ感を出す
 function ttsOptsForBot(botUid) {
-  if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-D', speed: 0.95, pitch: -3 };
+  if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
   return { voice: 'ja-JP-Neural2-B', speed: 1.25, pitch: 4 };  // 葵 (デフォルト)
 }
 
