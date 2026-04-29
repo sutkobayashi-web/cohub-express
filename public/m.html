@@ -1998,15 +1998,11 @@ async function loadFloorList() {
     };
     const office = (d.floors || []).filter(f => !f.building || f.building === 'office');
     const field = (d.floors || []).filter(f => f.building === 'field');
-    // 健康管理室ボタン (DBフロアではないが事務所棟の大会議室の後に挿入)
-    const wellnessBtn = `<button class="floor-btn" style="background:rgba(16,185,129,0.08);border-color:#10b981;" onclick="location.href='/wellness.html'">
-      <span class="ico">🏥</span>
-      <span class="lbl" style="color:#047857;">健康管理室</span>
-    </button>`;
+    // 旧: 棟・フロアリストに「🏥 健康管理室」ボタンを差込していたが、
+    // クイックメニューの「📋 健康記録」と重複していたため撤去
     let officeHtml = '';
     for (const f of office) {
       officeHtml += renderFloor(f);
-      if (f.code === 'meeting_c') officeHtml += wellnessBtn;
     }
     officeBox.innerHTML = officeHtml || '<div style="color:#94a3b8;font-size:11px;">フロアなし</div>';
     fieldBox.innerHTML = field.map(renderFloor).join('') || '<div style="color:#94a3b8;font-size:11px;">フロアなし</div>';
