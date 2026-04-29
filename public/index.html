@@ -2461,9 +2461,10 @@ function loadAvatar(u) {
 
 // ===== AI受付/アドバイザー 立ち姿画像 (四隅flood-fillで背景透過) =====
 // botUid → { canvas, w, h } のマップ。新bot追加時は BOT_STANDING に画像URLを足すだけ
+// 末尾の v= は新ポーズ画像差替時のキャッシュバスター
 const BOT_STANDING = {
   'bot_aoi':    '/assets/concierge_aoi_full.png',
-  'bot_health': '/assets/concierge_health_full.png',
+  'bot_health': '/assets/concierge_health_full.png?v=2',
 };
 const botStandingImages = {};   // botUid → { canvas, w, h }
 let conciergeFull = null;       // 後方互換: bot_aoi のショートカット参照
@@ -2621,7 +2622,7 @@ function render() {
   // ヘルスアドバイザーは全身立ち姿
   const FIRST_PERSON_BOT = {
     'lobby':         { uid: 'bot_aoi',    x: 744, y: 475, clip: true  },
-    'wellness_room': { uid: 'bot_health', x: 1100, y: 560, clip: false },  // 右側スタンディングデスクの後ろ
+    'wellness_room': { uid: 'bot_health', x: 1100, y: 500, clip: false, flipH: true },  // 右側、左側のホワイトボード方向にgestureが向くようミラー
   };
   const LOBBY_COUNTER_TOP_Y = 465;
 
@@ -3080,7 +3081,7 @@ function drawConciergeStanding(u) {
   //  他フロア = 210 (従来)
   let FIG_H = 210;
   if (currentFloor && currentFloor.code === 'lobby') FIG_H = 252;
-  else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 440;
+  else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 520;  // 一回り大きく
   const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -3116,8 +3117,17 @@ function drawConciergeStanding(u) {
   grad.addColorStop(1, 'rgba(6,182,212,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
-  // 本体
-  ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
+  // 本体 (wellness_room の bot_health は左方向のホワイトボードを指すよう水平反転)
+  const flipH = currentFloor && currentFloor.code === 'wellness_room' && u.uid === 'bot_health';
+  if (flipH) {
+    ctx.save();
+    ctx.translate(cx, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(standing.canvas, -FIG_W / 2, headY, FIG_W, FIG_H);
+    ctx.restore();
+  } else {
+    ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
+  }
   // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (タップしやすい大型ボタン)
   // 視覚36px tall (世界座標) + 当たり判定 padding +30px で大きめタップ目標を確保
   ctx.font = '800 15px sans-serif';
