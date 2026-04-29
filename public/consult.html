@@ -236,6 +236,7 @@ let state = {
   step: 1,        // 1=Layer1, 2=Layer2, 3=自由記述, 4=送信中
   selections: [], // [{layer, key, label}, ...]
   freeText: '',
+  sharePublicly: false,  // 段3 ニックネーム公開 opt-in (デフォルトOFF)
 };
 
 async function api(p, opts) {
@@ -327,12 +328,23 @@ function render() {
     btnNext.disabled = !state.selections.some(s => s.layer === 2);
     btnNext.textContent = '次へ';
   } else if (state.step === 3) {
-    // 自由記述
+    // 自由記述 + 共有opt-in
     introMsg.textContent = '他に伝えたいことある? なくても全然OK。';
     qarea.innerHTML =
       '<div class="qcard"><div class="qtitle">他に伝えたいことある?</div>' +
       '<div class="qsub">なくてもOK。あれば書くと、よりあなたに合ったプランになるよ</div>' +
       `<textarea class="free-textarea" id="free-text" placeholder="例: 夕食が遅くなりがちで…" maxlength="1000">${escapeHtml(state.freeText)}</textarea>` +
+      '</div>' +
+      '<div class="qcard" style="margin-top:10px;">' +
+      '<div class="qtitle" style="font-size:14px;">仲間に共有する? (任意)</div>' +
+      '<div class="qsub">公開すると「✨先駆者」として ニックネームで全員に表示。一緒に始める仲間の背中を押せるよ。実名は出さないし、いつでも取り下げ可能。</div>' +
+      '<label style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:#f0fdf4;border:2px solid ' + (state.sharePublicly ? '#10b981' : '#bbf7d0') + ';border-radius:10px;cursor:pointer;">' +
+      `<input type="checkbox" id="share-toggle" ${state.sharePublicly ? 'checked' : ''} onchange="toggleShare()" style="width:20px;height:20px;margin-top:2px;cursor:pointer;">` +
+      '<div style="flex:1;font-size:13px;color:#065f46;line-height:1.6;">' +
+      `<div style="font-weight:800;margin-bottom:2px;">✨ ニックネーム「${escapeHtml((me && me.nickname) || '匿名')}」で仲間に共有する</div>` +
+      '<div style="font-size:11px;color:#047857;">「○○さんが運動を始めました」と表示されます</div>' +
+      '</div></label>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-top:6px;">※ チェックしなければ完全プライベート。プラン後からでも変更OK。</div>' +
       '</div>';
     btnBack.style.display = '';
     btnSkip.style.display = '';
@@ -342,6 +354,15 @@ function render() {
     btnNext.disabled = false;
     btnNext.textContent = '✅ プランを作ってもらう';
   }
+}
+
+function toggleShare() {
+  const cb = document.getElementById('share-toggle');
+  state.sharePublicly = !!(cb && cb.checked);
+  // 視覚フィードバックのため再描画
+  const ta = document.getElementById('free-text');
+  if (ta) state.freeText = ta.value || '';
+  render();
 }
 
 function isSelected(layer, key) {
@@ -426,7 +447,7 @@ async function submit() {
     const d = await api('/api/myplan/consult', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selections: state.selections, free_text: state.freeText || '' }),
+      body: JSON.stringify({ selections: state.selections, free_text: state.freeText || '', share_publicly: state.sharePublicly }),
     });
     if (!d.success) {
       document.getElementById('loading').classList.remove('show');

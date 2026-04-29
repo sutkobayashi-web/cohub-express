@@ -56,12 +56,29 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 .badge { font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; }
 .badge.move { background: #dcfce7; color: #047857; }
 .badge.sel  { background: #e0e7ff; color: #1e3a8a; }
+.badge.pioneer { background: linear-gradient(135deg,#fde68a,#fbbf24); color: #78350f; }
+
+/* 共有トグルカード */
+.share-card { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+.share-toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
+.share-toggle input { width: 22px; height: 22px; flex-shrink: 0; cursor: pointer; margin-top: 1px; }
+.share-text { flex: 1; }
+.share-title { font-weight: 800; font-size: 13.5px; color: #1e3a8a; }
+.share-sub { font-size: 11px; color: #64748b; margin-top: 3px; line-height: 1.5; }
 
 /* 操作ボタン群 */
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .actions .btn { flex: 1; min-width: 140px; padding: 12px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .btn-primary { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
 .btn-secondary { background: #fff; color: #475569; border: 1px solid #cbd5e1 !important; }
+
+/* 仲間フィード */
+.feed-card { background: linear-gradient(135deg,#fef3c7,#fde68a); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(245,158,11,0.15); }
+.feed-hdr { font-weight: 800; font-size: 12px; color: #78350f; margin-bottom: 8px; }
+.feed-line { font-size: 12.5px; color: #92400e; padding: 4px 0; line-height: 1.5; }
+.feed-pioneers { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.feed-pioneer { background: rgba(255,255,255,0.6); padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #78350f; display: flex; align-items: center; gap: 6px; }
+.feed-pioneer .ico { font-size: 14px; }
 
 /* 履歴 */
 .history { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -171,10 +188,30 @@ function relTime(iso) {
 }
 
 function renderEmpty() {
+  let feedHtml = '';
+  if (window._feed) {
+    const fd = window._feed;
+    feedHtml = '<div class="feed-card" style="margin:0 0 18px;"><div class="feed-hdr">🌊 みんなの一歩 (今週)</div>';
+    if (fd.by_category && fd.by_category.length) {
+      const top3 = fd.by_category.slice(0, 3);
+      feedHtml += '<div class="feed-line">' +
+        top3.map(c => `${escapeHtml(c.label)} <b>${c.count}名</b>`).join(' / ') + ' が始めたよ</div>';
+    }
+    if (fd.pioneers && fd.pioneers.length) {
+      feedHtml += '<div class="feed-pioneers">';
+      for (const p of fd.pioneers.slice(0, 3)) {
+        feedHtml += `<div class="feed-pioneer"><span class="ico">✨</span>` +
+          `<span>先駆者 <b>${escapeHtml(p.name)}</b> が ${escapeHtml(p.category_label)} を始めたよ</span></div>`;
+      }
+      feedHtml += '</div>';
+    }
+    feedHtml += '</div>';
+  }
   document.getElementById('content').innerHTML =
+    feedHtml +
     '<div class="empty-state">' +
     '<div class="ico">📋</div>' +
-    '<div class="msg">まだアクションプランがありません。<br>健康管理室で相談すると、あなたに合ったプランが届きます。</div>' +
+    '<div class="msg">まだあなたのプランはありません。<br>健康管理室で相談すると、あなたに合ったプランが届きます。</div>' +
     '<button class="btn" onclick="goConsult()">🩺 相談を始める</button>' +
     '</div>';
 }
@@ -183,6 +220,7 @@ function renderPlan(plan) {
   if (!plan) { renderEmpty(); return; }
   const moveBadge = plan.movement_priority ? '<span class="badge move">🏃 運動優先</span>' : '';
   const selBadges = (plan.selections || []).map(s => `<span class="badge sel">${escapeHtml(s.label)}</span>`).join('');
+  const shareBadge = plan.share_publicly ? '<span class="badge pioneer">✨ 先駆者として公開中</span>' : '';
   const isDone = !!plan.today_done_at;
   const kpiHtml = (plan.plan_kpi && plan.plan_kpi.length) ?
     '<div class="kpi-table">' +
@@ -203,8 +241,39 @@ function renderPlan(plan) {
     `<div class="updated">更新: ${escapeHtml((plan.created_at || '').replace('T', ' ').slice(0, 16))}</div>` +
     '</div></div>';
 
-  if (selBadges || moveBadge) {
-    html += `<div class="badge-row">${moveBadge}${selBadges}</div>`;
+  if (selBadges || moveBadge || shareBadge) {
+    html += `<div class="badge-row">${moveBadge}${shareBadge}${selBadges}</div>`;
+  }
+
+  // 共有トグル (後付けopt-in/opt-out)
+  html += `<div class="share-card">` +
+    `<label class="share-toggle">` +
+    `<input type="checkbox" id="share-cb" ${plan.share_publicly ? 'checked' : ''} onchange="toggleShare(${plan.id})">` +
+    `<div class="share-text">` +
+    `<div class="share-title">${plan.share_publicly ? '✨ 仲間に共有中' : '🤫 自分だけで進めている'}</div>` +
+    `<div class="share-sub">${plan.share_publicly ? 'ニックネームで全員フィードに表示中。タップで取り下げ可' : 'タップでニックネーム公開し、仲間の背中を押す側になる'}</div>` +
+    `</div></label></div>`;
+
+  // 仲間フィード (匿名集計+先駆者)
+  if (window._feed) {
+    const fd = window._feed;
+    let feedHtml = '<div class="feed-card"><div class="feed-hdr">🌊 みんなの一歩 (今週)</div>';
+    if (fd.by_category && fd.by_category.length) {
+      const top3 = fd.by_category.slice(0, 3);
+      feedHtml += '<div class="feed-line">' +
+        top3.map(c => `${escapeHtml(c.label)} <b>${c.count}名</b>`).join(' / ') +
+        ` が始めたよ` + (fd.today_done ? ` ・ 今日は ${fd.today_done}名 が完了!` : '') + '</div>';
+    }
+    if (fd.pioneers && fd.pioneers.length) {
+      feedHtml += '<div class="feed-pioneers">';
+      for (const p of fd.pioneers.slice(0, 5)) {
+        feedHtml += `<div class="feed-pioneer"><span class="ico">✨</span>` +
+          `<span>先駆者 <b>${escapeHtml(p.name)}</b>${p.pioneer_count > 1 ? ` (${p.pioneer_count}回目)` : ''} が ${escapeHtml(p.category_label)} を始めたよ</span></div>`;
+      }
+      feedHtml += '</div>';
+    }
+    feedHtml += '</div>';
+    html += feedHtml;
   }
 
   html += '<div class="plan-card">';
@@ -248,10 +317,21 @@ async function toggleDone(id) {
   try {
     const d = await api('/api/myplan/done/' + id, { method: 'POST' });
     if (d.success) {
-      // 反映
       const p = plans.find(x => x.id === id);
       if (p) p.today_done_at = d.today_done_at;
       if (currentPlan && currentPlan.id === id) currentPlan.today_done_at = d.today_done_at;
+      renderPlan(currentPlan);
+    }
+  } catch (e) {}
+}
+
+async function toggleShare(id) {
+  try {
+    const d = await api('/api/myplan/share/' + id, { method: 'POST' });
+    if (d.success) {
+      const p = plans.find(x => x.id === id);
+      if (p) p.share_publicly = d.share_publicly;
+      if (currentPlan && currentPlan.id === id) currentPlan.share_publicly = d.share_publicly;
       renderPlan(currentPlan);
     }
   } catch (e) {}
@@ -264,7 +344,12 @@ async function init() {
   const url = new URL(location.href);
   const targetId = parseInt(url.searchParams.get('id') || '0');
   try {
-    const d = await api('/api/myplan/list');
+    // フィードと履歴を並列取得
+    const [d, fd] = await Promise.all([
+      api('/api/myplan/list'),
+      api('/api/myplan/feed').catch(() => null),
+    ]);
+    if (fd && fd.success) window._feed = fd;
     if (!d.success) {
       document.getElementById('content').innerHTML = '<div class="loading">読み込み失敗</div>';
       return;

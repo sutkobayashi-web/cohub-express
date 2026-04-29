@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🩺 健康管理室 推進メンバー Dashboard — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<meta name="theme-color" content="#1e3a8a">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg,#eff6ff,#f0f9ff); color: #0f172a; padding-bottom: 40px; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg,#1e3a8a,#312e81); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; }
+header .close { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+
+.note { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 12.5px; color: #9a3412; line-height: 1.6; }
+
+/* KPIカード */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.kpi { background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); text-align: center; }
+.kpi-label { font-size: 11px; color: #64748b; font-weight: 700; }
+.kpi-num { font-size: 28px; font-weight: 800; color: #1e3a8a; line-height: 1.2; margin-top: 4px; }
+.kpi-sub { font-size: 10px; color: #94a3b8; margin-top: 3px; }
+
+/* カテゴリ集計 */
+.cat-section { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.cat-section h3 { margin: 0 0 12px; font-size: 13px; color: #1e3a8a; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.cat-section .period { font-size: 10px; color: #94a3b8; font-weight: 600; margin-left: auto; }
+.cat-bars { display: flex; flex-direction: column; gap: 6px; }
+.cat-bar { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.cat-bar .lbl { min-width: 110px; font-weight: 700; color: #334155; }
+.cat-bar .bar { flex: 1; height: 18px; background: #f1f5f9; border-radius: 9px; overflow: hidden; position: relative; }
+.cat-bar .fill { height: 100%; background: linear-gradient(90deg,#3b82f6,#1e40af); border-radius: 9px; }
+.cat-bar .num { min-width: 40px; text-align: right; font-weight: 800; color: #1e3a8a; }
+
+/* タブ */
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; background: #fff; padding: 4px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.tab { flex: 1; padding: 10px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; }
+.tab.active { background: #1e3a8a; color: #fff; }
+
+/* プラン一覧 */
+.plan-row { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; gap: 12px; align-items: flex-start; }
+.plan-row.done { border-left: 3px solid #10b981; }
+.plan-row.share { background: linear-gradient(135deg,#fffbeb,#fef9c3); }
+.plan-name { font-weight: 800; font-size: 13px; color: #1e3a8a; min-width: 130px; }
+.plan-meta { flex: 1; font-size: 12px; color: #475569; line-height: 1.55; }
+.plan-meta .row1 { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+.plan-meta .cat-bdg { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; background: #e0e7ff; color: #1e3a8a; }
+.plan-meta .move-bdg { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; background: #dcfce7; color: #047857; }
+.plan-meta .share-bdg { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; background: linear-gradient(135deg,#fde68a,#fbbf24); color: #78350f; }
+.plan-meta .done-bdg { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; background: #d1fae5; color: #065f46; }
+.plan-meta .ts { font-size: 10px; color: #94a3b8; }
+.plan-action { display: flex; flex-direction: column; gap: 6px; }
+.plan-action .btn { padding: 6px 10px; font-size: 11px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.btn-encourage { background: linear-gradient(135deg,#10b981,#059669); color: #fff; }
+.btn-detail { background: #f1f5f9; color: #334155; }
+
+.loading, .empty { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
+
+/* DM送信モーダル */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 14px; padding: 18px; max-width: 420px; width: 100%; }
+.modal h3 { margin: 0 0 12px; font-size: 14px; color: #1e3a8a; }
+.modal .target { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+.modal textarea { width: 100%; min-height: 90px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; }
+.modal .actions { display: flex; gap: 8px; margin-top: 12px; }
+.modal .actions .btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.modal .btn-cancel { background: #f1f5f9; color: #475569; }
+.modal .btn-send { background: linear-gradient(135deg,#1e3a8a,#312e81); color: #fff; }
+
+/* 詳細モーダル */
+.detail-card { background: #f8fafc; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; color: #1f2937; white-space: pre-wrap; }
+.detail-card-hdr { font-weight: 800; font-size: 11px; color: #1e3a8a; margin-bottom: 4px; }
+
+.login-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+.login-overlay.show { display: flex; }
+.login-card { background: #fff; border-radius: 14px; padding: 24px; max-width: 320px; width: 90%; }
+.login-card h2 { margin: 0 0 16px; font-size: 16px; color: #1e3a8a; }
+.login-card input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+.login-card .btn { width: 100%; padding: 11px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.login-err { color: #ef4444; font-size: 12px; margin-top: 8px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🩺 健康管理室 推進メンバー Dashboard</h1>
+  <button class="close" onclick="closePage()">閉じる</button>
+</header>
+
+<main>
+  <div class="note">
+    👁 推進メンバー専用画面です。表示される個人情報は <b>本人の同意 (CoWell利用規約)</b> の範囲で運用されます。
+    社員へのDMは「推進メンバー本人」として送信されます (匿名性は保たれません)。
+  </div>
+
+  <div id="content"><div class="loading">読み込み中…</div></div>
+</main>
+
+<!-- DM送信モーダル -->
+<div class="modal-overlay" id="dm-modal">
+  <div class="modal">
+    <h3>🩺 励ましDM送信</h3>
+    <div class="target" id="dm-target">宛先:</div>
+    <textarea id="dm-text" placeholder="例: ○○さん、運動チャレンジ始めてくれてありがとう! 何かサポートできることあれば声かけてください。" maxlength="500"></textarea>
+    <div class="actions">
+      <button class="btn btn-cancel" onclick="closeDmModal()">キャンセル</button>
+      <button class="btn btn-send" onclick="sendDm()">送信</button>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal" style="max-width:520px;">
+    <h3 id="detail-title">プラン詳細</h3>
+    <div id="detail-body"></div>
+    <div class="actions">
+      <button class="btn btn-cancel" onclick="closeDetailModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <h2>🩺 推進メンバーログイン</h2>
+    <input type="text" id="li-id" placeholder="社員ID">
+    <input type="password" id="li-pw" placeholder="パスワード">
+    <button class="btn" onclick="doLogin()">ログイン</button>
+    <div class="login-err" id="li-err"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let me = JSON.parse(localStorage.getItem('cohub_user') || 'null');
+let allData = null;
+let currentTab = 'all';
+let dmTargetUid = null;
+
+async function api(p, opts) {
+  opts = opts || {}; opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(p, opts);
+  if (r.status === 401) { showLogin(); throw new Error('401'); }
+  if (r.status === 403) { document.getElementById('content').innerHTML = '<div class="empty">⚠️ 推進メンバー権限がありません。</div>'; throw new Error('403'); }
+  return r.json();
+}
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+function showLogin(err) {
+  document.getElementById('login-overlay').classList.add('show');
+  if (err) document.getElementById('li-err').textContent = err;
+}
+async function doLogin() {
+  const id = document.getElementById('li-id').value.trim();
+  const pw = document.getElementById('li-pw').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login_id: id, password: pw }) });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '失敗'; return; }
+    token = d.token;
+    localStorage.setItem('cohub_token', token);
+    localStorage.setItem('cohub_user', JSON.stringify(d.user));
+    me = d.user;
+    document.getElementById('login-overlay').classList.remove('show');
+    init();
+  } catch (e) { err.textContent = '通信エラー'; }
+}
+function closePage() { if (history.length > 1) history.back(); else location.href = '/'; }
+function relTime(iso) {
+  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
+  if (!t) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
+  return (iso || '').slice(5, 10);
+}
+
+function renderKpis(s) {
+  return '<div class="kpis">' +
+    `<div class="kpi"><div class="kpi-label">利用者数 (累積)</div><div class="kpi-num">${s.unique_users||0}</div><div class="kpi-sub">名</div></div>` +
+    `<div class="kpi"><div class="kpi-label">今週の相談</div><div class="kpi-num">${(s.cat_7d||[]).reduce((a,c)=>a+c.count,0)}</div><div class="kpi-sub">件</div></div>` +
+    `<div class="kpi"><div class="kpi-label">直近7日 完了率</div><div class="kpi-num">${s.completion_rate_7d||0}<span style="font-size:14px;">%</span></div><div class="kpi-sub">今日のアクション</div></div>` +
+    '</div>';
+}
+function renderCatBars(items, period) {
+  if (!items || !items.length) return `<div class="cat-section"><h3>📊 カテゴリ別<span class="period">${period}</span></h3><div style="color:#94a3b8;font-size:12px;">データなし</div></div>`;
+  const max = items.reduce((m, it) => Math.max(m, it.count), 1);
+  let html = `<div class="cat-section"><h3>📊 カテゴリ別<span class="period">${period}</span></h3><div class="cat-bars">`;
+  for (const it of items) {
+    const pct = Math.round(it.count / max * 100);
+    html += `<div class="cat-bar">
+      <span class="lbl">${escapeHtml(it.label)}</span>
+      <div class="bar"><div class="fill" style="width:${pct}%;"></div></div>
+      <span class="num">${it.count}</span>
+    </div>`;
+  }
+  html += '</div></div>';
+  return html;
+}
+function renderPlanList() {
+  if (!allData || !allData.plans.length) return '<div class="empty">プランがまだありません</div>';
+  let plans = allData.plans;
+  if (currentTab === 'share') plans = plans.filter(p => p.share_publicly);
+  else if (currentTab === 'move') plans = plans.filter(p => p.movement_priority);
+  else if (currentTab === 'pending') plans = plans.filter(p => !p.today_done);
+  if (!plans.length) return '<div class="empty">該当プランなし</div>';
+  let html = '';
+  for (const p of plans) {
+    const cls = (p.today_done ? 'done ' : '') + (p.share_publicly ? 'share' : '');
+    const moveBdg = p.movement_priority ? '<span class="move-bdg">🏃 運動</span>' : '';
+    const shareBdg = p.share_publicly ? `<span class="share-bdg">✨ 先駆者${p.pioneer_count > 1 ? '×' + p.pioneer_count : ''}</span>` : '';
+    const doneBdg = p.today_done ? '<span class="done-bdg">✓ 今日完了</span>' : '';
+    const display = (p.nickname || p.display_name || '匿名') + (p.nickname && p.display_name ? ` (${p.display_name})` : '');
+    html += `<div class="plan-row ${cls}">
+      <div class="plan-name">${escapeHtml(display)}</div>
+      <div class="plan-meta">
+        <div class="row1">
+          <span class="cat-bdg">${escapeHtml(p.category_label)}</span>
+          ${moveBdg}${shareBdg}${doneBdg}
+          <span class="ts">${relTime(p.created_at)}</span>
+        </div>
+        <div>${escapeHtml((p.plan_today||'').slice(0, 80))}…</div>
+      </div>
+      <div class="plan-action">
+        <button class="btn btn-detail" onclick='showDetail(${p.id})'>詳細</button>
+        <button class="btn btn-encourage" onclick='openDmModal("${p.user_id}", ${JSON.stringify(display)})'>📩 励まし</button>
+      </div>
+    </div>`;
+  }
+  return html;
+}
+function renderTabs() {
+  return `<div class="tabs">
+    <button class="tab ${currentTab==='all'?'active':''}" onclick="setTab('all')">全件 (${allData.plans.length})</button>
+    <button class="tab ${currentTab==='move'?'active':''}" onclick="setTab('move')">🏃 運動希望</button>
+    <button class="tab ${currentTab==='share'?'active':''}" onclick="setTab('share')">✨ 先駆者</button>
+    <button class="tab ${currentTab==='pending'?'active':''}" onclick="setTab('pending')">⏳ 未完了</button>
+  </div>`;
+}
+function setTab(t) { currentTab = t; renderPage(); }
+
+function renderPage() {
+  if (!allData) return;
+  const s = allData.summary || {};
+  document.getElementById('content').innerHTML =
+    renderKpis(s) +
+    renderCatBars(s.cat_7d, '直近7日') +
+    renderCatBars(s.cat_30d, '直近30日') +
+    renderTabs() +
+    renderPlanList();
+}
+
+function openDmModal(uid, display) {
+  dmTargetUid = uid;
+  document.getElementById('dm-target').innerHTML = '宛先: <b>' + escapeHtml(String(display)) + '</b>';
+  document.getElementById('dm-text').value = '';
+  document.getElementById('dm-modal').classList.add('show');
+}
+function closeDmModal() { document.getElementById('dm-modal').classList.remove('show'); dmTargetUid = null; }
+async function sendDm() {
+  const text = document.getElementById('dm-text').value.trim();
+  if (!text || !dmTargetUid) return;
+  try {
+    const d = await api('/api/myplan/admin/encourage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: dmTargetUid, message: text }),
+    });
+    if (d.success) { alert('✅ 送信しました'); closeDmModal(); }
+    else alert('送信失敗: ' + (d.msg || '不明'));
+  } catch (e) { alert('通信エラー'); }
+}
+
+function showDetail(id) {
+  const p = allData.plans.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('detail-title').textContent = (p.nickname || p.display_name) + ' のプラン詳細';
+  document.getElementById('detail-body').innerHTML =
+    `<div class="detail-card"><div class="detail-card-hdr">📍 今のあなた</div>${escapeHtml(p.plan_now||'-')}</div>` +
+    `<div class="detail-card"><div class="detail-card-hdr">✅ 今日からできる1つ</div>${escapeHtml(p.plan_today||'-')}</div>`;
+  document.getElementById('detail-modal').classList.add('show');
+}
+function closeDetailModal() { document.getElementById('detail-modal').classList.remove('show'); }
+
+async function init() {
+  try {
+    const d = await api('/api/myplan/admin/list?limit=100');
+    if (!d.success) { document.getElementById('content').innerHTML = '<div class="empty">' + (d.msg || 'エラー') + '</div>'; return; }
+    allData = d;
+    renderPage();
+  } catch (e) {}
+}
+
+if (!token) { showLogin(); }
+else { init(); }
+</script>
+
+</body>
+</html>

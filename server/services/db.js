@@ -762,6 +762,13 @@ function getDb() {
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_myplan_user ON myplan_consultations(user_id, created_at DESC);`);
+  // ニックネーム公開フラグ (段3 先駆者制)
+  ensureColumn(_db, 'myplan_consultations', 'share_publicly', 'share_publicly INTEGER DEFAULT 0');
+  ensureColumn(_db, 'myplan_consultations', 'share_opted_at', 'share_opted_at TEXT');
+  ensureColumn(_db, 'myplan_consultations', 'category_top', 'category_top TEXT');  // 'move' / 'meal' / etc 集計用
+  ensureColumn(_db, 'users', 'pioneer_count', 'pioneer_count INTEGER DEFAULT 0');  // 公開プラン累積数 = 先駆者バッジ
+  // 公開フィードクエリ用インデックス
+  _db.exec(`CREATE INDEX IF NOT EXISTS idx_myplan_share ON myplan_consultations(share_publicly, created_at DESC);`);
 
   return _db;
 }
