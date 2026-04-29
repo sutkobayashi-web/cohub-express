@@ -1980,6 +1980,10 @@ function connectSocket() {
       if (data.floor.code === 'lobby' && prevCode !== 'lobby') {
         try { announceLobbyWelcome(); } catch (e) {}
       }
+      // 健康管理室入室アナウンス: ヘルスアドバイザーがホワイトボード内容を読み上げ
+      if (data.floor.code === 'wellness_room' && prevCode !== 'wellness_room') {
+        try { setTimeout(() => announceWellnessRoomIntro(), 1200); } catch (e) {}
+      }
       WORLD_W = data.floor.world_w || 1344;
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
@@ -4129,6 +4133,49 @@ function announceLobbyWelcome() {
   // (旧: 「CoWellへようこそ」を読み上げ → 葵の挨拶と音声がかぶる問題があったため廃止)
   playEnterLeaveChime(true);
   console.log('[cohub] lobby chime only (welcome speech delegated to bot_aoi)');
+}
+
+// 健康管理室入室時: ヘルスアドバイザーが挨拶+ホワイトボード内容を読み上げ
+let _wellnessIntroAt = 0;
+const _WELLNESS_INTRO_COOLDOWN_MS = 30 * 60 * 1000;  // 30分
+async function announceWellnessRoomIntro() {
+  if (!speakerOn) return;
+  const now = Date.now();
+  if (now - _wellnessIntroAt < _WELLNESS_INTRO_COOLDOWN_MS) return;
+  _wellnessIntroAt = now;
+  const myUser = users[me] || currentUser || {};
+  const myName = (myUser && (myUser.name || myUser.display_name)) || 'あなた';
+  const reading = readingOf(myName) || myName;
+  // ヘルスフィードを取得 (lazy fetch)
+  try { await loadWellnessFeed(); } catch (e) {}
+  const fd = _wellnessFeed;
+  // 絵文字を除去して自然な発話に
+  const stripEmoji = (s) => String(s || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, '').trim();
+  let body = '';
+  if (fd && fd.by_category && fd.by_category.length) {
+    const top = fd.by_category.slice(0, 2).map(c => `${stripEmoji(c.label)}が${c.count}名`).join('、');
+    body = `今週はみんな頑張っていて、${top}が取り組んでいるところよ。`;
+    if (fd.pioneers && fd.pioneers.length) {
+      const p = fd.pioneers[0];
+      const pname = stripEmoji(p.name) || '誰か';
+      const pcat = stripEmoji(p.category_label);
+      body += `先駆者として ${pname}さんが ${pcat} を始めてくれたよ。`;
+    }
+    if (fd.today_done) body += `今日も ${fd.today_done}名 がアクションを完了しているよ。`;
+    body += 'あなたも気になることがあれば、いつでも声かけてね。';
+  } else {
+    body = 'ホワイトボードはまだ空っぽ。あなたが最初の一歩を踏み出してみる?';
+  }
+  const text = `${reading}さん、お疲れ様です。${body}`;
+  // この後のbot proximity挨拶を抑制 (重複発話防止)
+  try {
+    if (typeof _botProximity !== 'undefined') {
+      _botProximity['bot_health'] = { in: true, lastTrigger: now };
+    }
+  } catch (e) {}
+  // ヘルスアドバイザーの声で読み上げ
+  try { speakViaTTS(text, { force: true, voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 }); } catch (e) {}
+  console.log('[cohub] wellness room intro:', text);
 }
 
 function announceEnterLeave(uid, name, isEnter) {
