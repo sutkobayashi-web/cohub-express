@@ -289,24 +289,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 // 既存のCoWellトークンと共有 (cohub_token を優先 — 古い admin_token が残ってると expired で401になる事故を防ぐ)
 let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
 
-// 🐛 一時デバッグ表示 (画面上部、原因特定後に削除)
-function _debugInfo(msg) {
-  try { console.log('[wellness]', msg); } catch (e) {}
-  let box = document.getElementById('debug-info');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'debug-info';
-    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1f2937;color:#10b981;font-family:monospace;font-size:11px;padding:8px 12px;line-height:1.5;max-height:240px;overflow-y:auto;border-bottom:2px solid #10b981;';
-    box.innerHTML = '<button onclick="this.parentNode.remove()" style="float:right;background:#dc2626;color:#fff;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px;">×</button><b style="color:#fbbf24;">🐛 DEBUG</b><br>';
-    document.body.appendChild(box);
-  }
-  box.innerHTML += '<div>' + new Date().toISOString().slice(11, 19) + ' ' + msg + '</div>';
-}
-_debugInfo('cohub_token len=' + (localStorage.getItem('cohub_token') || '').length);
-_debugInfo('使用中token len=' + token.length);
-// グローバルエラーキャッチ (uncaught例外も拾う)
-window.addEventListener('error', e => _debugInfo('🚨 GLOBAL ERROR: ' + e.message + ' @ ' + (e.filename || '?').split('/').pop() + ':' + e.lineno));
-window.addEventListener('unhandledrejection', e => _debugInfo('🚨 PROMISE REJECT: ' + (e.reason && e.reason.message || e.reason || '?')));
+function _debugInfo(msg) { try { console.log('[wellness]', msg); } catch (e) {} }
 let _meta = null;       // /api/wellness/meta レスポンス
 let _ownersCache = null;
 let _aiInsightsCache = null;
@@ -334,7 +317,6 @@ let _aiInsightsCache = null;
 // ソフト認証警告: 「セッションが切れた可能性。再ログインボタンで戻る」を上部に表示
 // トークンは破棄しない (他タブで生きている可能性、不要なログアウトを避ける)
 function showSoftAuthBanner() {
-  try { _debugInfo('🚨 showSoftAuthBanner CALLED from: ' + (new Error().stack || '?').split('\n').slice(1, 4).join(' | ')); } catch (e) {}
   if (document.getElementById('soft-auth-banner')) return;
   const banner = document.createElement('div');
   banner.id = 'soft-auth-banner';
@@ -393,20 +375,20 @@ async function checkAccessAndShow(user) {
     document.getElementById('login-redirect').style.display = 'none';
     document.getElementById('panel').style.display = 'block';
     document.getElementById('who').textContent = (user && user.display_name) || '';
-    // 推進メンバー / 管理職 / システムadmin / ゲストレビュアー (大学/NPO等) のみ運営入口表示
-    const isManager = !!(m.is_wellness_manager || m.is_field_promoter || (user && user.role === 'admin'));
-    const isGuest = !!m.is_guest_reviewer;
-    if (isManager || isGuest) {
-      const entry = document.getElementById('ops-entry');
-      const desc = document.getElementById('ops-role-desc');
-      if (m.is_guest_reviewer) {
-        desc.textContent = 'あなたは🎓ゲストレビュアーです。施策ボードの閲覧・精査コメントが可能です。';
-      } else if (m.can_approve_actions) {
-        desc.textContent = 'あなたは管理職です。施策の起票/編集/承認/却下まで全権限。';
-      } else if (m.is_field_promoter) {
-        desc.textContent = 'あなたは推進メンバーです。施策の起票/編集が可能。';
+    // 旧: 運営ダッシュボード入口の表示制御 (ops-role-desc に role を書き込み)
+    // 現: ops-entry と ops-role-desc は撤去済 (健康管理室フロアの紫ボタンから直接アクセス)
+    // 互換のため要素があればだけ書き込む (defensive)
+    const entry = document.getElementById('ops-entry');
+    const desc = document.getElementById('ops-role-desc');
+    if (entry && desc) {
+      const isManager = !!(m.is_wellness_manager || m.is_field_promoter || (user && user.role === 'admin'));
+      const isGuest = !!m.is_guest_reviewer;
+      if (isManager || isGuest) {
+        if (m.is_guest_reviewer) desc.textContent = 'あなたは🎓ゲストレビュアーです。';
+        else if (m.can_approve_actions) desc.textContent = 'あなたは管理職です。';
+        else if (m.is_field_promoter) desc.textContent = 'あなたは推進メンバーです。';
+        entry.style.display = 'block';
       }
-      entry.style.display = 'block';
     }
     switchTab('bp');
     loadVotingActions();
