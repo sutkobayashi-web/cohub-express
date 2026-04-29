@@ -353,19 +353,13 @@ function escapeHtml(s) {
   return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// 旧: 401でlocalStorage全破棄+/へリダイレクト → 再ログインループの根本原因だった
+// 新: 何もしない (互換のため関数だけ残す)。実際のソフト警告は showSoftAuthBanner で
 function showLoginRedirect() {
-  // ローカルの古いトークンを破棄してCoWellメインへ自動リダイレクト
-  // (再ログイン後、メインから「健康管理室」をクリックすれば戻れる)
-  try {
-    localStorage.removeItem('cohub_token');
-    localStorage.removeItem('cohub_admin_token');
-    localStorage.removeItem('cohub_user');
-    localStorage.removeItem('cohub_admin_user');
-  } catch (e) {}
-  // 短時間表示してからリダイレクト (画面遷移の意図を示す)
-  document.getElementById('login-redirect').style.display = 'block';
-  document.getElementById('panel').style.display = 'none';
-  setTimeout(() => { location.href = '/?from=wellness'; }, 800);
+  console.warn('[wellness] showLoginRedirect called (no-op, redirected to soft banner)');
+  showSoftAuthBanner();
+  document.getElementById('panel').style.display = 'block';
+  document.getElementById('login-redirect').style.display = 'none';
 }
 
 async function checkAccessAndShow(user) {
@@ -402,7 +396,11 @@ async function checkAccessAndShow(user) {
     switchTab('bp');
     loadVotingActions();
   } catch (e) {
-    showLoginRedirect();
+    console.warn('[wellness] checkAccessAndShow err:', e.message);
+    // catch でも showLoginRedirect しない (ソフト警告 + panelは表示維持)
+    showSoftAuthBanner();
+    document.getElementById('panel').style.display = 'block';
+    document.getElementById('login-redirect').style.display = 'none';
   }
 }
 
