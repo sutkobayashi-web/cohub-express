@@ -309,19 +309,17 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals) {
       recentMeals.slice(0, 7).map(m =>
         `- ${m.date}: ${m.kcal}kcal / P${m.protein}g F${m.fat}g C${m.carbs}g / 野菜${m.veg}g Ca${m.ca}mg 食塩${m.salt}g 繊維${m.fiber}g 酒${m.alc}g`
       ).join('\n') +
-      `\n→ AIヘルスアドバイザーは上記から「習慣的な不足/過剰」を特定し、次回の食事に向けた具体提案 (実在の料理名 1-2品) を盛り込んでください。\n`
-    : '\n（過去ログなし → AIヘルスアドバイザーは今日の食事から推奨される次回バランスを提案してください）\n';
-  const prompt = `あなたは2人体制の食事アドバイザーチームです。食事の写真を見て JSON で回答します。
-1) AI栄養アドバイザー: 栄養士キャラ。今日の食事の栄養面を評価 (良い点 + 軽い改善)
-2) AIヘルスアドバイザー: 健康管理士キャラ。過去ログを見て次回の食事提案を具体的に行う
-
+      `\n→ trend セクションでは上記から「習慣的な過剰/不足」を1-2点具体的に指摘 (例: 連日の高塩分、野菜不足の継続、晩酌頻度など)。try セクションでは傾向を踏まえた具体料理名 1-2品を提示。\n`
+    : '\n（過去ログなし → trend セクションには「データ蓄積中、継続記録で傾向が見えてきます」等。try セクションには今日の食事を補う一品を提案）\n';
+  const prompt = `あなたはAIヘルスアドバイザー (健康管理士キャラ) です。食事の写真を見て JSON で回答します。
+親しみある口調で、専門知識をやさしく伝えてください。「〜だね」「〜してみよう」のフレンドリー語尾。
 国立長寿医療研究センター「栄養改善パック」(2020) およびスマートミール基準に基づき分析。
 ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
 それ以外は箸/茶碗/手等の基準物から実重量を推定し、食品成分表で算出。
 ${trendBlock}
 ★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。改行は \\n で。
 
-{"comment_nutrition":"AI栄養アドバイザー (180-260字)。今日の食事の栄養面評価。良い点を具体食材で挙げ、過剰/不足項目を1-2点指摘。親しみある口調。","comment_health":"AIヘルスアドバイザー (180-260字)。過去ログ傾向に言及し、習慣的な過不足を踏まえた次回提案を具体料理名 1-2品で。なければ今日の食事の補完提案。専門的だが優しい口調。","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由"}}
+{"good":"良い点 (120-180字)。具体食材を挙げ、栄養面で何が良いかをポジティブに。","bad":"悪い点 (100-160字)。過剰/不足している栄養素を数値根拠つきで1-2点。攻撃的にならず事実を淡々と。","improve":"改善点 (120-180字)。今日の食事に対して、塩分減らす具体策や追加すべき一品など実行可能な提案。","trend":"あなたの傾向 (140-200字)。過去ログから読み取れる習慣的な過不足や曜日パターン。データなしなら「記録を続けると傾向が見えてくる」旨。","try":"やってみよう！(100-160字)。次回〜数日内の具体行動。実在する料理名 1-2品 (例: 「ほうれん草のおひたし」「鯖の塩焼き」) で背中を押す。","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由"}}
 
 各値:
 - calories: kcal (目標 450-650/食)
@@ -338,7 +336,8 @@ ${trendBlock}
 - confidence.reason: 上記の理由文
 
 数値はカンマ無し。実数または推定実数 (小数点1桁まで)。
-不適切画像 (食事ではない) の場合は全 value を 0、comment_nutrition に理由、comment_health は空文字。`;
+重複表現を避け、各セクションは別の角度から書く (good=評価, bad=数値根拠, improve=今日への即時策, trend=長期パターン, try=次回行動)。
+不適切画像 (食事ではない) の場合は全 value を 0、good に理由、他は空文字。`;
 
   const body = {
     contents: [{

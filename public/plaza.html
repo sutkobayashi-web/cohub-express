@@ -107,6 +107,13 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .ai-cmt-card:nth-child(2) { background: linear-gradient(135deg,#eff6ff,#e0f2fe); border-left: 3px solid #3b82f6; color: #1e3a8a; }
 .ai-cmt-hdr { font-weight: 700; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.3px; }
 .ai-cmt-body { font-size: 12.5px; }
+/* AIヘルスアドバイザー (5セクション) */
+.ai-advisor-card { margin-top: 8px; padding: 12px; background: linear-gradient(180deg,#f8fafc,#f1f5f9); border-radius: 12px; border: 1px solid #e2e8f0; }
+.ai-advisor-hdr { font-weight: 800; font-size: 13px; color: #1e3a8a; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #cbd5e1; letter-spacing: 0.3px; }
+.ai-sec { margin-bottom: 10px; padding: 8px 10px 8px 12px; background: #ffffff; border-left: 3px solid #94a3b8; border-radius: 6px; }
+.ai-sec:last-child { margin-bottom: 0; }
+.ai-sec-hdr { font-weight: 700; font-size: 12.5px; margin-bottom: 4px; letter-spacing: 0.2px; }
+.ai-sec-body { font-size: 12.5px; line-height: 1.7; color: #1f2937; word-wrap: break-word; }
 
 .post-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .react-btn { padding: 6px 10px; background: #f8fafc; border: 1px solid transparent; border-radius: 16px; cursor: pointer; font-size: 13px; }
@@ -334,12 +341,12 @@ function buildNutritionBar(sc) {
   return html;
 }
 
-// AI コメントを 2アドバイザー形式 (【AI栄養アドバイザー】...【AIヘルスアドバイザー】...) で整形
-// 旧形式 (単一テキスト) はそのままバブル表示
+// AI ヘルスアドバイザーのコメント整形
+// 新形式: 【良い点】【悪い点】【改善点】【あなたの傾向】【やってみよう！】 の5セクション
+// 旧形式 (栄養/ヘルス アドバイザー2枚 or 単一テキスト) もフォールバック
 function renderAdvisorComment(cmt) {
   if (!cmt) return '';
   const text = String(cmt);
-  // 【XX】... 形式のセクションヘッダーを検出
   const sections = [];
   const re = /【([^】]+)】([\s\S]*?)(?=【[^】]+】|$)/g;
   let m;
@@ -349,18 +356,27 @@ function renderAdvisorComment(cmt) {
     if (body) sections.push({ hdr, body });
   }
   if (!sections.length) {
-    // ヘッダーなし旧形式: 改行を保ってバブル表示
     return `<div class="ai-cmt-block">💬 ${escapeHtml(text).replace(/\n/g, '<br>')}</div>`;
   }
-  // ヘッダー付き: アイコン振り分け
-  const iconFor = (h) => {
-    if (/栄養/.test(h)) return '🥗';
-    if (/ヘルス|健康/.test(h)) return '🩺';
-    return '💬';
+  // セクション種別判定 → アイコン+色クラス
+  const meta = (h) => {
+    if (/良い点|good/i.test(h))      return { icon: '✅', cls: 'sec-good',    cssVar: '#10b981' };
+    if (/悪い点|bad/i.test(h))       return { icon: '⚠️', cls: 'sec-bad',     cssVar: '#f59e0b' };
+    if (/改善|improve/i.test(h))     return { icon: '🔧', cls: 'sec-improve', cssVar: '#3b82f6' };
+    if (/傾向|trend/i.test(h))       return { icon: '📈', cls: 'sec-trend',   cssVar: '#8b5cf6' };
+    if (/やってみよう|try/i.test(h)) return { icon: '🎯', cls: 'sec-try',     cssVar: '#ef4444' };
+    if (/栄養/.test(h))              return { icon: '🥗', cls: 'sec-nutri',   cssVar: '#20c997' };
+    if (/ヘルス|健康/.test(h))       return { icon: '🩺', cls: 'sec-health',  cssVar: '#3b82f6' };
+    return { icon: '💬', cls: '', cssVar: '#64748b' };
   };
-  return '<div class="ai-cmt-pair">' + sections.map(s =>
-    `<div class="ai-cmt-card"><div class="ai-cmt-hdr">${iconFor(s.hdr)} ${escapeHtml(s.hdr)}</div><div class="ai-cmt-body">${escapeHtml(s.body).replace(/\n/g, '<br>')}</div></div>`
-  ).join('') + '</div>';
+  return '<div class="ai-advisor-card"><div class="ai-advisor-hdr">🩺 AIヘルスアドバイザーから</div>' +
+    sections.map(s => {
+      const md = meta(s.hdr);
+      return `<div class="ai-sec ${md.cls}" style="border-left-color:${md.cssVar};">
+        <div class="ai-sec-hdr" style="color:${md.cssVar};">${md.icon} ${escapeHtml(s.hdr)}</div>
+        <div class="ai-sec-body">${escapeHtml(s.body).replace(/\n/g, '<br>')}</div>
+      </div>`;
+    }).join('') + '</div>';
 }
 
 async function api(p, opts) {

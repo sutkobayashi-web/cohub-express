@@ -32,6 +32,33 @@ router.get('/meta', authUser, (req, res) => {
   res.json({ success: true, categories: CATEGORIES });
 });
 
+// AI 応答 (5セクション/旧形式) を統一フォーマット文字列に整形
+// 出力例: "【良い点】\n...\n\n【悪い点】\n...\n\n..."
+function formatAdvisorSections(r) {
+  if (!r || typeof r !== 'object') return null;
+  const SECTIONS = [
+    ['good', '良い点'], ['bad', '悪い点'], ['improve', '改善点'],
+    ['trend', 'あなたの傾向'], ['try', 'やってみよう！'],
+  ];
+  const parts = [];
+  for (const [k, label] of SECTIONS) {
+    const v = typeof r[k] === 'string' ? r[k].trim() : '';
+    if (v) parts.push('【' + label + '】\n' + v);
+  }
+  if (parts.length) return parts.join('\n\n').slice(0, 2000);
+  // 旧形式フォールバック
+  if (typeof r.comment_health === 'string' && r.comment_health.trim()) {
+    return '【AIヘルスアドバイザー】\n' + r.comment_health.trim().slice(0, 1500);
+  }
+  if (typeof r.comment_nutrition === 'string' && r.comment_nutrition.trim()) {
+    return '【AI栄養アドバイザー】\n' + r.comment_nutrition.trim().slice(0, 1500);
+  }
+  if (r.comment != null) {
+    return (typeof r.comment === 'string' ? r.comment : Object.values(r.comment).filter(v => typeof v === 'string').join(' / ')).slice(0, 1500);
+  }
+  return null;
+}
+
 // 過去7日(最大7件)の食事ログを収集 (CoHub plaza_posts + CoWell Classic ミラー cw_posts)
 // AI ヘルスアドバイザーに傾向ベースの次回提案をさせるための要約配列を返す
 function collectRecentMeals(uid) {
@@ -222,19 +249,9 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
       console.log('[plaza] recent meals for trend:', recentMeals.length);
       const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals);
       if (r && typeof r === 'object') {
-        // 2アドバイザー形式 (comment_nutrition + comment_health) を結合保存
-        // 旧形式 (comment) もフォールバック
-        const cn = typeof r.comment_nutrition === 'string' ? r.comment_nutrition.trim() : '';
-        const ch = typeof r.comment_health === 'string' ? r.comment_health.trim() : '';
-        if (cn || ch) {
-          const parts = [];
-          if (cn) parts.push('【AI栄養アドバイザー】\n' + cn);
-          if (ch) parts.push('【AIヘルスアドバイザー】\n' + ch);
-          aiComment = parts.join('\n\n').slice(0, 1500);
-        } else if (r.comment != null) {
-          // 後方互換: 旧形式 comment 単一フィールド
-          aiComment = (typeof r.comment === 'string' ? r.comment : Object.values(r.comment).filter(v => typeof v === 'string').join(' / ')).slice(0, 1500);
-        }
+        // 5セクション形式 (good/bad/improve/trend/try) を結合保存
+        // 旧形式 (comment_nutrition/comment_health/comment) もフォールバック
+        aiComment = formatAdvisorSections(r);
         // CoWellフォーマットの数値項目を抽出してJSON保存
         const NUTRI_KEYS = ['calories', 'protein', 'fat', 'carbs', 'vitamin', 'mineral', 'salt', 'fiber', 'alcohol'];
         const scores = {};

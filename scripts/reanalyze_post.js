@@ -67,17 +67,17 @@ function collectRecentMeals(uid, beforeTs) {
   const mime = imgPath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const r = await analyzeFoodImage(buf, mime, post.content || '', recentMeals);
 
-  const cn = typeof r.comment_nutrition === 'string' ? r.comment_nutrition.trim() : '';
-  const ch = typeof r.comment_health === 'string' ? r.comment_health.trim() : '';
-  let aiComment = null;
-  if (cn || ch) {
-    const parts = [];
-    if (cn) parts.push('【AI栄養アドバイザー】\n' + cn);
-    if (ch) parts.push('【AIヘルスアドバイザー】\n' + ch);
-    aiComment = parts.join('\n\n').slice(0, 1500);
-  } else if (r.comment) {
-    aiComment = String(r.comment).slice(0, 1500);
+  // 5セクション形式 (good/bad/improve/trend/try) を結合
+  const SECTIONS = [['good','良い点'],['bad','悪い点'],['improve','改善点'],['trend','あなたの傾向'],['try','やってみよう！']];
+  const parts = [];
+  for (const [k, label] of SECTIONS) {
+    const v = typeof r[k] === 'string' ? r[k].trim() : '';
+    if (v) parts.push('【' + label + '】\n' + v);
   }
+  let aiComment = null;
+  if (parts.length) aiComment = parts.join('\n\n').slice(0, 2000);
+  else if (typeof r.comment_health === 'string' && r.comment_health.trim()) aiComment = '【AIヘルスアドバイザー】\n' + r.comment_health.trim().slice(0, 1500);
+  else if (r.comment) aiComment = String(r.comment).slice(0, 1500);
 
   const NUTRI_KEYS = ['calories','protein','fat','carbs','vitamin','mineral','salt','fiber','alcohol'];
   const scores = {};
