@@ -212,6 +212,16 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
 app.use('/api/', apiLimiter);
 
+// /api/* は絶対にキャッシュさせない (ブラウザ/Cloudflareが古い401を304で返す事故を防止)
+app.use('/api/', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+// API応答の ETag を無効化 (304 Not Modified を発生させない)
+app.set('etag', false);
+
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   etag: false,
   setHeaders: (res, filePath) => {
