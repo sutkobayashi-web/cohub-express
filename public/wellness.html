@@ -308,31 +308,22 @@ let _meta = null;       // /api/wellness/meta レスポンス
 let _ownersCache = null;
 let _aiInsightsCache = null;
 
-// fetch wrap: 401時にもう一方のトークンでリトライ → それでもダメならソフト警告
+// fetch wrap: 全 API呼び出しを追跡 + 401時リトライ + ソフト警告
 (function() {
   const _origFetch = window.fetch.bind(window);
   let _401Notified = false;
-  let _altTokenTried = false;
   window.fetch = async function(url, opts) {
+    const isApi = typeof url === 'string' && url.indexOf('/api/') === 0;
     let r = await _origFetch(url, opts);
-    // 401 + APIエンドポイント: もう一方のトークンで1回だけリトライ
-    if (r.status === 401 && typeof url === 'string' && url.indexOf('/api/') === 0 && !_altTokenTried) {
-      _altTokenTried = true;
-      const altToken = localStorage.getItem('cohub_admin_token');
-      if (altToken && altToken !== token) {
-        console.log('[wellness] 401 retry with admin_token');
-        token = altToken;
-        const newOpts = Object.assign({}, opts || {});
-        newOpts.headers = Object.assign({}, (opts && opts.headers) || {}, { Authorization: 'Bearer ' + token });
-        r = await _origFetch(url, newOpts);
-      }
+    if (isApi) {
+      const shortUrl = url.replace(/^https?:\/\/[^\/]+/, '').slice(0, 50);
+      try { _debugInfo('FETCH ' + r.status + ' ' + shortUrl); } catch (e) {}
     }
-    try {
-      if (r.status === 401 && typeof url === 'string' && url.indexOf('/api/') === 0 && !_401Notified) {
-        _401Notified = true;
-        showSoftAuthBanner();
-      }
-    } catch (e) {}
+    if (r.status === 401 && isApi && !_401Notified) {
+      _401Notified = true;
+      try { _debugInfo('🚨 401 → soft banner triggered by ' + url); } catch (e) {}
+      showSoftAuthBanner();
+    }
     return r;
   };
 })();
