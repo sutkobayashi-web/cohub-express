@@ -30,6 +30,11 @@ function getDb() {
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
   // 生年月日 (健診Box連携・年齢別分析用、本人と管理者のみ閲覧)
   ensureColumn(_db, 'users', 'birth_date', 'birth_date TEXT');
+  // 旧姓 (Box健診xlsmが旧姓のままの場合に検索フォールバックで使用)
+  ensureColumn(_db, 'users', 'maiden_name', 'maiden_name TEXT');
+  // 掲示板/ひろば 最終既読時刻 (新着バッジ計算用)
+  ensureColumn(_db, 'users', 'last_board_seen_at', 'last_board_seen_at TEXT');
+  ensureColumn(_db, 'users', 'last_plaza_seen_at', 'last_plaza_seen_at TEXT');
   // ニックネーム (本人が初回ログイン時に設定。匿名投稿時の表示名として使用)
   ensureColumn(_db, 'users', 'nickname', 'nickname TEXT');
   // 利用規約・プライバシーポリシー同意 (バージョン文字列で管理 / 改定時に再同意要求)
@@ -99,6 +104,9 @@ function getDb() {
   // 健康管理室フロア (2026-04-28再設置): AIヘルスアドバイザー (bot_health) 常駐
   _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
     VALUES ('wellness_room', '🏥 健康管理室', '/assets/floor_wellness_room.png', 1344, 768, 672, 700, 6, '🏥', 'office')`).run();
+  // 事故対策室フロア (2026-04-30): 現場棟。事故報告レビュー・再発防止検討の集合場所
+  _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
+    VALUES ('field_accident', '現場 事故対策室', '/assets/floor_field_meet.png', 1344, 768, 672, 678, 14, '🚨', 'field')`).run();
   // 社内タイムライン (掲示板) — Phase1 コミュニケーション基盤強化
   _db.exec(`CREATE TABLE IF NOT EXISTS board_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -418,6 +418,33 @@ const SCHEMATICS = {
     drawLabel(ctx, '整列エリア', W / 2, 460, 30, '#9a3412');
     drawLabel(ctx, '📢 現場ミーティング', 672, 700, 28, t.label);
   },
+  field_accident(ctx, W, H) {
+    // 事故対策室: 緊急対応の赤系テーマ
+    ctx.fillStyle = '#fef2f2'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#b91c1c'; ctx.lineWidth = 8;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    // 上部: 事故掲示ボード (大型ホワイトボード)
+    roomBox(ctx, 360, 100, 624, 90, '#ffffff', '#dc2626');
+    drawLabel(ctx, '🚨 事故レビュー掲示', 672, 150, 26, '#991b1b');
+    // 中央: 対策会議テーブル (長方形)
+    ctx.fillStyle = '#7c2d12';
+    roundRect(ctx, 360, 280, 624, 220, 10); ctx.fill();
+    ctx.strokeStyle = '#431407'; ctx.lineWidth = 3; ctx.stroke();
+    drawLabel(ctx, '🛠 再発防止検討テーブル', 672, 390, 24, '#fef3c7');
+    // 椅子 8席 (上下4×2)
+    for (let i = 0; i < 4; i++) drawChair(ctx, 420 + i * 180, 270);
+    for (let i = 0; i < 4; i++) drawChair(ctx, 420 + i * 180, 510);
+    // 左: 事故記録キャビネット
+    roomBox(ctx, 100, 240, 220, 280, '#fee2e2', '#dc2626');
+    drawLabel(ctx, '🗂 事故記録', 210, 360, 24, '#991b1b');
+    drawLabel(ctx, '保管庫', 210, 400, 20, '#b91c1c');
+    // 右: 緊急連絡コーナー
+    roomBox(ctx, 1024, 240, 220, 280, '#fef3c7', '#d97706');
+    drawLabel(ctx, '📞 緊急', 1134, 350, 26, '#92400e');
+    drawLabel(ctx, '連絡', 1134, 390, 26, '#92400e');
+    // 下部ラベル
+    drawLabel(ctx, '🚨 現場 事故対策室', 672, 700, 30, '#991b1b');
+  },
 };
 
 function drawFloorSchematic(ctx, code, W, H) {

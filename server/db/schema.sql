@@ -72,7 +72,8 @@ INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, e
   ('field_rest', '現場 乗務員詰所',    '/assets/floor_field_rest.png', 1344, 768, 672, 678, 10, '☕', 'field'),
   ('field_dispatch','配車センター',      '/assets/floor_field_rest.png', 1344, 768, 672, 678, 11, '🗺', 'field'),
   ('field_work', '現場 倉庫作業室',    '/assets/floor_field_work.png', 1344, 768, 672, 678, 12, '📦', 'field'),
-  ('field_meet', '現場 ミーティング',  '/assets/floor_field_meet.png', 1344, 768, 672, 678, 13, '📋', 'field');
+  ('field_meet', '現場 ミーティング',  '/assets/floor_field_meet.png', 1344, 768, 672, 678, 13, '📋', 'field'),
+  ('field_accident','現場 事故対策室',  '/assets/floor_field_meet.png', 1344, 768, 672, 678, 14, '🚨', 'field');
 
 -- グループチャット (管理者作成・メンバー制)
 CREATE TABLE IF NOT EXISTS chat_groups (
