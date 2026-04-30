@@ -3507,7 +3507,16 @@ async function submitAccidentScreenUpload() {
       headers: { Authorization: 'Bearer ' + token },
       body: fd,
     });
-    const d = await r.json();
+    // 413等で nginx がHTMLを返すケースに備え、Content-Typeを見て分岐
+    const ct = r.headers.get('content-type') || '';
+    let d = null;
+    if (ct.includes('application/json')) {
+      d = await r.json();
+    } else {
+      const txt = await r.text();
+      if (r.status === 413) throw new Error('ファイルが大きすぎます (サーバー上限)');
+      throw new Error('サーバーエラー HTTP ' + r.status + ' (' + txt.slice(0, 80) + ')');
+    }
     if (!r.ok || !d.success) throw new Error(d.msg || ('HTTP ' + r.status));
     document.getElementById('accident-upload-modal')?.remove();
     // 即座にフィードを再取得して反映
