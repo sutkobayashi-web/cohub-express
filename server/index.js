@@ -18,8 +18,9 @@ const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
-  { id: 'bot_aoi', login_id: 'bot_aoi', name: '葵', avatar: '/assets/concierge_aoi.png', floor: 'lobby', x: 744, y: 519 },
-  { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_full.png', floor: 'wellness_room', x: 744, y: 519 },
+  { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'lobby', x: 744, y: 405 },
+  { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=3', floor: 'wellness_room', x: 744, y: 519 },
+  { id: 'bot_safety', login_id: 'bot_safety', name: '安全管理者', avatar: '/assets/concierge_safety_avatar.png?v=1', floor: 'field_accident', x: 1080, y: 500 },
 ];
 const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
 function ensureConciergeBots() {
@@ -84,7 +85,7 @@ const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 // 28+28=56 が完全密着、70px で「軽く触れた」感覚 (耳打ちできる距離)
 const WHISPER_TOUCH_DISTANCE = parseInt(process.env.WHISPER_TOUCH_DISTANCE || '70', 10);
 
-// 葵から健康管理室のひろば案内DM (1日1回、ロビー入室時)
+// 総合案内から健康管理室のひろば案内DM (1日1回、ロビー入室時)
 // 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
 const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🌳 健康管理室「ひろば」より
 
@@ -122,7 +123,7 @@ async function maybeSendWellnessAnnouncement(uid) {
       });
     }
     sendPushToUser(uid, {
-      title: '🏥 葵',
+      title: '🏥 総合案内',
       body: '健康管理室のCoWellイベント案内を送りました',
       tag: 'wellness-greet',
       url: '/',
@@ -132,7 +133,7 @@ async function maybeSendWellnessAnnouncement(uid) {
   }
 }
 
-// 葵からの当日予定DM送信 (1日1回、ロビー入室時)
+// 総合案内からの当日予定DM送信 (1日1回、ロビー入室時)
 async function maybeSendCalendarGreeting(uid) {
   const db = getDb();
   const u = db.prepare('SELECT display_name, google_cal_id, last_cal_dm_date FROM users WHERE id = ?').get(uid);
@@ -159,7 +160,7 @@ async function maybeSendCalendarGreeting(uid) {
       });
     }
     sendPushToUser(uid, {
-      title: '📅 葵',
+      title: '📅 総合案内',
       body: '本日の予定をお届けしました',
       tag: 'cal-greet',
       url: '/',
@@ -432,7 +433,7 @@ function notifyInappropriateDetection(senderUid, botId, content, hit) {
     const sender = db.prepare("SELECT display_name, nickname FROM users WHERE id = ?").get(senderUid) || {};
     const senderName = sender.display_name || sender.nickname || '不明';
     const targets = db.prepare("SELECT id FROM users WHERE (employee_type='admin' OR is_field_promoter=1) AND role != 'bot'").all();
-    const summary = `🚨 AI不適切検知\n${senderName} → ${botId === 'bot_health' ? 'ヘルス' : '葵'}\nカテゴリ: ${hit.category} (${hit.severity})\n本文先頭: 「${(content||'').slice(0, 60)}…」\n→ /admin で履歴確認`;
+    const summary = `🚨 AI不適切検知\n${senderName} → ${botId === 'bot_health' ? 'ヘルス' : '総合案内'}\nカテゴリ: ${hit.category} (${hit.severity})\n本文先頭: 「${(content||'').slice(0, 60)}…」\n→ /admin で履歴確認`;
     for (const t of targets) {
       // Push通知 (オフラインでも届く)
       sendPushToUser(t.id, {
@@ -645,7 +646,7 @@ io.on('connection', (socket) => {
     console.log('[cohub] skip user:login (reconnect/navigation)', uid, loginName);
   }
 
-  // ロビー着地: 当日初回なら葵がカレンダー予定+CoWellイベント案内をDM
+  // ロビー着地: 当日初回なら総合案内がカレンダー予定+CoWellイベント案内をDM
   if (floor.code === 'lobby') {
     setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
     setTimeout(() => maybeSendWellnessAnnouncement(uid), 3000);
@@ -768,7 +769,7 @@ io.on('connection', (socket) => {
     });
     io.emit('floor:counts', floorCountMap());
     io.emit('user:floor', { uid, floor: target.code });
-    // ロビーへ移動: 当日初回なら葵がカレンダー予定+CoWellイベント案内をDM
+    // ロビーへ移動: 当日初回なら総合案内がカレンダー予定+CoWellイベント案内をDM
     if (target.code === 'lobby') {
       setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
       setTimeout(() => maybeSendWellnessAnnouncement(uid), 3000);

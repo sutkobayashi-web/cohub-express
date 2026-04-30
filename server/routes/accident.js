@@ -40,6 +40,64 @@ function isManager(uid) {
 }
 
 // ============================================================
+// 事故対策室スクリーン (動画/写真を流し続ける)
+// ============================================================
+const screenUpload = multer({
+  storage: multer.diskStorage({
+    destination: accidentDir,
+    filename: (req, file, cb) => {
+      const ext = (path.extname(file.originalname || '').slice(0, 8) || '.bin').replace(/[^a-zA-Z0-9.]/g, '');
+      cb(null, 'screen_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10) + ext);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 },  // 動画も流すので50MB
+  fileFilter: (req, file, cb) => {
+    if (!/^(image|video)\//.test(file.mimetype || '')) return cb(new Error('画像または動画のみ'));
+    cb(null, true);
+  },
+});
+
+// スクリーン投稿: 写真または動画 (multipart) + caption
+router.post('/screen', authUser, screenUpload.single('media'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, msg: 'mediaフィールドが必要' });
+  const mediaType = /^video\//.test(req.file.mimetype) ? 'video' : 'image';
+  const url = '/uploads/' + req.file.filename;
+  const caption = (req.body && req.body.caption ? String(req.body.caption) : '').slice(0, 200);
+  const db = getDb();
+  const r = db.prepare(`INSERT INTO accident_screen_posts (media_url, media_type, caption, posted_by) VALUES (?, ?, ?, ?)`)
+    .run(url, mediaType, caption, req.uid);
+  res.json({ success: true, id: r.lastInsertRowid, url, media_type: mediaType });
+});
+
+// スクリーン投稿一覧 (新しい順、最大20件、削除済除外)
+router.get('/screen', authUser, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT p.id, p.media_url, p.media_type, p.caption, p.posted_by, p.created_at,
+           u.display_name AS posted_name
+      FROM accident_screen_posts p
+      LEFT JOIN users u ON u.id = p.posted_by
+     WHERE p.deleted_at IS NULL
+     ORDER BY p.created_at DESC
+     LIMIT 20
+  `).all();
+  res.json({ success: true, posts: rows });
+});
+
+// スクリーン投稿削除 (投稿者本人または管理職のみ)
+router.delete('/screen/:id', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const row = db.prepare('SELECT posted_by FROM accident_screen_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  if (!row) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (row.posted_by !== req.uid && !isManager(req.uid)) {
+    return res.status(403).json({ success: false, msg: '削除権限がありません' });
+  }
+  db.prepare(`UPDATE accident_screen_posts SET deleted_at = datetime('now') WHERE id = ?`).run(id);
+  res.json({ success: true });
+});
+
+// ============================================================
 // 製品事故 (倉庫荷役)
 // ============================================================
 // マスタ: 原因

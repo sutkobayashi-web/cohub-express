@@ -105,8 +105,22 @@ function getDb() {
   _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
     VALUES ('wellness_room', '🏥 健康管理室', '/assets/floor_wellness_room.png', 1344, 768, 672, 700, 6, '🏥', 'office')`).run();
   // 事故対策室フロア (2026-04-30): 現場棟。事故報告レビュー・再発防止検討の集合場所
+  // 安全管理者(bot_safety) 常駐、前面に大型ビデオスクリーンで事故/破損情報を流し続ける
   _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
-    VALUES ('field_accident', '現場 事故対策室', '/assets/floor_field_meet.png', 1344, 768, 672, 678, 14, '🚨', 'field')`).run();
+    VALUES ('field_accident', '現場 事故対策室', '/assets/floor_field_accident.png', 1344, 768, 672, 700, 14, '🚨', 'field')`).run();
+  // 既存DBのfield_accident背景を新画像に更新 (前回 floor_field_meet.png で投入していたものを上書き)
+  _db.prepare(`UPDATE floors SET bg_image = '/assets/floor_field_accident.png', entry_y = 700 WHERE code = 'field_accident'`).run();
+  // 事故対策室スクリーン投稿テーブル
+  _db.exec(`CREATE TABLE IF NOT EXISTS accident_screen_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    media_url TEXT NOT NULL,
+    media_type TEXT NOT NULL,           -- image | video
+    caption TEXT,
+    posted_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_asp_at ON accident_screen_posts(created_at DESC);`);
   // 社内タイムライン (掲示板) — Phase1 コミュニケーション基盤強化
   _db.exec(`CREATE TABLE IF NOT EXISTS board_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

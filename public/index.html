@@ -592,14 +592,17 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn active" id="rail-chat" onclick="toggleChatPanel()" title="チャット">
       <span>💬</span><span class="lbl">チャット</span><span class="cnt" id="rail-chat-cnt" style="display:none;">0</span>
     </button>
-    <button class="rail-btn" id="rail-groups" onclick="openGroupsPanel()" title="グループ">
+    <button class="rail-btn" id="rail-groups" onclick="openGroupsPanel()" title="グループ" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.35);color:#0369a1;">
       <span>🗨</span><span class="lbl">グループ</span><span class="cnt" id="rail-groups-cnt" style="display:none;">0</span>
+    </button>
+    <button class="rail-btn" id="rail-health" onclick="openDM('bot_health')" title="ヘルスアドバイザーに相談" style="background:rgba(20,184,166,0.10);border:1px solid rgba(20,184,166,0.35);color:#0f766e;">
+      <span>🩺</span><span class="lbl">ヘルス</span>
     </button>
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>🩺</span><span class="lbl">現場の声</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
-      <span>🌳</span><span class="lbl">ひろば</span>
+    <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
+      <span>🌳</span><span class="lbl">ひろば</span><span class="cnt" id="rail-plaza-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" onclick="location.href='/myplan.html'" title="今日の一歩、明日の自分 — あなたのアクションプラン" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.35);color:#1e3a8a;">
       <span>👣</span><span class="lbl">今日の一歩</span>
@@ -607,44 +610,52 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" onclick="location.href='/challenges.html'" title="チャレンジ" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);color:#b45309;">
       <span>🏆</span><span class="lbl">チャレンジ</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/board.html'" title="社内掲示板" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
-      <span>📋</span><span class="lbl">掲示板</span>
+    <button class="rail-btn" id="rail-board" onclick="location.href='/board.html'" title="社内掲示板" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
+      <span>📋</span><span class="lbl">掲示板</span><span class="cnt" id="rail-board-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" id="rail-announce" onclick="location.href='/announcements.html'" title="告知" style="background:rgba(220,38,38,0.10);border:1px solid rgba(220,38,38,0.35);color:#b91c1c;">
       <span>📢</span><span class="lbl">告知</span><span class="cnt" id="rail-announce-cnt" style="display:none;">0</span>
     </button>
-    <button class="rail-btn" id="rail-ops" onclick="location.href='/ops.html'" title="業務連絡 (車両不具合/事故/遅延)" style="background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.35);color:#6d28d9;">
+    <button class="rail-btn" id="rail-ops" onclick="location.href='/ops.html'" title="業務連絡 (車両不具合/事故報告/関東BC)" style="background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.35);color:#6d28d9;">
       <span>🚛</span><span class="lbl">業務連絡</span><span class="cnt" id="rail-ops-cnt" style="display:none;">0</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/accident.html'" title="事故報告書">
-      <span>🚨</span><span class="lbl">事故</span>
-    </button>
-    <button class="rail-btn" onclick="location.href='/kbc.html'" title="関東BC管理 (日報・クレーム・BC報告・改善施策)">
-      <span>📦</span><span class="lbl">関東BC</span>
-    </button>
-    <button class="rail-btn" onclick="location.href='/videos.html'" title="動画ライブラリ">
+    <button class="rail-btn" onclick="location.href='/videos.html'" title="動画ライブラリ" style="background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.35);color:#4338ca;">
       <span>🎬</span><span class="lbl">動画</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/wellness-archive.html'" title="CoWell Classic履歴アーカイブ">
+    <button class="rail-btn" onclick="location.href='/wellness-archive.html'" title="CoWell Classic履歴アーカイブ" style="background:rgba(100,116,139,0.10);border:1px solid rgba(100,116,139,0.35);color:#475569;">
       <span>📦</span><span class="lbl">Classic履歴</span>
     </button>
-    <button class="rail-btn" onclick="openAvatarModal()" title="アバター">
+    <button class="rail-btn" onclick="openAvatarModal()" title="アバター" style="background:rgba(236,72,153,0.10);border:1px solid rgba(236,72,153,0.35);color:#be185d;">
       <span>🎨</span><span class="lbl">アバター</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/mylog'" title="自分のログ">
+    <button class="rail-btn" onclick="location.href='/mylog'" title="自分のログ" style="background:rgba(100,116,139,0.10);border:1px solid rgba(100,116,139,0.35);color:#475569;">
       <span>📜</span><span class="lbl">ログ</span>
     </button>
     <div class="spacer"></div>
-    <button class="rail-btn" onclick="toggleRailMenu(event)" title="メニュー">
+    <button class="rail-btn" onclick="toggleRailMenu(event)" title="メニュー" style="background:rgba(100,116,139,0.10);border:1px solid rgba(100,116,139,0.35);color:#475569;">
       <span>⚙️</span><span class="lbl">設定</span>
     </button>
-    <button class="rail-btn" onclick="openHelp()" title="ヘルプ">
+    <button class="rail-btn" onclick="openHelp()" title="ヘルプ" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>❓</span><span class="lbl">ヘルプ</span>
     </button>
     <button class="rail-btn" onclick="confirmLogout()" title="ログアウト" style="color:#dc2626;margin-top:4px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);">
       <span>🚪</span><span class="lbl">ログアウト</span>
     </button>
   </div>
+
+  <!-- ログアウト確認モーダル -->
+  <div id="logout-modal" onclick="if(event.target.id==='logout-modal')cancelLogout()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div role="dialog" aria-modal="true" aria-labelledby="logout-modal-title" style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:24px 22px;box-shadow:0 20px 60px rgba(0,0,0,0.35);text-align:center;animation:logoutPop .18s ease-out;">
+      <div style="font-size:42px;line-height:1;margin-bottom:6px;">🚪</div>
+      <h3 id="logout-modal-title" style="margin:6px 0 8px;font-size:17px;font-weight:800;color:#0f172a;">ログアウトしますか？</h3>
+      <p style="margin:0 0 18px;font-size:12px;color:#64748b;line-height:1.7;">ログインID・パスワードはブラウザに保存されたまま<br>次回もすぐにログインいただけます。</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="cancelLogout()" autofocus style="padding:11px;background:#e2e8f0;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;">いいえ (NO)</button>
+        <button onclick="confirmLogoutYes()" style="padding:11px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(220,38,38,0.3);">はい (YES)</button>
+      </div>
+    </div>
+  </div>
+  <style>@keyframes logoutPop { 0% { transform: scale(0.92); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }</style>
 
   <!-- 右サイドバー: チャット専用 (常時表示) -->
   <div id="right-panel">
@@ -697,10 +708,6 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
   <!-- キャンバス領域 (会議室時は上にビデオ、下にアバター空間) -->
   <div id="space-canvas-wrap">
-    <!-- ロビー専用: 工事中バナー (葵の真下に配置、lobbyフロアの時のみJSで位置/表示制御) -->
-    <div id="lobby-construction-banner" style="display:none;position:absolute;left:0;top:0;transform:translate(-50%,0);z-index:8;padding:8px 16px;background:repeating-linear-gradient(45deg,#fde047 0 12px,#1f2937 12px 24px);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.25);pointer-events:none;">
-      <div style="background:#fff;color:#1f2937;font-weight:800;font-size:13px;padding:6px 14px;border-radius:6px;letter-spacing:1px;border:2px solid #1f2937;white-space:nowrap;">🚧 只今、工事中 🚧</div>
-    </div>
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
     <!-- 健康管理室: CoWell ネイティブの「ひろば」を iframe で表示 -->
@@ -724,6 +731,32 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
         <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">推進メンバー専用</span>
         <span>運営ダッシュボード</span>
+      </span>
+    </button>
+    <!-- 健康管理室: 帝京大学西村先生オリエンテーション入室ボタン (推進メンバー/管理職限定) -->
+    <button id="wellness-orientation-door" onclick="window.open('/orientation.html','_blank')"
+      style="display:none;position:absolute;top:108px;left:8px;z-index:9;background:linear-gradient(135deg,#0f766e,#047857);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(15,118,110,0.4);align-items:center;gap:8px;">
+      <span style="font-size:16px;">📖</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
+        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">帝京大学 西村先生 提供</span>
+        <span>推進メンバーへの<br>メッセージ (4分・音声付)</span>
+      </span>
+    </button>
+    <!-- 事故対策室: スクリーンに掲示する/事故報告書を開く -->
+    <button id="accident-screen-upload-btn" onclick="openAccidentScreenUpload()"
+      style="display:none;position:absolute;top:46px;left:8px;z-index:9;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(220,38,38,0.4);align-items:center;gap:8px;">
+      <span style="font-size:16px;">📷</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
+        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">前面スクリーンへ</span>
+        <span>事故・破損 写真/動画を掲示</span>
+      </span>
+    </button>
+    <button id="accident-report-door" onclick="window.open('/accident.html','_blank')"
+      style="display:none;position:absolute;top:108px;left:8px;z-index:9;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,0.45);align-items:center;gap:8px;">
+      <span style="font-size:16px;">📄</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
+        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">記録</span>
+        <span>事故報告書を開く</span>
       </span>
     </button>
     <div id="floor-head">
@@ -924,8 +957,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       <button onclick="closeCalModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1;">×</button>
     </div>
     <div style="font-size:11px;color:#64748b;margin-bottom:14px;line-height:1.7;">
-      Googleカレンダーを葵に連携すると、ロビー入室時に<b>本日の予定をDMでお知らせ</b>します。<br>
-      「今日の予定は?」「明日の会議は?」などと聞けば葵が答えてくれます。
+      Googleカレンダーを総合案内に連携すると、ロビー入室時に<b>本日の予定をDMでお知らせ</b>します。<br>
+      「今日の予定は?」「明日の会議は?」などと聞けば総合案内が答えてくれます。
     </div>
 
     <!-- ステータス表示 -->
@@ -1014,7 +1047,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <div class="dm-input-wrap">
       <button class="attach-btn" onclick="document.getElementById('dm-file').click()" title="ファイル添付" style="width:36px;height:36px;border-radius:50%;background:transparent;border:none;color:#64748b;cursor:pointer;font-size:16px;">📎</button>
       <button id="dm-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid #cbd5e1;color:#64748b;cursor:pointer;font-size:16px;flex-shrink:0;">💬</button>
-      <button id="dm-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (葵・ヘルス専用)" style="display:none;width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid #cbd5e1;color:#64748b;cursor:pointer;font-size:16px;flex-shrink:0;">🎤</button>
+      <button id="dm-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (総合案内・ヘルス専用)" style="display:none;width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid #cbd5e1;color:#64748b;cursor:pointer;font-size:16px;flex-shrink:0;">🎤</button>
       <input type="text" id="dm-input" placeholder="メッセージ…(Enterで送信)" maxlength="1000">
       <button id="dm-send-btn" onclick="sendDM()" title="送信">➤</button>
     </div>
@@ -1322,6 +1355,11 @@ async function submitNickname() {
 }
 
 function doLogout() {
+  // 「クリーンに終了」フラグ: 次回ログイン時にdirty close通知が出ないようにする
+  try {
+    localStorage.removeItem('cohub_dirty_close_pending');
+    sessionStorage.removeItem('cohub_session_active');
+  } catch (e) {}
   fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+token} });
   localStorage.removeItem('cohub_token');
   localStorage.removeItem('cohub_user');
@@ -1332,11 +1370,63 @@ function doLogout() {
   location.reload();
 }
 
-function confirmLogout() {
-  if (confirm('ログアウトしますか?\n(ログインID/パスワードはブラウザ保存のままです)')) {
-    doLogout();
-  }
+// ===== セッション終了管理: × でブラウザを閉じた場合の検知+次回通知 =====
+// 戦略:
+//  - sessionStorage = タブ寿命 (F5は維持、× で消える)
+//  - localStorage   = ブラウザ寿命 (× でも残る)
+//  enterSpace 時に両方セット → ログアウトでクリア
+//  次回ログイン時に sessionStorage は空 (新タブ) かつ localStorage に dirty 残 → 前回×閉じ
+function markSessionStarted() {
+  try {
+    sessionStorage.setItem('cohub_session_active', '1');
+    localStorage.setItem('cohub_dirty_close_pending', '1');
+  } catch (e) {}
 }
+function checkDirtyClose() {
+  try {
+    const tabAlive = sessionStorage.getItem('cohub_session_active') === '1';
+    const dirtyPrev = localStorage.getItem('cohub_dirty_close_pending') === '1';
+    // タブが「コールドスタート」かつ前回dirty残 → ×で閉じた可能性高
+    if (!tabAlive && dirtyPrev) {
+      setTimeout(() => showDirtyCloseNotice(), 1800);
+    }
+  } catch (e) {}
+}
+function showDirtyCloseNotice() {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:74px;left:50%;transform:translateX(-50%);z-index:9998;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;color:#92400e;padding:12px 18px;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,0.18);font-size:13px;font-weight:600;line-height:1.6;max-width:520px;display:flex;align-items:center;gap:12px;';
+  banner.innerHTML = '<span style="font-size:22px;">⚠️</span><div style="flex:1;"><div style="font-weight:800;margin-bottom:2px;">前回はログアウトされませんでした</div><div style="font-size:11px;font-weight:500;color:#78350f;">次回からは左サイドバーの 🚪 ログアウトボタンをご利用ください。同時接続数が正しく集計されます。</div></div><button style="background:#92400e;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;" onclick="this.parentElement.remove()">OK</button>';
+  document.body.appendChild(banner);
+  // 自動消滅 (10秒)
+  setTimeout(() => { try { banner.remove(); } catch (e) {} }, 10000);
+}
+// × 閉じ前のブラウザ標準確認ダイアログ (メッセージ文言はブラウザ固定)
+window.addEventListener('beforeunload', (e) => {
+  try {
+    if (token && localStorage.getItem('cohub_dirty_close_pending') === '1') {
+      e.preventDefault();
+      e.returnValue = '';  // 標準ダイアログをトリガー
+    }
+  } catch (err) {}
+});
+
+function confirmLogout() {
+  document.getElementById('logout-modal').style.display = 'flex';
+}
+function cancelLogout() {
+  document.getElementById('logout-modal').style.display = 'none';
+}
+function confirmLogoutYes() {
+  document.getElementById('logout-modal').style.display = 'none';
+  doLogout();
+}
+// Escapeキーで閉じる
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const m = document.getElementById('logout-modal');
+    if (m && m.style.display === 'flex') cancelLogout();
+  }
+});
 
 // ===== 🔑 パスワード変更 =====
 function openPasswordModal() {
@@ -1454,7 +1544,7 @@ async function openCalModal() {
       return;
     }
     if (j.linked) {
-      document.getElementById('cal-status').innerHTML = '✅ 葵と連携中';
+      document.getElementById('cal-status').innerHTML = '✅ 総合案内と連携中';
       document.getElementById('cal-status').style.background = '#f0fdf4';
       document.getElementById('cal-status').style.color = '#065f46';
       document.getElementById('cal-linked-id').textContent = j.calendar_id || '';
@@ -1697,6 +1787,9 @@ function enterSpace() {
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('space-screen').classList.add('active');
   currentUser = userData;
+  // 前回×閉じ検知 (markSessionStarted の前に必ず実行)
+  checkDirtyClose();
+  markSessionStarted();
   initCanvas();
   connectSocket();
   // 初回ログインでアバター未設定なら促す
@@ -1727,7 +1820,8 @@ function enterSpace() {
   // 告知の未読チェック (バッジ + 重要告知の自動ポップアップ)
   checkAnnouncements();
   checkOpsPending();
-  setInterval(() => { checkAnnouncements(); checkOpsPending(); }, 90 * 1000);
+  checkBoardPlazaUnread();
+  setInterval(() => { checkAnnouncements(); checkOpsPending(); checkBoardPlazaUnread(); }, 90 * 1000);
 }
 
 async function checkOpsPending() {
@@ -1739,6 +1833,26 @@ async function checkOpsPending() {
       if (j.success && j.count > 0) { badge.textContent = j.count; badge.style.display = 'inline-block'; }
       else { badge.style.display = 'none'; }
     }
+  } catch (e) {}
+}
+
+// ===== 📋 掲示板 / 🌳 ひろば 新着バッジ =====
+async function checkBoardPlazaUnread() {
+  const setBadge = (id, n) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    if (n > 0) { b.textContent = n >= 99 ? '99' : String(n); b.style.display = 'inline-block'; }
+    else { b.style.display = 'none'; }
+  };
+  try {
+    const [bR, pR] = await Promise.all([
+      fetch('/api/board/unread-count', { headers: { Authorization: 'Bearer ' + token } }),
+      fetch('/api/plaza/unread-count', { headers: { Authorization: 'Bearer ' + token } }),
+    ]);
+    const bJ = await bR.json();
+    const pJ = await pR.json();
+    if (bJ && bJ.success) setBadge('rail-board-cnt', bJ.count || 0);
+    if (pJ && pJ.success) setBadge('rail-plaza-cnt', pJ.count || 0);
   } catch (e) {}
 }
 
@@ -1917,12 +2031,17 @@ function resize() {
 }
 
 let stdLogo = null;
+let orchidImage = null;
 function loadBackground(src) {
   bgImage = new Image();
   bgImage.src = (src || '/assets/office_bg.png') + '?v=30';
   if (!stdLogo) {
     stdLogo = new Image();
     stdLogo.src = '/assets/std_logo.png?v=1';
+  }
+  if (!orchidImage) {
+    orchidImage = new Image();
+    orchidImage.src = '/assets/orchid_white.png?v=1';
   }
 }
 
@@ -1997,11 +2116,6 @@ function connectSocket() {
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
       if (fname) fname.textContent = (data.floor.icon ? data.floor.icon + ' ' : '') + data.floor.name;
-      // ロビー以外なら工事中バナー即非表示 (位置更新はrender()で毎フレーム)
-      if (data.floor.code !== 'lobby') {
-        const cbn = document.getElementById('lobby-construction-banner');
-        if (cbn) cbn.style.display = 'none';
-      }
       loadBackground(data.floor.bg_image);
       applyFloorLayout(data.floor);
       resize();
@@ -2266,9 +2380,9 @@ function connectSocket() {
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === me;
     const peerUid = isSelf ? m.to : m.from;
-    // ★ 音声会話モード中: 葵/ヘルスからの返答は専用フロー(TTS+終了後に認識1回再開)
+    // ★ 音声会話モード中: 総合案内/ヘルスからの返答は専用フロー(TTS+終了後に認識1回再開)
     if (typeof voiceConvActive !== 'undefined' && voiceConvActive && !isSelf
-        && (m.from === 'bot_aoi' || m.from === 'bot_health') && m.content && dmPeerUid === m.from) {
+        && (m.from === 'bot_aoi' || m.from === 'bot_health' || m.from === 'bot_safety') && m.content && dmPeerUid === m.from) {
       if (dmPeerUid === peerUid) {
         dmLog.push({ id: m.id, from: m.from, to: m.to, content: m.content, at: m.at, attach: m.attach || null, voice: !!m.voice });
         renderDM();
@@ -2276,7 +2390,7 @@ function connectSocket() {
       playBotForVoiceConv(m.content, m.from);
       return;
     }
-    // 葵からのメッセージ読み上げは「葵のDM画面を開いている時のみ」
+    // 総合案内からのメッセージ読み上げは「総合案内のDM画面を開いている時のみ」
     // (ロビー入室時の calendar/wellness 自動DM はチャットに溜めるだけ、
     //  入室アナウンスとの重複を避ける)
     if (!isSelf && m.from === 'bot_aoi' && m.content && dmPeerUid === 'bot_aoi') {
@@ -2303,7 +2417,7 @@ function connectSocket() {
       // 音声DM: 取込中でも強制読み上げ (speakerOn無視)
       if (m.voice && m.content) {
         speakVoiceDm(m.content, m.from);
-      } else if (m.from !== 'bot_aoi' && m.from !== 'bot_health' && speakerOn) {
+      } else if (m.from !== 'bot_aoi' && m.from !== 'bot_health' && m.from !== 'bot_safety' && speakerOn) {
         // 通常DM: sender名のみアナウンス
         setTimeout(() => speakDmSender(sender.name || ''), 1200);
       }
@@ -2379,11 +2493,11 @@ function connectSocket() {
     if (u && u.role === 'bot') {
       const greeting = (data && data.botGreeting) || '';
       if (greeting) {
-        // 葵=Neural2-B / ヘルスアドバイザー=Wavenet-A pitch低め で別キャラ感
+        // 総合案内=Neural2-B / ヘルスアドバイザー=Wavenet-A pitch低め で別キャラ感
         try { speakViaTTS(greeting, Object.assign({ force: true }, ttsOptsForBot(u.uid))); } catch (e) {}
       }
       // 喋り終わるタイミング (約1.4秒) でモーダル表示
-      setTimeout(() => { try { showAoiActionModal(u.uid, u.name || '葵'); } catch (e) {} }, 1400);
+      setTimeout(() => { try { showAoiActionModal(u.uid, u.name || '総合案内'); } catch (e) {} }, 1400);
     }
   });
   socket.on('chat:msg', (m) => {
@@ -2488,7 +2602,8 @@ function loadAvatar(u) {
 // 末尾の v= は新ポーズ画像差替時のキャッシュバスター
 const BOT_STANDING = {
   'bot_aoi':    '/assets/concierge_aoi_full.png?v=2',
-  'bot_health': '/assets/concierge_health_full.png?v=2',
+  'bot_health': '/assets/concierge_health_full.png?v=4',
+  'bot_safety': '/assets/concierge_safety_full.png?v=1',
 };
 const botStandingImages = {};   // botUid → { canvas, w, h }
 let conciergeFull = null;       // 後方互換: bot_aoi のショートカット参照
@@ -2586,7 +2701,7 @@ function onPointerDown(e) {
   if (peer) {
     // bot をタップ → 中間ピアメニューを飛ばして 直接 アクションメニューモーダル
     if (peer.role === 'bot') {
-      try { showAoiActionModal(peer.uid, peer.name || (peer.uid === 'bot_health' ? 'ヘルスアドバイザー' : '葵')); } catch (err) {}
+      try { showAoiActionModal(peer.uid, peer.name || (peer.uid === 'bot_health' ? 'ヘルスアドバイザー' : peer.uid === 'bot_safety' ? '安全管理者' : '総合案内')); } catch (err) {}
       return;
     }
     // 他人のアバターをタップ → 移動せずピアメニュー表示
@@ -2638,15 +2753,17 @@ function moveTo(x, y) {
 function render() {
   if (!ctx) return;
 
-  // 1Fロビー (一人称視点モード) — 葵だけ受付に固定、一般ユーザーは自由に移動可
-  // 一人称視点フロア: ロビー(葵)・健康管理室(ヘルスアドバイザー) 共通の固定配置
-  const isLobbyView = currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'wellness_room');
+  // 1Fロビー (一人称視点モード) — 総合案内だけ受付に固定、一般ユーザーは自由に移動可
+  // 一人称視点フロア: ロビー(総合案内)・健康管理室(ヘルスアドバイザー) 共通の固定配置
+  const isLobbyView = currentFloor && (currentFloor.code === 'lobby' || currentFloor.code === 'wellness_room' || currentFloor.code === 'field_accident');
   // 一人称視点フロアの常駐bot
-  // 葵は受付カウンター越しに頭+胸が自然に見える位置 (clip=true)
+  // 総合案内は受付カウンター越しに頭+胸が自然に見える位置 (clip=true)
   // ヘルスアドバイザーは全身立ち姿
+  // 安全管理者は事故対策室の前面スクリーン右脇に立つ
   const FIRST_PERSON_BOT = {
-    'lobby':         { uid: 'bot_aoi',    x: 880, y: 530, clip: false },  // 右寄り、左手で背壁ロゴを紹介する向き
-    'wellness_room': { uid: 'bot_health', x: 1100, y: 500, clip: false, flipH: true },
+    'lobby':          { uid: 'bot_aoi',    x: 880, y: 530, clip: false },  // 右寄り、左手で背壁ロゴを紹介する向き
+    'wellness_room':  { uid: 'bot_health', x: 1100, y: 500, clip: false, flipH: true },
+    'field_accident': { uid: 'bot_safety', x: 1100, y: 500, clip: false },
   };
   const LOBBY_COUNTER_TOP_Y = 465;
 
@@ -2654,7 +2771,7 @@ function render() {
   for (const uid in targets) {
     if (!users[uid]) continue;
     let t = targets[uid];
-    // ロビーでは葵だけ受付の固定位置に強制 (一般ユーザーは自由移動)
+    // ロビーでは総合案内だけ受付の固定位置に強制 (一般ユーザーは自由移動)
     // 一人称視点フロアでは該当フロア専属のbotだけ受付/デスク背後に固定
     if (isLobbyView && currentFloor) {
       const fp = FIRST_PERSON_BOT[currentFloor.code];
@@ -2693,23 +2810,6 @@ function render() {
   const ox = (w - dw) / 2;
   const oy = (h - dh) / 2;
 
-  // ロビー工事中バナー: 受付カウンター下のフロアエリアに固定 (葵に追従ではなく画面下寄り)
-  if (currentFloor && currentFloor.code === 'lobby') {
-    const cbn = document.getElementById('lobby-construction-banner');
-    if (cbn) {
-      const wrap = document.getElementById('space-canvas-wrap');
-      const wrapR = wrap ? wrap.getBoundingClientRect() : { left: 0, top: 0 };
-      // 画面中央水平、カウンター下のフロア部分(world y≈790)に配置
-      const bannerWorldX = WORLD_W / 2;
-      const bannerWorldY = 720;
-      const screenX = (r.left - wrapR.left) + ox + bannerWorldX * viewScale;
-      const screenY = (r.top - wrapR.top) + oy + bannerWorldY * viewScale;
-      cbn.style.left = screenX + 'px';
-      cbn.style.top = screenY + 'px';
-      cbn.style.display = 'block';
-    }
-  }
-
   ctx.save();
   ctx.translate(ox, oy);
   ctx.scale(viewScale, viewScale);
@@ -2725,9 +2825,14 @@ function render() {
   if (currentFloor && currentFloor.code === 'wellness_room') {
     try { drawWellnessWhiteboard(); } catch (e) {}
   }
+  // 事故対策室: 前面ビデオスクリーンに最新の事故/破損メディアを流す
+  if (currentFloor && currentFloor.code === 'field_accident') {
+    try { drawAccidentScreen(); } catch (e) {}
+  }
 
   // 1Fロビー (v2): 背壁の社章は背景画像に焼き込み済み (Gemini Image にロゴを入力として渡し合成)
   // → Canvasオーバーレイは不要、自然な照明統合で平面ステッカー感を回避
+  // (ロビーの胡蝶蘭はアバター描画の後でz-top描画)
   // 大会議室: スタンダード運輸ロゴを床の透かしとして描画 (従来通り)
   if (currentFloor && currentFloor.code === 'meeting_c' && stdLogo && stdLogo.complete && stdLogo.naturalWidth > 0) {
     const logoW = 170;
@@ -2858,7 +2963,13 @@ function render() {
     drawAvatar(u);
   }
 
-  // 吹き出し (葵は立ち姿210pxなので頭上まで引き上げる)
+  // ロビー新装オープンの胡蝶蘭 4鉢 — アバターの後 (z-top) で描画して
+  // 受付前に並ぶ祝開所の演出。アバターの足元/下半身を覆う配置で「奥に立つ受付」感
+  if (currentFloor && currentFloor.code === 'lobby' && orchidImage && orchidImage.complete && orchidImage.naturalWidth > 0) {
+    try { drawLobbyOrchids(); } catch (e) {}
+  }
+
+  // 吹き出し (総合案内は立ち姿210pxなので頭上まで引き上げる)
   const now = Date.now();
   const bubbleLife = 10000;
   const whisperBubbleLife = 6000; // ささやきは少し短命
@@ -2969,6 +3080,86 @@ async function loadWellnessFeed() {
       if (d && d.success) _wellnessFeed = d;
     }
   } catch (e) {}
+}
+
+// ロビー新装オープンの胡蝶蘭 4鉢 — 受付カウンター手前にぐっと並べる (祝開所)
+// 中央 (WORLD_W=1344 / 中心 672) に4鉢を等間隔で並べ、
+// アバター描画の後 (z-top) でレンダリングして「奥に立つ受付」風に。
+// 立札 = 木目調プレート + 「祝」赤丸 + 贈り主名 (折り返し)
+const LOBBY_ORCHIDS = [
+  { dx: -360, donor: 'NPO ヘルスケア\nネットワーク' },
+  { dx: -120, donor: '帝京大学\n大学院' },
+  { dx:  120, donor: '役員一同' },
+  { dx:  360, donor: 'タカラ\nの力' },
+];
+function drawLobbyOrchids() {
+  if (!orchidImage || !orchidImage.complete) return;
+  const POT_H = 215;
+  const RATIO = orchidImage.naturalWidth / orchidImage.naturalHeight;
+  const POT_W = POT_H * RATIO;
+  // 床の最前面 (foreground) に揃える。WORLD_H=768 の場合 763 で底辺が画面下端に接地
+  const BASE_Y = 763;
+  const CENTER_X = WORLD_W / 2;
+  for (const o of LOBBY_ORCHIDS) {
+    const cx = CENTER_X + o.dx;
+    const x = cx - POT_W / 2;
+    const y = BASE_Y - POT_H;
+    // 胡蝶蘭本体
+    ctx.drawImage(orchidImage, x, y, POT_W, POT_H);
+    // 立札 (木札): 鉢の右側に立てかける
+    drawOrchidTag(cx + POT_W * 0.36, BASE_Y - POT_H * 0.32, o.donor);
+  }
+}
+function drawOrchidTag(cx, cy, donor) {
+  const TAG_W = 64;
+  const TAG_H = 92;
+  const x = cx - TAG_W / 2;
+  const y = cy - TAG_H / 2;
+  ctx.save();
+  // 紐 (上端から鉢へ)
+  ctx.strokeStyle = 'rgba(180,140,90,0.7)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx - 8, y - 22); ctx.stroke();
+  // 木札背景 (淡い木目グラデ)
+  const grad = ctx.createLinearGradient(x, y, x, y + TAG_H);
+  grad.addColorStop(0, '#fff8e8');
+  grad.addColorStop(1, '#f0e0bc');
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = '#9c7a45';
+  ctx.lineWidth = 1.4;
+  // 上下が少し丸い縦長プレート
+  const r = 6;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + TAG_W - r, y);
+  ctx.quadraticCurveTo(x + TAG_W, y, x + TAG_W, y + r);
+  ctx.lineTo(x + TAG_W, y + TAG_H - r);
+  ctx.quadraticCurveTo(x + TAG_W, y + TAG_H, x + TAG_W - r, y + TAG_H);
+  ctx.lineTo(x + r, y + TAG_H);
+  ctx.quadraticCurveTo(x, y + TAG_H, x, y + TAG_H - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // 上部「祝」赤丸
+  ctx.fillStyle = '#c0392b';
+  ctx.beginPath(); ctx.arc(cx, y + 13, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px "Hiragino Mincho ProN","Yu Mincho",serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('祝', cx, y + 13);
+  // 贈り主名 (縦に折り返し描画)
+  ctx.fillStyle = '#3a2a14';
+  ctx.font = 'bold 9.5px "Hiragino Mincho ProN","Yu Mincho",serif';
+  const lines = donor.split('\n');
+  const lineH = 11;
+  let ty = y + 28 + (TAG_H - 28 - lines.length * lineH) / 2 + lineH / 2;
+  for (const ln of lines) {
+    ctx.fillText(ln, cx, ty);
+    ty += lineH;
+  }
+  ctx.restore();
 }
 
 // ホワイトボード描画 (背景の上にオーバーレイ)
@@ -3096,16 +3287,252 @@ function drawWellnessWhiteboard() {
   ctx.fillText('更新: ' + (ago < 60 ? ago + '秒前' : Math.floor(ago/60) + '分前'), x + w - 16, y + h - 12);
 }
 
-// 受付AI 葵 / ヘルスアドバイザー: 立ち姿描画 (透過+影+名札)
+// ===== 事故対策室: 前面ビデオスクリーン =====
+// 前面壁面の大型スクリーン領域 (背景画像のスクリーン部分にオーバーレイ)
+// 投稿された写真/動画を順番にループ再生
+const ACCIDENT_SCREEN = { x: 360, y: 130, w: 620, h: 290 };
+let _accidentPosts = [];
+let _accidentPostsFetchedAt = 0;
+let _accidentSlotIndex = 0;          // 現在再生中の投稿index
+let _accidentSlotStartedAt = 0;      // 現在のスロットを開始した時刻
+const ACCIDENT_IMAGE_DURATION_MS = 6000;   // 写真の表示秒数
+const _accidentMediaCache = {};      // post.id → { type, el, ready }
+
+function loadAccidentPosts() {
+  if (Date.now() - _accidentPostsFetchedAt < 30000) return;
+  _accidentPostsFetchedAt = Date.now();
+  fetch('/api/accident/screen', { headers: { Authorization: 'Bearer ' + token } })
+    .then(r => r.json()).then(d => {
+      if (!d || !d.success) return;
+      _accidentPosts = d.posts || [];
+      // 新着が来た場合は先頭から再生
+      if (_accidentPosts.length && (_accidentSlotIndex >= _accidentPosts.length)) {
+        _accidentSlotIndex = 0;
+        _accidentSlotStartedAt = Date.now();
+      }
+    }).catch(() => {});
+}
+
+function _ensureAccidentMedia(post) {
+  if (_accidentMediaCache[post.id]) return _accidentMediaCache[post.id];
+  const slot = { type: post.media_type, ready: false, el: null };
+  if (post.media_type === 'video') {
+    const v = document.createElement('video');
+    v.src = post.media_url;
+    v.muted = true; v.loop = true; v.playsInline = true; v.crossOrigin = 'anonymous';
+    v.preload = 'auto';
+    v.addEventListener('loadeddata', () => { slot.ready = true; });
+    v.play().catch(() => {});  // 自動再生 (mutedなので大抵通る)
+    slot.el = v;
+  } else {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { slot.ready = true; };
+    img.src = post.media_url;
+    slot.el = img;
+  }
+  _accidentMediaCache[post.id] = slot;
+  return slot;
+}
+
+function drawAccidentScreen() {
+  // データ未取得なら lazy fetch (定期的に更新)
+  loadAccidentPosts();
+  const { x, y, w, h } = ACCIDENT_SCREEN;
+  // スクリーン外枠 (黒ベゼル)
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 6;
+  ctx.fillStyle = '#0a0a0a';
+  roundRect(x - 14, y - 14, w + 28, h + 28, 8); ctx.fill();
+  ctx.restore();
+  // スクリーン本体 (デフォルト背景=黒)
+  ctx.fillStyle = '#000';
+  roundRect(x, y, w, h, 4); ctx.fill();
+
+  if (!_accidentPosts.length) {
+    // 投稿が無いとき: 「事故ゼロを目指して」プレースホルダ
+    ctx.save();
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, '#0c1e3a'); grad.addColorStop(1, '#000');
+    ctx.fillStyle = grad;
+    roundRect(x, y, w, h, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(220,38,38,0.85)';
+    ctx.font = '900 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚨 事故対策室', x + w / 2, y + h / 2 - 30);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 18px sans-serif';
+    ctx.fillText('事故・破損情報のスクリーン', x + w / 2, y + h / 2 + 14);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '500 13px sans-serif';
+    ctx.fillText('「📷 スクリーンに掲示」から写真/動画を投稿してください', x + w / 2, y + h / 2 + 44);
+    ctx.restore();
+    return;
+  }
+
+  // スロット切替判定
+  if (!_accidentSlotStartedAt) _accidentSlotStartedAt = Date.now();
+  const cur = _accidentPosts[_accidentSlotIndex] || _accidentPosts[0];
+  const slot = _ensureAccidentMedia(cur);
+  let elapsed = Date.now() - _accidentSlotStartedAt;
+  let advance = false;
+  if (slot.type === 'image') {
+    if (elapsed > ACCIDENT_IMAGE_DURATION_MS) advance = true;
+  } else if (slot.type === 'video' && slot.el) {
+    // 動画は1ループしたら次へ (>= duration*0.95 でカウント)
+    if (slot.el.duration && slot.el.currentTime >= slot.el.duration - 0.1) advance = true;
+    if (elapsed > 30000) advance = true;  // セーフティ: 30秒経ったら強制次へ
+  }
+  if (advance && _accidentPosts.length > 1) {
+    _accidentSlotIndex = (_accidentSlotIndex + 1) % _accidentPosts.length;
+    _accidentSlotStartedAt = Date.now();
+  }
+
+  // 描画 (中身)
+  ctx.save();
+  // クリップ
+  ctx.beginPath();
+  roundRect(x, y, w, h, 4);
+  ctx.clip();
+  if (slot.ready && slot.el) {
+    // contain で中央描画
+    const mw = slot.el.videoWidth || slot.el.naturalWidth || w;
+    const mh = slot.el.videoHeight || slot.el.naturalHeight || h;
+    const r = Math.min(w / mw, h / mh);
+    const dw = mw * r, dh = mh * r;
+    const dx = x + (w - dw) / 2, dy = y + (h - dh) / 2;
+    try { ctx.drawImage(slot.el, dx, dy, dw, dh); } catch (e) {}
+  } else {
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '600 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('読み込み中…', x + w / 2, y + h / 2);
+  }
+  ctx.restore();
+
+  // キャプション+投稿者+件数 (下部オーバーレイ)
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(x, y + h - 50, w, 50);
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 13px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const cap = (cur.caption || '(キャプションなし)').slice(0, 80);
+  ctx.fillText('🚨 ' + cap, x + 12, y + h - 42);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '500 11px sans-serif';
+  const meta = (cur.posted_name || '匿名') + ' · ' + (cur.created_at || '').slice(5, 16).replace('T', ' ');
+  ctx.fillText(meta, x + 12, y + h - 22);
+  // 右下: スロット表示 (1/N)
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 11px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText((_accidentSlotIndex + 1) + ' / ' + _accidentPosts.length, x + w - 12, y + h - 22);
+  // 左上: 赤い録画ドット (緊張感)
+  const blink = (Math.floor(Date.now() / 600) % 2) === 0;
+  if (blink) {
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath(); ctx.arc(x + 16, y + 16, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('LIVE', x + 28, y + 12);
+  }
+  ctx.restore();
+}
+
+// 事故対策室: スクリーン投稿アップロードUI
+function openAccidentScreenUpload() {
+  // 既存モーダルがあれば閉じる
+  document.getElementById('accident-upload-modal')?.remove();
+  const html = `
+    <div id="accident-upload-modal" style="position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:#fff;border-radius:14px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
+        <div style="padding:14px 18px;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">📷</span>
+          <div style="flex:1;">
+            <div style="font-size:15px;font-weight:800;">スクリーンに掲示</div>
+            <div style="font-size:11px;opacity:0.85;">事故・破損の写真または動画</div>
+          </div>
+          <button onclick="document.getElementById('accident-upload-modal')?.remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+        </div>
+        <div style="padding:18px;">
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">ファイル (画像/動画 最大50MB)</label>
+            <input id="accident-upload-file" type="file" accept="image/*,video/*" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">キャプション (200字まで)</label>
+            <textarea id="accident-upload-caption" rows="3" placeholder="例: 4/30 座間倉庫、パレット荷崩れ。再発防止策を検討中。" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+          <div id="accident-upload-msg" style="font-size:12px;color:#64748b;margin-bottom:10px;min-height:16px;"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button onclick="document.getElementById('accident-upload-modal')?.remove()" style="padding:10px 16px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">キャンセル</button>
+            <button id="accident-upload-submit" onclick="submitAccidentScreenUpload()" style="padding:10px 18px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;">🚨 スクリーンに掲示</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitAccidentScreenUpload() {
+  const fileEl = document.getElementById('accident-upload-file');
+  const capEl = document.getElementById('accident-upload-caption');
+  const msgEl = document.getElementById('accident-upload-msg');
+  const btnEl = document.getElementById('accident-upload-submit');
+  if (!fileEl || !fileEl.files || !fileEl.files[0]) {
+    if (msgEl) { msgEl.style.color = '#dc2626'; msgEl.textContent = 'ファイルを選択してください'; }
+    return;
+  }
+  const file = fileEl.files[0];
+  if (file.size > 50 * 1024 * 1024) {
+    msgEl.style.color = '#dc2626'; msgEl.textContent = 'ファイルが大きすぎます (50MB上限)';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('media', file);
+  fd.append('caption', (capEl && capEl.value || '').slice(0, 200));
+  btnEl.disabled = true; btnEl.textContent = 'アップロード中…';
+  msgEl.style.color = '#64748b'; msgEl.textContent = '送信中…';
+  try {
+    const r = await fetch('/api/accident/screen', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: fd,
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.msg || ('HTTP ' + r.status));
+    document.getElementById('accident-upload-modal')?.remove();
+    // 即座にフィードを再取得して反映
+    _accidentPostsFetchedAt = 0;
+    _accidentSlotIndex = 0;
+    _accidentSlotStartedAt = Date.now();
+    loadAccidentPosts();
+    try { showToast && showToast('スクリーンに掲示しました'); } catch (e) {}
+  } catch (e) {
+    msgEl.style.color = '#dc2626'; msgEl.textContent = 'アップロード失敗: ' + (e.message || e);
+    btnEl.disabled = false; btnEl.textContent = '🚨 スクリーンに掲示';
+  }
+}
+
+// 受付AI 総合案内 / ヘルスアドバイザー: 立ち姿描画 (透過+影+名札)
 function drawConciergeStanding(u) {
   const standing = botStandingImages[u.uid] || conciergeFull;
   // フロア別サイズ:
-  //  ロビー葵 = 252 (旧360の70%、生首回避・頭+胸が見える適正サイズ)
+  //  ロビー総合案内 = 252 (旧360の70%、生首回避・頭+胸が見える適正サイズ)
   //  健康管理室 = 440 (全身立ち姿、部屋の縮尺合わせ)
   //  他フロア = 210 (従来)
   let FIG_H = 210;
   if (currentFloor && currentFloor.code === 'lobby') FIG_H = 520;  // 全身立ち姿 (旧 252 = 受付カウンター越し半身、新画像でカウンター無し化に伴い全身)
   else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 520;  // 一回り大きく
+  else if (currentFloor && currentFloor.code === 'field_accident' && u.uid === 'bot_safety') FIG_H = 500;  // 安全管理者: 威圧感を出すためやや大きめ (床高500-770px)
   const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -3115,12 +3542,12 @@ function drawConciergeStanding(u) {
     sx = Math.sin(Date.now() / 30) * 6 * t;
   } else if (u._shakeUntil) { u._shakeUntil = 0; }
   const cx = Math.round(u.cx + sx);
-  // 葵の指定y位置を中心として、足元がそこに来るよう上へ描画
+  // 総合案内の指定y位置を中心として、足元がそこに来るよう上へ描画
   const feetY = Math.round(u.cy + FIG_H / 2);
   const headY = feetY - FIG_H;
   ctx.save();
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
-  // 旧: ロビーの葵を受付カウンター越しにクリップしていたが、
+  // 旧: ロビーの総合案内を受付カウンター越しにクリップしていたが、
   // ロビー v2 (2026-04-29) でカウンター撤去+全身表示に変更したため clip 廃止
   // 足元の楕円影 (フロアに直接落ちる)
   ctx.save();
@@ -3153,23 +3580,25 @@ function drawConciergeStanding(u) {
   ctx.font = '800 15px sans-serif';
   const botLabel = u.uid === 'bot_aoi' ? '🌸 メニューを開く'
                   : u.uid === 'bot_health' ? '🩺 メニューを開く'
+                  : u.uid === 'bot_safety' ? '🚨 メニューを開く'
                   : (u.name || 'AI');
   const tw = Math.round(ctx.measureText(botLabel).width + 32);
   const btnH = 36;
   const btnY = headY - 44;
   // 当たり判定矩形 (world座標) - 視覚より大幅に大きい padding でタップ容易化
-  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health')) {
+  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety')) {
     _botMenuButtons[u.uid] = {
       x1: cx - Math.round(tw / 2) - 30,
       y1: btnY - 30,
       x2: cx + Math.round(tw / 2) + 30,
       y2: btnY + btnH + 30,
-      name: u.name || (u.uid === 'bot_health' ? 'ヘルスアドバイザー' : '葵'),
+      name: u.name || (u.uid === 'bot_health' ? 'ヘルスアドバイザー' : u.uid === 'bot_safety' ? '安全管理者' : '総合案内'),
     };
   }
   // ボタン グラデーション (bot 種別に応じた色)
   const isHealthBot = u.uid === 'bot_health';
   const isAoiBot = u.uid === 'bot_aoi';
+  const isSafetyBot = u.uid === 'bot_safety';
   const grad2 = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
   if (isHealthBot) {
     grad2.addColorStop(0, 'rgba(16,185,129,1)');
@@ -3177,6 +3606,9 @@ function drawConciergeStanding(u) {
   } else if (isAoiBot) {
     grad2.addColorStop(0, 'rgba(6,182,212,1)');
     grad2.addColorStop(1, 'rgba(8,145,178,1)');
+  } else if (isSafetyBot) {
+    grad2.addColorStop(0, 'rgba(220,38,38,1)');
+    grad2.addColorStop(1, 'rgba(153,27,27,1)');
   } else {
     grad2.addColorStop(0, 'rgba(100,116,139,1)');
     grad2.addColorStop(1, 'rgba(71,85,105,1)');
@@ -3200,7 +3632,7 @@ function drawConciergeStanding(u) {
   ctx.textBaseline = 'middle';
   ctx.fillText(botLabel, cx, btnY + btnH / 2 + 0.5);
   // 名札 (足元下)
-  const label = u.name || '葵';
+  const label = u.name || '総合案内';
   ctx.font = '600 12px sans-serif';
   const lw = Math.round(ctx.measureText(label).width + 16);
   ctx.fillStyle = 'rgba(15,23,42,0.85)';
@@ -3211,8 +3643,64 @@ function drawConciergeStanding(u) {
   ctx.restore();
 }
 
+// モバイル接続中アバターを「スマホの画面に映っている」風に囲うフレーム
+// アバター(r)を中心にした縦長スマホ筐体を描画。アバター本体は後段で円描画される
+function drawMobilePhoneFrame(cx, cy, r) {
+  // 筐体寸法: 幅は r*2 + 余白22px、高さは画面+ヘッダ+ホーム部
+  const phoneW = r * 2 + 22;
+  const phoneH = r * 2 + 56;  // 上18 + 円 + 下20 + 余白
+  const px = cx - phoneW / 2;
+  const py = cy - r - 22;  // 画面の中心がアバターになるよう調整
+  ctx.save();
+  // 筐体 (黒メタリック)
+  const bodyGrad = ctx.createLinearGradient(px, py, px + phoneW, py);
+  bodyGrad.addColorStop(0, '#0f172a');
+  bodyGrad.addColorStop(0.5, '#1e293b');
+  bodyGrad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = bodyGrad;
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1.5;
+  roundRect(px, py, phoneW, phoneH, 9);
+  ctx.fill();
+  ctx.stroke();
+  // 画面 (白)
+  const sx = px + 4;
+  const sy = py + 14;
+  const sw = phoneW - 8;
+  const sh = phoneH - 28;
+  ctx.fillStyle = '#f8fafc';
+  roundRect(sx, sy, sw, sh, 4);
+  ctx.fill();
+  // ステータスバー (シアン薄帯)
+  ctx.fillStyle = 'rgba(6,182,212,0.16)';
+  ctx.fillRect(sx, sy, sw, 5);
+  ctx.fillStyle = 'rgba(6,182,212,0.85)';
+  ctx.font = '700 5px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CoWell', sx + sw - 3, sy + 2.5);
+  // 受信アンテナドット (左)
+  ctx.fillStyle = 'rgba(16,185,129,0.85)';
+  ctx.beginPath(); ctx.arc(sx + 3, sy + 2.5, 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 6, sy + 2.5, 1.2, 0, Math.PI * 2); ctx.fill();
+  // ノッチ (筐体上部のスピーカー)
+  ctx.fillStyle = '#0b1220';
+  roundRect(cx - 7, py + 4, 14, 3, 1.5);
+  ctx.fill();
+  // インカメラ (ノッチ右)
+  ctx.beginPath();
+  ctx.arc(cx + 11, py + 5.5, 1.4, 0, Math.PI * 2);
+  ctx.fillStyle = '#06b6d4';
+  ctx.fill();
+  // ホームインジケーター (筐体下部の細い線)
+  ctx.fillStyle = '#475569';
+  roundRect(cx - 12, py + phoneH - 5, 24, 2, 1);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawAvatar(u) {
-  // 受付AI 葵 / ヘルスアドバイザー は立ち姿で描画 (cy=足元 基準)
+  // 受付AI 総合案内 / ヘルスアドバイザー は立ち姿で描画 (cy=足元 基準)
   if (u.role === 'bot' && botStandingImages[u.uid] && botStandingImages[u.uid].canvas) {
     drawConciergeStanding(u);
     return;
@@ -3232,6 +3720,12 @@ function drawAvatar(u) {
   ctx.save();
   // フェードイン不透明度
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
+  // モバイル接続中ユーザー: アバターをスマホの画面に表示する演出
+  // 「この人はスマホから参加中」を直感的に伝える。ロビー等での
+  // 動かないアバター問題の折衷案として、フレームで操作不可を示す
+  if (u.isMobile) {
+    drawMobilePhoneFrame(cx, cy, r);
+  }
   // ハドル所属外周リング (紫)
   if (huddleZones.length && userHuddleCode(u)) {
     ctx.beginPath();
@@ -3311,6 +3805,8 @@ function drawAvatar(u) {
   ctx.fillStyle = '#fff';
   ctx.fillText(label, cx, cy + r + 14);
 
+  // モバイル待機中ラベルは廃止 (スマホフレーム自体が「📱 から参加中」を伝える)
+
   // ステータスドット
   const dotColor = u.status === '会議中' ? '#ef4444' : u.status === '退席中' ? '#eab308' : u.status === '集中中' ? '#8b5cf6' : '#10b981';
   ctx.beginPath();
@@ -3320,21 +3816,7 @@ function drawAvatar(u) {
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.stroke();
-  // モバイル接続バッジ (右下 📱)
-  if (u.isMobile) {
-    const bx = cx + r - 4, by = cy + r - 4;
-    ctx.beginPath();
-    ctx.arc(bx, by, 9, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.font = '700 11px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('📱', bx, by + 1);
-  }
+  // モバイル接続中の小バッジは廃止 (足元の「📱 待機中」ラベルに集約)
   // 集中中バッジ (頭上 🎯)
   if (u.status === '集中中') {
     ctx.font = '700 18px sans-serif';
@@ -3489,6 +3971,7 @@ function renderMemberList() {
   if (!list) return;
 
   const groups = {
+    advisor: { title: '🤖 アドバイザー', color: '#0f766e', bg: 'rgba(20,184,166,0.10)', members: [] },
     admin: { title: '👔 管理職', color: '#ca8a04', bg: 'rgba(234,179,8,0.08)', members: [] },
     office: { title: '🏢 事務所棟', color: '#0891b2', bg: 'rgba(6,182,212,0.08)', members: [] },
     field: { title: '🚚 現場棟', color: '#c2410c', bg: 'rgba(249,115,22,0.08)', members: [] },
@@ -3496,7 +3979,7 @@ function renderMemberList() {
   let onlineCount = 0;
   for (const uid in users) {
     const u = users[uid];
-    if (u.role === 'bot') continue; // BOT(受付AI)はリストに入れない
+    if (u.role === 'bot') { groups.advisor.members.push(u); continue; }  // AI総合案内 / AIヘルスアドバイザー
     if (u.role === 'admin' || u.employee_type === 'admin') groups.admin.members.push(u);
     else if (u.employee_type === 'field') groups.field.members.push(u);
     else groups.office.members.push(u);
@@ -3515,13 +3998,15 @@ function renderMemberList() {
   document.getElementById('online-count').textContent = onlineCount;
 
   let html = '';
-  for (const key of ['admin', 'office', 'field']) {
+  for (const key of ['advisor', 'admin', 'office', 'field']) {
     const g = groups[key];
     if (!g.members.length) continue;
     const onlineN = g.members.filter(m => m.status !== 'offline').length;
+    // アドバイザーは常時稼働なので「常時稼働」表記、それ以外は「オンライン N」
+    const statusLabel = key === 'advisor' ? '常時稼働' : ('オンライン ' + onlineN);
     html += '<div class="member-group" style="background:' + g.bg + ';color:' + g.color + ';border-radius:6px;padding:6px 10px;margin:6px 4px 2px;display:flex;align-items:center;justify-content:space-between;">' +
             '<span>' + g.title + ' (' + g.members.length + ')</span>' +
-            '<span style="font-size:9px;opacity:0.7;">オンライン ' + onlineN + '</span>' +
+            '<span style="font-size:9px;opacity:0.7;">' + statusLabel + '</span>' +
             '</div>';
     for (const u of g.members) html += memberRowHtml(u);
   }
@@ -4043,9 +4528,9 @@ function readingOf(name) {
   return name;
 }
 
-// ===== Google Cloud TTS による汎用読み上げ (葵と同じ /api/voice/tts を使用) =====
+// ===== Google Cloud TTS による汎用読み上げ (総合案内と同じ /api/voice/tts を使用) =====
 // メリット: ブラウザSpeechSynthesisと違い環境差ゼロ、Neural2-B高品質
-// 葵=Neural2-B (明るい若い女性), ヘルスアドバイザー=Wavenet-A (落ち着いた女性、pitch低め)
+// 総合案内=Neural2-B (明るい若い女性), ヘルスアドバイザー=Wavenet-A (落ち着いた女性、pitch低め)
 const _ttsBlobCache = new Map();  // (text|voice|speed|pitch) -> blobURL
 async function speakViaTTS(text, opts) {
   opts = opts || {};
@@ -4081,22 +4566,23 @@ async function speakViaTTS(text, opts) {
 }
 
 // bot uid → TTS声プリセット
-// 葵 (受付AI):    Neural2-B / speed 1.25 / pitch +4 (高く早口で若い)
+// 総合案内 (受付AI):    Neural2-B / speed 1.25 / pitch +4 (高く早口で若い)
 // ヘルス (健康室): Wavenet-A / speed 1.10 / pitch +2 (明るめWavenet女性、躍動的+テンポ良)
 // → 両者ともに若い女性だが、エンジン (Neural2 vs Wavenet) と pitch 差で別キャラ感を出す
 function ttsOptsForBot(botUid) {
   if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
-  return { voice: 'ja-JP-Neural2-B', speed: 1.25, pitch: 4 };  // 葵 (デフォルト)
+  if (botUid === 'bot_safety') return { voice: 'ja-JP-Neural2-D', speed: 0.95, pitch: -3 };  // 男性・低め・落ち着いたテンポ
+  return { voice: 'ja-JP-Neural2-B', speed: 1.25, pitch: 4 };  // 総合案内 (デフォルト)
 }
 
 // 音声DM: 送信者が「音声モード」で送ったメッセージ本文をそのまま読み上げ。
 // speakerOn=OFFでも force で強制再生 (取込中の相手にも伝わるのが本機能の目的)。
-// fromUid が bot_aoi/bot_health なら bot 別の声 (葵=Neural2-B, ヘルス=Wavenet-A) で再生
+// fromUid が bot_aoi/bot_health なら bot 別の声 (総合案内=Neural2-B, ヘルス=Wavenet-A) で再生
 async function speakVoiceDm(content, fromUid) {
   const text = (content || '').slice(0, 500);
   if (!text) return;
   let opts = { force: true, speed: 1.1 };
-  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health')) {
+  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health' || fromUid === 'bot_safety')) {
     opts = Object.assign({ force: true }, ttsOptsForBot(fromUid));
   }
   console.log('[cohub] voice DM play:', text, 'from=' + (fromUid || '?'));
@@ -4150,8 +4636,8 @@ function announceLobbyWelcome() {
   const now = Date.now();
   if (now - _getLobbyWelcomeShown() < _LOBBY_WELCOME_COOLDOWN_MS) return;
   _setLobbyWelcomeShown(now);
-  // チャイム音のみ。スピーチは葵の bot proximity 挨拶 (「○○さん、お疲れ様です。」) に一本化済
-  // (旧: 「CoWellへようこそ」を読み上げ → 葵の挨拶と音声がかぶる問題があったため廃止)
+  // チャイム音のみ。スピーチは総合案内の bot proximity 挨拶 (「○○さん、お疲れ様です。」) に一本化済
+  // (旧: 「CoWellへようこそ」を読み上げ → 総合案内の挨拶と音声がかぶる問題があったため廃止)
   playEnterLeaveChime(true);
   console.log('[cohub] lobby chime only (welcome speech delegated to bot_aoi)');
 }
@@ -4471,7 +4957,7 @@ function sendDM() {
   input.value = '';
 }
 
-// ===== 🎤 音声会話モード (葵 / ヘルス専用) =====
+// ===== 🎤 音声会話モード (総合案内 / ヘルス専用) =====
 // 設計: continuous=false の単発認識を、TTS再生終了→0.8秒後に1回だけ再起動する形で繋ぐ。
 // 自動再開ループ禁止 (Android点滅事故対策、 memory feedback_voice_no_auto_restart)。
 let voiceConvActive = false;
@@ -4528,8 +5014,8 @@ function _vcStopNow() {
 }
 
 function startVoiceConv() {
-  if (!dmPeerUid || (dmPeerUid !== 'bot_aoi' && dmPeerUid !== 'bot_health')) {
-    try { showToast('音声会話は葵・ヘルスとのDMのみ対応'); } catch (e) {}
+  if (!dmPeerUid || (dmPeerUid !== 'bot_aoi' && dmPeerUid !== 'bot_health' && dmPeerUid !== 'bot_safety')) {
+    try { showToast('音声会話はAIとのDMのみ対応'); } catch (e) {}
     return;
   }
   voiceConvActive = true;
@@ -4547,7 +5033,7 @@ function toggleVoiceConv() { voiceConvActive ? stopVoiceConv() : startVoiceConv(
 function updateMicBtn() {
   const btn = document.getElementById('dm-mic-btn');
   if (!btn) return;
-  const isBot = dmPeerUid === 'bot_aoi' || dmPeerUid === 'bot_health';
+  const isBot = dmPeerUid === 'bot_aoi' || dmPeerUid === 'bot_health' || dmPeerUid === 'bot_safety';
   btn.style.display = isBot ? '' : 'none';
   if (voiceConvActive) {
     btn.textContent = _vcRecogActive ? '🔴' : '🎤';
@@ -4560,7 +5046,7 @@ function updateMicBtn() {
     btn.style.background = 'transparent';
     btn.style.borderColor = '#cbd5e1';
     btn.style.color = '#64748b';
-    btn.title = '音声会話 (葵・ヘルス専用)';
+    btn.title = '音声会話 (総合案内・ヘルス専用)';
   }
 }
 
@@ -5129,12 +5615,12 @@ const HELP_SECTIONS = [
       <li>IBA鹿島:シアン / IBA三和:青 / スズエ:緑 / 管理職:金</li>
     </ul>
   ` },
-  { key: 'concierge', title: '🤖 受付AI 葵 / 🩺 ヘルスアドバイザー', html: `
+  { key: 'concierge', title: '🤖 受付AI 総合案内 / 🩺 ヘルスアドバイザー', html: `
     <h3>2人のAIアドバイザー</h3>
     <p>CoWellには <b>2人のAIキャラクター</b> が常駐しています。それぞれ役割と声が異なります。</p>
     <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;">
       <tr><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">場所</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">キャラ</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">役割</th><th style="text-align:left;background:#f1f5f9;padding:6px 8px;border:1px solid #e2e8f0;">声</th></tr>
-      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">🚪 1Fロビー</td><td style="padding:6px 8px;border:1px solid #e2e8f0;"><b>🌸 葵</b> (あおい)</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">受付・操作案内・予定確認</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">明るく若い (高音)</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">🚪 1Fロビー</td><td style="padding:6px 8px;border:1px solid #e2e8f0;"><b>🌸 総合案内</b> (あおい)</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">受付・操作案内・予定確認</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">明るく若い (高音)</td></tr>
       <tr><td style="padding:6px 8px;border:1px solid #e2e8f0;">🏥 健康管理室</td><td style="padding:6px 8px;border:1px solid #e2e8f0;"><b>🩺 ヘルスアドバイザー</b></td><td style="padding:6px 8px;border:1px solid #e2e8f0;">健康相談・アクションプラン作成</td><td style="padding:6px 8px;border:1px solid #e2e8f0;">落ち着いた女性 (中音、テンポ良)</td></tr>
     </table>
 
@@ -5146,7 +5632,7 @@ const HELP_SECTIONS = [
       <li><b>DMで直接質問</b> も可 (連続会話、履歴保持)</li>
     </ul>
 
-    <h4>🌸 葵 ができること</h4>
+    <h4>🌸 総合案内 ができること</h4>
     <ul>
       <li><b>機能案内</b>: フロア構成、ハドル席、肩たたき、集中中、DM等の操作ヘルプ</li>
       <li><b>カレンダー連携</b>: 「今日の予定教えて」で Google Calendar 連携 (連携済の場合)</li>
@@ -5165,7 +5651,7 @@ const HELP_SECTIONS = [
     <p>Gemini 2.5 Flash + 各 bot 専用システムプロンプト。直近10件の会話履歴を文脈保持。<br>
     ヘルスアドバイザーは血圧30/90日平均、栄養スコア、歩数等を context として注入し個別化。</p>
     <p>挨拶 (TTS): Google Cloud Text-to-Speech<br>
-    - 葵: <code>ja-JP-Neural2-B</code> / speed 1.25 / pitch +4<br>
+    - 総合案内: <code>ja-JP-Neural2-B</code> / speed 1.25 / pitch +4<br>
     - ヘルス: <code>ja-JP-Wavenet-A</code> / speed 1.10 / pitch +2</p>
 
     <div class="warn">⚠ AIは医療診断・薬剤推奨は行いません。緊急時は119、症状判断は産業医・主治医を優先してください。</div>
@@ -5440,11 +5926,11 @@ function toggleSpeaker() {
   for (const [, peer] of voice.peers) {
     if (peer.audio) peer.audio.muted = !speakerOn;
   }
-  // ミュート時は葵の読み上げも停止
+  // ミュート時は総合案内の読み上げも停止
   if (!speakerOn) stopAoiSpeech();
 }
 
-// ===== 葵の読み上げ (Google Cloud TTS / CoWell流) =====
+// ===== 総合案内の読み上げ (Google Cloud TTS / CoWell流) =====
 let _aoiAudio = null;
 let _aoiAudioUrl = null;
 const AOI_VOICE = 'ja-JP-Neural2-B';    // CoWellと同じデフォルト女声
@@ -6158,10 +6644,27 @@ function applyFloorLayout(floor) {
   // (旧: wellness-records-door の表示制御はヘルスメニュー最上位ボタンへ統合済)
   // 健康管理室: 推進メンバー or 管理職にだけ運営ダッシュボード入室ボタンを表示
   const opsDoor = document.getElementById('wellness-ops-door');
-  if (opsDoor) {
-    const canSeeOps = isWellnessRoom && currentUser
-      && (currentUser.is_field_promoter || currentUser.employee_type === 'admin' || currentUser.role === 'admin');
-    opsDoor.style.display = canSeeOps ? 'inline-flex' : 'none';
+  const orientDoor = document.getElementById('wellness-orientation-door');
+  const canSeePromoter = isWellnessRoom && currentUser
+    && (currentUser.is_field_promoter || currentUser.employee_type === 'admin' || currentUser.role === 'admin');
+  if (opsDoor) opsDoor.style.display = canSeePromoter ? 'inline-flex' : 'none';
+  if (orientDoor) orientDoor.style.display = canSeePromoter ? 'inline-flex' : 'none';
+  // 事故対策室: スクリーン掲示ボタン+事故報告書ボタン
+  const isAccidentRoom = floor && floor.code === 'field_accident';
+  const accUpBtn = document.getElementById('accident-screen-upload-btn');
+  const accDocBtn = document.getElementById('accident-report-door');
+  if (accUpBtn) accUpBtn.style.display = isAccidentRoom ? 'inline-flex' : 'none';
+  if (accDocBtn) accDocBtn.style.display = isAccidentRoom ? 'inline-flex' : 'none';
+  // 入室時に最新スクリーン投稿を取得 (描画時にも fetch するが、入室直後は即時)
+  if (isAccidentRoom) { try { _accidentPostsFetchedAt = 0; loadAccidentPosts(); } catch (e) {} }
+  else {
+    // 退室時: 動画再生を停止 (CPU/帯域節約)
+    try {
+      for (const k in _accidentMediaCache) {
+        const m = _accidentMediaCache[k];
+        if (m && m.type === 'video' && m.el) { try { m.el.pause(); } catch (e) {} }
+      }
+    } catch (e) {}
   }
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
@@ -6484,7 +6987,7 @@ const BOT_TRIGGER_R = 100;   // この距離内で発動 (受付台に立つ近�
 const BOT_RESET_R = 200;     // この距離超で再武装
 const BOT_REARM_MS = 60000;  // 発動後60秒は再発動しない (DM閉じてから接近)
 // AI bot に接近した時の用件選択モーダル
-// 葵 (lobby) は DM/別フロア/予定 の3択
+// 総合案内 (lobby) は DM/別フロア/予定 の3択
 // ヘルスアドバイザー (wellness_room) は DM/別フロア/個人健康記録 の3択
 let _aoiModalOpenAt = 0;
 function showAoiActionModal(botUid, botName) {
@@ -6494,8 +6997,11 @@ function showAoiActionModal(botUid, botName) {
   if (document.getElementById('aoi-action-modal')) return;
   _aoiModalOpenAt = now;
   const isHealth = botUid === 'bot_health';
-  const greetSub = isHealth ? 'ご用件をお選びください' : 'ご用件をお選びください';
-  const dmSub = isHealth ? '健康データを踏まえてアドバイスします' : 'AIに質問やお願いができます';
+  const isSafety = botUid === 'bot_safety';
+  const greetSub = isSafety ? '事故・破損・ヒヤリハット相談' : 'ご用件をお選びください';
+  const dmSub = isHealth ? '健康データを踏まえてアドバイスします'
+              : isSafety ? '事実関係から再発防止策まで一緒に整理します'
+              : 'AIに質問やお願いができます';
   // ヘルスアドバイザー: 「アクションプラン作成」をDMより上の主役ボタンに
   const planBtn = isHealth
     ? `<button onclick="aoiAction('plan', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;text-align:left;box-shadow:0 4px 12px rgba(59,130,246,0.3);">
@@ -6510,10 +7016,23 @@ function showAoiActionModal(botUid, botName) {
         <div style="flex:1;"><div>個人健康記録を見る</div><div style="font-size:11px;font-weight:600;opacity:0.95;">血圧・健康メモ・健診結果</div></div>
       </button>`
     : '';
-  const scheduleBtn = !isHealth
+  const scheduleBtn = (!isHealth && !isSafety)
     ? `<button onclick="aoiAction('schedule', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
         <span style="font-size:22px;">📅</span>
         <div style="flex:1;"><div>今日の予定を確認</div><div style="font-size:11px;font-weight:400;color:#64748b;">Google カレンダーから取得</div></div>
+      </button>`
+    : '';
+  // 安全管理者: スクリーン掲示+事故報告書ボタン
+  const screenBtn = isSafety
+    ? `<button onclick="aoiAction('screen', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;text-align:left;box-shadow:0 4px 12px rgba(220,38,38,0.3);">
+        <span style="font-size:22px;">📷</span>
+        <div style="flex:1;"><div>前面スクリーンに掲示</div><div style="font-size:11px;font-weight:600;opacity:0.95;">事故・破損の写真/動画を共有</div></div>
+      </button>`
+    : '';
+  const reportBtn = isSafety
+    ? `<button onclick="aoiAction('report', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        <span style="font-size:22px;">📄</span>
+        <div style="flex:1;"><div>事故報告書を開く</div><div style="font-size:11px;font-weight:400;opacity:0.85;">製品事故 / 車両事故</div></div>
       </button>`
     : '';
   const modal = document.createElement('div');
@@ -6523,16 +7042,18 @@ function showAoiActionModal(botUid, botName) {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-        <div style="width:42px;height:42px;border-radius:50%;background:${isHealth ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;">${isHealth ? '🩺' : '🤖'}</div>
+        <div style="width:42px;height:42px;border-radius:50%;background:${isHealth ? 'linear-gradient(135deg,#10b981,#059669)' : isSafety ? 'linear-gradient(135deg,#dc2626,#991b1b)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;">${isHealth ? '🩺' : isSafety ? '🚨' : '🤖'}</div>
         <div>
-          <div style="font-size:14px;font-weight:800;color:#0f172a;">${(botName || '葵').replace(/[<>"&]/g, '')}</div>
+          <div style="font-size:14px;font-weight:800;color:#0f172a;">${(botName || '総合案内').replace(/[<>"&]/g, '')}</div>
           <div style="font-size:11px;color:#64748b;">${greetSub}</div>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
         ${recordsBtn}
         ${planBtn}
-        <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${isHealth ? 'linear-gradient(135deg,#06b6d4,#0891b2)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        ${screenBtn}
+        ${reportBtn}
+        <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${isSafety ? 'linear-gradient(135deg,#475569,#1e293b)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
           <span style="font-size:22px;">💬</span>
           <div style="flex:1;"><div>DMで話す</div><div style="font-size:11px;font-weight:400;opacity:0.9;">${dmSub}</div></div>
         </button>
@@ -6560,7 +7081,7 @@ function aoiAction(action, botUid) {
     const cy = window.innerHeight / 2;
     showSelfFloorMenu(cx, cy);
   } else if (action === 'schedule') {
-    // DM を開いて自動で「今日の予定を教えてください」を送信 → 葵が Google Calendar 連携で答える
+    // DM を開いて自動で「今日の予定を教えてください」を送信 → 総合案内が Google Calendar 連携で答える
     openDmWith(botUid);
     setTimeout(() => {
       const inp = document.querySelector('#dm-panel textarea, #dm-input, [data-dm-input]');
@@ -6573,6 +7094,12 @@ function aoiAction(action, botUid) {
   } else if (action === 'records') {
     // 個人健康記録ページ (/wellness.html) を別タブで開く
     window.open('/wellness.html', '_blank');
+  } else if (action === 'screen') {
+    // 事故対策室: 前面スクリーン掲示モーダル
+    try { openAccidentScreenUpload(); } catch (e) {}
+  } else if (action === 'report') {
+    // 事故報告書ページ
+    window.open('/accident.html', '_blank');
   } else if (action === 'plan') {
     // 健康相談 → アクションプラン作成フロー (consult.html)
     location.href = '/consult.html';
