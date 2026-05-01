@@ -319,6 +319,26 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   .help-tabs button.active { border-bottom-color: #06b6d4; }
 }
 
+/* アバター初回挨拶カード (フロア入室時、初見ユーザーへのメニュー提示) */
+/* 画面上部・横中央に配置: キャラクター(画面中央〜下に居る)と重ならず、視線がまず行く位置 */
+.avatar-intro-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 35; width: 320px; max-width: calc(100% - 32px); background: #fff; border-radius: 14px; box-shadow: 0 12px 36px rgba(15,23,42,0.18), 0 4px 12px rgba(15,23,42,0.08); border: 1px solid rgba(15,23,42,0.06); transition: opacity 0.4s ease, transform 0.3s ease; animation: aicAppear 0.35s ease-out; }
+.avatar-intro-card.dim { opacity: 0.55; }
+.avatar-intro-card.dim:hover { opacity: 1; }
+@keyframes aicAppear { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.avatar-intro-card .aic-head { padding: 12px 14px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(15,23,42,0.06); position: relative; }
+.avatar-intro-card .aic-icon { width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 6px rgba(8,145,178,0.3); }
+.avatar-intro-card .aic-title { flex: 1; font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.35; }
+.avatar-intro-card .aic-title .aic-sub { display: block; font-size: 10px; font-weight: 500; color: #64748b; margin-top: 2px; }
+.avatar-intro-card .aic-close { background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.avatar-intro-card .aic-close:hover { background: #f1f5f9; color: #475569; }
+.avatar-intro-card .aic-actions { padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.avatar-intro-card .aic-btn { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: #334155; text-align: left; transition: background 0.12s; }
+.avatar-intro-card .aic-btn:hover { background: #f1f5f9; border-color: #e2e8f0; }
+.avatar-intro-card .aic-btn .aic-emoji { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; }
+@media (max-width: 700px) {
+  .avatar-intro-card { top: 52px; width: 92%; }
+}
+
 /* 画面共有受信オーバーレイ */
 .screen-overlay { position: fixed; top: 60px; left: 112px; right: 300px; bottom: 90px; background: #000; border-radius: 12px; overflow: hidden; z-index: 40; box-shadow: 0 20px 60px rgba(0,0,0,0.5); display: flex; }
 .screen-overlay video { width: 100%; height: 100%; object-fit: contain; background: #000; }
@@ -595,17 +615,18 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-groups" onclick="openGroupsPanel()" title="グループ" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.35);color:#0369a1;">
       <span>🗨</span><span class="lbl">グループ</span><span class="cnt" id="rail-groups-cnt" style="display:none;">0</span>
     </button>
-    <button class="rail-btn" id="rail-health" onclick="openDM('bot_health')" title="ヘルスアドバイザーに相談" style="background:rgba(20,184,166,0.10);border:1px solid rgba(20,184,166,0.35);color:#0f766e;">
-      <span>🩺</span><span class="lbl">ヘルス</span>
-    </button>
+    <!-- 旧: ヘルス DMボタン (撤去 2026-05-01: 健康管理室入室時のアバター挨拶カードへ動線統合) -->
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
-      <span>🩺</span><span class="lbl">現場の声</span>
+      <span>📣</span><span class="lbl">現場の声</span>
     </button>
     <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
       <span>🌳</span><span class="lbl">ひろば</span><span class="cnt" id="rail-plaza-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" onclick="location.href='/myplan.html'" title="今日の一歩、明日の自分 — あなたのアクションプラン" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.35);color:#1e3a8a;">
       <span>👣</span><span class="lbl">今日の一歩</span>
+    </button>
+    <button class="rail-btn" onclick="location.href='/walk.html'" title="Connect 230 — 東京⇔磐田を歩いて繋ぐ" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
+      <span>🚶</span><span class="lbl">Connect 230</span>
     </button>
     <button class="rail-btn" onclick="location.href='/challenges.html'" title="チャレンジ" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);color:#b45309;">
       <span>🏆</span><span class="lbl">チャレンジ</span>
@@ -725,7 +746,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     </div>
     <!-- 旧: 健康管理室左上に「📋 健康記録」緑ボタン (撤去: ヘルスメニュー最上位の同ボタンと重複していたため) -->
     <!-- 健康管理室: 推進メンバー専用 運営ダッシュボード入室ボタン -->
-    <button id="wellness-ops-door" onclick="window.open('/wellness-ops.html','_blank')"
+    <button id="wellness-ops-door" onclick="openExternalPage('/wellness-ops.html')"
       style="display:none;position:absolute;top:46px;left:8px;z-index:9;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.4);align-items:center;gap:8px;">
       <span style="font-size:16px;">🚪</span>
       <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
@@ -734,7 +755,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       </span>
     </button>
     <!-- 健康管理室: 帝京大学西村先生オリエンテーション入室ボタン (推進メンバー/管理職限定) -->
-    <button id="wellness-orientation-door" onclick="window.open('/orientation.html','_blank')"
+    <button id="wellness-orientation-door" onclick="openExternalPage('/orientation.html')"
       style="display:none;position:absolute;top:108px;left:8px;z-index:9;background:linear-gradient(135deg,#0f766e,#047857);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(15,118,110,0.4);align-items:center;gap:8px;">
       <span style="font-size:16px;">📖</span>
       <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
@@ -742,23 +763,30 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
         <span>推進メンバーへの<br>メッセージ (4分・音声付)</span>
       </span>
     </button>
-    <!-- 事故対策室: スクリーンに掲示する/事故報告書を開く -->
-    <button id="accident-screen-upload-btn" onclick="openAccidentScreenUpload()"
-      style="display:none;position:absolute;top:46px;left:8px;z-index:9;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(220,38,38,0.4);align-items:center;gap:8px;">
-      <span style="font-size:16px;">📷</span>
-      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
-        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">前面スクリーンへ</span>
-        <span>事故・破損 写真/動画を掲示</span>
-      </span>
+    <!-- 2026-04-30: 事故対策室の左上ボタン3つは安全管理者メニューに統合済み -->
+    <!-- 2026-05-01: スクリーン拡大に合わせて操作パネルを画面下端に密着・小型化 -->
+    <div id="accident-narrate-wrap" style="display:none;position:absolute;top:78%;left:50%;transform:translate(-50%,0);z-index:9;align-items:center;gap:4px;background:rgba(15,23,42,0.7);padding:3px 8px;border-radius:18px;backdrop-filter:blur(4px);box-shadow:0 4px 12px rgba(0,0,0,0.35);">
+      <button id="accident-prev-btn" onclick="accidentSlideStep(-1)" title="前のスライド"
+        style="background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:50%;width:24px;height:24px;font-size:11px;font-weight:800;cursor:pointer;padding:0;">◀</button>
+      <button id="accident-narrate-btn" onclick="toggleAccidentNarration()"
+        style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border:1px solid rgba(220,38,38,0.6);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-width:78px;justify-content:center;">
+        <span id="accident-narrate-icon" style="font-size:11px;">🔊</span>
+        <span id="accident-narrate-label">音声解説</span>
+      </button>
+      <button id="accident-pause-btn" onclick="togglePauseAccidentNarration()" title="一時停止 / 再開"
+        style="background:#1e293b;color:#fff;border:1px solid rgba(254,243,199,0.4);border-radius:50%;width:24px;height:24px;font-size:11px;font-weight:800;cursor:pointer;display:none;padding:0;">⏸</button>
+      <button id="accident-next-btn" onclick="accidentSlideStep(1)" title="次のスライド"
+        style="background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:50%;width:24px;height:24px;font-size:11px;font-weight:800;cursor:pointer;padding:0;">▶</button>
+      <button id="accident-narrate-speed" onclick="cycleNarrateSpeed()" title="読み上げ速度 (停止中のみ変更可)"
+        style="background:#1e293b;color:#fde68a;border:1px solid rgba(254,243,199,0.4);border-radius:11px;padding:2px 7px;font-size:9px;font-weight:800;cursor:pointer;">×1.0</button>
+    </div>
+    <!-- 2026-05-01: 番組表ボタンを独立配置 (やや大型・テキスト付き) -->
+    <button id="accident-guide-btn-v2" onclick="toggleAccidentScreenMenu()" title="事故映像・解説のファイル一覧を開く"
+      style="display:none;position:absolute;top:14%;left:2%;z-index:10;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border:2px solid rgba(254,243,199,0.5);border-radius:14px;padding:10px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(220,38,38,0.35);flex-direction:column;align-items:center;gap:4px;line-height:1.1;">
+      <span style="font-size:26px;">📺</span>
+      <span>事故映像・解説</span>
     </button>
-    <button id="accident-report-door" onclick="window.open('/accident.html','_blank')"
-      style="display:none;position:absolute;top:108px;left:8px;z-index:9;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,0.45);align-items:center;gap:8px;">
-      <span style="font-size:16px;">📄</span>
-      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
-        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">記録</span>
-        <span>事故報告書を開く</span>
-      </span>
-    </button>
+
     <div id="floor-head">
       <span class="dot"></span>
       <span id="floor-name">ロビー</span>
@@ -2032,9 +2060,10 @@ function resize() {
 
 let stdLogo = null;
 let orchidImage = null;
+let safetyStickerImage = null;  // 事故対策室の安全三箇条ステッカー
 function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = (src || '/assets/office_bg.png') + '?v=30';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=39';
   if (!stdLogo) {
     stdLogo = new Image();
     stdLogo.src = '/assets/std_logo.png?v=1';
@@ -2042,6 +2071,10 @@ function loadBackground(src) {
   if (!orchidImage) {
     orchidImage = new Image();
     orchidImage.src = '/assets/orchid_white.png?v=1';
+  }
+  if (!safetyStickerImage) {
+    safetyStickerImage = new Image();
+    safetyStickerImage.src = '/assets/safety_three_rules_sticker.png?v=1';
   }
 }
 
@@ -2112,6 +2145,10 @@ function connectSocket() {
       if (data.floor.code === 'wellness_room' && prevCode !== 'wellness_room') {
         try { setTimeout(() => announceWellnessRoomIntro(), 1200); } catch (e) {}
       }
+      // アバター在室フロアの初回入室時: 浮遊メニューカードを出して初見ユーザーに「何ができるか」を提示
+      if (prevCode !== data.floor.code) {
+        try { setTimeout(() => showAvatarIntroCard(data.floor.code), 800); } catch (e) {}
+      }
       WORLD_W = data.floor.world_w || 1344;
       WORLD_H = data.floor.world_h || 768;
       const fname = document.getElementById('floor-name');
@@ -2151,9 +2188,12 @@ function connectSocket() {
   });
 
   socket.on('user:leave', (u) => {
-    // 別フロアに移った人は自フロアから消す (音声アナウンスは user:logout で扱う)
+    // 別フロアに移った人は自フロアCanvasから消す (座標だけクリア)。
+    // users[] から削除すると左メンバーパネルからも消えてしまうため保持し、
+    // floor情報は後続の user:floor で更新される。
     if (users[u.uid]) {
-      delete users[u.uid];
+      users[u.uid].cx = null;
+      users[u.uid].cy = null;
       delete targets[u.uid];
       renderMemberList();
     }
@@ -2440,6 +2480,109 @@ function connectSocket() {
     if (data.offline) users[data.uid].status = 'offline';
     renderMemberList();
   });
+  // 事故対策室: 他メンバーのスクリーン操作を受信して同期
+  socket.on('accident:control', (action) => {
+    if (!action || !action.type) return;
+    console.log('[accident:control RX]', action.type, 'from=', action.by, 'floor=', currentFloor && currentFloor.code);
+    if (!currentFloor || currentFloor.code !== 'field_accident') {
+      console.warn('[accident:control RX] ignored (not in accident room)');
+      return;
+    }
+    _suppressAccidentBroadcast = true;   // 受信中は再送信を抑制 (ループ防止)
+    try {
+      switch (action.type) {
+        case 'mode': {
+          if (action.mode === 'menu') {
+            _accidentMenuFiles = _buildAccidentMenuFiles();
+            _accidentScreenMode = 'menu';
+          } else if (action.mode === 'idle') {
+            _accidentScreenMode = 'idle';
+            _accidentMenuRects = [];
+            _accidentMenuDeleteRects = [];
+          } else if (action.mode === 'play') {
+            _accidentScreenMode = 'play';
+          }
+          break;
+        }
+        case 'select': {
+          if (typeof action.slotIdx === 'number') {
+            _accidentSlotIndex = action.slotIdx;
+            _accidentSlotStartedAt = Date.now();
+            _accidentScreenMode = 'play';
+            _accidentMenuRects = [];
+          }
+          break;
+        }
+        case 'step': {
+          if (typeof action.slotIdx === 'number') {
+            _accidentSlotIndex = action.slotIdx;
+            _accidentSlotStartedAt = Date.now();
+            if (_accidentScreenMode !== 'play') _accidentScreenMode = 'play';
+          }
+          break;
+        }
+        case 'narrate-start': {
+          if (typeof action.slotIdx === 'number') {
+            _accidentSlotIndex = action.slotIdx;
+            _accidentSlotStartedAt = Date.now();
+            _accidentScreenMode = 'play';
+          }
+          if (action.text) {
+            // 既存音声再生中なら停止 (送信側がスライドを送ったので新音声に切替)
+            if (_accidentNarrateAudio) {
+              try { _accidentNarrateAudio.pause(); } catch (e) {}
+              _accidentNarrateAudio = null;
+            }
+            const f = (typeof action.speedFactor === 'number') ? action.speedFactor : _accidentNarrateSpeedFactor;
+            _accidentNarrating = true;
+            _accidentNarratePaused = false;
+            _accidentNarrateAbort = false;
+            _setAccidentNarrateBtn(true);
+            _updateSpeedBtnEnabled();
+            (async () => {
+              const oldFactor = _accidentNarrateSpeedFactor;
+              _accidentNarrateSpeedFactor = f;
+              try { await _accidentSpeakText(action.text); } catch (e) {}
+              _accidentNarrateSpeedFactor = oldFactor;
+              // 自然終了時は次のnarrate-startを待つので状態維持。明示的なnarrate-end/stopで戻す。
+            })();
+          }
+          break;
+        }
+        case 'narrate-stop':
+        case 'narrate-end': {
+          if (_accidentNarrating) {
+            _accidentNarrateAbort = true;
+            if (_accidentNarrateAudio) { try { _accidentNarrateAudio.pause(); } catch (e) {} _accidentNarrateAudio = null; }
+            _accidentNarrating = false;
+            _accidentNarratePaused = false;
+            _setAccidentNarrateBtn(false);
+            _updateSpeedBtnEnabled();
+          }
+          break;
+        }
+        case 'narrate-pause': {
+          if (_accidentNarrateAudio && !_accidentNarratePaused) {
+            try { _accidentNarrateAudio.pause(); } catch (e) {}
+            _accidentNarratePaused = true;
+            _setAccidentNarrateBtn(true);
+          }
+          break;
+        }
+        case 'narrate-resume': {
+          if (_accidentNarrateAudio && _accidentNarratePaused) {
+            try { _accidentNarrateAudio.play(); } catch (e) {}
+            _accidentNarratePaused = false;
+            _setAccidentNarrateBtn(true);
+          }
+          break;
+        }
+      }
+    } finally {
+      _suppressAccidentBroadcast = false;
+    }
+  });
+
   socket.on('user:join', (u) => {
     // 新規接続者のフル情報（name, company, ring, avatar 付き）
     users[u.uid] = u;
@@ -2603,7 +2746,7 @@ function loadAvatar(u) {
 const BOT_STANDING = {
   'bot_aoi':    '/assets/concierge_aoi_full.png?v=2',
   'bot_health': '/assets/concierge_health_full.png?v=4',
-  'bot_safety': '/assets/concierge_safety_full.png?v=1',
+  'bot_safety': '/assets/concierge_safety_full.png?v=3',
 };
 const botStandingImages = {};   // botUid → { canvas, w, h }
 let conciergeFull = null;       // 後方互換: bot_aoi のショートカット参照
@@ -2686,7 +2829,9 @@ function hitTestSelf(worldX, worldY) {
 function onPointerDown(e) {
   const rect = canvas.getBoundingClientRect();
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-  // 最優先: bot 頭上の「メニューを開く」ボタン (移動せずにメニュー即開)
+  // 最優先: 事故対策室の番組表メニュー (スクリーン上のファイルタップ)
+  try { if (handleAccidentScreenClick(world.x, world.y)) return; } catch (err) {}
+  // 次優先: bot 頭上の「メニューを開く」ボタン (移動せずにメニュー即開)
   const btn = hitTestBotMenuButton(world.x, world.y);
   if (btn) {
     try { showAoiActionModal(btn.uid, btn.name); } catch (err) {}
@@ -2701,7 +2846,7 @@ function onPointerDown(e) {
   if (peer) {
     // bot をタップ → 中間ピアメニューを飛ばして 直接 アクションメニューモーダル
     if (peer.role === 'bot') {
-      try { showAoiActionModal(peer.uid, peer.name || (peer.uid === 'bot_health' ? 'ヘルスアドバイザー' : peer.uid === 'bot_safety' ? '安全管理者' : '総合案内')); } catch (err) {}
+      try { showAoiActionModal(peer.uid, peer.name || (peer.uid === 'bot_health' ? 'ヘルスアドバイザー' : peer.uid === 'bot_safety' ? '安全太郎' : '総合案内')); } catch (err) {}
       return;
     }
     // 他人のアバターをタップ → 移動せずピアメニュー表示
@@ -2763,7 +2908,7 @@ function render() {
   const FIRST_PERSON_BOT = {
     'lobby':          { uid: 'bot_aoi',    x: 880, y: 530, clip: false },  // 右寄り、左手で背壁ロゴを紹介する向き
     'wellness_room':  { uid: 'bot_health', x: 1100, y: 500, clip: false, flipH: true },
-    'field_accident': { uid: 'bot_safety', x: 1100, y: 500, clip: false },
+    'field_accident': { uid: 'bot_safety', x: 1230, y: 540, clip: false },  // 2026-04-30: スクリーン最大化に伴い右端へ寄せる
   };
   const LOBBY_COUNTER_TOP_Y = 465;
 
@@ -2826,6 +2971,7 @@ function render() {
     try { drawWellnessWhiteboard(); } catch (e) {}
   }
   // 事故対策室: 前面ビデオスクリーンに最新の事故/破損メディアを流す
+  // (壁ステッカーオーバーレイは廃止 — スクリーンのデフォルト表示として組み込み)
   if (currentFloor && currentFloor.code === 'field_accident') {
     try { drawAccidentScreen(); } catch (e) {}
   }
@@ -3290,12 +3436,14 @@ function drawWellnessWhiteboard() {
 // ===== 事故対策室: 前面ビデオスクリーン =====
 // 前面壁面の大型スクリーン領域 (背景画像のスクリーン部分にオーバーレイ)
 // 投稿された写真/動画を順番にループ再生
-const ACCIDENT_SCREEN = { x: 360, y: 130, w: 620, h: 290 };
+// 2026-05-01: スクリーン位置を元に戻す (y:140)
+const ACCIDENT_SCREEN = { x: 200, y: 110, w: 940, h: 480 };
 let _accidentPosts = [];
 let _accidentPostsFetchedAt = 0;
 let _accidentSlotIndex = 0;          // 現在再生中の投稿index
 let _accidentSlotStartedAt = 0;      // 現在のスロットを開始した時刻
 const ACCIDENT_IMAGE_DURATION_MS = 6000;   // 写真の表示秒数
+const ACCIDENT_TEXT_DURATION_MS = 14000;   // テキストスライドの表示秒数 (読む時間を確保)
 const _accidentMediaCache = {};      // post.id → { type, el, ready }
 
 function loadAccidentPosts() {
@@ -3324,6 +3472,11 @@ function _ensureAccidentMedia(post) {
     v.addEventListener('loadeddata', () => { slot.ready = true; });
     v.play().catch(() => {});  // 自動再生 (mutedなので大抵通る)
     slot.el = v;
+  } else if (post.media_type === 'text') {
+    // テキストスライドは即時 ready
+    slot.ready = true;
+    slot.title = post.caption || '';
+    slot.body = post.text_body || '';
   } else {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -3333,6 +3486,150 @@ function _ensureAccidentMedia(post) {
   }
   _accidentMediaCache[post.id] = slot;
   return slot;
+}
+
+// テキストスライドを canvas に描画
+function _drawAccidentTextSlide(slot, x, y, w, h) {
+  // 背景: 紺〜黒のグラデーション (プレゼン風)
+  const grad = ctx.createLinearGradient(x, y, x, y + h);
+  grad.addColorStop(0, '#0f172a'); grad.addColorStop(1, '#000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, w, h);
+  // 上部の赤いアクセントバー
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(x, y, w, 6);
+  // 継続ページ判定 — (2/N)以降はタイトル非表示
+  const isContSlide = _isContinuationSlide(slot.title);
+  const titleX = x + 32;
+  let cy = y + 26;
+  if (!isContSlide) {
+    // タイトル
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = '900 26px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const titleLines = wrapText(slot.title || '', w - 64, ctx);
+    for (const line of titleLines.slice(0, 2)) {
+      ctx.fillText(line, titleX, cy);
+      cy += 32;
+    }
+    // タイトル下の区切り線
+    ctx.strokeStyle = 'rgba(254,243,199,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(titleX, cy + 4); ctx.lineTo(x + w - 32, cy + 4); ctx.stroke();
+    cy += 18;
+  } else {
+    // 継続ページ: 右上に小さく "2/3" のようなページ番号だけ表示
+    const m = /\((\d+\/\d+)\)\s*$/.exec(slot.title || '');
+    if (m) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '600 12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('p.' + m[1], x + w - 18, y + 14);
+    }
+    cy = y + 28;
+  }
+  // 本文 (改行と・箇条書き対応) — 260字チャンクが確実に収まるサイズ
+  const BODY_FONT_SIZE = 17;
+  const BODY_LINE_HEIGHT = 23;
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '500 ' + BODY_FONT_SIZE + 'px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const bodyLines = [];
+  for (const para of (slot.body || '').split('\n')) {
+    if (!para) { bodyLines.push(''); continue; }
+    const wrapped = wrapText(para, w - 64, ctx);
+    bodyLines.push(...wrapped);
+  }
+  // 表示できる行数を計算
+  const maxLines = Math.floor((y + h - cy - 12) / BODY_LINE_HEIGHT);
+  // 行数オーバー時は自動で文字サイズをさらに縮小して全行表示する
+  let drawFontSize = BODY_FONT_SIZE;
+  let drawLineHeight = BODY_LINE_HEIGHT;
+  let drawLines = bodyLines;
+  if (bodyLines.length > maxLines) {
+    // 縮小率を計算 (最大2段階まで縮小)
+    const ratio = maxLines / bodyLines.length;
+    drawFontSize = Math.max(13, Math.floor(BODY_FONT_SIZE * ratio));
+    drawLineHeight = Math.max(17, Math.floor(BODY_LINE_HEIGHT * ratio));
+    // 縮小したフォントで再ラップ (横幅も収まり直しが必要)
+    ctx.font = '500 ' + drawFontSize + 'px sans-serif';
+    drawLines = [];
+    for (const para of (slot.body || '').split('\n')) {
+      if (!para) { drawLines.push(''); continue; }
+      const wrapped = wrapText(para, w - 64, ctx);
+      drawLines.push(...wrapped);
+    }
+  }
+  ctx.font = '500 ' + drawFontSize + 'px sans-serif';
+  // ナレーション中の文単位ハイライト位置を計算
+  // TTSはタイトル+本文を順に読むので、本文のハイライトは「タイトル分の時間」を引いて算出
+  let activeLineIdx = -1;
+  if (_accidentNarrating && _accidentNarrateAudio && _accidentNarrateAudio.duration > 0) {
+    // 0.4秒のディレイを入れる (ハイライトが先行しないように)
+    const cur = Math.max(0, (_accidentNarrateAudio.currentTime || 0) - 0.4);
+    const dur = _accidentNarrateAudio.duration;
+    // タイトル文字数と本文文字数を算出 (TTSに渡したテキストと同じ加工)
+    const isContSlide = _isContinuationSlide(slot.title);
+    const titleStripped = isContSlide ? '' : _stripEmojiForTts((slot.title || '').replace(/\s*\(\d+\/\d+\)\s*$/, ''));
+    const bodyStripped = _stripEmojiForTts((slot.body || '').replace(/【([^】]+)】/g, '$1。').replace(/^[・]\s*/gm, ''));
+    const titleLen = titleStripped.length + (titleStripped ? 1 : 0);   // +1 for "。"
+    const totalLen = titleLen + bodyStripped.length;
+    if (totalLen > 0 && bodyStripped.length > 0) {
+      // 音声全体の進行を文字位置に変換
+      const charPosTts = (cur / dur) * totalLen;
+      const charPosBody = charPosTts - titleLen;
+      if (charPosBody > 0) {
+        // 本文中の何文字目に該当するか → 描画行 (折返し後) を逆算
+        const bodyRatio = Math.min(1, charPosBody / bodyStripped.length);
+        activeLineIdx = Math.min(drawLines.length - 1, Math.floor(bodyRatio * drawLines.length));
+      } else {
+        activeLineIdx = -1;   // タイトル読み上げ中は本文ハイライトしない
+      }
+    }
+  }
+  for (let li = 0; li < drawLines.length; li++) {
+    const line = drawLines[li];
+    const isActive = (li === activeLineIdx);
+    if (isActive) {
+      // 活性行: 黄色背景バー + 太字風の濃い黄色テキスト
+      const lineW = ctx.measureText(line).width;
+      ctx.fillStyle = 'rgba(254,243,199,0.22)';
+      ctx.fillRect(titleX - 6, cy - 3, Math.min(lineW + 12, w - 50), drawLineHeight);
+      ctx.fillStyle = '#fef3c7';
+    } else if (li < activeLineIdx) {
+      // 既読: 薄白
+      ctx.fillStyle = '#cbd5e1';
+    } else if (line.startsWith('・') || line.startsWith('【')) {
+      ctx.fillStyle = '#fde68a';
+    } else {
+      ctx.fillStyle = '#f8fafc';
+    }
+    ctx.fillText(line, titleX, cy);
+    cy += drawLineHeight;
+    if (cy > y + h - 8) break;
+  }
+}
+
+// テキスト折り返し (canvas用)
+function wrapText(text, maxWidth, ctx) {
+  const lines = [];
+  for (const para of String(text || '').split('\n')) {
+    if (!para) { lines.push(''); continue; }
+    let buf = '';
+    for (const ch of para) {
+      const test = buf + ch;
+      if (ctx.measureText(test).width > maxWidth && buf) {
+        lines.push(buf); buf = ch;
+      } else {
+        buf = test;
+      }
+    }
+    if (buf) lines.push(buf);
+  }
+  return lines;
 }
 
 function drawAccidentScreen() {
@@ -3351,24 +3648,83 @@ function drawAccidentScreen() {
   ctx.fillStyle = '#000';
   roundRect(x, y, w, h, 4); ctx.fill();
 
+  // 番組表モード: ファイル一覧を描画 (タップで選択)
+  if (_accidentScreenMode === 'menu' && _accidentPosts.length) {
+    ctx.save();
+    ctx.beginPath(); roundRect(x, y, w, h, 4); ctx.clip();
+    _drawAccidentMenuOnScreen(x, y, w, h);
+    ctx.restore();
+    return;
+  }
+
+  // idle モード: 入室直後・ファイル未選択時のデフォルト表示 (安全三箇条ステッカーをスクリーンセーバー風に大きく表示)
+  // スライド0件の時もこの画面を表示する (常に三箇条をデフォルトに)
+  if (_accidentScreenMode === 'idle') {
+    ctx.save();
+    ctx.beginPath(); roundRect(x, y, w, h, 4); ctx.clip();
+    // 背景: 紺〜黒のグラデーション
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, '#0c1e3a'); grad.addColorStop(1, '#000');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+    // 安全三箇条ステッカーを 2倍スケール (270 → 540) で中央表示
+    // 浮かび上がる演出は「光のみ」: アニメーション無し・多重グロー+床下ソフトシャドウで静的に浮遊感
+    if (safetyStickerImage && safetyStickerImage.complete && safetyStickerImage.naturalWidth) {
+      const sw = 540, sh = Math.round(sw * (safetyStickerImage.naturalHeight / safetyStickerImage.naturalWidth));
+      const sx = x + (w - sw) / 2;
+      const sy = y + (h - sh) / 2 - 30;
+      // (1) 床下に楕円のソフトシャドウ (ステッカーが宙に浮いている感)
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.filter = 'blur(14px)';
+      ctx.beginPath();
+      ctx.ellipse(sx + sw / 2, sy + sh + 30, sw * 0.4, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      // (2) 多重グロー (静的・強め)
+      ctx.save();
+      ctx.shadowColor = 'rgba(254,243,199,0.7)';
+      ctx.shadowBlur = 56;
+      ctx.drawImage(safetyStickerImage, sx, sy, sw, sh);
+      ctx.shadowColor = 'rgba(251,191,36,0.55)';
+      ctx.shadowBlur = 32;
+      ctx.drawImage(safetyStickerImage, sx, sy, sw, sh);
+      ctx.shadowColor = 'rgba(251,191,36,0.4)';
+      ctx.shadowBlur = 14;
+      ctx.drawImage(safetyStickerImage, sx, sy, sw, sh);
+      ctx.restore();
+      // (3) ステッカー本体 (シャドウなしで鮮明に)
+      ctx.drawImage(safetyStickerImage, sx, sy, sw, sh);
+    }
+    // 下部に小さくガイダンス
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '700 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚨 まず、この三つを守れば事故の大半は防げる', x + w / 2, y + h - 60);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '500 12px sans-serif';
+    if (_accidentPosts.length) {
+      ctx.fillText('📺 番組表 ボタンから再生ファイルを選択してください', x + w / 2, y + h - 28);
+    } else {
+      ctx.fillText('掲示物はありません — アーカイブページから掲示してください', x + w / 2, y + h - 28);
+    }
+    ctx.restore();
+    return;
+  }
+
   if (!_accidentPosts.length) {
-    // 投稿が無いとき: 「事故ゼロを目指して」プレースホルダ
+    // 投稿が無いとき (idle以外で到達した稀ケース): フォールバック簡易表示
     ctx.save();
     const grad = ctx.createLinearGradient(x, y, x, y + h);
     grad.addColorStop(0, '#0c1e3a'); grad.addColorStop(1, '#000');
     ctx.fillStyle = grad;
     roundRect(x, y, w, h, 4); ctx.fill();
-    ctx.fillStyle = 'rgba(220,38,38,0.85)';
-    ctx.font = '900 36px sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 16px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🚨 事故対策室', x + w / 2, y + h / 2 - 30);
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '600 18px sans-serif';
-    ctx.fillText('事故・破損情報のスクリーン', x + w / 2, y + h / 2 + 14);
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '500 13px sans-serif';
-    ctx.fillText('「📷 スクリーンに掲示」から写真/動画を投稿してください', x + w / 2, y + h / 2 + 44);
+    ctx.fillText('掲示物はありません', x + w / 2, y + h / 2);
     ctx.restore();
     return;
   }
@@ -3379,12 +3735,17 @@ function drawAccidentScreen() {
   const slot = _ensureAccidentMedia(cur);
   let elapsed = Date.now() - _accidentSlotStartedAt;
   let advance = false;
-  if (slot.type === 'image') {
-    if (elapsed > ACCIDENT_IMAGE_DURATION_MS) advance = true;
-  } else if (slot.type === 'video' && slot.el) {
-    // 動画は1ループしたら次へ (>= duration*0.95 でカウント)
-    if (slot.el.duration && slot.el.currentTime >= slot.el.duration - 0.1) advance = true;
-    if (elapsed > 30000) advance = true;  // セーフティ: 30秒経ったら強制次へ
+  // ナレーション中は自動切替を停止 (音声完了に合わせてナレーションループがスライドを進める)
+  if (!_accidentNarrating) {
+    if (slot.type === 'image') {
+      if (elapsed > ACCIDENT_IMAGE_DURATION_MS) advance = true;
+    } else if (slot.type === 'text') {
+      if (elapsed > ACCIDENT_TEXT_DURATION_MS) advance = true;
+    } else if (slot.type === 'video' && slot.el) {
+      // 動画は1ループしたら次へ (>= duration*0.95 でカウント)
+      if (slot.el.duration && slot.el.currentTime >= slot.el.duration - 0.1) advance = true;
+      if (elapsed > 30000) advance = true;  // セーフティ: 30秒経ったら強制次へ
+    }
   }
   if (advance && _accidentPosts.length > 1) {
     _accidentSlotIndex = (_accidentSlotIndex + 1) % _accidentPosts.length;
@@ -3397,7 +3758,9 @@ function drawAccidentScreen() {
   ctx.beginPath();
   roundRect(x, y, w, h, 4);
   ctx.clip();
-  if (slot.ready && slot.el) {
+  if (slot.type === 'text' && slot.ready) {
+    _drawAccidentTextSlide(slot, x, y, w, h);
+  } else if (slot.ready && slot.el) {
     // contain で中央描画
     const mw = slot.el.videoWidth || slot.el.naturalWidth || w;
     const mh = slot.el.videoHeight || slot.el.naturalHeight || h;
@@ -3415,36 +3778,472 @@ function drawAccidentScreen() {
   }
   ctx.restore();
 
-  // キャプション+投稿者+件数 (下部オーバーレイ)
+  // キャプション+投稿者+件数 (下部オーバーレイ) — テキスト型はスライド自体に情報があるので省略
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(x, y + h - 50, w, 50);
-  ctx.fillStyle = '#fff';
-  ctx.font = '700 13px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  const cap = (cur.caption || '(キャプションなし)').slice(0, 80);
-  ctx.fillText('🚨 ' + cap, x + 12, y + h - 42);
-  ctx.fillStyle = '#cbd5e1';
-  ctx.font = '500 11px sans-serif';
-  const meta = (cur.posted_name || '匿名') + ' · ' + (cur.created_at || '').slice(5, 16).replace('T', ' ');
-  ctx.fillText(meta, x + 12, y + h - 22);
+  if (slot.type !== 'text') {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y + h - 50, w, 50);
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const cap = (cur.caption || '(キャプションなし)').slice(0, 80);
+    ctx.fillText('🚨 ' + cap, x + 12, y + h - 42);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '500 11px sans-serif';
+    const meta = (cur.posted_name || '匿名') + ' · ' + (cur.created_at || '').slice(5, 16).replace('T', ' ');
+    ctx.fillText(meta, x + 12, y + h - 22);
+  }
   // 右下: スロット表示 (1/N)
-  ctx.fillStyle = '#94a3b8';
+  ctx.fillStyle = slot.type === 'text' ? '#fde68a' : '#94a3b8';
   ctx.font = '600 11px sans-serif';
   ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
   ctx.fillText((_accidentSlotIndex + 1) + ' / ' + _accidentPosts.length, x + w - 12, y + h - 22);
-  // 左上: 赤い録画ドット (緊張感)
-  const blink = (Math.floor(Date.now() / 600) % 2) === 0;
-  if (blink) {
-    ctx.fillStyle = '#dc2626';
-    ctx.beginPath(); ctx.arc(x + 16, y + 16, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '900 10px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('LIVE', x + 28, y + 12);
-  }
+  // 2026-05-01: 左上の赤い録画ドット+LIVE点滅は視覚的ノイズのため撤去
   ctx.restore();
+}
+
+// ===== 事故対策室: 安全三箇条ステッカー (壁面掲示) =====
+// 2026-05-01: スクリーン上部に移動 (会社オフィシャル感を強調)
+function drawSafetyStickerOverlay() {
+  if (!safetyStickerImage || !safetyStickerImage.complete || !safetyStickerImage.naturalWidth) return;
+  // 元画像 1052×370 → 1.2倍で表示 (180×63)
+  const sw = 180;
+  const sh = Math.round(sw * (safetyStickerImage.naturalHeight / safetyStickerImage.naturalWidth));
+  const sx = Math.round((WORLD_W - sw) / 2);   // 横方向中央
+  const sy = 70;                                 // スクリーン (y:200〜) の上部、天井寄り
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.drawImage(safetyStickerImage, sx, sy, sw, sh);
+  ctx.restore();
+}
+
+// ===== 事故対策室: 音声解説 (現在のスライドをbot_safety声で読み上げ) =====
+let _accidentNarrating = false;          // 再生中か (一時停止中もtrue)
+let _accidentNarratePaused = false;      // 一時停止中か
+let _accidentNarrateAudio = null;        // 現在再生中のAudioオブジェクト
+let _accidentNarrateAbort = false;       // 中断フラグ
+// 読み上げ速度倍率 (×1.0/×1.2/×1.5/×2.0)。永続化はlocalStorage
+const NARRATE_SPEED_OPTIONS = [1.0, 1.2, 1.5, 2.0];
+let _accidentNarrateSpeedFactor = (() => {
+  try { const v = parseFloat(localStorage.getItem('accident_narrate_speed') || '1.0');
+    return NARRATE_SPEED_OPTIONS.includes(v) ? v : 1.0; } catch (e) { return 1.0; }
+})();
+function cycleNarrateSpeed() {
+  if (_accidentNarrating) {
+    try { showToast('再生中は速度を変更できません。一旦停止してください'); } catch (e) {}
+    return;
+  }
+  const i = NARRATE_SPEED_OPTIONS.indexOf(_accidentNarrateSpeedFactor);
+  _accidentNarrateSpeedFactor = NARRATE_SPEED_OPTIONS[(i + 1) % NARRATE_SPEED_OPTIONS.length];
+  try { localStorage.setItem('accident_narrate_speed', String(_accidentNarrateSpeedFactor)); } catch (e) {}
+  const btn = document.getElementById('accident-narrate-speed');
+  if (btn) btn.textContent = '×' + _accidentNarrateSpeedFactor.toFixed(1);
+}
+// 速度ボタンの活性/非活性を再生状態に追従
+function _updateSpeedBtnEnabled() {
+  const btn = document.getElementById('accident-narrate-speed');
+  if (!btn) return;
+  btn.style.opacity = _accidentNarrating ? '0.4' : '1';
+  btn.style.cursor = _accidentNarrating ? 'not-allowed' : 'pointer';
+}
+// スライド手動送り (◀/▶)
+function accidentSlideStep(dir) {
+  if (!_accidentPosts.length) return;
+  // idle中は番組表を開く (ファイル選択を促す)
+  if (_accidentScreenMode === 'idle') {
+    toggleAccidentScreenMenu();
+    return;
+  }
+  // 再生中なら停止
+  if (_accidentNarrating) stopAccidentNarration();
+  _accidentSlotIndex = (_accidentSlotIndex + dir + _accidentPosts.length) % _accidentPosts.length;
+  _accidentSlotStartedAt = Date.now();
+  _emitAccidentControl({ type: 'step', slotIdx: _accidentSlotIndex });
+}
+
+// ===== スクリーン操作の同期送信 (同フロア全員と共有) =====
+let _suppressAccidentBroadcast = false;
+function _emitAccidentControl(action) {
+  if (_suppressAccidentBroadcast) return;
+  if (!socket || !socket.emit) { console.warn('[accident:control TX] no socket'); return; }
+  if (!currentFloor || currentFloor.code !== 'field_accident') { console.warn('[accident:control TX] not in accident room'); return; }
+  console.log('[accident:control TX]', action.type, action);
+  try { socket.emit('accident:control', action); } catch (e) { console.warn('emit fail', e); }
+}
+
+// ===== 番組表 (スクリーン上にファイル一覧を表示してタップ選択) =====
+// idle: 入室直後 (待機画面、自動再生しない)
+// menu: ファイル選択中
+// play: ユーザーが選択したファイルを再生中
+let _accidentScreenMode = 'idle';
+let _accidentMenuFiles = [];        // [{source_id, source_label, first_idx, count, first_post}]
+let _accidentMenuRects = [];        // canvas hit zone (再生): {x,y,w,h,fileIdx}
+let _accidentMenuDeleteRects = [];  // canvas hit zone (削除): {x,y,w,h,fileIdx,sourceId,label}
+
+// _accidentPosts から source_id でファイル単位にグループ化
+function _buildAccidentMenuFiles() {
+  const files = [];
+  const map = {};
+  _accidentPosts.forEach((p, idx) => {
+    const sid = p.source_id || ('legacy_' + p.id);
+    if (!map[sid]) {
+      const label = p.source_label || _legacyLabel(p);
+      const f = { source_id: sid, source_label: label, first_idx: idx, count: 1, first_post: p };
+      map[sid] = f;
+      files.push(f);
+    } else {
+      map[sid].count++;
+    }
+  });
+  return files;
+}
+function _legacyLabel(p) {
+  // 古いデータ用フォールバックラベル
+  const u = p.media_url || '';
+  if (p.media_type === 'text') return '📝 テキストスライド';
+  if (/chart_.*\.png/.test(u)) return '📊 グラフ';
+  if (/archive_.*_p\d+\.png/.test(u)) return '📄 過去報告書PDF';
+  if (/safety_three_rules_sticker/.test(u)) return '🚨 安全三箇条';
+  if (p.media_type === 'video') return '🎥 ' + ((p.caption || '').slice(0, 40) || '事故映像');
+  return '🖼 ' + ((p.caption || '').slice(0, 40) || '事故写真');
+}
+
+function toggleAccidentScreenMenu() {
+  if (_accidentScreenMode === 'menu') {
+    _accidentScreenMode = 'idle';
+    _accidentMenuRects = [];
+    _emitAccidentControl({ type: 'mode', mode: 'idle' });
+    return;
+  }
+  if (!_accidentPosts.length) {
+    try { showToast('スクリーンに掲示物がありません'); } catch (e) {}
+    return;
+  }
+  if (_accidentNarrating) stopAccidentNarration();
+  _accidentMenuFiles = _buildAccidentMenuFiles();
+  _accidentScreenMode = 'menu';
+  _emitAccidentControl({ type: 'mode', mode: 'menu' });
+}
+
+function _drawAccidentMenuOnScreen(x, y, w, h) {
+  // 背景
+  const grad = ctx.createLinearGradient(x, y, x, y + h);
+  grad.addColorStop(0, '#0f172a'); grad.addColorStop(1, '#020617');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, w, h);
+  // 上部赤バー + タイトル
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(x, y, w, 6);
+  ctx.fillStyle = '#fde68a';
+  ctx.font = '900 22px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('📺 番組表 (ファイルから選んで再生)', x + 28, y + 22);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '500 12px sans-serif';
+  ctx.fillText('全 ' + _accidentMenuFiles.length + ' ファイル / ' + _accidentPosts.length + ' スライド', x + 28, y + 52);
+  // 一覧描画
+  _accidentMenuRects = [];
+  _accidentMenuDeleteRects = [];
+  const listTop = y + 80;
+  const listBottom = y + h - 16;
+  const rowH = 56;
+  const padL = 22, padR = 22;
+  const rows = _accidentMenuFiles;
+  const maxRows = Math.floor((listBottom - listTop) / (rowH + 6));
+  for (let i = 0; i < Math.min(rows.length, maxRows); i++) {
+    const f = rows[i];
+    const rx = x + padL;
+    const ry = listTop + i * (rowH + 6);
+    const rw = w - padL - padR;
+    const rh = rowH;
+    // 現在再生中ファイルの判定
+    const cur = (_accidentSlotIndex >= f.first_idx && _accidentSlotIndex < f.first_idx + f.count);
+    ctx.fillStyle = cur ? '#7c2d12' : '#1e293b';
+    ctx.strokeStyle = cur ? '#fde68a' : '#334155';
+    ctx.lineWidth = cur ? 2 : 1;
+    roundRect(rx, ry, rw, rh, 8); ctx.fill(); ctx.stroke();
+    // タイプアイコンバッジ
+    const t = f.first_post.media_type;
+    const ico = t === 'video' ? '🎥' : t === 'image' ? '🖼' : '📝';
+    const icoBg = t === 'video' ? '#dc2626' : t === 'image' ? '#0891b2' : '#f59e0b';
+    ctx.fillStyle = icoBg;
+    roundRect(rx + 10, ry + 10, 36, 36, 6); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 22px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ico, rx + 28, ry + 28);
+    // ファイル名
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 16px sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    let label = f.source_label || '(無題)';
+    // 文字数制限 (文字数で切る)
+    const maxChars = Math.floor((rw - 70 - 100) / 12);
+    if (label.length > maxChars) label = label.slice(0, maxChars) + '…';
+    ctx.fillText(label, rx + 56, ry + 12);
+    // 件数 + 再生中マーク
+    ctx.fillStyle = cur ? '#fde68a' : '#94a3b8';
+    ctx.font = '600 12px sans-serif';
+    ctx.fillText((cur ? '▶ 再生中 / ' : '') + f.count + ' スライド', rx + 56, ry + 34);
+    // 右端: ▶ 再生 + 🗑 削除 ボタン (それぞれ独立ヒット領域)
+    const btnY = ry + 8, btnH = rh - 16;
+    const delW = 36;       // 削除ボタン幅
+    const playW = 36;      // 再生 (▶) ボタン幅
+    const delX = rx + rw - 8 - delW;
+    const playX = delX - 4 - playW;
+    // 再生 (▶) ボタン背景
+    ctx.fillStyle = cur ? 'rgba(254,243,199,0.2)' : 'rgba(148,163,184,0.15)';
+    roundRect(playX, btnY, playW, btnH, 8); ctx.fill();
+    ctx.fillStyle = cur ? '#fde68a' : '#cbd5e1';
+    ctx.font = '700 16px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('▶', playX + playW / 2, btnY + btnH / 2);
+    // 削除 (🗑) ボタン背景
+    ctx.fillStyle = 'rgba(220,38,38,0.18)';
+    roundRect(delX, btnY, delW, btnH, 8); ctx.fill();
+    ctx.fillStyle = '#fca5a5';
+    ctx.font = '700 18px sans-serif';
+    ctx.fillText('🗑', delX + delW / 2, btnY + btnH / 2);
+    // ヒット領域記録: 行全体クリック=再生 (旧挙動) +削除ボタン優先
+    _accidentMenuRects.push({ x: rx, y: ry, w: rw - delW - 6, h: rh, fileIdx: i });
+    _accidentMenuDeleteRects.push({ x: delX, y: btnY, w: delW, h: btnH, fileIdx: i, sourceId: f.source_id, label: f.source_label });
+  }
+  if (rows.length > maxRows) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic 500 12px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('… 他 ' + (rows.length - maxRows) + ' ファイル (狭く表示できないもの)', x + w / 2, listTop + maxRows * (rowH + 6) + 4);
+  }
+}
+
+// 番組表 ヒット判定 (canvasクリック時に呼ばれる)
+// 戻り値: true なら処理済 (通常クリック処理を中断する)
+function handleAccidentScreenClick(wx, wy) {
+  if (_accidentScreenMode !== 'menu') return false;
+  if (!currentFloor || currentFloor.code !== 'field_accident') return false;
+  // 削除ボタン優先 (再生エリアより前にチェック)
+  for (const r of _accidentMenuDeleteRects) {
+    if (wx >= r.x && wx <= r.x + r.w && wy >= r.y && wy <= r.y + r.h) {
+      _confirmAccidentFileDelete(r.sourceId, r.label);
+      return true;
+    }
+  }
+  // 再生エリア
+  for (const r of _accidentMenuRects) {
+    if (wx >= r.x && wx <= r.x + r.w && wy >= r.y && wy <= r.y + r.h) {
+      const f = _accidentMenuFiles[r.fileIdx];
+      if (f) {
+        _accidentSlotIndex = f.first_idx;
+        _accidentSlotStartedAt = Date.now();
+        _accidentScreenMode = 'play';
+        _accidentMenuRects = [];
+        _emitAccidentControl({ type: 'select', sourceId: f.source_id, slotIdx: f.first_idx });
+      }
+      return true;
+    }
+  }
+  // メニュー外をタップしたら閉じる (スクリーン領域内のみ)
+  const s = ACCIDENT_SCREEN;
+  if (wx >= s.x && wx <= s.x + s.w && wy >= s.y && wy <= s.y + s.h) {
+    _accidentScreenMode = 'idle';
+    _accidentMenuRects = [];
+    _accidentMenuDeleteRects = [];
+    return true;
+  }
+  return false;
+}
+
+async function _confirmAccidentFileDelete(sourceId, label) {
+  if (!sourceId) {
+    try { showToast('source_id未設定の旧データは個別削除できません'); } catch (e) {}
+    return;
+  }
+  if (!confirm('「' + (label || '無題') + '」を削除しますか?\n(同じファイルの全スライドが削除されます)')) return;
+  try {
+    const res = await fetch('/api/accident/screen/by-source/' + encodeURIComponent(sourceId), {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = await res.json();
+    if (!d || !d.success) throw new Error((d && d.msg) || '削除失敗');
+    try { showToast('削除しました (' + (d.deleted || 0) + ' スライド)'); } catch (e) {}
+    // 強制リフレッシュ → 番組表を再構築
+    _accidentPostsFetchedAt = 0;
+    loadAccidentPosts();
+    // 古いMenuFilesをクリア (次回の描画で再構築)
+    setTimeout(() => {
+      _accidentMenuFiles = _buildAccidentMenuFiles();
+      if (!_accidentMenuFiles.length) {
+        _accidentScreenMode = 'idle';
+        _accidentMenuRects = [];
+        _accidentMenuDeleteRects = [];
+      }
+    }, 600);
+  } catch (e) {
+    alert('削除失敗: ' + e.message);
+  }
+}
+// 起動時に保存された倍率をボタンに反映
+try {
+  const _btnInit = setInterval(() => {
+    const btn = document.getElementById('accident-narrate-speed');
+    if (btn) { btn.textContent = '×' + _accidentNarrateSpeedFactor.toFixed(1); clearInterval(_btnInit); }
+  }, 200);
+  setTimeout(() => clearInterval(_btnInit), 5000);
+} catch (e) {}
+
+// 絵文字・URL・引用番号除去 (TTSが余計なものを読み上げないように)
+function _stripEmojiForTts(s) {
+  return String(s || '')
+    // URL行は丸ごと除去 (引用元の長いURL読み上げを防ぐ)
+    .split('\n').filter(line => !/https?:\/\//.test(line)).join('\n')
+    .replace(/\p{Extended_Pictographic}/gu, '')   // 絵文字本体
+    .replace(/[‍️⃣]/g, '')          // ZWJ・異体字セレクタ
+    .replace(/\[\d+\](?:\[\d+\])*/g, '')           // [1][2] 引用番号
+    .replace(/^\s*[-•・]?\s*\[?\d+\]?\s+https?.*$/gm, '')  // "[1] https://..." 形式の行
+    .replace(/[#*]+\s*/g, '')                      // マークダウン記号
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+([。、])/g, '$1')                  // 句読点前のスペース整理
+    .trim();
+}
+
+// タイトル末尾が "(N/M)" で N>=2 のスライドは継続ページ → タイトル省略
+function _isContinuationSlide(caption) {
+  const m = /\((\d+)\/(\d+)\)\s*$/.exec(caption || '');
+  return !!(m && parseInt(m[1]) >= 2);
+}
+
+function _accidentSlideText(post) {
+  if (!post) return '';
+  if (post.media_type === 'text') {
+    const isCont = _isContinuationSlide(post.caption);
+    const title = _stripEmojiForTts((post.caption || '').replace(/\s*\(\d+\/\d+\)\s*$/, ''));
+    const body = _stripEmojiForTts((post.text_body || '').replace(/【([^】]+)】/g, '$1。').replace(/^[・]\s*/gm, ''));
+    // 継続ページはタイトルを読まずに本文だけ
+    return isCont ? body : (title + '。' + body);
+  }
+  return _stripEmojiForTts(post.caption || '');
+}
+
+async function _accidentSpeakText(text) {
+  if (!text || !text.trim()) return;
+  if (!token) return;
+  // bot_safety声 (Neural2-D / 基本速度1.15 / pitch -3) × ユーザー指定倍率
+  // Google TTSの speed 上限 4.0 でクリップ
+  const finalSpeed = Math.min(4.0, 1.15 * (_accidentNarrateSpeedFactor || 1.0));
+  try {
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ text: text.slice(0, 1500), voice: 'ja-JP-Neural2-D', speed: finalSpeed, pitch: -3 }),
+    });
+    if (!res.ok) throw new Error('tts ' + res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return new Promise((resolve, reject) => {
+      const audio = new Audio(url);
+      _accidentNarrateAudio = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); _accidentNarrateAudio = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _accidentNarrateAudio = null; reject(new Error('audio fail')); };
+      audio.play().catch(reject);
+    });
+  } catch (e) { console.warn('[accident-narrate]', e.message); }
+}
+
+async function toggleAccidentNarration() {
+  if (_accidentNarrating) {
+    stopAccidentNarration();
+    return;
+  }
+  if (!_accidentPosts.length) {
+    try { showToast('スクリーンに掲示されているスライドはありません'); } catch (e) {}
+    return;
+  }
+  if (_accidentScreenMode !== 'play') {
+    try { showToast('まずファイルを選択してください'); } catch (e) {}
+    toggleAccidentScreenMenu();
+    return;
+  }
+  _accidentNarrating = true;
+  _accidentNarratePaused = false;
+  _accidentNarrateAbort = false;
+  _setAccidentNarrateBtn(true);
+  _updateSpeedBtnEnabled();
+  _accidentSlotStartedAt = Date.now();
+  // 現在スロットから末尾まで自動連続再生 (auto-flow)
+  let i = _accidentSlotIndex;
+  while (!_accidentNarrateAbort && i < _accidentPosts.length) {
+    _accidentSlotIndex = i;
+    _accidentSlotStartedAt = Date.now();
+    if (i !== _accidentSlotIndex) _emitAccidentControl({ type: 'step', slotIdx: i });
+    const cur = _accidentPosts[i];
+    const text = _accidentSlideText(cur);
+    _emitAccidentControl({ type: 'narrate-start', slotIdx: i, text, speedFactor: _accidentNarrateSpeedFactor });
+    if (text.trim()) {
+      try { await _accidentSpeakText(text); } catch (e) {}
+    } else {
+      await new Promise(r => setTimeout(r, 2500));
+    }
+    if (_accidentNarrateAbort) break;
+    await new Promise(r => setTimeout(r, 600));   // 次スライドへの切替前の余韻
+    i++;
+  }
+  _accidentNarrating = false;
+  _accidentNarratePaused = false;
+  _accidentSlotStartedAt = Date.now();
+  _setAccidentNarrateBtn(false);
+  _updateSpeedBtnEnabled();
+  _emitAccidentControl({ type: 'narrate-end' });
+}
+
+function stopAccidentNarration() {
+  const wasNarrating = _accidentNarrating;
+  _accidentNarrateAbort = true;
+  if (_accidentNarrateAudio) {
+    try { _accidentNarrateAudio.pause(); } catch (e) {}
+    _accidentNarrateAudio = null;
+  }
+  _accidentNarrating = false;
+  _accidentNarratePaused = false;
+  _accidentSlotStartedAt = Date.now();
+  _setAccidentNarrateBtn(false);
+  _updateSpeedBtnEnabled();
+  if (wasNarrating) _emitAccidentControl({ type: 'narrate-stop' });
+}
+
+function _setAccidentNarrateBtn(active) {
+  const ic = document.getElementById('accident-narrate-icon');
+  const lb = document.getElementById('accident-narrate-label');
+  const bt = document.getElementById('accident-narrate-btn');
+  const pauseBtn = document.getElementById('accident-pause-btn');
+  if (ic) ic.textContent = active ? '⏹' : '🔊';
+  if (lb) lb.textContent = active ? '停止' : '音声解説';
+  if (bt) bt.style.borderColor = active ? 'rgba(34,197,94,0.8)' : 'rgba(220,38,38,0.6)';
+  // 一時停止ボタンは再生中のみ表示
+  if (pauseBtn) {
+    pauseBtn.style.display = active ? 'inline-flex' : 'none';
+    pauseBtn.textContent = _accidentNarratePaused ? '▶' : '⏸';
+    pauseBtn.title = _accidentNarratePaused ? '再開' : '一時停止';
+  }
+}
+
+function togglePauseAccidentNarration() {
+  if (!_accidentNarrating || !_accidentNarrateAudio) return;
+  if (_accidentNarratePaused) {
+    try { _accidentNarrateAudio.play(); } catch (e) {}
+    _accidentNarratePaused = false;
+    _emitAccidentControl({ type: 'narrate-resume' });
+  } else {
+    try { _accidentNarrateAudio.pause(); } catch (e) {}
+    _accidentNarratePaused = true;
+    _emitAccidentControl({ type: 'narrate-pause' });
+  }
+  _setAccidentNarrateBtn(true);
 }
 
 // 事故対策室: スクリーン投稿アップロードUI
@@ -3541,7 +4340,7 @@ function drawConciergeStanding(u) {
   let FIG_H = 210;
   if (currentFloor && currentFloor.code === 'lobby') FIG_H = 520;  // 全身立ち姿 (旧 252 = 受付カウンター越し半身、新画像でカウンター無し化に伴い全身)
   else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 520;  // 一回り大きく
-  else if (currentFloor && currentFloor.code === 'field_accident' && u.uid === 'bot_safety') FIG_H = 500;  // 安全管理者: 威圧感を出すためやや大きめ (床高500-770px)
+  else if (currentFloor && currentFloor.code === 'field_accident' && u.uid === 'bot_safety') FIG_H = 518;  // 2026-05-01: さらに1.2倍 (432→518)
   const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -3584,62 +4383,53 @@ function drawConciergeStanding(u) {
   } else {
     ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
   }
-  // 頭上ボタン風ラベル: 「🌸 メニューを開く」「🩺 メニューを開く」 (タップしやすい大型ボタン)
-  // 視覚36px tall (世界座標) + 当たり判定 padding +30px で大きめタップ目標を確保
-  ctx.font = '800 15px sans-serif';
-  const botLabel = u.uid === 'bot_aoi' ? '🌸 メニューを開く'
-                  : u.uid === 'bot_health' ? '🩺 メニューを開く'
-                  : u.uid === 'bot_safety' ? '🚨 メニューを開く'
-                  : (u.name || 'AI');
-  const tw = Math.round(ctx.measureText(botLabel).width + 32);
-  const btnH = 36;
-  const btnY = headY - 44;
-  // 当たり判定矩形 (world座標) - 視覚より大幅に大きい padding でタップ容易化
-  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety')) {
-    _botMenuButtons[u.uid] = {
-      x1: cx - Math.round(tw / 2) - 30,
-      y1: btnY - 30,
-      x2: cx + Math.round(tw / 2) + 30,
-      y2: btnY + btnH + 30,
-      name: u.name || (u.uid === 'bot_health' ? 'ヘルスアドバイザー' : u.uid === 'bot_safety' ? '安全管理者' : '総合案内'),
-    };
-  }
-  // ボタン グラデーション (bot 種別に応じた色)
+  // 頭上の小さな「吹き出しヒント」: アバター本体タップでメニューが開くことを示すポイント表示
+  // (旧: 大型「メニューを開く」ボタン → アバター本体タップと同等動作だったため縮小)
   const isHealthBot = u.uid === 'bot_health';
   const isAoiBot = u.uid === 'bot_aoi';
   const isSafetyBot = u.uid === 'bot_safety';
-  const grad2 = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
-  if (isHealthBot) {
-    grad2.addColorStop(0, 'rgba(16,185,129,1)');
-    grad2.addColorStop(1, 'rgba(5,150,105,1)');
-  } else if (isAoiBot) {
-    grad2.addColorStop(0, 'rgba(6,182,212,1)');
-    grad2.addColorStop(1, 'rgba(8,145,178,1)');
-  } else if (isSafetyBot) {
-    grad2.addColorStop(0, 'rgba(220,38,38,1)');
-    grad2.addColorStop(1, 'rgba(153,27,27,1)');
-  } else {
-    grad2.addColorStop(0, 'rgba(100,116,139,1)');
-    grad2.addColorStop(1, 'rgba(71,85,105,1)');
+  const hintIcon = isAoiBot ? '🌸' : isHealthBot ? '🩺' : isSafetyBot ? '🚨' : '💬';
+  const hintColor = isAoiBot ? '#0891b2' : isHealthBot ? '#047857' : isSafetyBot ? '#991b1b' : '#475569';
+  // 軽い上下バウンス (注意を引く、邪魔しない)
+  const phase = (Date.now() % 2400) / 2400;
+  const bob = Math.sin(phase * Math.PI * 2) * 2;
+  ctx.font = '700 11px sans-serif';
+  const hintLabel = hintIcon + ' タップ';
+  const hw = Math.round(ctx.measureText(hintLabel).width + 16);
+  const hh = 22;
+  const hy = headY - 32 + bob;
+  // 当たり判定 (吹き出し本体 + 余白16px)
+  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety')) {
+    _botMenuButtons[u.uid] = {
+      x1: cx - Math.round(hw / 2) - 16,
+      y1: hy - 16,
+      x2: cx + Math.round(hw / 2) + 16,
+      y2: hy + hh + 16,
+      name: u.name || (u.uid === 'bot_health' ? 'ヘルスアドバイザー' : u.uid === 'bot_safety' ? '安全太郎' : '総合案内'),
+    };
   }
-  // 影
+  // 吹き出し本体 (白ベース、薄い影)
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.3)';
-  ctx.shadowBlur = 10;
-  ctx.shadowOffsetY = 3;
-  ctx.fillStyle = grad2;
-  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 18);
+  ctx.shadowColor = 'rgba(15,23,42,0.18)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = '#fff';
+  roundRect(cx - Math.round(hw / 2), hy, hw, hh, 11);
   ctx.fill();
   ctx.restore();
-  // 白縁取り (ボタン感を強調)
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-  ctx.lineWidth = 2;
-  roundRect(cx - Math.round(tw / 2), btnY, tw, btnH, 18);
-  ctx.stroke();
+  // 吹き出しの尻尾 (アバター頭頂部へ向く三角)
   ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, hy + hh - 0.5);
+  ctx.lineTo(cx, hy + hh + 6);
+  ctx.lineTo(cx + 5, hy + hh - 0.5);
+  ctx.closePath();
+  ctx.fill();
+  // テキスト
+  ctx.fillStyle = hintColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(botLabel, cx, btnY + btnH / 2 + 0.5);
+  ctx.fillText(hintLabel, cx, hy + hh / 2 + 0.5);
   // 名札 (足元下)
   const label = u.name || '総合案内';
   ctx.font = '600 12px sans-serif';
@@ -4580,7 +5370,7 @@ async function speakViaTTS(text, opts) {
 // → 両者ともに若い女性だが、エンジン (Neural2 vs Wavenet) と pitch 差で別キャラ感を出す
 function ttsOptsForBot(botUid) {
   if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
-  if (botUid === 'bot_safety') return { voice: 'ja-JP-Neural2-D', speed: 0.95, pitch: -3 };  // 男性・低め・落ち着いたテンポ
+  if (botUid === 'bot_safety') return { voice: 'ja-JP-Neural2-D', speed: 1.15, pitch: -3 };  // 男性・低め・テンポ速めに調整
   return { voice: 'ja-JP-Neural2-B', speed: 1.25, pitch: 4 };  // 総合案内 (デフォルト)
 }
 
@@ -4640,6 +5430,106 @@ function _getLobbyWelcomeShown() {
 function _setLobbyWelcomeShown(t) {
   try { localStorage.setItem('cohub_lobby_welcome_at', String(t)); } catch (e) {}
 }
+// ===== アバター在室フロア入室時の浮遊メニューカード =====
+// 初見ユーザー (西村先生のような外部ゲスト含む) が「何ができる場所か」を即理解できるよう、
+// アバターからの吹き出し風にメニューカードを表示する。
+// ページロード(F5)ごとに各フロア1回ずつ表示、5秒後に半透明化、✕で完全閉じ。
+// sessionStorage を使わずページ内変数で管理するため、F5すれば再表示される。
+const _avatarIntroShownThisLoad = {};
+function _avatarIntroAlreadyShown(code) {
+  return !!_avatarIntroShownThisLoad[code];
+}
+function _markAvatarIntroShown(code) {
+  _avatarIntroShownThisLoad[code] = true;
+}
+function _isPromoter() {
+  return !!(currentUser && (currentUser.is_field_promoter || currentUser.employee_type === 'admin' || currentUser.role === 'admin'));
+}
+const AVATAR_INTRO_CONFIG = {
+  lobby: {
+    icon: '🤖',
+    iconBg: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+    title: '総合案内です',
+    sub: '何かお手伝いできることはありますか?',
+    actions: () => [
+      { emoji: '💬', label: '葵に話しかける', onclick: "openDM('bot_aoi')" },
+      { emoji: '📅', label: '今日の予定を確認', onclick: "openDM('bot_aoi'); setTimeout(()=>{ const t=document.getElementById('dm-text'); if(t){ t.value='今日の予定を教えて'; t.focus(); } }, 600)" },
+      { emoji: '📋', label: '掲示板を見る', onclick: "location.href='/board.html'" },
+      { emoji: '📢', label: 'お知らせを確認', onclick: "location.href='/announcements.html'" },
+      { emoji: '🏥', label: '健康管理室へ移動', onclick: "switchFloor('wellness_room')" },
+    ],
+  },
+  wellness_room: {
+    icon: '🩺',
+    iconBg: 'linear-gradient(135deg, #14b8a6, #0f766e)',
+    title: 'ヘルスアドバイザーです',
+    sub: '健康に関すること、お気軽にどうぞ',
+    actions: () => {
+      const items = [
+        { emoji: '💬', label: 'ヘルスアドバイザーに相談', onclick: "openDM('bot_health')" },
+        { emoji: '📋', label: '個人の健康記録 (血圧/メモ)', onclick: "location.href='/wellness.html'" },
+        { emoji: '👣', label: '今日の一歩 (アクションプラン)', onclick: "location.href='/myplan.html'" },
+        { emoji: '🥗', label: '食事を診てもらう', onclick: "location.href='/plaza.html'" },
+      ];
+      if (_isPromoter()) {
+        items.push({ emoji: '📖', label: '推進メンバーへのメッセージ (西村先生)', onclick: "openExternalPage('/orientation.html')" });
+        items.push({ emoji: '🚪', label: '運営ダッシュボード', onclick: "openExternalPage('/wellness-ops.html')" });
+      }
+      return items;
+    },
+  },
+  field_accident: {
+    icon: '🚨',
+    iconBg: 'linear-gradient(135deg, #dc2626, #991b1b)',
+    title: '安全太郎です',
+    sub: '事故・ヒヤリハットの相談、お任せください',
+    actions: () => [
+      { emoji: '💬', label: '安全太郎に相談', onclick: "openDM('bot_safety')" },
+      { emoji: '📺', label: '事故映像・解説を見る', onclick: "toggleAccidentScreenMenu()" },
+      { emoji: '📋', label: '過去の事故記録一覧', onclick: "openExternalPage('/accident-archive.html')" },
+      { emoji: '📝', label: '新しい事故・ヒヤリハットを報告', onclick: "openExternalPage('/accident.html')" },
+    ],
+  },
+};
+function showAvatarIntroCard(floorCode) {
+  // フロア移動時は前のフロアのカードを必ず消す (config無しフロアへの移動でも消える)
+  document.querySelectorAll('.avatar-intro-card').forEach(el => el.remove());
+  const cfg = AVATAR_INTRO_CONFIG[floorCode];
+  if (!cfg) return;
+  if (_avatarIntroAlreadyShown(floorCode)) return;
+  _markAvatarIntroShown(floorCode);
+  const wrap = document.getElementById('space-canvas-wrap');
+  if (!wrap) return;
+  const card = document.createElement('div');
+  card.className = 'avatar-intro-card';
+  card.dataset.floor = floorCode;
+  const actions = (cfg.actions ? cfg.actions() : []).filter(Boolean);
+  card.innerHTML =
+    '<div class="aic-head">' +
+      '<div class="aic-icon" style="background:' + cfg.iconBg + ';">' + cfg.icon + '</div>' +
+      '<div class="aic-title">' + escapeHtml(cfg.title) + '<span class="aic-sub">' + escapeHtml(cfg.sub) + '</span></div>' +
+      '<button class="aic-close" onclick="dismissAvatarIntroCard(this)" title="閉じる">×</button>' +
+    '</div>' +
+    '<div class="aic-actions">' +
+      actions.map(a =>
+        '<button class="aic-btn" onclick="' + a.onclick + '; dismissAvatarIntroCard(this)">' +
+          '<span class="aic-emoji">' + a.emoji + '</span><span>' + escapeHtml(a.label) + '</span>' +
+        '</button>'
+      ).join('') +
+    '</div>';
+  wrap.appendChild(card);
+  // 5秒経過で半透明化 (邪魔にならない)
+  setTimeout(() => { if (card.parentNode) card.classList.add('dim'); }, 5000);
+}
+function dismissAvatarIntroCard(btn) {
+  const card = btn.closest('.avatar-intro-card');
+  if (!card) return;
+  card.style.opacity = '0';
+  // 横中央寄せの translateX(-50%) を維持しつつ Y方向にだけ動かす
+  card.style.transform = 'translate(-50%, -8px)';
+  setTimeout(() => { if (card.parentNode) card.remove(); }, 320);
+}
+
 function announceLobbyWelcome() {
   if (!speakerOn) return;
   const now = Date.now();
@@ -5207,9 +6097,30 @@ function switchFloor(code, password) {
   socket.emit('floor:switch', payload);
 }
 
+// 別ページを開く: 常に「同じタブ」で遷移 (新規タブを開かない)
+// 理由: window.open(_blank/named) はPC普通ブラウザだと毎回新規タブを開いてしまい、
+// 元のフロア(健康管理室など)に戻りづらくなる。同タブ遷移なら✕ボタンや戻るで戻れる。
+// CoWell のフロア位置は positions テーブルに保存されているので、ルート(/) に戻ると最後にいたフロアに自動復帰する。
+function openExternalPage(url) {
+  location.href = url;
+}
+
+// 会議モード対応フロア (施錠/承認制/挙手/カメラ/ビデオタイル/会議開始ボタン)
+// meeting_*, exec_* に加えて事故対策室 (field_accident) も対象 — A案: 反省会用
+// body.layout-meeting クラスもこの範囲で適用 (= 会議用フレックスレイアウト+ビデオグリッド)
+function isMeetingFloorCode(code) {
+  if (!code) return false;
+  return /^(meeting|exec)/i.test(code) || code === 'field_accident';
+}
+// ホワイトボード対応フロア (狭義の会議室のみ。事故対策室では使わない)
+function isWhiteboardFloorCode(code) {
+  if (!code) return false;
+  return /^(meeting|exec)/i.test(code);
+}
+
 // 承認制トグル (会議室内のメンバー)
 function toggleApproval() {
-  if (!currentFloor || !/^(meeting|exec)/.test(currentFloor.code)) return;
+  if (!currentFloor || !isMeetingFloorCode(currentFloor.code)) return;
   const on = !currentFloor.approval_mode;
   socket.emit('room:set-approval', { on });
 }
@@ -5254,7 +6165,7 @@ function cancelWaiting() {
 function updateApprovalUI() {
   const btn = document.getElementById('dock-approval');
   const headBadge = document.getElementById('floor-head-approval');
-  const isMeeting = currentFloor && /^(meeting|exec)/.test(currentFloor.code);
+  const isMeeting = currentFloor && isMeetingFloorCode(currentFloor.code);
   if (btn) {
     btn.style.display = isMeeting ? 'flex' : 'none';
     if (isMeeting) {
@@ -5277,9 +6188,9 @@ function updateApprovalUI() {
   }
 }
 
-// 鍵をかける / 外す (会議室内のメンバーのみ)
+// 鍵をかける / 外す (会議室・事故対策室内のメンバーのみ)
 function toggleRoomLock() {
-  if (!currentFloor || !/^(meeting|exec)/.test(currentFloor.code)) return;
+  if (!currentFloor || !isMeetingFloorCode(currentFloor.code)) return;
   if (currentFloor.locked) {
     if (!confirm('この部屋の鍵を外しますか？')) return;
     socket.emit('room:unlock');
@@ -5300,7 +6211,7 @@ function updateHandCountUI() {
   let el = document.getElementById('hand-count');
   const head = document.getElementById('floor-head');
   if (!head) return;
-  if (count > 0 && currentFloor && /^(meeting|exec)/.test(currentFloor.code)) {
+  if (count > 0 && currentFloor && isMeetingFloorCode(currentFloor.code)) {
     if (!el) {
       el = document.createElement('span');
       el.id = 'hand-count';
@@ -5316,7 +6227,7 @@ function updateHandCountUI() {
 function updateLockUI() {
   const btn = document.getElementById('dock-lock');
   const headBadge = document.getElementById('floor-head-lock');
-  const isMeeting = currentFloor && /^(meeting|exec)/.test(currentFloor.code);
+  const isMeeting = currentFloor && isMeetingFloorCode(currentFloor.code);
   if (btn) {
     btn.style.display = isMeeting ? 'flex' : 'none';
     if (isMeeting) {
@@ -6145,22 +7056,24 @@ async function getOrCreatePeer(peerUid) {
 async function toggleMeetingMode() {
   const btn = document.getElementById('dock-meeting-start');
   const isActive = btn && btn.classList.contains('active');
+  // 事故対策室ではホワイトボードを使わない (一人称ビュー+大型スクリーン優先)
+  const useWhiteboard = currentFloor && isWhiteboardFloorCode(currentFloor.code);
   if (isActive) {
-    // 終了: ビデオOFF + マイクOFF + ホワイトボード閉
+    // 終了: ビデオOFF + マイクOFF + (会議室のみ) ホワイトボード閉
     if (camera.enabled) await disableCamera();
     if (voice.enabled) await disableVoice();
-    if (document.body.classList.contains('wb-open')) toggleWhiteboard();
+    if (useWhiteboard && document.body.classList.contains('wb-open')) toggleWhiteboard();
     btn.classList.remove('active');
     btn.innerHTML = '▶ 会議開始';
-    showToast('会議モードを終了しました');
+    showToast(currentFloor && currentFloor.code === 'field_accident' ? '反省会を終了しました' : '会議モードを終了しました');
   } else {
-    // 開始: マイクON → カメラON → ボード開
+    // 開始: マイクON → カメラON → (会議室のみ) ボード開
     btn.classList.add('active');
     btn.innerHTML = '■ 会議終了';
-    showToast('会議を開始します…');
+    showToast(currentFloor && currentFloor.code === 'field_accident' ? '事故反省会を開始します…' : '会議を開始します…');
     if (!voice.enabled) await enableVoice();
     if (voice.enabled && !camera.enabled) await enableCamera();
-    if (!document.body.classList.contains('wb-open')) toggleWhiteboard();
+    if (useWhiteboard && !document.body.classList.contains('wb-open')) toggleWhiteboard();
   }
 }
 
@@ -6642,13 +7555,18 @@ function wbClearConfirm() {
 
 // ===== フロア種別で画面レイアウト切替 =====
 function applyFloorLayout(floor) {
-  const isMeeting = floor && /^(meeting|exec)/i.test(floor.code);
+  // 会議モード機能対応 (会議室+事故対策室) — body.layout-meeting+ビデオタイル+施錠等
+  const isMeeting = floor && isMeetingFloorCode(floor.code);
+  // ホワイトボード対応 (狭義の会議室のみ)
+  const isWhiteboard = floor && isWhiteboardFloorCode(floor.code);
   const isWellnessRoom = floor && floor.code === 'wellness_room';
   // 旧: 健康管理室は plaza.html を iframe で全面表示していた
   // 新 (4/28): wellness_room はキャンバス一人称視点+AIヘルスアドバイザー、iframe不要
   const ifr = document.getElementById('wellness-iframe');
   if (ifr) ifr.style.display = 'none';
   document.body.classList.remove('layout-wellness');
+  // body.layout-meeting は会議モード共通レイアウト (フレックス縦+ビデオタイル領域)
+  // 事故対策室にも適用してビデオタイルを有効化。ホワイトボードは別途wb-openで制御
   document.body.classList.toggle('layout-meeting', !!isMeeting);
   // (旧: wellness-records-door の表示制御はヘルスメニュー最上位ボタンへ統合済)
   // 健康管理室: 推進メンバー or 管理職にだけ運営ダッシュボード入室ボタンを表示
@@ -6658,15 +7576,25 @@ function applyFloorLayout(floor) {
     && (currentUser.is_field_promoter || currentUser.employee_type === 'admin' || currentUser.role === 'admin');
   if (opsDoor) opsDoor.style.display = canSeePromoter ? 'inline-flex' : 'none';
   if (orientDoor) orientDoor.style.display = canSeePromoter ? 'inline-flex' : 'none';
-  // 事故対策室: スクリーン掲示ボタン+事故報告書ボタン
+  // 事故対策室の機能ボタンは安全管理者メニュー内に統合済み (2026-04-30)
   const isAccidentRoom = floor && floor.code === 'field_accident';
-  const accUpBtn = document.getElementById('accident-screen-upload-btn');
-  const accDocBtn = document.getElementById('accident-report-door');
-  if (accUpBtn) accUpBtn.style.display = isAccidentRoom ? 'inline-flex' : 'none';
-  if (accDocBtn) accDocBtn.style.display = isAccidentRoom ? 'inline-flex' : 'none';
+  // スクリーン下の音声解説ボタン (wrapper + 速度切替を含む)
+  const narrateWrap = document.getElementById('accident-narrate-wrap');
+  if (narrateWrap) narrateWrap.style.display = isAccidentRoom ? 'inline-flex' : 'none';
+  // 番組表ボタン (独立配置版)
+  const guideV2 = document.getElementById('accident-guide-btn-v2');
+  if (guideV2) guideV2.style.display = isAccidentRoom ? 'flex' : 'none';
+  // 退室時はナレーション停止
+  if (!isAccidentRoom) { try { stopAccidentNarration(); } catch (e) {} }
   // 入室時に最新スクリーン投稿を取得 (描画時にも fetch するが、入室直後は即時)
-  if (isAccidentRoom) { try { _accidentPostsFetchedAt = 0; loadAccidentPosts(); } catch (e) {} }
-  else {
+  // 入室・退室いずれの場合も idle にリセット (前回の再生状態を引き継がない)
+  if (isAccidentRoom) {
+    _accidentScreenMode = 'idle';
+    _accidentMenuRects = [];
+    try { _accidentPostsFetchedAt = 0; loadAccidentPosts(); } catch (e) {}
+  } else {
+    _accidentScreenMode = 'idle';
+    _accidentMenuRects = [];
     // 退室時: 動画再生を停止 (CPU/帯域節約)
     try {
       for (const k in _accidentMediaCache) {
@@ -6675,18 +7603,21 @@ function applyFloorLayout(floor) {
       }
     } catch (e) {}
   }
+  // カメラ/挙手は会議モード全般 (会議室+事故対策室) で利用可
   const camBtn = document.getElementById('dock-camera');
   if (camBtn) camBtn.style.display = isMeeting ? 'flex' : 'none';
   const vbBtn = document.getElementById('dock-vb');
   if (vbBtn) vbBtn.style.display = isMeeting ? 'flex' : 'none';
+  // ホワイトボードは狭義の会議室のみ (事故対策室では非表示)
   const wbBtn = document.getElementById('dock-wb');
-  if (wbBtn) wbBtn.style.display = isMeeting ? 'flex' : 'none';
+  if (wbBtn) wbBtn.style.display = isWhiteboard ? 'flex' : 'none';
   const handBtn = document.getElementById('dock-hand');
   if (handBtn) {
     handBtn.style.display = isMeeting ? 'flex' : 'none';
     handBtn.classList.remove('on');
     handBtn.innerHTML = '✋<div class="sub">挙手</div>';
   }
+  // 会議開始ボタンは body.layout-meeting によりCSSで自動表示
   // 自分の挙手状態もリセット
   if (users[me]) users[me].handUp = false;
   if (socket && !isMeeting) socket.emit('hand', { up: false });
@@ -6705,13 +7636,14 @@ function applyFloorLayout(floor) {
     const grid = document.getElementById('video-grid');
     if (grid) grid.innerHTML = '';
   } else {
-    // 会議室に入った: デフォルトはホワイトボード閉じ、ビデオも非表示
+    // 会議室・事故対策室に入った: デフォルトはホワイトボード閉じ、ビデオも非表示
     document.body.classList.remove('wb-open');
     document.body.classList.remove('cam-open');
     if (wbBtn) wbBtn.classList.remove('on');
     const rn = document.getElementById('mp-room-name');
     if (rn) rn.textContent = floor.name;
-    loadWhiteboard(floor.code);  // 内容は事前ロード
+    // ホワイトボードは狭義の会議室でのみ事前ロード
+    if (isWhiteboard) loadWhiteboard(floor.code);
   }
   setTimeout(resize, 280);
 }
@@ -7031,7 +7963,7 @@ function showAoiActionModal(botUid, botName) {
         <div style="flex:1;"><div>今日の予定を確認</div><div style="font-size:11px;font-weight:400;color:#64748b;">Google カレンダーから取得</div></div>
       </button>`
     : '';
-  // 安全管理者: スクリーン掲示+事故報告書ボタン
+  // 安全管理者: 事故対策室の機能を全て集約 (2026-04-30: 画面左ボタンを廃止して統合)
   const screenBtn = isSafety
     ? `<button onclick="aoiAction('screen', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;text-align:left;box-shadow:0 4px 12px rgba(220,38,38,0.3);">
         <span style="font-size:22px;">📷</span>
@@ -7039,9 +7971,15 @@ function showAoiActionModal(botUid, botName) {
       </button>`
     : '';
   const reportBtn = isSafety
-    ? `<button onclick="aoiAction('report', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+    ? `<button onclick="aoiAction('report', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
         <span style="font-size:22px;">📄</span>
-        <div style="flex:1;"><div>事故報告書を開く</div><div style="font-size:11px;font-weight:400;opacity:0.85;">製品事故 / 車両事故</div></div>
+        <div style="flex:1;"><div>事故報告書を作成・閲覧</div><div style="font-size:11px;font-weight:400;opacity:0.85;">製品事故 / 車両事故</div></div>
+      </button>`
+    : '';
+  const archiveBtn = isSafety
+    ? `<button onclick="aoiAction('archive', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#475569,#64748b);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        <span style="font-size:22px;">📚</span>
+        <div style="flex:1;"><div>過去報告書アーカイブ・AI分析</div><div style="font-size:11px;font-weight:400;opacity:0.9;">PDF/反省会記録 + 分析レポート</div></div>
       </button>`
     : '';
   const modal = document.createElement('div');
@@ -7062,6 +8000,7 @@ function showAoiActionModal(botUid, botName) {
         ${planBtn}
         ${screenBtn}
         ${reportBtn}
+        ${archiveBtn}
         <button onclick="aoiAction('dm', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${isSafety ? 'linear-gradient(135deg,#475569,#1e293b)' : 'linear-gradient(135deg,#06b6d4,#0891b2)'};color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
           <span style="font-size:22px;">💬</span>
           <div style="flex:1;"><div>DMで話す</div><div style="font-size:11px;font-weight:400;opacity:0.9;">${dmSub}</div></div>
@@ -7107,8 +8046,11 @@ function aoiAction(action, botUid) {
     // 事故対策室: 前面スクリーン掲示モーダル
     try { openAccidentScreenUpload(); } catch (e) {}
   } else if (action === 'report') {
-    // 事故報告書ページ
-    window.open('/accident.html', '_blank');
+    // 事故報告書ページ (名前付きwindowで同じタブを再利用)
+    window.open('/accident.html', 'cowell_accident_report');
+  } else if (action === 'archive') {
+    // 過去事故報告書アーカイブ + AI分析ページ
+    window.open('/accident-archive.html', 'cowell_accident_archive');
   } else if (action === 'plan') {
     // 健康相談 → アクションプラン作成フロー (consult.html)
     location.href = '/consult.html';
