@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🏁 Connect 230 ライブ — CoWell ロビー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body {
+  font-family: 'Yu Mincho', '游明朝', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
+  background: radial-gradient(ellipse at center, #f5e8c8 0%, #e6d3a3 70%, #c9ad6f 100%);
+  color: #2b1d10;
+}
+
+.layout { display: grid; grid-template-rows: 84px 1fr 200px; height: 100vh; padding: 12px; gap: 12px; }
+
+/* === Header === */
+header {
+  display: flex; align-items: center; justify-content: space-between; padding: 0 22px;
+  background: linear-gradient(135deg, #3a2a1a, #1a1108);
+  color: #f4e8d0;
+  border-radius: 6px;
+  border: 2px solid #c9a14a;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.35), inset 0 0 30px rgba(201,161,74,0.1);
+  font-family: 'Yu Mincho', '游明朝', 'Hiragino Mincho ProN', serif;
+}
+header .title-block { display: flex; align-items: center; gap: 14px; }
+header .logo {
+  height: 60px; width: 60px;
+  background: #f4e8d0; padding: 4px; border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+header .title {
+  font-size: 32px; font-weight: 900; letter-spacing: 4px;
+  color: #f4e8d0; text-shadow: 0 0 12px rgba(201,161,74,0.5);
+}
+header .sub { font-size: 13px; opacity: 0.8; letter-spacing: 1px; color: #d4b87a; }
+header .countdown {
+  background: linear-gradient(135deg, #c44530, #8a2820);
+  padding: 10px 20px; border-radius: 4px;
+  font-size: 17px; font-weight: 800; letter-spacing: 2px;
+  border: 1px solid #c9a14a;
+  box-shadow: 0 2px 10px rgba(196,69,48,0.4);
+  font-family: 'Yu Mincho', '游明朝', serif;
+}
+
+/* === Main area === */
+.main-area { display: grid; grid-template-columns: 2.2fr 1fr; gap: 12px; min-height: 0; }
+
+/* === Map card (Tokaido) === */
+.map-card {
+  position: relative;
+  background:
+    linear-gradient(rgba(244,232,208,0.05), rgba(244,232,208,0.05)),
+    url('/assets/walk/tokaido_map_bg.png') center/cover no-repeat;
+  background-color: #f4e8d0;
+  border-radius: 6px;
+  border: 3px double #8a6a3a;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 0 60px rgba(139,106,58,0.15);
+  overflow: hidden;
+}
+.map-card .phase-label {
+  position: absolute; top: 14px; left: 18px;
+  background: rgba(43,29,16,0.85); color: #f4e8d0;
+  padding: 6px 14px; border-radius: 3px;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  border: 1px solid #c9a14a;
+  z-index: 5;
+}
+.map-card .summary {
+  position: absolute; bottom: 12px; left: 18px; right: 18px;
+  display: flex; justify-content: space-between; pointer-events: none;
+  font-size: 13px; font-weight: 800; z-index: 5;
+}
+.map-card .summary .std { color: #1e3a5f; text-shadow: 0 0 6px #f4e8d0, 0 0 6px #f4e8d0; }
+.map-card .summary .sze { color: #047857; text-shadow: 0 0 6px #f4e8d0, 0 0 6px #f4e8d0; }
+#route-map-big { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* === Ranking card (parchment) === */
+.ranking-card {
+  background:
+    linear-gradient(rgba(244,232,208,0.92), rgba(244,232,208,0.92)),
+    url('/assets/walk/tokaido_map_bg.png') center/cover no-repeat;
+  border-radius: 6px;
+  border: 3px double #8a6a3a;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 0 30px rgba(139,106,58,0.1);
+  padding: 16px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.ranking-card h3 {
+  font-size: 17px; font-weight: 800; letter-spacing: 3px;
+  color: #2b1d10; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 2px solid #8a6a3a;
+  text-align: center;
+  font-family: 'Yu Mincho', '游明朝', serif;
+}
+.rank-list { display: flex; flex-direction: column; gap: 5px; flex: 1; overflow: hidden; }
+.rank-row {
+  display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center;
+  padding: 7px 12px;
+  background: rgba(255, 251, 240, 0.7);
+  border-radius: 4px;
+  border-left: 4px solid;
+  border-top: 1px solid rgba(139,106,58,0.2);
+  border-right: 1px solid rgba(139,106,58,0.2);
+  border-bottom: 1px solid rgba(139,106,58,0.2);
+}
+.rank-row.std { border-left-color: #1e3a5f; }
+.rank-row.sze { border-left-color: #047857; }
+.rank-row .rank-no {
+  font-size: 19px; font-weight: 900; text-align: center;
+  font-family: 'Yu Mincho', '游明朝', serif;
+  color: #2b1d10;
+}
+.rank-row .name { font-size: 13px; font-weight: 700; color: #2b1d10; }
+.rank-row .name .team { font-size: 10px; opacity: 0.6; display: block; color: #5a4a30; }
+.rank-row .steps {
+  font-size: 14px; font-weight: 800; color: #c44530;
+  font-family: 'Yu Mincho', '游明朝', serif;
+}
+
+/* === Comments === */
+.comments-area {
+  background:
+    linear-gradient(rgba(43,29,16,0.92), rgba(43,29,16,0.92)),
+    url('/assets/walk/tokaido_map_bg.png') center/cover no-repeat;
+  color: #f4e8d0;
+  border-radius: 6px;
+  border: 3px double #c9a14a;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  padding: 16px; overflow: hidden; position: relative;
+}
+.comments-area h3 {
+  font-size: 16px; font-weight: 800; letter-spacing: 3px;
+  margin-bottom: 8px;
+  color: #f4e8d0;
+  font-family: 'Yu Mincho', '游明朝', serif;
+}
+.comment-scroll {
+  display: flex; gap: 14px;
+  animation: scrollLeft 65s linear infinite;
+  white-space: nowrap;
+}
+.comment-card {
+  display: inline-flex; flex-direction: column;
+  min-width: 300px; max-width: 400px;
+  background: rgba(244,232,208,0.95);
+  color: #2b1d10;
+  border-radius: 4px;
+  border: 1px solid #c9a14a;
+  padding: 10px 14px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.comment-card .who {
+  font-size: 11px; opacity: 0.7; margin-bottom: 4px;
+  font-weight: 700; color: #5a4a30;
+}
+.comment-card .what {
+  font-size: 13px; font-weight: 600;
+  white-space: normal;
+  font-family: 'Yu Mincho', '游明朝', serif;
+}
+@keyframes scrollLeft { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <header>
+    <div class="title-block">
+      <img src="/assets/walk/logo.png" alt="logo" class="logo">
+      <div>
+        <div class="title">Connect 230</div>
+        <div class="sub">磐田(西) ⇔ 東京日本橋(東) ／ 東海道 230粁</div>
+      </div>
+    </div>
+    <div class="countdown" id="hdr-countdown">読み込み中...</div>
+  </header>
+
+  <div class="main-area">
+    <div class="map-card">
+      <div class="phase-label" id="phase-label">📍 ライブマップ</div>
+      <svg id="route-map-big" viewBox="0 0 1200 440" preserveAspectRatio="none"></svg>
+      <div class="summary">
+        <span class="std" id="std-summary">🚚 - 名 / - 歩</span>
+        <span class="sze" id="sze-summary">⚡ - 名 / - 歩</span>
+      </div>
+    </div>
+    <div class="ranking-card">
+      <h3>🏆 個人ランキング 上位拾弐</h3>
+      <div class="rank-list" id="rank-list"></div>
+    </div>
+  </div>
+
+  <div class="comments-area">
+    <h3>💬 道中の便り</h3>
+    <div class="comment-scroll" id="comment-scroll"></div>
+  </div>
+
+</div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+
+async function api(path) {
+  const r = await fetch('/api/walk' + path, { headers: { 'Authorization': 'Bearer ' + token } });
+  return r.json();
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// 街道ライン (背景画像の道に近似する緩やかな曲線)
+// viewBox 1200x440 内で y=180〜260 を蛇行する
+// 注: 地図は標準向き (北上、東=右)。u: 0..1 (0=磐田/西/左, 1=日本橋/東/右)
+function roadY(u) {
+  const baseY = 220;
+  const amp = 28;
+  return baseY - amp * Math.sin(u * Math.PI * 2.7);
+}
+
+async function refresh() {
+  const ev = await api('/event/active');
+  if (!ev.success || !ev.event) {
+    document.getElementById('hdr-countdown').textContent = 'イベント未開催';
+    return;
+  }
+  const event = ev.event;
+  const milestones = ev.milestones || [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(event.end_date);
+  const daysLeft = Math.max(0, Math.ceil((end - today) / 86400000));
+  document.getElementById('hdr-countdown').textContent = '残り ' + daysLeft + '日';
+  document.getElementById('phase-label').textContent = event.status === 'phase2_solo'
+    ? '🎉 第二幕 ／ 合流済 ／ それぞれ相手本社へ'
+    : '📍 第一幕 ／ 両陣営合流をめざして';
+
+  const teams = await api('/teams');
+  drawBigMap(event, milestones, teams.teams || []);
+
+  const ranking = await api('/ranking?limit=12');
+  drawRanking(ranking.ranking || []);
+
+  const comments = await api('/recent-comments?limit=20');
+  drawComments(comments.comments || []);
+}
+
+function drawBigMap(event, milestones, teams) {
+  const svg = document.getElementById('route-map-big');
+  const totalKm = event.total_route_km || 230;
+  const W = 1200, H = 440, padX = 70;
+  const stdTeam = teams.find(t => t.team_code === 'STD') || { total_km: 0, total_steps: 0, member_count: 0 };
+  const szeTeam = teams.find(t => t.team_code === 'SZE') || { total_km: 0, total_steps: 0, member_count: 0 };
+
+  // u: 0..1 (0=磐田/西/左, 1=日本橋/東/右)。km は日本橋=0 起点なので反転する。
+  const kmToU = km => 1 - (km / totalKm);
+  const uToX = u => padX + (W - 2 * padX) * u;
+
+  const stdKm = Math.min(stdTeam.total_km || 0, totalKm);
+  const szeKm = Math.min(szeTeam.total_km || 0, totalKm);
+  // STD: 日本橋(右,u=1) からスタート、西進で u 減少
+  const stdU = 1 - (stdKm / totalKm);
+  // SZE: 磐田(左,u=0) からスタート、東進で u 増加
+  const szeU = (szeKm / totalKm);
+  const stdX = uToX(stdU);
+  const szeX = uToX(szeU);
+  const stdYpos = roadY(stdU);
+  const szeYpos = roadY(szeU);
+
+  const isPhase2 = event.status === 'phase2_solo';
+  const meetU = isPhase2 && event.meet_position_km != null ? kmToU(event.meet_position_km) : null;
+  const meetX = meetU != null ? uToX(meetU) : null;
+
+  // 街道路 (曲線パス、宿場の繋がり) — 背景の道と二重表示でアクセント
+  let roadPath = '';
+  for (let i = 0; i <= 100; i++) {
+    const u = i / 100;
+    const x = uToX(u);
+    const y = roadY(u);
+    roadPath += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+
+  let s = '';
+
+  // 街道全体 (淡い影)
+  s += '<path d="' + roadPath + '" fill="none" stroke="rgba(43,29,16,0.18)" stroke-width="10" stroke-linecap="round"/>';
+  // 街道ベース (砂金色の点線)
+  s += '<path d="' + roadPath + '" fill="none" stroke="#c9a14a" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 6" opacity="0.85"/>';
+
+  // STD 達成区間 (藍): u=1(右) から u=stdU まで西進
+  let stdPath = '';
+  for (let i = 0; i <= 100; i++) {
+    const u = 1 - (i / 100);
+    if (u < stdU) break;
+    const x = uToX(u);
+    const y = roadY(u);
+    stdPath += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+  if (stdPath) s += '<path d="' + stdPath + '" fill="none" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round" opacity="0.85"/>';
+
+  // SZE 達成区間 (緑): u=0(左) から u=szeU まで東進
+  let szePath = '';
+  for (let i = 0; i <= 100; i++) {
+    const u = i / 100;
+    if (u > szeU) break;
+    const x = uToX(u);
+    const y = roadY(u);
+    szePath += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+  if (szePath) s += '<path d="' + szePath + '" fill="none" stroke="#047857" stroke-width="6" stroke-linecap="round" opacity="0.85"/>';
+
+  // 合流地点
+  if (meetX != null) {
+    const meetY = roadY(meetU);
+    s += '<defs><clipPath id="meetc"><circle cx="' + meetX + '" cy="' + meetY + '" r="32"/></clipPath></defs>';
+    s += '<image href="/assets/walk/meet_celebration.png" x="' + (meetX - 32) + '" y="' + (meetY - 32) + '" width="64" height="64" clip-path="url(#meetc)"/>';
+    s += '<circle cx="' + meetX + '" cy="' + meetY + '" r="32" fill="none" stroke="#c44530" stroke-width="4"/>';
+    s += '<text x="' + meetX + '" y="' + (meetY - 44) + '" text-anchor="middle" fill="#c44530" font-size="18" font-weight="800" font-family="Yu Mincho, serif">🤝 合流</text>';
+  }
+
+  // === 宿場 (道の駅) ===
+  for (let i = 0; i < milestones.length; i++) {
+    const m = milestones[i];
+    const u = kmToU(m.km_from_tokyo);
+    const mx = uToX(u);
+    const ry = roadY(u);
+    const above = i % 2 === 0;
+    // 宿場札位置: 街道から上下に伸びる
+    const cardOffset = above ? -110 : 110;
+    const cardCY = ry + cardOffset; // 円中心 (40px の半径)
+    const imgR = 42;
+
+    if (m.image_url) {
+      const cid = 'mc' + i;
+      // 影
+      s += '<ellipse cx="' + mx + '" cy="' + (cardCY + imgR + 6) + '" rx="' + (imgR - 4) + '" ry="3" fill="rgba(0,0,0,0.25)"/>';
+      // 円形クリップ + 画像
+      s += '<defs><clipPath id="' + cid + '"><circle cx="' + mx + '" cy="' + cardCY + '" r="' + imgR + '"/></clipPath></defs>';
+      s += '<image href="' + escapeHtml(m.image_url) + '" x="' + (mx - imgR) + '" y="' + (cardCY - imgR) + '" width="' + (imgR * 2) + '" height="' + (imgR * 2) + '" clip-path="url(#' + cid + ')"/>';
+      // 二重金枠
+      s += '<circle cx="' + mx + '" cy="' + cardCY + '" r="' + imgR + '" fill="none" stroke="#2b1d10" stroke-width="2"/>';
+      s += '<circle cx="' + mx + '" cy="' + cardCY + '" r="' + (imgR + 3) + '" fill="none" stroke="#c9a14a" stroke-width="2"/>';
+
+      // 引き出し線 (街道へ)
+      s += '<line x1="' + mx + '" y1="' + (cardCY + (above ? imgR : -imgR)) + '" x2="' + mx + '" y2="' + ry + '" stroke="#8a6a3a" stroke-width="1.5" stroke-dasharray="3 3"/>';
+      // 街道上の小ピン
+      s += '<circle cx="' + mx + '" cy="' + ry + '" r="5" fill="#c44530" stroke="#f4e8d0" stroke-width="2"/>';
+    } else {
+      s += '<circle cx="' + mx + '" cy="' + ry + '" r="6" fill="#c44530" stroke="#f4e8d0" stroke-width="2"/>';
+    }
+
+    // 宿場札 (朱色木札風)
+    const plateY = above ? cardCY - imgR - 28 : cardCY + imgR + 8;
+    const name = (m.name || '').slice(0, 8);
+    const plateW = Math.max(70, name.length * 14 + 16);
+    s += '<rect x="' + (mx - plateW / 2) + '" y="' + plateY + '" width="' + plateW + '" height="22" rx="2" fill="#3a2a1a" stroke="#c9a14a" stroke-width="1.5"/>';
+    s += '<text x="' + mx + '" y="' + (plateY + 16) + '" text-anchor="middle" fill="#f4e8d0" font-size="13" font-weight="700" font-family="Yu Mincho, serif" letter-spacing="1">' + escapeHtml(name) + '</text>';
+    // km 表示 (札の外側、控えめ)
+    const kmY = above ? plateY - 4 : plateY + 32;
+    s += '<text x="' + mx + '" y="' + kmY + '" text-anchor="middle" fill="#5a4a30" font-size="10" font-weight="600">' + Math.round(m.km_from_tokyo) + '里塚</text>';
+  }
+
+  // === 旅人マーカー ===
+  // STD 旅人 (日本橋=右からスタート、西進=左へ移動)。画像は右向きで生成されたため SVG 側で水平反転して左向きにする。
+  const travelerR = 30;
+  s += '<defs><clipPath id="trvstd"><circle cx="' + stdX + '" cy="' + stdYpos + '" r="' + travelerR + '"/></clipPath></defs>';
+  s += '<ellipse cx="' + stdX + '" cy="' + (stdYpos + travelerR + 4) + '" rx="' + (travelerR - 4) + '" ry="3" fill="rgba(0,0,0,0.3)"/>';
+  s += '<image href="/assets/walk/traveler_std.png" x="' + (stdX - travelerR) + '" y="' + (stdYpos - travelerR) + '" width="' + (travelerR * 2) + '" height="' + (travelerR * 2) + '" clip-path="url(#trvstd)" transform="matrix(-1 0 0 1 ' + (2 * stdX) + ' 0)"/>';
+  s += '<circle cx="' + stdX + '" cy="' + stdYpos + '" r="' + travelerR + '" fill="none" stroke="#1e3a5f" stroke-width="3"/>';
+  s += '<circle cx="' + stdX + '" cy="' + stdYpos + '" r="' + (travelerR + 2) + '" fill="none" stroke="#c9a14a" stroke-width="1.5"/>';
+  // STD ラベル
+  const stdLabelY = stdYpos - travelerR - 10;
+  s += '<rect x="' + (stdX - 38) + '" y="' + (stdLabelY - 18) + '" width="76" height="22" rx="2" fill="#1e3a5f" stroke="#c9a14a" stroke-width="1"/>';
+  s += '<text x="' + stdX + '" y="' + (stdLabelY - 2) + '" text-anchor="middle" fill="#f4e8d0" font-size="13" font-weight="800" font-family="Yu Mincho, serif">🚚 ' + (stdTeam.total_km || 0).toFixed(0) + 'km</text>';
+
+  // SZE 旅人 (磐田=左からスタート、東進=右へ移動)。画像は左向きで生成されたため SVG 側で水平反転して右向きにする。
+  s += '<defs><clipPath id="trvsze"><circle cx="' + szeX + '" cy="' + szeYpos + '" r="' + travelerR + '"/></clipPath></defs>';
+  s += '<ellipse cx="' + szeX + '" cy="' + (szeYpos + travelerR + 4) + '" rx="' + (travelerR - 4) + '" ry="3" fill="rgba(0,0,0,0.3)"/>';
+  s += '<image href="/assets/walk/traveler_sze.png" x="' + (szeX - travelerR) + '" y="' + (szeYpos - travelerR) + '" width="' + (travelerR * 2) + '" height="' + (travelerR * 2) + '" clip-path="url(#trvsze)" transform="matrix(-1 0 0 1 ' + (2 * szeX) + ' 0)"/>';
+  s += '<circle cx="' + szeX + '" cy="' + szeYpos + '" r="' + travelerR + '" fill="none" stroke="#047857" stroke-width="3"/>';
+  s += '<circle cx="' + szeX + '" cy="' + szeYpos + '" r="' + (travelerR + 2) + '" fill="none" stroke="#c9a14a" stroke-width="1.5"/>';
+  // SZE ラベル
+  const szeLabelY = szeYpos + travelerR + 32;
+  s += '<rect x="' + (szeX - 38) + '" y="' + (szeLabelY - 18) + '" width="76" height="22" rx="2" fill="#047857" stroke="#c9a14a" stroke-width="1"/>';
+  s += '<text x="' + szeX + '" y="' + (szeLabelY - 2) + '" text-anchor="middle" fill="#f4e8d0" font-size="13" font-weight="800" font-family="Yu Mincho, serif">⚡ ' + (szeTeam.total_km || 0).toFixed(0) + 'km</text>';
+
+  svg.innerHTML = s;
+
+  // チームサマリ更新
+  document.getElementById('std-summary').textContent =
+    '🚚 ' + (stdTeam.member_count || 0) + '名 ／ ' + (stdTeam.total_steps || 0).toLocaleString() + '歩';
+  document.getElementById('sze-summary').textContent =
+    '⚡ ' + (szeTeam.member_count || 0) + '名 ／ ' + (szeTeam.total_steps || 0).toLocaleString() + '歩';
+}
+
+function drawRanking(rows) {
+  const list = document.getElementById('rank-list');
+  if (!rows.length) {
+    list.innerHTML = '<div style="text-align:center;opacity:0.5;padding:20px;font-size:12px;">記録はまだありません</div>';
+    return;
+  }
+  list.innerHTML = rows.map((r, i) => {
+    const teamCls = r.team_code === 'STD' ? 'std' : 'sze';
+    const teamIcon = r.team_code === 'STD' ? '🚚' : '⚡';
+    const teamLabel = r.team_code === 'STD' ? 'スタンダード' : 'スズエ';
+    const rankBadge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    const name = r.nickname || r.display_name || '匿名';
+    return '<div class="rank-row ' + teamCls + '">' +
+      '<span class="rank-no">' + rankBadge + '</span>' +
+      '<span class="name">' + teamIcon + ' ' + escapeHtml(name) + '<span class="team">' + teamLabel + '</span></span>' +
+      '<span class="steps">' + (r.total_steps || 0).toLocaleString() + '歩</span>' +
+      '</div>';
+  }).join('');
+}
+
+function drawComments(comments) {
+  const wrap = document.getElementById('comment-scroll');
+  if (!comments.length) {
+    wrap.innerHTML = '<div style="opacity:0.5;padding:20px;color:#f4e8d0;">まだ便りはありません</div>';
+    return;
+  }
+  const items = comments.concat(comments);
+  wrap.innerHTML = items.map(c => {
+    const name = c.nickname || c.display_name || '匿名';
+    return '<div class="comment-card">' +
+      '<div class="who">' + escapeHtml(name) + ' ／ ' + (c.steps || 0).toLocaleString() + '歩</div>' +
+      '<div class="what">💬 ' + escapeHtml(c.comment || '') + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+refresh();
+setInterval(refresh, 8000);
+</script>
+</body>
+</html>
