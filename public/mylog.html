@@ -29,7 +29,8 @@ main { max-width: 680px; margin: 0 auto; padding: 20px; }
 <body>
 <header>
   <h1>📜 会話ログ（過去24時間）</h1>
-  <button onclick="location.href='/'" style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+  <button onclick="goBackHome()" style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+  <script>function goBackHome(){var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||'');if(history.length>1){history.back();}else{location.href=m?'/m':'/';}}</script>
 </header>
 <main>
   <div class="note">

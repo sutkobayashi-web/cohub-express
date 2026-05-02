@@ -1156,7 +1156,7 @@ async function doLogin() {
     }
     // 現場スタッフ or スマホアクセスは自動でモバイル版 /m へ (PC優先フラグ時はスキップ)
     if (userData && shouldRedirectToMobile(userData)) {
-      location.href = '/m';
+      location.replace('/m');
       return;
     }
     enterSpace();
@@ -1302,7 +1302,7 @@ async function submitConsent() {
       showNicknameSetupModal();
       return;
     }
-    if (userData && shouldRedirectToMobile(userData)) { location.href = '/m'; return; }
+    if (userData && shouldRedirectToMobile(userData)) { location.replace('/m'); return; }
     enterSpace();
   } catch (e) {
     err.textContent = '通信エラー: ' + e.message;
@@ -1374,7 +1374,7 @@ async function submitNickname() {
       localStorage.setItem('cohub_user', JSON.stringify(userData));
     }
     document.getElementById('nick-setup-modal').remove();
-    if (userData && shouldRedirectToMobile(userData)) { location.href = '/m'; return; }
+    if (userData && shouldRedirectToMobile(userData)) { location.replace('/m'); return; }
     enterSpace();
   } catch (e) {
     err.textContent = '通信エラー: ' + e.message;
@@ -8656,14 +8656,14 @@ if (token && userData) {
       // 同意 → ニックネーム → 通常画面 の優先順位
       if (userData && userData.needs_consent) { showConsentModal(userData); return; }
       if (userData && userData.needs_nickname_setup) { showNicknameSetupModal(); return; }
-      if (shouldRedirectToMobile(userData)) location.href = '/m';
+      if (shouldRedirectToMobile(userData)) location.replace('/m');
       else enterSpace();
     })
     .catch(() => {
       // /me 失敗時はキャッシュを信用
       if (userData && userData.needs_consent) { showConsentModal(userData); return; }
       if (userData && userData.needs_nickname_setup) { showNicknameSetupModal(); return; }
-      if (shouldRedirectToMobile(userData)) location.href = '/m';
+      if (shouldRedirectToMobile(userData)) location.replace('/m');
       else enterSpace();
     });
 } else {

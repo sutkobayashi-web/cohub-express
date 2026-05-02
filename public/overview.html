@@ -93,7 +93,8 @@
   <span class="spacer"></span>
   <span class="stat">合計 <b id="total-online">-</b> 名在席</span>
   <span class="stat">更新: <span id="last-update">-</span></span>
-  <button onclick="location.href='/'" style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+  <button onclick="goBackHome()" style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+  <script>function goBackHome(){var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||'');if(history.length>1){history.back();}else{location.href=m?'/m':'/';}}</script>
   <button id="btn-fullscreen" title="全画面表示">⛶ 全画面</button>
 </header>
 <div id="grid"></div>
@@ -443,7 +444,7 @@ const SCHEMATICS = {
     drawLabel(ctx, '📞 緊急', 1134, 350, 26, '#92400e');
     drawLabel(ctx, '連絡', 1134, 390, 26, '#92400e');
     // 下部ラベル
-    drawLabel(ctx, '🚨 現場 事故対策室', 672, 700, 30, '#991b1b');
+    drawLabel(ctx, '🚨 事故対策室', 672, 700, 30, '#991b1b');
   },
 };
 
