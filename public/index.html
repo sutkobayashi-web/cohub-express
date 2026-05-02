@@ -7,11 +7,15 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
-<link rel="manifest" href="/manifest.json?v=3">
+<link rel="manifest" href="/manifest.json?v=4">
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CoWell">
+<script>
+// 旧manifest portrait ロックを runtime で解除 (タブレット縦横対応)
+try { if (screen && screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+</script>
 <script>
 // 既ログイン状態でlobbyに戻った時のログイン画面チラつき防止 (告知/業務ページから戻る時など)
 // ストレージにtoken+userがあるなら DOMContentLoaded でも login-screen に active を付けない

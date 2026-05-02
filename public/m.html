@@ -6,6 +6,10 @@
 <meta name="theme-color" content="#f3f4f6">
 <title>CoWell モバイル</title>
 <script>
+// 旧manifest portrait ロックを runtime で解除 (タブレット縦横対応)
+try { if (screen && screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+</script>
+<script>
 // 既ログイン状態でlobbyに戻った時のログイン画面チラつき防止
 (function() {
   try {
@@ -16,7 +20,7 @@
 })();
 </script>
 <style>html.boot-auth #login { display: none; }</style>
-<link rel="manifest" href="/manifest.json?v=3">
+<link rel="manifest" href="/manifest.json?v=4">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <style>
