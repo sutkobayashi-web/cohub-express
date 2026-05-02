@@ -593,6 +593,15 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
     </div>
   </div>
   <div id="chat-body"></div>
+  <!-- 安全太郎専用クイックアクション (報告類のテンプレ起動) -->
+  <div id="safety-quick-actions" style="display:none;flex-shrink:0;background:#fef2f2;border-top:1px solid #fee2e2;padding:8px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <div style="display:flex;gap:6px;flex-wrap:nowrap;min-width:max-content;">
+      <button onclick="sendSafetyTemplate('accident')" style="background:#fff;border:1.5px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;">🚨 事故報告書</button>
+      <button onclick="sendSafetyTemplate('hiyari')" style="background:#fff;border:1.5px solid #fed7aa;color:#9a3412;padding:8px 12px;border-radius:14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;">⚠️ ヒヤリハット</button>
+      <button onclick="sendSafetyTemplate('damage')" style="background:#fff;border:1.5px solid #fde68a;color:#854d0e;padding:8px 12px;border-radius:14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;">📦 製品破損</button>
+      <button onclick="sendSafetyTemplate('kyt')" style="background:#fff;border:1.5px solid #bfdbfe;color:#1e40af;padding:8px 12px;border-radius:14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;">🦺 KYT</button>
+    </div>
+  </div>
   <div id="chat-input-wrap">
     <button id="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()">📎</button>
     <input type="file" id="chat-file-input" style="display:none" onchange="onAttachFile(this)">
@@ -1730,6 +1739,25 @@ function openHealthChat() {
 function openSafetyChat() {
   openDM(SAFETY_UID, '安全太郎', '/assets/concierge_safety_avatar.png?v=1', true);
 }
+// 安全太郎クイックアクション: 報告類のテンプレ起動文を入力欄にセット
+// AI側 (bot_safety) は過去の事故報告 context を持っているので、項目を順に質問してくれる
+function sendSafetyTemplate(kind) {
+  const TEMPLATES = {
+    accident: '【事故報告書】を作成します。日時／場所／事故の内容／怪我の有無／原因／応急対応 を順に教えてください。質問にひとつずつ答えていきます。',
+    hiyari:   '【ヒヤリハット】を共有します。いつ・どこで・何が起きそうだったか／本来どうあるべきだったか／再発防止の気付き を教えてください。',
+    damage:   '【製品破損報告書】を作成します。発生日／フロア・場所／製品名・カテゴリ／数量／原因／状況 を順に教えてください。',
+    kyt:      '【KYT (危険予知トレーニング)】を始めます。対象作業／予測される危険／なぜ起きるのか／対策案 を一緒に整理しましょう。まず今日の作業内容を教えてください。',
+  };
+  const text = TEMPLATES[kind];
+  if (!text) return;
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.value = text;
+    input.focus();
+  }
+  // 自動送信 (ユーザは編集不要で対話開始)
+  if (typeof sendChatMessage === 'function') sendChatMessage();
+}
 async function openDM(peerId, name, avatar, isBot) {
   openPeerUid = peerId;
   openGroupId = null;
@@ -1738,8 +1766,11 @@ async function openDM(peerId, name, avatar, isBot) {
   loadChatLists();
   document.getElementById('chat-modal').classList.add('show');
   document.getElementById('chat-h-name').textContent = name;
-  const botSub = peerId === HEALTH_UID ? 'AI ヘルスアドバイザー' : 'AI 受付案内員';
+  const botSub = peerId === HEALTH_UID ? 'AI ヘルスアドバイザー' : peerId === SAFETY_UID ? 'AI 安全管理者' : 'AI 受付案内員';
   document.getElementById('chat-h-sub').textContent = isBot ? botSub : (users[peerId] ? (users[peerId].company || '') : '');
+  // 安全太郎の時だけクイックアクションバーを出す
+  const sqa = document.getElementById('safety-quick-actions');
+  if (sqa) sqa.style.display = (peerId === SAFETY_UID) ? 'block' : 'none';
   const hav = document.getElementById('chat-h-av');
   if (avatar) hav.innerHTML = '<img src="' + escapeHtml(avatar) + '">';
   else hav.textContent = (name || '?').slice(0, 2);
@@ -1786,6 +1817,8 @@ function closeChatModal() {
   if (typeof stopVoiceConv === 'function') stopVoiceConv();
   openPeerUid = null;
   openGroupId = null;
+  var sqa = document.getElementById('safety-quick-actions');
+  if (sqa) sqa.style.display = 'none';
 }
 function renderMessages(msgs, showSenderName) {
   const body = document.getElementById('chat-body');
