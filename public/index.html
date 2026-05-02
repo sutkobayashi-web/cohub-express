@@ -33,7 +33,7 @@
 })();
 </script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/selfie_segmentation.js" crossorigin="anonymous" defer></script>
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #e2e8f0; color: #0f172a; overflow: hidden; height: 100vh; -webkit-tap-highlight-color: transparent; }
@@ -8638,7 +8638,15 @@ function isMobileDevice() {
 function shouldRedirectToMobile(u) {
   if (!u) return false;
   // ユーザーが明示的にPC版を選んでいたらリダイレクトしない
-  try { if (localStorage.getItem('cohub_force_pc') === '1') return false; } catch (e) {}
+  try {
+    // URLクエリ ?pc=1 を見たら localStorage にも記録 (バックアップ経路)
+    var qs = new URLSearchParams(location.search);
+    if (qs.get('pc') === '1') {
+      try { localStorage.setItem('cohub_force_pc', '1'); } catch(_) {}
+      return false;
+    }
+    if (localStorage.getItem('cohub_force_pc') === '1') return false;
+  } catch (e) {}
   if (u.employee_type === 'field') return true;
   if (isMobileDevice()) return true;
   return false;

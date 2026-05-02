@@ -2472,9 +2472,10 @@ async function registerPushM(forceRequest) {
 }
 
 // PC版で開く (タブレット等で全体UI使いたい時)
+// localStorage + URLクエリ ?pc=1 の両方で確実にリダイレクトを止める
 function switchToPcMode() {
   try { localStorage.setItem('cohub_force_pc', '1'); } catch (e) {}
-  location.href = '/';
+  location.href = '/?pc=1';
 }
 
 async function enablePushFromSettingsM() {
