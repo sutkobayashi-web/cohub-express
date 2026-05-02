@@ -13,23 +13,28 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
-const PROMPT = `A clean, modern mobile app icon for "CoHub" - a virtual office collaboration platform.
+const PROMPT = `A clean, modern mobile app icon for "CoWell" - Communication & Wellness platform.
 Square format, exactly 1:1 aspect ratio.
 
-Design: A bold, stylized "Co" monogram in pure white, centered on a vivid radial gradient background.
-Background gradient: from deep navy (#0f172a) at the corners, through royal blue (#1e40af) in the middle ring, to bright cyan (#06b6d4) at the center, creating a soft glow behind the monogram.
-The "Co" letters: bold, geometric sans-serif, tightly kerned, slightly rounded corners, with a very subtle white inner glow, occupying about 45% of the icon width, perfectly centered.
+Design layout (top to bottom, all centered horizontally):
+1. The brand wordmark "CoWell" in pure white, bold geometric sans-serif, slightly rounded corners, tightly kerned, occupying about 55% of the icon width, positioned in the upper-middle area of the icon.
+2. A thin elegant white horizontal divider line below "CoWell" (about 35% width, 2-3px thick, 60% opacity).
+3. Below the divider, the tagline "Communication & Wellness" in a smaller, clean sans-serif uppercase, white at 80% opacity, letter-spaced slightly, occupying about 65% of the icon width.
 
-Style: flat design with subtle depth, premium feel, friendly yet professional, suitable for a corporate productivity app.
+Background: vivid radial gradient — from deep navy (#0f172a) at the corners, through royal blue (#1e40af) in the middle ring, to a soft teal-cyan (#06b6d4) glow at the center behind the wordmark.
+Subtle accent: a faint mint-green (#10b981) inner glow around the "CoWell" letters to hint at the wellness aspect.
+
+Style: flat design with subtle depth, premium feel, friendly yet professional, suitable for a corporate productivity + health app.
 
 CRITICAL constraints:
-- Plain gradient background only - NO scenes, NO buildings, NO people, NO additional shapes or decorations
-- All visual content must stay within the center 80% (safe zone for Android maskable adaptive icons)
-- The only text is the "Co" monogram - absolutely no other letters, words, or numbers
-- Must remain clearly readable when scaled down to 32x32 pixels
+- Plain gradient background only - NO scenes, NO buildings, NO people, NO icons, NO additional decorations
+- All text and visual content must stay within the center 80% (safe zone for Android maskable adaptive icons)
+- ONLY the texts "CoWell" and "Communication & Wellness" appear - no other letters, words, or numbers
+- "CoWell" must remain clearly readable when scaled to 64x64 pixels (the tagline may become unreadable at small sizes, that's OK)
 - No drop shadow that extends beyond the canvas edges
 - Do not add a frame or border
-- Background must reach all four edges of the canvas`;
+- Background must reach all four edges of the canvas
+- Spell exactly: "CoWell" (capital C, lowercase o, capital W, lowercase e, lowercase l, lowercase l) and "Communication & Wellness" with a literal ampersand`;
 
 (async () => {
   const apiKey = process.env.GEMINI_API_KEY;
