@@ -1741,8 +1741,9 @@ function openHealthChat() {
 function openSafetyChat() {
   openDM(SAFETY_UID, '安全太郎', '/assets/concierge_safety_avatar.png?v=1', true);
 }
-// 安全太郎クイックアクション: 報告類のテンプレ起動文を入力欄にセット
-// AI側 (bot_safety) は過去の事故報告 context を持っているので、項目を順に質問してくれる
+// 安全太郎クイックアクション:
+//  1) AI (bot_safety, 過去事故context持ち) にテンプレ起動文を送信して詳細ヒアリングを開始
+//  2) 同時に該当する正式書面の入力モーダル/ページを開く (PC版 aoiAction と同じ思想)
 function sendSafetyTemplate(kind) {
   const TEMPLATES = {
     accident: '【事故報告書】を作成します。日時／場所／事故の内容／怪我の有無／原因／応急対応 を順に教えてください。質問にひとつずつ答えていきます。',
@@ -1750,15 +1751,48 @@ function sendSafetyTemplate(kind) {
     damage:   '【製品破損報告書】を作成します。発生日／フロア・場所／製品名・カテゴリ／数量／原因／状況 を順に教えてください。',
     kyt:      '【KYT (危険予知トレーニング)】を始めます。対象作業／予測される危険／なぜ起きるのか／対策案 を一緒に整理しましょう。まず今日の作業内容を教えてください。',
   };
+  // チャット起動文 (詳細ヒアリング開始)
   const text = TEMPLATES[kind];
-  if (!text) return;
-  const input = document.getElementById('chat-input');
-  if (input) {
-    input.value = text;
-    input.focus();
+  if (text) {
+    const input = document.getElementById('chat-input');
+    if (input) input.value = text;
+    if (typeof sendChatMessage === 'function') sendChatMessage();
   }
-  // 自動送信 (ユーザは編集不要で対話開始)
-  if (typeof sendChatMessage === 'function') sendChatMessage();
+  // 同時に書面モーダル (確認カード) を表示 → ユーザが正式書面を開くか選べる
+  showSafetyReportPrompt(kind);
+}
+
+// 正式書面誘導カード (チャット中に小さなオーバーレイ表示)
+function showSafetyReportPrompt(kind) {
+  const META = {
+    accident: { label: '事故報告書', url: '/accident.html', emoji: '🚨', color: '#dc2626' },
+    hiyari:   { label: 'ヒヤリハット報告', url: '/accident.html', emoji: '⚠️', color: '#ea580c' },
+    damage:   { label: '製品破損報告書', url: '/accident.html', emoji: '📦', color: '#ca8a04' },
+    kyt:      { label: 'KYT記録', url: null, emoji: '🦺', color: '#1e40af' }, // 専用書面なし→チャットのみ
+  };
+  const m = META[kind];
+  if (!m || !m.url) return; // KYTは書面なし、チャットのみで完結
+  const old = document.getElementById('safety-report-prompt');
+  if (old) old.remove();
+  const card = document.createElement('div');
+  card.id = 'safety-report-prompt';
+  card.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(160px + env(safe-area-inset-bottom));z-index:9500;background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(15,23,42,0.25);border:2px solid ' + m.color + ';padding:12px 14px;max-width:calc(100% - 24px);width:340px;animation:slideUp 0.25s ease-out;';
+  card.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+      '<div style="width:32px;height:32px;border-radius:50%;background:' + m.color + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">' + m.emoji + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-weight:800;font-size:13px;color:#0f172a;">' + m.label + ' を書きますか？</div>' +
+        '<div style="font-size:10px;color:#64748b;margin-top:2px;">チャットと並行して正式な書面に残せます</div>' +
+      '</div>' +
+      '<button onclick="document.getElementById(\'safety-report-prompt\').remove()" style="background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;width:24px;height:24px;line-height:1;">×</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:6px;">' +
+      '<button onclick="document.getElementById(\'safety-report-prompt\').remove();" style="flex:1;padding:9px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">あとで</button>' +
+      '<button onclick="document.getElementById(\'safety-report-prompt\').remove();window.open(\'' + m.url + '\',\'cowell_accident_report\');" style="flex:2;padding:9px;background:' + m.color + ';color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;">📝 書面を開く</button>' +
+    '</div>';
+  document.body.appendChild(card);
+  // 30秒で自動クローズ
+  setTimeout(() => { try { card.remove(); } catch (e) {} }, 30000);
 }
 async function openDM(peerId, name, avatar, isBot) {
   openPeerUid = peerId;
