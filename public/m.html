@@ -2642,8 +2642,8 @@ async function openFloor(code, name) {
         </div>
         <button onclick="document.getElementById('floor-people-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
       </div>
-      <div id="floor-image-wrap" style="flex-shrink:0;background:#0f172a;position:relative;aspect-ratio:1344/768;overflow:hidden;">
-        <img src="${escapeHtml(imgUrl)}" id="floor-image" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="document.getElementById('floor-image-wrap').style.display='none'">
+      <div id="floor-image-wrap" style="flex-shrink:0;background:linear-gradient(135deg,#1e293b,#334155);position:relative;aspect-ratio:1344/768;overflow:hidden;min-height:180px;">
+        <img src="${escapeHtml(imgUrl)}" id="floor-image" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">
         <div id="floor-image-avatars" style="position:absolute;inset:0;pointer-events:none;"></div>
       </div>
       <div id="floor-people-list" style="flex:1;overflow-y:auto;padding:10px;background:#f8fafc;min-height:120px;">
@@ -2668,14 +2668,22 @@ async function openFloor(code, name) {
     }
     const members = d.members || [];
     // 自分が同じフロアに居れば先頭に追加 (サーバAPIは自分を除外して返してくる)
-    const me = user && users[user.uid];
-    const meHere = me && me.floor === code && me.x != null && me.y != null;
+    // モバイルは isMobile=true でロビー固定なので、me.floor が無くても lobby なら表示
+    const me = (user && users[user.uid]) || {};
+    const myFloor = me.floor || 'lobby';
+    const meHere = myFloor === code;
     if (meHere) {
+      // フロア入室位置のフォールバック (schema の entry_x, entry_y)
+      const FLOOR_ENTRY = { lobby:[672,678], office:[672,678], meeting_a:[672,678], meeting_b:[672,678], meeting_c:[672,678], field_rest:[672,678], field_dispatch:[672,678], field_work:[672,678], field_meet:[672,678], field_accident:[672,700] };
+      const def = FLOOR_ENTRY[code] || [672, 678];
       members.unshift({
-        uid: user.uid, name: me.name || user.display_name || 'あなた',
+        uid: user.uid,
+        name: me.name || user.display_name || 'あなた',
         avatar: me.avatar || user.avatar_url || '',
         ring: me.ring || '#06b6d4',
-        x: me.x, y: me.y, status: me.status || 'active',
+        x: (me.x != null) ? me.x : def[0],
+        y: (me.y != null) ? me.y : def[1],
+        status: me.status || 'active',
         employee_type: me.employee_type || user.employee_type,
         role: me.role || user.role,
         _self: true,
