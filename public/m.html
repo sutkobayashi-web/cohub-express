@@ -1491,6 +1491,36 @@ function connectSocket() {
   socket.on('groups:changed', () => {
     loadChatLists();
   });
+  // 自分がフロア移動した: snapshot 再受信 → モーダル開いてれば再ロード
+  socket.on('snapshot', () => {
+    if (typeof _floorModalState !== 'undefined' && _floorModalState) {
+      // 自分の floor は users[user.uid].floor に入ってる (snapshot処理側で更新済)
+      loadFloorMembers();
+    }
+  });
+  // 同フロア内の他ユーザー位置/状態変化: フロア画像のアバターだけ即更新
+  socket.on('user:update', (d) => {
+    if (typeof _floorModalState !== 'undefined' && _floorModalState && _floorModalState.meHere) {
+      const m = _floorModalState.members.find(x => x.uid === d.uid);
+      if (m) {
+        if (d.x != null) m.x = d.x;
+        if (d.y != null) m.y = d.y;
+        if (d.status) m.status = d.status;
+        renderFloorAvatars();
+      }
+    }
+  });
+  // フロアロック→toast (モバイルはPW入力UIなし、PCで解除を)
+  socket.on('floor:locked', (d) => {
+    showToast('🔒 ' + (d && d.name || 'この部屋') + ' は鍵がかかっています');
+  });
+  socket.on('room:waiting', (d) => {
+    showToast('🔔 ' + (d && d.name || '') + ' 入室承認待ち…');
+  });
+  socket.on('room:knock-result', (d) => {
+    if (d && d.ok) showToast('✅ 入室が承認されました');
+    else showToast('❌ ' + (d && d.msg || '入室できませんでした'));
+  });
   // 👋 肩たたき (PCの誰かがロビーで自分を呼んだ時)
   socket.on('tap:received', (data) => {
     const fromName = (data && data.fromName) || '誰か';
@@ -2622,59 +2652,76 @@ async function loadFloorList() {
   } catch (e) { console.warn('loadFloorList', e); }
 }
 
-// フロアタップ → 上段=フロア画像 / 下段=在席メンバーリスト (モバイル縦持ち最適)
+// フロア入室位置 (schema の entry_x, entry_y)
+const FLOOR_ENTRY = { lobby:[672,678], office:[672,678], meeting_a:[672,678], meeting_b:[672,678], meeting_c:[672,678], field_rest:[672,678], field_dispatch:[672,678], field_work:[672,678], field_meet:[672,678], field_accident:[672,700] };
+
+// フロアモーダル状態
+let _floorModalState = null; // { code, name, pollTimer, members }
+
+// フロアタップ → 上段=フロア画像 / 下段=在席メンバーリスト
 async function openFloor(code, name) {
-  // モーダル生成
-  let modal = document.getElementById('floor-people-modal');
-  if (modal) modal.remove();
-  modal = document.createElement('div');
+  closeFloorModal(); // 既存モーダル+ポーリング掃除
+  const modal = document.createElement('div');
   modal.id = 'floor-people-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
-  // フロア画像 (assets/floor_<code>.png) をonerrorで隠蔽
   const imgUrl = '/assets/floor_' + code + '.png';
   modal.innerHTML = `
     <div style="background:#fff;width:100%;max-height:90vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;animation:slideUp 0.2s ease-out;">
-      <div style="padding:14px 18px;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <div style="padding:12px 14px;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;display:flex;align-items:center;gap:8px;flex-shrink:0;">
         <div style="font-size:20px;">🏢</div>
-        <div style="flex:1;">
+        <div style="flex:1;min-width:0;">
           <div style="font-weight:800;font-size:15px;">${escapeHtml(name)}</div>
           <div style="font-size:10px;opacity:0.9;" id="floor-people-count">読み込み中…</div>
         </div>
-        <button onclick="document.getElementById('floor-people-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+        <button id="floor-jump-btn" onclick="floorJump()" style="background:#10b981;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;display:none;">🚪 入室</button>
+        <button onclick="closeFloorModal()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
       </div>
-      <div id="floor-image-wrap" style="flex-shrink:0;background:linear-gradient(135deg,#1e293b,#334155);position:relative;aspect-ratio:1344/768;overflow:hidden;min-height:180px;">
-        <img src="${escapeHtml(imgUrl)}" id="floor-image" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">
+      <div id="floor-image-wrap" onclick="floorImageTap(event)" style="flex-shrink:0;background:linear-gradient(135deg,#1e293b,#334155);position:relative;aspect-ratio:1344/768;overflow:hidden;min-height:180px;cursor:pointer;">
+        <img src="${escapeHtml(imgUrl)}" id="floor-image" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" onerror="this.style.display='none'">
         <div id="floor-image-avatars" style="position:absolute;inset:0;pointer-events:none;"></div>
+        <div id="floor-image-hint" style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;padding:3px 8px;border-radius:8px;pointer-events:none;">タップで移動</div>
       </div>
       <div id="floor-people-list" style="flex:1;overflow-y:auto;padding:10px;background:#f8fafc;min-height:120px;">
         <div style="text-align:center;color:#94a3b8;padding:20px;font-size:13px;">読み込み中…</div>
       </div>
     </div>`;
   document.body.appendChild(modal);
-  // CSS animation
   if (!document.getElementById('mobile-modal-keyframes')) {
     const s = document.createElement('style');
     s.id = 'mobile-modal-keyframes';
     s.textContent = '@keyframes slideUp { from{transform:translateY(100%);} to{transform:translateY(0);} } @keyframes selfPulse { 0%,100%{box-shadow:0 2px 6px rgba(0,0,0,0.4),0 0 0 0 rgba(6,182,212,0.6);} 50%{box-shadow:0 2px 6px rgba(0,0,0,0.4),0 0 0 8px rgba(6,182,212,0);} }';
     document.head.appendChild(s);
   }
-  // データ読込
+  _floorModalState = { code, name, members: [], pollTimer: null };
+  await loadFloorMembers();
+  // 3秒ポーリング (他フロア閲覧でもメンバー位置の追従)
+  _floorModalState.pollTimer = setInterval(loadFloorMembers, 3000);
+}
+
+function closeFloorModal() {
+  if (_floorModalState && _floorModalState.pollTimer) clearInterval(_floorModalState.pollTimer);
+  _floorModalState = null;
+  const m = document.getElementById('floor-people-modal');
+  if (m) m.remove();
+}
+
+async function loadFloorMembers() {
+  if (!_floorModalState) return;
+  const code = _floorModalState.code;
   try {
     const r = await fetch('/api/floor-presence/' + encodeURIComponent(code), { headers: { Authorization: 'Bearer ' + token } });
     const d = await r.json();
     if (!d.success) {
-      document.getElementById('floor-people-list').innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;font-size:13px;">取得失敗: ' + escapeHtml(d.msg||'') + '</div>';
+      const list = document.getElementById('floor-people-list');
+      if (list) list.innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;font-size:13px;">取得失敗: ' + escapeHtml(d.msg||'') + '</div>';
       return;
     }
     const members = d.members || [];
-    // 自分が同じフロアに居れば先頭に追加 (サーバAPIは自分を除外して返してくる)
-    // モバイルは isMobile=true でロビー固定なので、me.floor が無くても lobby なら表示
+    // 自分を先頭に追加 (サーバAPIは自分を除外して返す)
     const me = (user && users[user.uid]) || {};
     const myFloor = me.floor || 'lobby';
     const meHere = myFloor === code;
     if (meHere) {
-      // フロア入室位置のフォールバック (schema の entry_x, entry_y)
-      const FLOOR_ENTRY = { lobby:[672,678], office:[672,678], meeting_a:[672,678], meeting_b:[672,678], meeting_c:[672,678], field_rest:[672,678], field_dispatch:[672,678], field_work:[672,678], field_meet:[672,678], field_accident:[672,700] };
       const def = FLOOR_ENTRY[code] || [672, 678];
       members.unshift({
         uid: user.uid,
@@ -2689,54 +2736,106 @@ async function openFloor(code, name) {
         _self: true,
       });
     }
+    _floorModalState.members = members;
+    _floorModalState.meHere = meHere;
+    // ヘッダーボタン: 入室済なら隠す
+    const jumpBtn = document.getElementById('floor-jump-btn');
+    if (jumpBtn) jumpBtn.style.display = meHere ? 'none' : 'inline-block';
+    // ヒント文言
+    const hint = document.getElementById('floor-image-hint');
+    if (hint) hint.textContent = meHere ? 'タップで移動' : 'タップで入室+移動';
     document.getElementById('floor-people-count').textContent = members.length + '人 が在室中' + (meHere ? ' (あなた含む)' : '');
-    // フロア画像上にアバターを配置 (world座標 1344×768 → %)
-    const avHost = document.getElementById('floor-image-avatars');
-    if (avHost) {
-      avHost.innerHTML = members.map(m => {
-        if (m.x == null || m.y == null) return '';
-        const left = Math.max(0, Math.min(100, (m.x / 1344) * 100));
-        const top = Math.max(0, Math.min(100, (m.y / 768) * 100));
-        const initial = (m.name || '?').slice(0, 1);
-        const ring = escapeHtml(m.ring || '#cbd5e1');
-        const av = m.avatar
-          ? `<img src="${escapeHtml(m.avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-          : `<div style="width:100%;height:100%;background:${ring};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;border-radius:50%;">${escapeHtml(initial)}</div>`;
-        const selfMark = m._self
-          ? `<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:#06b6d4;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">あなた</div>`
-          : '';
-        const sz = m._self ? 38 : 32;
-        const bd = m._self ? '3px solid #06b6d4' : '2px solid ' + ring;
-        const pulse = m._self ? 'animation:selfPulse 1.6s ease-in-out infinite;' : '';
-        return `<div style="position:absolute;left:${left}%;top:${top}%;transform:translate(-50%,-50%);width:${sz}px;height:${sz}px;border:${bd};border-radius:50%;overflow:visible;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);${pulse}" title="${escapeHtml(m.name||'')}"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;">${av}</div>${selfMark}</div>`;
-      }).join('');
-    }
-    if (!members.length) {
-      document.getElementById('floor-people-list').innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px;">このフロアに今いる人はいません<br><span style="font-size:11px;color:#cbd5e1;">PC版で入室すると最初の1人になれます</span></div>';
-      return;
-    }
-    const statusColor = { 'active': '#10b981', '退席中': '#eab308', '会議中': '#ef4444', '集中中': '#8b5cf6' };
-    const statusLabel = { 'active': '在席', '退席中': '退席', '会議中': '取込中', '集中中': '集中' };
-    document.getElementById('floor-people-list').innerHTML = members.map(m => {
-      const initial = (m.name || '?').slice(0, 2);
-      const av = m.avatar
-        ? `<img src="${escapeHtml(m.avatar)}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid ${escapeHtml(m.ring||'#cbd5e1')};">`
-        : `<div style="width:42px;height:42px;border-radius:50%;background:${escapeHtml(m.ring||'#cbd5e1')};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">${escapeHtml(initial)}</div>`;
-      const stColor = statusColor[m.status] || '#94a3b8';
-      const stLbl = statusLabel[m.status] || m.status;
-      const adminBdg = m.role === 'admin' ? '<span style="background:#7c3aed;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:4px;">管</span>' : '';
-      const fieldBdg = m.employee_type === 'field' ? '<span style="background:#ea580c;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:4px;">現場</span>' : '';
-      return `<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
-        <div style="position:relative;">${av}<span style="position:absolute;bottom:-2px;right:-2px;width:12px;height:12px;background:${stColor};border:2px solid #fff;border-radius:50%;"></span></div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.name||'')}${adminBdg}${fieldBdg}</div>
-          <div style="font-size:11px;color:#64748b;">${stLbl}${m.status_text ? ' · ' + escapeHtml(m.status_text) : ''}</div>
-        </div>
-        <button onclick="document.getElementById('floor-people-modal').remove();openDmFromUid('${escapeHtml(m.uid)}','${escapeHtml((m.name||'').replace(/'/g,'')) }')" style="background:#06b6d4;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">💬 DM</button>
-      </div>`;
-    }).join('');
+    renderFloorAvatars();
+    renderFloorMembersList();
   } catch (e) {
-    document.getElementById('floor-people-list').innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;">通信エラー: ' + escapeHtml(e.message) + '</div>';
+    const list = document.getElementById('floor-people-list');
+    if (list) list.innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;">通信エラー: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderFloorAvatars() {
+  const avHost = document.getElementById('floor-image-avatars');
+  if (!avHost || !_floorModalState) return;
+  avHost.innerHTML = _floorModalState.members.map(m => {
+    if (m.x == null || m.y == null) return '';
+    const left = Math.max(0, Math.min(100, (m.x / 1344) * 100));
+    const top = Math.max(0, Math.min(100, (m.y / 768) * 100));
+    const initial = (m.name || '?').slice(0, 1);
+    const ring = escapeHtml(m.ring || '#cbd5e1');
+    const av = m.avatar
+      ? `<img src="${escapeHtml(m.avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+      : `<div style="width:100%;height:100%;background:${ring};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;border-radius:50%;">${escapeHtml(initial)}</div>`;
+    const selfMark = m._self
+      ? `<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:#06b6d4;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">あなた</div>`
+      : '';
+    const sz = m._self ? 38 : 32;
+    const bd = m._self ? '3px solid #06b6d4' : '2px solid ' + ring;
+    const pulse = m._self ? 'animation:selfPulse 1.6s ease-in-out infinite;' : '';
+    const trans = 'transition:left 0.4s ease, top 0.4s ease;';
+    return `<div data-uid="${escapeHtml(m.uid)}" style="position:absolute;left:${left}%;top:${top}%;transform:translate(-50%,-50%);width:${sz}px;height:${sz}px;border:${bd};border-radius:50%;overflow:visible;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);${pulse}${trans}" title="${escapeHtml(m.name||'')}"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;">${av}</div>${selfMark}</div>`;
+  }).join('');
+}
+
+function renderFloorMembersList() {
+  if (!_floorModalState) return;
+  const list = document.getElementById('floor-people-list');
+  if (!list) return;
+  const members = _floorModalState.members.filter(m => !m._self); // 下段リストでは自分を除外
+  if (!members.length) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px;">' + (_floorModalState.meHere ? 'このフロアにはあなただけです' : 'このフロアに今いる人はいません<br><span style="font-size:11px;color:#cbd5e1;">タップで入室できます</span>') + '</div>';
+    return;
+  }
+  const statusColor = { 'active': '#10b981', '退席中': '#eab308', '会議中': '#ef4444', '集中中': '#8b5cf6' };
+  const statusLabel = { 'active': '在席', '退席中': '退席', '会議中': '取込中', '集中中': '集中' };
+  list.innerHTML = members.map(m => {
+    const initial = (m.name || '?').slice(0, 2);
+    const av = m.avatar
+      ? `<img src="${escapeHtml(m.avatar)}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid ${escapeHtml(m.ring||'#cbd5e1')};">`
+      : `<div style="width:42px;height:42px;border-radius:50%;background:${escapeHtml(m.ring||'#cbd5e1')};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">${escapeHtml(initial)}</div>`;
+    const stColor = statusColor[m.status] || '#94a3b8';
+    const stLbl = statusLabel[m.status] || m.status;
+    const adminBdg = m.role === 'admin' ? '<span style="background:#7c3aed;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:4px;">管</span>' : '';
+    const fieldBdg = m.employee_type === 'field' ? '<span style="background:#ea580c;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:4px;">現場</span>' : '';
+    return `<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+      <div style="position:relative;">${av}<span style="position:absolute;bottom:-2px;right:-2px;width:12px;height:12px;background:${stColor};border:2px solid #fff;border-radius:50%;"></span></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.name||'')}${adminBdg}${fieldBdg}</div>
+        <div style="font-size:11px;color:#64748b;">${stLbl}${m.status_text ? ' · ' + escapeHtml(m.status_text) : ''}</div>
+      </div>
+      <button onclick="closeFloorModal();openDmFromUid('${escapeHtml(m.uid)}','${escapeHtml((m.name||'').replace(/'/g,'')) }')" style="background:#06b6d4;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">💬 DM</button>
+    </div>`;
+  }).join('');
+}
+
+// 表示中フロアにジャンプ
+function floorJump() {
+  if (!_floorModalState || !socket) return;
+  socket.emit('floor:switch', { code: _floorModalState.code });
+  showToast('🚪 ' + (_floorModalState.name || _floorModalState.code) + ' へ移動中…');
+}
+
+// フロア画像タップ → 移動 (未入室なら入室+移動)
+function floorImageTap(e) {
+  if (!_floorModalState || !socket) return;
+  const wrap = document.getElementById('floor-image-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const xPct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const yPct = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+  const x = Math.round(xPct * 1344);
+  const y = Math.round(yPct * 768);
+  if (!_floorModalState.meHere) {
+    // 未入室 → 入室 → 少し待って移動
+    socket.emit('floor:switch', { code: _floorModalState.code });
+    setTimeout(() => { socket.emit('move', { x, y }); }, 350);
+    showToast('🚪 入室+移動中…');
+  } else {
+    socket.emit('move', { x, y });
+    // 楽観的UI: ローカル位置を即更新+再描画
+    const me = users && users[user.uid];
+    if (me) { me.x = x; me.y = y; }
+    const selfM = _floorModalState.members.find(m => m._self);
+    if (selfM) { selfM.x = x; selfM.y = y; renderFloorAvatars(); }
   }
 }
 
