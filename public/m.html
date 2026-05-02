@@ -2655,7 +2655,7 @@ async function openFloor(code, name) {
   if (!document.getElementById('mobile-modal-keyframes')) {
     const s = document.createElement('style');
     s.id = 'mobile-modal-keyframes';
-    s.textContent = '@keyframes slideUp { from{transform:translateY(100%);} to{transform:translateY(0);} }';
+    s.textContent = '@keyframes slideUp { from{transform:translateY(100%);} to{transform:translateY(0);} } @keyframes selfPulse { 0%,100%{box-shadow:0 2px 6px rgba(0,0,0,0.4),0 0 0 0 rgba(6,182,212,0.6);} 50%{box-shadow:0 2px 6px rgba(0,0,0,0.4),0 0 0 8px rgba(6,182,212,0);} }';
     document.head.appendChild(s);
   }
   // データ読込
@@ -2667,7 +2667,21 @@ async function openFloor(code, name) {
       return;
     }
     const members = d.members || [];
-    document.getElementById('floor-people-count').textContent = members.length + '人 が在室中';
+    // 自分が同じフロアに居れば先頭に追加 (サーバAPIは自分を除外して返してくる)
+    const me = user && users[user.uid];
+    const meHere = me && me.floor === code && me.x != null && me.y != null;
+    if (meHere) {
+      members.unshift({
+        uid: user.uid, name: me.name || user.display_name || 'あなた',
+        avatar: me.avatar || user.avatar_url || '',
+        ring: me.ring || '#06b6d4',
+        x: me.x, y: me.y, status: me.status || 'active',
+        employee_type: me.employee_type || user.employee_type,
+        role: me.role || user.role,
+        _self: true,
+      });
+    }
+    document.getElementById('floor-people-count').textContent = members.length + '人 が在室中' + (meHere ? ' (あなた含む)' : '');
     // フロア画像上にアバターを配置 (world座標 1344×768 → %)
     const avHost = document.getElementById('floor-image-avatars');
     if (avHost) {
@@ -2680,7 +2694,13 @@ async function openFloor(code, name) {
         const av = m.avatar
           ? `<img src="${escapeHtml(m.avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
           : `<div style="width:100%;height:100%;background:${ring};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;border-radius:50%;">${escapeHtml(initial)}</div>`;
-        return `<div style="position:absolute;left:${left}%;top:${top}%;transform:translate(-50%,-50%);width:32px;height:32px;border:2px solid ${ring};border-radius:50%;overflow:hidden;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);" title="${escapeHtml(m.name||'')}">${av}</div>`;
+        const selfMark = m._self
+          ? `<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:#06b6d4;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">あなた</div>`
+          : '';
+        const sz = m._self ? 38 : 32;
+        const bd = m._self ? '3px solid #06b6d4' : '2px solid ' + ring;
+        const pulse = m._self ? 'animation:selfPulse 1.6s ease-in-out infinite;' : '';
+        return `<div style="position:absolute;left:${left}%;top:${top}%;transform:translate(-50%,-50%);width:${sz}px;height:${sz}px;border:${bd};border-radius:50%;overflow:visible;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);${pulse}" title="${escapeHtml(m.name||'')}"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;">${av}</div>${selfMark}</div>`;
       }).join('');
     }
     if (!members.length) {
