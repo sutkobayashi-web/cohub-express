@@ -15,9 +15,9 @@
     } catch (e) { return false; }
   }
   if (!isMobile()) return;
-  var LEVELS = ['s', 'm', 'l', 'xl'];
-  var ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32 };
-  var LBL = { s: 'S', m: 'M', l: 'L', xl: 'XL' };
+  var LEVELS = ['s', 'm', 'l', 'xl', 'xxl', 'xxxl'];
+  var ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32, xxl: 1.55, xxxl: 1.85 };
+  var LBL = { s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: '2XL', xxxl: '3XL' };
   function getLevel() {
     try { var v = localStorage.getItem('m_fz'); return LEVELS.indexOf(v) >= 0 ? v : 'm'; } catch (e) { return 'm'; }
   }

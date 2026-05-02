@@ -72,10 +72,12 @@
   #topbar .mute-btn { background: #f3f4f6; border: none; color: #475569; width: 34px; height: 34px; border-radius: 10px; font-size: 16px; }
   /* 文字サイズ切替: html font-size ベースで全体スケール (rem/em使ってないため #content を transform:scale で代替) */
   #content { transform-origin: top left; transition: transform 0.15s ease; }
-  #content.fz-s  { transform: scale(0.9);  width: calc(100% / 0.9); }
-  #content.fz-m  { transform: none; }
-  #content.fz-l  { transform: scale(1.12); width: calc(100% / 1.12); }
-  #content.fz-xl { transform: scale(1.25); width: calc(100% / 1.25); }
+  #content.fz-s    { transform: scale(0.9);  width: calc(100% / 0.9); }
+  #content.fz-m    { transform: none; }
+  #content.fz-l    { transform: scale(1.12); width: calc(100% / 1.12); }
+  #content.fz-xl   { transform: scale(1.25); width: calc(100% / 1.25); }
+  #content.fz-xxl  { transform: scale(1.45); width: calc(100% / 1.45); }
+  #content.fz-xxxl { transform: scale(1.7);  width: calc(100% / 1.7); }
 
   /* コンテンツ領域 */
   #content { flex: 1; overflow: hidden; position: relative; }
@@ -2495,12 +2497,12 @@ function toggleMute() {
 }
 
 // 文字サイズ切替 (s/m/l/xl をタップで循環)
-const FZ_LEVELS = ['s', 'm', 'l', 'xl'];
-const FZ_LABELS = { s: 'S', m: 'M', l: 'L', xl: 'XL' };
+const FZ_LEVELS = ['s', 'm', 'l', 'xl', 'xxl', 'xxxl'];
+const FZ_LABELS = { s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: '2XL', xxxl: '3XL' };
 function applyFontSize(level) {
   const c = document.getElementById('content');
   if (c) {
-    c.classList.remove('fz-s', 'fz-m', 'fz-l', 'fz-xl');
+    c.classList.remove('fz-s', 'fz-m', 'fz-l', 'fz-xl', 'fz-xxl', 'fz-xxxl');
     c.classList.add('fz-' + level);
   }
   const lbl = document.getElementById('fz-lvl');
