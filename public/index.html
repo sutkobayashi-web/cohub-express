@@ -541,7 +541,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 <body>
 
 <!-- 📱 小さな常時フローティングボタン: スマホ画面サイズなら必ず右上に出る -->
-<a id="mobile-escape" href="/m"
+<a id="mobile-escape" href="/m" onclick="try{localStorage.removeItem('cohub_force_pc');}catch(e){}"
   style="display:none;position:fixed;top:8px;right:8px;background:#dc2626;color:#fff;text-decoration:none;padding:8px 14px;border-radius:18px;font-size:12px;font-weight:800;z-index:99000;box-shadow:0 4px 12px rgba(220,38,38,0.4);white-space:nowrap;">
   📱 スマホ版に切替
 </a>
@@ -8637,6 +8637,8 @@ function isMobileDevice() {
 }
 function shouldRedirectToMobile(u) {
   if (!u) return false;
+  // ユーザーが明示的にPC版を選んでいたらリダイレクトしない
+  try { if (localStorage.getItem('cohub_force_pc') === '1') return false; } catch (e) {}
   if (u.employee_type === 'field') return true;
   if (isMobileDevice()) return true;
   return false;

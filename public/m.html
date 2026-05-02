@@ -536,6 +536,9 @@
         <div class="set-item" onclick="location.href='/overview'">
           <div class="i">🗺️</div><div class="l">全フロア俯瞰</div><div class="r">›</div>
         </div>
+        <div class="set-item" onclick="switchToPcMode()">
+          <div class="i">💻</div><div class="l">PC版で開く<div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">タブレットや横画面で広く使う時</div></div><div class="r">›</div>
+        </div>
         <div class="set-item" onclick="location.href='/security.html'">
           <div class="i">🔒</div><div class="l">セキュリティについて</div><div class="r">›</div>
         </div>
@@ -2466,6 +2469,12 @@ async function registerPushM(forceRequest) {
     console.warn('[push] register err', e);
     return false;
   }
+}
+
+// PC版で開く (タブレット等で全体UI使いたい時)
+function switchToPcMode() {
+  try { localStorage.setItem('cohub_force_pc', '1'); } catch (e) {}
+  location.href = '/';
 }
 
 async function enablePushFromSettingsM() {
