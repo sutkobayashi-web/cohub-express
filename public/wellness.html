@@ -63,6 +63,25 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 .ck-year { font-size: 18px; font-weight: 800; color: #047857; }
 .ck-name { font-size: 12px; color: #475569; margin: 4px 0; word-break: break-all; }
 
+/* 経年トレンド */
+.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 10px; }
+.trend-card { background: #fff; border-radius: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; }
+.trend-card .lbl { font-size: 11px; color: #64748b; font-weight: 700; }
+.trend-card .val { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+.trend-card .delta { font-size: 11px; font-weight: 700; margin-left: 6px; }
+.trend-card .delta.up { color: #dc2626; }
+.trend-card .delta.down { color: #059669; }
+.trend-card .delta.flat { color: #94a3b8; }
+.trend-card svg { display: block; margin-top: 6px; width: 100%; height: 36px; }
+.year-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.year-tab { padding: 6px 14px; background: #fff; border: 1px solid #cbd5e1; border-radius: 18px; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; }
+.year-tab.active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+.year-tab .latest-badge { font-size: 9px; background: #fef3c7; color: #b45309; padding: 1px 5px; border-radius: 8px; margin-left: 4px; font-weight: 800; }
+.year-tab.active .latest-badge { background: #fff; color: #7c3aed; }
+.judge-matrix { display: grid; grid-template-columns: 100px repeat(auto-fit, minmax(60px, 1fr)); gap: 4px; font-size: 11px; margin-top: 8px; overflow-x: auto; }
+.judge-matrix .h { font-weight: 700; color: #475569; padding: 4px 6px; }
+.judge-matrix .c { padding: 4px 6px; border-radius: 6px; text-align: center; font-weight: 700; }
+
 /* ヘルプ */
 .help-section { margin-bottom: 18px; }
 .help-section h3 { color: #047857; font-size: 14px; margin: 0 0 8px; padding-left: 8px; border-left: 3px solid #10b981; }
@@ -75,7 +94,8 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
   <h1>🏥 健康管理室</h1>
   <div class="spacer"></div>
   <div id="who" style="font-size:13px;"></div>
-  <button onclick="location.href='/'" style="margin-left:16px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+  <button onclick="goBackHome()" style="margin-left:16px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
+  <script>function goBackHome(){var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||'');if(history.length>1){history.back();}else{location.href=m?'/m':'/';}}</script>
 </header>
 <main>
 
@@ -102,6 +122,17 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
   <!-- 運営ダッシュボード入口は撤去済 (健康管理室フロアの紫ボタンから直接アクセス) -->
 
+
+  <!-- 推進メンバー向けオリエンテーション (帝京大学 西村先生 提供資料) -->
+  <a id="orientation-entry" href="/orientation.html" style="display:none;text-decoration:none;margin-bottom:12px;background:linear-gradient(135deg,#0f766e,#047857);color:#fff;border-radius:12px;padding:14px 16px;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(15,118,110,0.25);position:relative;overflow:hidden;">
+    <span style="font-size:28px;flex-shrink:0;">📖</span>
+    <div style="flex:1;line-height:1.45;">
+      <div style="font-size:11px;letter-spacing:1.2px;font-weight:700;opacity:0.85;">帝京大学公衆衛生学研究科 西村先生 提供資料</div>
+      <div style="font-size:15px;font-weight:800;">推進メンバーへのメッセージ</div>
+      <div style="font-size:11px;opacity:0.85;margin-top:2px;">アプリ運用前の事前説明 — 画面+音声で4スライドを解説</div>
+    </div>
+    <span style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.45);padding:7px 14px;border-radius:18px;font-size:12px;font-weight:700;flex-shrink:0;">▶ 視聴</span>
+  </a>
 
   <!-- タブナビ (個人健康記録) -->
   <div class="tab-nav">
@@ -249,11 +280,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
       </div>
 
       <div class="help-section">
-        <h3>🐠 イベント: 水族館の冒険</h3>
-        <p>歩数で海を旅して魚を発見するCoWell Classic の冒険RPG。ひろば上部の「開催中イベント」から入れます (CoWell Classic本体に遷移)。</p>
-      </div>
-
-      <div class="help-section">
         <h3>📦 CoWell Classic履歴アーカイブ</h3>
         <p>2026年4月までのCoWell時代の個人データ:</p>
         <ul>
@@ -380,8 +406,8 @@ async function checkAccessAndShow(user) {
     // 互換のため要素があればだけ書き込む (defensive)
     const entry = document.getElementById('ops-entry');
     const desc = document.getElementById('ops-role-desc');
+    const isManager = !!(m.is_wellness_manager || m.is_field_promoter || (user && user.role === 'admin'));
     if (entry && desc) {
-      const isManager = !!(m.is_wellness_manager || m.is_field_promoter || (user && user.role === 'admin'));
       const isGuest = !!m.is_guest_reviewer;
       if (isManager || isGuest) {
         if (m.is_guest_reviewer) desc.textContent = 'あなたは🎓ゲストレビュアーです。';
@@ -390,6 +416,9 @@ async function checkAccessAndShow(user) {
         entry.style.display = 'block';
       }
     }
+    // 推進メンバー / 管理職: 帝京大オリエンテーション入口を表示
+    const orientationEntry = document.getElementById('orientation-entry');
+    if (orientationEntry && isManager) orientationEntry.style.display = 'flex';
     switchTab('bp');
     loadVotingActions();
   } catch (e) {
@@ -610,41 +639,204 @@ async function delNote(id) {
 }
 
 
+// ===== Box健診 経年閲覧+トレンド =====
+let _checkupRecords = [];   // 受診日昇順
+let _checkupActiveIdx = 0;  // 表示中の年度 index
+
+const TREND_METRICS = [
+  { key: '体重', unit: 'kg', good: 'down' },
+  { key: 'BMI', unit: '', good: 'down' },
+  { key: '腹囲', unit: 'cm', good: 'down' },
+  { key: '収縮期血圧', unit: 'mmHg', good: 'down', short: '上の血圧' },
+  { key: '拡張期血圧', unit: 'mmHg', good: 'down', short: '下の血圧' },
+  { key: 'HbA1c', unit: '%', good: 'down' },
+  { key: 'LDL', unit: 'mg/dL', good: 'down' },
+  { key: 'HDL', unit: 'mg/dL', good: 'up' },
+  { key: '中性脂肪', unit: 'mg/dL', good: 'down' },
+  { key: '空腹時血糖', unit: 'mg/dL', good: 'down' },
+];
+
+function _toNum(v) {
+  if (v == null) return null;
+  const m = String(v).match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+function _yearOf(rec) {
+  const d = String(rec.data.健診受診日 || '');
+  const m = d.match(/(\d{4})/);
+  return m ? m[1] : '';
+}
+function _judgeColor(j) {
+  return /要医療|要精査/.test(j) ? '#dc2626'
+       : /要観察|要再検/.test(j) ? '#f59e0b'
+       : /異常|要注意/.test(j) ? '#ea580c'
+       : /正常|問題/.test(j) ? '#10b981'
+       : '#94a3b8';
+}
+
+// SVGスパークライン (40px×全幅、最後の点を強調表示)
+function buildSparkline(values, w, h, color) {
+  const nums = values.map(_toNum);
+  const valid = nums.filter(v => v != null);
+  if (valid.length < 2) return '';
+  const min = Math.min(...valid);
+  const max = Math.max(...valid);
+  const range = max - min || 1;
+  const pad = 4;
+  const innerW = w - pad * 2;
+  const innerH = h - pad * 2;
+  const pts = nums.map((v, i) => {
+    if (v == null) return null;
+    const x = pad + (innerW * i) / Math.max(1, nums.length - 1);
+    const y = pad + innerH - (innerH * (v - min)) / range;
+    return [x, y];
+  }).filter(Boolean);
+  const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length - 1];
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="${color}"/>
+  </svg>`;
+}
+
+function renderCheckupTrend(records) {
+  if (records.length < 2) return '';
+  const years = records.map(_yearOf);
+  const cards = TREND_METRICS.map(m => {
+    const series = records.map(r => r.data[m.key]);
+    const nums = series.map(_toNum).filter(v => v != null);
+    if (!nums.length) return '';
+    const latest = _toNum(series[series.length - 1]);
+    const prev = series.length >= 2 ? _toNum(series[series.length - 2]) : null;
+    let deltaHtml = '';
+    if (latest != null && prev != null) {
+      const diff = latest - prev;
+      const cls = Math.abs(diff) < 0.05 ? 'flat' : (diff > 0 ? 'up' : 'down');
+      const arrow = cls === 'flat' ? '→' : (cls === 'up' ? '▲' : '▼');
+      // good=up のメトリクス(HDL)は上昇が良いので色を反転
+      const goodCls = m.good === 'up'
+        ? (cls === 'up' ? 'down' : (cls === 'down' ? 'up' : 'flat'))
+        : cls;
+      deltaHtml = `<span class="delta ${goodCls}">${arrow}${Math.abs(diff).toFixed(diff % 1 === 0 ? 0 : 1)}</span>`;
+    }
+    const color = (m.key === 'HDL') ? '#0891b2' : (/血圧|HbA1c|LDL|中性脂肪|血糖/.test(m.key) ? '#dc2626' : '#7c3aed');
+    return `<div class="trend-card">
+      <div class="lbl">${escapeHtml(m.short || m.key)}</div>
+      <div><span class="val">${latest != null ? latest : '-'}</span><span style="font-size:10px;color:#94a3b8;margin-left:2px;">${m.unit}</span>${deltaHtml}</div>
+      ${buildSparkline(series, 160, 36, color)}
+      <div style="font-size:9px;color:#94a3b8;margin-top:2px;">${escapeHtml(years[0])}→${escapeHtml(years[years.length - 1])}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+  return `<div style="margin-top:14px;">
+    <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:4px;">📈 経年トレンド (${records.length}年分)</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px;">▲↑が悪化、▼↓が改善 (HDLは▲が改善)</div>
+    <div class="trend-grid">${cards}</div>
+  </div>`;
+}
+
+function renderJudgeMatrix(records) {
+  if (records.length < 2) return '';
+  const judges = ['肥満判定','高血圧判定','脂質異常判定','高血糖判定','肝機能判定','腎機能判定','貧血判定'];
+  const labels = { 肥満判定:'肥満', 高血圧判定:'高血圧', 脂質異常判定:'脂質', 高血糖判定:'高血糖', 肝機能判定:'肝機能', 腎機能判定:'腎機能', 貧血判定:'貧血' };
+  const rows = judges.map(jk => {
+    const cells = records.map(r => {
+      const v = r.data[jk] || '';
+      const c = _judgeColor(v);
+      return `<div class="c" style="background:${c}1f;color:${c};">${escapeHtml(String(v).slice(0, 6) || '-')}</div>`;
+    }).join('');
+    return `<div class="h">${labels[jk]}</div>${cells}`;
+  }).join('');
+  const yearHeader = `<div class="h"></div>` + records.map(r => `<div class="h" style="text-align:center;color:#7c3aed;">${escapeHtml(_yearOf(r))}</div>`).join('');
+  return `<div style="margin-top:18px;">
+    <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:6px;">🧭 判定の推移</div>
+    <div class="judge-matrix" style="grid-template-columns:80px repeat(${records.length}, 1fr);">${yearHeader}${rows}</div>
+  </div>`;
+}
+
+function renderCheckupYear(idx) {
+  const rec = _checkupRecords[idx];
+  if (!rec) return '';
+  const v = rec.data;
+  const prev = idx > 0 ? _checkupRecords[idx - 1].data : null;
+  const j = jj => jj ? `<span style="background:${_judgeColor(jj)}22;color:${_judgeColor(jj)};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${escapeHtml(jj)}</span>` : '-';
+  const cmp = (key, goodDir) => {
+    if (!prev) return '';
+    const cur = _toNum(v[key]);
+    const old = _toNum(prev[key]);
+    if (cur == null || old == null) return '';
+    const diff = cur - old;
+    if (Math.abs(diff) < 0.05) return ' <span style="color:#94a3b8;font-size:10px;">→</span>';
+    const worsen = goodDir === 'up' ? diff < 0 : diff > 0;
+    const color = worsen ? '#dc2626' : '#059669';
+    const arrow = diff > 0 ? '▲' : '▼';
+    return ` <span style="color:${color};font-size:10px;font-weight:700;">${arrow}${Math.abs(diff).toFixed(diff % 1 === 0 ? 0 : 1)}</span>`;
+  };
+  return `<div style="background:#fff;border-radius:8px;padding:14px;border:1px solid #e2e8f0;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <div style="font-size:18px;font-weight:800;color:#7c3aed;">${escapeHtml(_yearOf(rec))}年</div>
+      <div style="font-size:12px;color:#64748b;">受診日 ${escapeHtml(v.健診受診日 || '-')}</div>
+      <div style="margin-left:auto;font-size:10px;color:#94a3b8;">出典: ${escapeHtml(rec.source || '')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px;">
+      <div><div style="font-size:10px;color:#64748b;">支店/職種</div><div style="font-weight:700;">${escapeHtml(v.支店名 || '')} / ${escapeHtml(v.職種 || '')}</div></div>
+      <div><div style="font-size:10px;color:#64748b;">年齢/性別</div><div style="font-weight:700;">${escapeHtml(String(v.年齢 || '-'))} ${escapeHtml(v.性別 || '')}</div></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📋 判定</div>
+    <table style="font-size:12px;width:100%;margin-bottom:14px;">
+      <tr><td>肥満</td><td>${j(v.肥満判定)}</td><td>高血圧</td><td>${j(v.高血圧判定)}</td></tr>
+      <tr><td>脂質</td><td>${j(v.脂質異常判定)}</td><td>高血糖</td><td>${j(v.高血糖判定)}</td></tr>
+      <tr><td>肝機能</td><td>${j(v.肝機能判定)}</td><td>腎機能</td><td>${j(v.腎機能判定)}</td></tr>
+      <tr><td>貧血</td><td>${j(v.貧血判定)}</td><td></td><td></td></tr>
+    </table>
+    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📊 主要数値 ${prev ? '<span style=\"font-size:10px;font-weight:500;color:#94a3b8;\">(前回比)</span>' : ''}</div>
+    <table style="font-size:12px;width:100%;">
+      <tr><td>身長</td><td>${escapeHtml(String(v.身長||'-'))} cm</td><td>体重</td><td><b>${escapeHtml(String(v.体重||'-'))}</b> kg${cmp('体重','down')}</td></tr>
+      <tr><td>BMI</td><td><b>${escapeHtml(String(v.BMI||'-'))}</b>${cmp('BMI','down')}</td><td>腹囲</td><td>${escapeHtml(String(v.腹囲||'-'))} cm${cmp('腹囲','down')}</td></tr>
+      <tr><td>血圧</td><td><b>${escapeHtml(String(v.収縮期血圧||'-'))}/${escapeHtml(String(v.拡張期血圧||'-'))}</b>${cmp('収縮期血圧','down')}</td><td>HbA1c</td><td>${escapeHtml(String(v.HbA1c||'-'))}${cmp('HbA1c','down')}</td></tr>
+      <tr><td>HDL</td><td>${escapeHtml(String(v.HDL||'-'))}${cmp('HDL','up')}</td><td>LDL</td><td>${escapeHtml(String(v.LDL||'-'))}${cmp('LDL','down')}</td></tr>
+      <tr><td>中性脂肪</td><td>${escapeHtml(String(v.中性脂肪||'-'))}${cmp('中性脂肪','down')}</td><td>空腹時血糖</td><td>${escapeHtml(String(v.空腹時血糖||'-'))}${cmp('空腹時血糖','down')}</td></tr>
+      <tr><td>AST</td><td>${escapeHtml(String(v.AST||'-'))}</td><td>ALT</td><td>${escapeHtml(String(v.ALT||'-'))}</td></tr>
+    </table>
+  </div>`;
+}
+
+function selectCheckupYear(idx) {
+  _checkupActiveIdx = idx;
+  document.querySelectorAll('.year-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.getElementById('checkup-year-detail').innerHTML = renderCheckupYear(idx);
+}
+
 async function fetchBoxCheckup() {
   const box = document.getElementById('box-result');
-  box.innerHTML = '<div style="color:#7c3aed;font-size:13px;">📥 Boxから取得中…</div>';
+  box.innerHTML = '<div style="color:#7c3aed;font-size:13px;">📥 Boxから取得中… (経年データを集約中)</div>';
   try {
     const r = await fetch('/api/myhealth/box-checkup', { headers: { Authorization: 'Bearer ' + token } });
     const d = await r.json();
     if (!d.success) { box.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:10px;background:#fef2f2;border-radius:6px;">' + escapeHtml(d.msg || '失敗') + '</div>'; return; }
-    const v = d.data;
-    const judgmentColor = j => /要医療|要精査/.test(j) ? '#dc2626' : /要観察|要再検/.test(j) ? '#f59e0b' : /異常|要注意/.test(j) ? '#ea580c' : /正常|問題/.test(j) ? '#10b981' : '#94a3b8';
-    const jb = j => j ? `<span style="background:${judgmentColor(j)}22;color:${judgmentColor(j)};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${escapeHtml(j)}</span>` : '-';
-    box.innerHTML = `<div style="background:#fff;border-radius:8px;padding:14px;">
-      <div style="font-size:11px;color:#64748b;margin-bottom:8px;">出典: ${escapeHtml(d.source || '')}</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px;">
-        <div><div style="font-size:10px;color:#64748b;">受診日</div><div style="font-weight:700;">${escapeHtml(v.健診受診日 || '-')}</div></div>
-        <div><div style="font-size:10px;color:#64748b;">支店/職種</div><div style="font-weight:700;">${escapeHtml(v.支店名 || '')} / ${escapeHtml(v.職種 || '')}</div></div>
-        <div><div style="font-size:10px;color:#64748b;">年齢/性別</div><div style="font-weight:700;">${escapeHtml(String(v.年齢 || '-'))} ${escapeHtml(v.性別 || '')}</div></div>
+    _checkupRecords = (d.records && d.records.length) ? d.records : [{ data: d.data, source: d.source }];
+    _checkupActiveIdx = _checkupRecords.length - 1;  // 最新年度を初期表示
+
+    const tabs = _checkupRecords.map((rec, i) => {
+      const yr = _yearOf(rec) || ('#' + (i + 1));
+      const isLatest = i === _checkupRecords.length - 1;
+      return `<button class="year-tab${isLatest ? ' active' : ''}" onclick="selectCheckupYear(${i})">${escapeHtml(yr)}年${isLatest ? '<span class="latest-badge">最新</span>' : ''}</button>`;
+    }).join('');
+
+    const maidenNote = d.matched_via_maiden && d.maiden_name
+      ? `<div style="font-size:11px;color:#92400e;background:#fef3c7;border-left:3px solid #f59e0b;padding:6px 10px;border-radius:6px;margin-bottom:8px;">📌 Box側のデータが旧姓「${escapeHtml(d.maiden_name)}」名義で登録されているため、旧姓で検索してヒットしました。</div>`
+      : '';
+    box.innerHTML = `
+      ${maidenNote}
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px;">📊 取得した健診: <b style="color:#7c3aed;">${_checkupRecords.length}年分</b> / 出典: ${escapeHtml(d.source || '')}</div>
+      ${renderCheckupTrend(_checkupRecords)}
+      ${renderJudgeMatrix(_checkupRecords)}
+      <div style="margin-top:18px;">
+        <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:6px;">📂 年度別の詳細</div>
+        <div class="year-tabs">${tabs}</div>
+        <div id="checkup-year-detail">${renderCheckupYear(_checkupActiveIdx)}</div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📋 判定</div>
-      <table style="font-size:12px;width:100%;margin-bottom:14px;">
-        <tr><td>肥満</td><td>${jb(v.肥満判定)}</td><td>高血圧</td><td>${jb(v.高血圧判定)}</td></tr>
-        <tr><td>脂質</td><td>${jb(v.脂質異常判定)}</td><td>高血糖</td><td>${jb(v.高血糖判定)}</td></tr>
-        <tr><td>肝機能</td><td>${jb(v.肝機能判定)}</td><td>腎機能</td><td>${jb(v.腎機能判定)}</td></tr>
-        <tr><td>貧血</td><td>${jb(v.貧血判定)}</td><td></td><td></td></tr>
-      </table>
-      <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📊 主要数値</div>
-      <table style="font-size:12px;width:100%;">
-        <tr><td>身長</td><td>${escapeHtml(String(v.身長||'-'))} cm</td><td>体重</td><td>${escapeHtml(String(v.体重||'-'))} kg</td></tr>
-        <tr><td>BMI</td><td><b>${escapeHtml(String(v.BMI||'-'))}</b></td><td>腹囲</td><td>${escapeHtml(String(v.腹囲||'-'))} cm</td></tr>
-        <tr><td>血圧</td><td><b>${escapeHtml(String(v.収縮期血圧||'-'))}/${escapeHtml(String(v.拡張期血圧||'-'))}</b></td><td>HbA1c</td><td>${escapeHtml(String(v.HbA1c||'-'))}</td></tr>
-        <tr><td>HDL</td><td>${escapeHtml(String(v.HDL||'-'))}</td><td>LDL</td><td>${escapeHtml(String(v.LDL||'-'))}</td></tr>
-        <tr><td>中性脂肪</td><td>${escapeHtml(String(v.中性脂肪||'-'))}</td><td>空腹時血糖</td><td>${escapeHtml(String(v.空腹時血糖||'-'))}</td></tr>
-        <tr><td>AST</td><td>${escapeHtml(String(v.AST||'-'))}</td><td>ALT</td><td>${escapeHtml(String(v.ALT||'-'))}</td></tr>
-      </table>
-      <div style="margin-top:10px;font-size:10px;color:#94a3b8;">🔒 このデータは表示のみ。CoWell DBには保存されません。</div>
-    </div>`;
+      <div style="margin-top:10px;font-size:10px;color:#94a3b8;">🔒 このデータは表示のみ。CoHubのDBには保存されません。</div>
+    `;
   } catch (e) { box.innerHTML = '<div style="color:#dc2626;font-size:13px;">通信エラー: ' + escapeHtml(e.message) + '</div>'; }
 }
 

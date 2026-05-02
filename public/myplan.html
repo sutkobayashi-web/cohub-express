@@ -175,7 +175,8 @@ async function doLogin() {
 }
 
 function closePage() {
-  if (history.length > 1) history.back(); else location.href = '/';
+  var m = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent || '');
+  if (history.length > 1) history.back(); else location.href = m ? '/m' : '/';
 }
 
 function relTime(iso) {
