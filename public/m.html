@@ -113,25 +113,27 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   .qa-item .i { font-size: 24px; }
   .qa-item.aoi { background: linear-gradient(135deg, #fdf4ff, #fce7f3); border-color: #f9a8d4; color: #831843; }
   .qa-item.wellness { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-color: #86efac; color: #166534; }
-  /* 棟・フロア (各ボタンが横向き=アイコン左+ラベル右、行ごと横スクロール) */
+  /* 棟・フロア: プルダウン (details) 式 */
   .floor-grid { display: flex; flex-direction: column; gap: 8px; }
-  .bldg-hdr { padding: 8px 14px; font-size: 13px; font-weight: 800; color: #fff; border-radius: 10px 10px 0 0; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
-  .bldg-hdr.office { background: linear-gradient(135deg, #0891b2, #0e7490); }
-  .bldg-hdr.field { background: linear-gradient(135deg, #ea580c, #c2410c); }
-  .floor-row { display: flex; gap: 8px; flex-wrap: nowrap; padding: 10px; border: 2px solid; border-top: none; border-radius: 0 0 10px 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
-  .floor-row::-webkit-scrollbar { height: 4px; }
-  .floor-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
-  .bldg-hdr.office + .floor-row { border-color: #0891b2; background: rgba(8,145,178,0.06); }
-  .bldg-hdr.field + .floor-row { border-color: #ea580c; background: rgba(234,88,12,0.06); }
-  /* ★各ボタンを横向き (アイコン左+ラベル右) */
-  .floor-btn { flex: 0 0 auto; min-height: 56px; padding: 10px 14px; border-radius: 10px; background: #fff; border: 1.5px solid #e2e8f0; display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 700; color: #1f2937; cursor: pointer; position: relative; scroll-snap-align: start; }
-  .floor-btn:active { transform: scale(0.96); }
-  .floor-btn .ico { font-size: 24px; line-height: 1; flex-shrink: 0; }
-  .floor-btn .lbl { font-size: 13px; line-height: 1.25; font-weight: 700; white-space: nowrap; }
-  .floor-btn .cnt { position: relative; background: #06b6d4; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 8px; min-width: 18px; text-align: center; margin-left: 4px; }
+  .bldg { border-radius: 10px; overflow: hidden; }
+  .bldg > summary { list-style: none; padding: 12px 14px; font-size: 14px; font-weight: 800; color: #fff; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .bldg > summary::-webkit-details-marker { display: none; }
+  .bldg > summary .arrow { margin-left: auto; transition: transform 0.2s; font-size: 14px; opacity: 0.85; }
+  .bldg[open] > summary .arrow { transform: rotate(180deg); }
+  .bldg > summary .total { background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; min-width: 22px; text-align: center; }
+  .bldg.office { border: 2px solid #0891b2; }
+  .bldg.office > summary { background: linear-gradient(135deg, #0891b2, #0e7490); }
+  .bldg.field { border: 2px solid #ea580c; }
+  .bldg.field > summary { background: linear-gradient(135deg, #ea580c, #c2410c); }
+  .bldg .floor-list { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #fff; }
+  .floor-btn { width: 100%; min-height: 50px; padding: 10px 14px; border-radius: 10px; background: #fff; border: 1.5px solid #e2e8f0; display: flex; flex-direction: row; align-items: center; gap: 10px; font-weight: 700; color: #1f2937; cursor: pointer; }
+  .floor-btn:active { transform: scale(0.98); }
+  .floor-btn .ico { font-size: 22px; line-height: 1; flex-shrink: 0; }
+  .floor-btn .lbl { font-size: 13px; line-height: 1.25; font-weight: 700; flex: 1; min-width: 0; text-align: left; }
+  .floor-btn .cnt { background: #06b6d4; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 8px; min-width: 20px; text-align: center; }
   .floor-btn.locked { opacity: 0.55; }
-  .bldg-hdr.office + .floor-row .floor-btn { border-color: rgba(8,145,178,0.3); }
-  .bldg-hdr.field + .floor-row .floor-btn { border-color: rgba(234,88,12,0.3); }
+  .bldg.office .floor-btn { border-color: rgba(8,145,178,0.3); }
+  .bldg.field .floor-btn { border-color: rgba(234,88,12,0.3); }
 
   /* オンライン中ストリップ (横スクロールアバター) */
   .online-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 6px; -webkit-overflow-scrolling: touch; }
@@ -467,10 +469,14 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
       <div class="section">
         <div class="section-ttl">棟・フロア</div>
         <div class="floor-grid" id="floor-grid">
-          <div class="bldg-hdr office">🏢 事務所棟</div>
-          <div class="floor-row" id="floor-office"><div style="color:#94a3b8;font-size:11px;padding:4px;">読み込み中…</div></div>
-          <div class="bldg-hdr field">🚚 現場棟</div>
-          <div class="floor-row" id="floor-field"><div style="color:#94a3b8;font-size:11px;padding:4px;">読み込み中…</div></div>
+          <details class="bldg office">
+            <summary>🏢 事務所棟 <span class="total" id="bldg-office-total">-</span><span class="arrow">▾</span></summary>
+            <div class="floor-list" id="floor-office"><div style="color:#94a3b8;font-size:11px;padding:4px;">読み込み中…</div></div>
+          </details>
+          <details class="bldg field">
+            <summary>🚚 現場棟 <span class="total" id="bldg-field-total">-</span><span class="arrow">▾</span></summary>
+            <div class="floor-list" id="floor-field"><div style="color:#94a3b8;font-size:11px;padding:4px;">読み込み中…</div></div>
+          </details>
         </div>
       </div>
 
@@ -2755,6 +2761,12 @@ async function loadFloorList() {
     }
     officeBox.innerHTML = officeHtml || '<div style="color:#94a3b8;font-size:11px;">フロアなし</div>';
     fieldBox.innerHTML = field.map(renderFloor).join('') || '<div style="color:#94a3b8;font-size:11px;">フロアなし</div>';
+    // 棟ヘッダの合計人数表示
+    const sumOf = (list) => list.reduce((s, f) => s + ((window._floorCounts && window._floorCounts[f.code]) || 0), 0);
+    const ot = document.getElementById('bldg-office-total');
+    const ft = document.getElementById('bldg-field-total');
+    if (ot) ot.textContent = sumOf(office) + '人';
+    if (ft) ft.textContent = sumOf(field) + '人';
   } catch (e) { console.warn('loadFloorList', e); }
 }
 
