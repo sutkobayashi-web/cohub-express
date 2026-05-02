@@ -406,6 +406,10 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
             <img class="i" src="/assets/concierge_health_avatar.png" alt="" style="height:48px;width:auto;object-fit:contain;display:block;mix-blend-mode:multiply;">
             <div>ヘルスアドバイス</div>
           </div>
+          <div class="qa-item" onclick="openSafetyChat()" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#991b1b;">
+            <img class="i" src="/assets/concierge_safety_avatar.png" alt="" style="height:48px;width:auto;object-fit:contain;display:block;mix-blend-mode:multiply;">
+            <div>安全太郎</div>
+          </div>
           <div class="qa-item" id="qa-plaza" onclick="location.href='/plaza.html'" style="background:linear-gradient(135deg,#ccfbf1,#99f6e4);color:#0f766e;position:relative;">
             <div class="i">🌳</div>
             <div>みんなの広場</div>
@@ -751,11 +755,13 @@ let chimeOn = true;            // 入出室/DM到着チャイム (設定で切�
 let speechSpeed = 1.15;        // TTS読み上げ速度
 const BOT_UID = 'bot_aoi';
 const HEALTH_UID = 'bot_health';
+const SAFETY_UID = 'bot_safety';
 const AOI_VOICE = 'ja-JP-Neural2-B';
-function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID; }
-// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A)
+function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID || uid === SAFETY_UID; }
+// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A, 安全太郎=低めの男性)
 function ttsOptsForBot(uid) {
   if (uid === HEALTH_UID) return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
+  if (uid === SAFETY_UID) return { voice: 'ja-JP-Neural2-D', speed: 1.0, pitch: -2 };
   return { voice: AOI_VOICE, speed: 1.05, pitch: 0 };
 }
 
@@ -1579,7 +1585,7 @@ function connectSocket() {
       updateChatBadge();
       loadChatLists();
       const sender = users[peerUid] || {};
-      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : (sender.name || '');
+      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : (sender.name || '');
       showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
       // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
       if (!isBotUid(m.from) && !m.voice) announceDmSender(m.from, sender.name || '');
@@ -1720,6 +1726,9 @@ function openBotChat() {
 }
 function openHealthChat() {
   openDM(HEALTH_UID, 'ヘルスアドバイザー', '/assets/concierge_health_avatar.png?v=3', true);
+}
+function openSafetyChat() {
+  openDM(SAFETY_UID, '安全太郎', '/assets/concierge_safety_avatar.png?v=1', true);
 }
 async function openDM(peerId, name, avatar, isBot) {
   openPeerUid = peerId;
