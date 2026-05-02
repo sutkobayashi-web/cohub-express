@@ -270,6 +270,37 @@
   /* トースト */
   #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 200; opacity: 0; transition: opacity 0.25s, bottom 0.25s; pointer-events: none; max-width: 85vw; text-align: center; }
   #toast.show { opacity: 1; bottom: 110px; }
+
+  /* 肩たたき受信バナー (上部) */
+  #tap-banner { position: fixed; left: 50%; transform: translate(-50%, -120%); top: calc(env(safe-area-inset-top) + 8px); z-index: 250; background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 800; box-shadow: 0 12px 32px rgba(6,182,212,0.4); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px); animation: tapPulse 0.6s ease 2; }
+  #tap-banner.show { transform: translate(-50%, 0); }
+  #tap-banner .tap-emoji { font-size: 22px; }
+  @keyframes tapPulse { 0%, 100% { box-shadow: 0 12px 32px rgba(6,182,212,0.4); } 50% { box-shadow: 0 12px 36px rgba(6,182,212,0.75); } }
+
+  /* ===== アバター作成モーダル ===== */
+  #avatar-modal-m { position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: env(safe-area-inset-top) 12px 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #avatar-modal-m.show { display: flex; }
+  #avatar-modal-m .av-card { background: #fff; border-radius: 16px; max-width: 420px; width: 100%; padding: 18px 16px 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); margin: 12px 0; }
+  #avatar-modal-m h3 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: #0f172a; text-align: center; }
+  #avatar-modal-m .av-tag { font-size: 11px; color: #64748b; line-height: 1.6; margin-bottom: 14px; text-align: center; }
+  #avatar-modal-m .av-photo-area { background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 14px; text-align: center; min-height: 120px; }
+  #avatar-modal-m .av-frame { position: relative; width: 100%; max-width: 240px; margin: 0 auto; aspect-ratio: 1/1; }
+  #avatar-modal-m .av-frame video, #avatar-modal-m .av-frame img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; background: #000; display: block; }
+  #avatar-modal-m .av-frame .av-guide { position: absolute; inset: 0; pointer-events: none; }
+  #avatar-modal-m .av-btn-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+  #avatar-modal-m button { padding: 9px 14px; border-radius: 10px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; }
+  #avatar-modal-m .av-primary { background: linear-gradient(135deg,#06b6d4,#0891b2); color: #fff; }
+  #avatar-modal-m .av-primary:disabled { background: #cbd5e1; color: #fff; cursor: not-allowed; }
+  #avatar-modal-m .av-ghost { background: #f1f5f9; color: #475569; }
+  #avatar-modal-m .av-cand-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+  #avatar-modal-m .av-cand { border: 2.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; cursor: pointer; background: #fff; padding: 0; }
+  #avatar-modal-m .av-cand.active { border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.25); }
+  #avatar-modal-m .av-cand img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; }
+  #avatar-modal-m .av-cand .av-cand-lbl { font-size: 10px; padding: 4px 2px; color: #475569; text-align: center; font-weight: 600; }
+  #avatar-modal-m .av-err { color: #dc2626; font-size: 12px; min-height: 14px; margin-top: 8px; text-align: center; }
+  #avatar-modal-m .av-action-row { display: flex; gap: 8px; margin-top: 12px; }
+  #avatar-modal-m .av-action-row button { flex: 1; padding: 12px; }
+  #avatar-modal-m .av-remove { display: block; margin: 12px auto 0; color: #ef4444; font-size: 11px; text-align: center; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -348,15 +379,16 @@
         <div class="qa-grid">
           <div class="qa-item aoi" onclick="openBotChat()">
             <div class="i">🤖</div>
-            <div>葵に聞く</div>
+            <div>総合案内に聞く</div>
           </div>
           <div class="qa-item" onclick="openHealthChat()" style="background:linear-gradient(135deg,#fae8ff,#f5d0fe);color:#86198f;">
             <div class="i">🩺</div>
             <div>ヘルスに聞く</div>
           </div>
-          <div class="qa-item" onclick="location.href='/plaza.html'" style="background:linear-gradient(135deg,#ccfbf1,#99f6e4);color:#0f766e;">
+          <div class="qa-item" id="qa-plaza" onclick="location.href='/plaza.html'" style="background:linear-gradient(135deg,#ccfbf1,#99f6e4);color:#0f766e;position:relative;">
             <div class="i">🌳</div>
             <div>ひろば</div>
+            <span id="qa-plaza-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#0d9488;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
           <div class="qa-item" onclick="location.href='/challenges.html'" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;">
             <div class="i">🏆</div>
@@ -374,9 +406,10 @@
             <div class="i">🍱</div>
             <div>食事診断</div>
           </div>
-          <div class="qa-item" onclick="location.href='/board.html'" style="background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490;">
+          <div class="qa-item" id="qa-board" onclick="location.href='/board.html'" style="background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490;position:relative;">
             <div class="i">📋</div>
             <div>掲示板</div>
+            <span id="qa-board-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#0891b2;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
           <div class="qa-item" id="qa-announce" onclick="location.href='/announcements.html'" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c;position:relative;">
             <div class="i">📢</div>
@@ -387,10 +420,6 @@
             <div class="i">🚛</div>
             <div>業務連絡</div>
             <span id="qa-ops-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#7c3aed;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
-          </div>
-          <div class="qa-item" onclick="location.href='/accident.html'" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);color:#c2410c;">
-            <div class="i">🚨</div>
-            <div>事故報告</div>
           </div>
           <div class="qa-item" onclick="location.href='/videos.html'" style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;">
             <div class="i">🎬</div>
@@ -437,7 +466,7 @@
       <div class="chat-search">
         <input type="search" id="chat-q" placeholder="名前・グループで絞り込み" oninput="filterChats(this.value)" autocomplete="off">
       </div>
-      <div class="list-section-ttl">葵 (受付AI)</div>
+      <div class="list-section-ttl">総合案内 (受付AI)</div>
       <div class="chat-list" id="bot-list"></div>
       <div class="list-section-ttl" id="group-section-ttl">グループ</div>
       <div class="chat-list" id="group-list"></div>
@@ -476,6 +505,9 @@
             <button data-v="0" onclick="setChimeOn(false)">OFF</button>
           </div>
         </div>
+        <div class="set-item" onclick="enablePushFromSettingsM()">
+          <div class="i">🔔</div><div class="l">プッシュ通知</div><div class="r" id="set-push-val" style="color:#0891b2;font-weight:700;">確認中…</div>
+        </div>
         <div class="set-item">
           <div class="i">🗣️</div><div class="l">読み上げ速度</div>
           <div class="ctrl set-toggle" id="speed-toggle">
@@ -492,6 +524,15 @@
         </div>
         <div class="set-item" onclick="openPwModal()">
           <div class="i">🔑</div><div class="l">パスワード変更</div><div class="r">›</div>
+        </div>
+        <div class="set-item" onclick="openAvatarModalM()">
+          <div class="i">🎨</div><div class="l">アバターを変更</div><div class="r">›</div>
+        </div>
+        <div class="set-item" onclick="window.open('/mylog','_blank','noopener')">
+          <div class="i">📊</div><div class="l">自分のログ</div><div class="r">›</div>
+        </div>
+        <div class="set-item" onclick="window.open('/overview','_blank','noopener')">
+          <div class="i">🗺️</div><div class="l">全フロア俯瞰</div><div class="r">›</div>
         </div>
         <div class="set-item" onclick="location.href='/plaza.html'">
           <div class="i">🌳</div><div class="l">ひろば</div><div class="r">›</div>
@@ -519,7 +560,7 @@
   </div>
 </div>
 
-<!-- ========== 会話モーダル (DM/グループ/葵) ========== -->
+<!-- ========== 会話モーダル (DM/グループ/総合案内) ========== -->
 <div id="chat-modal">
   <div id="chat-head">
     <button class="back" onclick="closeChatModal()">‹</button>
@@ -534,7 +575,7 @@
     <button id="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()">📎</button>
     <input type="file" id="chat-file-input" style="display:none" onchange="onAttachFile(this)">
     <button id="chat-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">💬</button>
-    <button id="chat-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (葵・ヘルス専用)" style="display:none;background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">🎤</button>
+    <button id="chat-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (総合案内・ヘルス専用)" style="display:none;background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">🎤</button>
     <textarea id="chat-input" placeholder="メッセージを入力…" rows="1"></textarea>
     <button id="chat-send-btn" onclick="sendChatMessage()">➤</button>
   </div>
@@ -544,7 +585,7 @@
 <div class="modal" id="cal-modal">
   <div class="modal-sheet">
     <h3>📅 カレンダー連携</h3>
-    <div class="desc">Googleカレンダーを葵に連携すると、本日の予定をDMで受け取れます。</div>
+    <div class="desc">Googleカレンダーを総合案内に連携すると、本日の予定をDMで受け取れます。</div>
     <div id="cal-status-box" style="padding:10px 12px;border-radius:8px;margin-bottom:10px;font-size:12px;background:#f1f5f9;">読み込み中…</div>
     <div id="cal-setup-box" style="display:none;">
       <div style="font-size:11px;color:#64748b;line-height:1.7;">
@@ -603,6 +644,72 @@
 </div>
 
 <div id="toast"></div>
+<div id="tap-banner" onclick="hideTapBanner()"><span class="tap-emoji">👋</span><span id="tap-banner-text">誰かが呼んでいます</span></div>
+
+<!-- ログアウト確認モーダル -->
+<div id="logout-modal" onclick="if(event.target.id==='logout-modal')cancelLogout()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+  <div role="dialog" aria-modal="true" style="background:#fff;border-radius:14px;max-width:340px;width:100%;padding:22px 20px;box-shadow:0 20px 60px rgba(0,0,0,0.35);text-align:center;">
+    <div style="font-size:38px;line-height:1;margin-bottom:6px;">🚪</div>
+    <h3 style="margin:6px 0 8px;font-size:16px;font-weight:800;color:#0f172a;">ログアウトしますか？</h3>
+    <p style="margin:0 0 16px;font-size:11px;color:#64748b;line-height:1.7;">ログインID・パスワードはブラウザに保存されたまま<br>次回もすぐにログインいただけます。</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button onclick="cancelLogout()" autofocus style="padding:11px;background:#e2e8f0;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;">いいえ (NO)</button>
+      <button onclick="confirmLogoutYes()" style="padding:11px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(220,38,38,0.3);">はい (YES)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== アバター作成モーダル ========== -->
+<div id="avatar-modal-m" onclick="if(event.target.id==='avatar-modal-m')closeAvatarModalM()">
+  <div class="av-card">
+    <h3>🎨 アバターを作る</h3>
+    <div class="av-tag">アニメ調に3パターン自動生成し、好きな1枚を選べます。<br>元の写真はサーバーに保存されません。</div>
+    <div class="av-photo-area" id="av-photo-area">
+      <div id="av-placeholder">
+        <div style="margin-bottom:10px;color:#64748b;font-size:12px;">顔と胴体がガイドに収まるように撮影してください</div>
+        <div class="av-btn-row">
+          <button class="av-primary" onclick="avOpenCamera()">📷 カメラで撮る</button>
+          <button class="av-ghost" onclick="document.getElementById('av-file').click()">📁 ファイルから</button>
+        </div>
+      </div>
+      <div id="av-camera-frame" class="av-frame" style="display:none;">
+        <video id="av-camera-video" autoplay playsinline></video>
+        <svg class="av-guide" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <ellipse cx="50" cy="32" rx="20" ry="23" fill="none" stroke="#06b6d4" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <path d="M 22 70 Q 22 58 35 55 L 65 55 Q 78 58 78 70 L 78 98 L 22 98 Z" fill="none" stroke="#06b6d4" stroke-width="0.8" stroke-dasharray="2 2"/>
+        </svg>
+      </div>
+      <div id="av-camera-controls" class="av-btn-row" style="display:none;">
+        <button class="av-primary" onclick="avTakePhoto()">📸 撮影</button>
+        <button class="av-ghost" id="av-switch-cam" onclick="avSwitchCamera()">🔄 切替</button>
+        <button class="av-ghost" onclick="avCloseCamera()">キャンセル</button>
+      </div>
+      <div id="av-preview-frame" class="av-frame" style="display:none;">
+        <img id="av-photo-preview" alt="">
+        <svg class="av-guide" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <ellipse cx="50" cy="32" rx="20" ry="23" fill="none" stroke="#06b6d4" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <path d="M 22 70 Q 22 58 35 55 L 65 55 Q 78 58 78 70 L 78 98 L 22 98 Z" fill="none" stroke="#06b6d4" stroke-width="0.8" stroke-dasharray="2 2"/>
+        </svg>
+      </div>
+      <div id="av-photo-actions" class="av-btn-row" style="display:none;">
+        <button class="av-ghost" onclick="avRetakePhoto()">🔁 撮り直し</button>
+      </div>
+    </div>
+    <canvas id="av-camera-canvas" style="display:none;"></canvas>
+    <input type="file" id="av-file" accept="image/*" capture="user" style="display:none;" onchange="avOnPhotoPick(this)">
+    <div id="av-cand-section" style="display:none;">
+      <div style="font-size:12px;color:#64748b;margin:12px 0 4px;text-align:center;">3パターンから選択</div>
+      <div class="av-cand-grid" id="av-cand-grid"></div>
+    </div>
+    <div class="av-action-row">
+      <button class="av-primary" id="av-gen-btn" onclick="avDoGenerate()" disabled>3パターン自動生成 (約40秒)</button>
+      <button class="av-primary" id="av-confirm-btn" onclick="avDoConfirm()" style="display:none;">これにする</button>
+      <button class="av-ghost" onclick="closeAvatarModalM()">閉じる</button>
+    </div>
+    <div id="av-err" class="av-err"></div>
+    <a class="av-remove" href="javascript:avRemove()">アバターを削除</a>
+  </div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -628,7 +735,7 @@ const BOT_UID = 'bot_aoi';
 const HEALTH_UID = 'bot_health';
 const AOI_VOICE = 'ja-JP-Neural2-B';
 function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID; }
-// bot uid → TTS声プリセット (PC版と統一: 葵=Neural2-B, ヘルス=Wavenet-A)
+// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A)
 function ttsOptsForBot(uid) {
   if (uid === HEALTH_UID) return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
   return { voice: AOI_VOICE, speed: 1.05, pitch: 0 };
@@ -795,6 +902,18 @@ function showToast(msg) {
   t.classList.add('show');
   clearTimeout(t._h);
   t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function showTapBanner(fromName) {
+  const b = document.getElementById('tap-banner');
+  if (!b) return;
+  document.getElementById('tap-banner-text').textContent = (fromName || '誰か') + 'が呼んでいます';
+  b.classList.add('show');
+  clearTimeout(b._h);
+  b._h = setTimeout(() => b.classList.remove('show'), 8000);
+}
+function hideTapBanner() {
+  const b = document.getElementById('tap-banner');
+  if (b) { b.classList.remove('show'); clearTimeout(b._h); }
 }
 function fmtTime(ts) {
   try {
@@ -1136,7 +1255,13 @@ async function submitNickname(forced) {
 }
 
 async function doLogout() {
-  if (!confirm('ログアウトしますか?')) return;
+  document.getElementById('logout-modal').style.display = 'flex';
+}
+function cancelLogout() {
+  document.getElementById('logout-modal').style.display = 'none';
+}
+async function confirmLogoutYes() {
+  document.getElementById('logout-modal').style.display = 'none';
   try { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } }); } catch (e) {}
   localStorage.removeItem('cohub_token');
   localStorage.removeItem('cohub_user');
@@ -1162,12 +1287,15 @@ function startApp() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
+  // PWA Push: 通知許可済みなら自動購読 (未許可は設定の「通知を有効化」から)
+  registerPushM().catch(() => {});
   // 告知バッジ + 重要告知ポップアップ + 業務連絡未対応バッジ
   checkAnnouncements();
   checkOpsPending();
+  checkBoardPlazaUnread();
   // 棟・フロア一覧
   loadFloorList();
-  setInterval(() => { checkAnnouncements(); checkOpsPending(); }, 90 * 1000);
+  setInterval(() => { checkAnnouncements(); checkOpsPending(); checkBoardPlazaUnread(); }, 90 * 1000);
 }
 
 async function checkOpsPending() {
@@ -1179,6 +1307,26 @@ async function checkOpsPending() {
       if (j.success && j.count > 0) { badge.textContent = j.count; badge.style.display = 'inline-block'; }
       else { badge.style.display = 'none'; }
     }
+  } catch (e) {}
+}
+
+// ===== 📋 掲示板 / 🌳 ひろば 新着バッジ =====
+async function checkBoardPlazaUnread() {
+  const setBadge = (id, n) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    if (n > 0) { b.textContent = n >= 99 ? '99' : String(n); b.style.display = 'inline-block'; }
+    else { b.style.display = 'none'; }
+  };
+  try {
+    const [bR, pR] = await Promise.all([
+      fetch('/api/board/unread-count', { headers: { Authorization: 'Bearer ' + token } }),
+      fetch('/api/plaza/unread-count', { headers: { Authorization: 'Bearer ' + token } }),
+    ]);
+    const bJ = await bR.json();
+    const pJ = await pR.json();
+    if (bJ && bJ.success) setBadge('qa-board-cnt', bJ.count || 0);
+    if (pJ && pJ.success) setBadge('qa-plaza-cnt', pJ.count || 0);
   } catch (e) {}
 }
 
@@ -1282,6 +1430,7 @@ function switchTab(tab) {
   if (tab === 'chat') loadChatLists();
   if (tab === 'members') renderMembers();
   if (tab === 'home') { renderHomeOnline(); renderHomeRecentDm(); }
+  if (tab === 'settings') updatePushSettingUI();
 }
 
 // ============================================================
@@ -1334,9 +1483,9 @@ function connectSocket() {
     renderHomeOnline();
   });
   socket.on('chat:msg', (m) => {
-    // フロア公開チャット: モバイル版では受信はするが通知のみ (葵挨拶のみ表示)
+    // フロア公開チャット: モバイル版では受信はするが通知のみ (総合案内挨拶のみ表示)
     if (m.uid === BOT_UID) {
-      // 葵のフロア公開挨拶は無視 (DMで改めて来る)
+      // 総合案内のフロア公開挨拶は無視 (DMで改めて来る)
     }
   });
   socket.on('dm:blocked', (r) => {
@@ -1345,17 +1494,25 @@ function connectSocket() {
   socket.on('groups:changed', () => {
     loadChatLists();
   });
+  // 👋 肩たたき (PCの誰かがロビーで自分を呼んだ時)
+  socket.on('tap:received', (data) => {
+    const fromName = (data && data.fromName) || '誰か';
+    showTapBanner(fromName);
+    showToast('👋 ' + fromName + 'があなたの肩をたたきました');
+    try { if (chimeOn) playEnterLeaveChime(true); } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate([180, 80, 180]); } catch (e) {}
+  });
   socket.on('dm:msg', (m) => {
     const isSelf = m.from === user.uid;
     const peerUid = isSelf ? m.to : m.from;
-    // ★ 音声会話モード中: 葵/ヘルスからの返答は専用フロー(TTS+終了後に認識1回再開)
+    // ★ 音声会話モード中: 総合案内/ヘルスからの返答は専用フロー(TTS+終了後に認識1回再開)
     if (typeof voiceConvActive !== 'undefined' && voiceConvActive && !isSelf
         && isBotUid(m.from) && m.content && openPeerUid === m.from) {
       appendMessage(m, isSelf);
       playBotForVoiceConv(m.content, m.from);
       return;
     }
-    // 葵からの発言は読み上げ (DM画面を開いている時のみ)
+    // 総合案内からの発言は読み上げ (DM画面を開いている時のみ)
     if (!isSelf && m.from === BOT_UID && m.content && openPeerUid === BOT_UID) speakAoi(m.content);
     // 音声DM受信: 取込中でも本文をTTSで強制再生 (急ぎ連絡用)
     if (!isSelf && m.voice && m.content && !isBotUid(m.from)) {
@@ -1374,7 +1531,7 @@ function connectSocket() {
       updateChatBadge();
       loadChatLists();
       const sender = users[peerUid] || {};
-      const name = peerUid === BOT_UID ? '葵' : peerUid === HEALTH_UID ? 'ヘルス' : (sender.name || '');
+      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : (sender.name || '');
       showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
       // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
       if (!isBotUid(m.from) && !m.voice) announceDmSender(m.from, sender.name || '');
@@ -1434,14 +1591,14 @@ async function loadChatLists() {
   } catch (e) { console.warn('chat lists', e.message); }
 }
 function renderChatLists() {
-  // 葵 + ヘルス (常時上部)
+  // 総合案内 + ヘルス (常時上部)
   const bl = document.getElementById('bot-list');
   const aoiPeer = dmPeers.find(p => p.peer_id === BOT_UID);
   const healthPeer = dmPeers.find(p => p.peer_id === HEALTH_UID);
   bl.innerHTML = renderChatItem({
     peer_id: BOT_UID,
-    display_name: '葵',
-    avatar_url: '/assets/concierge_aoi.png',
+    display_name: '総合案内',
+    avatar_url: '/assets/concierge_aoi.png?v=2',
     company_code: 'AI 受付',
     last_at: aoiPeer ? aoiPeer.last_at : null,
     isBot: true,
@@ -1449,7 +1606,7 @@ function renderChatLists() {
   }) + renderChatItem({
     peer_id: HEALTH_UID,
     display_name: 'ヘルスアドバイザー',
-    avatar_url: '/assets/concierge_health_full.png',
+    avatar_url: '/assets/concierge_health_avatar.png?v=3',
     company_code: 'AI ヘルス',
     last_at: healthPeer ? healthPeer.last_at : null,
     isBot: true,
@@ -1508,13 +1665,13 @@ function updateChatBadge() {
 }
 
 // ============================================================
-// 会話モーダル (DM/グループ/葵)
+// 会話モーダル (DM/グループ/総合案内)
 // ============================================================
 function openBotChat() {
-  openDM(BOT_UID, '葵', '/assets/concierge_aoi.png', true);
+  openDM(BOT_UID, '総合案内', '/assets/concierge_aoi.png?v=2', true);
 }
 function openHealthChat() {
-  openDM(HEALTH_UID, 'ヘルスアドバイザー', '/assets/concierge_health_full.png', true);
+  openDM(HEALTH_UID, 'ヘルスアドバイザー', '/assets/concierge_health_avatar.png?v=3', true);
 }
 async function openDM(peerId, name, avatar, isBot) {
   openPeerUid = peerId;
@@ -1586,11 +1743,11 @@ function appendMessage(m, isSelf) {
 }
 function msgHtml(m, isSelf, showSenderName) {
   const sender = users[m.from] || {};
-  const name = m.from === BOT_UID ? '葵'
+  const name = m.from === BOT_UID ? '総合案内'
             : m.from === HEALTH_UID ? 'ヘルスアドバイザー'
             : (m.sender_name || sender.name || '');
-  const avatar = m.from === BOT_UID ? '/assets/concierge_aoi.png'
-              : m.from === HEALTH_UID ? '/assets/concierge_health_full.png'
+  const avatar = m.from === BOT_UID ? '/assets/concierge_aoi.png?v=2'
+              : m.from === HEALTH_UID ? '/assets/concierge_health_avatar.png?v=3'
               : sender.avatar || '';
   const initials = (name || '?').slice(0, 2);
   const avHtml = avatar ? '<img src="' + escapeHtml(avatar) + '">' : escapeHtml(initials);
@@ -1690,7 +1847,7 @@ async function sendChatMessage() {
   }
 }
 
-// ===== 🎤 音声会話モード (葵 / ヘルス専用) =====
+// ===== 🎤 音声会話モード (総合案内 / ヘルス専用) =====
 // 設計: continuous=false の単発認識を、TTS再生終了→0.8秒後に1回だけ再起動する形で繋ぐ。
 // 自動再開ループ禁止 (memory feedback_voice_no_auto_restart, Android点滅事故対策)。
 let voiceConvActive = false;
@@ -1746,7 +1903,7 @@ function _vcStopNow() {
 
 function startVoiceConv() {
   if (!openPeerUid || !isBotUid(openPeerUid)) {
-    try { showToast('音声会話は葵・ヘルスとのDMのみ対応'); } catch (e) {}
+    try { showToast('音声会話は総合案内・ヘルスとのDMのみ対応'); } catch (e) {}
     return;
   }
   voiceConvActive = true;
@@ -1777,7 +1934,7 @@ function updateMicBtn() {
     btn.style.background = 'transparent';
     btn.style.borderColor = '#cbd5e1';
     btn.style.color = '#64748b';
-    btn.title = '音声会話 (葵・ヘルス専用)';
+    btn.title = '音声会話 (総合案内・ヘルス専用)';
   }
 }
 
@@ -2000,7 +2157,306 @@ async function submitPw() {
 }
 
 // ============================================================
-// 音量/ミュート + 葵 TTS
+// アバター作り直し (G1)
+// ============================================================
+let avPhoto = null;
+let avCandidates = [];
+let avSelected = null;
+let avCameraStream = null;
+let avCameraFacing = 'user';
+
+function openAvatarModalM() {
+  avPhoto = null; avCandidates = []; avSelected = null;
+  document.getElementById('av-placeholder').style.display = 'block';
+  document.getElementById('av-camera-frame').style.display = 'none';
+  document.getElementById('av-camera-controls').style.display = 'none';
+  document.getElementById('av-preview-frame').style.display = 'none';
+  document.getElementById('av-photo-actions').style.display = 'none';
+  document.getElementById('av-cand-section').style.display = 'none';
+  document.getElementById('av-confirm-btn').style.display = 'none';
+  const gen = document.getElementById('av-gen-btn');
+  gen.style.display = 'inline-block'; gen.disabled = true; gen.textContent = '3パターン自動生成 (約40秒)';
+  document.getElementById('av-err').textContent = '';
+  document.getElementById('avatar-modal-m').classList.add('show');
+}
+
+async function closeAvatarModalM() {
+  if (avCameraStream) avCloseCamera();
+  if (avCandidates && avCandidates.length && !avSelected) {
+    try {
+      await fetch('/api/avatar/discard', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidates: avCandidates })
+      });
+    } catch (e) {}
+  }
+  avPhoto = null; avCandidates = []; avSelected = null;
+  document.getElementById('avatar-modal-m').classList.remove('show');
+}
+
+function avOnPhotoPick(input) {
+  if (!input.files || !input.files[0]) return;
+  avSetPhoto(input.files[0]);
+  input.value = '';
+}
+
+function avSetPhoto(fileOrBlob) {
+  avPhoto = fileOrBlob;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('av-photo-preview').src = e.target.result;
+    document.getElementById('av-preview-frame').style.display = 'block';
+    document.getElementById('av-placeholder').style.display = 'none';
+    document.getElementById('av-photo-actions').style.display = 'flex';
+    document.getElementById('av-gen-btn').disabled = false;
+  };
+  reader.readAsDataURL(fileOrBlob);
+}
+
+async function avOpenCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('お使いのブラウザはカメラに対応していません。');
+    return;
+  }
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    alert('カメラはHTTPS接続でのみ使用できます。');
+    return;
+  }
+  const attempts = [
+    { video: { facingMode: avCameraFacing, width: { ideal: 720 }, height: { ideal: 720 } }, audio: false },
+    { video: { width: { ideal: 720 }, height: { ideal: 720 } }, audio: false },
+    { video: true, audio: false },
+  ];
+  let lastErr = null;
+  for (const c of attempts) {
+    try { avCameraStream = await navigator.mediaDevices.getUserMedia(c); break; }
+    catch (e) { lastErr = e; }
+  }
+  if (!avCameraStream) {
+    const name = lastErr && (lastErr.name || '');
+    let msg = 'カメラにアクセスできません。';
+    if (name === 'NotAllowedError' || name === 'SecurityError') msg += '\nブラウザ設定でカメラを「許可」してください。';
+    else if (name === 'NotFoundError') msg += '\nカメラが見つかりません。';
+    else if (name === 'NotReadableError') msg += '\n他アプリがカメラを使用中の可能性があります。';
+    else msg += '\n' + (lastErr && (lastErr.message || lastErr.name) || '不明なエラー');
+    alert(msg);
+    return;
+  }
+  const video = document.getElementById('av-camera-video');
+  video.srcObject = avCameraStream;
+  document.getElementById('av-camera-frame').style.display = 'block';
+  document.getElementById('av-camera-controls').style.display = 'flex';
+  document.getElementById('av-placeholder').style.display = 'none';
+  document.getElementById('av-preview-frame').style.display = 'none';
+  document.getElementById('av-photo-actions').style.display = 'none';
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const cams = devs.filter(d => d.kind === 'videoinput');
+    document.getElementById('av-switch-cam').style.display = cams.length > 1 ? 'inline-block' : 'none';
+  } catch (_) {}
+}
+
+async function avSwitchCamera() {
+  avCameraFacing = avCameraFacing === 'user' ? 'environment' : 'user';
+  avCloseCamera();
+  await avOpenCamera();
+}
+
+function avTakePhoto() {
+  const video = document.getElementById('av-camera-video');
+  const c = document.getElementById('av-camera-canvas');
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  const sx = (video.videoWidth - size) / 2;
+  const sy = (video.videoHeight - size) / 2;
+  if (avCameraFacing === 'user') {
+    ctx.save(); ctx.scale(-1, 1);
+    ctx.drawImage(video, sx, sy, size, size, -size, 0, size, size);
+    ctx.restore();
+  } else {
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+  }
+  c.toBlob((blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'cam_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    avCloseCamera();
+    avSetPhoto(file);
+  }, 'image/jpeg', 0.9);
+}
+
+function avCloseCamera() {
+  if (avCameraStream) { avCameraStream.getTracks().forEach(t => t.stop()); avCameraStream = null; }
+  const v = document.getElementById('av-camera-video'); if (v) v.srcObject = null;
+  document.getElementById('av-camera-frame').style.display = 'none';
+  document.getElementById('av-camera-controls').style.display = 'none';
+  if (!avPhoto) document.getElementById('av-placeholder').style.display = 'block';
+}
+
+function avRetakePhoto() {
+  avPhoto = null; avCandidates = []; avSelected = null;
+  document.getElementById('av-preview-frame').style.display = 'none';
+  document.getElementById('av-photo-actions').style.display = 'none';
+  document.getElementById('av-placeholder').style.display = 'block';
+  document.getElementById('av-cand-section').style.display = 'none';
+  document.getElementById('av-confirm-btn').style.display = 'none';
+  const gen = document.getElementById('av-gen-btn');
+  gen.style.display = 'inline-block'; gen.disabled = true; gen.textContent = '3パターン自動生成 (約40秒)';
+  document.getElementById('av-err').textContent = '';
+}
+
+async function avDoGenerate() {
+  const btn = document.getElementById('av-gen-btn');
+  const err = document.getElementById('av-err');
+  if (!avPhoto) return;
+  btn.disabled = true; btn.textContent = '生成中... (最大60秒)'; err.textContent = '';
+  const fd = new FormData();
+  fd.append('photo', avPhoto);
+  try {
+    const r = await fetch('/api/avatar/generate-set', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd
+    });
+    const d = await r.json();
+    if (!d.success || !d.candidates || !d.candidates.length) {
+      err.textContent = d.msg || '生成に失敗しました';
+      btn.disabled = false; btn.textContent = '3パターン自動生成 (約40秒)';
+      return;
+    }
+    avCandidates = d.candidates;
+    avSelected = d.candidates[0];
+    avRenderCandidates();
+    document.getElementById('av-cand-section').style.display = 'block';
+    btn.style.display = 'none';
+    const cb = document.getElementById('av-confirm-btn');
+    cb.style.display = 'inline-block';
+    cb.textContent = 'これにする (' + d.candidates.length + '枚)';
+  } catch (e) {
+    err.textContent = '通信エラー';
+    btn.disabled = false; btn.textContent = '3パターン自動生成 (約40秒)';
+  }
+}
+
+function avRenderCandidates() {
+  const grid = document.getElementById('av-cand-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (const c of avCandidates) {
+    const el = document.createElement('button');
+    const isActive = avSelected && avSelected.avatar_url === c.avatar_url;
+    el.className = 'av-cand' + (isActive ? ' active' : '');
+    el.onclick = () => { avSelected = c; avRenderCandidates(); };
+    el.innerHTML = '<img src="' + escapeHtml(c.avatar_url) + '" alt=""><div class="av-cand-lbl">' + escapeHtml(c.label || c.variant || '') + '</div>';
+    grid.appendChild(el);
+  }
+}
+
+async function avDoConfirm() {
+  if (!avSelected) return;
+  const btn = document.getElementById('av-confirm-btn');
+  const err = document.getElementById('av-err');
+  btn.disabled = true; btn.textContent = '確定中...'; err.textContent = '';
+  try {
+    const r = await fetch('/api/avatar/select', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar_url: avSelected.avatar_url, candidates: avCandidates })
+    });
+    const d = await r.json();
+    if (!d.success) { err.textContent = d.msg || '確定に失敗'; btn.disabled = false; btn.textContent = 'これにする'; return; }
+    user.avatar_url = d.avatar_url;
+    try { localStorage.setItem('cohub_user', JSON.stringify(user)); } catch (e) {}
+    if (users[user.uid]) users[user.uid].avatar = d.avatar_url;
+    renderMe();
+    renderMembers();
+    renderHomeOnline();
+    avSelected = { avatar_url: d.avatar_url }; // discard回避
+    avCandidates = [];
+    closeAvatarModalM();
+    showToast('アバター完成！');
+  } catch (e) {
+    err.textContent = '通信エラー'; btn.disabled = false; btn.textContent = 'これにする';
+  }
+}
+
+async function avRemove() {
+  if (!confirm('アバターを削除しますか？')) return;
+  try {
+    await fetch('/api/avatar/remove', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    user.avatar_url = '';
+    try { localStorage.setItem('cohub_user', JSON.stringify(user)); } catch (e) {}
+    if (users[user.uid]) users[user.uid].avatar = '';
+    renderMe();
+    renderMembers();
+    renderHomeOnline();
+    closeAvatarModalM();
+    showToast('アバターを削除しました');
+  } catch (e) { showToast('削除失敗'); }
+}
+
+// ============================================================
+// PWA Web Push 購読 (G2)
+// ============================================================
+function urlB64ToUint8ArrayM(base64) {
+  const padding = '='.repeat((4 - base64.length % 4) % 4);
+  const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function registerPushM(forceRequest) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return false;
+  try {
+    if (Notification.permission === 'default' && forceRequest) {
+      const p = await Notification.requestPermission();
+      if (p !== 'granted') return false;
+    }
+    if (Notification.permission !== 'granted') return false;
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    const vr = await fetch('/api/push/vapid');
+    const vd = await vr.json();
+    if (!vd.publicKey) return false;
+    const applicationServerKey = urlB64ToUint8ArrayM(vd.publicKey);
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+    }
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    });
+    updatePushSettingUI();
+    return true;
+  } catch (e) {
+    console.warn('[push] register err', e);
+    return false;
+  }
+}
+
+async function enablePushFromSettingsM() {
+  const ok = await registerPushM(true);
+  if (ok) showToast('🔔 通知を有効にしました');
+  else if (Notification && Notification.permission === 'denied') showToast('通知がブロックされています。ブラウザ設定から許可してください');
+  else showToast('通知の設定に失敗しました');
+}
+
+function updatePushSettingUI() {
+  const el = document.getElementById('set-push-val');
+  if (!el || !('Notification' in window)) return;
+  const p = Notification.permission;
+  if (p === 'granted') { el.textContent = '有効'; el.style.color = '#059669'; }
+  else if (p === 'denied') { el.textContent = 'ブロック中'; el.style.color = '#dc2626'; }
+  else { el.textContent = 'タップで有効化 ›'; el.style.color = '#0891b2'; }
+}
+
+// ============================================================
+// 音量/ミュート + 総合案内 TTS
 // ============================================================
 let _aoiAudio = null;
 let _aoiAudioUrl = null;
@@ -2356,9 +2812,9 @@ function renderHomeRecentDm() {
   host.innerHTML = peers.map(p => {
     const isBot = isBotUid(p.peer_id);
     const isHealth = p.peer_id === HEALTH_UID;
-    const name = p.peer_id === BOT_UID ? '葵' : isHealth ? 'ヘルスアドバイザー' : (p.display_name || '');
-    const avUrl = p.peer_id === BOT_UID ? '/assets/concierge_aoi.png'
-                : isHealth ? '/assets/concierge_health_full.png'
+    const name = p.peer_id === BOT_UID ? '総合案内' : isHealth ? 'ヘルスアドバイザー' : (p.display_name || '');
+    const avUrl = p.peer_id === BOT_UID ? '/assets/concierge_aoi.png?v=2'
+                : isHealth ? '/assets/concierge_health_avatar.png?v=3'
                 : (p.avatar_url || '');
     const init = (name || '?').slice(0, 2);
     const av = avUrl
