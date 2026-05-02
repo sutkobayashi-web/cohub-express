@@ -380,16 +380,16 @@
         <div class="section-ttl">クイックアクセス</div>
         <div class="qa-grid">
           <div class="qa-item aoi" onclick="openBotChat()">
-            <div class="i">🤖</div>
+            <img class="i" src="/assets/concierge_aoi.png" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#fff;border:1.5px solid rgba(249,168,212,0.6);">
             <div>総合案内に聞く</div>
           </div>
           <div class="qa-item" onclick="openHealthChat()" style="background:linear-gradient(135deg,#fae8ff,#f5d0fe);color:#86198f;">
-            <div class="i">🩺</div>
-            <div>ヘルスに聞く</div>
+            <img class="i" src="/assets/concierge_health_avatar.png" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#fff;border:1.5px solid rgba(217,70,239,0.4);">
+            <div>ヘルスアドバイザーに聞く</div>
           </div>
           <div class="qa-item" id="qa-plaza" onclick="location.href='/plaza.html'" style="background:linear-gradient(135deg,#ccfbf1,#99f6e4);color:#0f766e;position:relative;">
             <div class="i">🌳</div>
-            <div>ひろば</div>
+            <div>みんなの広場</div>
             <span id="qa-plaza-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#0d9488;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
           <div class="qa-item" onclick="location.href='/challenges.html'" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;">
@@ -1208,7 +1208,7 @@ function openNicknameModal(forced) {
       <div style="text-align:center;font-size:36px;margin-bottom:6px;">🎭</div>
       <h2 style="margin:0 0 4px;text-align:center;color:#111827;font-size:17px;">ニックネーム${isForced?'を決めてください':'の変更'}</h2>
       <div style="font-size:12px;color:#6b7280;text-align:center;line-height:1.7;margin-bottom:16px;">
-        ひろばや健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
+        みんなの広場や健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
         本名や個人特定できる情報は避け、<b>2〜20文字</b>でどうぞ。
       </div>
       <input type="text" id="nick-input" placeholder="例: 朝寝坊 / おこめ / 海好き" maxlength="20"
@@ -1309,7 +1309,7 @@ async function checkOpsPending() {
   } catch (e) {}
 }
 
-// ===== 📋 掲示板 / 🌳 ひろば 新着バッジ =====
+// ===== 📋 掲示板 / 🌳 みんなの広場 新着バッジ =====
 async function checkBoardPlazaUnread() {
   const setBadge = (id, n) => {
     const b = document.getElementById(id);
@@ -2851,7 +2851,7 @@ function openDmFromUid(uid, name) {
   }
 }
 
-// 食事診断 (ひろば食事タブ + 撮影ボタン即起動)
+// 食事診断 (みんなの広場食事タブ + 撮影ボタン即起動)
 function openMealDiag() {
   location.href = '/plaza.html?action=food';
 }
@@ -2886,7 +2886,7 @@ function pickStatus(s) {
   closeStatusSheet();
 }
 
-// ===== 健康管理室への導線 (CoWell内「ひろば」へ) =====
+// ===== 健康管理室への導線 (CoWell内「みんなの広場」へ) =====
 function openWellness() {
   location.href = '/plaza.html';
   return;

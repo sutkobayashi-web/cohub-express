@@ -619,8 +619,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>📣</span><span class="lbl">現場の声</span>
     </button>
-    <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="ひろば (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
-      <span>🌳</span><span class="lbl">ひろば</span><span class="cnt" id="rail-plaza-cnt" style="display:none;">0</span>
+    <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="みんなの広場 (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
+      <span>🌳</span><span class="lbl">みんなの広場</span><span class="cnt" id="rail-plaza-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" onclick="location.href='/myplan.html'" title="今日の一歩、明日の自分 — あなたのアクションプラン" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.35);color:#1e3a8a;">
       <span>👣</span><span class="lbl">今日の一歩</span>
@@ -731,7 +731,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- 健康管理室: CoWell ネイティブの「ひろば」を iframe で表示 -->
+    <!-- 健康管理室: CoWell ネイティブの「みんなの広場」を iframe で表示 -->
     <iframe id="wellness-iframe" src="about:blank"
       style="display:none;position:absolute;inset:40px 0 0 0;width:100%;height:calc(100% - 40px);border:0;z-index:5;background:#f8fafc;"
       allow="camera; microphone; fullscreen; clipboard-read; clipboard-write"
@@ -1330,7 +1330,7 @@ function showNicknameSetupModal() {
         <div style="text-align:center;font-size:36px;margin-bottom:8px;">🎭</div>
         <h2 style="margin:0 0 6px;text-align:center;color:#111827;font-size:18px;">ニックネームを決めてください</h2>
         <div style="font-size:12px;color:#6b7280;text-align:center;line-height:1.7;margin-bottom:18px;">
-          ひろばや健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
+          みんなの広場や健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
           ご自身の本名や個人を特定できる情報は避け、<br>
           <b>2〜20文字</b>で気に入ったものを設定してください。
         </div>
@@ -1864,7 +1864,7 @@ async function checkOpsPending() {
   } catch (e) {}
 }
 
-// ===== 📋 掲示板 / 🌳 ひろば 新着バッジ =====
+// ===== 📋 掲示板 / 🌳 みんなの広場 新着バッジ =====
 async function checkBoardPlazaUnread() {
   const setBadge = (id, n) => {
     const b = document.getElementById(id);
