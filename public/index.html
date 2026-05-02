@@ -4391,8 +4391,8 @@ function drawConciergeStanding(u) {
   const hintIcon = isAoiBot ? '🌸' : isHealthBot ? '🩺' : isSafetyBot ? '🚨' : '💬';
   const hintColor = isAoiBot ? '#0891b2' : isHealthBot ? '#047857' : isSafetyBot ? '#991b1b' : '#475569';
   // 軽い上下バウンス (注意を引く、邪魔しない)
-  const phase = (Date.now() % 2400) / 2400;
-  const bob = Math.sin(phase * Math.PI * 2) * 2;
+  const hintPhase = (Date.now() % 2400) / 2400;
+  const bob = Math.sin(hintPhase * Math.PI * 2) * 2;
   ctx.font = '700 11px sans-serif';
   const hintLabel = hintIcon + ' タップ';
   const hw = Math.round(ctx.measureText(hintLabel).width + 16);
