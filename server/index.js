@@ -21,7 +21,7 @@ const CONCIERGE_BOTS = [
   { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'lobby', x: 744, y: 405 },
   { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=3', floor: 'wellness_room', x: 744, y: 519 },
   { id: 'bot_safety', login_id: 'bot_safety', name: '安全太郎', avatar: '/assets/concierge_safety_avatar.png?v=1', floor: 'field_accident', x: 1080, y: 500 },
-  { id: 'bot_master', login_id: 'bot_master', name: 'マスター', avatar: '/assets/concierge_master_avatar.png?v=1', floor: 'promoter_club', x: 1080, y: 540 },
+  { id: 'bot_master', login_id: 'bot_master', name: 'マスター', avatar: '/assets/concierge_master_avatar.png?v=1', floor: 'promoter_club', x: 1100, y: 460 },
 ];
 const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
 function ensureConciergeBots() {
