@@ -4395,7 +4395,8 @@ function drawConciergeStanding(u) {
   // 本体 (wellness_room の bot_health は左方向のホワイトボードを指すよう水平反転)
   const flipH = currentFloor && currentFloor.code === 'wellness_room' && u.uid === 'bot_health';
   // 下半身クリップ (カウンター越しに上半身だけ見せたい場合)
-  const clipBottom = (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master') ? 0.58 : 1.0;
+  // promoter_club master: y=384(中央)+ clip 0.55 で頭は上1/4、切れ目はカウンター天板付近
+  const clipBottom = (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master') ? 0.55 : 1.0;
   const srcH = standing.h * clipBottom;
   const dstH = FIG_H * clipBottom;
   if (flipH) {
