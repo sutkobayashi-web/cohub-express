@@ -465,7 +465,7 @@ router.get('/promoter-board', authUser, (req, res) => {
     (SELECT COUNT(*) FROM wellness_post_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS post_disc_count,
     (SELECT COUNT(*) FROM wellness_action_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS action_disc_count,
     (SELECT COUNT(*) FROM wellness_post_reactions WHERE user_id = u.id AND created_at >= ?) AS react_count
-    FROM users u WHERE u.is_field_promoter = 1 OR u.employee_type = 'admin' OR u.is_guest_reviewer = 1
+    FROM users u WHERE u.is_field_promoter = 1 AND u.role != 'bot'
     ORDER BY (post_count*3 + post_disc_count*2 + action_disc_count*2 + react_count) DESC LIMIT 12`)
     .all(sinceISO, sinceISO, sinceISO, sinceISO);
 
