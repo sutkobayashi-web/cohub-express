@@ -390,6 +390,51 @@ router.post('/actions/:id/complete', authUser, express.json(), (req, res) => {
 const { generateText } = require('../services/ai');
 
 // 推進メンバー貢献度 + 直近ハイライト + フロー進捗 (1リクエストで全部返す)
+// 推進メンバー個人Todoダッシュボード:
+//  - 未反応の3つの柱POST (7日以内、自分以外、自分が共感も議論もしてない)
+//  - 議論段階(候補/評議中)の施策で自分が未コメント
+//  - 今月の自分の貢献カウント (POST/コメント/共感/score)
+router.get('/promoter-todo', authUser, (req, res) => {
+  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const me = req.uid;
+  const db = getDb();
+  // 1. 未反応POST (最大10件)
+  const unreactedPosts = db.prepare(`
+    SELECT wp.id, wp.category, wp.source_type, wp.urgency, wp.memo, wp.created_at, wp.identity_mode
+    FROM wellness_posts wp
+    WHERE wp.created_at >= datetime('now', '-7 days')
+      AND wp.poster_id != ?
+      AND NOT EXISTS (SELECT 1 FROM wellness_post_reactions r WHERE r.post_id = wp.id AND r.user_id = ?)
+      AND NOT EXISTS (SELECT 1 FROM wellness_post_discussions d WHERE d.post_id = wp.id AND d.author_id = ? AND d.deleted_at IS NULL)
+    ORDER BY wp.created_at DESC LIMIT 10
+  `).all(me, me, me);
+  // 2. 議論待ち施策 (候補/評議中で自分未コメント、最大10件)
+  const pendingActions = db.prepare(`
+    SELECT a.id, a.title, a.status, a.category, a.created_at
+    FROM wellness_actions a
+    WHERE a.status IN ('候補', '評議中')
+      AND NOT EXISTS (SELECT 1 FROM wellness_action_discussions d WHERE d.action_id = a.id AND d.author_id = ? AND d.deleted_at IS NULL)
+    ORDER BY a.created_at DESC LIMIT 10
+  `).all(me);
+  // 3. 今月の自分の貢献
+  const monthStart = new Date();
+  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const sinceISO = monthStart.toISOString().slice(0, 19).replace('T', ' ');
+  const myPosts = db.prepare("SELECT COUNT(*) AS c FROM wellness_posts WHERE poster_id = ? AND created_at >= ?").get(me, sinceISO).c;
+  const myPostComments = db.prepare("SELECT COUNT(*) AS c FROM wellness_post_discussions WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?").get(me, sinceISO).c;
+  const myActionComments = db.prepare("SELECT COUNT(*) AS c FROM wellness_action_discussions WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?").get(me, sinceISO).c;
+  const myReactions = db.prepare("SELECT COUNT(*) AS c FROM wellness_post_reactions WHERE user_id = ? AND created_at >= ?").get(me, sinceISO).c;
+  const myComments = myPostComments + myActionComments;
+  const myScore = myPosts * 3 + myComments * 2 + myReactions;
+  res.json({
+    success: true,
+    unreacted_posts: unreactedPosts,
+    pending_actions: pendingActions,
+    my_stats: { posts: myPosts, comments: myComments, reactions: myReactions, score: myScore },
+    period: '今月',
+  });
+});
+
 router.get('/promoter-board', authUser, (req, res) => {
   if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
   const days = Math.min(parseInt(req.query.days) || 30, 90);

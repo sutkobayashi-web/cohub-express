@@ -276,6 +276,48 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
     </div>
   </div>
 
+  <!-- ━━━ 今日のあなた (推進メンバーTodo) ━━━ -->
+  <div class="card" data-pane="board" id="promoter-todo-card" style="background:linear-gradient(135deg,#fef9c3,#fef08a);border:2px solid #facc15;margin-top:14px;display:none;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="font-size:28px;">📍</div>
+      <div style="flex:1;">
+        <h2 style="margin:0;font-size:16px;font-weight:800;color:#854d0e;">今日のあなた</h2>
+        <div style="font-size:11px;color:#a16207;">未反応のPOST・議論待ちの施策・今月の貢献を1か所で確認</div>
+      </div>
+      <button onclick="reloadPromoterTodo()" style="background:rgba(255,255,255,0.6);border:1px solid #ca8a04;color:#854d0e;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">⟳ 更新</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <!-- 未反応POST -->
+      <div style="background:#fff;border-radius:10px;padding:10px 12px;">
+        <div style="font-size:12px;font-weight:800;color:#854d0e;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          🌸 未反応POST <span id="todo-posts-cnt" style="background:#dc2626;color:#fff;padding:1px 7px;border-radius:8px;font-size:11px;">0</span>
+        </div>
+        <div id="todo-posts-list" style="font-size:11px;line-height:1.7;color:#374151;max-height:160px;overflow-y:auto;">
+          <div style="color:#9ca3af;">読み込み中…</div>
+        </div>
+      </div>
+      <!-- 議論待ち施策 -->
+      <div style="background:#fff;border-radius:10px;padding:10px 12px;">
+        <div style="font-size:12px;font-weight:800;color:#854d0e;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          🎯 議論待ち施策 <span id="todo-actions-cnt" style="background:#dc2626;color:#fff;padding:1px 7px;border-radius:8px;font-size:11px;">0</span>
+        </div>
+        <div id="todo-actions-list" style="font-size:11px;line-height:1.7;color:#374151;max-height:160px;overflow-y:auto;">
+          <div style="color:#9ca3af;">読み込み中…</div>
+        </div>
+      </div>
+    </div>
+    <!-- 今月の貢献 -->
+    <div style="margin-top:10px;background:#fff;border-radius:10px;padding:10px 12px;">
+      <div style="font-size:12px;font-weight:800;color:#854d0e;margin-bottom:6px;">📊 今月のあなたの貢献</div>
+      <div id="todo-mystats" style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#374151;">
+        <div>📝 POST <b id="ts-posts" style="color:#0f172a;">-</b></div>
+        <div>💬 コメント <b id="ts-comments" style="color:#0f172a;">-</b></div>
+        <div>👍 共感 <b id="ts-reactions" style="color:#0f172a;">-</b></div>
+        <div style="margin-left:auto;">スコア <b id="ts-score" style="color:#dc2626;font-size:15px;">-</b></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ━━━ STEP 1 ━━━ 3つの柱 (実POST埋込) -->
   <div data-pane="board" style="margin-top:18px;">
     <span class="step-label">STEP 1 — みんなの声を聴く</span>
@@ -586,6 +628,7 @@ function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','
       document.getElementById('btn-new').style.display = 'none';
     }
     loadFieldVoice(); loadActions(); loadPipeline(); loadPillarRecent(); loadPromoterBoard();
+    reloadPromoterTodo();
     if (m.is_guest_reviewer) loadNursePending();
   } catch (e) {
     document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
@@ -1546,6 +1589,73 @@ async function loadNursePending() {
 }
 
 // ===== STEP 4: 推進メンバー貢献ランキング =====
+// 推進メンバーTodo: 未反応POST + 議論待ち施策 + 今月貢献
+async function reloadPromoterTodo() {
+  try {
+    const r = await fetch('/api/wellness/promoter-todo', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) return;
+    const card = document.getElementById('promoter-todo-card');
+    if (card) card.style.display = 'block';
+    // 未反応POST
+    const postsList = document.getElementById('todo-posts-list');
+    const postsCnt = document.getElementById('todo-posts-cnt');
+    const upo = d.unreacted_posts || [];
+    if (postsCnt) postsCnt.textContent = upo.length;
+    if (postsList) {
+      if (!upo.length) {
+        postsList.innerHTML = '<div style="color:#16a34a;font-weight:600;">✓ 全部反応済</div>';
+      } else {
+        postsList.innerHTML = upo.map(p => {
+          const memo = (p.memo || '(本文なし)').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c])).slice(0, 60);
+          const tag = p.source_type ? '[' + p.source_type + ']' : '';
+          const urg = p.urgency === '高' ? '<span style="color:#dc2626;font-weight:800;">⚠</span> ' : '';
+          return '<div style="padding:5px 0;border-bottom:1px dashed #fde68a;cursor:pointer;" onclick="document.querySelector(\'.tab[data-pane=board]\').click();window.scrollTo({top:document.getElementById(\'pillar-grid\').offsetTop,behavior:\'smooth\'});">' +
+                 urg + '<span style="color:#854d0e;font-weight:700;font-size:10px;">' + tag + '</span> ' + memo + '</div>';
+        }).join('');
+      }
+    }
+    // 議論待ち施策
+    const actList = document.getElementById('todo-actions-list');
+    const actCnt = document.getElementById('todo-actions-cnt');
+    const pa = d.pending_actions || [];
+    if (actCnt) actCnt.textContent = pa.length;
+    if (actList) {
+      if (!pa.length) {
+        actList.innerHTML = '<div style="color:#16a34a;font-weight:600;">✓ 全部コメント済</div>';
+      } else {
+        actList.innerHTML = pa.map(a => {
+          const ttl = (a.title || '(無題)').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c])).slice(0, 50);
+          return '<div style="padding:5px 0;border-bottom:1px dashed #fde68a;cursor:pointer;" onclick="jumpToAction(' + a.id + ')">' +
+                 '<span style="color:#7c3aed;font-weight:700;font-size:10px;">[' + a.status + ']</span> ' + ttl + '</div>';
+        }).join('');
+      }
+    }
+    // 今月の貢献
+    const ms = d.my_stats || {};
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v != null ? v : '-'); };
+    setText('ts-posts', ms.posts);
+    setText('ts-comments', ms.comments);
+    setText('ts-reactions', ms.reactions);
+    setText('ts-score', ms.score);
+  } catch (e) { console.warn('reloadPromoterTodo', e); }
+}
+
+function jumpToAction(id) {
+  const tbody = document.getElementById('actions-tbody');
+  if (tbody) tbody.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => {
+    const row = document.querySelector('[data-action-id="' + id + '"]');
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.style.transition = 'background 0.4s';
+      const orig = row.style.background;
+      row.style.background = '#fef08a';
+      setTimeout(() => { row.style.background = orig; }, 1800);
+    }
+  }, 400);
+}
+
 async function loadPromoterBoard() {
   try {
     const r = await fetch('/api/wellness/promoter-board?days=30', { headers: { Authorization: 'Bearer ' + token } });
