@@ -2643,8 +2643,8 @@ function connectSocket() {
         // 総合案内=Neural2-B / ヘルスアドバイザー=Wavenet-A pitch低め で別キャラ感
         try { speakViaTTS(greeting, Object.assign({ force: true }, ttsOptsForBot(u.uid))); } catch (e) {}
       }
-      // 喋り終わるタイミング (約1.4秒) でモーダル表示
-      setTimeout(() => { try { showAoiActionModal(u.uid, u.name || '総合案内'); } catch (e) {} }, 1400);
+      // 自動メニューポップは廃止。挨拶のみで、メニューはアバター頭上の💬ヒントを
+      // 明示タップした時だけ開く (押し付け感の解消)
     }
   });
   socket.on('chat:msg', (m) => {
