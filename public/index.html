@@ -4374,13 +4374,16 @@ function drawConciergeStanding(u) {
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
   // 旧: ロビーの総合案内を受付カウンター越しにクリップしていたが、
   // ロビー v2 (2026-04-29) でカウンター撤去+全身表示に変更したため clip 廃止
-  // 足元の楕円影 (フロアに直接落ちる)
-  ctx.save();
-  ctx.fillStyle = 'rgba(15,23,42,0.22)';
-  ctx.beginPath();
-  ctx.ellipse(cx, feetY + 4, FIG_W * 0.42, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  // 足元の楕円影 (フロアに直接落ちる) — マスターは下半身クリップで足が見えないので影も省略
+  const skipShadow = currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master';
+  if (!skipShadow) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(15,23,42,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(cx, feetY + 4, FIG_W * 0.42, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   // 呼吸する柔らかなシアンのオーラ (AI感)
   const phase = (Date.now() % 2600) / 2600;
   const glowA = 0.28 + 0.12 * Math.sin(phase * Math.PI * 2);
@@ -4392,14 +4395,18 @@ function drawConciergeStanding(u) {
   // 本体 (wellness_room の bot_health, promoter_club の bot_master は反転で内側を向かせる)
   const flipH = (currentFloor && currentFloor.code === 'wellness_room' && u.uid === 'bot_health')
               || (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master');
+  // 下半身クリップ (カウンター越しに上半身だけ見せたい場合)
+  const clipBottom = (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master') ? 0.58 : 1.0;
+  const srcH = standing.h * clipBottom;
+  const dstH = FIG_H * clipBottom;
   if (flipH) {
     ctx.save();
     ctx.translate(cx, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(standing.canvas, -FIG_W / 2, headY, FIG_W, FIG_H);
+    ctx.drawImage(standing.canvas, 0, 0, standing.w, srcH, -FIG_W / 2, headY, FIG_W, dstH);
     ctx.restore();
   } else {
-    ctx.drawImage(standing.canvas, cx - FIG_W / 2, headY, FIG_W, FIG_H);
+    ctx.drawImage(standing.canvas, 0, 0, standing.w, srcH, cx - FIG_W / 2, headY, FIG_W, dstH);
   }
   // 頭上の小さな「吹き出しヒント」: アバター本体タップでメニューが開くことを示すポイント表示
   // (旧: 大型「メニューを開く」ボタン → アバター本体タップと同等動作だったため縮小)
