@@ -2835,10 +2835,11 @@ function onPointerDown(e) {
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
   // 最優先: 事故対策室の番組表メニュー (スクリーン上のファイルタップ)
   try { if (handleAccidentScreenClick(world.x, world.y)) return; } catch (err) {}
-  // 次優先: bot 頭上の「メニューを開く」ボタン (移動せずにメニュー即開)
+  // 次優先: bot 頭上の「メニューを開く」ボタン → 入室時と同じ avatar-intro-card を開く
   const btn = hitTestBotMenuButton(world.x, world.y);
   if (btn) {
-    try { showAoiActionModal(btn.uid, btn.name); } catch (err) {}
+    const floor = _botUidToIntroFloor[btn.uid] || (currentFloor && currentFloor.code);
+    try { if (floor) showAvatarIntroCard(floor, true); } catch (err) {}
     return;
   }
   // 自分のアバタータップ: タッチのみメニュー (タッチ端末用)。マウスはダブルクリック専用
@@ -2848,9 +2849,10 @@ function onPointerDown(e) {
   }
   const peer = hitTestPeer(world.x, world.y);
   if (peer) {
-    // bot をタップ → 中間ピアメニューを飛ばして 直接 アクションメニューモーダル
+    // bot をタップ → 入室時と同じ avatar-intro-card を開く (頭上タップと同じ挙動)
     if (peer.role === 'bot') {
-      try { showAoiActionModal(peer.uid, peer.name || (peer.uid === 'bot_health' ? 'ヘルスアドバイザー' : peer.uid === 'bot_safety' ? '安全太郎' : '総合案内')); } catch (err) {}
+      const floor = _botUidToIntroFloor[peer.uid] || (currentFloor && currentFloor.code);
+      try { if (floor) showAvatarIntroCard(floor, true); } catch (err) {}
       return;
     }
     // 他人のアバターをタップ → 移動せずピアメニュー表示
@@ -5495,13 +5497,15 @@ const AVATAR_INTRO_CONFIG = {
     ],
   },
 };
-function showAvatarIntroCard(floorCode) {
+// _botUidToIntroFloor: 頭上/本体タップ → 同じ avatar-intro-card を開くためのマッピング
+const _botUidToIntroFloor = { bot_aoi: 'lobby', bot_health: 'wellness_room', bot_safety: 'field_accident' };
+function showAvatarIntroCard(floorCode, force) {
   // フロア移動時は前のフロアのカードを必ず消す (config無しフロアへの移動でも消える)
   document.querySelectorAll('.avatar-intro-card').forEach(el => el.remove());
   const cfg = AVATAR_INTRO_CONFIG[floorCode];
   if (!cfg) return;
-  if (_avatarIntroAlreadyShown(floorCode)) return;
-  _markAvatarIntroShown(floorCode);
+  if (!force && _avatarIntroAlreadyShown(floorCode)) return;
+  if (!force) _markAvatarIntroShown(floorCode);
   const wrap = document.getElementById('space-canvas-wrap');
   if (!wrap) return;
   const card = document.createElement('div');
