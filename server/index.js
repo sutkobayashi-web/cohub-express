@@ -20,7 +20,8 @@ const gcal = require('./services/gcal');
 const CONCIERGE_BOTS = [
   { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'lobby', x: 744, y: 405 },
   { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=3', floor: 'wellness_room', x: 744, y: 519 },
-  { id: 'bot_safety', login_id: 'bot_safety', name: '安全管理者', avatar: '/assets/concierge_safety_avatar.png?v=1', floor: 'field_accident', x: 1080, y: 500 },
+  { id: 'bot_safety', login_id: 'bot_safety', name: '安全太郎', avatar: '/assets/concierge_safety_avatar.png?v=1', floor: 'field_accident', x: 1080, y: 500 },
+  { id: 'bot_master', login_id: 'bot_master', name: 'マスター', avatar: '/assets/concierge_master_avatar.png?v=1', floor: 'promoter_club', x: 1080, y: 540 },
 ];
 const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
 function ensureConciergeBots() {
@@ -258,6 +259,7 @@ app.use('/api/themes', require('./routes/themes'));
 app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
 app.use('/api/kbc', require('./routes/kbc'));
+app.use('/api/walk', require('./routes/walk'));
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
 const { authUser } = require('./middleware/auth');
@@ -372,15 +374,19 @@ app.get('/api/overview/snapshot', (req, res) => {
   res.json({ success: true, floors, users, ts: Date.now() });
 });
 
-// SPA fallback
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
-app.get('/mylog', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'mylog.html')));
-app.get('/m', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'm.html')));
-app.get('/overview', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'overview.html')));
+// SPA fallback (HTML キャッシュ無効化: 修正即時反映のため)
+function sendHtmlNoCache(res, file) {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, '..', 'public', file));
+}
+app.get('/admin', (req, res) => sendHtmlNoCache(res, 'admin.html'));
+app.get('/mylog', (req, res) => sendHtmlNoCache(res, 'mylog.html'));
+app.get('/m', (req, res) => sendHtmlNoCache(res, 'm.html'));
+app.get('/overview', (req, res) => sendHtmlNoCache(res, 'overview.html'));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   if (req.path.startsWith('/uploads/')) return res.status(404).end();
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  sendHtmlNoCache(res, 'index.html');
 });
 
 // ===== Socket.IO =====
@@ -531,6 +537,12 @@ function getFloor(code) {
 function getUserEmployeeType(uid) {
   const r = getDb().prepare('SELECT employee_type, role FROM users WHERE id = ?').get(uid);
   return r || { employee_type: 'office', role: 'member' };
+}
+
+// 会議モード対応フロア (施錠/承認制/挙手集計などの対象)
+function isMeetingFloorCode(code) {
+  if (!code) return false;
+  return /^(meeting|exec)/.test(code) || code === 'field_accident';
 }
 
 // 承認待ちキュー: targetFloor -> Map<uid, timer>
@@ -774,6 +786,29 @@ io.on('connection', (socket) => {
       setTimeout(() => maybeSendCalendarGreeting(uid), 1500);
       setTimeout(() => maybeSendWellnessAnnouncement(uid), 3000);
     }
+  });
+
+  // 事故対策室: スクリーン操作・ナレーションを同フロア全員に同期
+  socket.on('accident:control', (action) => {
+    const p = presence.get(uid);
+    if (!p || p.floor !== 'field_accident') {
+      console.log('[accident:control] reject (not in field_accident):', uid, 'floor=', p ? p.floor : 'none');
+      return;
+    }
+    if (!action || typeof action !== 'object') return;
+    const safe = { type: String(action.type || '').slice(0, 32) };
+    if (action.dir != null) safe.dir = parseInt(action.dir);
+    if (action.fileIdx != null) safe.fileIdx = parseInt(action.fileIdx);
+    if (action.sourceId != null) safe.sourceId = String(action.sourceId).slice(0, 80);
+    if (action.slotIdx != null) safe.slotIdx = parseInt(action.slotIdx);
+    if (action.text != null) safe.text = String(action.text).slice(0, 2500);
+    if (action.speedFactor != null) safe.speedFactor = parseFloat(action.speedFactor);
+    safe.by = uid;
+    // 同フロア他全員へ
+    const room = io.sockets.adapter.rooms.get('floor:field_accident');
+    const roomSize = room ? room.size : 0;
+    console.log('[accident:control] from=', uid, 'type=', safe.type, 'roomSize=', roomSize);
+    socket.to('floor:field_accident').emit('accident:control', safe);
   });
 
   // 移動
@@ -1167,7 +1202,7 @@ io.on('connection', (socket) => {
                 stepStats = db.prepare(`SELECT AVG(steps) AS avg_steps, COUNT(*) AS days
                   FROM cw_step_log WHERE cw_user_id = ? AND step_date >= date('now','-30 days')`).get(cwUid);
               }
-              const lines = ['[社員の健康データ context — エビデンスとして根拠提示に使用]'];
+              const lines = ['[参考: 社員の健康データ — 質問内容に直接関係する場合のみ言及。無関係な質問では触れない]'];
               if (bp30 && bp30.n > 0) {
                 lines.push(`・血圧30日: 収縮期${Math.round(bp30.sys)}/拡張期${Math.round(bp30.dia)}mmHg, 脈拍${Math.round(bp30.pulse||0)}, 計測${bp30.n}回`);
               } else {
@@ -1200,9 +1235,85 @@ io.on('connection', (socket) => {
               if (stepStats && stepStats.days > 0) {
                 lines.push(`・歩数30日平均: ${Math.round(stepStats.avg_steps).toLocaleString()}歩/日 (${stepStats.days}日分の記録)`);
               }
-              userMessage = lines.join('\n') + '\n\n[社員からの質問]\n' + (userMessage === content ? content : userMessage);
+              // 質問を先頭に置き、健康データは末尾の参考情報として渡す (血圧固定回答防止)
+              const baseQuestion = (userMessage === content) ? content : userMessage;
+              userMessage = '[社員からの質問 — まずこの質問に直接答えてください]\n' + baseQuestion + '\n\n' + lines.join('\n');
             } catch (e) {
               console.warn('[bot_health context fail]', e.message);
+            }
+          }
+          // bot_safety 向け: 過去の事故報告書 (製品事故 + 車両事故) を context として注入
+          // 直近20件の生データ + 180日の集計で「現場叩き上げの蓄積」を再現
+          if (to === 'bot_safety') {
+            try {
+              const lines = ['[過去の事故報告書 context — 安全管理者として再発防止の根拠提示や類似事例参照に使用]'];
+              // 製品事故 (関東BC) 直近15件
+              const prodRows = db.prepare(`SELECT accident_date, location_floor, location_area, product_name, product_category,
+                  quantity, cause_category, cause_detail, damage_description, reporter_reflection, reporter_name, status
+                FROM kbc_accident_reports
+                ORDER BY accident_date DESC, id DESC LIMIT 15`).all();
+              if (prodRows.length) {
+                lines.push(`■ 製品事故 直近${prodRows.length}件:`);
+                for (const r of prodRows) {
+                  const loc = [r.location_floor, r.location_area].filter(Boolean).join('/');
+                  const prod = [r.product_category, r.product_name].filter(Boolean).join(':');
+                  const detail = (r.cause_detail || r.damage_description || '').slice(0, 80);
+                  const refl = (r.reporter_reflection || '').slice(0, 60);
+                  lines.push(`- ${r.accident_date} [${loc}] ${prod}${r.quantity ? ' x' + r.quantity : ''} / 原因:${r.cause_category || '?'} ${detail ? '「' + detail + '」' : ''}${refl ? ' / 振返り:「' + refl + '」' : ''} (報告:${r.reporter_name})`);
+                }
+              }
+              // 車両事故 直近10件
+              const vehRows = db.prepare(`SELECT accident_date, location, vehicle_no, accident_type, counter_party,
+                  injury_status, cause_summary, description, repair_status, reporter_name
+                FROM vehicle_accident_reports
+                ORDER BY accident_date DESC, id DESC LIMIT 10`).all();
+              if (vehRows.length) {
+                lines.push(`■ 車両事故 直近${vehRows.length}件:`);
+                for (const r of vehRows) {
+                  const desc = (r.description || '').slice(0, 80);
+                  lines.push(`- ${r.accident_date} [${r.location || '-'}] ${r.accident_type || '?'} ${r.vehicle_no || ''} / 負傷:${r.injury_status || '無し'} / 原因:${r.cause_summary || '?'}${desc ? ' / 状況:「' + desc + '」' : ''}${r.repair_status ? ' / 修理:' + r.repair_status : ''}`);
+                }
+              }
+              // 集計 (180日): 原因カテゴリTop3
+              const causeAgg = db.prepare(`SELECT cause_category, COUNT(*) AS cnt FROM kbc_accident_reports
+                WHERE accident_date >= date('now','-180 days') AND cause_category IS NOT NULL AND cause_category != ''
+                GROUP BY cause_category ORDER BY cnt DESC LIMIT 5`).all();
+              const typeAgg = db.prepare(`SELECT accident_type, COUNT(*) AS cnt FROM vehicle_accident_reports
+                WHERE accident_date >= date('now','-180 days') AND accident_type IS NOT NULL AND accident_type != ''
+                GROUP BY accident_type ORDER BY cnt DESC LIMIT 5`).all();
+              const injAgg = db.prepare(`SELECT COUNT(*) AS n FROM vehicle_accident_reports
+                WHERE accident_date >= date('now','-180 days') AND injury_status IS NOT NULL AND injury_status != '無し'`).get();
+              if (causeAgg.length || typeAgg.length) {
+                lines.push('■ 集計 (180日):');
+                if (causeAgg.length) lines.push('- 製品事故 原因Top: ' + causeAgg.map(c => `${c.cause_category}(${c.cnt})`).join(', '));
+                if (typeAgg.length) lines.push('- 車両事故 種別Top: ' + typeAgg.map(t => `${t.accident_type}(${t.cnt})`).join(', '));
+                if (injAgg && injAgg.n > 0) lines.push(`- 車両事故 負傷あり: ${injAgg.n}件`);
+              }
+              // 過去事故報告書アーカイブ (PDF→Gemini抽出 or 反省会記録xlsx取込)
+              // LIMIT 30 × 250字 = 約7500字の context (Gemini処理可能範囲)
+              const archives = db.prepare(`SELECT title, accident_date, summary, full_text FROM accident_archives
+                WHERE deleted_at IS NULL ORDER BY accident_date DESC, created_at DESC LIMIT 30`).all();
+              if (archives.length) {
+                lines.push(`■ 過去事故報告書・反省会記録 (アーカイブ ${archives.length}件):`);
+                for (const a of archives) {
+                  const dateStr = a.accident_date ? `[${a.accident_date}] ` : '';
+                  const body = (a.full_text && a.full_text.length > 50) ? a.full_text.slice(0, 250) : (a.summary || '').slice(0, 200);
+                  lines.push(`- ${dateStr}${a.title || '無題'} :: ${body.replace(/\n/g, ' / ')}`);
+                }
+              }
+              // 最新のAI分析レポートのサマリ (毎質問の冒頭で「現状認識」として提示)
+              const latestReport = db.prepare(`SELECT period_label, summary, created_at FROM accident_analysis_reports
+                WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`).get();
+              if (latestReport && latestReport.summary) {
+                lines.unshift(`■ 最新AI分析レポート (${latestReport.created_at ? latestReport.created_at.slice(0,10) : ''} 生成 / ${latestReport.period_label || ''}):
+${latestReport.summary}
+↑ この現状認識を踏まえ、回答時は「現在の傾向では…」と語って構いません。`);
+              }
+              if (lines.length > 1) {
+                userMessage = lines.join('\n') + '\n\n[社員からの質問]\n' + (userMessage === content ? content : userMessage);
+              }
+            } catch (e) {
+              console.warn('[bot_safety context fail]', e.message);
             }
           }
           const replyText = await chatBot(to, userMessage, history);
@@ -1326,10 +1437,10 @@ io.on('connection', (socket) => {
     io.to('floor:' + p.floor).emit('screen:state', { uid, on: !!(data && data.on) });
   });
 
-  // 部屋の施錠/解錠 (会議室のみ、室内の人だけ可)
+  // 部屋の施錠/解錠 (会議室・事故対策室のみ、室内の人だけ可)
   socket.on('room:lock', (data) => {
     const p = presence.get(uid); if (!p) return;
-    if (!/^(meeting|exec)/.test(p.floor)) return;
+    if (!isMeetingFloorCode(p.floor)) return;
     const pw = (data && data.password || '').toString();
     if (pw.length < 4 || pw.length > 30) {
       socket.emit('room:lock-result', { ok: false, msg: 'パスワードは4〜30文字' });
@@ -1343,15 +1454,15 @@ io.on('connection', (socket) => {
 
   socket.on('room:unlock', () => {
     const p = presence.get(uid); if (!p) return;
-    if (!/^(meeting|exec)/.test(p.floor)) return;
+    if (!isMeetingFloorCode(p.floor)) return;
     getDb().prepare("UPDATE floors SET locked=0, lock_pw_hash=NULL, locked_by=NULL, locked_at=NULL WHERE code=?").run(p.floor);
     io.emit('room:lockstate', { code: p.floor, locked: false });
   });
 
-  // 承認制ON/OFF (会議室内メンバーのみ)
+  // 承認制ON/OFF (会議室・事故対策室内メンバーのみ)
   socket.on('room:set-approval', (data) => {
     const p = presence.get(uid); if (!p) return;
-    if (!/^(meeting|exec)/.test(p.floor)) return;
+    if (!isMeetingFloorCode(p.floor)) return;
     const on = !!(data && data.on);
     getDb().prepare('UPDATE floors SET approval_mode=? WHERE code=?').run(on ? 1 : 0, p.floor);
     io.emit('room:approval-state', { code: p.floor, on });
@@ -1460,6 +1571,49 @@ setInterval(() => {
   try {
     getDb().prepare("DELETE FROM messages WHERE created_at < datetime('now', '-60 days')").run();
   } catch (e) {}
+}, 60 * 60 * 1000);
+
+// Connect 230: 終了日経過イベントの自動完了化 (1時間ごと)
+// + 集計を念のため再計算 (整合性保証)
+setInterval(() => {
+  try {
+    const db = getDb();
+    // 終了日が過ぎた active/phase2_solo イベントを completed に
+    const expired = db.prepare(`SELECT id FROM walk_events
+      WHERE status IN ('active','phase2_solo') AND end_date < date('now')`).all();
+    for (const r of expired) {
+      db.prepare(`UPDATE walk_events SET status='completed', completed_at=datetime('now') WHERE id=?`).run(r.id);
+      console.log('[walk] event auto-completed', r.id);
+    }
+    // 開催中イベントの集計を再計算
+    const active = db.prepare(`SELECT id FROM walk_events WHERE status IN ('active','phase2_solo')`).all();
+    for (const ev of active) {
+      // チーム集計のみ再計算 (個人は記録時に都度更新済)
+      for (const team of ['STD', 'SZE']) {
+        const agg = db.prepare(`SELECT SUM(total_steps) AS s, SUM(distance_walked_km) AS km, COUNT(*) AS n
+          FROM walk_personal_state WHERE event_id=? AND team_code=?`).get(ev.id, team);
+        db.prepare(`INSERT INTO walk_team_progress (team_code, event_id, total_steps, total_km, member_count, last_updated)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(team_code, event_id) DO UPDATE SET
+            total_steps=excluded.total_steps, total_km=excluded.total_km,
+            member_count=excluded.member_count, last_updated=excluded.last_updated`)
+          .run(team, ev.id, agg.s || 0, Math.round((agg.km || 0) * 100) / 100, agg.n || 0);
+      }
+      // 合流検知 (Phase1のみ判定)
+      const evRow = db.prepare('SELECT * FROM walk_events WHERE id=?').get(ev.id);
+      if (evRow && evRow.status === 'active') {
+        const std = db.prepare("SELECT total_km FROM walk_team_progress WHERE team_code='STD' AND event_id=?").get(ev.id);
+        const sze = db.prepare("SELECT total_km FROM walk_team_progress WHERE team_code='SZE' AND event_id=?").get(ev.id);
+        const stdKm = (std && std.total_km) || 0;
+        const szeKm = (sze && sze.total_km) || 0;
+        if (stdKm + szeKm >= evRow.total_route_km) {
+          const meetKm = Math.min(stdKm, evRow.total_route_km);
+          db.prepare(`UPDATE walk_events SET status='phase2_solo', meet_event_at=datetime('now'), meet_position_km=? WHERE id=?`).run(meetKm, ev.id);
+          console.log('[walk] meet event detected, event', ev.id, 'meet at', meetKm, 'km');
+        }
+      }
+    }
+  } catch (e) { console.warn('[walk auto-tick] fail:', e.message); }
 }, 60 * 60 * 1000);
 
 // 健康管理室: 投票期間 7日経過の施策を自動締切 (1時間ごと)

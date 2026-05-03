@@ -623,6 +623,9 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>📣</span><span class="lbl">現場の声</span>
     </button>
+    <button class="rail-btn" id="rail-promoter-club" onclick="switchFloor('promoter_club')" title="推進カフェ (推進メンバー部室)" style="display:none;background:rgba(146,64,14,0.10);border:1px solid rgba(146,64,14,0.35);color:#78350f;">
+      <span>☕</span><span class="lbl">推進カフェ</span>
+    </button>
     <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="みんなの広場 (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
       <span>🌳</span><span class="lbl">みんなの広場</span><span class="cnt" id="rail-plaza-cnt" style="display:none;">0</span>
     </button>
@@ -1840,10 +1843,12 @@ function enterSpace() {
     const rb = document.getElementById('dock-rec');
     if (rb) rb.style.display = 'flex';
   }
-  // 推進メンバー(運管型)のみ「現場の声」ボタンを表示
-  if (currentUser && currentUser.is_field_promoter) {
+  // 推進メンバー(運管型)のみ「現場の声」+「推進カフェ」ボタンを表示
+  if (currentUser && (currentUser.is_field_promoter || currentUser.role === 'admin' || currentUser.employee_type === 'admin')) {
     const fb = document.getElementById('rail-fieldvoice');
-    if (fb) fb.style.display = 'flex';
+    if (fb && currentUser.is_field_promoter) fb.style.display = 'flex';
+    const cafe = document.getElementById('rail-promoter-club');
+    if (cafe) cafe.style.display = 'flex';
   }
   // 健康管理室メニューは全員表示 (個人記録ハブとして利用)。
   // 運営機能 (/wellness-ops.html) は健康管理室内の紫ボタンから入室。
@@ -1963,6 +1968,10 @@ async function refreshUserMe() {
     if (currentUser.is_field_promoter) {
       const fb = document.getElementById('rail-fieldvoice');
       if (fb) fb.style.display = 'flex';
+    }
+    if (currentUser.is_field_promoter || currentUser.role === 'admin' || currentUser.employee_type === 'admin') {
+      const cafe = document.getElementById('rail-promoter-club');
+      if (cafe) cafe.style.display = 'flex';
     }
     // 健康管理室メニューは常時表示なので分岐不要
   } catch (e) {}
@@ -5377,6 +5386,7 @@ async function speakViaTTS(text, opts) {
 function ttsOptsForBot(botUid) {
   if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
   if (botUid === 'bot_safety') return { voice: 'ja-JP-Neural2-D', speed: 1.15, pitch: -3 };  // 男性・低め・テンポ速めに調整
+  if (botUid === 'bot_master') return { voice: 'ja-JP-Neural2-C', speed: 1.05, pitch: -1 };  // カフェマスター 男性・落ち着いた中音域
   return { voice: 'ja-JP-Neural2-B', speed: 1.25, pitch: 4 };  // 総合案内 (デフォルト)
 }
 
@@ -5387,7 +5397,7 @@ async function speakVoiceDm(content, fromUid) {
   const text = (content || '').slice(0, 500);
   if (!text) return;
   let opts = { force: true, speed: 1.1 };
-  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health' || fromUid === 'bot_safety')) {
+  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health' || fromUid === 'bot_safety' || fromUid === 'bot_master')) {
     opts = Object.assign({ force: true }, ttsOptsForBot(fromUid));
   }
   console.log('[cohub] voice DM play:', text, 'from=' + (fromUid || '?'));
@@ -5496,9 +5506,22 @@ const AVATAR_INTRO_CONFIG = {
       { emoji: '📝', label: '新しい事故・ヒヤリハットを報告', onclick: "openExternalPage('/accident.html')" },
     ],
   },
+  promoter_club: {
+    icon: '☕',
+    iconBg: 'linear-gradient(135deg, #92400e, #78350f)',
+    title: 'マスターです',
+    sub: 'いらっしゃい、まずは1杯どうぞ。今日のTodoから見ていきますか?',
+    actions: () => [
+      { emoji: '📍', label: '今日のあなた (Todo + 貢献ランキング)', onclick: "openExternalPage('/wellness-ops.html')" },
+      { emoji: '💬', label: 'マスターに相談', onclick: "openDM('bot_master')" },
+      { emoji: '🩺', label: '個人プラン Dashboard', onclick: "openExternalPage('/myplan-ops.html')" },
+      { emoji: '🌳', label: 'みんなの広場', onclick: "location.href='/plaza.html'" },
+      { emoji: '🏥', label: '健康管理室へ移動', onclick: "switchFloor('wellness_room')" },
+    ],
+  },
 };
 // _botUidToIntroFloor: 頭上/本体タップ → 同じ avatar-intro-card を開くためのマッピング
-const _botUidToIntroFloor = { bot_aoi: 'lobby', bot_health: 'wellness_room', bot_safety: 'field_accident' };
+const _botUidToIntroFloor = { bot_aoi: 'lobby', bot_health: 'wellness_room', bot_safety: 'field_accident', bot_master: 'promoter_club' };
 function showAvatarIntroCard(floorCode, force) {
   // フロア移動時は前のフロアのカードを必ず消す (config無しフロアへの移動でも消える)
   document.querySelectorAll('.avatar-intro-card').forEach(el => el.remove());
