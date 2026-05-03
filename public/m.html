@@ -279,6 +279,25 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 200; opacity: 0; transition: opacity 0.25s, bottom 0.25s; pointer-events: none; max-width: 85vw; text-align: center; }
   #toast.show { opacity: 1; bottom: 110px; }
 
+  /* 音声モードパネル (海の冒険方式) */
+  @keyframes vmPulseIdle { 0%,100%{box-shadow:0 4px 20px rgba(124,58,237,0.35);} 50%{box-shadow:0 4px 28px rgba(124,58,237,0.55), 0 0 0 6px rgba(167,139,250,0.15);} }
+  @keyframes vmWave { 0%,100%{height:6px;} 50%{height:18px;} }
+  #voice-mode-panel { flex-shrink: 0; background: linear-gradient(180deg,#f0f9ff,#ffffff); border-top: 1px solid #bae6fd; padding: 12px 12px 10px; display: none; }
+  #voice-mode-panel.show { display: block; }
+  .vm-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+  .vm-mic { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg,#a78bfa,#7c3aed); color: #fff; border: 3px solid #c4b5fd; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 16px rgba(124,58,237,0.4); transition: background 0.2s, border 0.2s; animation: vmPulseIdle 2s ease-in-out infinite; }
+  .vm-mic.listening { background: linear-gradient(135deg,#ef4444,#dc2626); border-color: #fca5a5; animation: none; box-shadow: 0 4px 20px rgba(220,38,38,0.45); }
+  .vm-mic.speaking  { background: linear-gradient(135deg,#8b5cf6,#6d28d9); border-color: #c4b5fd; animation: none; box-shadow: 0 4px 20px rgba(139,92,246,0.45); }
+  .vm-mic.processing{ background: linear-gradient(135deg,#f59e0b,#d97706); border-color: #fcd34d; animation: none; box-shadow: 0 4px 16px rgba(245,158,11,0.4); }
+  .vm-end { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; border: 2px solid #fca5a5; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(220,38,38,0.35); }
+  #vm-status { font-size: 13px; font-weight: 800; color: #0369a1; text-align: center; }
+  #vm-sub { font-size: 11px; color: #64748b; text-align: center; margin-top: 3px; min-height: 14px; line-height: 1.4; word-break: break-word; }
+  .vm-wave { display: inline-flex; gap: 3px; align-items: center; height: 18px; vertical-align: middle; margin-right: 6px; }
+  .vm-wave span { display: block; width: 3px; height: 6px; background: #dc2626; border-radius: 2px; animation: vmWave 0.9s ease-in-out infinite; }
+  .vm-wave span:nth-child(2) { animation-delay: 0.1s; }
+  .vm-wave span:nth-child(3) { animation-delay: 0.2s; }
+  .vm-wave span:nth-child(4) { animation-delay: 0.3s; }
+
   /* 肩たたき受信バナー (上部) */
   #tap-banner { position: fixed; left: 50%; transform: translate(-50%, -120%); top: calc(env(safe-area-inset-top) + 8px); z-index: 250; background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 800; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px); opacity: 0; visibility: hidden; pointer-events: none; }
   #tap-banner.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; pointer-events: auto; box-shadow: 0 12px 32px rgba(6,182,212,0.4); animation: tapPulse 0.6s ease 2; }
@@ -601,6 +620,15 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
     </div>
   </div>
   <div id="chat-body"></div>
+  <!-- 音声会話モードパネル (海の冒険方式: 大きいマイク+状態テキスト+暫定文字起こし) -->
+  <div id="voice-mode-panel">
+    <div class="vm-row">
+      <button id="vm-mic-btn" class="vm-mic" onclick="vmTapToSpeak()" title="タップで話す">🎤</button>
+      <button class="vm-end" onclick="stopVoiceConv()" title="音声モードを終了">×</button>
+    </div>
+    <div id="vm-status">マイクをタップして話す</div>
+    <div id="vm-sub">「ストップ」と言うか × で終了</div>
+  </div>
   <!-- 安全太郎専用クイックアクション (報告類のテンプレ起動) -->
   <div id="safety-quick-actions" style="display:none;flex-shrink:0;background:#fef2f2;border-top:1px solid #fee2e2;padding:8px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <div style="display:flex;gap:6px;flex-wrap:nowrap;min-width:max-content;">
@@ -773,12 +801,14 @@ let speechSpeed = 1.15;        // TTS読み上げ速度
 const BOT_UID = 'bot_aoi';
 const HEALTH_UID = 'bot_health';
 const SAFETY_UID = 'bot_safety';
+const MASTER_UID = 'bot_master';
 const AOI_VOICE = 'ja-JP-Neural2-B';
-function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID || uid === SAFETY_UID; }
-// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A, 安全太郎=低めの男性)
+function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID || uid === SAFETY_UID || uid === MASTER_UID; }
+// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A, 安全太郎=低めの男性, マスター=落ち着いた男性中音域)
 function ttsOptsForBot(uid) {
   if (uid === HEALTH_UID) return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
   if (uid === SAFETY_UID) return { voice: 'ja-JP-Neural2-D', speed: 1.0, pitch: -2 };
+  if (uid === MASTER_UID) return { voice: 'ja-JP-Neural2-C', speed: 1.05, pitch: -1 };
   return { voice: AOI_VOICE, speed: 1.05, pitch: 0 };
 }
 
@@ -1602,7 +1632,7 @@ function connectSocket() {
       updateChatBadge();
       loadChatLists();
       const sender = users[peerUid] || {};
-      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : (sender.name || '');
+      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : peerUid === MASTER_UID ? 'マスター' : (sender.name || '');
       showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
       // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
       if (!isBotUid(m.from) && !m.voice) announceDmSender(m.from, sender.name || '');
@@ -1979,13 +2009,37 @@ async function sendChatMessage() {
   }
 }
 
-// ===== 🎤 音声会話モード (総合案内 / ヘルス専用) =====
-// 設計: continuous=false の単発認識を、TTS再生終了→0.8秒後に1回だけ再起動する形で繋ぐ。
+// ===== 🎤 音声会話モード (海の冒険方式) =====
+// 設計: continuous=false の単発認識を、TTS再生終了→0.8秒後に1回だけ再起動。
+// 大きいマイクボタン + 4状態(idle/listening/processing/speaking) + 暫定テキスト表示で
+// 「いま何が起きているか」を一目で分かるように。
 // 自動再開ループ禁止 (memory feedback_voice_no_auto_restart, Android点滅事故対策)。
 let voiceConvActive = false;
 let _vcRecog = null;
 let _vcRecogActive = false;
-const VC_STOP_WORDS = ['ストップ', 'やめて', 'やめる', '終了', '終わり'];
+let _vcSpeaking = false;
+let _vcCurrentAudio = null;
+const VC_STOP_WORDS = ['ストップ', 'やめて', 'やめる', '終了', '終わり', 'おわり'];
+
+function vmSetMicState(state) {
+  const btn = document.getElementById('vm-mic-btn');
+  if (!btn) return;
+  btn.classList.remove('listening', 'speaking', 'processing');
+  if (state === 'listening') btn.classList.add('listening');
+  else if (state === 'speaking') btn.classList.add('speaking');
+  else if (state === 'processing') btn.classList.add('processing');
+  // idle = no extra class
+  if (state === 'listening') btn.textContent = '⏹';
+  else if (state === 'speaking') btn.textContent = '🔊';
+  else if (state === 'processing') btn.textContent = '⏳';
+  else btn.textContent = '🎤';
+}
+function vmStatus(main, sub) {
+  const m = document.getElementById('vm-status');
+  const s = document.getElementById('vm-sub');
+  if (m && main !== undefined) m.textContent = main;
+  if (s && sub !== undefined) s.innerHTML = sub;
+}
 
 function _vcEnsureRecog() {
   if (_vcRecog) return _vcRecog;
@@ -1994,28 +2048,51 @@ function _vcEnsureRecog() {
   const r = new SR();
   r.lang = 'ja-JP';
   r.continuous = false;
-  r.interimResults = false;
+  r.interimResults = true;
   r.maxAlternatives = 1;
+  r.onstart = () => {
+    _vcRecogActive = true;
+    if (!_vcSpeaking) { vmSetMicState('listening'); vmStatus('聞いています...', '<span class="vm-wave"><span></span><span></span><span></span><span></span></span>そのまま話してください'); }
+  };
   r.onresult = (e) => {
-    const txt = ((e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '').trim();
-    if (!txt) return;
-    if (VC_STOP_WORDS.some(w => txt.includes(w))) {
+    let finalText = '', interimText = '';
+    for (let i = 0; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t; else interimText += t;
+    }
+    const preview = (finalText + interimText).trim();
+    if (preview) vmStatus(undefined, preview.slice(0, 60));
+    if (!finalText.trim()) return;
+    const trimmed = finalText.trim().replace(/[。．.！!？?\s]+$/, '');
+    if (VC_STOP_WORDS.some(w => trimmed === w || trimmed.endsWith(w))) {
       stopVoiceConv();
       try { showToast('音声会話を終了しました'); } catch (err) {}
       return;
     }
     if (!socket || !openPeerUid) return;
-    socket.emit('chat:dm', { to: openPeerUid, content: txt, voice: true });
+    socket.emit('chat:dm', { to: openPeerUid, content: finalText.trim(), voice: true });
+    vmSetMicState('processing');
+    vmStatus('考え中...', '送信しました');
     const input = document.getElementById('chat-input');
     if (input) { input.value = ''; input.style.height = 'auto'; }
   };
-  r.onend = () => { _vcRecogActive = false; updateMicBtn(); };
+  r.onend = () => {
+    _vcRecogActive = false;
+    if (voiceConvActive && !_vcSpeaking) {
+      // 何も認識されないまま終わった場合は idle 表示
+      vmSetMicState('idle');
+      vmStatus('マイクをタップして話す', '「ストップ」と言うか × で終了');
+    }
+  };
   r.onerror = (ev) => {
-    _vcRecogActive = false; updateMicBtn();
+    _vcRecogActive = false;
     if (ev && (ev.error === 'not-allowed' || ev.error === 'permission-denied')) {
       try { showToast('マイクの使用許可が必要です'); } catch (err) {}
       stopVoiceConv();
+      return;
     }
+    if (ev && ev.error === 'no-speech') return; // 無音は無視
+    if (voiceConvActive && !_vcSpeaking) { vmSetMicState('idle'); vmStatus('マイクをタップして話す'); }
   };
   _vcRecog = r;
   return r;
@@ -2025,7 +2102,7 @@ function _vcStartOnce() {
   const r = _vcEnsureRecog();
   if (!r) { try { showToast('このブラウザは音声認識に未対応 (Chrome推奨)'); } catch (e) {} return; }
   if (_vcRecogActive) return;
-  try { r.start(); _vcRecogActive = true; updateMicBtn(); }
+  try { r.start(); }
   catch (e) { console.warn('[cohub-m] recog.start fail', e.message || e); }
 }
 function _vcStopNow() {
@@ -2033,19 +2110,44 @@ function _vcStopNow() {
   _vcRecogActive = false;
 }
 
+// マイクボタンのタップ: 状態に応じて動作を変える
+//  - speaking: TTS中断 + listening 開始
+//  - listening: 停止
+//  - idle: listening 開始
+function vmTapToSpeak() {
+  if (!voiceConvActive) return;
+  if (_vcSpeaking) {
+    // TTS割り込み
+    try { if (_vcCurrentAudio) { _vcCurrentAudio.pause(); _vcCurrentAudio.currentTime = 0; } } catch (e) {}
+    _vcSpeaking = false;
+    _vcStartOnce();
+    return;
+  }
+  if (_vcRecogActive) { _vcStopNow(); vmSetMicState('idle'); vmStatus('マイクをタップして話す'); return; }
+  _vcStartOnce();
+}
+
 function startVoiceConv() {
   if (!openPeerUid || !isBotUid(openPeerUid)) {
-    try { showToast('音声会話は総合案内・ヘルスとのDMのみ対応'); } catch (e) {}
+    try { showToast('音声会話は総合案内・ヘルス・安全太郎・マスター専用'); } catch (e) {}
     return;
   }
   voiceConvActive = true;
-  try { showToast('🎤 音声会話モードON  もう一度押すか「ストップ」で終了'); } catch (e) {}
+  const panel = document.getElementById('voice-mode-panel');
+  if (panel) panel.classList.add('show');
+  vmSetMicState('idle');
+  vmStatus('マイクをタップして話す', '「ストップ」と言うか × で終了');
   updateMicBtn();
-  _vcStartOnce();
+  // 起動直後に1回開始
+  setTimeout(() => _vcStartOnce(), 200);
 }
 function stopVoiceConv() {
   voiceConvActive = false;
   _vcStopNow();
+  if (_vcCurrentAudio) { try { _vcCurrentAudio.pause(); } catch (e) {} _vcCurrentAudio = null; }
+  _vcSpeaking = false;
+  const panel = document.getElementById('voice-mode-panel');
+  if (panel) panel.classList.remove('show');
   updateMicBtn();
 }
 function toggleVoiceConv() { voiceConvActive ? stopVoiceConv() : startVoiceConv(); }
@@ -2056,17 +2158,17 @@ function updateMicBtn() {
   const isBot = isBotUid(openPeerUid);
   btn.style.display = isBot ? '' : 'none';
   if (voiceConvActive) {
-    btn.textContent = _vcRecogActive ? '🔴' : '🎤';
-    btn.style.background = '#fef3c7';
-    btn.style.borderColor = '#f59e0b';
-    btn.style.color = '#dc2626';
-    btn.title = '音声会話中(タップで終了)';
+    btn.textContent = '🟣';
+    btn.style.background = '#ede9fe';
+    btn.style.borderColor = '#8b5cf6';
+    btn.style.color = '#6d28d9';
+    btn.title = '音声会話モード中';
   } else {
     btn.textContent = '🎤';
     btn.style.background = 'transparent';
     btn.style.borderColor = '#cbd5e1';
     btn.style.color = '#64748b';
-    btn.title = '音声会話 (総合案内・ヘルス専用)';
+    btn.title = '音声会話モード';
   }
 }
 
@@ -2074,25 +2176,38 @@ async function playBotForVoiceConv(content, fromUid) {
   const text = String(content || '').replace(/[*_`#>~]/g, '').replace(/\n+/g, '。').slice(0, 500);
   if (!text) return;
   const opts = ttsOptsForBot(fromUid);
+  // 認識中なら一旦止める (TTS再生中に拾われるのを防ぐ)
+  _vcStopNow();
+  _vcSpeaking = true;
+  vmSetMicState('speaking');
+  vmStatus('お話し中...', 'タップで割り込めます');
   try {
     const res = await fetch('/api/voice/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
       body: JSON.stringify({ text, voice: opts.voice, speed: opts.speed, pitch: opts.pitch || 0 }),
     });
-    if (!res.ok) { console.warn('[cohub-m] vc tts http', res.status); return; }
+    if (!res.ok) { console.warn('[cohub-m] vc tts http', res.status); _vcSpeaking = false; return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    _vcCurrentAudio = audio;
     audio.volume = 1.0;
     audio.onended = () => {
       try { URL.revokeObjectURL(url); } catch (e) {}
+      _vcSpeaking = false;
+      _vcCurrentAudio = null;
       if (voiceConvActive && !_vcRecogActive) {
-        setTimeout(() => { if (voiceConvActive && !_vcRecogActive) _vcStartOnce(); }, 800);
+        setTimeout(() => { if (voiceConvActive && !_vcRecogActive) _vcStartOnce(); }, 600);
       }
     };
+    audio.onpause = () => { _vcSpeaking = false; };
     await audio.play();
-  } catch (e) { console.warn('[cohub-m] vc play fail', e); }
+  } catch (e) {
+    console.warn('[cohub-m] vc play fail', e);
+    _vcSpeaking = false;
+    _vcCurrentAudio = null;
+  }
 }
 
 // 添付ファイル
