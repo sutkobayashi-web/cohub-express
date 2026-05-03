@@ -4414,8 +4414,9 @@ function drawConciergeStanding(u) {
   const isHealthBot = u.uid === 'bot_health';
   const isAoiBot = u.uid === 'bot_aoi';
   const isSafetyBot = u.uid === 'bot_safety';
-  const hintIcon = isAoiBot ? '🌸' : isHealthBot ? '🩺' : isSafetyBot ? '🚨' : '💬';
-  const hintColor = isAoiBot ? '#0891b2' : isHealthBot ? '#047857' : isSafetyBot ? '#991b1b' : '#475569';
+  const isMasterBot = u.uid === 'bot_master';
+  const hintIcon = isAoiBot ? '🌸' : isHealthBot ? '🩺' : isSafetyBot ? '🚨' : isMasterBot ? '☕' : '💬';
+  const hintColor = isAoiBot ? '#0891b2' : isHealthBot ? '#047857' : isSafetyBot ? '#991b1b' : isMasterBot ? '#92400e' : '#475569';
   // 軽い上下バウンス (注意を引く、邪魔しない)
   const hintPhase = (Date.now() % 2400) / 2400;
   const bob = Math.sin(hintPhase * Math.PI * 2) * 2;
@@ -4425,7 +4426,7 @@ function drawConciergeStanding(u) {
   const hh = 22;
   const hy = headY - 32 + bob;
   // 当たり判定 (吹き出し本体 + 余白16px)
-  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety')) {
+  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety' || u.uid === 'bot_master')) {
     _botMenuButtons[u.uid] = {
       x1: cx - Math.round(hw / 2) - 16,
       y1: hy - 16,
