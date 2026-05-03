@@ -9,6 +9,35 @@ const { getDb } = require('../services/db');
 const { authAdmin } = require('../middleware/auth');
 const { transcribeRecording } = require('../services/ai');
 
+// === dm_group → 自動グループチャット同期 ===
+// dm_group ラベルと同名の chat_groups を自動作成 + 同ラベルの全ユーザーをメンバーに
+function syncDmGroupMembership(uid, newDmGroup, oldDmGroup, byUid) {
+  const db = getDb();
+  const ndg = (newDmGroup || '').toString().trim() || null;
+  const odg = (oldDmGroup || '').toString().trim() || null;
+  if (ndg === odg) return;
+  // 旧グループから離脱
+  if (odg) {
+    const og = db.prepare('SELECT id FROM chat_groups WHERE name = ?').get(odg);
+    if (og) db.prepare('DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?').run(og.id, uid);
+  }
+  // 新グループに加入 (なければ作成 + 同ラベル既存ユーザー全員バックフィル)
+  if (ndg) {
+    let g = db.prepare('SELECT id FROM chat_groups WHERE name = ?').get(ndg);
+    if (!g) {
+      const gid = crypto.randomUUID();
+      db.prepare('INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)')
+        .run(gid, ndg, '🏷', byUid || null);
+      g = { id: gid };
+      // 同じ dm_group を持つ既存ユーザーを全員バックフィル
+      const peers = db.prepare('SELECT id FROM users WHERE dm_group = ?').all(ndg);
+      const ins = db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
+      for (const p of peers) ins.run(g.id, p.id);
+    }
+    db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)').run(g.id, uid);
+  }
+}
+
 const recDir = path.join(__dirname, '..', '..', 'uploads', 'recordings');
 if (!fs.existsSync(recDir)) fs.mkdirSync(recDir, { recursive: true });
 const recUpload = multer({
@@ -61,6 +90,8 @@ router.post('/users', authAdmin, (req, res) => {
   const gorg = (guest_org || '').toString().trim().slice(0, 100) || null;
   db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, bd, guest, gorg);
+  // dm_group が設定されてれば同名グループチャットに自動加入 (なければ作成)
+  try { syncDmGroupMembership(id, dg, null, req.uid); } catch (e) { console.warn('[dm_group sync]', e.message); }
   res.json({ success: true, id });
 });
 
@@ -68,8 +99,9 @@ router.post('/users', authAdmin, (req, res) => {
 router.patch('/users/:id', authAdmin, (req, res) => {
   const { display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org } = req.body;
   const db = getDb();
-  const u = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  const u = db.prepare('SELECT id, dm_group FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
+  const oldDmGroup = u.dm_group;
   const updates = [];
   const params = [];
   if (display_name !== undefined) { updates.push('display_name = ?'); params.push(String(display_name).slice(0, 80)); }
@@ -98,6 +130,13 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.id);
   db.prepare('UPDATE users SET ' + updates.join(', ') + ' WHERE id = ?').run(...params);
+  // dm_group が変わった場合のみグループ所属を再同期
+  if (dm_group !== undefined) {
+    const newDg = (dm_group || '').toString().trim() || null;
+    if (newDg !== oldDmGroup) {
+      try { syncDmGroupMembership(req.params.id, newDg, oldDmGroup, req.uid); } catch (e) { console.warn('[dm_group sync]', e.message); }
+    }
+  }
   res.json({ success: true });
 });
 
@@ -135,11 +174,30 @@ router.post('/users/bulk', authAdmin, (req, res) => {
       const id = crypto.randomUUID();
       const hash = bcrypt.hashSync(password, 10);
       insert.run(id, login_id, hash, display_name, company_code, role, etype, dg, dr, bd);
+      // dm_group が設定されてれば同名グループチャットに自動加入
+      if (dg) {
+        try { syncDmGroupMembership(id, dg, null, req.uid); } catch (e) { console.warn('[dm_group sync bulk]', e.message); }
+      }
       results.created++;
     }
   });
   txn();
   res.json({ success: true, ...results });
+});
+
+// 既存ユーザーの dm_group を一括同期 (運用前提の手動トリガー)
+// すべての dm_group が設定されてるユーザーを、同名のチャットグループに加入させる
+router.post('/sync-dm-groups', authAdmin, (req, res) => {
+  const db = getDb();
+  const all = db.prepare('SELECT id, dm_group FROM users WHERE dm_group IS NOT NULL AND dm_group != ?').all('');
+  let processed = 0;
+  for (const u of all) {
+    try {
+      syncDmGroupMembership(u.id, u.dm_group, null, req.uid);
+      processed++;
+    } catch (e) { console.warn('[dm_group bulk sync]', u.id, e.message); }
+  }
+  res.json({ success: true, processed, total: all.length });
 });
 
 // CSVテンプレート (BOM付きUTF-8でExcel/Numbers互換)
