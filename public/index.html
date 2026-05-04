@@ -3358,9 +3358,13 @@ function drawWellnessWhiteboard() {
   // 5/4 リデザイン後: 背景画像に大型ホワイトボード+木製フレームが既に描画されているため
   // ここではテキストコンテンツのみオーバーレイ (二重フレーム回避)
   // 背景の白板内部 (画面左上) に位置合わせ
-  // 5/4: 大きく+右下に各2cm (76px) シフト → さらに 120% 拡大
   const x = 296, y = 156;
-  const w = 840, h = 420;
+  const w = 700, h = 350;
+  // 全体を1.2倍に拡大 (anchored at x,y、フォント・図形・余白すべて連動)
+  const SCALE = 1.2;
+  ctx.save();
+  ctx.translate(x * (1 - SCALE), y * (1 - SCALE));
+  ctx.scale(SCALE, SCALE);
   // 木製フレーム/白背景 = 背景画像に既にあるので描画しない
   // 上端の磁石飾り
   ctx.fillStyle = '#ef4444';
@@ -3387,6 +3391,7 @@ function drawWellnessWhiteboard() {
     ctx.font = '600 14px sans-serif';
     ctx.fillStyle = '#94a3b8';
     ctx.fillText('読み込み中…', x + w / 2, y + h / 2 + 30);
+    ctx.restore();
     return;
   }
   const cats = (fd.by_category || []);
@@ -3396,6 +3401,7 @@ function drawWellnessWhiteboard() {
     ctx.fillText('まだ今週の取り組みはありません', x + w / 2, y + h / 2 + 20);
     ctx.font = '500 12px sans-serif';
     ctx.fillText('健康相談を始めると、ここに掲示されます', x + w / 2, y + h / 2 + 42);
+    ctx.restore();
     return;
   }
 
@@ -3455,6 +3461,7 @@ function drawWellnessWhiteboard() {
   ctx.textAlign = 'right';
   const ago = Math.floor((Date.now() - _wellnessFeedFetchedAt) / 1000);
   ctx.fillText('更新: ' + (ago < 60 ? ago + '秒前' : Math.floor(ago/60) + '分前'), x + w - 16, y + h - 12);
+  ctx.restore();  // SCALE 解除
 }
 
 // ===== 事故対策室: 前面ビデオスクリーン =====
