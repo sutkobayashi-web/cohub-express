@@ -11,6 +11,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 let webpush = null;
 try { webpush = require('web-push'); } catch (e) { console.warn('web-push未インストール'); }
+let nodemailer = null;
+try { nodemailer = require('nodemailer'); } catch (e) { console.warn('nodemailer未インストール (外部相談窓口は無効)'); }
 const { getDb } = require('./services/db');
 const { chatBot } = require('./services/ai');
 const safety = require('./services/safety');
@@ -263,6 +265,86 @@ app.use('/api/walk', require('./routes/walk'));
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
 const { authUser } = require('./middleware/auth');
+// ===== 外部相談窓口 (NPO等の第三者へ匿名相談を転送) =====
+// 設計: 本文はサーバ内でメール送信 → DB に永続化しない
+// 管理者でも内容は閲覧不可。件数+カテゴリ集計のみ
+const REPORT_HASH_SECRET = process.env.REPORT_HASH_SECRET || (process.env.JWT_SECRET || 'change-me') + '-report';
+let reportTransporter = null;
+function getReportTransporter() {
+  if (!nodemailer) return null;
+  if (reportTransporter) return reportTransporter;
+  if (!process.env.SMTP_HOST) return null;
+  try {
+    reportTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  } catch (e) { console.warn('[report] SMTP transporter init fail', e.message); return null; }
+  return reportTransporter;
+}
+const REPORT_CATEGORIES = new Set(['harassment', 'mental', 'health', 'workplace', 'other']);
+const REPORT_CAT_LABEL = { harassment: 'ハラスメント', mental: 'メンタル不調', health: '健康相談', workplace: '職場環境', other: 'その他' };
+
+app.post('/api/report/external', authUser, express.json({ limit: '32kb' }), async (req, res) => {
+  const body = req.body || {};
+  const category = String(body.category || '').trim();
+  const urgency = body.urgency === 'urgent' ? 'urgent' : 'normal';
+  const text = String(body.body || '').trim().slice(0, 4000);
+  const contact = String(body.contact || '').trim().slice(0, 200) || null;
+  if (!REPORT_CATEGORIES.has(category)) return res.status(400).json({ success: false, msg: 'カテゴリ不正' });
+  if (text.length < 10) return res.status(400).json({ success: false, msg: '本文は10文字以上' });
+  const transporter = getReportTransporter();
+  if (!transporter) return res.status(500).json({ success: false, msg: 'メール送信基盤未設定。管理者にお問い合わせください。' });
+  const crypto = require('crypto');
+  const senderHash = crypto.createHash('sha256').update(req.uid + REPORT_HASH_SECRET).digest('hex').slice(0, 24);
+  const reportTo = process.env.REPORT_TO || 'su.t.kobayashi@gmail.com';
+  const reportFrom = process.env.REPORT_FROM || process.env.SMTP_USER;
+  const ins = getDb().prepare(`INSERT INTO report_dispatch (category, urgency, sender_hash, has_contact, body_len, status) VALUES (?, ?, ?, ?, ?, 'pending')`)
+    .run(category, urgency, senderHash, contact ? 1 : 0, text.length);
+  const reportId = ins.lastInsertRowid;
+  const subject = `[CoWell相談 #${reportId}] ${REPORT_CAT_LABEL[category]} ${urgency === 'urgent' ? '🚨緊急' : ''}`;
+  const mailBody = `CoWell 外部相談窓口より受信しました。\n\n` +
+    `受付ID: #${reportId}\n` +
+    `カテゴリ: ${REPORT_CAT_LABEL[category]}\n` +
+    `緊急度: ${urgency === 'urgent' ? '🚨 即対応希望' : '通常'}\n` +
+    `匿名識別子: ${senderHash}  (同一人物の追加相談判別用、社内には開示されません)\n` +
+    `${contact ? '連絡先: ' + contact + '\n' : '連絡先: 指定なし (匿名相談)\n'}` +
+    `送信日時: ${new Date().toLocaleString('ja-JP')}\n\n` +
+    `── 本文 ──\n${text}\n\n` +
+    `──\nこのメールは CoWell の外部相談窓口を通じて送信されました。\n` +
+    `内容は CoWell 社内管理者には共有されません (件数・カテゴリの集計のみ)。\n` +
+    `対応後、必要に応じて返信は ${contact || '(連絡先未指定)'} へ。`;
+  try {
+    await transporter.sendMail({ from: reportFrom, to: reportTo, subject, text: mailBody });
+    getDb().prepare(`UPDATE report_dispatch SET status='sent' WHERE id=?`).run(reportId);
+    res.json({ success: true, id: reportId, msg: '外部窓口に送信しました。受付ID: #' + reportId });
+  } catch (e) {
+    console.warn('[report] mail send fail', e.message);
+    getDb().prepare(`UPDATE report_dispatch SET status='failed' WHERE id=?`).run(reportId);
+    res.status(500).json({ success: false, msg: 'メール送信失敗。少し時間をおいて再度お試しください' });
+  }
+});
+
+// 管理者向け: 外部相談窓口の件数集計 (本文・送信者は見えない)
+app.get('/api/admin/reports/summary', (req, res) => {
+  // authAdmin インライン (中央のmiddleware使うとimport追加必要なので簡易判定)
+  const auth = req.headers.authorization || '';
+  if (!auth.startsWith('Bearer ')) return res.status(401).json({ success: false });
+  try {
+    const decoded = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ success: false, msg: '管理者専用' });
+  } catch (e) { return res.status(401).json({ success: false }); }
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
+  const sinceISO = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  const db = getDb();
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM report_dispatch WHERE sent_at >= ?`).get(sinceISO).c;
+  const byCat = db.prepare(`SELECT category, urgency, status, COUNT(*) AS c FROM report_dispatch WHERE sent_at >= ? GROUP BY category, urgency, status`).all(sinceISO);
+  const recent = db.prepare(`SELECT id, category, urgency, status, sent_at FROM report_dispatch ORDER BY id DESC LIMIT 20`).all();
+  res.json({ success: true, days, total, by_category: byCat, recent });
+});
+
 // 個人ブロック: 自分のブロック一覧
 app.get('/api/users/blocks', authUser, (req, res) => {
   const rows = getDb().prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, ub.created_at, ub.reason
@@ -409,6 +491,7 @@ app.get('/admin', (req, res) => sendHtmlNoCache(res, 'admin.html'));
 app.get('/mylog', (req, res) => sendHtmlNoCache(res, 'mylog.html'));
 app.get('/m', (req, res) => sendHtmlNoCache(res, 'm.html'));
 app.get('/overview', (req, res) => sendHtmlNoCache(res, 'overview.html'));
+app.get('/report', (req, res) => sendHtmlNoCache(res, 'report.html'));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   if (req.path.startsWith('/uploads/')) return res.status(404).end();

@@ -122,6 +122,12 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div id="bulk-msg"></div>
   </div>
 
+  <!-- 外部相談窓口の集計 (本文/送信者は管理者でも見えない、件数のみ) -->
+  <div class="card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border-left:4px solid #10b981;">
+    <h2 style="color:#065f46;">🆘 外部相談窓口 (集計のみ) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">本文・送信者は管理者でも閲覧不可。NPO/専門家への匿名相談</span></h2>
+    <div id="report-summary" style="font-size:13px;color:#065f46;padding:8px 0;">読み込み中…</div>
+  </div>
+
   <div class="card" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);border-left:4px solid #7c3aed;">
     <h2 style="color:#5b21b6;">🎓 ゲスト追加 (大学・NPO等) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">外部の保健師・研究者を施策ボード精査メンバーとして登録</span></h2>
     <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.6;">
@@ -453,6 +459,41 @@ function showPanel(user) {
   loadRecordings();
   loadAttendance();
   loadGroups();
+  loadReportSummary();
+}
+
+async function loadReportSummary() {
+  const el = document.getElementById('report-summary');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/admin/reports/summary?days=30', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { el.textContent = '取得失敗'; return; }
+    if (!d.total) {
+      el.innerHTML = '<span style="color:#94a3b8;">過去30日: 0件 (相談なし)</span>';
+      return;
+    }
+    const labels = { harassment: '😣 ハラスメント', mental: '💧 メンタル', health: '🩺 健康', workplace: '🏢 職場環境', other: '📝 その他' };
+    const byCat = {};
+    let urgent = 0, failed = 0;
+    for (const r of (d.by_category || [])) {
+      byCat[r.category] = (byCat[r.category] || 0) + r.c;
+      if (r.urgency === 'urgent') urgent += r.c;
+      if (r.status === 'failed') failed += r.c;
+    }
+    let html = '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px;">';
+    html += '<div style="font-size:24px;font-weight:800;color:#047857;">過去30日 ' + d.total + '件</div>';
+    if (urgent) html += '<div style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:8px;font-weight:800;font-size:12px;">🚨 即対応 ' + urgent + '件</div>';
+    if (failed) html += '<div style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-weight:700;font-size:12px;">⚠ 送信失敗 ' + failed + '件</div>';
+    html += '</div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    for (const k of Object.keys(labels)) {
+      const c = byCat[k] || 0;
+      html += '<div style="background:#fff;border:1px solid #d1fae5;padding:6px 10px;border-radius:8px;font-size:11px;color:' + (c ? '#065f46' : '#94a3b8') + ';"><b>' + labels[k] + '</b>: ' + c + '</div>';
+    }
+    html += '</div>';
+    if (d.total >= 10) html += '<div style="margin-top:10px;background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;font-size:11px;">⚠ 30日で10件以上の相談あり。組織課題の兆候の可能性 (具体内容は外部窓口で対応中)</div>';
+    el.innerHTML = html;
+  } catch (e) { el.textContent = '通信エラー: ' + e.message; }
 }
 
 async function loadGroups() {

@@ -103,6 +103,20 @@ CREATE TABLE IF NOT EXISTS user_blocks (
 );
 CREATE INDEX IF NOT EXISTS idx_block_blocked ON user_blocks(blocked_id);
 
+-- 外部相談窓口の送信記録 (本文は永続化しない、件数+メタデータのみ)
+-- NPO ヘルスケアネットワーク等の外部窓口へメール転送した記録
+CREATE TABLE IF NOT EXISTS report_dispatch (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category TEXT NOT NULL,           -- harassment / mental / health / other
+  urgency TEXT NOT NULL DEFAULT 'normal', -- normal / urgent
+  sender_hash TEXT NOT NULL,        -- sha256(uid + REPORT_HASH_SECRET) 同一人物判定用
+  has_contact INTEGER DEFAULT 0,    -- 任意連絡先を含めたか
+  body_len INTEGER,                 -- 本文長さ (集計のみ。本文は保存しない)
+  status TEXT DEFAULT 'sent',       -- sent / failed
+  sent_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_report_at ON report_dispatch(sent_at DESC);
+
 -- PWA プッシュ通知 購読情報
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

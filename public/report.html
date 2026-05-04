@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🆘 外部相談窓口 — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json?v=4">
+<meta name="theme-color" content="#0f4d3a">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #ecfdf5, #f0fdf4); color: #0f172a; padding-bottom: 60px; }
+header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #047857, #065f46); color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; }
+main { max-width: 640px; margin: 0 auto; padding: 16px; }
+.notice { background: #fff; border: 2px solid #6ee7b7; border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+.notice h2 { margin: 0 0 10px; font-size: 14px; color: #047857; display: flex; align-items: center; gap: 8px; }
+.notice ul { margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.9; color: #374151; }
+.notice ul li b { color: #065f46; }
+.field { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+.field .req { color: #dc2626; margin-left: 2px; }
+.field input[type="text"], .field input[type="email"], .field textarea, .field select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+.field textarea { min-height: 140px; resize: vertical; }
+.field .hint { font-size: 11px; color: #64748b; margin-top: 6px; line-height: 1.6; }
+.cat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.cat-btn { padding: 12px; border: 2px solid #cbd5e1; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; color: #475569; text-align: center; transition: all 0.15s; }
+.cat-btn:hover { border-color: #10b981; background: #f0fdf4; }
+.cat-btn.active { border-color: #10b981; background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
+.urgency-row { display: flex; gap: 8px; }
+.urgency-btn { flex: 1; padding: 10px; border: 2px solid #cbd5e1; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; color: #475569; text-align: center; }
+.urgency-btn.active { border-color: #f59e0b; background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+.urgency-btn.urgent.active { border-color: #dc2626; background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
+.submit { width: 100%; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 14px rgba(16,185,129,0.3); }
+.submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.submit:hover:not(:disabled) { transform: translateY(-1px); }
+.msg { margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+.msg.ok { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.msg.err { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.back { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 8px 14px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
+</style>
+<script src="/font-zoom.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div style="font-size:24px;">🆘</div>
+  <h1>外部相談窓口</h1>
+  <button class="back" onclick="goBackHome()">✕ 閉じる</button>
+  <script>function goBackHome(){var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||'');if(history.length>1){history.back();}else{location.href=m?'/m':'/';}}</script>
+</header>
+
+<main>
+  <div class="notice">
+    <h2>🛡 この窓口について</h2>
+    <ul>
+      <li><b>外部のNPO/専門家</b>に直接届きます (社内管理者を経由しません)</li>
+      <li>本文は <b>CoWell サーバには保存されません</b> (送信のみ。件数とカテゴリだけ集計)</li>
+      <li>管理者は「相談があった件数」しか見られません (誰が・何を、は分かりません)</li>
+      <li>連絡先 <b>未記入で完全匿名</b>。記入すると外部担当が直接連絡可</li>
+      <li>緊急 (自傷他害の恐れ等) は警察 110 / 救急 119 を最優先で</li>
+    </ul>
+  </div>
+
+  <div class="field">
+    <label>カテゴリ <span class="req">*</span></label>
+    <div class="cat-grid">
+      <button type="button" class="cat-btn" data-cat="harassment">😣 ハラスメント</button>
+      <button type="button" class="cat-btn" data-cat="mental">💧 メンタル不調</button>
+      <button type="button" class="cat-btn" data-cat="health">🩺 健康相談</button>
+      <button type="button" class="cat-btn" data-cat="workplace">🏢 職場環境</button>
+      <button type="button" class="cat-btn" data-cat="other" style="grid-column: span 2;">📝 その他</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>緊急度 <span class="req">*</span></label>
+    <div class="urgency-row">
+      <button type="button" class="urgency-btn active" data-urg="normal">通常</button>
+      <button type="button" class="urgency-btn urgent" data-urg="urgent">🚨 即対応希望</button>
+    </div>
+    <div class="hint">即対応希望は外部担当が優先で確認します (24h目安)。</div>
+  </div>
+
+  <div class="field">
+    <label for="body">相談内容 <span class="req">*</span></label>
+    <textarea id="body" placeholder="いつ・どこで・何が起きたか、なるべく具体的にお書きください。10文字以上、4000字まで。" maxlength="4000"></textarea>
+    <div class="hint" id="body-counter">0 / 4000 文字</div>
+  </div>
+
+  <div class="field">
+    <label for="contact">連絡先 (任意)</label>
+    <input type="text" id="contact" placeholder="メール / 電話 / 「DM希望」など (空欄=完全匿名)" maxlength="200">
+    <div class="hint">記入すると外部担当が直接連絡できます。社内には連絡先も含めて伝わりません。</div>
+  </div>
+
+  <button id="submit-btn" class="submit" onclick="doSubmit()" disabled>外部窓口へ送信</button>
+  <div id="msg"></div>
+</main>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+if (!token) location.href = '/';
+
+let curCat = '';
+let curUrg = 'normal';
+
+document.querySelectorAll('.cat-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    curCat = btn.dataset.cat;
+    updateSubmit();
+  };
+});
+document.querySelectorAll('.urgency-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.urgency-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    curUrg = btn.dataset.urg;
+  };
+});
+const bodyEl = document.getElementById('body');
+const bodyCounter = document.getElementById('body-counter');
+bodyEl.oninput = () => {
+  bodyCounter.textContent = bodyEl.value.length + ' / 4000 文字';
+  updateSubmit();
+};
+
+function updateSubmit() {
+  const ok = curCat && bodyEl.value.trim().length >= 10;
+  document.getElementById('submit-btn').disabled = !ok;
+}
+
+async function doSubmit() {
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('msg');
+  msg.className = ''; msg.textContent = '';
+  btn.disabled = true;
+  btn.textContent = '送信中…';
+  try {
+    const r = await fetch('/api/report/external', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        category: curCat,
+        urgency: curUrg,
+        body: bodyEl.value.trim(),
+        contact: document.getElementById('contact').value.trim() || null,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      msg.className = 'msg err';
+      msg.textContent = '送信失敗: ' + (d.msg || '不明なエラー');
+      btn.disabled = false; btn.textContent = '外部窓口へ送信';
+      return;
+    }
+    msg.className = 'msg ok';
+    msg.innerHTML = '✅ 外部窓口に送信しました<br>受付ID: <b>#' + d.id + '</b><br>必要に応じて担当からご連絡があります。';
+    bodyEl.value = '';
+    document.getElementById('contact').value = '';
+    bodyCounter.textContent = '0 / 4000 文字';
+    btn.textContent = '送信完了';
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = '外部窓口へ送信';
+  }
+}
+</script>
+</body>
+</html>
