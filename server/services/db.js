@@ -28,6 +28,9 @@ function getDb() {
   ensureColumn(_db, 'users', 'last_wellness_dm_date', 'last_wellness_dm_date TEXT');
   // 推進メンバー(運管型) フラグ — 健康管理室 現場の声POST権限
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
+  // DM制限フラグ — 1の場合、共通グループのメンバーまたはadmin/promoterとしかDMできない
+  // 新規一般社員に1を設定して部署内チャットに限定する用途 (5/4)
+  ensureColumn(_db, 'users', 'dm_restricted', 'dm_restricted INTEGER DEFAULT 0');
   // 生年月日 (健診Box連携・年齢別分析用、本人と管理者のみ閲覧)
   ensureColumn(_db, 'users', 'birth_date', 'birth_date TEXT');
   // 旧姓 (Box健診xlsmが旧姓のままの場合に検索フォールバックで使用)
@@ -107,20 +110,59 @@ function getDb() {
   // 事故対策室フロア (2026-04-30): 現場棟。事故報告レビュー・再発防止検討の集合場所
   // 安全管理者(bot_safety) 常駐、前面に大型ビデオスクリーンで事故/破損情報を流し続ける
   _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
-    VALUES ('field_accident', '現場 事故対策室', '/assets/floor_field_accident.png', 1344, 768, 672, 700, 14, '🚨', 'field')`).run();
+    VALUES ('field_accident', '事故対策室', '/assets/floor_field_accident.png', 1344, 768, 672, 700, 14, '🚨', 'field')`).run();
   // 既存DBのfield_accident背景を新画像に更新 (前回 floor_field_meet.png で投入していたものを上書き)
   _db.prepare(`UPDATE floors SET bg_image = '/assets/floor_field_accident.png', entry_y = 700 WHERE code = 'field_accident'`).run();
+  // 2026-04-30: 現場棟フロア名から「現場 」プレフィックス削除 (UI簡素化)
+  _db.prepare(`UPDATE floors SET name = '乗務員詰所' WHERE code = 'field_rest' AND name = '現場 乗務員詰所'`).run();
+  _db.prepare(`UPDATE floors SET name = '倉庫作業室' WHERE code = 'field_work' AND name = '現場 倉庫作業室'`).run();
+  _db.prepare(`UPDATE floors SET name = 'ミーティング' WHERE code = 'field_meet' AND name = '現場 ミーティング'`).run();
+  _db.prepare(`UPDATE floors SET name = '事故対策室' WHERE code = 'field_accident' AND name = '現場 事故対策室'`).run();
   // 事故対策室スクリーン投稿テーブル
   _db.exec(`CREATE TABLE IF NOT EXISTS accident_screen_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     media_url TEXT NOT NULL,
-    media_type TEXT NOT NULL,           -- image | video
+    media_type TEXT NOT NULL,           -- image | video | text
     caption TEXT,
+    text_body TEXT,                      -- media_type=text 時の本文 (2026-04-30追加)
     posted_by TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     deleted_at TEXT
   );
-  CREATE INDEX IF NOT EXISTS idx_asp_at ON accident_screen_posts(created_at DESC);`);
+  CREATE INDEX IF NOT EXISTS idx_asp_at ON accident_screen_posts(created_at DESC);
+
+  -- 過去事故報告書 PDFアーカイブ (2026-04-30): bot_safetyの学習材料 + スクリーン掲示元
+  CREATE TABLE IF NOT EXISTS accident_archives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pdf_url TEXT NOT NULL,
+    page_image_urls TEXT DEFAULT '[]',  -- JSON: ["/uploads/archive_xxx_p1.png", ...]
+    title TEXT,
+    accident_date TEXT,
+    summary TEXT,
+    full_text TEXT,
+    uploaded_by TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_aa_at ON accident_archives(created_at DESC);
+  -- 安全管理者 AI分析レポート (2026-04-30): 過去事故データを Gemini が定期分析
+  CREATE TABLE IF NOT EXISTS accident_analysis_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    period_label TEXT,                  -- 例: "全期間", "直近180日"
+    target_archives INTEGER DEFAULT 0,  -- 分析対象のアーカイブ件数
+    target_reports INTEGER DEFAULT 0,   -- 分析対象の報告書件数
+    summary TEXT,                        -- 200字以内の要約 (bot_safety contextに使用)
+    full_report TEXT,                    -- マークダウン全文
+    generated_by TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_aar_at ON accident_analysis_reports(created_at DESC);`);
+  // accident_screen_posts に text_body カラム追加 (既存DB用 idempotent)
+  try { _db.prepare('ALTER TABLE accident_screen_posts ADD COLUMN text_body TEXT').run(); } catch (e) {}
+  // 番組表 (ファイル単位グループ表示) 用カラム追加
+  try { _db.prepare('ALTER TABLE accident_screen_posts ADD COLUMN source_label TEXT').run(); } catch (e) {}
+  try { _db.prepare('ALTER TABLE accident_screen_posts ADD COLUMN source_id TEXT').run(); } catch (e) {}
   // 社内タイムライン (掲示板) — Phase1 コミュニケーション基盤強化
   _db.exec(`CREATE TABLE IF NOT EXISTS board_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -813,6 +855,71 @@ function getDb() {
   ensureColumn(_db, 'users', 'pioneer_count', 'pioneer_count INTEGER DEFAULT 0');  // 公開プラン累積数 = 先駆者バッジ
   // 公開フィードクエリ用インデックス
   _db.exec(`CREATE INDEX IF NOT EXISTS idx_myplan_share ON myplan_consultations(share_publicly, created_at DESC);`);
+
+  // ===== Connect 230 (歩く×Standard運輸グループ) =====
+  // 東京日本橋 ⇔ 磐田スズエ電機 双方向ウォーキングイベント (約230km)
+  // STDチーム=東京発西進 / SZEチーム=磐田発東進。両軍の歩数合算でルート上を進み、
+  // 出会ったら祝祭、その後それぞれ相手本社まで完走を目指す。
+  _db.exec(`CREATE TABLE IF NOT EXISTS walk_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    total_route_km REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    meet_event_at TEXT,
+    meet_position_km REAL,
+    completed_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS walk_steps_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    event_id INTEGER NOT NULL,
+    log_date TEXT NOT NULL,
+    steps INTEGER NOT NULL,
+    miles REAL NOT NULL,
+    source TEXT,
+    photo_url TEXT,
+    comment TEXT,
+    device_id TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, event_id, log_date)
+  );
+  CREATE INDEX IF NOT EXISTS idx_wsl_user ON walk_steps_log(user_id, log_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_wsl_event ON walk_steps_log(event_id, log_date);
+  CREATE TABLE IF NOT EXISTS walk_milestones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    km_from_tokyo REAL NOT NULL,
+    image_url TEXT,
+    description TEXT,
+    sort_order INTEGER DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_wm_event ON walk_milestones(event_id, km_from_tokyo);
+  CREATE TABLE IF NOT EXISTS walk_personal_state (
+    user_id TEXT NOT NULL,
+    event_id INTEGER NOT NULL,
+    team_code TEXT NOT NULL,
+    total_steps INTEGER DEFAULT 0,
+    total_miles REAL DEFAULT 0,
+    distance_walked_km REAL DEFAULT 0,
+    visited_milestones TEXT DEFAULT '[]',
+    last_updated TEXT,
+    PRIMARY KEY (user_id, event_id)
+  );
+  CREATE TABLE IF NOT EXISTS walk_team_progress (
+    team_code TEXT NOT NULL,
+    event_id INTEGER NOT NULL,
+    total_steps INTEGER DEFAULT 0,
+    total_km REAL DEFAULT 0,
+    member_count INTEGER DEFAULT 0,
+    last_updated TEXT,
+    PRIMARY KEY (team_code, event_id)
+  );`);
+  // タブレットPIN認証 (拠点共用デバイス用、社員ID + 4桁ピンで素早くログイン)
+  ensureColumn(_db, 'users', 'walk_pin', 'walk_pin TEXT');
 
   return _db;
 }

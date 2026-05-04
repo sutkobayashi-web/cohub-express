@@ -97,10 +97,13 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fef3c7;padding:6px 10px;border-radius:6px;cursor:pointer;" title="施策ボードのレビュー権限を付与 (大学/NPOの専門家用)">
         <input type="checkbox" id="new-guest-rev"> 🎓ゲストレビュアー
       </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fee2e2;padding:6px 10px;border-radius:6px;cursor:pointer;" title="ONなら部署内DMのみ可 (chat_group_membersで共通グループ必要)。一般社員はデフォルトON">
+        <input type="checkbox" id="new-dm-restricted" checked> 🚪 部署内DMのみ
+      </label>
       <button class="btn" onclick="addUser()">追加</button>
     </div>
     <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
-      💡 <b>DMグループ・階層</b>: レポートライン保護のための設定。同じグループは常にDM可、別グループへはrank差1まで許可 (例: 一般→部長 はブロック)。管理者ロールは階層無視。<br>
+      💡 <b>部署内DMのみ</b>: ONなら同じチャットグループに所属するメンバーまたは管理者/推進メンバーとしかDMできません。新規一般社員はON推奨 (登録後に部署グループへの追加を忘れずに)。<br>
       💡 <b>生年月日</b>: 健診Box連携 (氏名×生年月日でPDF照合) と年齢別健康分析に使用。本人と管理者のみ閲覧。
     </div>
     <div id="add-msg"></div>
@@ -330,6 +333,13 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎂 生年月日 <span style="font-size:10px;font-weight:400;color:#64748b;">健診Box連携・年齢別分析用</span></div>
         <input type="date" id="edit-birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🚪 DM制限 (部署内DM限定)</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-dm-restricted"> 部署内DMのみに限定する
+        </label>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;">ONなら同じチャットグループに所属するメンバーまたは管理者/推進メンバーとしかDMできません。OFFは全員と自由DM可。新規一般社員はONで登録 + 部署グループへの所属を忘れずに。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎓 ゲストレビュアー (大学/NPO等の外部専門家)</div>
@@ -868,6 +878,7 @@ async function addUser() {
     dm_rank: parseInt(document.getElementById('new-dm-rank').value) || 0,
     birth_date: document.getElementById('new-birth').value || null,
     is_guest_reviewer: document.getElementById('new-guest-rev').checked,
+    dm_restricted: document.getElementById('new-dm-restricted').checked,
     guest_org: document.getElementById('new-guest-org').value.trim(),
   };
   const msg = document.getElementById('add-msg');
@@ -917,6 +928,7 @@ function openEditModal(id) {
   document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
   document.getElementById('edit-birth').value = u.birth_date || '';
   document.getElementById('edit-guest-rev').checked = !!u.is_guest_reviewer;
+  document.getElementById('edit-dm-restricted').checked = !!u.dm_restricted;
   document.getElementById('edit-guest-org').value = u.guest_org || '';
   document.getElementById('edit-new-password').value = '';
   document.getElementById('edit-err').textContent = '';
@@ -944,6 +956,7 @@ async function submitEdit() {
     dm_rank: parseInt(document.getElementById('edit-dm-rank').value) || 0,
     birth_date: document.getElementById('edit-birth').value || null,
     is_guest_reviewer: document.getElementById('edit-guest-rev').checked,
+    dm_restricted: document.getElementById('edit-dm-restricted').checked,
     guest_org: document.getElementById('edit-guest-org').value.trim(),
   };
   if (!payload.display_name) { err.textContent = '表示名は必須です'; return; }

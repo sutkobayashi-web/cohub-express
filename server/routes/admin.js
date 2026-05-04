@@ -50,7 +50,7 @@ const recUpload = multer({
 
 // ユーザー一覧
 router.get('/users', authAdmin, (req, res) => {
-  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org,
+  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
 });
@@ -73,7 +73,7 @@ function normalizeBirthDate(s) {
 
 // ユーザー作成（1件）
 router.post('/users', authAdmin, (req, res) => {
-  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org } = req.body;
+  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org } = req.body;
   if (!login_id || !display_name || !company_code || !password) {
     return res.status(400).json({ success: false, msg: '必須項目が不足しています' });
   }
@@ -88,8 +88,11 @@ router.post('/users', authAdmin, (req, res) => {
   const bd = normalizeBirthDate(birth_date);
   const guest = is_guest_reviewer ? 1 : 0;
   const gorg = (guest_org || '').toString().trim().slice(0, 100) || null;
-  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, bd, guest, gorg);
+  // DM制限: 明示指定なし & 一般社員(member + non-admin etype + non-guest) なら デフォルトON
+  const isPlainMember = (role || 'member') === 'member' && etype !== 'admin' && !guest;
+  const dmr = (dm_restricted === undefined || dm_restricted === null) ? (isPlainMember ? 1 : 0) : (dm_restricted ? 1 : 0);
+  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, dmr, bd, guest, gorg);
   // dm_group が設定されてれば同名グループチャットに自動加入 (なければ作成)
   try { syncDmGroupMembership(id, dg, null, req.uid); } catch (e) { console.warn('[dm_group sync]', e.message); }
   res.json({ success: true, id });
@@ -97,7 +100,7 @@ router.post('/users', authAdmin, (req, res) => {
 
 // ユーザー更新 (dm_group, dm_rank 等の編集)
 router.patch('/users/:id', authAdmin, (req, res) => {
-  const { display_name, company_code, role, employee_type, dm_group, dm_rank, birth_date, is_guest_reviewer, guest_org } = req.body;
+  const { display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org } = req.body;
   const db = getDb();
   const u = db.prepare('SELECT id, dm_group FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
@@ -126,6 +129,9 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   }
   if (guest_org !== undefined) {
     updates.push('guest_org = ?'); params.push((guest_org || '').toString().trim().slice(0, 100) || null);
+  }
+  if (dm_restricted !== undefined) {
+    updates.push('dm_restricted = ?'); params.push(dm_restricted ? 1 : 0);
   }
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.id);

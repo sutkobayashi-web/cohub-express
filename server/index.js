@@ -529,22 +529,25 @@ function getVoiceGroup(p) {
 // - dm_group NULL は移行互換で無制限
 // - 同じdm_groupなら常にOK
 // - 別group: 送信者rank >= 受信者rank - 1 (即ち差が2以上の下から上はブロック)
+// 5/4以降: dm_rank 階層判定を撤廃。
+// 双方 dm_restricted=0 → 自由 (admin/推進/既存全員)
+// 片方でも dm_restricted=1 → 共通の chat_group_members 所属が必要
+// admin/bot は常に通す
 function canDm(sender, receiver) {
   if (!sender || !receiver) return false;
-  if (sender.role === 'admin') return true;
+  if (sender.role === 'admin' || sender.role === 'bot') return true;
   if (receiver.role === 'bot') return true;
-  const sg = sender.dm_group || null;
-  const rg = receiver.dm_group || null;
-  // 移行互換: どちらかがNULLなら無制限
-  if (sg == null || rg == null) return true;
-  if (sg === rg) return true;
-  const sr = sender.dm_rank | 0;
-  const rr = receiver.dm_rank | 0;
-  // 送信者ランクが受信者ランク-1以上なら通す (上から下/隣接レベルまで)
-  return sr >= rr - 1;
+  const sr = sender.dm_restricted | 0;
+  const rr = receiver.dm_restricted | 0;
+  if (!sr && !rr) return true; // 双方制限なし
+  // 制限あり: 共通グループ所属が必要 (admin/推進メンバーは sr/rr=0 なので 上で通る)
+  const shared = getDb().prepare(`SELECT 1 FROM chat_group_members a
+    JOIN chat_group_members b ON a.group_id = b.group_id
+    WHERE a.user_id = ? AND b.user_id = ? LIMIT 1`).get(sender.id, receiver.id);
+  return !!shared;
 }
 function loadUserForDm(uid) {
-  return getDb().prepare('SELECT id, role, dm_group, dm_rank FROM users WHERE id = ?').get(uid);
+  return getDb().prepare('SELECT id, role, dm_group, dm_rank, dm_restricted FROM users WHERE id = ?').get(uid);
 }
 
 // 録音同意ペンディング状態 (floor → state)
