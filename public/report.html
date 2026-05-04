@@ -97,7 +97,7 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
     <div class="hint">記入すると外部担当が直接連絡できます。社内には連絡先も含めて伝わりません。</div>
   </div>
 
-  <button id="submit-btn" class="submit" onclick="doSubmit()" disabled>外部窓口へ送信</button>
+  <button id="submit-btn" class="submit" onclick="doSubmit()">外部窓口へ送信</button>
   <div id="msg"></div>
 </main>
 
@@ -113,7 +113,6 @@ document.querySelectorAll('.cat-btn').forEach(btn => {
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     curCat = btn.dataset.cat;
-    updateSubmit();
   };
 });
 document.querySelectorAll('.urgency-btn').forEach(btn => {
@@ -127,18 +126,31 @@ const bodyEl = document.getElementById('body');
 const bodyCounter = document.getElementById('body-counter');
 bodyEl.oninput = () => {
   bodyCounter.textContent = bodyEl.value.length + ' / 4000 文字';
-  updateSubmit();
 };
-
-function updateSubmit() {
-  const ok = curCat && bodyEl.value.trim().length >= 10;
-  document.getElementById('submit-btn').disabled = !ok;
-}
 
 async function doSubmit() {
   const btn = document.getElementById('submit-btn');
   const msg = document.getElementById('msg');
   msg.className = ''; msg.textContent = '';
+  // 入力チェック: 何が足りないか具体的に表示
+  if (!curCat) {
+    msg.className = 'msg err';
+    msg.textContent = '⚠ カテゴリを選択してください';
+    document.querySelector('.cat-grid').scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const text = bodyEl.value.trim();
+  if (text.length < 10) {
+    msg.className = 'msg err';
+    msg.textContent = '⚠ 相談内容を10文字以上入力してください (現在 ' + text.length + ' 文字)';
+    bodyEl.focus();
+    return;
+  }
+  if (!token) {
+    msg.className = 'msg err';
+    msg.textContent = '⚠ ログインが切れています。一度トップページに戻って再ログインしてください';
+    return;
+  }
   btn.disabled = true;
   btn.textContent = '送信中…';
   try {
@@ -148,14 +160,15 @@ async function doSubmit() {
       body: JSON.stringify({
         category: curCat,
         urgency: curUrg,
-        body: bodyEl.value.trim(),
+        body: text,
         contact: document.getElementById('contact').value.trim() || null,
       }),
     });
-    const d = await r.json();
-    if (!d.success) {
+    let d = null;
+    try { d = await r.json(); } catch (jsonErr) {}
+    if (!r.ok || !d || !d.success) {
       msg.className = 'msg err';
-      msg.textContent = '送信失敗: ' + (d.msg || '不明なエラー');
+      msg.textContent = '送信失敗 (' + r.status + '): ' + (d && d.msg || 'サーバ応答なし');
       btn.disabled = false; btn.textContent = '外部窓口へ送信';
       return;
     }
@@ -167,7 +180,7 @@ async function doSubmit() {
     btn.textContent = '送信完了';
   } catch (e) {
     msg.className = 'msg err';
-    msg.textContent = '通信エラー: ' + e.message;
+    msg.textContent = '通信エラー: ' + (e.message || 'ネットワーク確認');
     btn.disabled = false; btn.textContent = '外部窓口へ送信';
   }
 }
