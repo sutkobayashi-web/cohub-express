@@ -2771,7 +2771,7 @@ function loadAvatar(u) {
 // 末尾の v= は新ポーズ画像差替時のキャッシュバスター
 const BOT_STANDING = {
   'bot_aoi':    '/assets/concierge_aoi_full.png?v=2',
-  'bot_health': '/assets/concierge_health_full.png?v=6',
+  'bot_health': '/assets/concierge_health_full.png?v=7',
   'bot_safety': '/assets/concierge_safety_full.png?v=3',
   'bot_master': '/assets/concierge_master_full.png?v=1',
 };
@@ -2790,10 +2790,10 @@ function loadBotStanding(botUid, src) {
       const data = id.data;
       const visited = new Uint8Array(w * h);
       const stack = [];
-      // 5/4: 4隅 only → 全エッジ seed に拡張。肘脇の白背景まで到達させる
+      // Pass 1: 全エッジ seed flood-fill で 外接する白背景を除去
       for (let xs = 0; xs < w; xs++) { stack.push(xs); stack.push((h - 1) * w + xs); }
       for (let ys = 0; ys < h; ys++) { stack.push(ys * w); stack.push(ys * w + w - 1); }
-      const THRESH = 225;  // 235 → 225 (anti-alias勾配で詰まる対策、若干緩め)
+      const THRESH = 225;  // 235 → 225 (anti-alias勾配で詰まる対策)
       while (stack.length) {
         const idx = stack.pop();
         if (idx < 0 || idx >= w * h || visited[idx]) continue;
@@ -2806,6 +2806,43 @@ function loadBotStanding(botUid, src) {
         if (x - 1 >= 0) stack.push(idx - 1);
         if (idx + w < w * h) stack.push(idx + w);
         if (idx - w >= 0) stack.push(idx - w);
+      }
+      // Pass 2: 囲まれた白ポケット (肘脇など、エッジから到達できない閉じた白領域) を除去
+      // BFS で連結成分を取り、サイズが MAX_POCKET 未満なら透過化
+      const MAX_POCKET = 12000;
+      const visited2 = new Uint8Array(w * h);
+      for (let p = 0; p < w * h; p++) {
+        if (visited[p] || visited2[p]) continue;
+        const pi = p * 4;
+        if (data[pi + 3] === 0) continue;  // 既に透過
+        if (data[pi] < THRESH || data[pi + 1] < THRESH || data[pi + 2] < THRESH) continue;  // 白くない
+        // BFS で連結白領域を取得
+        const component = [];
+        const queue = [p];
+        let qHead = 0;
+        visited2[p] = 1;
+        while (qHead < queue.length && component.length < MAX_POCKET + 1) {
+          const cur = queue[qHead++];
+          component.push(cur);
+          const x = cur % w;
+          const ns = [];
+          if (x + 1 < w) ns.push(cur + 1);
+          if (x - 1 >= 0) ns.push(cur - 1);
+          if (cur + w < w * h) ns.push(cur + w);
+          if (cur - w >= 0) ns.push(cur - w);
+          for (const n of ns) {
+            if (visited[n] || visited2[n]) continue;
+            const ni = n * 4;
+            if (data[ni + 3] === 0) continue;
+            if (data[ni] < THRESH || data[ni + 1] < THRESH || data[ni + 2] < THRESH) continue;
+            visited2[n] = 1;
+            queue.push(n);
+          }
+        }
+        if (component.length < MAX_POCKET) {
+          // 小さい囲まれ白領域 = 背景ポケット → 透過化
+          for (const cp of component) data[cp * 4 + 3] = 0;
+        }
       }
       cx2.putImageData(id, 0, 0);
       botStandingImages[botUid] = { canvas: c, w, h };
