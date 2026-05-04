@@ -22,10 +22,14 @@ const ROOM_PROMPT = `現代的な企業内の**健康管理室 (奥行きのあ�
 - 左壁は手前から斜めに、右壁は手前から斜めに、両側壁は緩やかなパース
 
 【正面の壁 (奥)】
-- **大きなホワイトボード** (横幅2.4m相当の大型) を中央〜左寄りに掛ける
+- **超大型ホワイトボード** を中央〜左寄りに掛ける
+  - 横幅は **画面横方向の 60% 以上** (画面横幅の60%、約810px相当)
+  - 高さは **画面縦方向の 65% 以上** (画面縦の65%、約500px相当)
   - 木製フレーム+ホワイト面、表面はやや反射控えめ
+  - ホワイトボードの**上端は天井近く**、**下端は床近くまで**届く存在感
   - ホワイトボードの上に「Wellness」の控えめなサイン
   - ホワイトボードに**何も書かない**(後でCanvas overlay で動的に上書きするため真っ白)
+  - フレーム左右の余白は最小限 (壁の主役)
 - 壁の下半分は**淡いセージグリーン**、上半分は**オフホワイト**のツートン
 
 【左壁・手前左 (待合)】
@@ -106,6 +110,9 @@ async function geminiImage(prompt, label) {
   throw new Error('画像が返ってきませんでした');
 }
 
+// 引数: --room-only でアドバイザー再生成スキップ (room-only 再描画用)
+const ROOM_ONLY = process.argv.includes('--room-only');
+
 (async () => {
   // 1) 部屋画像
   try {
@@ -118,12 +125,14 @@ async function geminiImage(prompt, label) {
   } catch (e) {
     console.error('部屋画像失敗:', e.message);
   }
-  // 2) ヘルスアドバイザー (若返り+ショート)
-  try {
-    if (fs.existsSync(ADVISOR_OUT)) fs.copyFileSync(ADVISOR_OUT, ADVISOR_OUT + '.bak.' + Date.now());
-    fs.writeFileSync(ADVISOR_OUT, await geminiImage(ADVISOR_PROMPT, 'advisor_v2'));
-    console.log('✅ ヘルスアドバイザー (若返り):', ADVISOR_OUT);
-  } catch (e) {
-    console.error('アドバイザー失敗:', e.message);
+  // 2) ヘルスアドバイザー (若返り+ショート) — --room-only でスキップ
+  if (!ROOM_ONLY) {
+    try {
+      if (fs.existsSync(ADVISOR_OUT)) fs.copyFileSync(ADVISOR_OUT, ADVISOR_OUT + '.bak.' + Date.now());
+      fs.writeFileSync(ADVISOR_OUT, await geminiImage(ADVISOR_PROMPT, 'advisor_v2'));
+      console.log('✅ ヘルスアドバイザー (若返り):', ADVISOR_OUT);
+    } catch (e) {
+      console.error('アドバイザー失敗:', e.message);
+    }
   }
 })();
