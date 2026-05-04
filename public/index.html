@@ -2858,6 +2858,16 @@ function onPointerDown(e) {
   const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
   // 最優先: 事故対策室の番組表メニュー (スクリーン上のファイルタップ)
   try { if (handleAccidentScreenClick(world.x, world.y)) return; } catch (err) {}
+  // 健康管理室の隠し扉 (推進カフェへの入口) — 画面右側の木製ドア
+  if (currentFloor && currentFloor.code === 'wellness_room'
+      && world.x >= 1075 && world.x <= 1290 && world.y >= 230 && world.y <= 700) {
+    if (_isPromoter()) {
+      try { switchFloor('promoter_club'); } catch (err) {}
+    } else {
+      showToast('🔒 鍵がかかっている。 (推進メンバー専用)');
+    }
+    return;
+  }
   // 次優先: bot 頭上の「メニューを開く」ボタン → 入室時と同じ avatar-intro-card を開く
   const btn = hitTestBotMenuButton(world.x, world.y);
   if (btn) {
