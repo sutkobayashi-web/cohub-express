@@ -1673,12 +1673,14 @@ function renderPromoterRanking(promoters) {
     return Object.assign({}, p, { score });
   });
   const max = Math.max(1, ...scored.map(p => p.score));
-  el.innerHTML = scored.map((p, i) => {
+  // 上位3名のみ表示。下位はスティグマ防止のため非表示+「他N名活動中」だけ示す
+  const top = scored.slice(0, 3);
+  const restActive = scored.slice(3).filter(p => p.score > 0).length;
+  let html = top.map((p, i) => {
     const initial = (p.display_name || '?').slice(0, 1);
-    const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
     const barW = Math.round((p.score / max) * 100);
-    const inactive = p.score === 0;
-    return `<div style="background:#fff;border:1px solid ${inactive?'#e2e8f0':'#ddd6fe'};border-radius:10px;padding:10px;${inactive?'opacity:0.6;':''}">
+    return `<div style="background:#fff;border:1px solid #ddd6fe;border-radius:10px;padding:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">${escapeHtml(initial)}</div>
         <div style="flex:1;min-width:0;">
@@ -1698,6 +1700,10 @@ function renderPromoterRanking(promoters) {
       </div>
     </div>`;
   }).join('');
+  if (restActive > 0) {
+    html += `<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;text-align:center;">他に <b style="color:#475569;margin:0 4px;">${restActive}名</b> が活動中<br><span style="font-size:9px;color:#94a3b8;">(下位ランキングは非表示。比較ではなく合計の前進が目的)</span></div>`;
+  }
+  el.innerHTML = html;
 }
 
 // ===== 現場の声: 共感+議論 =====

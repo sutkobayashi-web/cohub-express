@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS chat_group_members (
 );
 CREATE INDEX IF NOT EXISTS idx_gmember_user ON chat_group_members(user_id);
 
+-- 個人ブロックリスト (DM/肩たたき/メンションを物理的に止める)
+CREATE TABLE IF NOT EXISTS user_blocks (
+  blocker_id TEXT NOT NULL,
+  blocked_id TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (blocker_id, blocked_id)
+);
+CREATE INDEX IF NOT EXISTS idx_block_blocked ON user_blocks(blocked_id);
+
 -- PWA プッシュ通知 購読情報
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

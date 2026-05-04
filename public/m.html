@@ -586,6 +586,9 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
         <div class="set-item" onclick="switchToPcMode()">
           <div class="i">💻</div><div class="l">PC版で開く<div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">タブレットや横画面で広く使う時</div></div><div class="r">›</div>
         </div>
+        <div class="set-item" onclick="openBlockListModal()">
+          <div class="i">🚫</div><div class="l">ブロックリスト</div><div class="r">›</div>
+        </div>
         <div class="set-item" onclick="location.href='/security.html'">
           <div class="i">🔒</div><div class="l">セキュリティについて</div><div class="r">›</div>
         </div>
@@ -618,6 +621,7 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
       <div class="h-name" id="chat-h-name">-</div>
       <div class="h-sub" id="chat-h-sub">-</div>
     </div>
+    <button id="chat-menu-btn" onclick="openChatPeerMenu()" title="メニュー" style="display:none;background:transparent;border:none;color:#475569;font-size:22px;cursor:pointer;width:34px;height:34px;flex-shrink:0;">⋮</button>
   </div>
   <div id="chat-body"></div>
   <!-- 音声会話モードパネル (海の冒険方式: 大きいマイク+状態テキスト+暫定文字起こし) -->
@@ -1781,10 +1785,11 @@ function openSafetyChat() {
 //  1) AI (bot_safety, 過去事故context持ち) にテンプレ起動文を送信して詳細ヒアリングを開始
 //  2) 同時に該当する正式書面の入力モーダル/ページを開く (PC版 aoiAction と同じ思想)
 function sendSafetyTemplate(kind) {
+  const NO_BLAME = '\n（この報告は再発防止のためのものです。報告者を責めることはありません。安心してお話しください）';
   const TEMPLATES = {
-    accident: '【事故報告書】を作成します。日時／場所／事故の内容／怪我の有無／原因／応急対応 を順に教えてください。質問にひとつずつ答えていきます。',
-    hiyari:   '【ヒヤリハット】を共有します。いつ・どこで・何が起きそうだったか／本来どうあるべきだったか／再発防止の気付き を教えてください。',
-    damage:   '【製品破損報告書】を作成します。発生日／フロア・場所／製品名・カテゴリ／数量／原因／状況 を順に教えてください。',
+    accident: '【事故報告書】を作成します。日時／場所／事故の内容／怪我の有無／原因／応急対応 を順に教えてください。質問にひとつずつ答えていきます。' + NO_BLAME,
+    hiyari:   '【ヒヤリハット】を共有します。いつ・どこで・何が起きそうだったか／本来どうあるべきだったか／再発防止の気付き を教えてください。' + NO_BLAME,
+    damage:   '【製品破損報告書】を作成します。発生日／フロア・場所／製品名・カテゴリ／数量／原因／状況 を順に教えてください。' + NO_BLAME,
     kyt:      '【KYT (危険予知トレーニング)】を始めます。対象作業／予測される危険／なぜ起きるのか／対策案 を一緒に整理しましょう。まず今日の作業内容を教えてください。',
   };
   // チャット起動文 (詳細ヒアリング開始)
@@ -1843,6 +1848,9 @@ async function openDM(peerId, name, avatar, isBot) {
   // 安全太郎の時だけクイックアクションバーを出す
   const sqa = document.getElementById('safety-quick-actions');
   if (sqa) sqa.style.display = (peerId === SAFETY_UID) ? 'block' : 'none';
+  // bot 以外の DM 時のみ ⋮ メニューボタンを表示 (ブロック導線)
+  const menuBtn = document.getElementById('chat-menu-btn');
+  if (menuBtn) menuBtn.style.display = (isBot || !peerId) ? 'none' : 'inline-block';
   const hav = document.getElementById('chat-h-av');
   if (avatar) hav.innerHTML = '<img src="' + escapeHtml(avatar) + '">';
   else hav.textContent = (name || '?').slice(0, 2);
@@ -2138,8 +2146,8 @@ function startVoiceConv() {
   vmSetMicState('idle');
   vmStatus('マイクをタップして話す', '「ストップ」と言うか × で終了');
   updateMicBtn();
-  // 起動直後に1回開始
-  setTimeout(() => _vcStartOnce(), 200);
+  // 起動直後に同期で開始 (iOSではユーザージェスチャー外だと recognition.start() がブロックされる)
+  _vcStartOnce();
 }
 function stopVoiceConv() {
   voiceConvActive = false;
@@ -2684,6 +2692,75 @@ async function registerPushM(forceRequest) {
     console.warn('[push] register err', e);
     return false;
   }
+}
+
+// 個人ブロック (DM/肩たたきを物理的に止める)
+async function openBlockListModal() {
+  let modal = document.getElementById('block-list-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'block-list-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10000;display:flex;align-items:flex-end;justify-content:center;';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = '<div style="background:#fff;width:100%;max-width:420px;max-height:85vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;">' +
+    '<div style="padding:14px 18px;background:linear-gradient(135deg,#475569,#334155);color:#fff;display:flex;align-items:center;gap:10px;">' +
+      '<div style="font-size:22px;">🚫</div>' +
+      '<div style="flex:1;"><div style="font-weight:800;font-size:15px;">ブロックリスト</div><div style="font-size:10px;opacity:0.85;">DM・肩たたきを物理的に止めます</div></div>' +
+      '<button onclick="this.closest(\'#block-list-modal\').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>' +
+    '</div>' +
+    '<div id="block-list-body" style="flex:1;overflow-y:auto;padding:10px;background:#f8fafc;"><div style="text-align:center;color:#94a3b8;padding:30px;">読み込み中…</div></div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  try {
+    const j = await api('/api/users/blocks');
+    const list = (j && j.blocks) || [];
+    const body = document.getElementById('block-list-body');
+    if (!list.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;font-size:13px;">ブロック中の相手はいません<br><span style="font-size:11px;color:#cbd5e1;">DM画面右上の ⋮ メニューから追加できます</span></div>'; return; }
+    body.innerHTML = list.map(u => {
+      const initial = (u.display_name || '?').slice(0, 2);
+      const av = u.avatar_url ? '<img src="' + escapeHtml(u.avatar_url) + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">' : '<div style="width:42px;height:42px;border-radius:50%;background:#cbd5e1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">' + escapeHtml(initial) + '</div>';
+      return '<div style="background:#fff;border-radius:10px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">' +
+        av +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;color:#0f172a;">' + escapeHtml(u.display_name || '') + '</div>' +
+        '<div style="font-size:10px;color:#94a3b8;">' + escapeHtml(u.company_code || '') + '</div></div>' +
+        '<button onclick="unblockUser(\'' + escapeHtml(u.id) + '\')" style="background:#e2e8f0;color:#475569;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">解除</button>' +
+        '</div>';
+    }).join('');
+  } catch (e) { document.getElementById('block-list-body').innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;">取得失敗</div>'; }
+}
+async function unblockUser(uid) {
+  if (!confirm('この相手のブロックを解除しますか?')) return;
+  try {
+    await api('/api/users/block/' + encodeURIComponent(uid), { method: 'DELETE' });
+    showToast('ブロック解除しました');
+    openBlockListModal(); // 再描画
+  } catch (e) { showToast('解除失敗'); }
+}
+async function blockCurrentPeer() {
+  if (!openPeerUid || isBotUid(openPeerUid)) return;
+  const u = users[openPeerUid] || {};
+  const name = u.name || '相手';
+  if (!confirm(name + ' をブロックしますか?\nDMと肩たたきが届かなくなります。\n設定→ブロックリストから解除できます。')) return;
+  try {
+    await api('/api/users/block', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: openPeerUid }) });
+    showToast('🚫 ブロックしました');
+    closeChatModal();
+  } catch (e) { showToast('ブロック失敗'); }
+}
+function openChatPeerMenu() {
+  if (!openPeerUid || isBotUid(openPeerUid)) return;
+  // シンプルなアクションシート
+  let sheet = document.getElementById('chat-peer-menu-sheet');
+  if (sheet) sheet.remove();
+  sheet = document.createElement('div');
+  sheet.id = 'chat-peer-menu-sheet';
+  sheet.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:10500;display:flex;align-items:flex-end;justify-content:center;';
+  sheet.onclick = (e) => { if (e.target === sheet) sheet.remove(); };
+  sheet.innerHTML = '<div style="background:#fff;width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:8px 0 calc(8px + env(safe-area-inset-bottom));">' +
+    '<button onclick="document.getElementById(\'chat-peer-menu-sheet\').remove();blockCurrentPeer()" style="width:100%;padding:14px 20px;background:transparent;border:none;text-align:left;font-size:14px;color:#dc2626;cursor:pointer;display:flex;align-items:center;gap:10px;">🚫 この人をブロックする</button>' +
+    '<button onclick="document.getElementById(\'chat-peer-menu-sheet\').remove()" style="width:100%;padding:14px 20px;background:transparent;border:none;text-align:left;font-size:14px;color:#475569;cursor:pointer;display:flex;align-items:center;gap:10px;">キャンセル</button>' +
+    '</div>';
+  document.body.appendChild(sheet);
 }
 
 // PC版で開く (タブレット等で全体UI使いたい時)

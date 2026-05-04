@@ -359,8 +359,12 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const content = String((req.body && req.body.content) || '').slice(0, MAX_CONTENT).trim();
   if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
   const db = getDb();
-  const post = db.prepare('SELECT id, author_id FROM plaza_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  const post = db.prepare('SELECT id, author_id, category FROM plaza_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
+  // 食事投稿はコメント禁止 (👍リアクションのみ、マウント/食事ハラスメント防止)
+  if (post.category === '食事') {
+    return res.status(403).json({ success: false, msg: '食事投稿にはコメントできません (👍のみ)' });
+  }
   const ins = db.prepare('INSERT INTO plaza_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
   const c = db.prepare(`SELECT c.*, u.display_name AS author_name, u.avatar_url AS author_avatar
                         FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id WHERE c.id = ?`).get(ins.lastInsertRowid);
@@ -376,6 +380,28 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const io = req.app && req.app.locals && req.app.locals.io;
   if (io) io.emit('plaza:comment', { post_id: id, comment: c });
   res.json({ success: true, comment: c });
+});
+
+// 未読件数 (新着バッジ用、軽量)
+// last_plaza_seen_at より新しい他人の投稿数。未設定時はゼロ扱い (初訪問でバッジ氾濫を避ける)
+// アーカイブ (cw_posts) は対象外 — 「新着」のみカウント
+router.get('/unread-count', authUser, (req, res) => {
+  const db = getDb();
+  const u = db.prepare('SELECT last_plaza_seen_at FROM users WHERE id = ?').get(req.uid) || {};
+  if (!u.last_plaza_seen_at) {
+    db.prepare("UPDATE users SET last_plaza_seen_at = datetime('now') WHERE id = ?").run(req.uid);
+    return res.json({ success: true, count: 0 });
+  }
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM plaza_posts
+                          WHERE deleted_at IS NULL AND author_id != ? AND created_at > ?`)
+                .get(req.uid, u.last_plaza_seen_at);
+  res.json({ success: true, count: Math.min(row.n || 0, 99) });
+});
+
+// 既読化 (plaza.html を開いたタイミングで叩く)
+router.post('/mark-seen', authUser, (req, res) => {
+  getDb().prepare("UPDATE users SET last_plaza_seen_at = datetime('now') WHERE id = ?").run(req.uid);
+  res.json({ success: true });
 });
 
 module.exports = router;

@@ -75,11 +75,32 @@
 <body>
 
 <header>
-  <button class="back" onclick="location.href='/'">‹ 戻る</button>
+  <button class="back" onclick="goBackToCowell()">‹ 戻る</button>
   <h1>🚨 事故報告書</h1>
 </header>
 
+<script>
+function goBackToCowell() {
+  try {
+    if (window.opener && !window.opener.closed) {
+      window.opener.focus();
+      window.close();
+      return;
+    }
+  } catch (e) {}
+  location.href = '/';
+}
+</script>
+
 <main>
+  <!-- no-blame ポリシー: 報告は再発防止のため。処罰目的ではない -->
+  <div style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1px solid #6ee7b7;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:flex-start;gap:12px;">
+    <div style="font-size:24px;flex-shrink:0;line-height:1;">🌱</div>
+    <div style="font-size:12px;line-height:1.7;color:#065f46;">
+      <b style="color:#047857;">この報告は再発防止のためのものです。報告者を責めることはありません。</b><br>
+      <span style="color:#15803d;">小さなヒヤリも、勇気ある共有が事故を防ぎます。</span>
+    </div>
+  </div>
   <div class="tabs">
     <button class="tab active" data-tab="product" onclick="switchTab('product')">📦 製品事故 <span class="b" id="cnt-product">0</span></button>
     <button class="tab" data-tab="vehicle" onclick="switchTab('vehicle')">🚗 車両事故 <span class="b" id="cnt-vehicle">0</span></button>

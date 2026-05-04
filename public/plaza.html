@@ -639,7 +639,7 @@ function postHtml(p) {
     ${nutri}
     ${!isArchive ? `<div class="post-actions">
       ${reactions}
-      <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>
+      ${p.category === '食事' ? '<span style="font-size:10px;color:#94a3b8;margin-left:auto;">食事投稿は👍のみ (マウント防止)</span>' : `<button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>`}
       ${isPromoter ? `<button class="pcmt-btn" onclick="togglePromoterComments(${p.id})" title="健康管理室向け推進コメント">🩺<span class="cmt-ct" id="pcmt-ct-${p.id}"></span></button>` : ''}
     </div>
     <div class="comments" id="cmts-${p.id}"></div>

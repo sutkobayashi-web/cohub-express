@@ -2317,6 +2317,18 @@ function connectSocket() {
       showToast('🔴 この会話は管理者により録音されています');
     }
   });
+  // 録音同意フロー: メンバーが同意プロンプトを受け取る
+  socket.on('recording:consent-prompt', (data) => {
+    showRecordingConsentPrompt(data);
+  });
+  // 録音同意フロー: 管理者が結果を受け取る
+  socket.on('recording:start-allowed', (data) => {
+    showToast('✅ 同意確認完了 (' + (data.agreedCount || 0) + '/' + (data.totalCount || 0) + ')');
+    startRecording().catch(e => showToast('録音開始失敗: ' + e.message));
+  });
+  socket.on('recording:start-denied', (data) => {
+    showToast('🚫 録音開始できません: ' + (data.msg || ''));
+  });
 
   // 部屋の施錠状態
   socket.on('room:lockstate', (data) => {
@@ -7753,10 +7765,46 @@ async function stopScreenShare() {
   if (socket) socket.emit('screen:state', { on: false });
 }
 
-// ===== 録音機能 (管理者) =====
+// 録音同意プロンプト: フロアメンバーへ「録音されることに同意しますか?」モーダル
+function showRecordingConsentPrompt(data) {
+  if (document.getElementById('rec-consent-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'rec-consent-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const adminName = (data && data.adminName) || '管理者';
+  const floor = (data && data.floor) || '';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+        '<div style="font-size:30px;">🎙️</div>' +
+        '<div><div style="font-weight:800;font-size:15px;color:#0f172a;">録音への同意</div>' +
+        '<div style="font-size:11px;color:#64748b;">' + (adminName || '管理者').replace(/[<>"&]/g, '') + ' が録音を開始しようとしています</div></div>' +
+      '</div>' +
+      '<div style="font-size:12px;line-height:1.7;color:#374151;background:#fef3c7;border-radius:8px;padding:10px;margin-bottom:14px;">この部屋の会話 (あなたの発言を含む) が録音されます。<br>許可すると録音が開始され、画面上部に🔴バナーが表示されます。<br><b>1人でも拒否すると録音は開始されません。</b></div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button id="rec-deny-btn" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;">🚫 拒否</button>' +
+        '<button id="rec-agree-btn" style="flex:2;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;">✅ 同意する</button>' +
+      '</div>' +
+      '<div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:8px;">30秒以内に応答してください</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  const respond = (ok) => {
+    if (socket) socket.emit('recording:consent', { floor, ok });
+    modal.remove();
+  };
+  document.getElementById('rec-agree-btn').onclick = () => respond(true);
+  document.getElementById('rec-deny-btn').onclick = () => respond(false);
+  // 30秒で自動拒否 (沈黙=同意は危険)
+  setTimeout(() => { if (document.getElementById('rec-consent-modal')) { respond(false); } }, 28000);
+}
+
+// ===== 録音機能 (管理者、同意フロー必須) =====
 async function toggleRecording() {
   if (voice.recorder) { stopRecording(); return; }
-  await startRecording();
+  // 同意フロー: サーバが同フロアメンバー全員の同意を取り、結果に応じて開始
+  if (!socket) { showToast('接続なし'); return; }
+  socket.emit('recording:request');
+  showToast('🎙 同意確認中… (最大30秒)');
 }
 
 async function startRecording() {

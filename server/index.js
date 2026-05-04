@@ -263,6 +263,32 @@ app.use('/api/walk', require('./routes/walk'));
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
 const { authUser } = require('./middleware/auth');
+// 個人ブロック: 自分のブロック一覧
+app.get('/api/users/blocks', authUser, (req, res) => {
+  const rows = getDb().prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url, ub.created_at, ub.reason
+    FROM user_blocks ub JOIN users u ON u.id = ub.blocked_id
+    WHERE ub.blocker_id = ? ORDER BY ub.created_at DESC`).all(req.uid);
+  res.json({ success: true, blocks: rows });
+});
+// 個人ブロック: 追加
+app.post('/api/users/block', authUser, express.json(), (req, res) => {
+  const blockedId = (req.body && req.body.uid || '').toString();
+  const reason = (req.body && req.body.reason || '').toString().slice(0, 200) || null;
+  if (!blockedId || blockedId === req.uid) return res.status(400).json({ success: false, msg: '不正な対象' });
+  const target = getDb().prepare('SELECT id, role FROM users WHERE id = ?').get(blockedId);
+  if (!target) return res.status(404).json({ success: false, msg: 'ユーザー未存在' });
+  if (target.role === 'bot') return res.status(400).json({ success: false, msg: 'botはブロックできません' });
+  getDb().prepare('INSERT OR REPLACE INTO user_blocks (blocker_id, blocked_id, reason) VALUES (?, ?, ?)').run(req.uid, blockedId, reason);
+  res.json({ success: true });
+});
+// 個人ブロック: 解除
+app.delete('/api/users/block/:uid', authUser, (req, res) => {
+  const blockedId = req.params.uid;
+  if (!blockedId) return res.status(400).json({ success: false });
+  getDb().prepare('DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?').run(req.uid, blockedId);
+  res.json({ success: true });
+});
+
 app.get('/api/floor-presence/:code', authUser, (req, res) => {
   const code = req.params.code;
   const inFloor = floorUserList(code).filter(u => u.floor === code && u.status !== 'offline');
@@ -519,6 +545,43 @@ function canDm(sender, receiver) {
 }
 function loadUserForDm(uid) {
   return getDb().prepare('SELECT id, role, dm_group, dm_rank FROM users WHERE id = ?').get(uid);
+}
+
+// 録音同意ペンディング状態 (floor → state)
+const pendingRecConsents = new Map();
+function finalizeRecConsent(floor, isTimeout) {
+  const state = pendingRecConsents.get(floor);
+  if (!state) return;
+  if (state.timer) clearTimeout(state.timer);
+  pendingRecConsents.delete(floor);
+  const adminPresence = presence.get(state.adminUid);
+  if (!adminPresence) return;
+  const adminSocket = io.sockets.sockets.get(adminPresence.socketId);
+  if (!adminSocket) return;
+  let agreed = 0, denied = 0, pending = 0;
+  for (const v of state.responses.values()) {
+    if (v === 'ok') agreed++;
+    else if (v === 'no') denied++;
+    else pending++;
+  }
+  if (denied === 0 && pending === 0) {
+    adminSocket.emit('recording:start-allowed', { agreedCount: agreed, totalCount: state.total });
+  } else {
+    adminSocket.emit('recording:start-denied', {
+      reason: denied > 0 ? 'denied' : 'timeout',
+      msg: denied > 0 ? state.deniers.join(', ') + ' が拒否しました' : pending + '名から30秒以内に応答がありませんでした',
+      agreedCount: agreed, deniedCount: denied, pendingCount: pending,
+    });
+  }
+}
+
+// 個人ブロック判定: blocker が blocked をブロックしているか
+function isBlocked(blockerUid, blockedUid) {
+  if (!blockerUid || !blockedUid || blockerUid === blockedUid) return false;
+  try {
+    const r = getDb().prepare('SELECT 1 FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?').get(blockerUid, blockedUid);
+    return !!r;
+  } catch (e) { return false; }
 }
 
 function allFloors() {
@@ -868,6 +931,8 @@ io.on('connection', (socket) => {
     if (!target.isBot) {
       const dx = sender.x - target.x, dy = sender.y - target.y;
       if (Math.sqrt(dx * dx + dy * dy) > 440) return;
+      // 個人ブロック判定 (相手が自分をブロックしてたら届けない、無音で握りつぶし)
+      if (isBlocked(targetUid, uid)) return;
     }
     const key = uid + ':' + targetUid;
     const now = Date.now();
@@ -1086,6 +1151,16 @@ io.on('connection', (socket) => {
     const sender = loadUserForDm(uid);
     if (!canDm(sender, target)) {
       socket.emit('dm:blocked', { to, reason: 'hierarchy', msg: 'この相手にはDMできません。上司経由でご連絡ください。' });
+      return;
+    }
+    // 個人ブロック判定: 受信者が送信者をブロックしている場合は配信せず通知
+    if (isBlocked(to, uid)) {
+      socket.emit('dm:blocked', { to, reason: 'blocked', msg: 'メッセージは届きませんでした (相手の設定による)' });
+      return;
+    }
+    // 自分が相手をブロックしている場合は送信前に注意 (誤送信防止)
+    if (isBlocked(uid, to)) {
+      socket.emit('dm:blocked', { to, reason: 'self_blocked', msg: 'この相手をブロック中です。設定から解除してから送信してください' });
       return;
     }
     const a = data && data.attach && data.attach.url ? data.attach : null;
@@ -1529,6 +1604,61 @@ ${latestReport.summary}
   });
 
   // 録音 状態通知 (管理者のみ、同フロアに通知＝被録音者に開示)
+  // 録音同意フロー: 管理者が録音開始前にフロアメンバー全員の同意を取る
+  socket.on('recording:request', () => {
+    const p = presence.get(uid);
+    if (!p) return;
+    if (socket.role !== 'admin') {
+      socket.emit('recording:start-denied', { reason: 'not-admin', msg: '管理者のみ録音できます' });
+      return;
+    }
+    const floor = p.floor;
+    const others = [];
+    for (const [u, vv] of presence) {
+      if (u === uid) continue;
+      if (vv.floor !== floor) continue;
+      if (vv.status === 'offline') continue;
+      if (vv.isBot) continue;
+      others.push(u);
+    }
+    if (others.length === 0) {
+      socket.emit('recording:start-allowed', { agreedCount: 0, totalCount: 0 });
+      return;
+    }
+    const responses = new Map();
+    for (const u of others) responses.set(u, 'pending');
+    const state = { adminUid: uid, floor, startedAt: Date.now(), responses, total: others.length, deniers: [], timer: null };
+    pendingRecConsents.set(floor, state);
+    state.timer = setTimeout(() => finalizeRecConsent(floor, true), 30000);
+    const adminUser = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid);
+    const adminName = (adminUser && adminUser.display_name) || '管理者';
+    for (const u of others) {
+      const tp = presence.get(u);
+      if (tp && !tp.isBot) {
+        const s = io.sockets.sockets.get(tp.socketId);
+        if (s) s.emit('recording:consent-prompt', { floor, adminUid: uid, adminName });
+      }
+    }
+    socket.emit('recording:consent-pending', { totalCount: others.length });
+  });
+  socket.on('recording:consent', (data) => {
+    const floor = data && data.floor;
+    const ok = !!(data && data.ok);
+    if (!floor) return;
+    const state = pendingRecConsents.get(floor);
+    if (!state) return;
+    if (!state.responses.has(uid)) return;
+    if (state.responses.get(uid) !== 'pending') return;
+    state.responses.set(uid, ok ? 'ok' : 'no');
+    if (!ok) {
+      const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid);
+      state.deniers.push((u && u.display_name) || '匿名');
+    }
+    let allDone = true;
+    for (const v of state.responses.values()) if (v === 'pending') { allDone = false; break; }
+    if (allDone) finalizeRecConsent(floor, false);
+  });
+
   socket.on('recording:state', (data) => {
     if (socket.role !== 'admin') return;
     const p = presence.get(uid);
