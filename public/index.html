@@ -3355,28 +3355,11 @@ function drawWellnessWhiteboard() {
 
   // bot は右側 world (1100, 560), 全身440px → 範囲 880-1320
   // 背景画像のホワイトボード位置 (中央〜やや左) に重ねて表示することで一体感を出す
-  const x = 304, y = 90;  // 5/4: 隠し扉実装で部屋構造変更に伴い 2cm 左へ (380→304)
-  const w = 540, h = 290;
-  // 木製フレーム (外枠)
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.35)';
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 6;
-  // フレーム
-  const fg = ctx.createLinearGradient(x, y, x, y + h);
-  fg.addColorStop(0, '#a98264');
-  fg.addColorStop(1, '#7a5a3f');
-  ctx.fillStyle = fg;
-  roundRect(x - 10, y - 10, w + 20, h + 20, 14);
-  ctx.fill();
-  ctx.restore();
-  // ホワイトボード本体 (白)
-  const bg = ctx.createLinearGradient(x, y, x, y + h);
-  bg.addColorStop(0, '#ffffff');
-  bg.addColorStop(1, '#f1f5f9');
-  ctx.fillStyle = bg;
-  roundRect(x, y, w, h, 8);
-  ctx.fill();
+  // 5/4 リデザイン後: 背景画像に大型ホワイトボード+木製フレームが既に描画されているため
+  // ここではテキストコンテンツのみオーバーレイ (二重フレーム回避)
+  const x = 230, y = 150;  // 背景の白板内部に位置合わせ
+  const w = 580, h = 200;
+  // 木製フレーム/白背景 = 背景画像に既にあるので描画しない
   // 上端の磁石飾り
   ctx.fillStyle = '#ef4444';
   ctx.beginPath(); ctx.arc(x + 30, y + 14, 8, 0, Math.PI * 2); ctx.fill();
@@ -4415,9 +4398,8 @@ function drawConciergeStanding(u) {
   grad.addColorStop(1, 'rgba(6,182,212,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
-  // 本体 (wellness_room の bot_health, promoter_club の bot_master は反転で内側を向かせる)
-  const flipH = (currentFloor && currentFloor.code === 'wellness_room' && u.uid === 'bot_health')
-              || (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master');
+  // 本体: bot_master のみ内向き反転 (wellness_room bot_health は 5/4以降 反転解除)
+  const flipH = currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master';
   // 下半身クリップ (カウンター越しに上半身だけ見せたい場合)
   // promoter_club master: y=384(中央)+ clip 0.55 で頭は上1/4、切れ目はカウンター天板付近
   const clipBottom = (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master') ? 0.55 : 1.0;
