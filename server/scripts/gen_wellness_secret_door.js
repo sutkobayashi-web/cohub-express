@@ -64,31 +64,42 @@ const ROOM_PROMPT = `現代的な企業内の**健康管理室 (奥行きのあ�
 - 正面の壁にホワイトボードが見える構図 (奥行き感が伝わる)
 - 文字は「Wellness」と扉上「Staff Lounge」のみ`;
 
-// 5/4: ヘルスアドバイザーを若返り (20代後半) + ショートカット に再生成
-const ADVISOR_PROMPT = `**産業保健の AI ヘルスアドバイザー**の**若い女性**キャラクター立ち姿を生成してください。
+// 5/4 (再): ヘルスアドバイザー — 若返り+ショート+グラマラス、全身を必ず入れる
+const ADVISOR_PROMPT = `**産業保健の AI ヘルスアドバイザー**の**若い女性**キャラクター**全身**立ち姿を生成してください。
+**最重要**: 必ず**頭のてっぺんから靴のつま先まで全身を1枚に収める縦長構図**。胸像/上半身切れの構図は絶対NG。
 
 【キャラクター】
 - **20代後半**の親しみやすい印象の女性 (アジア系)
-- **ショートカット** (耳が見える短めのボブ〜ベリーショート、サイドはすっきり)
+- **ショートカット** (耳が見える短めのボブ〜ベリーショート、サイドはすっきり、襟足はタイト)
 - 髪色は自然な黒〜ダークブラウン
 - 表情: 明るく爽やか、信頼できる優しい笑顔 (口角少し上)
-- 体型: スマート、健康的
-- **淡い水色のスクラブ (医療用ユニフォーム)** 上下、白衣ではなくスポーティな印象
+- **体型: 健康的でグラマラス** — メリハリのあるバスト/ウエスト/ヒップのライン、痩せすぎず女性らしい曲線美
+- **淡い水色のスクラブ (医療用ユニフォーム)** 上下:
+  - 上はやや体のラインに沿った Vネック または スクープネックでウエストの絞りが分かる
+  - パンツはストレートまたは少しテーパード、丈は足首あたり
+  - 裾から白いスニーカー (足元まで必ず描く)
 - 名札は無地、固有名は無し
-- ポーズ: 正面向きで両手を体の前で軽く重ねる (相談を歓迎する姿勢)
+- ポーズ: 正面向きで両手を体の前で軽く重ねる (相談を歓迎する姿勢)。**両足は床に着いて見える**こと
 - アクセサリー控えめ (ピアスや細いネックレス程度OK)
+
+【構図 (最重要)】
+- **キャンバスの上端から下端まで頭〜足が完全に収まる縦長フルショット**
+- 頭の上に少し余白、足元に少し床の影 (または余白)
+- 上半身だけ・腰までで切れる構図はNG
+- アスペクト比は縦長 (3:4 〜 9:16 程度の縦長キャンバス)
 
 【スタイル】
 - リアル写真調 (Pixar/アニメではない、実写ベース)
-- 全身が入る縦長構図 (頭から足まで、背景は**完全に白 #FFFFFF**)
-- 背景に余計な装飾やグラデーションを入れない (透過処理用)
-- 立ち姿の影は最小限
+- 背景は**完全に純白 #FFFFFF** (アンチエイリアスでも他色を混ぜない、グラデ禁止)
+- 背景に余計な装飾やグラデーションを入れない (後でクライアント側で四隅から flood-fill 透過処理するため)
+- 立ち姿の影は最小限 (足元の薄い楕円影程度OK、それ以外影なし)
 
-【重要】
-- 背景は**真っ白(無地)**にしてください (後でクライアント側で透過処理)
-- キャラクター以外の物体 (机、椅子、医療器具等) を入れない
-- 顔は具体的すぎない、誰にでも親しみやすい平均的な造形
-- 「年齢が若く感じる、ショートカットで爽やか、医療現場の頼れる若手」という印象`;
+【絶対禁止】
+- 背景に色がつくこと (純白以外NG、薄いグレーやベージュも禁止)
+- 上半身だけの構図 (足が描かれていない構図NG)
+- 椅子、机、医療器具、書類などの小物
+- 服装の色が水色以外 (白衣NG、ピンクNG)
+- 派手なメイクや過度なセクシュアル表現 (健康的・上品な範囲のグラマラス)`;
 
 async function geminiImage(prompt, label) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey;
@@ -110,27 +121,30 @@ async function geminiImage(prompt, label) {
   throw new Error('画像が返ってきませんでした');
 }
 
-// 引数: --room-only でアドバイザー再生成スキップ (room-only 再描画用)
+// 引数: --room-only でアドバイザー再生成スキップ / --advisor-only で部屋スキップ
 const ROOM_ONLY = process.argv.includes('--room-only');
+const ADVISOR_ONLY = process.argv.includes('--advisor-only');
 
 (async () => {
   // 1) 部屋画像
-  try {
-    if (fs.existsSync(ROOM_OUT)) fs.copyFileSync(ROOM_OUT, ROOM_OUT + '.bak.' + Date.now());
-    const tmpRoom = ROOM_OUT + '.raw';
-    fs.writeFileSync(tmpRoom, await geminiImage(ROOM_PROMPT, 'wellness_room_secret'));
-    execSync(`ffmpeg -y -i ${tmpRoom} -vf "crop=in_w:in_w*9/16:0:(in_h-in_w*9/16)/2,scale=1344:768" -update 1 -frames:v 1 ${ROOM_OUT}`, { stdio: 'inherit' });
-    fs.unlinkSync(tmpRoom);
-    console.log('✅ 健康管理室+隠し扉:', ROOM_OUT);
-  } catch (e) {
-    console.error('部屋画像失敗:', e.message);
+  if (!ADVISOR_ONLY) {
+    try {
+      if (fs.existsSync(ROOM_OUT)) fs.copyFileSync(ROOM_OUT, ROOM_OUT + '.bak.' + Date.now());
+      const tmpRoom = ROOM_OUT + '.raw';
+      fs.writeFileSync(tmpRoom, await geminiImage(ROOM_PROMPT, 'wellness_room_secret'));
+      execSync(`ffmpeg -y -i ${tmpRoom} -vf "crop=in_w:in_w*9/16:0:(in_h-in_w*9/16)/2,scale=1344:768" -update 1 -frames:v 1 ${ROOM_OUT}`, { stdio: 'inherit' });
+      fs.unlinkSync(tmpRoom);
+      console.log('✅ 健康管理室+隠し扉:', ROOM_OUT);
+    } catch (e) {
+      console.error('部屋画像失敗:', e.message);
+    }
   }
-  // 2) ヘルスアドバイザー (若返り+ショート) — --room-only でスキップ
+  // 2) ヘルスアドバイザー (若返り+ショート+グラマラス全身) — --room-only でスキップ
   if (!ROOM_ONLY) {
     try {
       if (fs.existsSync(ADVISOR_OUT)) fs.copyFileSync(ADVISOR_OUT, ADVISOR_OUT + '.bak.' + Date.now());
-      fs.writeFileSync(ADVISOR_OUT, await geminiImage(ADVISOR_PROMPT, 'advisor_v2'));
-      console.log('✅ ヘルスアドバイザー (若返り):', ADVISOR_OUT);
+      fs.writeFileSync(ADVISOR_OUT, await geminiImage(ADVISOR_PROMPT, 'advisor_v3'));
+      console.log('✅ ヘルスアドバイザー (グラマラス全身):', ADVISOR_OUT);
     } catch (e) {
       console.error('アドバイザー失敗:', e.message);
     }
