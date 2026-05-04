@@ -2946,8 +2946,10 @@ async function loadFloorList() {
         ${cnt ? `<span class="cnt">${cnt}</span>` : ''}
       </button>`;
     };
-    const office = (d.floors || []).filter(f => !f.building || f.building === 'office');
-    const field = (d.floors || []).filter(f => f.building === 'field');
+    // 隠し部屋 (推進カフェ等) はフロア一覧から除外。健康管理室の avatar-intro-card 経由でアクセス
+    const HIDDEN = new Set(['promoter_club']);
+    const office = (d.floors || []).filter(f => (!f.building || f.building === 'office') && !HIDDEN.has(f.code));
+    const field = (d.floors || []).filter(f => f.building === 'field' && !HIDDEN.has(f.code));
     // 旧: 棟・フロアリストに「🏥 健康管理室」ボタンを差込していたが、
     // クイックメニューの「📋 健康記録」と重複していたため撤去
     let officeHtml = '';

@@ -623,9 +623,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>📣</span><span class="lbl">現場の声</span>
     </button>
-    <button class="rail-btn" id="rail-promoter-club" onclick="switchFloor('promoter_club')" title="推進カフェ (推進メンバー部室)" style="display:none;background:rgba(146,64,14,0.10);border:1px solid rgba(146,64,14,0.35);color:#78350f;">
-      <span>☕</span><span class="lbl">推進カフェ</span>
-    </button>
+    <!-- 推進カフェ (隠し部屋) は健康管理室の avatar-intro-card 経由でアクセス -->
     <button class="rail-btn" onclick="window.open('/report','cowell_report')" title="外部相談窓口 (NPO/専門家に直接、社内非公開)" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#065f46;">
       <span>🆘</span><span class="lbl">外部相談</span>
     </button>
@@ -5516,7 +5514,7 @@ const AVATAR_INTRO_CONFIG = {
       ];
       if (_isPromoter()) {
         items.push({ emoji: '📖', label: '推進メンバーへのメッセージ (西村先生)', onclick: "openExternalPage('/orientation.html')" });
-        items.push({ emoji: '🚪', label: '運営ダッシュボード', onclick: "openExternalPage('/wellness-ops.html')" });
+        items.push({ emoji: '☕', label: '推進カフェへ (運営サロン)', onclick: "switchFloor('promoter_club')" });
       }
       return items;
     },
@@ -5536,14 +5534,15 @@ const AVATAR_INTRO_CONFIG = {
   promoter_club: {
     icon: '☕',
     iconBg: 'linear-gradient(135deg, #92400e, #78350f)',
-    title: 'マスターです',
-    sub: 'いらっしゃい、まずは1杯どうぞ。今日のTodoから見ていきますか?',
+    title: 'マスター (運営サロン)',
+    sub: 'いらっしゃい、まずは1杯どうぞ。運営ダッシュボードはこちら ↓',
     actions: () => [
-      { emoji: '📍', label: '今日のあなた (Todo + 貢献ランキング)', onclick: "openExternalPage('/wellness-ops.html')" },
+      { emoji: '📊', label: '運営ダッシュボード (Todo・施策・ランキング)', onclick: "openExternalPage('/wellness-ops.html')" },
+      { emoji: '🩺', label: '個人プラン Dashboard (全社俯瞰)', onclick: "openExternalPage('/myplan-ops.html')" },
       { emoji: '💬', label: 'マスターに相談', onclick: "openDM('bot_master')" },
-      { emoji: '🩺', label: '個人プラン Dashboard', onclick: "openExternalPage('/myplan-ops.html')" },
+      { emoji: '📋', label: '健診データ分析 (個人記録ハブ)', onclick: "location.href='/wellness.html'" },
       { emoji: '🌳', label: 'みんなの広場', onclick: "location.href='/plaza.html'" },
-      { emoji: '🏥', label: '健康管理室へ移動', onclick: "switchFloor('wellness_room')" },
+      { emoji: '🏥', label: '健康管理室へ戻る', onclick: "switchFloor('wellness_room')" },
     ],
   },
 };
@@ -6097,12 +6096,14 @@ function togglePanel(forceHide) {
   setTimeout(resize, 280);
 }
 
+// 隠し部屋: フロア一覧/俯瞰から除外。健康管理室intro card経由でのみアクセス可
+const HIDDEN_FLOORS = new Set(['promoter_club']);
 function renderRailFloors() {
   const host = document.getElementById('rail-floors');
   if (!host || !allFloors) return;
-  // 棟別にグループ化
-  const officeFloors = allFloors.filter(f => !f.building || f.building === 'office');
-  const fieldFloors = allFloors.filter(f => f.building === 'field');
+  // 棟別にグループ化 (隠し部屋は除外)
+  const officeFloors = allFloors.filter(f => (!f.building || f.building === 'office') && !HIDDEN_FLOORS.has(f.code));
+  const fieldFloors = allFloors.filter(f => f.building === 'field' && !HIDDEN_FLOORS.has(f.code));
   const renderBtn = (f) => {
     const isCur = currentFloor && currentFloor.code === f.code;
     const count = floorCounts[f.code] || 0;
@@ -8244,8 +8245,8 @@ function showSelfFloorMenu(screenX, screenY) {
   const menu = document.getElementById('peer-menu');
   if (!menu || !allFloors) return;
   _peerMenuOpenAt = Date.now();
-  const officeFloors = allFloors.filter(f => !f.building || f.building === 'office');
-  const fieldFloors = allFloors.filter(f => f.building === 'field');
+  const officeFloors = allFloors.filter(f => (!f.building || f.building === 'office') && !HIDDEN_FLOORS.has(f.code));
+  const fieldFloors = allFloors.filter(f => f.building === 'field' && !HIDDEN_FLOORS.has(f.code));
   const renderRow = (f) => {
     const isCur = currentFloor && currentFloor.code === f.code;
     const lockMark = f.locked ? ' 🔒' : (f.approval_mode ? ' 🔔' : '');
