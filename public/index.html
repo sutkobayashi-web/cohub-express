@@ -2790,8 +2790,10 @@ function loadBotStanding(botUid, src) {
       const data = id.data;
       const visited = new Uint8Array(w * h);
       const stack = [];
-      stack.push(0, w - 1, (h - 1) * w, (h - 1) * w + w - 1);
-      const THRESH = 235;
+      // 5/4: 4隅 only → 全エッジ seed に拡張。肘脇の白背景まで到達させる
+      for (let xs = 0; xs < w; xs++) { stack.push(xs); stack.push((h - 1) * w + xs); }
+      for (let ys = 0; ys < h; ys++) { stack.push(ys * w); stack.push(ys * w + w - 1); }
+      const THRESH = 225;  // 235 → 225 (anti-alias勾配で詰まる対策、若干緩め)
       while (stack.length) {
         const idx = stack.pop();
         if (idx < 0 || idx >= w * h || visited[idx]) continue;
