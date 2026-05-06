@@ -99,6 +99,46 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 .err-msg { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 10px 0; display: none; }
 .err-msg.show { display: block; }
 
+/* 対話型アクションプラン (Phase 1) */
+.dlg-cta { background: linear-gradient(135deg,#10b981,#059669); color: #fff; border: none; border-radius: 14px; padding: 16px 18px; width: 100%; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(16,185,129,0.30); margin-bottom: 14px; display: flex; align-items: center; gap: 12px; text-align: left; }
+.dlg-cta .dlg-cta-ico { font-size: 28px; }
+.dlg-cta .dlg-cta-text { flex: 1; line-height: 1.35; }
+.dlg-cta .dlg-cta-sub { font-size: 11px; font-weight: 600; opacity: 0.9; margin-top: 3px; }
+
+.dlg-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: none; align-items: flex-end; justify-content: center; z-index: 200; }
+.dlg-overlay.show { display: flex; }
+.dlg-modal { width: 100%; max-width: 640px; max-height: 90vh; background: #f0f9ff; border-top-left-radius: 18px; border-top-right-radius: 18px; display: flex; flex-direction: column; box-shadow: 0 -4px 20px rgba(0,0,0,0.18); }
+.dlg-head { background: linear-gradient(135deg,#10b981,#059669); color: #fff; padding: 12px 16px; border-top-left-radius: 18px; border-top-right-radius: 18px; display: flex; align-items: center; gap: 10px; }
+.dlg-head .dlg-title { flex: 1; font-weight: 800; font-size: 14px; }
+.dlg-head .dlg-close { background: rgba(255,255,255,0.22); border: none; color: #fff; padding: 6px 12px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dlg-body { flex: 1; overflow-y: auto; padding: 14px; -webkit-overflow-scrolling: touch; }
+.dlg-msg { margin-bottom: 12px; display: flex; gap: 8px; align-items: flex-start; }
+.dlg-msg.ai .dlg-bubble { background: #fff; color: #1f2937; border-bottom-left-radius: 4px; border: 1px solid #d1fae5; }
+.dlg-msg.user { flex-direction: row-reverse; }
+.dlg-msg.user .dlg-bubble { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border-bottom-right-radius: 4px; }
+.dlg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.dlg-msg .dlg-avatar { width: 36px; height: 36px; border-radius: 50%; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.10); overflow: hidden; }
+.dlg-msg .dlg-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.dlg-msg.user .dlg-avatar { background: #3b82f6; color: #fff; font-weight: 700; }
+.dlg-choices { padding: 10px 14px 6px; display: flex; flex-direction: column; gap: 8px; background: #fff; border-top: 1px solid #d1fae5; }
+.dlg-choice-btn { padding: 11px 14px; background: linear-gradient(135deg,#ecfdf5,#d1fae5); color: #065f46; border: 1.5px solid #6ee7b7; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; text-align: left; transition: transform 0.05s; }
+.dlg-choice-btn:hover { background: linear-gradient(135deg,#d1fae5,#a7f3d0); }
+.dlg-choice-btn:active { transform: scale(0.98); }
+.dlg-free-row { display: flex; gap: 6px; margin-top: 4px; }
+.dlg-free-row input { flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13.5px; outline: none; }
+.dlg-free-row button { padding: 10px 14px; background: #0d9488; color: #fff; border: none; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.dlg-loading { padding: 14px; text-align: center; color: #64748b; font-size: 12px; }
+.dlg-disclaimer { padding: 8px 14px; font-size: 10px; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0; line-height: 1.6; }
+
+/* 確定パネル (finalize_ready=true で表示) */
+.dlg-finalize { padding: 14px; background: linear-gradient(135deg,#fffbeb,#fef3c7); border-top: 2px solid #f59e0b; }
+.dlg-final-action { font-size: 14.5px; font-weight: 800; color: #78350f; margin-bottom: 8px; padding: 10px 12px; background: #fff; border-radius: 8px; border-left: 4px solid #f59e0b; line-height: 1.6; }
+.dlg-final-evidence { font-size: 11px; color: #92400e; margin-bottom: 10px; padding: 6px 10px; background: rgba(255,255,255,0.6); border-radius: 6px; line-height: 1.5; }
+.dlg-when-row, .dlg-conf-row { margin-bottom: 8px; }
+.dlg-when-row label, .dlg-conf-row label { font-size: 11px; font-weight: 700; color: #78350f; display: block; margin-bottom: 4px; }
+.dlg-when-row select, .dlg-conf-row input { width: 100%; padding: 8px 10px; border: 1px solid #fbbf24; border-radius: 8px; font-size: 13px; background: #fff; }
+.dlg-confirm-btn { width: 100%; padding: 12px; background: linear-gradient(135deg,#10b981,#059669); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 8px rgba(16,185,129,0.3); margin-top: 6px; }
+
 /* ログイン */
 .login-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
 .login-overlay.show { display: flex; }
@@ -126,6 +166,20 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
     <div class="loading">読み込み中…</div>
   </div>
 </main>
+
+<!-- 対話型アクションプラン モーダル (Phase 1) -->
+<div class="dlg-overlay" id="dlg-overlay" onclick="if(event.target===this)closeDialog()">
+  <div class="dlg-modal">
+    <div class="dlg-head">
+      <img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス" style="width:36px;height:36px;border-radius:50%;object-fit:cover;object-position:center top;border:2px solid rgba(255,255,255,0.6);background:#fff;flex-shrink:0;">
+      <div class="dlg-title">AIヘルスアドバイザーと相談</div>
+      <button class="dlg-close" onclick="closeDialog()">閉じる</button>
+    </div>
+    <div class="dlg-body" id="dlg-body"></div>
+    <div id="dlg-bottom"></div>
+    <div class="dlg-disclaimer">※ 健康増進アドバイスです。診断・治療ではありません。医療判断は主治医にご相談ください。</div>
+  </div>
+</div>
 
 <div class="login-overlay" id="login-overlay">
   <div class="login-card">
@@ -192,6 +246,14 @@ function relTime(iso) {
   return (d.getMonth() + 1) + '/' + d.getDate();
 }
 
+function dialogCtaHtml() {
+  return '<button class="dlg-cta" onclick="openDialog()">' +
+    '<span class="dlg-cta-ico">💬</span>' +
+    '<span class="dlg-cta-text">AIと対話して今日の一歩を決める' +
+    '<span class="dlg-cta-sub">あなたの食事ログを見ながら4〜5往復で実行できる行動を一緒に決めます</span>' +
+    '</span></button>';
+}
+
 function renderEmpty() {
   let feedHtml = '';
   if (window._feed) {
@@ -214,10 +276,10 @@ function renderEmpty() {
   }
   document.getElementById('content').innerHTML =
     feedHtml +
+    dialogCtaHtml() +
     '<div class="empty-state">' +
     '<div class="ico">📋</div>' +
-    '<div class="msg">まだあなたのプランはありません。<br>健康管理室で相談すると、あなたに合ったプランが届きます。</div>' +
-    '<button class="btn" onclick="goConsult()">🩺 相談を始める</button>' +
+    '<div class="msg">まだあなたのプランはありません。<br>上の <b>💬 AIと対話</b> ボタンから始めてみましょう。</div>' +
     '</div>';
 }
 
@@ -238,8 +300,9 @@ function renderPlan(plan) {
     '</div>' : '';
 
   let html = '';
+  html += dialogCtaHtml();
   html += '<div class="advisor">' +
-    '<img class="advisor-avatar" src="/assets/concierge_health_avatar.png" alt="ヘルスアドバイザー">' +
+    '<img class="advisor-avatar" src="/assets/concierge_health_avatar.png?v=8" alt="ヘルスアドバイザー">' +
     '<div class="advisor-text">' +
     '<div class="advisor-name">🩺 ヘルスアドバイザーから</div>' +
     '<div class="advisor-msg">あなたの相談内容と食事ログ・血圧記録から、無理なく続けられそうなプランを作ったよ。</div>' +
@@ -295,7 +358,7 @@ function renderPlan(plan) {
   html += '<div class="actions">' +
     '<button class="btn btn-primary" onclick="goConsult()">🔄 もう一度相談する</button>' +
     '<button class="btn btn-secondary" onclick="goRecords()">📋 健康記録 (血圧・健診)</button>' +
-    '<button class="btn btn-secondary" onclick="goPlaza()">🌳 みんなの広場</button>' +
+    '<button class="btn btn-secondary" onclick="goPlaza()">🌳 みんなの投稿</button>' +
     '</div>';
 
   // 履歴
@@ -367,6 +430,151 @@ async function init() {
     renderPlan(currentPlan);
   } catch (e) {
     document.getElementById('content').innerHTML = '<div class="loading">通信エラー</div>';
+  }
+}
+
+// ============================================================
+// 対話型アクションプラン (Phase 1) — フロント
+// ============================================================
+let _dlgId = null;
+let _dlgHistory = [];
+let _dlgPending = false;
+
+function openDialog() {
+  document.getElementById('dlg-overlay').classList.add('show');
+  _dlgId = null; _dlgHistory = [];
+  document.getElementById('dlg-body').innerHTML = '';
+  document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading"><img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス" style="width:20px;height:20px;border-radius:50%;object-fit:cover;object-position:center top;vertical-align:middle;margin-right:6px;background:#fff;"> ヘルスアドバイザーが現状を確認中…</div>';
+  // 1往復目: AIに最初の質問を投げてもらう
+  postDialog({ seed_category: 'meal' });
+}
+
+function closeDialog() {
+  document.getElementById('dlg-overlay').classList.remove('show');
+}
+
+function appendMsgToBody(msg) {
+  const body = document.getElementById('dlg-body');
+  const isAi = msg.role === 'ai';
+  const div = document.createElement('div');
+  div.className = 'dlg-msg ' + (isAi ? 'ai' : 'user');
+  const avatarHtml = isAi
+    ? '<img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス">'
+    : '🙋';
+  div.innerHTML =
+    `<div class="dlg-avatar">${avatarHtml}</div>` +
+    `<div class="dlg-bubble">${escapeHtml(msg.text || '')}</div>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function renderChoicesAndInput(step) {
+  const bottom = document.getElementById('dlg-bottom');
+  if (step.finalize_ready && step.finalize) {
+    // 確定パネル
+    const f = step.finalize;
+    const whenOpts = (Array.isArray(f.when_options) && f.when_options.length) ? f.when_options : ['今日から', '明日', '週末'];
+    bottom.innerHTML =
+      '<div class="dlg-finalize">' +
+        `<div class="dlg-final-action">${escapeHtml(f.action || '')}</div>` +
+        (f.evidence ? `<div class="dlg-final-evidence">📚 根拠: ${escapeHtml(f.evidence)}</div>` : '') +
+        '<div class="dlg-when-row"><label>📅 いつから?</label>' +
+          '<select id="dlg-when">' + whenOpts.map(w => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join('') + '</select>' +
+        '</div>' +
+        '<div class="dlg-conf-row"><label>💪 自信度 (1〜10)</label>' +
+          '<input type="number" id="dlg-conf" min="1" max="10" value="7">' +
+        '</div>' +
+        `<button class="dlg-confirm-btn" onclick="finalizeDialog(${JSON.stringify(f).replace(/"/g, '&quot;')})">✅ このアクションで確定</button>` +
+      '</div>';
+    return;
+  }
+  const choices = (step.choices || []).map((c, i) =>
+    `<button class="dlg-choice-btn" data-idx="${i}">${escapeHtml(c.label)}</button>`
+  ).join('');
+  bottom.innerHTML =
+    '<div class="dlg-choices">' +
+      choices +
+      (step.allow_free !== false ?
+        '<div class="dlg-free-row">' +
+          '<input type="text" id="dlg-free" placeholder="✏️ 自由に入力 (任意)" maxlength="500">' +
+          '<button onclick="submitFree()">送信</button>' +
+        '</div>' : '') +
+    '</div>';
+  // ボタンクリックハンドラ
+  bottom.querySelectorAll('.dlg-choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      const c = (step.choices || [])[idx];
+      if (!c) return;
+      submitReply(c.label, c.value);
+    });
+  });
+  const freeInput = document.getElementById('dlg-free');
+  if (freeInput) {
+    freeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitFree(); });
+  }
+}
+
+function submitFree() {
+  const inp = document.getElementById('dlg-free');
+  const v = inp ? inp.value.trim() : '';
+  if (!v) return;
+  submitReply(v, null);
+}
+
+async function submitReply(text, value) {
+  if (_dlgPending) return;
+  appendMsgToBody({ role: 'user', text });
+  document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading"><img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス" style="width:20px;height:20px;border-radius:50%;object-fit:cover;object-position:center top;vertical-align:middle;margin-right:6px;background:#fff;"> ヘルスアドバイザーが考え中…</div>';
+  await postDialog({ dialog_id: _dlgId, user_reply: text, user_value: value });
+}
+
+async function postDialog(payload) {
+  _dlgPending = true;
+  try {
+    const r = await fetch('/api/myplan/dialog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      document.getElementById('dlg-bottom').innerHTML = `<div class="dlg-loading" style="color:#dc2626;">⚠️ ${escapeHtml(d.msg || 'エラー')}</div>`;
+      return;
+    }
+    _dlgId = d.dialog_id;
+    const step = d.step;
+    appendMsgToBody({ role: 'ai', text: step.ai_message || '' });
+    renderChoicesAndInput(step);
+  } catch (e) {
+    document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading" style="color:#dc2626;">⚠️ 通信エラー</div>';
+  } finally {
+    _dlgPending = false;
+  }
+}
+
+async function finalizeDialog(finalize) {
+  if (!_dlgId) return;
+  const whenSel = document.getElementById('dlg-when');
+  const confInp = document.getElementById('dlg-conf');
+  const when = whenSel ? whenSel.value : '今日から';
+  const confidence = confInp ? parseInt(confInp.value) || 7 : 7;
+  document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading">💾 保存中…</div>';
+  try {
+    const r = await fetch('/api/myplan/dialog/' + _dlgId + '/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ action: finalize.action, pattern: finalize.pattern, evidence: finalize.evidence, when, confidence }),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      document.getElementById('dlg-bottom').innerHTML = `<div class="dlg-loading" style="color:#dc2626;">⚠️ ${escapeHtml(d.msg || 'エラー')}</div>`;
+      return;
+    }
+    document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading" style="color:#10b981;font-weight:700;">✅ 確定しました!</div>';
+    setTimeout(() => { closeDialog(); init(); }, 1500);
+  } catch (e) {
+    document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading" style="color:#dc2626;">⚠️ 通信エラー</div>';
   }
 }
 
