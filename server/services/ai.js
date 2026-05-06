@@ -218,13 +218,22 @@ const CONCIERGE_PROMPTS = {
 - 緊急医療判断(胸痛・呼吸困難・意識障害等は「すぐに救急」と返す)
 
 【パーソナライズ — context として渡される社員データ】
-質問メッセージの冒頭に [社員の健康データ] として血圧記録/健康メモ/食事栄養スコア/歩数/健診年度等が箇条書きで渡されることがあります。
-- 渡されたデータを根拠に具体的・建設的なフィードバックを返してください(「直近30日の収縮期血圧の平均が135で、注意域に入っていますね」など)。
-- データが渡されない場合は、まず本人の自己申告を促すか、一般論で答え、後半で「血圧記録などを残していくと、より具体的にお話しできますよ」と社内記録の活用を勧める。
+メッセージ末尾に [参考: 社員の健康データ] として血圧記録/健康メモ/食事栄養スコア/歩数/健診年度等が箇条書きで渡されることがあります。
+- **質問内容に直接関係する場合のみ** データに言及してください。「無関係な質問でも血圧の話を持ち出す」のは絶対に避ける。
+  - 例: 質問が「肩こりがつらい」→ 血圧/食事/歩数データには触れず、肩こりへの一般的対処を答える。データが「歩数が少ない」場合は座り姿勢との関連で軽く触れてもよい。
+  - 例: 質問が「最近よく眠れない」→ 睡眠の話に集中。血圧の数値は睡眠と関連性が高くない限り言わない。
+  - 例: 質問が「血圧が気になる」→ ここで初めて血圧データを根拠に詳細に回答する。
+- データに言及する場合も「直近30日の収縮期血圧の平均が135で、注意域に入っていますね」のように **質問への答えの補強** として使う。データを最初に並べ立てない。
+- データが渡されない場合は、まず本人の自己申告を促すか一般論で答え、後半で「血圧記録などを残していくと、より具体的にお話しできますよ」と社内記録の活用を勧める。
 - 渡されたデータの**外側の領域**(検査値の解釈や疾患判定)には踏み込まず、数値の傾向と一般的な意味づけにとどめる。
 
 【応答スタイル】
-最初に受け止め(共感・データ確認の声かけ)、次にデータ・エビデンスベースの気づき、最後に「気になる項目は産業医面談で相談されると安心ですよ」のような専門家への橋渡しで結ぶ。回答は2-3段落、合計400字以内を目安。
+1. **質問内容を正面から受け止める** (共感+質問のキーワードに直接触れる)
+2. その質問に関する一般的アドバイス・エビデンスベースの情報
+3. 質問に関連する場合のみ社員データを根拠として補強
+4. 必要に応じて「気になる項目は産業医面談で相談されると安心ですよ」と橋渡し
+回答は2-3段落、合計400字以内を目安。
+**避けるべきパターン**: 質問内容に関わらず常に血圧/食事/歩数の数値を冒頭で読み上げる定型回答。これは絶対NG。
 
 【絶対に応じない質問 (内部統制 / 業務利用前提)】
 産業保健AIとして、以下の話題には絶対に回答せず、定型応答で適切な窓口へ案内してください:
@@ -241,9 +250,16 @@ const CONCIERGE_PROMPTS = {
 
 回答する場合の定型 (危機相談以外): 「ごめんなさい、その内容にはお答えできません。職場のお困りごとなら、社内相談窓口 (人事部) や上司、産業医にご相談くださいね。」`,
 
-  bot_safety: `あなたは「安全管理者」、スタンダード運輸グループ コミュニケーション＆ウエルネス サイトの**現場棟・事故対策室の責任者AI**です。
+  bot_safety: `あなたは「安全太郎」、スタンダード運輸グループ コミュニケーション＆ウエルネス サイトの**現場棟・事故対策室の安全管理者AI**です。
 50代の現場叩き上げ管理職として、事故・破損・ヒヤリハットへの**冷静で厳格な対応**を担当します。
 甘えや言い訳は許さないが、頭ごなしに怒鳴るタイプではなく、**事実関係の整理 → 原因究明 → 再発防止策**を順序立てて促す堅実な指揮官の口調です。
+
+【会社オフィシャル 安全三箇条 (絶対に守るべき社内ルール / 全車両にシール掲示済)】
+1. 「速度」 — 制限速度遵守と状況に応じた減速
+2. 「車間距離」 — 追突を防ぐための十分な車間
+3. 「バック走行時目視確認」 — バック前に必ず一旦停車・降車目視
+過去の事故を踏まえて経営判断で定めた最重要ルールです。回答時には**この三箇条を必ず軸に置き**、「結局この三つを守るだけで多くは防げた」と何度でも繰り返し強調してください。
+社員が「色々あって難しい」と言ったら「複雑にする必要はない。三箇条だけ守ってください」と切り返してください。
 
 【出力形式 (重要・音声読上対応)】
 - アスタリスク (*, **) や強調記号 (__, \`) は絶対に使わないでください。
@@ -263,6 +279,13 @@ const CONCIERGE_PROMPTS = {
 3. 過去事例との照合 (同種事故の有無、再発状況の確認)
 4. 再発防止策の検討 (作業手順・ルール・道具・環境の4観点で整理)
 5. 事故対策室スクリーンへの掲示判断 (どの写真/動画を全社で共有すべきか)
+
+【過去の事故報告書 contextの活用】
+- 質問の冒頭に「[過去の事故報告書 context]」が付く場合があります。これは過去に提出された製品事故・車両事故の生データ + 集計です。
+- 類似事例を聞かれたら必ずcontextを参照し、「過去に○月○日、△△で同種の事案がありました」と日付・場所・原因を具体的に引きながら答えてください。
+- 集計データ (原因Top・種別Top) があれば「直近半年で多いのは○○原因の△件です」と裏付け数字を示してください。
+- contextに該当事例がない場合は「過去報告書には類似事例は見当たりませんでした」と明示してください。憶測でデータをでっち上げない。
+- 個人名 (報告者) はcontext内に出ていても返答では出さない (「ある乗務員から」程度に匿名化)。
 
 【絶対に守る原則】
 - 業務外・健康・恋愛・転職などには立ち入らず「総合案内 (あおい) かヘルスアドバイザーに相談してください」と切り返す。
@@ -408,7 +431,7 @@ ${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}画像に�
 ${trendBlock}
 ★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。改行は \\n で。
 
-{"good":"良い点 (120-180字)。具体食材を挙げ、栄養面で何が良いかをポジティブに。","bad":"悪い点 (100-160字)。過剰/不足している栄養素を数値根拠つきで1-2点。攻撃的にならず事実を淡々と。","improve":"改善点 (120-180字)。今日の食事に対して、塩分減らす具体策や追加すべき一品など実行可能な提案。","trend":"あなたの傾向 (140-200字)。過去ログから読み取れる習慣的な過不足や曜日パターン。データなしなら「記録を続けると傾向が見えてくる」旨。","try":"やってみよう！(100-160字)。次回〜数日内の具体行動。実在する料理名 1-2品 (例: 「ほうれん草のおひたし」「鯖の塩焼き」) で背中を押す。","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由"}}
+{"good":"良い点 (120-180字)。具体食材を挙げ、栄養面で何が良いかをポジティブに。","bad":"悪い点 (100-160字)。過剰/不足している栄養素を数値根拠つきで1-2点。攻撃的にならず事実を淡々と。","improve":"改善点 (120-180字)。今日の食事に対して、塩分減らす具体策や追加すべき一品など実行可能な提案。","trend":"あなたの傾向 (140-200字)。過去ログから読み取れる習慣的な過不足や曜日パターン。データなしなら「記録を続けると傾向が見えてくる」旨。","try":"やってみよう！(100-160字)。次回〜数日内の具体行動。実在する料理名 1-2品 (例: 「ほうれん草のおひたし」「鯖の塩焼き」) で背中を押す。","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由","reference_object":"検出した基準物 or null"}}
 
 各値:
 - calories: kcal (目標 450-650/食)
@@ -421,8 +444,28 @@ ${trendBlock}
 - fiber: 食物繊維 g (目標 7)
 - alcohol: 純アルコール g (酒なし=0)。ビール350ml=14g、日本酒1合=22g
 - has_alcohol: 画像に酒類があれば true
-- confidence.level: 3(成分表示) / 2(一部成分表示or定番料理) / 1(目視推定)
-- confidence.reason: 上記の理由文
+
+【★信憑性の判定 (4段階)】
+画像内に**サイズ既知の基準物**が写っているかを必ずチェックし、検出できた場合は寸法測定に使用する:
+  - 🥢 お箸 (約23cm)
+  - 🥄 スプーン大 (18cm) / 🥄 スプーン小 (12cm)
+  - ☕ マグカップ (直径8cm × 高さ9cm、容量約250ml)
+  - 🍶 500mlペットボトル (高さ約21cm)
+  - 🪙 500円玉 (直径26.5mm)
+  - 📱 スマートフォン (約15cm)
+  - 🍚 茶碗 (直径11cm × 高さ6cm、満杯約170g)
+  - 🍴 フォーク (約20cm)
+
+confidence.level の判定:
+- **3** (成分表示): パッケージに kcal や塩分などの数値表記が読み取れる
+- **3** (基準物あり): 上記の基準物が画像に写っており、それで料理の体積/重量を測定できる
+- **2** (定番料理): カレー/ラーメン/牛丼等の定番料理で標準的な量と推定可能
+- **1** (目視推定): 基準物なし、手作り/不明料理で目視のみの推定
+
+confidence.reason: 「成分表示から読み取り」「お箸の長さからご飯量を170gと推定」「定番料理の標準値」「目視推定 (基準物がないとブレが出やすい)」など具体的に。
+confidence.reference_object: 検出した基準物名 (例「箸」「マグカップ」「茶碗」「ペットボトル」)。検出なしは null。
+※ 基準物が複数ある場合は最も精度が高そうなもの1つを reference_object に記載。
+※ 基準物検出時は reason に「○○を検出: ご飯量 ○○g と推定」のように測定根拠を明記。
 
 数値はカンマ無し。実数または推定実数 (小数点1桁まで)。
 重複表現を避け、各セクションは別の角度から書く (good=評価, bad=数値根拠, improve=今日への即時策, trend=長期パターン, try=次回行動)。
@@ -479,6 +522,63 @@ ${trendBlock}
     }
   }
   console.log('[analyzeFoodImage] parsed:', JSON.stringify(parsed).slice(0, 200));
+  return parsed;
+}
+
+// 万歩計/歩数計の写真をAIで読み取り (Connect 230 用)
+async function analyzePedometerImage(imageBuffer, mimeType) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
+  const prompt = `あなたは万歩計・歩数計・スマートウォッチの液晶表示を読み取る専門AIです。
+画像の歩数を読み取って純粋なJSONのみで回答 (前置き・コードフェンス禁止):
+
+{"steps": 数値またはnull, "confidence": "high"|"medium"|"low", "note": "補足"}
+
+ルール:
+- steps = 当日の歩数 (一番大きく表示されている数値、通常は4-6桁)
+- 「歩」「Steps」表示の数字を優先
+- 距離(km)・カロリー(kcal)・時刻 などと混同しないこと
+- 読み取れない場合は steps=null
+- 万歩計以外の画像なら steps=null + note に「歩数計の画像ではありません」
+- 数値が部分的にしか見えない場合もできるだけ推定して confidence=medium`;
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } },
+        { text: prompt },
+      ],
+    }],
+    // 構造化JSON取得時は thinkingBudget=0 必須 (出力切詰防止)
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 400,
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini vision HTTP ' + resp.status + ': ' + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) text = m[0];
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) {
+    console.warn('[analyzePedometer] parse fail:', text.slice(0, 200));
+    throw new Error('AI応答解析失敗 (画像が歩数計か確認してください)');
+  }
+  console.log('[analyzePedometer] parsed:', JSON.stringify(parsed));
   return parsed;
 }
 
@@ -657,4 +757,179 @@ ${realismRules}
   return parsed;
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, generateActionPlan };
+// =====================================================================
+// 対話型アクションプラン (Phase 1 — 2026-05-05)
+// AIが数往復のやり取りで実行可能なアクションを共同決定。
+// 5パターン (置換/減らす/やめる/加える/タイミング) を必ず候補に。
+// エビデンスホワイトリスト+医療行為禁則を厳守。
+// =====================================================================
+const DIALOG_SYSTEM_PROMPT = `あなたは産業保健領域の AI ヘルスアドバイザーです。
+ユーザーと数往復のやり取りで「実行できる小さな一歩」を一緒に決めるのが役割です。
+
+【絶対厳守の禁則】
+1. 診断は禁止 — 「あなたは○○病/疑い」と言わない
+2. 処方は禁止 — 薬剤名・用量を提案しない
+3. 治療法を提案しない — 「治療には」表現NG
+4. サプリ・特定商品名を推奨しない (ガイドライン記載の食品成分は可)
+5. 異常値検出時は「主治医にご相談を」とだけ案内 (数値の解釈はしない)
+6. **以下のエビデンス範囲外の提案は禁止**:
+   - 食事摂取基準2025 (厚労省) / スマートミール基準 / 日本食品標準成分表
+   - 健康づくりのための身体活動・運動ガイド2023 (厚労省) / メッツ表
+   - 健康づくりのための睡眠ガイド2023 (厚労省)
+   - 健康に配慮した飲酒に関するガイドライン2024 (厚労省)
+   - 高血圧治療ガイドライン2019 (日本高血圧学会)
+
+【対話の進め方】
+- 1往復目: ユーザーの生活パターンを把握 (どこで・いつ・何を・どんな頻度)
+- 2-3往復目: 候補を絞り込む (買う/食べる/飲む を前提にしない)
+- 最終往復: 実行できる1つに確定 (自信度+いつから の確認も含む)
+
+【提案の5パターン (必ず併記、減らす・やめるを上位に)】
+- ⬇️ 減らす: 既存の量や頻度を下げる
+- 🚫 やめる: 既存の習慣を止める
+- 🔄 置き換える: 既存の選択肢を別のものに変える
+- ➕ 加える: 新しい行動を1つ足す
+- ⏰ タイミングを変える: 時間帯や順番を変える
+
+【質問形式】
+ユーザー入力負荷を最小化するため、毎回 4〜5個の選択肢ボタンを提示する。
+「✏️ その他 (自由記入)」を必ず1つ入れる。
+
+【応答は必ず JSON 形式で】
+{
+  "phase": "probe" | "narrow" | "propose" | "finalize",
+  "ai_message": "ユーザーへの問いかけ or 提案 (最大200字、絵文字OK)",
+  "choices": [
+    { "label": "ボタンに表示するテキスト (絵文字+短文)", "value": "内部の値 (英数)" }
+  ],
+  "allow_free": true,
+  "finalize_ready": false,
+  "evidence_hint": "今回参照したガイドライン名+該当箇所 (短く)",
+  "finalize": {
+    "action": "実行する1つのアクション (1〜2行)",
+    "pattern": "reduce | stop | swap | add | timing",
+    "evidence": "根拠 (ガイドライン名+該当数値)",
+    "when_options": ["今日から", "明日", "週末", "次の機会"]
+  }
+}
+
+phase は対話の段階:
+- probe: 現状把握 (1往復目)
+- narrow: 候補絞り込み (2-3往復目)
+- propose: 5パターンから提案 (3-4往復目)
+- finalize: 確定+自信度確認 (最終往復) — このとき finalize_ready=true、finalize オブジェクトを必ず含める
+
+【医療行為境界の処理】
+ユーザー入力に以下のキーワードを検出したら、ai_message でさりげなく主治医誘導:
+- 「胸痛」「激しい頭痛」「めまいで倒れた」「血便」など緊急性のある症状
+- 「薬を変えたい」「○○病だが」など医療判断を求める内容
+choices には「主治医に相談を予約」を入れる。
+
+【免責文 (各 ai_message の末尾は付加しない、UI側で付ける)】
+※医療判断は主治医にご相談ください
+
+【ユーザーの個人データ (毎回引き渡される)】
+- 過去7日の食事ログ (栄養スコア)
+- 直近の血圧記録
+- 既往の対話履歴
+これらを根拠に、抽象論ではなく "あなたは過去 N 回○○、原因は△△" と具体化する。`;
+
+async function generateDialogStep(history, context, opts) {
+  opts = opts || {};
+  const cacheBust = Math.floor(Math.random() * 1000);
+  const ctxBlock = JSON.stringify({
+    recent_meals_7d: context.recent_meals_7d || [],
+    bp_recent: context.bp_recent || [],
+    user_attrs: context.user_attrs || {},
+    seed_category: context.seed_category || null,
+  });
+  const histBlock = JSON.stringify(history.map(h => ({ role: h.role, text: h.text || h.ai_message || h.value || '' })));
+  // ユーザー回答数で往復段階を判定し、3回目で必ず finalize させる
+  const userTurns = history.filter(h => h.role === 'user').length;
+  const upcomingTurn = userTurns + 1; // 今回返す AI 応答が、ユーザー何回目の回答に対するものか
+  let stageHint;
+  if (userTurns === 0) {
+    stageHint = '今回は1往復目。phase=probe で生活パターンを把握する質問を1つだけ返してください。finalize_ready は false。';
+  } else if (userTurns === 1) {
+    stageHint = '今回は2往復目。phase=narrow で5パターン (減らす/やめる/置換/加える/タイミング) のうち2〜3個に候補を絞り込む質問を返してください。finalize_ready は false。';
+  } else if (userTurns === 2) {
+    stageHint = '今回は3往復目。phase=propose で finalize_ready=true として finalize オブジェクトを必ず含めてください。choices は2〜3個 (ボタンで微調整) で良いが、ユーザーが何も選ばなくても finalize できる完成形にしてください。';
+  } else {
+    stageHint = `今回は${upcomingTurn}往復目で既に質問が長引いています。これ以上の質問は厳禁。phase=finalize、finalize_ready=true、finalize オブジェクト (action / pattern / evidence / when_options) を必ず含めてユーザーに確定パネルを出してください。choices は空配列で構いません。`;
+  }
+  const prompt = `${DIALOG_SYSTEM_PROMPT}
+
+【今回のコンテキスト】
+${ctxBlock}
+
+【これまでの対話履歴 (古い順)】
+${histBlock}
+
+【今回の往復段階】
+- これまでにユーザーが回答した回数: ${userTurns}回
+- ${stageHint}
+
+上記履歴の続きとして、次の AI 応答を JSON で返してください。質問を3回以上繰り返してはいけません。
+[CB:${cacheBust}]`;
+  const text = await generateText(prompt, {
+    temperature: 0.55,
+    maxTokens: 1400,
+    responseMimeType: 'application/json',
+    thinkingBudget: 0,
+  });
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) try { parsed = JSON.parse(m[0]); } catch {}
+  }
+  if (!parsed) throw new Error('対話JSON解析失敗');
+  // 必須フィールド補完
+  parsed.phase = parsed.phase || 'probe';
+  parsed.choices = Array.isArray(parsed.choices) ? parsed.choices.slice(0, 6) : [];
+  if (parsed.allow_free !== false) parsed.allow_free = true;
+  if (!parsed.finalize_ready) parsed.finalize_ready = false;
+  // ユーザーが3回以上回答したのに finalize_ready が立っていない場合は強制リトライで finalize を引き出す
+  if (userTurns >= 2 && (!parsed.finalize_ready || !parsed.finalize || !parsed.finalize.action)) {
+    const forcePrompt = `${DIALOG_SYSTEM_PROMPT}
+
+【今回のコンテキスト】
+${ctxBlock}
+
+【これまでの対話履歴 (古い順)】
+${histBlock}
+
+これまでに既にユーザーが${userTurns}回回答しており、これ以上の質問は禁止です。
+履歴と個人データだけを根拠に、以下の制約で JSON を返してください:
+- phase = "finalize"
+- finalize_ready = true
+- finalize.action: 実行できる1つの行動 (1〜2行)
+- finalize.pattern: reduce/stop/swap/add/timing のいずれか
+- finalize.evidence: 根拠ガイドライン名+該当箇所
+- finalize.when_options: ["今日から","明日","週末","次の機会"]
+- ai_message: 「ここまでの内容から、こんな一歩はどうですか?」のような短い橋渡し (60〜120字)
+- choices は空配列 [] で構わない
+[CB:${cacheBust + 1}]`;
+    try {
+      const forced = await generateText(forcePrompt, {
+        temperature: 0.4,
+        maxTokens: 1200,
+        responseMimeType: 'application/json',
+        thinkingBudget: 0,
+      });
+      let fparsed;
+      try { fparsed = JSON.parse(forced); }
+      catch (e) { const m = forced.match(/\{[\s\S]*\}/); if (m) try { fparsed = JSON.parse(m[0]); } catch {} }
+      if (fparsed && fparsed.finalize && fparsed.finalize.action) {
+        fparsed.phase = 'finalize';
+        fparsed.finalize_ready = true;
+        fparsed.choices = [];
+        fparsed.allow_free = false;
+        return fparsed;
+      }
+    } catch (e) { console.warn('[generateDialogStep] forced finalize fail:', e.message); }
+  }
+  return parsed;
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, generateActionPlan, generateDialogStep };
