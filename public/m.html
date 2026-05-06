@@ -424,18 +424,18 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
             <div>総合案内</div>
           </div>
           <div class="qa-item" onclick="openHealthChat()" style="background:linear-gradient(135deg,#fae8ff,#f5d0fe);color:#86198f;">
-            <img class="i" src="/assets/concierge_health_avatar.png" alt="" style="height:48px;width:auto;object-fit:contain;display:block;mix-blend-mode:multiply;">
-            <div>ヘルスアドバイス</div>
+            <img class="i" src="/assets/concierge_health_avatar.png?v=8" alt="" style="height:48px;width:auto;object-fit:contain;display:block;mix-blend-mode:multiply;">
+            <div>健康案内</div>
           </div>
           <div class="qa-item" onclick="openSafetyChat()" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#991b1b;">
             <div class="i" style="height:48px;width:48px;position:relative;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;border-radius:8px;">
-              <img src="/assets/concierge_safety_avatar.png" alt="" style="width:72px;height:auto;display:block;mix-blend-mode:multiply;margin-top:6px;">
+              <img src="/assets/concierge_safety_avatar.png?v=4" alt="" style="width:72px;height:auto;display:block;mix-blend-mode:multiply;margin-top:6px;">
             </div>
             <div>安全太郎</div>
           </div>
           <div class="qa-item" id="qa-plaza" onclick="location.href='/plaza.html'" style="background:linear-gradient(135deg,#ccfbf1,#99f6e4);color:#0f766e;position:relative;">
             <div class="i">🌳</div>
-            <div>みんなの広場</div>
+            <div>みんなの投稿</div>
             <span id="qa-plaza-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#0d9488;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
           <div class="qa-item" id="qa-ops" onclick="location.href='/ops.html'" style="background:linear-gradient(135deg,#faf5ff,#ede9fe);color:#6d28d9;position:relative;">
@@ -465,13 +465,14 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
             <div>告知</div>
             <span id="qa-announce-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
-          <div class="qa-item" onclick="location.href='/challenges.html'" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;">
+          <div class="qa-item" onclick="location.href='/challenges.html'" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;position:relative;">
             <div class="i">🏆</div>
             <div>チャレンジ</div>
+            <span style="position:absolute;top:6px;right:8px;background:#94a3b8;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;letter-spacing:0.3px;">準備中</span>
           </div>
           <div class="qa-item" onclick="location.href='/videos.html'" style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;">
             <div class="i">🎬</div>
-            <div>動画</div>
+            <div>eラーニング</div>
           </div>
           <div class="qa-item" onclick="location.href='/wellness-archive.html'" style="background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490;">
             <div class="i">📦</div>
@@ -590,7 +591,7 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
           <div class="i">🚫</div><div class="l">ブロックリスト</div><div class="r">›</div>
         </div>
         <div class="set-item" onclick="location.href='/report'">
-          <div class="i">🆘</div><div class="l">外部相談窓口<div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">NPO/専門家に直接相談 (社内非公開)</div></div><div class="r">›</div>
+          <div class="i">🆘</div><div class="l">管理部 相談窓口<div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">管理部 (人事・総務) に直接メール</div></div><div class="r">›</div>
         </div>
         <div class="set-item" onclick="location.href='/security.html'">
           <div class="i">🔒</div><div class="l">セキュリティについて</div><div class="r">›</div>
@@ -808,14 +809,12 @@ let speechSpeed = 1.15;        // TTS読み上げ速度
 const BOT_UID = 'bot_aoi';
 const HEALTH_UID = 'bot_health';
 const SAFETY_UID = 'bot_safety';
-const MASTER_UID = 'bot_master';
 const AOI_VOICE = 'ja-JP-Neural2-B';
-function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID || uid === SAFETY_UID || uid === MASTER_UID; }
-// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A, 安全太郎=低めの男性, マスター=落ち着いた男性中音域)
+function isBotUid(uid) { return uid === BOT_UID || uid === HEALTH_UID || uid === SAFETY_UID; }
+// bot uid → TTS声プリセット (PC版と統一: 総合案内=Neural2-B, ヘルス=Wavenet-A, 安全太郎=低めの男性)
 function ttsOptsForBot(uid) {
   if (uid === HEALTH_UID) return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
   if (uid === SAFETY_UID) return { voice: 'ja-JP-Neural2-D', speed: 1.0, pitch: -2 };
-  if (uid === MASTER_UID) return { voice: 'ja-JP-Neural2-C', speed: 1.05, pitch: -1 };
   return { voice: AOI_VOICE, speed: 1.05, pitch: 0 };
 }
 
@@ -1287,7 +1286,7 @@ function openNicknameModal(forced) {
       <div style="text-align:center;font-size:36px;margin-bottom:6px;">🎭</div>
       <h2 style="margin:0 0 4px;text-align:center;color:#111827;font-size:17px;">ニックネーム${isForced?'を決めてください':'の変更'}</h2>
       <div style="font-size:12px;color:#6b7280;text-align:center;line-height:1.7;margin-bottom:16px;">
-        みんなの広場や健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
+        みんなの投稿や健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
         本名や個人特定できる情報は避け、<b>2〜20文字</b>でどうぞ。
       </div>
       <input type="text" id="nick-input" placeholder="例: 朝寝坊 / おこめ / 海好き" maxlength="20"
@@ -1388,7 +1387,7 @@ async function checkOpsPending() {
   } catch (e) {}
 }
 
-// ===== 📋 掲示板 / 🌳 みんなの広場 新着バッジ =====
+// ===== 📋 掲示板 / 🌳 みんなの投稿 新着バッジ =====
 async function checkBoardPlazaUnread() {
   const setBadge = (id, n) => {
     const b = document.getElementById(id);
@@ -1639,7 +1638,7 @@ function connectSocket() {
       updateChatBadge();
       loadChatLists();
       const sender = users[peerUid] || {};
-      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : peerUid === MASTER_UID ? 'マスター' : (sender.name || '');
+      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : (sender.name || '');
       showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
       // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
       if (!isBotUid(m.from) && !m.voice) announceDmSender(m.from, sender.name || '');
@@ -1714,7 +1713,7 @@ function renderChatLists() {
   }) + renderChatItem({
     peer_id: HEALTH_UID,
     display_name: 'ヘルスアドバイザー',
-    avatar_url: '/assets/concierge_health_avatar.png?v=3',
+    avatar_url: '/assets/concierge_health_avatar.png?v=8',
     company_code: 'AI ヘルス',
     last_at: healthPeer ? healthPeer.last_at : null,
     isBot: true,
@@ -1779,10 +1778,10 @@ function openBotChat() {
   openDM(BOT_UID, '総合案内', '/assets/concierge_aoi.png?v=2', true);
 }
 function openHealthChat() {
-  openDM(HEALTH_UID, 'ヘルスアドバイザー', '/assets/concierge_health_avatar.png?v=3', true);
+  openDM(HEALTH_UID, 'ヘルスアドバイザー', '/assets/concierge_health_avatar.png?v=8', true);
 }
 function openSafetyChat() {
-  openDM(SAFETY_UID, '安全太郎', '/assets/concierge_safety_avatar.png?v=1', true);
+  openDM(SAFETY_UID, '安全太郎', '/assets/concierge_safety_avatar.png?v=4', true);
 }
 // 安全太郎クイックアクション:
 //  1) AI (bot_safety, 過去事故context持ち) にテンプレ起動文を送信して詳細ヒアリングを開始
@@ -1920,7 +1919,7 @@ function msgHtml(m, isSelf, showSenderName) {
             : m.from === HEALTH_UID ? 'ヘルスアドバイザー'
             : (m.sender_name || sender.name || '');
   const avatar = m.from === BOT_UID ? '/assets/concierge_aoi.png?v=2'
-              : m.from === HEALTH_UID ? '/assets/concierge_health_avatar.png?v=3'
+              : m.from === HEALTH_UID ? '/assets/concierge_health_avatar.png?v=8'
               : sender.avatar || '';
   const initials = (name || '?').slice(0, 2);
   const avHtml = avatar ? '<img src="' + escapeHtml(avatar) + '">' : escapeHtml(initials);
@@ -3164,7 +3163,7 @@ function openDmFromUid(uid, name) {
   }
 }
 
-// 食事診断 (みんなの広場食事タブ + 撮影ボタン即起動)
+// 食事診断 (みんなの投稿食事タブ + 撮影ボタン即起動)
 function openMealDiag() {
   location.href = '/plaza.html?action=food';
 }
@@ -3199,7 +3198,7 @@ function pickStatus(s) {
   closeStatusSheet();
 }
 
-// ===== 健康管理室への導線 (CoWell内「みんなの広場」へ) =====
+// ===== 健康管理室への導線 (CoWell内「みんなの投稿」へ) =====
 function openWellness() {
   location.href = '/plaza.html';
   return;
@@ -3274,7 +3273,7 @@ function renderHomeRecentDm() {
     const isHealth = p.peer_id === HEALTH_UID;
     const name = p.peer_id === BOT_UID ? '総合案内' : isHealth ? 'ヘルスアドバイザー' : (p.display_name || '');
     const avUrl = p.peer_id === BOT_UID ? '/assets/concierge_aoi.png?v=2'
-                : isHealth ? '/assets/concierge_health_avatar.png?v=3'
+                : isHealth ? '/assets/concierge_health_avatar.png?v=8'
                 : (p.avatar_url || '');
     const init = (name || '?').slice(0, 2);
     const av = avUrl

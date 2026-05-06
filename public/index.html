@@ -110,6 +110,12 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 #left-rail .rail-btn.wing-field.current-floor { background: rgba(249,115,22,0.3); color: #9a3412; border-left-color: #f97316; box-shadow: inset 3px 0 0 #f97316; }
 #left-rail .rail-btn .cnt { position: absolute; top: 4px; right: 8px; background: #06b6d4; color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 800; min-width: 14px; text-align: center; line-height: 1.2; }
 #left-rail .rail-btn.current-floor .cnt { background: #fff; color: #06b6d4; }
+#left-rail .rail-btn .cnt-new { background: #ef4444; color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 900; min-width: 18px; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(239,68,68,0.55); animation: railBadgePulse 1.6s ease-in-out infinite; letter-spacing: 0.3px; top: 2px; right: 6px; }
+#left-rail .rail-btn.current-floor .cnt-new { background: #ef4444; color: #fff; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(239,68,68,0.55); }
+@keyframes railBadgePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(239,68,68,0.55); }
+  50% { transform: scale(1.12); box-shadow: 0 0 0 2px #fff, 0 0 12px rgba(239,68,68,0.85); }
+}
 #left-rail .rail-divider { width: 70%; height: 1px; background: rgba(15,23,42,0.08); margin: 6px 0; }
 #left-rail .spacer { flex: 1; }
 
@@ -325,7 +331,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
 
 /* アバター初回挨拶カード (フロア入室時、初見ユーザーへのメニュー提示) */
 /* 画面上部・横中央に配置: キャラクター(画面中央〜下に居る)と重ならず、視線がまず行く位置 */
-.avatar-intro-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 35; width: 320px; max-width: calc(100% - 32px); background: #fff; border-radius: 14px; box-shadow: 0 12px 36px rgba(15,23,42,0.18), 0 4px 12px rgba(15,23,42,0.08); border: 1px solid rgba(15,23,42,0.06); transition: opacity 0.4s ease, transform 0.3s ease; animation: aicAppear 0.35s ease-out; }
+.avatar-intro-card { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 35; width: 360px; max-width: calc(100% - 32px); background: #fff; border-radius: 14px; box-shadow: 0 -8px 28px rgba(15,23,42,0.22), 0 -2px 8px rgba(15,23,42,0.10); border: 1px solid rgba(15,23,42,0.06); transition: opacity 0.4s ease, transform 0.3s ease; animation: aicAppearBottom 0.35s ease-out; }
+@keyframes aicAppearBottom { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
 .avatar-intro-card.dim { opacity: 0.55; }
 .avatar-intro-card.dim:hover { opacity: 1; }
 @keyframes aicAppear { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
@@ -614,42 +621,40 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       <span>👥</span><span class="lbl">メンバー</span>
     </button>
     <button class="rail-btn active" id="rail-chat" onclick="toggleChatPanel()" title="チャット">
-      <span>💬</span><span class="lbl">チャット</span><span class="cnt" id="rail-chat-cnt" style="display:none;">0</span>
+      <span>💬</span><span class="lbl">チャット</span><span class="cnt cnt-new" id="rail-chat-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" id="rail-groups" onclick="openGroupsPanel()" title="グループ" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.35);color:#0369a1;">
-      <span>🗨</span><span class="lbl">グループ</span><span class="cnt" id="rail-groups-cnt" style="display:none;">0</span>
+      <span>🗨</span><span class="lbl">グループ</span><span class="cnt cnt-new" id="rail-groups-cnt" style="display:none;">0</span>
     </button>
     <!-- 旧: ヘルス DMボタン (撤去 2026-05-01: 健康管理室入室時のアバター挨拶カードへ動線統合) -->
     <button class="rail-btn" id="rail-fieldvoice" onclick="openFieldVoiceModal()" title="現場の声をPOST" style="display:none;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#047857;">
       <span>📣</span><span class="lbl">現場の声</span>
     </button>
     <!-- 推進カフェ (隠し部屋) は健康管理室の avatar-intro-card 経由でアクセス -->
-    <button class="rail-btn" onclick="window.open('/report','cowell_report')" title="外部相談窓口 (NPO/専門家に直接、社内非公開)" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#065f46;">
-      <span>🆘</span><span class="lbl">外部相談</span>
+    <button class="rail-btn" onclick="window.open('/report','cowell_report')" title="管理部 相談窓口 (人事・総務に直接メール)" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:#065f46;">
+      <span>🆘</span><span class="lbl">管理部相談</span>
     </button>
-    <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="みんなの広場 (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
-      <span>🌳</span><span class="lbl">みんなの広場</span><span class="cnt" id="rail-plaza-cnt" style="display:none;">0</span>
+    <button class="rail-btn" id="rail-plaza" onclick="location.href='/plaza.html'" title="みんなの投稿 (健康トーク + 食事AI)" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.35);color:#0f766e;">
+      <span>🌳</span><span class="lbl">みんなの投稿</span><span class="cnt cnt-new" id="rail-plaza-cnt" style="display:none;">0</span>
     </button>
+    <!-- 旧: 🚶 Connect 230 (撤去 2026-05-06: チャレンジページの中に統合) -->
     <button class="rail-btn" onclick="location.href='/myplan.html'" title="今日の一歩、明日の自分 — あなたのアクションプラン" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.35);color:#1e3a8a;">
       <span>👣</span><span class="lbl">今日の一歩</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/walk.html'" title="Connect 230 — 東京⇔磐田を歩いて繋ぐ" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
-      <span>🚶</span><span class="lbl">Connect 230</span>
-    </button>
-    <button class="rail-btn" onclick="location.href='/challenges.html'" title="チャレンジ" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);color:#b45309;">
-      <span>🏆</span><span class="lbl">チャレンジ</span>
+    <button class="rail-btn" onclick="location.href='/challenges.html'" title="チャレンジ (現在企画準備中です)" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);color:#b45309;">
+      <span>🏆</span><span class="lbl">チャレンジ</span><span class="cnt" style="background:#94a3b8;color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;font-weight:800;letter-spacing:0.3px;">準備中</span>
     </button>
     <button class="rail-btn" id="rail-board" onclick="location.href='/board.html'" title="社内掲示板" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
-      <span>📋</span><span class="lbl">掲示板</span><span class="cnt" id="rail-board-cnt" style="display:none;">0</span>
+      <span>📋</span><span class="lbl">掲示板</span><span class="cnt cnt-new" id="rail-board-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" id="rail-announce" onclick="location.href='/announcements.html'" title="告知" style="background:rgba(220,38,38,0.10);border:1px solid rgba(220,38,38,0.35);color:#b91c1c;">
-      <span>📢</span><span class="lbl">告知</span><span class="cnt" id="rail-announce-cnt" style="display:none;">0</span>
+      <span>📢</span><span class="lbl">告知</span><span class="cnt cnt-new" id="rail-announce-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" id="rail-ops" onclick="location.href='/ops.html'" title="業務連絡 (車両不具合/事故報告/関東BC)" style="background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.35);color:#6d28d9;">
-      <span>🚛</span><span class="lbl">業務連絡</span><span class="cnt" id="rail-ops-cnt" style="display:none;">0</span>
+      <span>🚛</span><span class="lbl">業務連絡</span><span class="cnt cnt-new" id="rail-ops-cnt" style="display:none;">0</span>
     </button>
-    <button class="rail-btn" onclick="location.href='/videos.html'" title="動画ライブラリ" style="background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.35);color:#4338ca;">
-      <span>🎬</span><span class="lbl">動画</span>
+    <button class="rail-btn" onclick="location.href='/videos.html'" title="eラーニング" style="background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.35);color:#4338ca;">
+      <span>🎬</span><span class="lbl">eラーニング</span>
     </button>
     <button class="rail-btn" onclick="location.href='/wellness-archive.html'" title="CoWell Classic履歴アーカイブ" style="background:rgba(100,116,139,0.10);border:1px solid rgba(100,116,139,0.35);color:#475569;">
       <span>📦</span><span class="lbl">Classic履歴</span>
@@ -739,7 +744,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   <div id="space-canvas-wrap">
     <div id="video-grid"><div class="v-grid-empty">「📹カメラ」ボタンでビデオ参加</div></div>
     <canvas id="space-canvas"></canvas>
-    <!-- 健康管理室: CoWell ネイティブの「みんなの広場」を iframe で表示 -->
+    <!-- 健康管理室: CoWell ネイティブの「みんなの投稿」を iframe で表示 -->
     <iframe id="wellness-iframe" src="about:blank"
       style="display:none;position:absolute;inset:40px 0 0 0;width:100%;height:calc(100% - 40px);border:0;z-index:5;background:#f8fafc;"
       allow="camera; microphone; fullscreen; clipboard-read; clipboard-write"
@@ -753,15 +758,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
       </div>
     </div>
     <!-- 旧: 健康管理室左上に「📋 健康記録」緑ボタン (撤去: ヘルスメニュー最上位の同ボタンと重複していたため) -->
-    <!-- 健康管理室: 推進メンバー専用 運営ダッシュボード入室ボタン -->
-    <button id="wellness-ops-door" onclick="openExternalPage('/wellness-ops.html')"
-      style="display:none;position:absolute;top:46px;left:8px;z-index:9;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.4);align-items:center;gap:8px;">
-      <span style="font-size:16px;">🚪</span>
-      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
-        <span style="font-size:9px;font-weight:600;opacity:0.85;letter-spacing:1px;">推進メンバー専用</span>
-        <span>運営ダッシュボード</span>
-      </span>
-    </button>
+    <!-- 旧: 推進メンバー専用「運営ダッシュボード」紫ボタン (2026-05-04撤去 — 健康戦略室サロン入口に統合) -->
+
     <!-- 健康管理室: 帝京大学西村先生オリエンテーション入室ボタン (推進メンバー/管理職限定) -->
     <button id="wellness-orientation-door" onclick="openExternalPage('/orientation.html')"
       style="display:none;position:absolute;top:108px;left:8px;z-index:9;background:linear-gradient(135deg,#0f766e,#047857);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(15,118,110,0.4);align-items:center;gap:8px;">
@@ -1338,7 +1336,7 @@ function showNicknameSetupModal() {
         <div style="text-align:center;font-size:36px;margin-bottom:8px;">🎭</div>
         <h2 style="margin:0 0 6px;text-align:center;color:#111827;font-size:18px;">ニックネームを決めてください</h2>
         <div style="font-size:12px;color:#6b7280;text-align:center;line-height:1.7;margin-bottom:18px;">
-          みんなの広場や健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
+          みんなの投稿や健康管理室の <b>匿名投稿</b> で表示されるお名前です。<br>
           ご自身の本名や個人を特定できる情報は避け、<br>
           <b>2〜20文字</b>で気に入ったものを設定してください。
         </div>
@@ -1874,7 +1872,7 @@ async function checkOpsPending() {
   } catch (e) {}
 }
 
-// ===== 📋 掲示板 / 🌳 みんなの広場 新着バッジ =====
+// ===== 📋 掲示板 / 🌳 みんなの投稿 新着バッジ =====
 async function checkBoardPlazaUnread() {
   const setBadge = (id, n) => {
     const b = document.getElementById(id);
@@ -2077,7 +2075,7 @@ let orchidImage = null;
 let safetyStickerImage = null;  // 事故対策室の安全三箇条ステッカー
 function loadBackground(src) {
   bgImage = new Image();
-  bgImage.src = (src || '/assets/office_bg.png') + '?v=39';
+  bgImage.src = (src || '/assets/office_bg.png') + '?v=58';
   if (!stdLogo) {
     stdLogo = new Image();
     stdLogo.src = '/assets/std_logo.png?v=1';
@@ -2771,9 +2769,8 @@ function loadAvatar(u) {
 // 末尾の v= は新ポーズ画像差替時のキャッシュバスター
 const BOT_STANDING = {
   'bot_aoi':    '/assets/concierge_aoi_full.png?v=2',
-  'bot_health': '/assets/concierge_health_full.png?v=7',
-  'bot_safety': '/assets/concierge_safety_full.png?v=3',
-  'bot_master': '/assets/concierge_master_full.png?v=1',
+  'bot_health': '/assets/concierge_health_full.png?v=8',
+  'bot_safety': '/assets/concierge_safety_full.png?v=4',
 };
 const botStandingImages = {};   // botUid → { canvas, w, h }
 let conciergeFull = null;       // 後方互換: bot_aoi のショートカット参照
@@ -2906,6 +2903,16 @@ function onPointerDown(e) {
       showToast('🔒 鍵がかかっている。 (推進メンバー専用)');
     }
     return;
+  }
+  // 健康戦略室: ダッシュボード下の常設ボタン (議論する / 運営ダッシュボード)
+  if (currentFloor && currentFloor.code === 'promoter_club' && _promoterRoomBtns) {
+    for (const b of _promoterRoomBtns) {
+      if (world.x >= b.x1 && world.x <= b.x2 && world.y >= b.y1 && world.y <= b.y2) {
+        console.log('[strategy room] btn clicked', b);
+        try { b.onclick(); } catch (err) { console.error('[strategy room] btn onclick err', err); }
+        return;
+      }
+    }
   }
   // 次優先: bot 頭上の「メニューを開く」ボタン → 入室時と同じ avatar-intro-card を開く
   const btn = hitTestBotMenuButton(world.x, world.y);
@@ -3047,6 +3054,10 @@ function render() {
   // 健康管理室: 個人アクション掲示用ホワイトボードを描画 (動的データ)
   if (currentFloor && currentFloor.code === 'wellness_room') {
     try { drawWellnessWhiteboard(); } catch (e) {}
+  }
+  // 健康戦略室 (推進メンバー専用サロン): ダッシュボード掲示
+  if (currentFloor && currentFloor.code === 'promoter_club') {
+    try { drawPromoterDashboard(); } catch (e) {}
   }
   // 事故対策室: 前面ビデオスクリーンに最新の事故/破損メディアを流す
   // (壁ステッカーオーバーレイは廃止 — スクリーンのデフォルト表示として組み込み)
@@ -3501,6 +3512,135 @@ function drawWellnessWhiteboard() {
   const ago = Math.floor((Date.now() - _wellnessFeedFetchedAt) / 1000);
   ctx.fillText('更新: ' + (ago < 60 ? ago + '秒前' : Math.floor(ago/60) + '分前'), x + w - 16, y + h - 12);
   ctx.restore();  // SCALE 解除
+}
+
+// ===== 健康戦略室 (promoter_club) ダッシュボード =====
+// 推進メンバー専用サロン。壁面パネルに 施策ステータス / カテゴリKPI / 推進ランキング を掲示
+let _opsActions = null;
+let _promoterRoomBtns = [];  // canvas クリック判定用 (議論する/運営ダッシュボード)
+let _opsActionsFetchedAt = 0;
+const OPS_ACTIONS_TTL = 60000;
+async function loadOpsActions() {
+  const now = Date.now();
+  if (now - _opsActionsFetchedAt < OPS_ACTIONS_TTL && _opsActions) return;
+  _opsActionsFetchedAt = now;
+  try {
+    const r = await fetch('/api/wellness/actions', { headers: { 'Authorization': 'Bearer ' + (token || '') } });
+    if (r.ok) {
+      const d = await r.json();
+      if (d && (d.success || d.actions)) _opsActions = d.actions || d.items || [];
+    }
+  } catch (e) {}
+}
+function drawPromoterDashboard() {
+  if (!_wellnessFeed) loadWellnessFeed();
+  if (!_opsActions) loadOpsActions();
+  ctx.save();
+  ctx.textBaseline = 'top';
+  // タイトル (壁面に直接、背景パネルなし)
+  ctx.textAlign = 'center';
+  ctx.font = '900 20px sans-serif';
+  ctx.fillStyle = '#0f4d3a';
+  ctx.fillText('📊 健康戦略室', 672, 22);
+  ctx.font = '600 11px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('推進メンバーで議論し、施策を決める部屋', 672, 46);
+
+  // 3つの大型KPIカード (横並び)
+  const acts = _opsActions || [];
+  const fd = _wellnessFeed || {};
+  const running = acts.filter(a => (a.status || '') === '実行中').length;
+  const total = acts.length;
+  const todayDone = fd.today_done || 0;
+  const top1 = ((fd.pioneers || [])[0]) || null;
+
+  const cards = [
+    {
+      icon: '🎯',
+      label: '施策',
+      bigNumber: total,
+      bigUnit: '件',
+      sub: running > 0 ? '実行中 ' + running + '件' : (total === 0 ? 'まだ起票なし' : '進行待ち'),
+      color: '#3b82f6',
+    },
+    {
+      icon: '👣',
+      label: '今日の取組み',
+      bigNumber: todayDone,
+      bigUnit: '名',
+      sub: todayDone > 0 ? '完了報告あり' : '今日の動き待ち',
+      color: '#f59e0b',
+    },
+    {
+      icon: '🏆',
+      label: '推進ランキング1位',
+      bigText: top1 ? (top1.name || '匿名').slice(0, 8) : '—',
+      sub: top1 ? (top1.category_label || '') : '公開中の推進者なし',
+      color: '#10b981',
+    },
+  ];
+
+  const cardW = 240, cardH = 120, gap = 16;
+  const totalW = cardW * 3 + gap * 2;
+  const startX = (1344 - totalW) / 2;
+  const cardY = 76;
+
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    const cx = startX + (cardW + gap) * i;
+    // カード背景 (白+左ボーダー帯)
+    ctx.fillStyle = '#fff';
+    roundRect(cx, cardY, cardW, cardH, 10); ctx.fill();
+    ctx.fillStyle = c.color;
+    roundRect(cx, cardY, 6, cardH, 10); ctx.fill();
+    // 薄い枠線
+    ctx.strokeStyle = 'rgba(15,23,42,0.10)'; ctx.lineWidth = 1;
+    roundRect(cx, cardY, cardW, cardH, 10); ctx.stroke();
+    // アイコン+ラベル
+    ctx.textAlign = 'left';
+    ctx.font = '600 11px sans-serif'; ctx.fillStyle = '#64748b';
+    ctx.fillText(c.icon + '  ' + c.label, cx + 18, cardY + 14);
+    // 大きな数字 or テキスト
+    if (c.bigNumber != null) {
+      ctx.font = '900 40px sans-serif'; ctx.fillStyle = c.color;
+      ctx.fillText(String(c.bigNumber), cx + 18, cardY + 38);
+      const numW = ctx.measureText(String(c.bigNumber)).width;
+      ctx.font = '700 14px sans-serif'; ctx.fillStyle = '#475569';
+      ctx.fillText(c.bigUnit, cx + 18 + numW + 6, cardY + 64);
+    } else {
+      ctx.font = '900 22px sans-serif'; ctx.fillStyle = c.color;
+      ctx.fillText(c.bigText, cx + 18, cardY + 50);
+    }
+    // サブテキスト
+    ctx.font = '500 10px sans-serif'; ctx.fillStyle = '#94a3b8';
+    ctx.fillText(c.sub, cx + 18, cardY + cardH - 20);
+  }
+
+  // 下部の常設ボタン (議論する / 運営ダッシュボード / メニュー)
+  const btnY = cardY + cardH + 18;
+  const btnH = 38, btnW = 180, btnGap = 14;
+  const btnTotalW = btnW * 3 + btnGap * 2;
+  const btnStartX = (1344 - btnTotalW) / 2;
+  const btns = [
+    { label: '💬  議論する', onclick: () => { try { openGroupChat('g_wellness_disc'); } catch (e) { showToast('グループチャットを開けませんでした'); } } },
+    { label: '📊  運営ダッシュボード', onclick: () => { try { openExternalPage('/wellness-ops.html'); } catch (e) { location.href = '/wellness-ops.html'; } } },
+    { label: '📋  メニュー', onclick: () => { try { showAvatarIntroCard('promoter_club', true); } catch (e) {} } },
+  ];
+  _promoterRoomBtns = [];
+  for (let i = 0; i < btns.length; i++) {
+    const b = btns[i];
+    const bx2 = btnStartX + (btnW + btnGap) * i;
+    // 統一デザイン: 白背景 + 緑枠 + 緑文字
+    ctx.fillStyle = '#fff';
+    roundRect(bx2, btnY, btnW, btnH, 10); ctx.fill();
+    ctx.strokeStyle = '#0f4d3a'; ctx.lineWidth = 1.5;
+    roundRect(bx2, btnY, btnW, btnH, 10); ctx.stroke();
+    ctx.font = '800 14px sans-serif'; ctx.fillStyle = '#0f4d3a';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(b.label, bx2 + btnW / 2, btnY + btnH / 2);
+    _promoterRoomBtns.push({ x1: bx2, y1: btnY, x2: bx2 + btnW, y2: btnY + btnH, onclick: b.onclick });
+  }
+  ctx.restore();
 }
 
 // ===== 事故対策室: 前面ビデオスクリーン =====
@@ -4410,8 +4550,7 @@ function drawConciergeStanding(u) {
   let FIG_H = 210;
   if (currentFloor && currentFloor.code === 'lobby') FIG_H = 520;  // 全身立ち姿 (旧 252 = 受付カウンター越し半身、新画像でカウンター無し化に伴い全身)
   else if (currentFloor && currentFloor.code === 'wellness_room') FIG_H = 780;  // 5/4: 150% (520→780) 全身グラマラス画像にあわせて大型化
-  else if (currentFloor && currentFloor.code === 'field_accident' && u.uid === 'bot_safety') FIG_H = 518;  // 2026-05-01: さらに1.2倍 (432→518)
-  else if (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master') FIG_H = 600;  // カフェカウンター越しに大きく見える
+  else if (currentFloor && currentFloor.code === 'field_accident' && u.uid === 'bot_safety') FIG_H = 780;  // 5/4: ヘルスと統一 (518→780)
   const aspect = standing.w / standing.h;
   const FIG_W = Math.round(FIG_H * aspect);
   // shake 演出
@@ -4428,16 +4567,13 @@ function drawConciergeStanding(u) {
   if (u.opacity != null && u.opacity < 1) ctx.globalAlpha = u.opacity;
   // 旧: ロビーの総合案内を受付カウンター越しにクリップしていたが、
   // ロビー v2 (2026-04-29) でカウンター撤去+全身表示に変更したため clip 廃止
-  // 足元の楕円影 (フロアに直接落ちる) — マスターは下半身クリップで足が見えないので影も省略
-  const skipShadow = currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master';
-  if (!skipShadow) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(15,23,42,0.22)';
-    ctx.beginPath();
-    ctx.ellipse(cx, feetY + 4, FIG_W * 0.42, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
+  // 足元の楕円影 (フロアに直接落ちる)
+  ctx.save();
+  ctx.fillStyle = 'rgba(15,23,42,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(cx, feetY + 4, FIG_W * 0.42, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
   // 呼吸する柔らかなシアンのオーラ (AI感)
   const phase = (Date.now() % 2600) / 2600;
   const glowA = 0.28 + 0.12 * Math.sin(phase * Math.PI * 2);
@@ -4446,30 +4582,15 @@ function drawConciergeStanding(u) {
   grad.addColorStop(1, 'rgba(6,182,212,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(cx - FIG_W, headY - 10, FIG_W * 2, FIG_H + 20);
-  // 本体: bot_master のみ内向き反転 (wellness_room bot_health は 5/4以降 反転解除)
-  const flipH = currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master';
-  // 下半身クリップ (カウンター越しに上半身だけ見せたい場合)
-  // promoter_club master: y=384(中央)+ clip 0.55 で頭は上1/4、切れ目はカウンター天板付近
-  const clipBottom = (currentFloor && currentFloor.code === 'promoter_club' && u.uid === 'bot_master') ? 0.55 : 1.0;
-  const srcH = standing.h * clipBottom;
-  const dstH = FIG_H * clipBottom;
-  if (flipH) {
-    ctx.save();
-    ctx.translate(cx, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(standing.canvas, 0, 0, standing.w, srcH, -FIG_W / 2, headY, FIG_W, dstH);
-    ctx.restore();
-  } else {
-    ctx.drawImage(standing.canvas, 0, 0, standing.w, srcH, cx - FIG_W / 2, headY, FIG_W, dstH);
-  }
+  // 本体描画 (反転・下半身クリップは現状なし)
+  ctx.drawImage(standing.canvas, 0, 0, standing.w, standing.h, cx - FIG_W / 2, headY, FIG_W, FIG_H);
   // 頭上の小さな「吹き出しヒント」: アバター本体タップでメニューが開くことを示すポイント表示
   // (旧: 大型「メニューを開く」ボタン → アバター本体タップと同等動作だったため縮小)
   const isHealthBot = u.uid === 'bot_health';
   const isAoiBot = u.uid === 'bot_aoi';
   const isSafetyBot = u.uid === 'bot_safety';
-  const isMasterBot = u.uid === 'bot_master';
-  const hintIcon = isAoiBot ? '🌸' : isHealthBot ? '🩺' : isSafetyBot ? '🚨' : isMasterBot ? '☕' : '💬';
-  const hintColor = isAoiBot ? '#0891b2' : isHealthBot ? '#047857' : isSafetyBot ? '#991b1b' : isMasterBot ? '#92400e' : '#475569';
+  const hintIcon = isAoiBot ? '🌸' : isHealthBot ? '🩺' : isSafetyBot ? '🚨' : '💬';
+  const hintColor = isAoiBot ? '#0891b2' : isHealthBot ? '#047857' : isSafetyBot ? '#991b1b' : '#475569';
   // 軽い上下バウンス (注意を引く、邪魔しない)
   const hintPhase = (Date.now() % 2400) / 2400;
   const bob = Math.sin(hintPhase * Math.PI * 2) * 2;
@@ -4479,7 +4600,7 @@ function drawConciergeStanding(u) {
   const hh = 22;
   const hy = headY - 32 + bob;
   // 当たり判定 (吹き出し本体 + 余白16px)
-  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety' || u.uid === 'bot_master')) {
+  if (typeof _botMenuButtons !== 'undefined' && (u.uid === 'bot_aoi' || u.uid === 'bot_health' || u.uid === 'bot_safety')) {
     _botMenuButtons[u.uid] = {
       x1: cx - Math.round(hw / 2) - 16,
       y1: hy - 16,
@@ -5451,7 +5572,6 @@ async function speakViaTTS(text, opts) {
 function ttsOptsForBot(botUid) {
   if (botUid === 'bot_health') return { voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 };
   if (botUid === 'bot_safety') return { voice: 'ja-JP-Neural2-D', speed: 1.15, pitch: -3 };  // 男性・低め・テンポ速めに調整
-  if (botUid === 'bot_master') return { voice: 'ja-JP-Neural2-C', speed: 1.05, pitch: -1 };  // カフェマスター 男性・落ち着いた中音域
   return { voice: 'ja-JP-Neural2-B', speed: 1.25, pitch: 4 };  // 総合案内 (デフォルト)
 }
 
@@ -5462,7 +5582,7 @@ async function speakVoiceDm(content, fromUid) {
   const text = (content || '').slice(0, 500);
   if (!text) return;
   let opts = { force: true, speed: 1.1 };
-  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health' || fromUid === 'bot_safety' || fromUid === 'bot_master')) {
+  if (typeof ttsOptsForBot === 'function' && (fromUid === 'bot_aoi' || fromUid === 'bot_health' || fromUid === 'bot_safety')) {
     opts = Object.assign({ force: true }, ttsOptsForBot(fromUid));
   }
   console.log('[cohub] voice DM play:', text, 'from=' + (fromUid || '?'));
@@ -5550,11 +5670,12 @@ const AVATAR_INTRO_CONFIG = {
         { emoji: '💬', label: 'ヘルスアドバイザーに相談', onclick: "openDM('bot_health')" },
         { emoji: '📋', label: '個人の健康記録 (血圧/メモ)', onclick: "location.href='/wellness.html'" },
         { emoji: '👣', label: '今日の一歩 (アクションプラン)', onclick: "location.href='/myplan.html'" },
-        { emoji: '🥗', label: '食事を診てもらう', onclick: "location.href='/plaza.html'" },
+        { emoji: '🥗', label: '食事を診てもらう (写真→AI栄養分析)', onclick: "location.href='/plaza.html'" },
+        { emoji: '🌳', label: 'みんなの投稿を見る (健康トーク+食事AI)', onclick: "location.href='/plaza.html'" },
       ];
       if (_isPromoter()) {
         items.push({ emoji: '📖', label: '推進メンバーへのメッセージ (西村先生)', onclick: "openExternalPage('/orientation.html')" });
-        items.push({ emoji: '☕', label: '推進カフェへ (運営サロン)', onclick: "switchFloor('promoter_club')" });
+        items.push({ emoji: '🚪', label: '健康戦略室サロン入口 (推進メンバー専用)', onclick: "switchFloor('promoter_club')" });
       }
       return items;
     },
@@ -5572,22 +5693,22 @@ const AVATAR_INTRO_CONFIG = {
     ],
   },
   promoter_club: {
-    icon: '☕',
-    iconBg: 'linear-gradient(135deg, #92400e, #78350f)',
-    title: 'マスター (運営サロン)',
-    sub: 'いらっしゃい、まずは1杯どうぞ。運営ダッシュボードはこちら ↓',
+    icon: '📊',
+    iconBg: 'linear-gradient(135deg, #047857, #065f46)',
+    title: '健康戦略室',
+    sub: '推進メンバーで議論し、施策を決める部屋です。',
     actions: () => [
       { emoji: '📊', label: '運営ダッシュボード (Todo・施策・ランキング)', onclick: "openExternalPage('/wellness-ops.html')" },
       { emoji: '🩺', label: '個人プラン Dashboard (全社俯瞰)', onclick: "openExternalPage('/myplan-ops.html')" },
-      { emoji: '💬', label: 'マスターに相談', onclick: "openDM('bot_master')" },
+      { emoji: '💬', label: '推進メンバーで議論する (健康管理室ディスカッション)', onclick: "openGroupChat('g_wellness_disc')" },
       { emoji: '📋', label: '健診データ分析 (個人記録ハブ)', onclick: "location.href='/wellness.html'" },
-      { emoji: '🌳', label: 'みんなの広場', onclick: "location.href='/plaza.html'" },
+      { emoji: '🌳', label: 'みんなの投稿', onclick: "location.href='/plaza.html'" },
       { emoji: '🏥', label: '健康管理室へ戻る', onclick: "switchFloor('wellness_room')" },
     ],
   },
 };
 // _botUidToIntroFloor: 頭上/本体タップ → 同じ avatar-intro-card を開くためのマッピング
-const _botUidToIntroFloor = { bot_aoi: 'lobby', bot_health: 'wellness_room', bot_safety: 'field_accident', bot_master: 'promoter_club' };
+const _botUidToIntroFloor = { bot_aoi: 'lobby', bot_health: 'wellness_room', bot_safety: 'field_accident' };
 function showAvatarIntroCard(floorCode, force) {
   // フロア移動時は前のフロアのカードを必ず消す (config無しフロアへの移動でも消える)
   document.querySelectorAll('.avatar-intro-card').forEach(el => el.remove());
@@ -5648,46 +5769,15 @@ function _setWellnessIntroAt(t) {
   try { localStorage.setItem('cohub_wellness_intro_at', String(t)); } catch (e) {}
 }
 async function announceWellnessRoomIntro() {
+  // 旧: TTSで長文を読み上げ → 葵に倣ってチャイム+DMメッセージ方式に変更 (2026-05-06)
+  // 音声アナウンスは廃止、入室カード (avatar-intro-card) と DM 経由でメッセージ提供
   if (!speakerOn) return;
   const now = Date.now();
-  if (now - _getWellnessIntroAt() < _WELLNESS_INTRO_COOLDOWN_MS) {
-    console.log('[cohub] wellness intro skipped (cooldown)');
-    return;
-  }
+  if (now - _getWellnessIntroAt() < _WELLNESS_INTRO_COOLDOWN_MS) return;
   _setWellnessIntroAt(now);
-  const myUser = users[me] || currentUser || {};
-  const myName = (myUser && (myUser.name || myUser.display_name)) || 'あなた';
-  const reading = readingOf(myName) || myName;
-  // ヘルスフィードを取得 (lazy fetch)
-  try { await loadWellnessFeed(); } catch (e) {}
-  const fd = _wellnessFeed;
-  // 絵文字を除去して自然な発話に
-  const stripEmoji = (s) => String(s || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, '').trim();
-  let body = '';
-  if (fd && fd.by_category && fd.by_category.length) {
-    const top = fd.by_category.slice(0, 2).map(c => `${stripEmoji(c.label)}が${c.count}名`).join('、');
-    body = `今週はみんな頑張っていて、${top}が取り組んでいるところよ。`;
-    if (fd.pioneers && fd.pioneers.length) {
-      const p = fd.pioneers[0];
-      const pname = stripEmoji(p.name) || '誰か';
-      const pcat = stripEmoji(p.category_label);
-      body += `先駆者として ${pname}さんが ${pcat} を始めてくれたよ。`;
-    }
-    if (fd.today_done) body += `今日も ${fd.today_done}名 がアクションを完了しているよ。`;
-    body += 'あなたも気になることがあれば、いつでも声かけてね。';
-  } else {
-    body = 'ホワイトボードはまだ空っぽ。あなたが最初の一歩を踏み出してみる?';
-  }
-  const text = `${reading}さん、お疲れ様です。${body}`;
-  // この後のbot proximity挨拶を抑制 (重複発話防止)
-  try {
-    if (typeof _botProximity !== 'undefined') {
-      _botProximity['bot_health'] = { in: true, lastTrigger: now };
-    }
-  } catch (e) {}
-  // ヘルスアドバイザーの声で読み上げ
-  try { speakViaTTS(text, { force: true, voice: 'ja-JP-Wavenet-A', speed: 1.10, pitch: 2 }); } catch (e) {}
-  console.log('[cohub] wellness room intro:', text);
+  // チャイム音のみ (lobby の announceLobbyWelcome と同じ流儀)
+  try { playEnterLeaveChime(true); } catch (e) {}
+  console.log('[cohub] wellness chime only (announce delegated to intro-card + DM)');
 }
 
 function announceEnterLeave(uid, name, isEnter) {
@@ -5759,11 +5849,26 @@ function closeGroupsPanel() {
 async function openGroupChat(gid) {
   currentGroupId = gid;
   closeGroupsPanel();
-  const g = myGroups.find(x => x.id === gid);
-  if (!g) return;
+  let g = (myGroups || []).find(x => x.id === gid);
+  // フォールバック: myGroups 未取得 / 直接呼出 → サーバーから取得して再度探す
+  if (!g) {
+    console.log('[openGroupChat] gid not in myGroups, fetching list', gid);
+    try {
+      const r = await fetch('/api/chat/groups', { headers: { 'Authorization': 'Bearer ' + token } });
+      const d = await r.json();
+      if (d && d.success) {
+        myGroups = d.groups || [];
+        g = myGroups.find(x => x.id === gid);
+      }
+    } catch (e) { console.error('[openGroupChat] groups fetch err', e); }
+  }
+  if (!g) {
+    console.warn('[openGroupChat] group not found, using minimal stub', gid);
+    g = { id: gid, name: gid, icon: '💬', member_count: 0 };
+  }
   document.getElementById('group-icon').textContent = g.icon || '💬';
   document.getElementById('group-name').textContent = g.name;
-  document.getElementById('group-sub').textContent = 'メンバー ' + g.member_count + '名';
+  document.getElementById('group-sub').textContent = 'メンバー ' + (g.member_count || 0) + '名';
   document.getElementById('group-modal').style.display = 'flex';
   delete groupUnread[gid]; updateGroupsBadge();
   setTimeout(() => { const inp = document.getElementById('group-input'); if (inp) inp.focus(); }, 100);
@@ -7667,12 +7772,10 @@ function applyFloorLayout(floor) {
   // 事故対策室にも適用してビデオタイルを有効化。ホワイトボードは別途wb-openで制御
   document.body.classList.toggle('layout-meeting', !!isMeeting);
   // (旧: wellness-records-door の表示制御はヘルスメニュー最上位ボタンへ統合済)
-  // 健康管理室: 推進メンバー or 管理職にだけ運営ダッシュボード入室ボタンを表示
-  const opsDoor = document.getElementById('wellness-ops-door');
+  // 健康管理室: 推進メンバー/管理職向けの「運営ダッシュボード」紫ボタンは2026-05-04撤去 (健康戦略室サロン入口に統合)
   const orientDoor = document.getElementById('wellness-orientation-door');
   const canSeePromoter = isWellnessRoom && currentUser
     && (currentUser.is_field_promoter || currentUser.employee_type === 'admin' || currentUser.role === 'admin');
-  if (opsDoor) opsDoor.style.display = canSeePromoter ? 'inline-flex' : 'none';
   if (orientDoor) orientDoor.style.display = canSeePromoter ? 'inline-flex' : 'none';
   // 事故対策室の機能ボタンは安全管理者メニュー内に統合済み (2026-04-30)
   const isAccidentRoom = floor && floor.code === 'field_accident';
@@ -8091,6 +8194,13 @@ function showAoiActionModal(botUid, botName) {
         <div style="flex:1;"><div>個人健康記録を見る</div><div style="font-size:11px;font-weight:600;opacity:0.95;">血圧・健康メモ・健診結果</div></div>
       </button>`
     : '';
+  // みんなの投稿ボタン (ヘルス時に表示)
+  const plazaBtn = isHealth
+    ? `<button onclick="closeAoiModal();location.href='/plaza.html'" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;box-shadow:0 4px 12px rgba(13,148,136,0.3);">
+        <span style="font-size:22px;">🌳</span>
+        <div style="flex:1;"><div>みんなの投稿を見る</div><div style="font-size:11px;font-weight:400;opacity:0.95;">食事AI分析・健康トーク・相談</div></div>
+      </button>`
+    : '';
   const scheduleBtn = (!isHealth && !isSafety)
     ? `<button onclick="aoiAction('schedule', '${botUid}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
         <span style="font-size:22px;">📅</span>
@@ -8132,6 +8242,7 @@ function showAoiActionModal(botUid, botName) {
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
         ${recordsBtn}
         ${planBtn}
+        ${plazaBtn}
         ${screenBtn}
         ${reportBtn}
         ${archiveBtn}
