@@ -248,6 +248,22 @@ body.layout-meeting.wb-open #space-canvas-wrap { right: calc(50% + 280px); }
 body.layout-meeting.wb-open #right-panel.hidden ~ #space-canvas-wrap { right: 50%; }
 body.layout-meeting.cam-open #floor-head { top: 116px; }  /* ビデオ表示時のみ下にずらす */
 
+/* 会議モード "アクティブ" (▶会議開始 押下中): 部屋・カメラを隠してホワイトボード+チャットだけ */
+body.meeting-active #space-canvas-wrap { display: none !important; }
+body.meeting-active #video-grid { display: none !important; }
+body.meeting-active #meeting-panel {
+  display: flex !important;
+  top: 56px;       /* ヘッダー直下 */
+  bottom: 88px;    /* ドック直上 */
+  left: 0;
+  right: 280px;
+  width: auto;
+  border-left: none;
+}
+body.meeting-active #right-panel.hidden ~ #meeting-panel { right: 0; }
+body.meeting-active #floor-head { display: none; }
+body.meeting-active #space-canvas-wrap, body.meeting-active.wb-open #space-canvas-wrap { right: 0; }
+
 .mp-head { padding: 10px 14px; border-bottom: 1px solid rgba(15,23,42,0.08); display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; font-size: 13px; background: #fff; flex-shrink: 0; }
 .mp-head .wb-status { font-size: 10px; color: #94a3b8; font-weight: 500; }
 
@@ -7256,26 +7272,29 @@ async function getOrCreatePeer(peerUid) {
 }
 
 // ===== 会議モード ワンタップ開始/終了 =====
+// 開始時はホワイトボード+チャットだけ最大化 (部屋・カメラ非表示)。
+// マイクのみON、カメラは手動で必要なら個別ONに留める。
 async function toggleMeetingMode() {
   const btn = document.getElementById('dock-meeting-start');
   const isActive = btn && btn.classList.contains('active');
-  // 事故対策室ではホワイトボードを使わない (一人称ビュー+大型スクリーン優先)
   const useWhiteboard = currentFloor && isWhiteboardFloorCode(currentFloor.code);
   if (isActive) {
-    // 終了: ビデオOFF + マイクOFF + (会議室のみ) ホワイトボード閉
+    // 終了: 録音中なら停止 → カメラOFF → マイクOFF → ボード閉 → meeting-active 解除
+    if (voice.recorder) stopRecording();
     if (camera.enabled) await disableCamera();
     if (voice.enabled) await disableVoice();
     if (useWhiteboard && document.body.classList.contains('wb-open')) toggleWhiteboard();
+    document.body.classList.remove('meeting-active');
     btn.classList.remove('active');
     btn.innerHTML = '▶ 会議開始';
     showToast(currentFloor && currentFloor.code === 'field_accident' ? '反省会を終了しました' : '会議モードを終了しました');
   } else {
-    // 開始: マイクON → カメラON → (会議室のみ) ボード開
+    // 開始: meeting-active で部屋+カメラ非表示 → マイクON → ボード開
+    document.body.classList.add('meeting-active');
     btn.classList.add('active');
     btn.innerHTML = '■ 会議終了';
-    showToast(currentFloor && currentFloor.code === 'field_accident' ? '事故反省会を開始します…' : '会議を開始します…');
+    showToast(currentFloor && currentFloor.code === 'field_accident' ? '事故反省会を開始します…' : '会議を開始します (描画+チャット中心)');
     if (!voice.enabled) await enableVoice();
-    if (voice.enabled && !camera.enabled) await enableCamera();
     if (useWhiteboard && !document.body.classList.contains('wb-open')) toggleWhiteboard();
   }
 }
@@ -7945,13 +7964,55 @@ function showRecordingConsentPrompt(data) {
   setTimeout(() => { if (document.getElementById('rec-consent-modal')) { respond(false); } }, 28000);
 }
 
+// 録音開始前に管理者へ「AI議事録 自動生成」の要否を尋ねるモーダル (Promise<boolean|null>)
+function askTranscriptToggle() {
+  return new Promise((resolve) => {
+    if (document.getElementById('rec-trans-modal')) { resolve(null); return; }
+    const modal = document.createElement('div');
+    modal.id = 'rec-trans-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:400px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+          '<div style="font-size:30px;">🔴</div>' +
+          '<div><div style="font-weight:800;font-size:15px;color:#0f172a;">会議録音を開始</div>' +
+          '<div style="font-size:11px;color:#64748b;">同フロアメンバーに同意を求めます</div></div>' +
+        '</div>' +
+        '<label style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:#ecfeff;border:2px solid #06b6d4;border-radius:10px;cursor:pointer;margin-bottom:14px;">' +
+          '<input type="checkbox" id="rec-trans-cb" checked style="width:18px;height:18px;margin-top:2px;cursor:pointer;flex-shrink:0;">' +
+          '<div style="flex:1;font-size:13px;color:#0f4f5c;line-height:1.6;">' +
+            '<div style="font-weight:800;margin-bottom:2px;">✨ AI議事録を自動生成する</div>' +
+            '<div style="font-size:11px;color:#0891b2;">録音停止と同時にバックグラウンドで Gemini が文字起こし+要約。完了したら /admin に表示されます。チェックを外すと録音のみ保存。</div>' +
+          '</div>' +
+        '</label>' +
+        '<div style="font-size:11px;color:#92400e;background:#fef3c7;border-radius:8px;padding:8px 10px;margin-bottom:14px;line-height:1.5;">⚠ 議事録生成は Gemini API へ音声送信が発生します。機密会議は OFF を選択してください。</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button id="rec-trans-cancel" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;">キャンセル</button>' +
+          '<button id="rec-trans-ok" style="flex:2;padding:12px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;">🔴 録音開始</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    document.getElementById('rec-trans-ok').onclick = () => {
+      const want = !!document.getElementById('rec-trans-cb').checked;
+      modal.remove();
+      resolve(want);
+    };
+    document.getElementById('rec-trans-cancel').onclick = () => { modal.remove(); resolve(null); };
+  });
+}
+
 // ===== 録音機能 (管理者、同意フロー必須) =====
+// 議事録の要否: 録音開始前に管理者が選択 (true=自動でAI議事録生成 / false=録音のみ)
 async function toggleRecording() {
   if (voice.recorder) { stopRecording(); return; }
   // 同意フロー: サーバが同フロアメンバー全員の同意を取り、結果に応じて開始
   if (!socket) { showToast('接続なし'); return; }
+  // 管理者にAI議事録の要否を確認 (Plan B: 開始時トグル)
+  const want = await askTranscriptToggle();
+  if (want === null) return; // キャンセル
+  voice.wantTranscript = !!want;
   socket.emit('recording:request');
-  showToast('🎙 同意確認中… (最大30秒)');
+  showToast('🎙 同意確認中… (最大30秒)' + (want ? ' / 議事録: 自動生成' : ' / 議事録: 作らない'));
 }
 
 async function startRecording() {
@@ -7987,6 +8048,7 @@ async function startRecording() {
       fd.append('file', blob, 'rec.webm');
       fd.append('duration_ms', String(duration));
       fd.append('floor_code', currentFloor ? currentFloor.code : '');
+      if (voice.wantTranscript) fd.append('auto_transcribe', '1');
       try {
         const r = await fetch('/api/admin/recording/upload', {
           method: 'POST',
@@ -7994,10 +8056,14 @@ async function startRecording() {
           body: fd,
         });
         const d = await r.json();
-        if (d.success) showToast('録音を保存しました (' + Math.round(duration/1000) + '秒)');
+        if (d.success) {
+          const transHint = voice.wantTranscript ? ' / AI議事録 生成中…' : '';
+          showToast('録音を保存しました (' + Math.round(duration/1000) + '秒)' + transHint);
+        }
         else showToast('保存に失敗: ' + (d.msg || ''));
       } catch (e) { showToast('保存に失敗'); }
       voice.recChunks = [];
+      voice.wantTranscript = false;
     };
     rec.start(1000); // 1秒毎にデータ確定
     voice.recorder = rec;

@@ -160,6 +160,8 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_aar_at ON accident_analysis_reports(created_at DESC);`);
   // accident_screen_posts に text_body カラム追加 (既存DB用 idempotent)
   try { _db.prepare('ALTER TABLE accident_screen_posts ADD COLUMN text_body TEXT').run(); } catch (e) {}
+  // recordings: AI議事録 自動生成ステータス (none / pending / done / failed)
+  ensureColumn(_db, 'recordings', 'transcript_status', "transcript_status TEXT DEFAULT 'none'");
   // 番組表 (ファイル単位グループ表示) 用カラム追加
   try { _db.prepare('ALTER TABLE accident_screen_posts ADD COLUMN source_label TEXT').run(); } catch (e) {}
   try { _db.prepare('ALTER TABLE accident_screen_posts ADD COLUMN source_id TEXT').run(); } catch (e) {}
@@ -855,6 +857,40 @@ function getDb() {
   ensureColumn(_db, 'users', 'pioneer_count', 'pioneer_count INTEGER DEFAULT 0');  // 公開プラン累積数 = 先駆者バッジ
   // 公開フィードクエリ用インデックス
   _db.exec(`CREATE INDEX IF NOT EXISTS idx_myplan_share ON myplan_consultations(share_publicly, created_at DESC);`);
+
+  // Connect 222 道中フォト (5/6) — 散歩で見た風景写真+一言を仲間に共有
+  _db.exec(`CREATE TABLE IF NOT EXISTS walk_field_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    event_id INTEGER NOT NULL,
+    photo_url TEXT NOT NULL,
+    comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_wfp_event ON walk_field_posts(event_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_wfp_user ON walk_field_posts(user_id, created_at DESC);`);
+
+  // 健康管理室 対話型アクションプラン (Phase 1 — 5/5)
+  // ユーザーと AI が数往復で実行可能なアクションを共同決定。
+  // 5パターン (置換/減らす/やめる/加える/タイミング)、エビデンス範囲限定、医療行為禁則。
+  _db.exec(`CREATE TABLE IF NOT EXISTS myplan_dialogs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    status TEXT DEFAULT 'active',          -- 'active' / 'finalized' / 'abandoned'
+    seed_category TEXT,                    -- 'meal' / 'move' / 'sleep' / 'drink' / 'check' / 'other'
+    history_json TEXT NOT NULL DEFAULT '[]',  -- [{role:'ai'|'user', text, choices?, value?, ts}]
+    final_action TEXT,                     -- 確定アクション本文 (1〜2行)
+    final_pattern TEXT,                    -- 'reduce' / 'stop' / 'swap' / 'add' / 'timing'
+    final_evidence TEXT,                   -- 引用エビデンス (ガイドライン名+該当数値)
+    final_confidence INTEGER,              -- 自信度 1-10
+    final_when TEXT,                       -- 実行予定 (今日/明日/週末/...)
+    finalized_consultation_id INTEGER,     -- 既存 myplan_consultations への昇格 ID
+    created_at TEXT DEFAULT (datetime('now')),
+    finalized_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_mpdialog_user ON myplan_dialogs(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_mpdialog_active ON myplan_dialogs(user_id, status);`);
 
   // ===== Connect 230 (歩く×Standard運輸グループ) =====
   // 東京日本橋 ⇔ 磐田スズエ電機 双方向ウォーキングイベント (約230km)

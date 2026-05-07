@@ -260,19 +260,51 @@ router.delete('/users/:id', authAdmin, (req, res) => {
 });
 
 // ========== 録音機能 ==========
+// バックグラウンド文字起こし: upload直後にキック、完了/失敗で transcript_status 更新
+async function backgroundTranscribe(recordingId) {
+  const db = getDb();
+  try {
+    const row = db.prepare('SELECT filename FROM recordings WHERE id = ?').get(recordingId);
+    if (!row) return;
+    const fp = path.join(recDir, row.filename);
+    if (!fs.existsSync(fp)) {
+      db.prepare("UPDATE recordings SET transcript_status='failed' WHERE id=?").run(recordingId);
+      return;
+    }
+    const stat = fs.statSync(fp);
+    if (stat.size > 30 * 1024 * 1024) {
+      db.prepare("UPDATE recordings SET transcript_status='failed', transcript=? WHERE id=?")
+        .run('ファイルが30MBを超えるため自動生成不可 (長尺会議は分割してください)', recordingId);
+      return;
+    }
+    const buf = fs.readFileSync(fp);
+    const b64 = buf.toString('base64');
+    const text = await transcribeRecording(b64, 'audio/webm');
+    db.prepare("UPDATE recordings SET transcript=?, transcript_at=datetime('now'), transcript_status='done' WHERE id=?").run(text, recordingId);
+  } catch (e) {
+    console.error('[backgroundTranscribe]', recordingId, e.message);
+    try { db.prepare("UPDATE recordings SET transcript_status='failed' WHERE id=?").run(recordingId); } catch {}
+  }
+}
+
 router.post('/recording/upload', authAdmin, recUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, msg: 'ファイルなし' });
   const duration_ms = parseInt(req.body.duration_ms) || 0;
   const floor_code = (req.body.floor_code || '').toString();
   const note = (req.body.note || '').toString().slice(0, 500);
-  const ins = getDb().prepare(`INSERT INTO recordings (filename, size, duration_ms, floor_code, recorded_by, note) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(req.file.filename, req.file.size, duration_ms, floor_code, req.uid, note);
-  res.json({ success: true, id: ins.lastInsertRowid });
+  const autoTranscribe = String(req.body.auto_transcribe || '') === '1';
+  const initialStatus = autoTranscribe ? 'pending' : 'none';
+  const ins = getDb().prepare(`INSERT INTO recordings (filename, size, duration_ms, floor_code, recorded_by, note, transcript_status) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .run(req.file.filename, req.file.size, duration_ms, floor_code, req.uid, note, initialStatus);
+  res.json({ success: true, id: ins.lastInsertRowid, auto_transcribe: autoTranscribe });
+  if (autoTranscribe) {
+    setImmediate(() => backgroundTranscribe(ins.lastInsertRowid));
+  }
 });
 
 router.get('/recording', authAdmin, (req, res) => {
   const rows = getDb().prepare(`SELECT r.id, r.filename, r.size, r.duration_ms, r.floor_code, r.recorded_by, r.note, r.created_at,
-    r.transcript_at,
+    r.transcript_at, COALESCE(r.transcript_status, 'none') AS transcript_status,
     CASE WHEN r.transcript IS NOT NULL AND length(r.transcript) > 0 THEN 1 ELSE 0 END AS has_transcript,
     u.display_name AS recorded_by_name FROM recordings r LEFT JOIN users u ON u.id = r.recorded_by ORDER BY r.created_at DESC LIMIT 500`).all();
   res.json({ success: true, recordings: rows });
@@ -288,14 +320,16 @@ router.post('/recording/:id/transcribe', authAdmin, async (req, res) => {
   if (stat.size > 30 * 1024 * 1024) {
     return res.status(400).json({ success: false, msg: 'ファイルが30MBを超えます (長すぎる会議は分割必要)' });
   }
+  getDb().prepare("UPDATE recordings SET transcript_status='pending' WHERE id=?").run(req.params.id);
   try {
     const buf = fs.readFileSync(fp);
     const b64 = buf.toString('base64');
     const text = await transcribeRecording(b64, 'audio/webm');
-    getDb().prepare("UPDATE recordings SET transcript=?, transcript_at=datetime('now') WHERE id=?").run(text, req.params.id);
+    getDb().prepare("UPDATE recordings SET transcript=?, transcript_at=datetime('now'), transcript_status='done' WHERE id=?").run(text, req.params.id);
     res.json({ success: true, transcript: text });
   } catch (e) {
     console.error('[transcribe]', e);
+    try { getDb().prepare("UPDATE recordings SET transcript_status='failed' WHERE id=?").run(req.params.id); } catch {}
     res.status(500).json({ success: false, msg: e.message });
   }
 });

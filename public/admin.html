@@ -730,9 +730,16 @@ async function loadRecordings() {
       const dtime = new Date(r.created_at + 'Z').toLocaleString('ja-JP', { year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit' });
       const dur = Math.round((r.duration_ms || 0) / 1000);
       const kb = Math.round((r.size || 0) / 1024);
-      const transBtn = r.has_transcript
-        ? `<button class="btn btn-ghost" onclick="viewTranscript(${r.id})" style="background:#ecfeff;color:#0891b2;">📝 議事録</button>`
-        : `<button class="btn btn-ghost" onclick="makeTranscript(${r.id}, this)">✨ AI議事録</button>`;
+      let transBtn;
+      if (r.has_transcript) {
+        transBtn = `<button class="btn btn-ghost" onclick="viewTranscript(${r.id})" style="background:#ecfeff;color:#0891b2;">📝 議事録</button>`;
+      } else if (r.transcript_status === 'pending') {
+        transBtn = `<button class="btn btn-ghost" disabled style="background:#fef3c7;color:#b45309;cursor:not-allowed;">🟡 生成中…</button>`;
+      } else if (r.transcript_status === 'failed') {
+        transBtn = `<button class="btn btn-ghost" onclick="makeTranscript(${r.id}, this)" style="background:#fef2f2;color:#dc2626;">⚠ 失敗 (再試行)</button>`;
+      } else {
+        transBtn = `<button class="btn btn-ghost" onclick="makeTranscript(${r.id}, this)">✨ AI議事録</button>`;
+      }
       html += `<tr>
         <td style="font-size:11px;color:#64748b;">${dtime}</td>
         <td style="font-size:12px;">${escapeHtml(r.recorded_by_name || '')}</td>
@@ -749,6 +756,14 @@ async function loadRecordings() {
     }
     html += '</tbody></table>';
     list.innerHTML = html;
+    // pending な議事録があれば10秒後に再読み込み (バックグラウンド進捗反映)
+    const hasPending = d.recordings.some(r => r.transcript_status === 'pending');
+    if (hasPending) {
+      if (window._recPollTimer) clearTimeout(window._recPollTimer);
+      window._recPollTimer = setTimeout(loadRecordings, 10000);
+    } else if (window._recPollTimer) {
+      clearTimeout(window._recPollTimer); window._recPollTimer = null;
+    }
   } catch (e) { document.getElementById('rec-list').textContent = '通信エラー'; }
 }
 
