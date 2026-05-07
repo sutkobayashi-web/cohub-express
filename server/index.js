@@ -21,11 +21,10 @@ const gcal = require('./services/gcal');
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
   { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'lobby', x: 744, y: 405 },
-  { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=3', floor: 'wellness_room', x: 744, y: 519 },
-  { id: 'bot_safety', login_id: 'bot_safety', name: '安全太郎', avatar: '/assets/concierge_safety_avatar.png?v=1', floor: 'field_accident', x: 1080, y: 500 },
-  { id: 'bot_master', login_id: 'bot_master', name: 'マスター', avatar: '/assets/concierge_master_avatar.png?v=1', floor: 'promoter_club', x: 596, y: 502 },
+  { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=8', floor: 'wellness_room', x: 744, y: 519 },
+  { id: 'bot_safety', login_id: 'bot_safety', name: '安全太郎', avatar: '/assets/concierge_safety_avatar.png?v=4', floor: 'field_accident', x: 1080, y: 500 },
 ];
-const OLD_BOT_IDS = ['bot_yui', 'bot_misaki']; // 廃止bot
+const OLD_BOT_IDS = ['bot_yui', 'bot_misaki', 'bot_master']; // 廃止bot
 function ensureConciergeBots() {
   const db = getDb();
   // 廃止botを削除 (関連メッセージも掃除)
@@ -262,6 +261,7 @@ app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
 app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
+app.use('/api/help', require('./routes/help'));
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
 const { authUser } = require('./middleware/auth');

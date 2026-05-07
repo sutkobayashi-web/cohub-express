@@ -343,6 +343,13 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
     .qa-item .i { font-size: 20px; }
     .status-grid { grid-template-columns: repeat(4, 1fr); }
   }
+
+  /* フローティング ヘルプ + お助けコール (右下) — ログイン中は非表示 */
+  html:not(.boot-auth) #m-float-help { display: none !important; }
+  #m-float-help { position: fixed; right: 12px; bottom: 88px; z-index: 9000; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  #m-float-help button { border: none; cursor: pointer; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,0.18); }
+  #m-float-help .mfh-help { width: 46px; height: 46px; border-radius: 50%; font-size: 20px; background: linear-gradient(135deg,#10b981,#059669); color: #fff; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #m-float-help .mfh-sos { padding: 7px 12px; border-radius: 20px; font-size: 11px; background: linear-gradient(135deg,#f97316,#ea580c); color: #fff; }
 </style>
 </head>
 <body>
@@ -3292,6 +3299,70 @@ function renderHomeRecentDm() {
     '</div>';
   }).join('');
 }
+
+// ===== フローティング ヘルプ + お助けコール =====
+function openMobileHelp() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9700;display:flex;align-items:center;justify-content:center;padding:16px;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+        '<div style="font-size:24px;">❓</div>' +
+        '<div style="flex:1;font-weight:800;font-size:14px;color:#0f172a;">CoWell モバイル ヘルプ</div>' +
+        '<button id="mhelp-close" style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#64748b;">×</button>' +
+      '</div>' +
+      '<div style="font-size:12px;line-height:1.7;color:#334155;background:#ecfeff;border-left:3px solid #06b6d4;padding:10px;border-radius:6px;margin-bottom:10px;">' +
+        '🏠 <b>ホーム</b>: 健康/業務メニューに戻る<br>' +
+        '💬 <b>チャット</b>: 個別DM・グループ会話<br>' +
+        '📋 <b>掲示板</b>: 全社の投稿・お知らせ<br>' +
+        '🩺 <b>健康管理室</b>: ヘルスアドバイザーに相談・アクションプラン<br>' +
+        '🆘 <b>お助けを呼ぶ</b>: 操作で困ったら下のボタンで小林・立石・吉沢へSOS' +
+      '</div>' +
+      '<div style="font-size:11px;color:#64748b;margin-bottom:10px;line-height:1.6;">詳しい使い方はPC版の「❓ ヘルプ」で全機能を確認できます。</div>' +
+      '<button onclick="openMobileSOS();this.parentElement.parentElement.remove();" style="width:100%;padding:12px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;">🆘 お助けを呼ぶ</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#mhelp-close').onclick = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function openMobileSOS() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9700;display:flex;align-items:center;justify-content:center;padding:16px;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:14px;max-width:400px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+        '<div style="font-size:24px;">🆘</div>' +
+        '<div style="flex:1;"><div style="font-weight:800;font-size:14px;color:#0f172a;">お助けを呼ぶ</div>' +
+        '<div style="font-size:10px;color:#64748b;">小林 猛 / 立石 宗貴 / 吉沢 佑也 にDM送信</div></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#0f172a;background:#fff7ed;border-left:3px solid #f97316;padding:8px;border-radius:6px;margin-bottom:10px;line-height:1.6;">困っている内容を一言添えるとスムーズです (任意)。</div>' +
+      '<textarea id="msos-note" maxlength="400" rows="3" placeholder="例: 食事写真の投稿の仕方が分からない…" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;margin-bottom:10px;box-sizing:border-box;"></textarea>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button id="msos-cancel" style="flex:1;padding:11px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-weight:800;cursor:pointer;font-size:13px;">キャンセル</button>' +
+        '<button id="msos-send" style="flex:2;padding:11px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:13px;">🆘 SOSを送信</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#msos-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#msos-send').onclick = async () => {
+    const btn = overlay.querySelector('#msos-send');
+    btn.disabled = true; btn.textContent = '送信中…';
+    const note = overlay.querySelector('#msos-note').value.trim();
+    try {
+      const r = await api('/api/help/sos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }) });
+      if (r && r.success) showToast('🆘 ' + (r.recipients || []).join('・') + ' にSOSを送りました');
+      else showToast('送信に失敗: ' + ((r && r.msg) || ''));
+    } catch (e) { showToast('通信エラー'); }
+    overlay.remove();
+  };
+}
 </script>
+
+<!-- 右下フローティング ヘルプ + お助けコール (常時表示) -->
+<div id="m-float-help">
+  <button class="mfh-sos" onclick="openMobileSOS()" title="操作で困ったらSOS">🆘 お助けを呼ぶ</button>
+  <button class="mfh-help" onclick="openMobileHelp()" title="使い方ヘルプ">❓</button>
+</div>
 </body>
 </html>
