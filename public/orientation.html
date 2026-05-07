@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>📖 推進メンバーへのメッセージ — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #ecfeff 0%, #f1f5f9 100%); color: #0f172a; min-height: 100vh; }
+header { position: sticky; top: 0; z-index: 30; background: linear-gradient(135deg, #047857, #0891b2); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header button { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 7px 14px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 880px; margin: 0 auto; padding: 18px 14px 80px; }
+
+/* 進捗ドット */
+.progress { display: flex; gap: 8px; justify-content: center; margin: 8px 0 16px; }
+.dot { width: 28px; height: 6px; border-radius: 3px; background: #cbd5e1; transition: all 0.2s; }
+.dot.active { background: #0891b2; width: 44px; }
+.dot.done { background: #047857; }
+
+/* スライド */
+.slide { background: #fff; border-radius: 16px; padding: 22px; box-shadow: 0 4px 18px rgba(15,23,42,0.08); min-height: 420px; display: flex; flex-direction: column; gap: 16px; }
+.slide-num { font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 1px; }
+.slide-title { font-size: 22px; font-weight: 900; color: #047857; line-height: 1.4; border-left: 4px solid #10b981; padding-left: 12px; }
+.slide-body { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+.slide-body.has-img { grid-template-columns: 1fr; }
+@media (min-width: 600px) {
+  .slide-body.has-img { grid-template-columns: 1fr 1fr; }
+}
+.slide-text ul { margin: 0; padding: 0; list-style: none; }
+.slide-text li { font-size: 15px; line-height: 1.85; color: #1e293b; padding: 6px 0 6px 28px; position: relative; }
+.slide-text li::before { content: ''; position: absolute; left: 4px; top: 18px; width: 12px; height: 12px; background: #10b981; border-radius: 50%; }
+.slide-text li.sub { font-size: 13px; color: #475569; padding-left: 38px; }
+.slide-text li.sub::before { width: 6px; height: 6px; background: #94a3b8; left: 18px; top: 16px; }
+.slide-text li.warn { color: #b45309; font-weight: 700; }
+.slide-text li.warn::before { background: #f59e0b; }
+.slide-text li.cta { color: #0891b2; font-weight: 800; font-size: 16px; }
+.slide-text li.cta::before { background: #0891b2; }
+.slide-images { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.slide-images img { width: 100%; height: auto; border-radius: 10px; background: #f1f5f9; padding: 8px; }
+.slide-images.single { grid-template-columns: 1fr; }
+
+/* チャート */
+.chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.chart-title { font-size: 12px; font-weight: 800; color: #047857; margin-bottom: 8px; }
+.chart-row { display: grid; grid-template-columns: 110px 1fr 50px; gap: 6px; align-items: center; margin: 3px 0; font-size: 11px; }
+.chart-row .label { color: #475569; text-align: right; padding-right: 4px; line-height: 1.2; }
+.chart-row .bar-wrap { background: #f1f5f9; border-radius: 4px; height: 18px; position: relative; overflow: hidden; }
+.chart-row .bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #14b8a6, #0d9488); transition: width 0.6s ease-out; }
+.chart-row .bar.transport { background: linear-gradient(90deg, #f59e0b, #dc2626); }
+.chart-row .val { font-weight: 800; color: #0f172a; text-align: right; }
+.chart-grouped .group-row { display: grid; grid-template-columns: 110px 1fr; gap: 6px; align-items: center; margin: 6px 0; font-size: 11px; }
+.chart-grouped .group-bars { display: grid; gap: 3px; }
+.chart-grouped .gb-line { display: grid; grid-template-columns: 60px 1fr 36px; gap: 4px; align-items: center; font-size: 10px; }
+.chart-grouped .gb-line .legend { color: #64748b; }
+.chart-grouped .group-label { font-weight: 700; color: #475569; text-align: right; padding-right: 4px; line-height: 1.3; }
+.chart-legend { display: flex; gap: 14px; font-size: 10px; color: #64748b; margin-top: 6px; }
+.chart-legend .lg { display: inline-flex; align-items: center; gap: 4px; }
+.chart-legend .lg .sw { width: 12px; height: 8px; border-radius: 2px; display: inline-block; }
+
+/* ナレーション */
+.narr { background: linear-gradient(135deg, #f0fdfa, #ecfdf5); border-left: 4px solid #14b8a6; border-radius: 10px; padding: 14px 16px; margin-top: 14px; font-size: 14px; line-height: 1.85; color: #134e4a; position: relative; }
+.narr::before { content: '🩺 ヘルスアドバイザー解説'; display: block; font-size: 11px; font-weight: 800; color: #0f766e; letter-spacing: 1px; margin-bottom: 6px; }
+.narr.speaking { background: linear-gradient(135deg, #ccfbf1, #a7f3d0); }
+
+/* 操作パネル */
+.controls { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #fff; border-radius: 999px; padding: 8px 12px; box-shadow: 0 6px 24px rgba(15,23,42,0.18); display: flex; align-items: center; gap: 6px; z-index: 20; }
+.ctrl { background: transparent; border: none; padding: 8px 12px; border-radius: 999px; cursor: pointer; font-size: 14px; font-weight: 700; color: #475569; }
+.ctrl:hover:not(:disabled) { background: #f1f5f9; color: #0f172a; }
+.ctrl:disabled { opacity: 0.35; cursor: not-allowed; }
+.ctrl.primary { background: linear-gradient(135deg, #0891b2, #047857); color: #fff; padding: 10px 22px; }
+.ctrl.primary:hover { filter: brightness(1.08); }
+.ctrl-info { font-size: 11px; color: #64748b; padding: 0 10px; min-width: 50px; text-align: center; }
+.auto-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #64748b; padding: 0 8px; }
+.auto-toggle input { margin: 0; }
+
+/* オーディオビジュアライザー */
+.viz { display: inline-block; vertical-align: middle; margin-left: 4px; }
+.viz span { display: inline-block; width: 3px; height: 6px; background: #14b8a6; border-radius: 1.5px; margin: 0 1px; animation: viz 0.9s ease-in-out infinite; }
+.viz span:nth-child(2) { animation-delay: 0.15s; }
+.viz span:nth-child(3) { animation-delay: 0.3s; }
+.viz span:nth-child(4) { animation-delay: 0.45s; }
+@keyframes viz { 0%,100%{height:6px} 50%{height:18px} }
+
+.gate { max-width: 420px; margin: 80px auto; background: #fff; border-radius: 14px; padding: 28px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.gate h2 { color: #b45309; }
+.gate p { color: #475569; font-size: 13px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📖 推進メンバーへのメッセージ</h1>
+  <div class="spacer"></div>
+  <button onclick="goBackToFloor()">✕ 閉じる</button>
+</header>
+
+<main>
+  <div id="gate" class="gate" style="display:none;">
+    <h2>⛔ 閲覧権限がありません</h2>
+    <p>このページは <b>推進メンバー / 管理職</b> 限定です。<br>権限についてはシステム管理者にお問い合わせください。</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div style="font-size:11px;color:#0f766e;font-weight:800;letter-spacing:1.2px;text-align:center;margin-bottom:4px;">帝京大学公衆衛生学研究科 西村さん 提供資料</div>
+    <div class="progress" id="progress"></div>
+    <div class="slide" id="slide"></div>
+    <div class="narr" id="narr">読み込み中…</div>
+  </div>
+
+  <div class="controls" id="controls" style="display:none;">
+    <button class="ctrl" id="btn-prev" onclick="goSlide(-1)">◀ 前</button>
+    <span class="ctrl-info" id="info">1 / 4</span>
+    <button class="ctrl primary" id="btn-play" onclick="togglePlay()">▶ 解説</button>
+    <button class="ctrl" id="btn-next" onclick="goSlide(1)">次 ▶</button>
+    <label class="auto-toggle" title="解説終了で次のスライドへ"><input type="checkbox" id="auto-advance" checked> 自動進行</label>
+  </div>
+</main>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+
+// 閉じる時: 直前ページに戻る (健康管理室に居た場合はそこに復帰)。
+// 履歴がない (直接URLで開いた等) ならルートへ。ルートはフロア位置を自動復元する。
+function goBackToFloor() {
+  if (history.length > 1 && document.referrer && document.referrer.includes(location.host)) {
+    history.back();
+  } else {
+    location.href = '/';
+  }
+}
+
+const SLIDES = [
+  {
+    num: 1,
+    title: 'トラックドライバーの健康状態とこれからの取組',
+    bullets: [
+      { text: '株式会社スタンダード運輸 推進メンバーの皆さまへ', cls: 'cta' },
+      { text: '帝京大学公衆衛生学研究科 西村' },
+    ],
+    images: ['/assets/orientation/image1.png?v=1'],
+    narration: '皆さま、推進メンバーへの貴重なお時間をありがとうございます。本日は帝京大学の西村より、トラックドライバーの健康状態と、これからの取組について、ご説明させていただきます。'
+  },
+  {
+    num: 2,
+    title: '運輸業従事者の健康状態 — 過労死支給決定件数',
+    bullets: [
+      { text: '脳・心臓疾患による過労死の支給決定件数は、業種別で運輸業が最多', cls: 'warn' },
+      { text: '関連要因(喫煙率/メタボ/高血圧/肥満)も全産業平均より高い', cls: 'sub' },
+      { text: '仕事そのものに由来するリスクが大半', cls: 'sub' },
+    ],
+    charts: ['chart1', 'chart2'],
+    narration: 'まず運輸業に携わる方々の健康状態から見てまいります。脳・心臓疾患による過労死の支給決定件数を業種別に見ると、運輸業が159件と最多で、2位の卸売・小売業の88件と比べても突出しています。さらに健康関連要因の割合を見ると、喫煙率、メタボリックシンドローム、高血圧、肥満のすべてで運輸業は全産業平均を上回っています。長時間労働、深夜早朝の勤務、座りっぱなしの姿勢、不規則な食事といった、仕事そのものに由来する要因が積み重なった結果と考えられます。'
+  },
+  {
+    num: 3,
+    title: 'トラックドライバーを取り巻く環境',
+    bullets: [
+      { text: '高血圧の原因を見てみると…', cls: 'cta' },
+      { text: '長時間の座位 ⇒ 運動不足' },
+      { text: '早朝勤務 ⇒ 生活リズムの乱れ' },
+      { text: 'コンビニ食 ⇒ 栄養過多' },
+      { text: '運転による緊張の持続 ⇒ 自律神経の乱れ' },
+      { text: '仕事をしているだけで健康リスクが積み上がる構造', cls: 'warn' },
+    ],
+    images: ['/assets/orientation/image2.png?v=1', '/assets/orientation/image3.png?v=1', '/assets/orientation/image4.png?v=1', '/assets/orientation/image5.png?v=1'],
+    narration: '次にトラックドライバーを取り巻く環境を具体的に見てみましょう。長時間の座位による運動不足。早朝勤務による生活リズムの乱れ。コンビニ食中心の栄養過多。そして運転中の緊張の持続による自律神経の乱れ。これらが複合的に重なり、高血圧をはじめとする生活習慣病の温床となっています。仕事をしているだけで健康リスクが蓄積していく構造、それがドライバー職の現実です。'
+  },
+  {
+    num: 4,
+    title: '形だけで終わらせない健康づくりを！',
+    bullets: [
+      { text: 'これまでの対策はすべて法的な義務 (労働安全衛生法)', cls: 'sub' },
+      { text: '健康診断・再検査・指導 (第66条)' },
+      { text: '安全に働ける環境づくり (第3条)' },
+      { text: '健康づくりの推進 (第6条)' },
+      { text: 'しかし実際の効果は不十分なケースも多い', cls: 'warn' },
+      { text: '現場を一番知る皆さまの知恵とご協力をお願いします', cls: 'cta' },
+    ],
+    images: ['/assets/orientation/image6.png?v=1'],
+    narration: 'ではこれまでの対策はどうだったでしょうか。労働安全衛生法に基づく健康診断・再検査・指導。安全に働ける環境づくり。健康づくりの推進。これらは法的な義務として実施されています。しかしながら、形だけで終わってしまい、実際の効果が不十分なケースが少なくありません。だからこそ現場を一番よく知る皆さま、推進メンバーの知恵とご協力が不可欠です。本アプリはこの課題に正面から向き合うために生まれました。皆さまと一緒に、形だけで終わらせない健康づくりを進めてまいります。何卒よろしくお願いいたします。'
+  },
+];
+
+// 西村さん資料の chart1/chart2 データ (pptx /ppt/charts/*.xml から抽出)
+const CHART_DATA = {
+  chart1: {
+    title: '脳・心臓疾患 過労死支給決定件数 (業種別、件)',
+    type: 'bar',
+    rows: [
+      { label: '運輸業、郵便業', val: 159, highlight: true },
+      { label: '卸売業、小売業', val: 88 },
+      { label: 'サービス業', val: 82 },
+      { label: '建設業', val: 75 },
+      { label: '製造業', val: 64 },
+      { label: '医療、福祉', val: 59 },
+      { label: '宿泊業、飲食サービス業', val: 51 },
+      { label: 'その他の事業', val: 44 },
+      { label: '情報通信業', val: 20 },
+      { label: '教育、学習支援業', val: 11 },
+      { label: '農業、林業・漁業等', val: 11 },
+      { label: '金融業、保険業', val: 3 },
+    ],
+  },
+  chart2: {
+    title: '健康関連要因の割合 (%) — 全産業 vs 運輸業',
+    type: 'grouped',
+    series: ['全産業平均', '運輸業'],
+    rows: [
+      { label: '喫煙率', vals: [25, 31] },
+      { label: 'メタボリックシンドローム', vals: [31, 37] },
+      { label: '高血圧', vals: [38, 46] },
+      { label: '肥満', vals: [43, 48] },
+    ],
+  },
+};
+
+function renderBarChart(c) {
+  const max = Math.max(...c.rows.map(r => r.val));
+  const rows = c.rows.map(r => {
+    const w = Math.max(2, (r.val / max) * 100);
+    return `<div class="chart-row">
+      <div class="label">${escapeHtml(r.label)}</div>
+      <div class="bar-wrap"><div class="bar ${r.highlight ? 'transport' : ''}" style="width:${w}%"></div></div>
+      <div class="val">${r.val}</div>
+    </div>`;
+  }).join('');
+  return `<div class="chart-card">
+    <div class="chart-title">📊 ${escapeHtml(c.title)}</div>
+    ${rows}
+  </div>`;
+}
+
+function renderGroupedChart(c) {
+  const max = Math.max(...c.rows.flatMap(r => r.vals));
+  const rows = c.rows.map(r => {
+    const lines = r.vals.map((v, i) => {
+      const w = Math.max(2, (v / max) * 100);
+      const cls = i === 1 ? 'transport' : '';
+      return `<div class="gb-line">
+        <span class="legend">${escapeHtml(c.series[i])}</span>
+        <div class="bar-wrap"><div class="bar ${cls}" style="width:${w}%"></div></div>
+        <span class="val">${v}%</span>
+      </div>`;
+    }).join('');
+    return `<div class="group-row">
+      <div class="group-label">${escapeHtml(r.label)}</div>
+      <div class="group-bars">${lines}</div>
+    </div>`;
+  }).join('');
+  return `<div class="chart-card chart-grouped">
+    <div class="chart-title">📊 ${escapeHtml(c.title)}</div>
+    ${rows}
+    <div class="chart-legend">
+      <span class="lg"><span class="sw" style="background:linear-gradient(90deg,#14b8a6,#0d9488);"></span>${escapeHtml(c.series[0])}</span>
+      <span class="lg"><span class="sw" style="background:linear-gradient(90deg,#f59e0b,#dc2626);"></span>${escapeHtml(c.series[1])}</span>
+    </div>
+  </div>`;
+}
+
+function renderChart(key) {
+  const c = CHART_DATA[key];
+  if (!c) return '';
+  return c.type === 'grouped' ? renderGroupedChart(c) : renderBarChart(c);
+}
+
+let _idx = 0;
+let _isPlaying = false;
+let _audio = document.getElementById('audio');
+let _audioCache = {};  // idx -> blob URL
+
+function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderProgress() {
+  const dots = SLIDES.map((s, i) => {
+    const cls = i === _idx ? 'active' : (i < _idx ? 'done' : '');
+    return `<div class="dot ${cls}"></div>`;
+  }).join('');
+  document.getElementById('progress').innerHTML = dots;
+  document.getElementById('info').textContent = (_idx + 1) + ' / ' + SLIDES.length;
+  document.getElementById('btn-prev').disabled = _idx === 0;
+  document.getElementById('btn-next').disabled = _idx === SLIDES.length - 1;
+}
+
+function renderSlide() {
+  const s = SLIDES[_idx];
+  const hasImg = s.images && s.images.length;
+  const hasChart = s.charts && s.charts.length;
+  const imgs = hasImg ? `<div class="slide-images ${s.images.length === 1 ? 'single' : ''}">${s.images.map(src => `<img src="${escapeHtml(src)}" alt="">`).join('')}</div>` : '';
+  const charts = hasChart ? s.charts.map(renderChart).join('') : '';
+  const lis = s.bullets.map(b => `<li class="${b.cls || ''}">${escapeHtml(b.text)}</li>`).join('');
+  // チャートがある場合: テキストの下にチャートを大きめに表示
+  const rightCol = hasChart ? charts : imgs;
+  const useTwoCol = hasChart || hasImg;
+  document.getElementById('slide').innerHTML = `
+    <div class="slide-num">SLIDE ${s.num}</div>
+    <div class="slide-title">${escapeHtml(s.title)}</div>
+    <div class="slide-body ${useTwoCol ? 'has-img' : ''}">
+      <div class="slide-text"><ul>${lis}</ul></div>
+      <div>${rightCol}</div>
+    </div>
+  `;
+  document.getElementById('narr').innerHTML = escapeHtml(s.narration);
+  renderProgress();
+}
+
+async function fetchTtsBlob(idx) {
+  if (_audioCache[idx]) return _audioCache[idx];
+  const text = SLIDES[idx].narration;
+  try {
+    const r = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ text, voice: 'ja-JP-Wavenet-A', speed: 1.05, pitch: 2 }),
+    });
+    if (!r.ok) throw new Error('TTS HTTP ' + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    _audioCache[idx] = url;
+    return url;
+  } catch (e) {
+    console.warn('[orientation] TTS API失敗、Web Speech APIへフォールバック:', e.message);
+    return null;
+  }
+}
+
+function speakViaWebSpeech(text, onEnd) {
+  if (!('speechSynthesis' in window)) { onEnd && onEnd(); return null; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = 1.05;
+  u.pitch = 1.05;
+  // 日本語ボイス選択
+  const voices = speechSynthesis.getVoices();
+  const ja = voices.find(v => /ja(-|_)JP/i.test(v.lang));
+  if (ja) u.voice = ja;
+  u.onend = () => onEnd && onEnd();
+  u.onerror = () => onEnd && onEnd();
+  speechSynthesis.speak(u);
+  return u;
+}
+
+let _currentUtterance = null;
+async function togglePlay() {
+  if (_isPlaying) { stopPlay(); return; }
+  _isPlaying = true;
+  document.getElementById('btn-play').innerHTML = '⏸ 停止 <span class="viz"><span></span><span></span><span></span><span></span></span>';
+  document.getElementById('narr').classList.add('speaking');
+
+  const blobUrl = await fetchTtsBlob(_idx);
+  if (blobUrl) {
+    _audio.src = blobUrl;
+    _audio.play().catch(() => {});
+    _audio.onended = () => onSpeechEnd();
+  } else {
+    _currentUtterance = speakViaWebSpeech(SLIDES[_idx].narration, () => onSpeechEnd());
+  }
+  // 次スライドをプリフェッチ
+  if (_idx + 1 < SLIDES.length) fetchTtsBlob(_idx + 1).catch(() => {});
+}
+
+function stopPlay() {
+  _isPlaying = false;
+  document.getElementById('btn-play').textContent = '▶ 解説';
+  document.getElementById('narr').classList.remove('speaking');
+  try { _audio.pause(); } catch (e) {}
+  try { speechSynthesis.cancel(); } catch (e) {}
+}
+
+function onSpeechEnd() {
+  if (!_isPlaying) return;
+  stopPlay();
+  const auto = document.getElementById('auto-advance').checked;
+  if (auto && _idx < SLIDES.length - 1) {
+    setTimeout(() => { goSlide(1); setTimeout(togglePlay, 600); }, 800);
+  }
+}
+
+function goSlide(delta) {
+  stopPlay();
+  const next = _idx + delta;
+  if (next < 0 || next >= SLIDES.length) return;
+  _idx = next;
+  renderSlide();
+}
+
+// キーボード操作
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') goSlide(-1);
+  else if (e.key === 'ArrowRight') goSlide(1);
+  else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+});
+
+// ===== 権限チェック =====
+(async function init() {
+  if (!token) { document.getElementById('gate').style.display = 'block'; return; }
+  try {
+    const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success || !j.user) { document.getElementById('gate').style.display = 'block'; return; }
+    const u = j.user;
+    const ok = (u.role === 'admin') || (u.employee_type === 'admin') || u.is_field_promoter === 1 || u.is_field_promoter === true;
+    if (!ok) { document.getElementById('gate').style.display = 'block'; return; }
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('controls').style.display = 'flex';
+    renderSlide();
+    // Web Speech voiceList初期化(初回コール用)
+    try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch (e) {}
+  } catch (e) {
+    document.getElementById('gate').style.display = 'block';
+  }
+})();
+</script>
+</body>
+</html>
