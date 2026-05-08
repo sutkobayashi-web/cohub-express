@@ -106,6 +106,12 @@
   .hero .body { flex: 1; line-height: 1.5; }
   .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; }
   .hero .greet strong { color: #047857; }
+  .hero .greet .me-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    vertical-align: middle; margin-left: 8px;
+    object-fit: cover; border: 2px solid #fff;
+    box-shadow: 0 2px 5px rgba(15,23,42,0.18);
+  }
   .hero .note { font-size: 11px; color: #475569; margin-top: 4px; }
 
   /* セクション見出し */
@@ -220,6 +226,7 @@
     .hero { padding: 14px 16px; gap: 10px; border-radius: 14px; }
     .hero .ic { font-size: 32px; }
     .hero .greet { font-size: 14px; }
+    .hero .greet .me-avatar { width: 28px; height: 28px; margin-left: 6px; }
     .grid { grid-template-columns: 1fr; gap: 12px; }
     .card { padding: 16px 16px 14px 16px; }
     .card .icon-pill { width: 44px; height: 44px; font-size: 24px; border-radius: 12px; margin-bottom: 10px; }
@@ -414,7 +421,10 @@ async function init() {
   $('hd-name').textContent = me.display_name + 'さん';
   const g = greetInfo();
   $('hero-ic').textContent = g.ic;
-  $('greet').innerHTML = g.word + '、<strong>' + escapeHtml(me.display_name) + '</strong>さん';
+  const avaHtml = me.avatar_url
+    ? '<img class="me-avatar" src="' + escapeHtml(me.avatar_url) + '" alt="">'
+    : '';
+  $('greet').innerHTML = g.word + '、<strong>' + escapeHtml(me.display_name) + '</strong>さん' + avaHtml;
 
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;
