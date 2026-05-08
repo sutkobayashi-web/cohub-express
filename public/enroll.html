@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📷 社員登録</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #ffffff; --border: #e2e8f0;
+  --accent: #6366f1; --accent-d: #4338ca;
+  --warn: #f59e0b; --danger: #ef4444; --ok: #10b981;
+  --chip: #f1f5f9;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, #eef2ff, #f5f3ff); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.hd a.back { color: var(--accent-d); text-decoration: none; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(99,102,241,.1); }
+.hd .title { flex: 1; font-weight: 700; font-size: 16px; }
+.intro { padding: 12px 16px; color: var(--mute); font-size: 13px; line-height: 1.6; background: #fff; border-bottom: 1px solid var(--border); }
+.intro b { color: var(--accent-d); }
+.body { padding: 14px; max-width: 600px; margin: 0 auto; }
+.step { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.step h3 { margin: 0 0 12px 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.step h3 .num { background: var(--accent); color: #fff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+input[type=text], input[type=date], select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; font-family: inherit; background: #fff; }
+input[type=file] { display: none; }
+.row { margin-bottom: 12px; }
+.row .hint { font-size: 11px; color: var(--mute); margin-top: 4px; line-height: 1.5; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 18px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-ghost { background: var(--chip); color: var(--fg); }
+.btn-ok { background: var(--ok); color: #fff; }
+.btn-block { width: 100%; }
+.photo-wrap { background: var(--chip); border: 2px dashed var(--border); border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; }
+.photo-wrap.has { padding: 0; border: none; background: transparent; }
+.photo-wrap img { max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; display: block; margin: 0 auto; }
+.photo-wrap .icon { font-size: 32px; margin-bottom: 6px; }
+.photo-wrap .lbl { font-size: 13px; color: var(--mute); }
+.spinner { border: 3px solid var(--chip); border-top-color: var(--accent); border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin: 14px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.err { color: var(--danger); font-size: 13px; margin-top: 8px; min-height: 16px; }
+.success-modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.success-modal-bg.show { display: flex; }
+.success-modal { background: #fff; max-width: 440px; width: 100%; border-radius: 16px; padding: 24px; }
+.success-modal h2 { margin: 0 0 12px 0; color: var(--ok); font-size: 20px; display: flex; align-items: center; gap: 8px; }
+.cred { background: var(--chip); padding: 12px 14px; border-radius: 8px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+.cred .k { font-size: 12px; color: var(--mute); }
+.cred .v { font-family: ui-monospace, "SF Mono", monospace; font-size: 18px; font-weight: 700; color: var(--fg); letter-spacing: .5px; }
+.cred .cp { background: var(--accent); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.warn-box { background: #fef3c7; border: 1px solid #fcd34d; padding: 10px 12px; border-radius: 8px; font-size: 13px; color: #92400e; line-height: 1.6; margin: 10px 0; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="hd">
+  <a href="/home" class="back">←</a>
+  <div class="title">📷 社員登録</div>
+</div>
+<div class="intro">
+  拠点で新しい社員を登録します。<b>スマホで写真を撮ってアバターを作成</b>し、拠点・配属を選んで登録するだけ。<br>
+  登録後は <b>ログインID</b> と <b>初期パスワード</b> を本人に伝えてください（その画面でしか表示されません）。
+</div>
+<div class="body">
+
+  <div class="step">
+    <h3><span class="num">1</span>📷 顔写真でアバター作成</h3>
+    <input type="file" id="photo" accept="image/*" capture="user">
+    <div class="photo-wrap" id="photo-wrap" onclick="document.getElementById('photo').click()">
+      <div class="icon" id="ph-icon">📸</div>
+      <div class="lbl" id="ph-lbl">タップして撮影 / 写真を選択</div>
+      <img id="ph-img" style="display:none;">
+    </div>
+    <div id="ph-spin" style="display:none;"><div class="spinner"></div><div style="text-align:center;color:var(--mute);font-size:13px;">アバター生成中…(10〜20秒)</div></div>
+    <div class="err" id="ph-err"></div>
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button class="btn btn-ghost" id="ph-retake" onclick="retakePhoto()" style="display:none;">📷 撮り直し</button>
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="num">2</span>📝 基本情報</h3>
+    <div class="row">
+      <label>表示名 (実名) <span style="color:var(--danger);">*</span></label>
+      <input type="text" id="display_name" placeholder="例) 山田 太郎" maxlength="80">
+    </div>
+    <div class="row">
+      <label>ログインID <span style="color:var(--danger);">*</span></label>
+      <input type="text" id="login_id" placeholder="例) yamada_t" maxlength="30" autocapitalize="none" autocorrect="off">
+      <div class="hint">英小文字+数字+「_-.」のみ、3〜30文字。本人が入力しやすいIDを付けてください。</div>
+    </div>
+    <div class="row">
+      <label>拠点 <span style="color:var(--danger);">*</span></label>
+      <select id="company_code"></select>
+    </div>
+    <div class="row">
+      <label>雇用区分</label>
+      <select id="employee_type">
+        <option value="field">現場 (ドライバー / 倉庫作業者)</option>
+        <option value="office">事務</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>配属 (任意)</label>
+      <input type="text" id="dm_group" placeholder="例) 配車課 / 倉庫グループ" list="dm-list" maxlength="40">
+      <datalist id="dm-list"></datalist>
+      <div class="hint">既存のグループ名を入れると同じチャットグループに自動加入します。</div>
+    </div>
+    <div class="row">
+      <label>生年月日 (任意)</label>
+      <input type="date" id="birth_date">
+      <div class="hint">健診データとの突合・年齢別分析に使います。</div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="submit-btn" onclick="submitEnroll()">この内容で登録</button>
+  <div class="err" id="form-err" style="text-align:center;"></div>
+</div>
+
+<div class="success-modal-bg" id="ok-bg">
+  <div class="success-modal">
+    <h2>✅ 登録完了</h2>
+    <div style="font-size:14px;color:var(--mute);margin-bottom:8px;">本人に下記を伝えてください。</div>
+    <div class="cred">
+      <div>
+        <div class="k">ログインID</div>
+        <div class="v" id="ok-id"></div>
+      </div>
+      <button class="cp" onclick="copyVal('ok-id')">コピー</button>
+    </div>
+    <div class="cred">
+      <div>
+        <div class="k">初期パスワード</div>
+        <div class="v" id="ok-pw"></div>
+      </div>
+      <button class="cp" onclick="copyVal('ok-pw')">コピー</button>
+    </div>
+    <div class="warn-box">⚠️ <b>このパスワードは今だけ表示されます。</b>本人にメモを渡すか、その場で初回ログインしてもらってください。<br>本人は初回ログインでニックネーム設定 → ログイン後の設定画面で<b>パスワード変更を必ず実施</b>してください。</div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-ghost btn-block" onclick="closeOk(false)">閉じる</button>
+      <button class="btn btn-ok btn-block" onclick="closeOk(true)">続けて登録</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let meta = null;
+let pendingAvatarUrl = '';
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.replace('/'); return null; }
+  return r.json();
+}
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms = 1800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const meR = await api('/api/auth/me');
+  if (!meR || !meR.success) { location.replace('/'); return; }
+  me = meR.user;
+  const m = await api('/api/enroll/meta');
+  if (!m || !m.success) {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#ef4444;">登録権限がありません。<br><a href="/home">ホームへ戻る</a></div>';
+    return;
+  }
+  meta = m;
+  // 拠点
+  const co = document.getElementById('company_code');
+  co.innerHTML = meta.companies.map(c => `<option value="${escapeHtml(c.code)}" ${c.code === meta.own_company ? 'selected' : ''}>${escapeHtml(c.name || c.code)} (${escapeHtml(c.code)})</option>`).join('');
+  if (!meta.is_admin) co.disabled = true;
+  // 配属候補
+  document.getElementById('dm-list').innerHTML = (meta.dm_groups || []).map(g => `<option value="${escapeHtml(g)}">`).join('');
+}
+
+document.getElementById('photo').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  await uploadPhoto(f);
+});
+
+async function uploadPhoto(file) {
+  const errEl = document.getElementById('ph-err');
+  errEl.textContent = '';
+  document.getElementById('ph-spin').style.display = '';
+  document.getElementById('photo-wrap').style.display = 'none';
+  const form = new FormData();
+  form.append('photo', file);
+  try {
+    const r = await fetch('/api/enroll/generate-avatar', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: form,
+    });
+    const j = await r.json();
+    if (!j.success) {
+      errEl.textContent = '生成失敗: ' + (j.msg || '');
+      document.getElementById('ph-spin').style.display = 'none';
+      document.getElementById('photo-wrap').style.display = '';
+      return;
+    }
+    pendingAvatarUrl = j.avatar_url;
+    document.getElementById('ph-spin').style.display = 'none';
+    document.getElementById('photo-wrap').classList.add('has');
+    document.getElementById('photo-wrap').style.display = '';
+    document.getElementById('ph-icon').style.display = 'none';
+    document.getElementById('ph-lbl').style.display = 'none';
+    const img = document.getElementById('ph-img');
+    img.src = j.avatar_url;
+    img.style.display = '';
+    document.getElementById('ph-retake').style.display = '';
+  } catch (e) {
+    errEl.textContent = '通信エラー: ' + e.message;
+    document.getElementById('ph-spin').style.display = 'none';
+    document.getElementById('photo-wrap').style.display = '';
+  }
+}
+
+async function retakePhoto() {
+  if (pendingAvatarUrl) {
+    try {
+      await api('/api/enroll/discard-avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: pendingAvatarUrl }),
+      });
+    } catch (e) {}
+    pendingAvatarUrl = '';
+  }
+  document.getElementById('ph-img').style.display = 'none';
+  document.getElementById('ph-icon').style.display = '';
+  document.getElementById('ph-lbl').style.display = '';
+  document.getElementById('photo-wrap').classList.remove('has');
+  document.getElementById('ph-retake').style.display = 'none';
+  document.getElementById('photo').value = '';
+}
+
+async function submitEnroll() {
+  const errEl = document.getElementById('form-err');
+  errEl.textContent = '';
+  const payload = {
+    login_id: document.getElementById('login_id').value.trim().toLowerCase(),
+    display_name: document.getElementById('display_name').value.trim(),
+    company_code: document.getElementById('company_code').value,
+    employee_type: document.getElementById('employee_type').value,
+    dm_group: document.getElementById('dm_group').value.trim(),
+    birth_date: document.getElementById('birth_date').value || null,
+    avatar_url: pendingAvatarUrl || '',
+  };
+  if (!payload.display_name) { errEl.textContent = '表示名を入力してください'; return; }
+  if (!payload.login_id) { errEl.textContent = 'ログインIDを入力してください'; return; }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '登録中…';
+  try {
+    const r = await api('/api/enroll/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r || !r.success) {
+      errEl.textContent = '登録失敗: ' + (r && r.msg || '通信エラー');
+      btn.disabled = false; btn.textContent = 'この内容で登録';
+      return;
+    }
+    document.getElementById('ok-id').textContent = r.user.login_id;
+    document.getElementById('ok-pw').textContent = r.initial_password;
+    document.getElementById('ok-bg').classList.add('show');
+    pendingAvatarUrl = '';  // 確定済み
+  } catch (e) {
+    errEl.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = 'この内容で登録';
+  }
+}
+
+function copyVal(elId) {
+  const v = document.getElementById(elId).textContent;
+  if (!navigator.clipboard) { showToast('コピー非対応'); return; }
+  navigator.clipboard.writeText(v).then(() => showToast('✓ ' + v + ' をコピー'));
+}
+
+function closeOk(continueMore) {
+  document.getElementById('ok-bg').classList.remove('show');
+  if (continueMore) {
+    // フォームリセット
+    document.getElementById('display_name').value = '';
+    document.getElementById('login_id').value = '';
+    document.getElementById('dm_group').value = '';
+    document.getElementById('birth_date').value = '';
+    retakePhoto();
+    document.getElementById('submit-btn').disabled = false;
+    document.getElementById('submit-btn').textContent = 'この内容で登録';
+    document.getElementById('form-err').textContent = '';
+    window.scrollTo(0, 0);
+  } else {
+    location.replace('/home');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -227,9 +227,15 @@ app.set('etag', false);
 
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   etag: false,
+  index: false,  // ルート '/' で index.html を自動配信させない (MINIMAL_MODE 切替のため SPA fallback で制御)
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')
         || filePath.endsWith('manifest.json') || filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+    // .ps1 を text/plain で配信 (PowerShell の Invoke-RestMethod が文字列として受信できるように)
+    if (filePath.endsWith('.ps1')) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   }
@@ -243,6 +249,7 @@ getDb();
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/avatar', require('./routes/avatar'));
+app.use('/api/enroll', require('./routes/enroll'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/voice', require('./routes/tts'));
@@ -262,6 +269,36 @@ app.use('/api/accident', require('./routes/accident'));
 app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
 app.use('/api/help', require('./routes/help'));
+app.use('/api/timecard', require('./routes/timecard'));
+
+// ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
+// MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
+// 0または未設定なら従来の index.html (フル機能) を返す。
+const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
+app.get('/api/config', (req, res) => {
+  res.json({
+    success: true,
+    minimal_mode: MINIMAL_MODE,
+    features: {
+      chat: true,
+      timecard: true,
+      meal: true,
+      plaza: true,
+      board: true,
+      announcements: true,
+      ops: true,
+      accident: true,
+      challenges: true,
+      // 以下は MINIMAL_MODE で非表示推奨 (UI側で参照)
+      walk: !MINIMAL_MODE,
+      videos: !MINIMAL_MODE,
+      myplan: !MINIMAL_MODE,
+      cw_archive: !MINIMAL_MODE,
+      avatar: !MINIMAL_MODE,
+      overview: !MINIMAL_MODE,
+    },
+  });
+});
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
 const { authUser } = require('./middleware/auth');
@@ -378,6 +415,17 @@ app.get('/api/floor-presence/:code', authUser, (req, res) => {
   res.json({ success: true, floor: code, members: inFloor.filter(u => u.uid !== req.uid) });
 });
 
+// オンラインユーザー一覧 (presence.statusがoffline以外、bot除く)
+app.get('/api/online-users', authUser, (req, res) => {
+  const ids = [];
+  for (const [uid, p] of presence) {
+    if (!p || p.status === 'offline') continue;
+    if (p.isBot) continue;
+    ids.push(uid);
+  }
+  res.json({ success: true, online: ids });
+});
+
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
 app.post('/api/bootstrap', (req, res) => {
   const db = getDb();
@@ -492,9 +540,23 @@ app.get('/mylog', (req, res) => sendHtmlNoCache(res, 'mylog.html'));
 app.get('/m', (req, res) => sendHtmlNoCache(res, 'm.html'));
 app.get('/overview', (req, res) => sendHtmlNoCache(res, 'overview.html'));
 app.get('/report', (req, res) => sendHtmlNoCache(res, 'report.html'));
+app.get('/full', (req, res) => sendHtmlNoCache(res, 'index.html'));
+app.get('/home', (req, res) => sendHtmlNoCache(res, 'home.html'));
+app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
+app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
+app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));
+// PC起動通知ワンライナー (text/plain で配信して Invoke-RestMethod が文字列として受け取れるように)
+app.get('/setup/install-startup.ps1', (req, res) => {
+  const fp = path.join(__dirname, '..', 'public', 'setup', 'install-startup.ps1');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(fp);
+});
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   if (req.path.startsWith('/uploads/')) return res.status(404).end();
+  // MINIMAL_MODE: ルート / は home.html (8カードシンプル玄関)。/full で従来index.html
+  if (MINIMAL_MODE && req.path === '/') return sendHtmlNoCache(res, 'home.html');
   sendHtmlNoCache(res, 'index.html');
 });
 
@@ -774,6 +836,7 @@ io.on('connection', (socket) => {
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
   db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
   socket.join('floor:' + floor.code);
+  socket.join('user:' + uid); // ユーザー個別のroomに参加 (既読通知用)
 
   // 初期スナップショット
   const sendSnapshot = () => {
@@ -1197,6 +1260,8 @@ io.on('connection', (socket) => {
     const roomCode = 'grp_' + gid;
     const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, NULL, ?, ?, ?, ?, ?, ?)")
       .run(uid, content, roomCode, attachUrl, attachName, attachSize, attachType);
+    const senderRow = getDb().prepare(`SELECT u.display_name, u.avatar_url, u.company_code, c.ring_color
+      FROM users u LEFT JOIN companies c ON c.code = u.company_code WHERE u.id = ?`).get(uid) || {};
     const payload = {
       id: ins.lastInsertRowid,
       from: uid,
@@ -1204,6 +1269,10 @@ io.on('connection', (socket) => {
       content,
       at: new Date().toISOString(),
       attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
+      sender_name: senderRow.display_name || '',
+      sender_avatar: senderRow.avatar_url || '',
+      sender_company: senderRow.company_code || '',
+      sender_ring: senderRow.ring_color || '',
     };
     // メンバー全員に配信 (オンラインは即、オフラインはPush)
     const members = getDb().prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(gid);
@@ -1222,6 +1291,24 @@ io.on('connection', (socket) => {
           tag: 'grp-' + gid,
           url: '/?g=' + gid,
         }).catch(() => {});
+      }
+    }
+  });
+
+  // 入力中インジケーター (chat-simple.htmlの「○○さんが入力中...」)
+  // 永続化なし、対象者にだけ即時転送。user:<uid> roomを使って全タブに届ける
+  socket.on('chat:typing', (data) => {
+    if (!data) return;
+    const isTyping = !!data.typing;
+    if (data.peer_id) {
+      // DM: 対象ユーザーの全接続ソケットへ
+      io.to('user:' + data.peer_id).emit('chat:typing', { from: uid, peer_id: uid, typing: isTyping });
+    } else if (data.group_id) {
+      // グループ: メンバー全員 (送信者除く) のuser roomへ
+      const members = getDb().prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(data.group_id);
+      for (const m of members) {
+        if (m.user_id === uid) continue;
+        io.to('user:' + m.user_id).emit('chat:typing', { from: uid, group_id: data.group_id, typing: isTyping });
       }
     }
   });
@@ -1589,6 +1676,58 @@ ${latestReport.summary}
       const s = io.sockets.sockets.get(v.socketId);
       if (s) s.emit('voice:speaking', { uid, on: !!(data && data.on) });
     }
+  });
+
+  // ===== 1:1 通話 (DMから音声/ビデオ通話を開始する) =====
+  // 設計: chat-simple.html で使用。WebRTC signaling のリレーのみ。
+  // payload は最小限の検証 (相手存在/ブロックなし) のみ実施し、SDP/ICE は中継。
+  function relayCallEvent(eventName, data, opts) {
+    const to = (data && data.to || '').toString();
+    if (!to || to === uid) return;
+    // ブロック判定 (DMと同等)
+    if (isBlocked(to, uid)) {
+      socket.emit('call:blocked', { to, reason: 'blocked' });
+      return;
+    }
+    if (isBlocked(uid, to)) {
+      socket.emit('call:blocked', { to, reason: 'self_blocked' });
+      return;
+    }
+    const tp = presence.get(to);
+    if (!tp || tp.status === 'offline' || tp.isBot) {
+      socket.emit('call:peer-offline', { to });
+      return;
+    }
+    const s = io.sockets.sockets.get(tp.socketId);
+    if (!s) {
+      socket.emit('call:peer-offline', { to });
+      return;
+    }
+    // 発信者プロファイル添付 (UI 表示用)
+    if (opts && opts.attachProfile) {
+      const me = getDb().prepare('SELECT display_name, avatar_url, company_code FROM users WHERE id = ?').get(uid) || {};
+      s.emit(eventName, { ...data, from: uid, sender_name: me.display_name || '', sender_avatar: me.avatar_url || '', sender_company: me.company_code || '' });
+    } else {
+      s.emit(eventName, { ...data, from: uid });
+    }
+  }
+  socket.on('call:invite', (data) => {
+    // type: 'voice' | 'video'
+    relayCallEvent('call:invite', { to: data && data.to, type: (data && data.type === 'video') ? 'video' : 'voice' }, { attachProfile: true });
+  });
+  socket.on('call:accept', (data)  => relayCallEvent('call:accept',  { to: data && data.to }));
+  socket.on('call:reject', (data)  => relayCallEvent('call:reject',  { to: data && data.to, reason: data && data.reason }));
+  socket.on('call:cancel', (data)  => relayCallEvent('call:cancel',  { to: data && data.to }));
+  socket.on('call:end',    (data)  => relayCallEvent('call:end',     { to: data && data.to }));
+  // SDP / ICE 候補のリレー
+  socket.on('call:signal', (data) => {
+    if (!data) return;
+    relayCallEvent('call:signal', {
+      to: data.to,
+      sdp: data.sdp || null,
+      candidate: data.candidate || null,
+      kind: data.kind || null, // 'offer' | 'answer' | 'ice'
+    });
   });
 
   // 画面共有 状態通知 (情報表示のみ)

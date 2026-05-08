@@ -183,6 +183,7 @@
   .card.p-orientation{ --c1: #2dd4bf; --c2: #0f766e; }
   .card.p-rollcall   { --c1: #6ee7b7; --c2: #059669; }
   .card.p-warehouse  { --c1: #93c5fd; --c2: #1d4ed8; }
+  .card.p-enroll     { --c1: #a5b4fc; --c2: #4338ca; }
 
   /* notice 帯 */
   .notice {
@@ -339,6 +340,11 @@
         <div class="label">聞き取りカードPOST</div>
         <div class="desc">点呼・朝礼・昼礼で1人1枚。投稿のバックアップとして同拠点全員の様子を記録。</div>
       </a>
+      <a id="p-card-enroll" class="card p-enroll" href="/enroll.html" style="display:none;">
+        <div class="icon-pill">📷</div>
+        <div class="label">社員登録</div>
+        <div class="desc">新しい社員をスマホで撮影 → アバター作成 → 拠点・配属を選んで即登録。</div>
+      </a>
       <a class="card p-strategy" href="/wellness-ops.html">
         <div class="icon-pill">🛠</div>
         <div class="label">健康戦略室 (運営)</div>
@@ -429,6 +435,12 @@ async function init() {
     // 推進メンバー (運管/倉庫いずれか) または管理職: 聞き取りカードPOST
     if (isPromoter || isWarehousePromoter || isAdmin) {
       const c = $('p-card-listening');
+      if (c) c.style.display = '';
+    }
+    // 社員登録: 管理職(employee_type=admin) / 推進メンバー / システムadmin
+    const isMgr = me.employee_type === 'admin';
+    if (isPromoter || isWarehousePromoter || isMgr || isAdmin) {
+      const c = $('p-card-enroll');
       if (c) c.style.display = '';
     }
   }
