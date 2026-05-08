@@ -265,6 +265,10 @@
   </div>
   <div class="right">
     <span class="name" id="hd-name"></span>
+    <button id="hd-fz-btn" onclick="cycleFontSize()" title="文字サイズ切替" aria-label="文字サイズ切替">
+      <span style="font-size:11px;">A</span>·<span style="font-size:15px;">A</span>
+      <span id="hd-fz-lvl" style="font-size:10px;background:rgba(255,255,255,0.30);padding:1px 6px;border-radius:6px;margin-left:4px;font-weight:900;">M</span>
+    </button>
     <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" style="display:none;">⚙️ 管理画面</button>
     <button onclick="logout()" title="ログアウト">ログアウト</button>
   </div>
@@ -384,6 +388,28 @@
 let token = localStorage.getItem('cohub_token') || '';
 let me = null;
 const $ = (id) => document.getElementById(id);
+
+// 文字サイズ切替 (font-zoom.jsと同じ localStorage key を共有)
+const FZ_LEVELS = ['s', 'm', 'l', 'xl', 'xxl', 'xxxl'];
+const FZ_ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32, xxl: 1.55, xxxl: 1.85 };
+const FZ_LBL = { s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: '2XL', xxxl: '3XL' };
+function getFzLevel() {
+  try { const v = localStorage.getItem('m_fz'); return FZ_LEVELS.indexOf(v) >= 0 ? v : 'm'; } catch (e) { return 'm'; }
+}
+function applyFz(level) {
+  try { document.documentElement.style.zoom = FZ_ZOOM[level] || 1; } catch (e) {}
+  const lbl = document.getElementById('hd-fz-lvl');
+  if (lbl) lbl.textContent = FZ_LBL[level] || 'M';
+}
+function cycleFontSize() {
+  const cur = getFzLevel();
+  const idx = FZ_LEVELS.indexOf(cur);
+  const next = FZ_LEVELS[(idx + 1) % FZ_LEVELS.length];
+  try { localStorage.setItem('m_fz', next); } catch (e) {}
+  applyFz(next);
+}
+applyFz(getFzLevel());
+window.addEventListener('storage', (e) => { if (e.key === 'm_fz') applyFz(getFzLevel()); });
 
 async function api(path, opts = {}) {
   opts.headers = opts.headers || {};
