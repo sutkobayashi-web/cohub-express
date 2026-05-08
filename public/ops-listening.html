@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🩺 聞き取りカードPOST</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #ffffff; --border: #e2e8f0;
+  --accent: #14b8a6; --accent-d: #0f766e;
+  --warn: #f59e0b; --danger: #ef4444;
+  --chip: #f1f5f9; --chip-on: #ccfbf1; --chip-on-fg: #115e59;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, #f0fdfa, #ecfeff); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.hd a.back { color: var(--accent-d); text-decoration: none; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(20,184,166,.1); }
+.hd .title { flex: 1; font-weight: 700; font-size: 16px; }
+.hd .meta { color: var(--mute); font-size: 12px; }
+.intro { padding: 12px 16px; color: var(--mute); font-size: 13px; line-height: 1.6; background: #fff; border-bottom: 1px solid var(--border); }
+.intro b { color: var(--accent-d); }
+.progress { padding: 8px 16px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.progress .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; }
+.progress .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.subj { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; position: relative; }
+.subj:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(20,184,166,.15); }
+.subj .av { width: 48px; height: 48px; border-radius: 50%; background: var(--chip); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
+.subj .av img { width: 100%; height: 100%; object-fit: cover; }
+.subj .name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.subj .co { color: var(--mute); font-size: 11px; }
+.subj .badge { background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 10px; font-weight: 600; }
+.subj.posted { background: #f0fdfa; border-color: #5eead4; }
+.subj .urg-mark { position: absolute; top: 6px; right: 6px; font-size: 14px; }
+.empty { padding: 40px 20px; text-align: center; color: var(--mute); }
+.modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+.modal-bg.show { display: flex; }
+.modal { background: #fff; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 18px 18px 80px 18px; -webkit-overflow-scrolling: touch; }
+@media (min-width: 600px) { .modal-bg { align-items: center; } .modal { border-radius: 16px; max-height: 85vh; } }
+.modal h2 { margin: 0 0 4px 0; font-size: 18px; }
+.modal .sub { color: var(--mute); font-size: 13px; margin-bottom: 14px; }
+.field { margin: 14px 0; }
+.field .lbl { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--chip); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; font-size: 14px; cursor: pointer; user-select: none; transition: all .12s; }
+.chip:active { transform: scale(.95); }
+.chip.on { background: var(--chip-on); border-color: var(--accent); color: var(--chip-on-fg); font-weight: 600; }
+.chip.sev1.on { background: #fef3c7; border-color: var(--warn); color: #92400e; }
+.chip.sev2.on { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; }
+.fixed-foot { position: sticky; bottom: 0; background: linear-gradient(180deg, transparent, #fff 30%); padding: 12px 0 0 0; margin-top: 12px; display: flex; gap: 10px; }
+.btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-cancel { background: #f1f5f9; color: var(--fg); }
+.btn-submit { background: var(--accent); color: #fff; }
+.btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.summary { background: #f0fdfa; border: 1px solid #5eead4; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 10px 0; }
+.summary .urg { font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="hd">
+  <a href="/home" class="back">←</a>
+  <div>
+    <div class="title">🩺 聞き取りカード POST</div>
+    <div class="meta" id="hd-co">…</div>
+  </div>
+</div>
+<div class="intro">
+  <b>原則は社員自身の投稿</b>から悩み・相談を吸い上げます。<br>
+  このカードはそのバックアップとして、点呼や朝礼・昼礼で <b>1人1枚</b> 様子を記録するものです。
+  本人特定で記録され、推進メンバー・管理職にのみ共有されます。
+</div>
+<div class="progress" id="prog-wrap" style="display:none;">
+  <div>本日 <b id="prog-cnt">0</b> / <b id="prog-tot">0</b></div>
+  <div class="bar"><span id="prog-bar" style="width:0%"></span></div>
+</div>
+<div id="list" class="list"></div>
+
+<div id="modal-bg" class="modal-bg" onclick="if (event.target.id==='modal-bg') closeModal()">
+  <div class="modal" id="modal">
+    <h2 id="m-title">聞き取りカード</h2>
+    <div class="sub" id="m-sub"></div>
+    <div id="m-fields"></div>
+    <div class="field">
+      <div class="lbl">📝 メモ (任意・200字)</div>
+      <textarea id="m-memo" maxlength="200" placeholder="気になる一言があれば"></textarea>
+    </div>
+    <div class="summary" id="m-summary" style="display:none;"></div>
+    <div class="fixed-foot">
+      <button class="btn btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-submit" id="m-submit" onclick="submitCard()">提出</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const SOURCE_TYPE = '聞き取り';
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let meta = null;
+let cardConf = null;
+let subjects = [];
+let postedToday = new Set();
+let currentSubject = null;
+let answers = {};
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.replace('/'); return null; }
+  return r.json();
+}
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function showToast(msg, ms = 2000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const meR = await api('/api/auth/me');
+  if (!meR || !meR.success) { location.replace('/'); return; }
+  me = meR.user;
+  if (!me.is_field_promoter && !me.is_warehouse_promoter && me.role !== 'admin') {
+    document.getElementById('list').innerHTML = '<div class="empty">推進メンバー権限がありません。</div>';
+    return;
+  }
+  document.getElementById('hd-co').textContent = me.display_name + 'さん / ' + (me.company_code || '-');
+  const m = await api('/api/wellness/meta');
+  meta = m;
+  cardConf = (m.card_options && m.card_options[SOURCE_TYPE]) || null;
+  if (!cardConf) {
+    document.getElementById('list').innerHTML = '<div class="empty">カード設定の取得に失敗しました。</div>';
+    return;
+  }
+  await loadSubjects();
+  await loadTodayPosts();
+}
+
+async function loadSubjects() {
+  const r = await api('/api/wellness/subjects');
+  if (!r || !r.success) {
+    document.getElementById('list').innerHTML = '<div class="empty">対象者の取得に失敗しました。</div>';
+    return;
+  }
+  subjects = r.subjects || [];
+  renderList();
+}
+
+async function loadTodayPosts() {
+  // 統合後は source_type='聞き取り' を取得対象、過去互換で運管/倉庫もカウント
+  const today = new Date().toISOString().slice(0, 10);
+  postedToday = new Set();
+  const sources = ['聞き取り', '運管', '倉庫'];
+  for (const src of sources) {
+    const r = await api('/api/wellness/posts?source_type=' + encodeURIComponent(src) + '&limit=200');
+    if (!r || !r.success) continue;
+    for (const p of (r.posts || [])) {
+      if (p.created_at && p.created_at.slice(0, 10) === today && p.subject_user_id) {
+        postedToday.add(p.subject_user_id);
+      }
+    }
+  }
+  renderList();
+  updateProgress();
+}
+
+function updateProgress() {
+  const wrap = document.getElementById('prog-wrap');
+  if (!subjects.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const tot = subjects.length;
+  const cnt = subjects.filter(s => postedToday.has(s.id)).length;
+  document.getElementById('prog-cnt').textContent = cnt;
+  document.getElementById('prog-tot').textContent = tot;
+  const pct = tot ? Math.round(cnt / tot * 100) : 0;
+  document.getElementById('prog-bar').style.width = pct + '%';
+}
+
+function renderList() {
+  const el = document.getElementById('list');
+  if (!subjects.length) {
+    el.innerHTML = '<div class="empty">同じ営業所のメンバーが見つかりません。</div>';
+    return;
+  }
+  // 未済を先に、済を後に並び替え
+  const sorted = subjects.slice().sort((a, b) => {
+    const pa = postedToday.has(a.id) ? 1 : 0;
+    const pb = postedToday.has(b.id) ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
+  });
+  const html = sorted.map(s => {
+    const posted = postedToday.has(s.id);
+    const ic = s.avatar_url ? `<img src="${escapeHtml(s.avatar_url)}" alt="">` : '👤';
+    return `<div class="subj ${posted ? 'posted' : ''}" onclick="openCard('${escapeHtml(s.id)}')">
+      <div class="av">${ic}</div>
+      <div class="name">${escapeHtml(s.display_name)}</div>
+      <div class="co">${escapeHtml(s.company_code || '-')}</div>
+      ${posted ? '<div class="badge">本日 済</div>' : ''}
+    </div>`;
+  }).join('');
+  el.innerHTML = html;
+}
+
+function openCard(uid) {
+  currentSubject = subjects.find(s => s.id === uid);
+  if (!currentSubject) return;
+  answers = {};
+  document.getElementById('m-title').textContent = cardConf.title + ': ' + currentSubject.display_name;
+  document.getElementById('m-sub').textContent = currentSubject.company_code + ' / 聞き取り: ' + me.display_name;
+  document.getElementById('m-memo').value = '';
+  document.getElementById('m-summary').style.display = 'none';
+  const fwrap = document.getElementById('m-fields');
+  fwrap.innerHTML = cardConf.fields.map(f => {
+    const chips = f.options.map(o =>
+      `<button class="chip sev${o.s}" data-key="${escapeHtml(f.key)}" data-val="${escapeHtml(o.v)}" data-sev="${o.s}" onclick="pickChip(this)">${escapeHtml(o.v)}</button>`
+    ).join('');
+    return `<div class="field"><div class="lbl">${f.label}</div><div class="chips">${chips}</div></div>`;
+  }).join('');
+  document.getElementById('modal-bg').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('show');
+  currentSubject = null;
+  answers = {};
+}
+
+function pickChip(btn) {
+  const key = btn.dataset.key;
+  const val = btn.dataset.val;
+  document.querySelectorAll(`.chip[data-key="${key}"]`).forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
+  answers[key] = val;
+  refreshSummary();
+}
+
+function refreshSummary() {
+  let maxSev = 0; let cat = null;
+  for (const f of cardConf.fields) {
+    const v = answers[f.key];
+    if (!v) continue;
+    const opt = f.options.find(o => o.v === v);
+    if (!opt) continue;
+    if (opt.s > maxSev) { maxSev = opt.s; cat = f.category; }
+    else if (opt.s > 0 && cat === null) cat = f.category;
+  }
+  const filled = Object.keys(answers).length;
+  const sumEl = document.getElementById('m-summary');
+  if (filled === 0) { sumEl.style.display = 'none'; return; }
+  const urg = maxSev >= 2 ? '高 🔴' : maxSev >= 1 ? '中 🟡' : '低 🟢';
+  sumEl.style.display = 'block';
+  sumEl.innerHTML = `自動判定: <span class="urg">${urg}</span>${cat ? ' / ' + escapeHtml(cat) : ''}　(回答 ${filled}/${cardConf.fields.length})`;
+}
+
+async function submitCard() {
+  if (!currentSubject) return;
+  const memo = document.getElementById('m-memo').value.trim();
+  if (Object.keys(answers).length === 0 && !memo) {
+    showToast('1項目以上選ぶか、メモを記入してください');
+    return;
+  }
+  const btn = document.getElementById('m-submit');
+  btn.disabled = true;
+  btn.textContent = '送信中…';
+  try {
+    const r = await api('/api/wellness/post-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject_user_id: currentSubject.id,
+        answers,
+        memo,
+      }),
+    });
+    if (r && r.success) {
+      showToast(`✅ #${r.post_id} 提出 (${r.urgency}/${r.category})`);
+      postedToday.add(currentSubject.id);
+      closeModal();
+      renderList();
+      updateProgress();
+    } else {
+      showToast('❌ ' + (r && r.msg || '送信に失敗しました'));
+    }
+  } catch (e) {
+    showToast('❌ 通信エラー');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '提出';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

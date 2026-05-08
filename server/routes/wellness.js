@@ -14,49 +14,27 @@ const WAREHOUSE_CATEGORIES = ['体調', '腰・関節', '作業負荷', '設備�
 const URGENCIES = ['低', '中', '高'];
 const IDENTITY_MODES = ['本人特定可', '匿名', '集計のみ'];
 
-// 聞き取りカード選択肢: { value, severity: 0(正常)|1(中)|2(高), category }
-// 提出時に最大severityを urgency、最初の severity>0 項目の category を採用
+// 聞き取りカード選択肢 (統合版 2026-05-08): 職種を問わず使える共通5項目
+// severity 0(正常)|1(中)|2(高) → 最大severityを urgency、最初の severity>0 項目の category を採用
+const LISTENING_FIELDS = [
+  { key: 'facial_color', label: '🌡️ 顔色', category: '体調', options: [
+    { v: '普通', s: 0 }, { v: '疲れ気味', s: 1 }, { v: '赤い', s: 2 }, { v: '青白い', s: 2 }, { v: '不明', s: 0 },
+  ]},
+  { key: 'sleep', label: '😴 睡眠', category: '睡眠', options: [
+    { v: 'しっかり', s: 0 }, { v: 'まあまあ', s: 0 }, { v: '不足', s: 1 }, { v: 'ほぼ寝てない', s: 2 }, { v: '不明', s: 0 },
+  ]},
+  { key: 'pain', label: '🦴 体の痛み', category: '体調', options: [
+    { v: 'なし', s: 0 }, { v: '腰', s: 1 }, { v: '肩・首', s: 1 }, { v: '関節', s: 1 }, { v: '強い痛み', s: 2 },
+  ]},
+  { key: 'concern', label: '⚠️ 気になる', category: '職場環境', options: [
+    { v: 'なし', s: 0 }, { v: '体調', s: 1 }, { v: '家族', s: 1 }, { v: '職場', s: 2 }, { v: 'お金', s: 1 }, { v: 'その他', s: 1 },
+  ]},
+];
 const CARD_OPTIONS = {
-  '運管': {
-    title: '点呼カード',
-    fields: [
-      { key: 'facial_color', label: '🌡️ 顔色', category: '体調', options: [
-        { v: '普通', s: 0 }, { v: '疲れ気味', s: 1 }, { v: '赤い', s: 2 }, { v: '青白い', s: 2 }, { v: '不明', s: 0 },
-      ]},
-      { key: 'sleep', label: '😴 睡眠', category: '睡眠', options: [
-        { v: 'しっかり', s: 0 }, { v: 'まあまあ', s: 0 }, { v: '不足', s: 1 }, { v: 'ほぼ寝てない', s: 2 }, { v: '不明', s: 0 },
-      ]},
-      { key: 'breakfast', label: '🍱 朝食', category: '食事', options: [
-        { v: '食べた', s: 0 }, { v: '軽め', s: 0 }, { v: '抜き', s: 1 }, { v: '不明', s: 0 },
-      ]},
-      { key: 'concern', label: '🚨 気になる', category: '職場環境', options: [
-        { v: 'なし', s: 0 }, { v: '体調', s: 1 }, { v: '食事', s: 1 }, { v: '睡眠', s: 1 }, { v: '家族', s: 1 }, { v: '職場', s: 2 }, { v: 'その他', s: 1 },
-      ]},
-    ],
-  },
-  '倉庫': {
-    title: '朝礼・昼礼カード',
-    fields: [
-      { key: 'facial_color', label: '🌡️ 顔色', category: '体調', options: [
-        { v: '普通', s: 0 }, { v: '疲れ気味', s: 1 }, { v: '赤い', s: 2 }, { v: '青白い', s: 2 }, { v: '不明', s: 0 },
-      ]},
-      { key: 'back_joint', label: '🦴 腰・関節', category: '腰・関節', options: [
-        { v: '問題なし', s: 0 }, { v: '張り', s: 1 }, { v: '痛みあり', s: 2 },
-      ]},
-      { key: 'workload', label: '💪 作業負荷', category: '作業負荷', options: [
-        { v: '普通', s: 0 }, { v: 'きつめ', s: 1 }, { v: '限界寄り', s: 2 },
-      ]},
-      { key: 'environment', label: '🚧 設備・動線', category: '設備・動線', options: [
-        { v: '問題なし', s: 0 }, { v: '設備不便', s: 1 }, { v: '動線危険', s: 2 },
-      ]},
-      { key: 'temperature', label: '🌡️ 温度・環境', category: '温度・環境', options: [
-        { v: '普通', s: 0 }, { v: '暑い', s: 1 }, { v: '寒い', s: 1 }, { v: 'その他', s: 1 },
-      ]},
-      { key: 'hiyari', label: '⚠️ ヒヤリハット', category: 'ヒヤリハット', options: [
-        { v: 'なし', s: 0 }, { v: '小さなヒヤリ', s: 1 }, { v: '危険あり', s: 2 },
-      ]},
-    ],
-  },
+  '聞き取り': { title: '聞き取りカード', fields: LISTENING_FIELDS },
+  // 旧仕様の互換: 既存の運管/倉庫リクエストが来ても新カードで応答
+  '運管': { title: '聞き取りカード', fields: LISTENING_FIELDS },
+  '倉庫': { title: '聞き取りカード', fields: LISTENING_FIELDS },
 };
 
 // カード回答から urgency/category を自動推定
@@ -87,7 +65,7 @@ function deriveCardSummary(sourceType, answers) {
 // - 倉庫: 倉庫管理者 (荷役・庫内作業者対応)
 // - 総務: 総務・人事 (オフィス職員対応、産業医連絡担当)
 // - その他: 上記以外 (店舗担当、特殊業務等)
-const SOURCE_TYPES = ['運管', '倉庫', '総務', 'その他'];
+const SOURCE_TYPES = ['運管', '倉庫', '総務', '聞き取り', 'その他'];
 // v2 パイプライン: 候補→評議→推進確定→保健師中→役員→投票中→保健師末→実行→完了
 const ACTION_STATUSES = ['候補', '評議中', '推進確定', '保健師中間', '役員決済', '投票中', '保健師最終', '実行中', '完了', '却下'];
 // 段階遷移マップ (どこへ進めるか)
@@ -1591,24 +1569,16 @@ router.delete('/plaza-comments/:id', authUser, (req, res) => {
 // 推進メンバーが点呼/朝礼・昼礼で目の前の相手を聞き取った結果をPOST
 // =============================================================
 
-// GET /api/wellness/subjects?source_type=運管|倉庫
-// 自分が聞き取り対象にできるメンバー一覧 (同じ会社コードのユーザー、bot/admin除外)
+// GET /api/wellness/subjects
+// 聞き取り対象のメンバー一覧 (同じ会社コード、bot/ゲスト/自分は除外)
 router.get('/subjects', authUser, (req, res) => {
-  const sourceType = String(req.query.source_type || '').trim();
-  if (!['運管', '倉庫'].includes(sourceType)) {
-    return res.status(400).json({ success: false, msg: 'source_type 不正' });
-  }
-  // 権限: 該当の推進メンバー or admin
-  if (sourceType === '運管' && !(isFieldPromoter(req.uid) || isWellnessManager(req.uid))) {
-    return res.status(403).json({ success: false, msg: '運管推進メンバー権限が必要です' });
-  }
-  if (sourceType === '倉庫' && !(isWarehousePromoter(req.uid) || isWellnessManager(req.uid))) {
-    return res.status(403).json({ success: false, msg: '倉庫推進メンバー権限が必要です' });
+  // 推進メンバー or 管理職のみ
+  if (!(isFieldPromoter(req.uid) || isWellnessManager(req.uid) || isWarehousePromoter(req.uid))) {
+    return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
   }
   const db = getDb();
   const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
   const companyCode = me && me.company_code;
-  // 同じ会社コードの社員 (bot 除外、自分は除外) を返す
   const rows = db.prepare(`
     SELECT id, login_id, display_name, company_code, employee_type, avatar_url
     FROM users
@@ -1621,21 +1591,15 @@ router.get('/subjects', authUser, (req, res) => {
   res.json({ success: true, subjects: rows, company_code: companyCode });
 });
 
-// POST /api/wellness/post-card  聞き取りカードPOST
-// body: { source_type, subject_user_id, answers: {...}, memo }
+// POST /api/wellness/post-card  聞き取りカードPOST (統合版: 職種区別なし)
+// body: { subject_user_id, answers: {...}, memo, source_type? }
 router.post('/post-card', authUser, express.json(), (req, res) => {
+  // 推進メンバー or 管理職のみ
+  if (!(isFieldPromoter(req.uid) || isWellnessManager(req.uid) || isWarehousePromoter(req.uid))) {
+    return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  }
   const body = req.body || {};
-  const sourceType = String(body.source_type || '').trim();
-  if (!['運管', '倉庫'].includes(sourceType)) {
-    return res.status(400).json({ success: false, msg: 'source_type 不正' });
-  }
-  // 権限チェック
-  if (sourceType === '運管' && !isFieldPromoter(req.uid)) {
-    return res.status(403).json({ success: false, msg: '運管推進メンバー権限が必要です' });
-  }
-  if (sourceType === '倉庫' && !isWarehousePromoter(req.uid)) {
-    return res.status(403).json({ success: false, msg: '倉庫推進メンバー権限が必要です' });
-  }
+  const sourceType = '聞き取り';  // 統合後は固定値
   const subjectUserId = String(body.subject_user_id || '').trim();
   const answers = body.answers && typeof body.answers === 'object' ? body.answers : {};
   const memo = String(body.memo || '').slice(0, 200).trim();
@@ -1646,7 +1610,7 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
   if (!subject) return res.status(404).json({ success: false, msg: '対象者が見つかりません' });
   const poster = db.prepare('SELECT id, display_name, company_code FROM users WHERE id = ?').get(req.uid);
 
-  // カード回答の値検証 (存在する選択肢のみ)
+  // カード回答の値検証
   const conf = CARD_OPTIONS[sourceType];
   const cleanAnswers = {};
   for (const f of conf.fields) {
@@ -1667,13 +1631,12 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
 
   // GC配信メッセージ
   const urgencyMark = urgency === '高' ? '🔴' : urgency === '中' ? '🟡' : '🟢';
-  const sourceMark = sourceType === '倉庫' ? '📋' : '🩺';
+  const sourceMark = '🩺';
   const lines = [
-    `${sourceMark} #${postId} 【${sourceType}】 ${urgencyMark}${urgency} / ${category}`,
+    `${sourceMark} #${postId} 聞き取り ${urgencyMark}${urgency} / ${category}`,
     `対象: ${subject.display_name} (${subject.company_code || '-'})`,
     `聞き取り: ${poster.display_name}`,
   ];
-  // カード回答を箇条書き
   const answerLines = [];
   for (const f of conf.fields) {
     const v = cleanAnswers[f.key];
@@ -1683,7 +1646,7 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
   if (memo) lines.push('─ メモ ─', memo);
   const content = lines.join('\n');
 
-  const targetGroupId = sourceType === '倉庫' ? WAREHOUSE_GROUP_ID : PROMOTER_GROUP_ID;
+  const targetGroupId = PROMOTER_GROUP_ID;  // 統合後は g_field_voice 一本
   const roomCode = 'grp_' + targetGroupId;
   const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, NULL, ?, ?)`)
     .run(poster.id, content, roomCode);
@@ -1707,7 +1670,7 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
       for (const m of members) {
         if (m.user_id === poster.id) continue;
         sendPush(m.user_id, {
-          title: `${sourceMark} ${sourceType}POST [${category}]`,
+          title: `${sourceMark} 聞き取り [${category}]`,
           body: `${subject.display_name}: ${urgencyMark}${urgency}` + (memo ? ' / ' + memo : ''),
           tag: 'wellness-card-' + postId,
           url: '/?g=' + targetGroupId,
