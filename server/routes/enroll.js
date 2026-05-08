@@ -34,7 +34,20 @@ function generatePassword() {
   return s;
 }
 
-// メタ: 拠点・配属候補・雇用区分
+// 職種 → employee_type(権限軸) の自動マッピング
+const JOB_ROLES = [
+  { v: 'driver',        label: 'ドライバー',     etype: 'field' },
+  { v: 'warehouse',     label: '倉庫作業者',     etype: 'field' },
+  { v: 'office',        label: '事務',           etype: 'office' },
+  { v: 'construction',  label: '施工',           etype: 'field' },
+  { v: 'manufacturing', label: '製造',           etype: 'field' },
+];
+function etypeForJob(jobRole) {
+  const j = JOB_ROLES.find(x => x.v === jobRole);
+  return j ? j.etype : 'field';
+}
+
+// メタ: 拠点・職種
 router.get('/meta', authUser, (req, res) => {
   if (!canEnroll(req.uid)) return res.status(403).json({ success: false, msg: '登録権限がありません' });
   const db = getDb();
@@ -45,14 +58,12 @@ router.get('/meta', authUser, (req, res) => {
   } else {
     companies = db.prepare('SELECT code, name, ring_color FROM companies WHERE code = ?').all(me.company_code || '');
   }
-  const dmGroups = db.prepare("SELECT DISTINCT dm_group FROM users WHERE dm_group IS NOT NULL AND dm_group != '' ORDER BY dm_group").all().map(r => r.dm_group);
   res.json({
     success: true,
     is_admin: me.role === 'admin',
     own_company: me.company_code,
     companies,
-    dm_groups: dmGroups,
-    employee_types: [{ v: 'office', label: '事務' }, { v: 'field', label: '現場' }],
+    job_roles: JOB_ROLES,
   });
 });
 
@@ -95,9 +106,9 @@ router.post('/user', authUser, express.json(), (req, res) => {
   const b = req.body || {};
   const loginId = String(b.login_id || '').trim().toLowerCase();
   const displayName = String(b.display_name || '').trim();
+  const nickname = String(b.nickname || '').trim();
   const companyCode = String(b.company_code || '').trim();
-  const employeeType = String(b.employee_type || 'field').trim();
-  const dmGroup = String(b.dm_group || '').trim().slice(0, 40) || null;
+  const jobRole = String(b.job_role || '').trim();
   const birthDate = b.birth_date ? String(b.birth_date).trim() : null;
   const avatarUrl = String(b.avatar_url || '').trim();
 
@@ -107,18 +118,29 @@ router.post('/user', authUser, express.json(), (req, res) => {
   if (!displayName || displayName.length > 80) {
     return res.status(400).json({ success: false, msg: '表示名は1〜80文字で必須' });
   }
+  if (!nickname || nickname.length < 2 || nickname.length > 20) {
+    return res.status(400).json({ success: false, msg: 'ニックネームは2〜20文字で必須' });
+  }
+  if (/[\x00-\x1f\x7f]/.test(nickname)) {
+    return res.status(400).json({ success: false, msg: 'ニックネームに使えない文字が含まれています' });
+  }
   if (!companyCode) return res.status(400).json({ success: false, msg: '拠点を選択してください' });
-  if (!['office', 'field'].includes(employeeType)) {
-    return res.status(400).json({ success: false, msg: '雇用区分が不正' });
+  if (!JOB_ROLES.some(j => j.v === jobRole)) {
+    return res.status(400).json({ success: false, msg: '職種を選択してください' });
   }
   if (avatarUrl && !avatarUrl.startsWith('/uploads/avatars/enroll_')) {
     return res.status(400).json({ success: false, msg: 'アバターURLが不正' });
   }
-  // 生年月日 YYYY-MM-DD
-  if (birthDate) {
-    const m = birthDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (!m) return res.status(400).json({ success: false, msg: '生年月日はYYYY-MM-DDで入力' });
+  // 生年月日 必須 (Box健診データ突合のため)
+  if (!birthDate) return res.status(400).json({ success: false, msg: '生年月日は必須です (健診データ突合のため)' });
+  const m = birthDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!m) return res.status(400).json({ success: false, msg: '生年月日はYYYY-MM-DD形式で入力' });
+  const by = parseInt(m[1]), bm = parseInt(m[2]), bd = parseInt(m[3]);
+  if (by < 1900 || by > 2099 || bm < 1 || bm > 12 || bd < 1 || bd > 31) {
+    return res.status(400).json({ success: false, msg: '生年月日が不正です' });
   }
+  const normalizedBirth = by + '-' + String(bm).padStart(2, '0') + '-' + String(bd).padStart(2, '0');
+  const employeeType = etypeForJob(jobRole);
 
   const db = getDb();
   const me = db.prepare('SELECT company_code, role FROM users WHERE id = ?').get(req.uid);
@@ -129,35 +151,24 @@ router.post('/user', authUser, express.json(), (req, res) => {
   if (!c) return res.status(400).json({ success: false, msg: '拠点コードが不正' });
   const exists = db.prepare('SELECT 1 FROM users WHERE login_id = ?').get(loginId);
   if (exists) return res.status(409).json({ success: false, msg: 'このログインIDは既に使われています' });
+  // ニックネーム重複 (大小無視・完全一致)
+  const dupNick = db.prepare('SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)').get(nickname);
+  if (dupNick) return res.status(409).json({ success: false, msg: 'そのニックネームは既に使われています' });
 
   const password = generatePassword();
   const hash = bcrypt.hashSync(password, 10);
   const id = crypto.randomUUID();
   // 新規一般社員: dm_restricted=1 (部署内DMに限定する安全側デフォルト)
   db.prepare(`INSERT INTO users
-    (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, avatar_url, avatar_style)
-    VALUES (?, ?, ?, ?, ?, 'member', ?, ?, 0, 1, ?, ?, ?)`)
-    .run(id, loginId, hash, displayName, companyCode, employeeType, dmGroup, birthDate, avatarUrl || null, avatarUrl ? 'anime' : null);
-
-  // dm_group 指定でチャットグループ自動加入 (なければ作成)
-  if (dmGroup) {
-    try {
-      const grp = db.prepare("SELECT id FROM chat_groups WHERE name = ?").get(dmGroup);
-      let gid;
-      if (grp) gid = grp.id;
-      else {
-        gid = 'g_' + crypto.randomUUID().slice(0, 8);
-        db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, '🏢', ?)").run(gid, dmGroup, req.uid);
-      }
-      db.prepare("INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)").run(gid, id);
-    } catch (e) { console.warn('[enroll dm_group]', e.message); }
-  }
+    (id, login_id, password_hash, display_name, nickname, company_code, role, employee_type, job_role, dm_rank, dm_restricted, birth_date, avatar_url, avatar_style)
+    VALUES (?, ?, ?, ?, ?, ?, 'member', ?, ?, 0, 1, ?, ?, ?)`)
+    .run(id, loginId, hash, displayName, nickname, companyCode, employeeType, jobRole, normalizedBirth, avatarUrl || null, avatarUrl ? 'anime' : null);
 
   res.json({
     success: true,
     user: {
-      id, login_id: loginId, display_name: displayName,
-      company_code: companyCode, avatar_url: avatarUrl || null,
+      id, login_id: loginId, display_name: displayName, nickname,
+      company_code: companyCode, job_role: jobRole, avatar_url: avatarUrl || null,
     },
     initial_password: password,
   });

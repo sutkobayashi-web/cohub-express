@@ -52,6 +52,12 @@ input[type=file] { display: none; }
 .cred .v { font-family: ui-monospace, "SF Mono", monospace; font-size: 18px; font-weight: 700; color: var(--fg); letter-spacing: .5px; }
 .cred .cp { background: var(--accent); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
 .warn-box { background: #fef3c7; border: 1px solid #fcd34d; padding: 10px 12px; border-radius: 8px; font-size: 13px; color: #92400e; line-height: 1.6; margin: 10px 0; }
+.dial { display: flex; align-items: center; gap: 6px; background: var(--chip); border: 1px solid var(--border); border-radius: 12px; padding: 6px 10px; }
+.dial select { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 22px; font-weight: 700; text-align: center; text-align-last: center; -webkit-appearance: none; appearance: none; color: var(--accent-d); }
+.dial select:focus { outline: 2px solid var(--accent); border-radius: 8px; }
+.dial .dial-y { min-width: 90px; }
+.dial .dial-m, .dial .dial-d { min-width: 60px; }
+.dial-sep { color: var(--mute); font-size: 14px; font-weight: 600; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 </style>
@@ -89,6 +95,11 @@ input[type=file] { display: none; }
       <input type="text" id="display_name" placeholder="例) 山田 太郎" maxlength="80">
     </div>
     <div class="row">
+      <label>ニックネーム <span style="color:var(--danger);">*</span></label>
+      <input type="text" id="nickname" placeholder="例) たろちゃん" maxlength="20">
+      <div class="hint">2〜20文字。匿名投稿時の表示名・他社員からの呼び方として使われます。</div>
+    </div>
+    <div class="row">
       <label>ログインID <span style="color:var(--danger);">*</span></label>
       <input type="text" id="login_id" placeholder="例) yamada_t" maxlength="30" autocapitalize="none" autocorrect="off">
       <div class="hint">英小文字+数字+「_-.」のみ、3〜30文字。本人が入力しやすいIDを付けてください。</div>
@@ -98,22 +109,20 @@ input[type=file] { display: none; }
       <select id="company_code"></select>
     </div>
     <div class="row">
-      <label>雇用区分</label>
-      <select id="employee_type">
-        <option value="field">現場 (ドライバー / 倉庫作業者)</option>
-        <option value="office">事務</option>
-      </select>
+      <label>職種 <span style="color:var(--danger);">*</span></label>
+      <select id="job_role"></select>
     </div>
     <div class="row">
-      <label>配属 (任意)</label>
-      <input type="text" id="dm_group" placeholder="例) 配車課 / 倉庫グループ" list="dm-list" maxlength="40">
-      <datalist id="dm-list"></datalist>
-      <div class="hint">既存のグループ名を入れると同じチャットグループに自動加入します。</div>
-    </div>
-    <div class="row">
-      <label>生年月日 (任意)</label>
-      <input type="date" id="birth_date">
-      <div class="hint">健診データとの突合・年齢別分析に使います。</div>
+      <label>生年月日 <span style="color:var(--danger);">*</span></label>
+      <div class="dial">
+        <select id="b-year" class="dial-y"></select>
+        <span class="dial-sep">年</span>
+        <select id="b-month" class="dial-m"></select>
+        <span class="dial-sep">月</span>
+        <select id="b-day" class="dial-d"></select>
+        <span class="dial-sep">日</span>
+      </div>
+      <div class="hint">健診データ(Box)との突合に使うため必須。指でスクロールして合わせてください。</div>
     </div>
   </div>
 
@@ -185,8 +194,44 @@ async function init() {
   const co = document.getElementById('company_code');
   co.innerHTML = meta.companies.map(c => `<option value="${escapeHtml(c.code)}" ${c.code === meta.own_company ? 'selected' : ''}>${escapeHtml(c.name || c.code)} (${escapeHtml(c.code)})</option>`).join('');
   if (!meta.is_admin) co.disabled = true;
-  // 配属候補
-  document.getElementById('dm-list').innerHTML = (meta.dm_groups || []).map(g => `<option value="${escapeHtml(g)}">`).join('');
+  // 職種
+  const jr = document.getElementById('job_role');
+  jr.innerHTML = '<option value="">選択してください</option>' + (meta.job_roles || []).map(j =>
+    `<option value="${escapeHtml(j.v)}">${escapeHtml(j.label)}</option>`).join('');
+  // 生年月日 (1970/1/1 デフォルト)
+  initBirthDial();
+}
+
+function initBirthDial() {
+  const ySel = document.getElementById('b-year');
+  const mSel = document.getElementById('b-month');
+  const dSel = document.getElementById('b-day');
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for (let y = thisYear; y >= 1940; y--) years.push(y);
+  ySel.innerHTML = years.map(y => `<option value="${y}" ${y === 1970 ? 'selected' : ''}>${y}</option>`).join('');
+  mSel.innerHTML = Array.from({length: 12}, (_, i) => i + 1).map(m => `<option value="${m}" ${m === 1 ? 'selected' : ''}>${m}</option>`).join('');
+  refreshDays();
+  ySel.addEventListener('change', refreshDays);
+  mSel.addEventListener('change', refreshDays);
+}
+
+function refreshDays() {
+  const y = parseInt(document.getElementById('b-year').value);
+  const m = parseInt(document.getElementById('b-month').value);
+  const dSel = document.getElementById('b-day');
+  const prev = parseInt(dSel.value) || 1;
+  const last = new Date(y, m, 0).getDate();
+  const opts = [];
+  for (let d = 1; d <= last; d++) opts.push(`<option value="${d}" ${d === Math.min(prev, last) ? 'selected' : ''}>${d}</option>`);
+  dSel.innerHTML = opts.join('');
+}
+
+function getBirthDate() {
+  const y = document.getElementById('b-year').value;
+  const m = document.getElementById('b-month').value;
+  const d = document.getElementById('b-day').value;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
 
 document.getElementById('photo').addEventListener('change', async (e) => {
@@ -257,14 +302,16 @@ async function submitEnroll() {
   const payload = {
     login_id: document.getElementById('login_id').value.trim().toLowerCase(),
     display_name: document.getElementById('display_name').value.trim(),
+    nickname: document.getElementById('nickname').value.trim(),
     company_code: document.getElementById('company_code').value,
-    employee_type: document.getElementById('employee_type').value,
-    dm_group: document.getElementById('dm_group').value.trim(),
-    birth_date: document.getElementById('birth_date').value || null,
+    job_role: document.getElementById('job_role').value,
+    birth_date: getBirthDate(),
     avatar_url: pendingAvatarUrl || '',
   };
   if (!payload.display_name) { errEl.textContent = '表示名を入力してください'; return; }
+  if (!payload.nickname) { errEl.textContent = 'ニックネームを入力してください'; return; }
   if (!payload.login_id) { errEl.textContent = 'ログインIDを入力してください'; return; }
+  if (!payload.job_role) { errEl.textContent = '職種を選択してください'; return; }
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = '登録中…';
   try {
@@ -299,9 +346,10 @@ function closeOk(continueMore) {
   if (continueMore) {
     // フォームリセット
     document.getElementById('display_name').value = '';
+    document.getElementById('nickname').value = '';
     document.getElementById('login_id').value = '';
-    document.getElementById('dm_group').value = '';
-    document.getElementById('birth_date').value = '';
+    document.getElementById('job_role').value = '';
+    initBirthDial();  // 1970/1/1 に戻す
     retakePhoto();
     document.getElementById('submit-btn').disabled = false;
     document.getElementById('submit-btn').textContent = 'この内容で登録';
