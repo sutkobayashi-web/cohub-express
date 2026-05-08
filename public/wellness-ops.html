@@ -8,73 +8,113 @@
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <meta name="theme-color" content="#7c3aed">
 <style>
-/* グレートーンテーマ — 視認性重視 */
+/* グレートーンテーマ — 視認性重視 (2026-05-07 リファイン: 余白拡大・影緩和) */
 * { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f3f4f6; color: #111827; line-height: 1.6; }
-header { background: linear-gradient(135deg, #374151 0%, #4b5563 100%); color: #fff; padding: 12px 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-header h1 { margin: 0; font-size: 16px; }
+body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); background-attachment: fixed; color: #0f172a; line-height: 1.6; }
+header {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #4b5563 100%);
+  color: #fff; padding: 14px 22px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  box-shadow: 0 6px 18px rgba(31,41,55,0.20);
+  position: sticky; top: 0; z-index: 30;
+}
+header h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: 0.5px; }
 header .spacer { flex: 1; min-width: 8px; }
-main { max-width: 1100px; margin: 0 auto; padding: 18px; }
-.card { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e7eb; }
-.card h2 { margin: 0 0 12px; font-size: 15px; color: #111827; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.row input, .row select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; min-width: 140px; background: #fff; color: #111827; }
-.btn { padding: 9px 18px; background: #374151; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: background 0.1s; }
-.btn:hover { background: #1f2937; }
-.btn-danger { background: #dc2626; }
-.btn-danger:hover { background: #b91c1c; }
-.btn-ghost { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
-.btn-ghost:hover { background: #e5e7eb; }
-.btn-soft { background: #6b7280; color: #fff; }
-.btn-soft:hover { background: #4b5563; }
+main { max-width: 1100px; margin: 0 auto; padding: 22px 18px 60px; }
+.card {
+  background: #fff; border-radius: 16px; padding: 22px 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.04);
+  border: 1px solid #e5e7eb;
+}
+.card h2 { margin: 0 0 14px; font-size: 15px; color: #111827; font-weight: 800; letter-spacing: 0.3px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.row input, .row select { padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 13px; min-width: 140px; background: #fff; color: #111827; transition: border 0.15s, box-shadow 0.15s; }
+.row input:focus, .row select:focus { outline: none; border-color: #6b7280; box-shadow: 0 0 0 3px rgba(107,114,128,0.12); }
+.btn { padding: 10px 20px; background: linear-gradient(135deg, #1f2937, #374151); color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; transition: transform 0.1s, box-shadow 0.15s; box-shadow: 0 2px 8px rgba(31,41,55,0.20); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31,41,55,0.30); }
+.btn-danger { background: linear-gradient(135deg, #b91c1c, #dc2626); box-shadow: 0 2px 8px rgba(220,38,38,0.25); }
+.btn-danger:hover { box-shadow: 0 4px 12px rgba(220,38,38,0.35); }
+.btn-ghost { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; box-shadow: none; }
+.btn-ghost:hover { background: #e5e7eb; transform: none; box-shadow: none; }
+.btn-soft { background: linear-gradient(135deg, #4b5563, #6b7280); color: #fff; }
+.btn-soft:hover { box-shadow: 0 4px 12px rgba(75,85,99,0.30); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
-th { background: #f9fafb; font-weight: 700; color: #374151; }
-.banner { padding: 14px 18px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; line-height: 1.7; }
-.banner-info { background: #f3f4f6; border-left: 4px solid #4b5563; color: #1f2937; }
-.banner-warn { background: #fef3c7; border-left: 4px solid #d97706; color: #78350f; }
-.banner-guest { background: #f3f4f6; border-left: 4px solid #6b7280; color: #1f2937; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+th { background: #f8fafc; font-weight: 700; color: #475569; font-size: 12px; letter-spacing: 0.3px; text-transform: uppercase; }
+tr:hover td { background: #fafbfd; }
+.banner { padding: 14px 18px; border-radius: 12px; font-size: 13px; margin-bottom: 16px; line-height: 1.7; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+.banner-info { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); border-left: 4px solid #475569; color: #1f2937; }
+.banner-warn { background: linear-gradient(135deg, #fef3c7, #fde68a); border-left: 4px solid #d97706; color: #78350f; }
+.banner-guest { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); border-left: 4px solid #6b7280; color: #1f2937; }
 #no-access { max-width: 520px; margin: 60px auto; text-align: center; }
 .err { color: #dc2626; font-size: 12px; margin-top: 6px; }
 
 /* 3本柱カード — 白ベース+左ボーダー色のみ識別 */
-.pillar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+.pillar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 14px 0 4px; }
 @media (max-width: 720px) { .pillar-grid { grid-template-columns: 1fr; } }
-.pillar { border-radius: 10px; padding: 14px; position: relative; overflow: hidden; min-height: 260px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e5e7eb; border-top-width: 4px; }
-.pillar-unkan { border-top-color: #6b7280; }
-.pillar-plaza { border-top-color: #4b5563; }
-.pillar-food { border-top-color: #374151; }
-.pillar-icon { font-size: 28px; }
+.pillar {
+  border-radius: 14px; padding: 16px 16px 14px; position: relative; overflow: hidden;
+  min-height: 220px; display: flex; flex-direction: column;
+  background: #fff; border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.pillar:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(15,23,42,0.08); border-color: #cbd5e1; }
+.pillar:before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; }
+.pillar-unkan:before { background: linear-gradient(90deg, #94a3b8, #64748b); }
+.pillar-plaza:before { background: linear-gradient(90deg, #6b7280, #4b5563); }
+.pillar-food:before  { background: linear-gradient(90deg, #4b5563, #1f2937); }
+.pillar-icon { font-size: 30px; line-height: 1; }
 .pillar-title { font-weight: 800; font-size: 14px; color: #111827; }
-.pillar-num { font-size: 32px; font-weight: 800; line-height: 1.1; color: #111827; }
+.pillar-num { font-size: 30px; font-weight: 800; line-height: 1.1; color: #1e293b; font-variant-numeric: tabular-nums; }
 .pillar-sub { font-size: 11px; color: #6b7280; }
-.pillar-cmt { display: inline-block; background: #f3f4f6; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-top: 8px; color: #374151 !important; }
-.pillar-recent { background: #f9fafb !important; color: #1f2937 !important; }
+.pillar-cmt { display: inline-block; background: #f1f5f9; padding: 4px 11px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-top: 8px; color: #475569 !important; }
+.pillar-recent { background: #f8fafc !important; color: #1f2937 !important; border-radius: 10px !important; }
 
 /* パイプライン */
-.pipe-wrap { overflow-x: auto; padding: 12px 4px 18px; }
+.pipe-wrap { overflow-x: auto; padding: 8px 2px 16px; -webkit-overflow-scrolling: touch; }
 .pipe { display: flex; gap: 6px; align-items: stretch; min-width: max-content; }
-.pipe-step { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; min-width: 100px; text-align: center; transition: all 0.15s; cursor: pointer; }
-.pipe-step:hover { border-color: #6b7280; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-.pipe-step.active { background: #f3f4f6; border-color: #374151; }
-.pipe-step.selected { background: #1f2937; border-color: #1f2937; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.pipe-step {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 10px 14px; min-width: 102px; text-align: center;
+  transition: all 0.15s; cursor: pointer;
+}
+.pipe-step:hover { border-color: #94a3b8; box-shadow: 0 2px 8px rgba(15,23,42,0.08); transform: translateY(-1px); }
+.pipe-step.active { background: #f1f5f9; border-color: #475569; }
+.pipe-step.selected {
+  background: linear-gradient(135deg, #1f2937, #374151);
+  border-color: #1f2937;
+  box-shadow: 0 4px 14px rgba(31,41,55,0.30);
+  transform: translateY(-2px);
+}
 .pipe-step.selected .pipe-label, .pipe-step.selected .pipe-num { color: #fff; }
-.pipe-step.done { opacity: 0.6; }
+.pipe-step.done { opacity: 0.55; }
 .pipe-label { font-size: 11px; color: #6b7280; font-weight: 700; }
-.pipe-num { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2; margin-top: 2px; }
-.pipe-arrow { display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 16px; padding: 0 2px; }
+.pipe-num { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.pipe-arrow { display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 16px; padding: 0 2px; }
 
 /* AI凝縮ステップ */
-.condense-bar { background: #f9fafb; border-radius: 10px; padding: 14px 18px; margin: 14px 0; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid #e5e7eb; }
-.condense-bar .condense-msg { flex: 1; color: #1f2937; font-size: 13px; font-weight: 600; }
+.condense-bar {
+  background: linear-gradient(135deg, #faf5ff, #f5f3ff);
+  border-radius: 14px; padding: 16px 20px; margin: 12px 0;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  border: 1px solid #ddd6fe;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.06);
+}
+.condense-bar .condense-msg { flex: 1; color: #1f2937; font-size: 13px; font-weight: 600; line-height: 1.65; min-width: 200px; }
 
-/* セクションラベル */
-.step-label { display: inline-block; background: #1f2937; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 12px; border-radius: 4px; margin-bottom: 6px; letter-spacing: 1px; }
-.step-title { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 4px; }
-.step-sub { font-size: 12px; color: #6b7280; margin-bottom: 14px; }
+/* セクションラベル — コンパクトに統合 */
+.step-label {
+  display: inline-block; background: #1f2937; color: #fff;
+  font-size: 10px; font-weight: 800; padding: 3px 10px;
+  border-radius: 999px; margin-bottom: 6px; letter-spacing: 1px;
+}
+.step-title { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 6px; letter-spacing: 0.3px; }
+.step-sub { font-size: 12px; color: #64748b; margin-bottom: 12px; line-height: 1.6; }
 
-/* 矢印 */
-.flow-arrow { text-align: center; color: #9ca3af; font-size: 24px; line-height: 1; margin: 4px 0; }
+/* 矢印 — 視覚圧緩和 */
+.flow-arrow { text-align: center; color: #cbd5e1; font-size: 18px; line-height: 1; margin: 2px 0 -4px; }
 
 /* 🆕 NEW バッジのパルスアニメーション */
 @keyframes newPulse {
@@ -88,17 +128,60 @@ th { background: #f9fafb; font-weight: 700; color: #374151; }
 .fz-toggle button.active { background: rgba(255,255,255,0.85); color: #1f2937; }
 
 /* タブ式UI (A案: 受信箱フォーカス) */
-.today-summary { background: linear-gradient(135deg,#fffbeb,#fef3c7); border-left:4px solid #f59e0b; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; font-size: 13px; color: #78350f; line-height: 1.7; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-.today-summary .ts-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(255,255,255,0.6); border-radius: 14px; font-weight: 700; font-size: 12px; }
+.today-summary {
+  background: linear-gradient(135deg, rgba(254,243,199,0.7), rgba(253,230,138,0.7));
+  border: 1px solid rgba(245,158,11,0.30);
+  border-left: 4px solid #f59e0b; border-radius: 12px;
+  padding: 12px 18px; margin-bottom: 16px;
+  font-size: 13px; color: #78350f; line-height: 1.7;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  box-shadow: 0 2px 8px rgba(245,158,11,0.08);
+}
+.today-summary .ts-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px; background: rgba(255,255,255,0.75); border-radius: 999px; font-weight: 700; font-size: 12px; }
 .today-summary .ts-num { font-size: 16px; font-weight: 900; color: #92400e; }
 .today-summary .ts-empty { font-size: 12px; color: #92400e; opacity: 0.85; }
-.wo-tab-bar { display: flex; gap: 4px; background: #fff; padding: 4px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px; border: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
-.wo-tab-bar button { flex: 1; padding: 10px 6px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #6b7280; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s; white-space: nowrap; }
-.wo-tab-bar button:hover { background: #f9fafb; }
-.wo-tab-bar button.active { background: #1f2937; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+
+.wo-tab-bar {
+  display: flex; gap: 4px;
+  background: #fff; padding: 5px;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(15,23,42,0.06);
+  margin-bottom: 18px; border: 1px solid #e2e8f0;
+  position: sticky; top: 64px; z-index: 20;
+}
+.wo-tab-bar button {
+  flex: 1; padding: 11px 8px; border: none; background: transparent;
+  font-size: 13px; font-weight: 700; color: #64748b; border-radius: 10px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s; white-space: nowrap;
+}
+.wo-tab-bar button:hover { background: #f8fafc; color: #334155; }
+.wo-tab-bar button.active {
+  background: linear-gradient(135deg, #1f2937, #374151);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(31,41,55,0.25);
+}
 .wo-tab-bar button .tb-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; border-radius: 9px; margin-left: 2px; }
 .wo-tab-bar button.active .tb-badge { background: #fde68a; color: #92400e; }
 [data-pane] { transition: opacity 0.2s; }
+
+/* 今日のあなた (ボードタブ) - 視覚圧抑制 */
+#promoter-todo-card {
+  background: linear-gradient(135deg, rgba(254,249,195,0.55), rgba(254,240,138,0.55)) !important;
+  border: 1px solid rgba(234,179,8,0.30) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 2px 10px rgba(234,179,8,0.08) !important;
+}
+#promoter-todo-card h2 { font-size: 15px !important; }
+#promoter-todo-card > div > div > div { background: rgba(255,255,255,0.85); border-radius: 12px; }
+
+/* 共通カードホバー (テーブル含む大カードはホバーしない方が落ち着く) */
+.pipe-step, .pillar { will-change: transform; }
+@media (max-width: 720px) {
+  main { padding: 16px 12px 60px; }
+  .card { padding: 18px 16px; border-radius: 14px; }
+  .wo-tab-bar { top: 56px; }
+}
 </style>
 </head>
 <body>
@@ -319,9 +402,8 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
 
   <!-- ━━━ STEP 1 ━━━ 3つの柱 (実POST埋込) -->
   <div data-pane="board" style="margin-top:18px;">
-    <span class="step-label">STEP 1 — みんなの声を聴く</span>
+    <span class="step-label">STEP 1</span>
     <h2 class="step-title">🌸 3つの柱から届いた最新の声</h2>
-    <div class="step-sub">直近のPOSTを各柱5件ずつ表示。各カードのタップで全部見られます。</div>
     <div class="pillar-grid" id="pillar-grid">
       <div class="pillar pillar-unkan">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -340,7 +422,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
           <span class="pillar-icon">🌳</span>
           <div style="flex:1;">
             <div class="pillar-title">一般投稿</div>
-            <div class="pillar-sub">みんなの広場への自発的な声</div>
+            <div class="pillar-sub">みんなの投稿への自発的な声</div>
           </div>
           <div class="pillar-num" id="pillar-plaza-num">…</div>
         </div>
@@ -366,13 +448,13 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
 
   <!-- ━━━ STEP 2 ━━━ AI凝縮 -->
   <div data-pane="board">
-    <span class="step-label">STEP 2 — AIにまとめてもらう</span>
-    <h2 class="step-title">🧠 集まった声を AI が「施策の候補」にまとめます</h2>
+    <span class="step-label">STEP 2</span>
+    <h2 class="step-title">🧠 AI が「施策の候補」にまとめます</h2>
     <div class="condense-bar">
       <div style="font-size:30px;">🧠</div>
       <div class="condense-msg">
-        3つの柱に集まった声と推進コメントを、AI が読み込んで「施策候補」を提案します。<br>
-        <span style="font-size:11px;color:#7c3aed;">月1回の健康管理室会議で実行 → 候補ができたら次のパイプラインへ</span>
+        3つの柱の声と推進コメントを AI が読み込み、施策候補を提案します。<br>
+        <span style="font-size:11px;color:#7c3aed;">月1回の健康管理室会議で実行</span>
       </div>
       <button class="btn" id="btn-ai" onclick="runAiInsights()">🧠 AI で凝縮</button>
     </div>
@@ -383,9 +465,9 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
 
   <!-- ━━━ STEP 3 ━━━ 施策ボード (パイプライン統合) -->
   <div class="card" data-pane="board">
-    <span class="step-label">STEP 3 — 形にする</span>
-    <h2 class="step-title">🎯 施策ボード <span style="color:#71717a;font-weight:400;font-size:12px;margin-left:8px;">9つの段階を経て会社の施策になります</span></h2>
-    <div class="step-sub">⬇ 下のパイプラインの段階タブをタップすると、その段階の施策一覧が表示されます。</div>
+    <span class="step-label">STEP 3</span>
+    <h2 class="step-title">🎯 施策ボード <span style="color:#71717a;font-weight:400;font-size:12px;margin-left:8px;">9段階で会社の施策に</span></h2>
+    <div class="step-sub">下のパイプラインの段階をタップすると、その段階の施策一覧が表示されます。</div>
 
     <!-- パイプライン (タブ) -->
     <div class="pipe-wrap" style="margin-bottom:12px;">
@@ -444,7 +526,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
     </div>
     <div style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
       <table style="margin:0;">
-        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:80px;">投稿元</th><th style="width:120px;">投稿者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>メモ</th><th style="width:80px;">議論</th></tr></thead>
+        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:80px;">投稿元</th><th style="width:120px;">投稿者</th><th style="width:120px;">対象者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>聞き取り内容 / メモ</th><th style="width:80px;">議論</th></tr></thead>
         <tbody id="fv-tbody"></tbody>
       </table>
     </div>
@@ -454,10 +536,10 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
   </div>
 
   <!-- ━━━ STEP 4 ━━━ 推進メンバー活動 (メンバータブ) -->
-  <div class="card" data-pane="members" style="background:#f9fafb;border:1px solid #e5e7eb;margin-top:18px;">
-    <span class="step-label">STEP 4 — みんなの活動</span>
+  <div class="card" data-pane="members" style="background:#fafbfc;border:1px solid #e5e7eb;margin-top:18px;">
+    <span class="step-label">STEP 4</span>
     <h2 class="step-title">🤝 推進メンバーの貢献</h2>
-    <div class="step-sub">過去30日 (POST×3 + 議論×2 + 共感×1)。みなさんの一つひとつの行動がループを動かしています。</div>
+    <div class="step-sub">過去30日 (POST×3 + 議論×2 + 共感×1)。</div>
     <div id="promoter-board" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
       <div style="color:#9ca3af;font-size:12px;">読み込み中…</div>
     </div>
@@ -1877,19 +1959,30 @@ async function loadFieldVoice() {
     tb.innerHTML = filtered.map(p => {
       const dtime = new Date(p.created_at + 'Z').toLocaleString('ja-JP');
       const srcType = p.source_type || '運管';
+      // カード回答 (structured_json) を1行にまとめて表示
+      let cardLine = '';
+      if (p.structured_json) {
+        try {
+          const obj = JSON.parse(p.structured_json);
+          const parts = Object.entries(obj || {}).map(([k, v]) => escapeHtml(v)).filter(Boolean);
+          if (parts.length) cardLine = '<div style="font-size:11px;color:#475569;background:#f8fafc;padding:4px 8px;border-radius:4px;margin-bottom:4px;">' + parts.join(' / ') + '</div>';
+        } catch (e) {}
+      }
+      const memoHtml = escapeHtml(p.memo || '').replace(/\n/g, '<br>') || (cardLine ? '' : '<span style="color:#cbd5e1;">(なし)</span>');
       return `<tr>
         <td style="font-size:11px;color:#94a3b8;font-weight:700;">#${p.id}</td>
         <td style="font-size:11px;color:#64748b;white-space:nowrap;">${dtime}</td>
         <td style="font-size:11px;color:${srcColor(srcType)};font-weight:700;">${srcIcon(srcType)} ${escapeHtml(srcType)}</td>
         <td style="font-size:12px;">${escapeHtml(p.poster_name || '-')}</td>
+        <td style="font-size:12px;color:#0f172a;font-weight:600;">${p.subject_name ? escapeHtml(p.subject_name) : '<span style="color:#cbd5e1;">-</span>'}</td>
         <td style="font-size:11px;color:#64748b;">${escapeHtml(p.company_code || '-')}</td>
         <td style="font-size:12px;font-weight:600;">${escapeHtml(p.category)}</td>
         <td style="font-size:11px;color:${urgColor(p.urgency)};font-weight:700;">${urgIcon(p.urgency)} ${escapeHtml(p.urgency)}</td>
         <td style="font-size:11px;color:${idColor(p.identity_mode)};">${escapeHtml(p.identity_mode)}</td>
-        <td style="font-size:12px;line-height:1.5;">${escapeHtml(p.memo || '').replace(/\n/g, '<br>') || '<span style="color:#cbd5e1;">(なし)</span>'}</td>
+        <td style="font-size:12px;line-height:1.5;">${cardLine}${memoHtml}</td>
         <td style="font-size:11px;"><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="togglePostDiscuss(${p.id})">💬議論</button></td>
       </tr>
-      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="10" style="background:#f8fafc;padding:10px;">
+      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="11" style="background:#f8fafc;padding:10px;">
         <div id="post-discuss-area-${p.id}"></div>
       </td></tr>`;
     }).join('');

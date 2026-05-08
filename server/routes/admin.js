@@ -48,10 +48,10 @@ const recUpload = multer({
   limits: { fileSize: 500 * 1024 * 1024 },
 });
 
-// ユーザー一覧
+// ユーザー一覧 (AIボットはインフラなので非表示。削除しても ensureConciergeBots が再生成するため、UIに出さない)
 router.get('/users', authAdmin, (req, res) => {
-  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter,
-    u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id ORDER BY u.created_at DESC`).all();
+  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter,
+    u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id WHERE u.role != 'bot' ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
 });
 
@@ -100,7 +100,7 @@ router.post('/users', authAdmin, (req, res) => {
 
 // ユーザー更新 (dm_group, dm_rank 等の編集)
 router.patch('/users/:id', authAdmin, (req, res) => {
-  const { display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org } = req.body;
+  const { display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org, is_field_promoter, is_warehouse_promoter } = req.body;
   const db = getDb();
   const u = db.prepare('SELECT id, dm_group FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
@@ -133,6 +133,12 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   if (dm_restricted !== undefined) {
     updates.push('dm_restricted = ?'); params.push(dm_restricted ? 1 : 0);
   }
+  if (is_field_promoter !== undefined) {
+    updates.push('is_field_promoter = ?'); params.push(is_field_promoter ? 1 : 0);
+  }
+  if (is_warehouse_promoter !== undefined) {
+    updates.push('is_warehouse_promoter = ?'); params.push(is_warehouse_promoter ? 1 : 0);
+  }
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.id);
   db.prepare('UPDATE users SET ' + updates.join(', ') + ' WHERE id = ?').run(...params);
@@ -143,6 +149,18 @@ router.patch('/users/:id', authAdmin, (req, res) => {
       try { syncDmGroupMembership(req.params.id, newDg, oldDmGroup, req.uid); } catch (e) { console.warn('[dm_group sync]', e.message); }
     }
   }
+  // 推進メンバーフラグが変わった場合は対応するGCに自動加入させる
+  try {
+    const db2 = getDb();
+    const memInsert = db2.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
+    if (is_field_promoter === true || is_field_promoter === 1) {
+      memInsert.run('g_field_voice', req.params.id);
+      memInsert.run('g_wellness_disc', req.params.id);
+    }
+    if (is_warehouse_promoter === true || is_warehouse_promoter === 1) {
+      memInsert.run('g_warehouse_voice', req.params.id);
+    }
+  } catch (e) { console.warn('[promoter GC sync]', e.message); }
   res.json({ success: true });
 });
 
@@ -191,19 +209,65 @@ router.post('/users/bulk', authAdmin, (req, res) => {
   res.json({ success: true, ...results });
 });
 
-// 既存ユーザーの dm_group を一括同期 (運用前提の手動トリガー)
-// すべての dm_group が設定されてるユーザーを、同名のチャットグループに加入させる
+// 全ユーザーの dm_group を権威的に一括同期
+// - dm_group が設定されているユーザーは同名のチャットグループに加入
+// - 旧 dm_group の(別名)チャットグループからは離脱
+// - dm_group 未設定のユーザーはdm_group由来のGCから全離脱
+// - 特殊GC (g_field_voice / g_wellness_disc / g_managers) は触らない
 router.post('/sync-dm-groups', authAdmin, (req, res) => {
   const db = getDb();
-  const all = db.prepare('SELECT id, dm_group FROM users WHERE dm_group IS NOT NULL AND dm_group != ?').all('');
-  let processed = 0;
-  for (const u of all) {
-    try {
-      syncDmGroupMembership(u.id, u.dm_group, null, req.uid);
-      processed++;
-    } catch (e) { console.warn('[dm_group bulk sync]', u.id, e.message); }
+  const SPECIAL_GROUP_IDS = ['g_field_voice', 'g_wellness_disc', 'g_managers'];
+
+  // ユーザー一覧 (bot除外)
+  const users = db.prepare("SELECT id, dm_group FROM users WHERE role != 'bot'").all();
+
+  // 既存の dm_group 由来チャットグループ (= 特殊以外) と name→id マップを構築
+  const allGroups = db.prepare('SELECT id, name FROM chat_groups').all();
+  const dmGroupSet = new Set();
+  const groupByName = {};
+  for (const g of allGroups) {
+    if (SPECIAL_GROUP_IDS.includes(g.id)) continue;
+    dmGroupSet.add(g.id);
+    if (g.name) groupByName[g.name] = g.id;
   }
-  res.json({ success: true, processed, total: all.length });
+
+  let added = 0, removed = 0, created = 0;
+
+  const txn = db.transaction(() => {
+    for (const u of users) {
+      let expectedGid = null;
+      if (u.dm_group) {
+        expectedGid = groupByName[u.dm_group];
+        // GC未作成なら作成
+        if (!expectedGid) {
+          expectedGid = crypto.randomUUID();
+          db.prepare('INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)')
+            .run(expectedGid, u.dm_group, '🏷', req.uid);
+          groupByName[u.dm_group] = expectedGid;
+          dmGroupSet.add(expectedGid);
+          created++;
+        }
+      }
+
+      // このユーザーが現在加入しているグループID一覧
+      const currentGids = db.prepare('SELECT group_id FROM chat_group_members WHERE user_id = ?').all(u.id).map(r => r.group_id);
+      // dm_group由来GCの内、外したいもの (=expectedGid以外)
+      for (const gid of currentGids) {
+        if (!dmGroupSet.has(gid)) continue; // 特殊GCはノータッチ
+        if (gid === expectedGid) continue;  // 正しい所属はスキップ
+        db.prepare('DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?').run(gid, u.id);
+        removed++;
+      }
+      // 期待GCに未加入なら追加
+      if (expectedGid && !currentGids.includes(expectedGid)) {
+        db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)').run(expectedGid, u.id);
+        added++;
+      }
+    }
+  });
+  txn();
+
+  res.json({ success: true, total: users.length, added, removed, created });
 });
 
 // CSVテンプレート (BOM付きUTF-8でExcel/Numbers互換)
@@ -253,10 +317,155 @@ router.post('/users/:id/password', authAdmin, (req, res) => {
 // ユーザー削除
 router.delete('/users/:id', authAdmin, (req, res) => {
   const db = getDb();
+  // AIボット (role=bot) はチャット基盤として常駐させる必要があるため削除不可
+  const tgt = db.prepare('SELECT role FROM users WHERE id = ?').get(req.params.id);
+  if (tgt && tgt.role === 'bot') {
+    return res.status(400).json({ success: false, msg: 'AIボットはシステム必須のため削除できません' });
+  }
   db.prepare('DELETE FROM positions WHERE user_id = ?').run(req.params.id);
   db.prepare('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?').run(req.params.id, req.params.id);
   const r = db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   res.json({ success: r.changes > 0 });
+});
+
+// ========== 一括操作 (2026-05-08) ==========
+// 未使用アカウント抽出: last_seen_at が指定日数以上前 or 一度もログインしていない
+router.get('/users/inactive', authAdmin, (req, res) => {
+  const days = Math.min(Math.max(parseInt(req.query.days) || 30, 1), 365);
+  const sinceISO = new Date(Date.now() - days * 86400000).toISOString().slice(0, 19).replace('T', ' ');
+  const db = getDb();
+  const rows = db.prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.dm_group,
+    u.last_seen_at, u.created_at,
+    (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id) AS msg_count,
+    julianday('now') - julianday(COALESCE(u.last_seen_at, u.created_at)) AS days_since
+    FROM users u WHERE u.role != 'bot'
+      AND (u.last_seen_at IS NULL OR u.last_seen_at < ?)
+    ORDER BY u.last_seen_at ASC`).all(sinceISO);
+  res.json({ success: true, days, count: rows.length, users: rows });
+});
+
+// 一括 dm_group 変更
+router.post('/users/bulk-update-group', authAdmin, express.json(), (req, res) => {
+  const ids = Array.isArray(req.body && req.body.user_ids) ? req.body.user_ids : [];
+  const newGroup = (req.body && req.body.dm_group !== undefined) ? (String(req.body.dm_group || '').trim().slice(0, 40) || null) : undefined;
+  if (newGroup === undefined) return res.status(400).json({ success: false, msg: 'dm_group 未指定' });
+  if (ids.length === 0) return res.status(400).json({ success: false, msg: '対象ユーザーなし' });
+  const db = getDb();
+  let changed = 0;
+  db.transaction(() => {
+    for (const uid of ids) {
+      const u = db.prepare('SELECT id, dm_group FROM users WHERE id = ? AND role != ?').get(uid, 'bot');
+      if (!u) continue;
+      const oldDg = u.dm_group;
+      db.prepare('UPDATE users SET dm_group = ? WHERE id = ?').run(newGroup, uid);
+      try { syncDmGroupMembership(uid, newGroup, oldDg, req.uid); } catch (e) { console.warn('[bulk dm_group sync]', uid, e.message); }
+      changed++;
+    }
+  })();
+  res.json({ success: true, changed });
+});
+
+// 一括削除 (関連メッセージも消える)
+router.post('/users/bulk-delete', authAdmin, express.json(), (req, res) => {
+  const ids = Array.isArray(req.body && req.body.user_ids) ? req.body.user_ids : [];
+  if (ids.length === 0) return res.status(400).json({ success: false, msg: '対象ユーザーなし' });
+  // 自分自身は弾く (ロックアウト防止)
+  const filtered = ids.filter(x => x !== req.uid);
+  if (filtered.length === 0) return res.status(400).json({ success: false, msg: '自分自身は削除できません' });
+  const db = getDb();
+  let deleted = 0;
+  db.transaction(() => {
+    for (const uid of filtered) {
+      const u = db.prepare("SELECT id, role FROM users WHERE id = ? AND role != 'bot'").get(uid);
+      if (!u) continue;
+      db.prepare('DELETE FROM positions WHERE user_id = ?').run(uid);
+      db.prepare('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?').run(uid, uid);
+      db.prepare('DELETE FROM chat_group_members WHERE user_id = ?').run(uid);
+      db.prepare('DELETE FROM message_reads WHERE user_id = ?').run(uid);
+      db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').run(uid);
+      db.prepare('DELETE FROM users WHERE id = ?').run(uid);
+      deleted++;
+    }
+  })();
+  res.json({ success: true, deleted, skipped: ids.length - filtered.length });
+});
+
+// 会社(company_code)からdm_groupを一括設定 + 同期
+// dm_group 未設定 のユーザーに対して、所属会社名を dm_group として設定し、
+// その後 権威的同期を実施する。
+// option: overwrite=true なら設定済みも上書き
+router.post('/auto-assign-from-company', authAdmin, express.json(), (req, res) => {
+  const overwrite = !!(req.body && req.body.overwrite);
+  const db = getDb();
+  // 会社 code → 会社名
+  const companies = db.prepare('SELECT code, name FROM companies').all();
+  const nameByCode = {};
+  for (const c of companies) nameByCode[c.code] = c.name;
+
+  const users = db.prepare("SELECT id, company_code, dm_group FROM users WHERE role != 'bot'").all();
+  let updated = 0;
+  db.transaction(() => {
+    for (const u of users) {
+      if (!u.company_code) continue;
+      const newDg = nameByCode[u.company_code];
+      if (!newDg) continue;
+      if (!overwrite && u.dm_group) continue; // 既設定はスキップ
+      if (u.dm_group === newDg) continue;
+      db.prepare('UPDATE users SET dm_group = ? WHERE id = ?').run(newDg, u.id);
+      updated++;
+    }
+  })();
+
+  // 続けて権威的同期 (上の sync-dm-groups と同じロジック)
+  const SPECIAL_GROUP_IDS = ['g_field_voice', 'g_wellness_disc', 'g_managers'];
+  const allGroups = db.prepare('SELECT id, name FROM chat_groups').all();
+  const dmGroupSet = new Set();
+  const groupByName = {};
+  for (const g of allGroups) {
+    if (SPECIAL_GROUP_IDS.includes(g.id)) continue;
+    dmGroupSet.add(g.id);
+    if (g.name) groupByName[g.name] = g.id;
+  }
+  const usersAfter = db.prepare("SELECT id, dm_group FROM users WHERE role != 'bot'").all();
+  let added = 0, removed = 0, created = 0;
+  db.transaction(() => {
+    for (const u of usersAfter) {
+      let expectedGid = null;
+      if (u.dm_group) {
+        expectedGid = groupByName[u.dm_group];
+        if (!expectedGid) {
+          expectedGid = crypto.randomUUID();
+          db.prepare('INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)')
+            .run(expectedGid, u.dm_group, '🏢', req.uid);
+          groupByName[u.dm_group] = expectedGid;
+          dmGroupSet.add(expectedGid);
+          created++;
+        }
+      }
+      const currentGids = db.prepare('SELECT group_id FROM chat_group_members WHERE user_id = ?').all(u.id).map(r => r.group_id);
+      for (const gid of currentGids) {
+        if (!dmGroupSet.has(gid)) continue;
+        if (gid === expectedGid) continue;
+        db.prepare('DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?').run(gid, u.id);
+        removed++;
+      }
+      if (expectedGid && !currentGids.includes(expectedGid)) {
+        db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)').run(expectedGid, u.id);
+        added++;
+      }
+    }
+  })();
+
+  res.json({ success: true, total: users.length, dm_group_updated: updated, created, added, removed });
+});
+
+// 既存の dm_group 候補一覧 (重複排除)
+router.get('/dm-groups', authAdmin, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`SELECT dm_group AS name, COUNT(*) AS cnt FROM users
+    WHERE dm_group IS NOT NULL AND dm_group != '' AND role != 'bot'
+    GROUP BY dm_group ORDER BY cnt DESC, dm_group`).all();
+  res.json({ success: true, groups: rows });
 });
 
 // ========== 録音機能 ==========
@@ -445,6 +654,27 @@ router.delete('/groups/:gid', authAdmin, (req, res) => {
   db.prepare('DELETE FROM chat_groups WHERE id = ?').run(req.params.gid);
   notifyGroupsChanged(req, 'delete', req.params.gid);
   res.json({ success: true });
+});
+
+// グループチャット 全文閲覧 (管理者のみ。メンバーシップ不問)
+// 営業所別GCを管理者が監督するための統制機能。
+router.get('/groups/:gid/messages', authAdmin, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
+  const before = (req.query.before || '').toString().trim();
+  const db = getDb();
+  const g = db.prepare('SELECT id, name, icon FROM chat_groups WHERE id = ?').get(req.params.gid);
+  if (!g) return res.status(404).json({ success: false, msg: 'グループが見つかりません' });
+  let sql = `SELECT m.id, m.sender_id, m.content, m.has_mention, m.created_at,
+    m.attach_url, m.attach_name, m.attach_size, m.attach_type,
+    u.display_name AS sender_name, u.avatar_url AS sender_avatar, u.company_code
+    FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+    WHERE m.room_code = ?`;
+  const params = ['grp_' + req.params.gid];
+  if (before) { sql += ' AND m.created_at < ?'; params.push(before); }
+  sql += ' ORDER BY m.created_at DESC LIMIT ?';
+  params.push(limit);
+  const rows = db.prepare(sql).all(...params);
+  res.json({ success: true, group: g, messages: rows.reverse() });
 });
 
 // 出席履歴

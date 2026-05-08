@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>CoWell — ホーム</title>
+<link rel="manifest" href="/manifest.json?v=4">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    background: linear-gradient(180deg, #f0fdfa 0%, #f0f9ff 35%, #fef3c7 100%);
+    background-attachment: fixed;
+    min-height: 100vh; color: #0f172a;
+  }
+
+  /* === ヘッダー === */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 60%, #064e3b 100%);
+    color: #fff; padding: 14px 20px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 6px 18px rgba(15,118,110,0.25);
+  }
+  header .logo { width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 22px; backdrop-filter: blur(6px); flex-shrink: 0; }
+  header .ttl-wrap { line-height: 1.2; flex: 1; min-width: 0; }
+  header .ttl { font-size: 18px; font-weight: 800; letter-spacing: 1.5px; }
+  header .sub { font-size: 10px; opacity: 0.85; letter-spacing: 0.5px; margin-top: 2px; }
+  header .right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  header .name {
+    font-size: 12px; padding: 6px 12px;
+    background: rgba(255,255,255,0.18); border-radius: 18px;
+    backdrop-filter: blur(6px); font-weight: 700; white-space: nowrap;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+  }
+  header button {
+    font-size: 12px; padding: 7px 14px;
+    background: rgba(255,255,255,0.18); color: #fff;
+    border: 1px solid rgba(255,255,255,0.35); border-radius: 18px;
+    cursor: pointer; font-weight: 700; backdrop-filter: blur(6px);
+    transition: background 0.15s;
+  }
+  header button:hover { background: rgba(255,255,255,0.30); }
+
+  /* === ログイン画面 === */
+  #login-screen {
+    min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 24px;
+    background: radial-gradient(ellipse at top, rgba(13,148,136,0.12), transparent 60%),
+                radial-gradient(ellipse at bottom right, rgba(245,158,11,0.10), transparent 50%),
+                linear-gradient(180deg, #f0fdfa 0%, #f0f9ff 100%);
+  }
+  #login-screen.show { display: flex; }
+  .login-card {
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(14px);
+    border-radius: 22px; padding: 36px 30px; width: 100%; max-width: 400px;
+    box-shadow: 0 24px 60px rgba(15,118,110,0.18), 0 4px 16px rgba(0,0,0,0.06);
+    border: 1px solid rgba(255,255,255,0.6);
+  }
+  .login-card .brand-row { text-align: center; margin-bottom: 22px; }
+  .login-card .brand-row .emo { font-size: 44px; line-height: 1; margin-bottom: 6px; }
+  .login-card h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800;
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    letter-spacing: 2px;
+  }
+  .login-card .desc { font-size: 12px; color: #64748b; text-align: center; }
+  .login-card label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 5px; margin-top: 14px; letter-spacing: 0.3px; }
+  .login-card input {
+    width: 100%; padding: 12px 14px;
+    border: 1px solid #cbd5e1; border-radius: 10px;
+    font-size: 14px; outline: none; background: #fff;
+    transition: border 0.15s, box-shadow 0.15s;
+  }
+  .login-card input:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.15); }
+  .login-card .btn {
+    width: 100%; margin-top: 22px; padding: 13px;
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    color: #fff; border: none; border-radius: 12px;
+    font-size: 14px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(13,148,136,0.30);
+    transition: transform 0.12s, box-shadow 0.15s;
+  }
+  .login-card .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(13,148,136,0.40); }
+  .login-card .err { color: #dc2626; font-size: 12px; margin-top: 10px; min-height: 16px; text-align: center; font-weight: 600; }
+  .login-card .full-link { display: block; text-align: center; margin-top: 16px; font-size: 11px; color: #94a3b8; text-decoration: none; }
+  .login-card .full-link:hover { color: #475569; text-decoration: underline; }
+
+  /* === メインアプリ === */
+  #app { display: none; max-width: 1080px; margin: 0 auto; padding: 0 18px 80px; }
+  #app.show { display: block; }
+
+  /* ヒーロー(挨拶+お知らせ帯) */
+  .hero {
+    margin: 18px 4px 22px; padding: 18px 22px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(240,253,250,0.85));
+    backdrop-filter: blur(8px);
+    border-radius: 18px; border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 8px 24px rgba(15,118,110,0.08);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .hero .ic { font-size: 38px; line-height: 1; flex-shrink: 0; }
+  .hero .body { flex: 1; line-height: 1.5; }
+  .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; }
+  .hero .greet strong { color: #047857; }
+  .hero .note { font-size: 11px; color: #475569; margin-top: 4px; }
+
+  /* セクション見出し */
+  .sec-title {
+    display: flex; align-items: center; gap: 10px;
+    margin: 28px 4px 14px; padding-left: 12px;
+    border-left: 4px solid #0d9488;
+  }
+  .sec-title .lbl { font-size: 14px; font-weight: 800; color: #0f766e; letter-spacing: 1px; }
+  .sec-title .desc { font-size: 11px; color: #94a3b8; }
+
+  /* カードグリッド */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+
+  /* リッチカード */
+  .card {
+    --c1: #14b8a6; --c2: #0d9488;
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 20px 18px 18px 18px;
+    cursor: pointer; text-decoration: none; color: inherit; display: block;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .card:before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+  }
+  .card:after {
+    content: ''; position: absolute; right: -30px; top: -30px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle, var(--c1) 0%, transparent 60%);
+    opacity: 0.08; pointer-events: none; transition: opacity 0.2s;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15,23,42,0.10); border-color: rgba(13,148,136,0.30); }
+  .card:hover:after { opacity: 0.15; }
+  .card .icon-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 52px; height: 52px; border-radius: 14px;
+    font-size: 28px; line-height: 1;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    margin-bottom: 12px;
+  }
+  .card .label { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; letter-spacing: 0.3px; }
+  .card .desc { font-size: 12px; color: #64748b; line-height: 1.55; }
+  .card .badge {
+    position: absolute; top: 12px; right: 14px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff; font-size: 10px; font-weight: 800;
+    padding: 3px 9px; border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(220,38,38,0.30); z-index: 2;
+  }
+
+  /* カードのカラーパレット */
+  .card.chat       { --c1: #38bdf8; --c2: #0ea5e9; }
+  .card.timecard   { --c1: #fbbf24; --c2: #f59e0b; }
+  .card.plaza      { --c1: #34d399; --c2: #10b981; }
+  .card.wellness   { --c1: #6ee7b7; --c2: #059669; }
+  .card.board      { --c1: #22d3ee; --c2: #0891b2; }
+  .card.ops        { --c1: #a78bfa; --c2: #7c3aed; }
+  .card.accident   { --c1: #f87171; --c2: #dc2626; }
+  .card.challenges { --c1: #fb923c; --c2: #f97316; }
+
+  /* 推進メンバー専用 (色味を統一) */
+  #promoter-section .grid { gap: 12px; }
+  #promoter-section .card {
+    background: linear-gradient(180deg, rgba(250,245,255,0.9), rgba(255,255,255,1));
+    border-color: #e9d5ff;
+  }
+  .card.p-strategy   { --c1: #c084fc; --c2: #7c3aed; }
+  .card.p-myplanops  { --c1: #60a5fa; --c2: #2563eb; }
+  .card.p-orientation{ --c1: #2dd4bf; --c2: #0f766e; }
+  .card.p-rollcall   { --c1: #6ee7b7; --c2: #059669; }
+  .card.p-warehouse  { --c1: #93c5fd; --c2: #1d4ed8; }
+
+  /* notice 帯 */
+  .notice {
+    margin: 0 4px 16px; padding: 11px 16px;
+    background: linear-gradient(135deg, rgba(254,243,199,0.85), rgba(253,230,138,0.85));
+    backdrop-filter: blur(4px);
+    border-left: 4px solid #f59e0b; border-radius: 10px;
+    font-size: 12px; color: #78350f; line-height: 1.65;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.10);
+  }
+
+  /* フッター */
+  .footer {
+    margin-top: 36px; padding: 22px 16px;
+    background: rgba(255,255,255,0.6); backdrop-filter: blur(6px);
+    border-radius: 14px; border: 1px solid rgba(226,232,240,0.6);
+    display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;
+    font-size: 11px; color: #94a3b8;
+  }
+  .footer a {
+    color: #475569; text-decoration: none; font-weight: 600;
+    padding: 4px 10px; border-radius: 8px; transition: background 0.15s;
+  }
+  .footer a:hover { background: rgba(13,148,136,0.10); color: #0f766e; }
+
+  /* スマホ調整 */
+  @media (max-width: 600px) {
+    header { padding: 12px 14px; gap: 10px; }
+    header .logo { width: 38px; height: 38px; font-size: 19px; border-radius: 10px; }
+    header .ttl { font-size: 16px; }
+    header .name { display: none; }
+    header button { font-size: 11px; padding: 6px 11px; }
+    #app { padding: 0 12px 80px; }
+    .hero { padding: 14px 16px; gap: 10px; border-radius: 14px; }
+    .hero .ic { font-size: 32px; }
+    .hero .greet { font-size: 14px; }
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    .card { padding: 16px 16px 14px 16px; }
+    .card .icon-pill { width: 44px; height: 44px; font-size: 24px; border-radius: 12px; margin-bottom: 10px; }
+    .card .label { font-size: 15px; }
+    .card .desc { font-size: 12px; }
+    .sec-title { margin-top: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand-row">
+      <div class="emo">🌳</div>
+      <h1>CoWell</h1>
+      <div class="desc">Communication & Wellness</div>
+    </div>
+    <label for="lid">ログインID</label>
+    <input type="text" id="lid" autocomplete="username" autocapitalize="off">
+    <label for="lpw">パスワード</label>
+    <input type="password" id="lpw" autocomplete="current-password">
+    <button type="button" class="btn" id="login-btn">ログイン</button>
+    <div class="err" id="login-err"></div>
+    <a class="full-link" href="/admin">管理画面はこちら</a>
+  </div>
+</div>
+
+<!-- ヘッダー -->
+<header id="header" style="display:none;">
+  <div class="logo">🌳</div>
+  <div class="ttl-wrap">
+    <div class="ttl">CoWell</div>
+    <div class="sub">COMMUNICATION & WELLNESS</div>
+  </div>
+  <div class="right">
+    <span class="name" id="hd-name"></span>
+    <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" style="display:none;">⚙️ 管理画面</button>
+    <button onclick="logout()" title="ログアウト">ログアウト</button>
+  </div>
+</header>
+
+<div id="app">
+  <!-- ヒーロー -->
+  <div class="hero">
+    <div class="ic" id="hero-ic">☀️</div>
+    <div class="body">
+      <div class="greet" id="greet">CoWellへようこそ</div>
+      <div class="note">今日も健康と安全のためにご活用ください。</div>
+    </div>
+  </div>
+
+  <div class="notice">
+    機能を絞ったシンプル版で運用中です。慣れてきたら段階的に機能を追加します。お困りの際は管理者へ。
+  </div>
+
+  <!-- 主要メニュー -->
+  <div class="sec-title">
+    <span class="lbl">メインメニュー</span>
+    <span class="desc">日々の業務に使う基本機能</span>
+  </div>
+  <div class="grid">
+    <a class="card chat" href="/chat" id="card-chat">
+      <span class="badge" id="b-chat" style="display:none;">0</span>
+      <div class="icon-pill">💬</div>
+      <div class="label">営業所チャット</div>
+      <div class="desc">所属営業所のグループでメッセージ。管理者は全グループ閲覧可。</div>
+    </a>
+    <a class="card timecard" href="/timecard">
+      <div class="icon-pill">⏰</div>
+      <div class="label">出退勤打刻</div>
+      <div class="desc">出勤・退勤の時刻を記録。PC起動時刻と自動照合。</div>
+    </a>
+    <a class="card plaza" href="/plaza.html">
+      <div class="icon-pill">🍱</div>
+      <div class="label">食事・投稿</div>
+      <div class="desc">食事の写真をAIが栄養分析。血圧・雑談もまとめて。</div>
+    </a>
+    <a class="card wellness" href="/wellness.html">
+      <div class="icon-pill">🏥</div>
+      <div class="label">健康管理室</div>
+      <div class="desc">アクションプラン、ヘルスアドバイザー、施策ボード。</div>
+    </a>
+    <a class="card board" href="/board.html">
+      <span class="badge" id="b-board" style="display:none;">0</span>
+      <div class="icon-pill">📋</div>
+      <div class="label">掲示板</div>
+      <div class="desc">全社お知らせ・告知・経営メッセージ。</div>
+    </a>
+    <a class="card ops" href="/ops.html">
+      <span class="badge" id="b-ops" style="display:none;">0</span>
+      <div class="icon-pill">📣</div>
+      <div class="label">業務連絡 / 運管ポスト</div>
+      <div class="desc">車両不具合、現場の声、ヒヤリハット報告。</div>
+    </a>
+    <a class="card accident" href="/accident.html">
+      <div class="icon-pill">🚨</div>
+      <div class="label">事故報告</div>
+      <div class="desc">製品事故・車両事故の報告書を作成・管理。</div>
+    </a>
+    <a class="card challenges" href="/challenges.html">
+      <div class="icon-pill">🏆</div>
+      <div class="label">チャレンジ</div>
+      <div class="desc">健康チャレンジへの参加とKPI記録。</div>
+    </a>
+  </div>
+
+  <!-- 推進メンバー専用 -->
+  <section id="promoter-section" style="display:none;">
+    <div class="sec-title" style="border-left-color:#7c3aed;">
+      <span class="lbl" id="promoter-title" style="color:#5b21b6;">🩺 推進メンバー専用</span>
+      <span class="desc">推進メンバー・管理職のみに表示</span>
+    </div>
+    <div class="grid">
+      <a id="p-card-rollcall" class="card p-rollcall" href="/ops-roll-call.html" style="display:none;">
+        <div class="icon-pill">🩺</div>
+        <div class="label">点呼カードPOST</div>
+        <div class="desc">点呼で気になった様子を1人1枚 (顔色/睡眠/朝食/気になる)。</div>
+      </a>
+      <a id="p-card-warehouse" class="card p-warehouse" href="/ops-warehouse.html" style="display:none;">
+        <div class="icon-pill">📋</div>
+        <div class="label">朝礼・昼礼カードPOST</div>
+        <div class="desc">朝礼・昼礼で気になった様子を1人1枚 (体調/腰関節/作業負荷/動線/環境/ヒヤリ)。</div>
+      </a>
+      <a class="card p-strategy" href="/wellness-ops.html">
+        <div class="icon-pill">🛠</div>
+        <div class="label">健康戦略室 (運営)</div>
+        <div class="desc">現場の声POST一覧、施策ボード、AI評議会、保健師レビュー、役員投票。</div>
+      </a>
+      <a class="card p-myplanops" href="/myplan-ops.html">
+        <div class="icon-pill">📊</div>
+        <div class="label">個人プラン Dashboard</div>
+        <div class="desc">社員の個人アクションプラン進捗を運営側で確認。</div>
+      </a>
+      <a class="card p-orientation" href="/orientation.html">
+        <div class="icon-pill">📖</div>
+        <div class="label">オリエンテーション</div>
+        <div class="desc">帝京大学公衆衛生学研究科 西村さん提供 (4スライド・音声付)。</div>
+      </a>
+    </div>
+  </section>
+
+  <div class="footer">
+    <a href="/announcements.html">📢 告知一覧</a>
+    <a href="/mylog">📜 自分のログ</a>
+    <a href="/help.html">❓ ヘルプ</a>
+    <a href="/security.html">🔒 セキュリティ</a>
+    <a href="/about-cowell.html">ℹ️ CoWellについて</a>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let me = null;
+const $ = (id) => document.getElementById(id);
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin(); return null; }
+  return r.json();
+}
+
+function showLogin() {
+  $('login-screen').classList.add('show');
+  $('app').classList.remove('show');
+  $('header').style.display = 'none';
+}
+
+function showApp() {
+  $('login-screen').classList.remove('show');
+  $('app').classList.add('show');
+  $('header').style.display = 'flex';
+}
+
+function greetInfo() {
+  const h = new Date().getHours();
+  if (h < 5)  return { word: 'こんばんは', ic: '🌙' };
+  if (h < 11) return { word: 'おはようございます', ic: '🌅' };
+  if (h < 18) return { word: 'こんにちは', ic: '☀️' };
+  return { word: 'お疲れさまです', ic: '🌇' };
+}
+
+async function init() {
+  if (!token) { showLogin(); return; }
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) { showLogin(); return; }
+  me = r.user;
+  showApp();
+  $('hd-name').textContent = me.display_name + 'さん';
+  const g = greetInfo();
+  $('hero-ic').textContent = g.ic;
+  $('greet').innerHTML = g.word + '、<strong>' + escapeHtml(me.display_name) + '</strong>さん';
+
+  // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
+  const isPromoter = !!me.is_field_promoter;
+  const isWarehousePromoter = !!me.is_warehouse_promoter;
+  const isAdmin = me.role === 'admin';
+  const isGuest = !!me.is_guest_reviewer;
+  // 管理者のみヘッダーに「管理画面」ボタン表示
+  if (isAdmin) $('hd-admin-btn').style.display = '';
+  if (isPromoter || isWarehousePromoter || isAdmin || isGuest) {
+    $('promoter-section').style.display = 'block';
+    if (isAdmin) {
+      $('promoter-title').textContent = '🩺 推進メンバー / 管理職 専用';
+    } else if (isGuest) {
+      $('promoter-title').textContent = '🎓 ゲストレビュアー専用 (' + escapeHtml(me.guest_org || '外部') + ')';
+    } else {
+      $('promoter-title').textContent = '🩺 推進メンバー専用';
+    }
+    // 運管推進メンバー: 点呼カードPOST
+    if (isPromoter || isAdmin) {
+      const c1 = $('p-card-rollcall');
+      if (c1) c1.style.display = '';
+    }
+    // 倉庫推進メンバー: 朝礼・昼礼カードPOST
+    if (isWarehousePromoter || isAdmin) {
+      const c2 = $('p-card-warehouse');
+      if (c2) c2.style.display = '';
+    }
+  }
+  fetchBadges();
+}
+
+async function fetchBadges() {
+  try {
+    const a = await api('/api/announcements/unread-count');
+    if (a && a.success && a.count > 0) {
+      $('b-board').textContent = a.count;
+      $('b-board').style.display = '';
+    }
+  } catch(e) {}
+  try {
+    const o = await api('/api/ops/pending-count');
+    if (o && o.success && o.count > 0) {
+      $('b-ops').textContent = o.count;
+      $('b-ops').style.display = '';
+    }
+  } catch(e) {}
+}
+
+async function login() {
+  const id = $('lid').value.trim();
+  const pw = $('lpw').value;
+  if (!id || !pw) { $('login-err').textContent = 'IDとパスワードを入力'; return; }
+  $('login-err').textContent = '';
+  const r = await fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login_id: id, password: pw }),
+  });
+  const d = await r.json();
+  if (!d.success) { $('login-err').textContent = d.msg || 'ログイン失敗'; return; }
+  token = d.token;
+  localStorage.setItem('cohub_token', token);
+  init();
+}
+
+function logout() {
+  if (!confirm('ログアウトしますか？')) return;
+  localStorage.removeItem('cohub_token');
+  token = '';
+  showLogin();
+}
+
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+$('login-btn').addEventListener('click', login);
+$('lpw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+$('lid').addEventListener('keydown', e => { if (e.key === 'Enter') $('lpw').focus(); });
+
+init();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// 各カードに一意のキャッシュバスタを付与 (PWA/Safariの強キャッシュ対策)
+(function bustCache() {
+  const v = '?cb=' + Date.now();
+  document.querySelectorAll('a.card').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (href && !href.includes('?') && href.startsWith('/')) {
+      a.setAttribute('href', href + v);
+    }
+  });
+})();
+</script>
+</body>
+</html>

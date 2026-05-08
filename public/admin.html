@@ -201,6 +201,28 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
+    <h2>⏰ 出退勤打刻 / PC起動時刻 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">PC電源ONから打刻まで15分以上空くと⚠表示</span></h2>
+    <div class="row" style="margin-bottom:8px;">
+      <label style="font-size:12px;color:#475569;">対象日</label>
+      <input type="date" id="tc-date">
+      <button class="btn" onclick="loadTimecard()">表示</button>
+      <button class="btn btn-ghost" onclick="loadTimecardDiscrepancies()">⚠ 差分のみ抽出 (直近7日)</button>
+      <span id="tc-meta" style="font-size:12px;color:#64748b;margin-left:8px;"></span>
+    </div>
+    <div style="max-height:420px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+      <table style="margin:0;font-size:12px;">
+        <thead style="position:sticky;top:0;"><tr>
+          <th style="width:140px;">所属/ID</th><th>表示名</th>
+          <th style="width:90px;">PC起動</th><th style="width:90px;">出勤打刻</th><th style="width:90px;">退勤打刻</th>
+          <th style="width:80px;">差分(分)</th>
+        </tr></thead>
+        <tbody id="tc-tbody"><tr><td colspan="6" style="color:#94a3b8;padding:14px;">「表示」を押して読み込み</td></tr></tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:#94a3b8;margin-top:6px;">※ PC起動時刻は各PCのタスクスケジューラから自動送信されます (scripts/pc_startup.ps1 を install_pc_startup.ps1 で配布)</div>
+  </div>
+
+  <div class="card">
     <h2>🎙️ 会議録音 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">管理者が録音開始→自動アップロード</span></h2>
     <div id="rec-list" style="font-size:12px;color:#94a3b8;">読み込み中...</div>
     <audio id="rec-player" controls style="width:100%;margin-top:10px;display:none;"></audio>
@@ -233,10 +255,43 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
 
   <div class="card">
     <h2>ユーザー一覧 <span id="user-count" style="color:#64748b;font-weight:400;font-size:13px;"></span></h2>
-    <table>
-      <thead><tr><th>ID</th><th>表示名</th><th>所属</th><th>権限</th><th>DMグループ/階層</th><th>状態</th><th>操作</th></tr></thead>
-      <tbody id="user-tbody"></tbody>
-    </table>
+    <!-- フィルタ + 一括操作ツールバー -->
+    <div class="row" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;align-items:center;flex-wrap:wrap;gap:8px;">
+      <input type="text" id="user-search" placeholder="🔎 名前・ログインIDで絞込" oninput="filterUsers()" style="flex:1;min-width:200px;">
+      <select id="user-company-filter" onchange="filterUsers()">
+        <option value="">所属すべて</option>
+      </select>
+      <select id="user-group-filter" onchange="filterUsers()">
+        <option value="">DMグループすべて</option>
+      </select>
+      <select id="user-inactive-filter" onchange="filterUsers()">
+        <option value="">最終ログイン: すべて</option>
+        <option value="30">30日以上未使用</option>
+        <option value="60">60日以上未使用</option>
+        <option value="90">90日以上未使用</option>
+        <option value="never">未ログイン</option>
+      </select>
+      <button class="btn btn-ghost" onclick="clearUserFilters()" style="font-size:11px;padding:6px 10px;">↻ 解除</button>
+      <button class="btn" onclick="autoAssignFromCompany()" style="font-size:11px;padding:6px 12px;background:linear-gradient(135deg,#10b981,#059669);" title="dm_group未設定者を会社名で自動振分">🏢 会社で自動振分</button>
+      <button class="btn" onclick="syncDmGroupsToChats()" style="font-size:11px;padding:6px 12px;background:linear-gradient(135deg,#0891b2,#06b6d4);" title="dm_group(部門)に基づいてGCを再同期">🔄 部門→GC振分</button>
+    </div>
+    <div id="bulk-action-bar" style="display:none;margin-top:8px;background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:#fff;padding:10px 14px;border-radius:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 4px 12px rgba(14,165,233,0.30);">
+      <span style="font-weight:800;flex:1;">📋 <strong id="bulk-sel-count">0</strong> 名選択中</span>
+      <button onclick="bulkChangeGroup()" style="background:rgba(255,255,255,0.20);color:#fff;border:1px solid rgba(255,255,255,0.40);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;">🗨 DMグループ変更</button>
+      <button onclick="bulkDelete()" style="background:#dc2626;color:#fff;border:none;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;">🗑 一括削除</button>
+      <button onclick="clearBulkSelection()" style="background:rgba(0,0,0,0.20);color:#fff;border:1px solid rgba(0,0,0,0.30);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;">解除</button>
+    </div>
+    <div style="margin-top:8px;max-height:520px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;background:#f9fafb;">
+          <tr>
+            <th style="width:40px;text-align:center;"><input type="checkbox" id="sel-all" onchange="toggleSelAll(this)"></th>
+            <th>ID</th><th>表示名</th><th>所属</th><th>権限</th><th>DMグループ</th><th>最終ログイン</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="user-tbody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -271,6 +326,25 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;background:#f8fafc;">
       <button onclick="closeGroupModal()" class="btn btn-ghost" style="flex:1;">キャンセル</button>
       <button onclick="submitGroup()" class="btn" id="grp-save-btn" style="flex:2;">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- GC全文閲覧モーダル (営業所別グループの内容を管理者が確認) -->
+<div id="grp-viewer-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;display:flex;align-items:center;gap:10px;">
+      <div style="font-weight:800;font-size:15px;flex:1;">👁️ <span id="grp-viewer-title">グループ閲覧</span></div>
+      <button onclick="closeGroupViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div style="padding:8px 14px;background:#fef3c7;color:#78350f;font-size:11px;border-bottom:1px solid #fde68a;">
+      ⚠ 内部統制目的の閲覧。閲覧記録はサーバ側で監査ログ対象です。
+    </div>
+    <div id="grp-viewer-body" style="flex:1;overflow-y:auto;padding:14px 18px;font-size:13px;">読み込み中...</div>
+    <div style="padding:10px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;background:#f8fafc;align-items:center;">
+      <span id="grp-viewer-meta" style="font-size:11px;color:#64748b;flex:1;"></span>
+      <button class="btn btn-ghost" id="grp-viewer-more" onclick="loadMoreGroupMessages()" style="display:none;">もっと読む</button>
+      <button class="btn btn-ghost" onclick="closeGroupViewer()">閉じる</button>
     </div>
   </div>
 </div>
@@ -346,6 +420,16 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
           <input type="checkbox" id="edit-dm-restricted"> 部署内DMのみに限定する
         </label>
         <div style="font-size:10px;color:#64748b;line-height:1.6;">ONなら同じチャットグループに所属するメンバーまたは管理者/推進メンバーとしかDMできません。OFFは全員と自由DM可。新規一般社員はONで登録 + 部署グループへの所属を忘れずに。</div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🩺 推進メンバー (現場の声POST権限)</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-field-promoter"> 運管推進メンバー (点呼カードPOST + 健康戦略室)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-warehouse-promoter"> 倉庫推進メンバー (朝礼・昼礼カードPOST)
+        </label>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;">推進メンバーは点呼/朝礼でメンバー1人ずつ聞き取りカードを記録します。健康戦略室の閲覧権限が付与され、現場の声/倉庫の声GCに自動加入します。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎓 ゲストレビュアー (大学/NPO等の外部専門家)</div>
@@ -460,6 +544,10 @@ function showPanel(user) {
   loadAttendance();
   loadGroups();
   loadReportSummary();
+  // 出退勤の対象日を本日に初期化 + 自動表示
+  const tcDate = document.getElementById('tc-date');
+  if (tcDate && !tcDate.value) tcDate.value = new Date().toISOString().slice(0, 10);
+  loadTimecard();
 }
 
 async function loadReportSummary() {
@@ -510,6 +598,7 @@ async function loadGroups() {
         <td>${g.member_count}名</td>
         <td style="font-size:11px;color:#64748b;">${dt}</td>
         <td>
+          <button class="btn btn-ghost" onclick="openGroupViewer('${g.id}','${escapeHtml(g.name).replace(/'/g, "&#39;")}')">👁️ 閲覧</button>
           <button class="btn" onclick="openEditGroupModal('${g.id}')">✏️ 編集</button>
           <button class="btn btn-danger" onclick="deleteGroup('${g.id}', '${escapeHtml(g.name)}')">削除</button>
         </td>
@@ -685,6 +774,116 @@ async function deleteGroup(gid, gname) {
   if (!confirm(gname + ' を削除しますか？メッセージ履歴も全て消えます。')) return;
   await fetch('/api/admin/groups/' + gid, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
   loadGroups();
+}
+
+// ===== グループチャット 全文閲覧 (管理者統制) =====
+let _grpViewerGid = null, _grpViewerName = '', _grpViewerOldest = null;
+async function openGroupViewer(gid, gname) {
+  _grpViewerGid = gid;
+  _grpViewerName = gname;
+  _grpViewerOldest = null;
+  document.getElementById('grp-viewer-title').textContent = gname;
+  document.getElementById('grp-viewer-body').innerHTML = '読み込み中...';
+  document.getElementById('grp-viewer-meta').textContent = '';
+  document.getElementById('grp-viewer-more').style.display = 'none';
+  document.getElementById('grp-viewer-modal').style.display = 'flex';
+  await loadGroupMessages(false);
+}
+function closeGroupViewer() {
+  document.getElementById('grp-viewer-modal').style.display = 'none';
+  _grpViewerGid = null;
+}
+async function loadGroupMessages(append) {
+  if (!_grpViewerGid) return;
+  const params = new URLSearchParams({ limit: 100 });
+  if (append && _grpViewerOldest) params.set('before', _grpViewerOldest);
+  try {
+    const r = await fetch('/api/admin/groups/' + _grpViewerGid + '/messages?' + params.toString(),
+      { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    const body = document.getElementById('grp-viewer-body');
+    if (!d.success) { body.innerHTML = '<div style="color:#dc2626;">取得失敗: ' + escapeHtml(d.msg || '') + '</div>'; return; }
+    if (!d.messages.length) {
+      if (!append) body.innerHTML = '<div style="color:#94a3b8;padding:20px;text-align:center;">このグループにはまだ発言がありません</div>';
+      document.getElementById('grp-viewer-more').style.display = 'none';
+      return;
+    }
+    const html = d.messages.map(m => {
+      const ts = new Date(m.created_at + 'Z');
+      const dstr = ts.toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const sender = (m.sender_name || '(不明)') + (m.company_code ? ' / ' + m.company_code : '');
+      const attach = m.attach_url ? `<div style="margin-top:4px;"><a href="${escapeHtml(m.attach_url)}" target="_blank" style="font-size:11px;color:#0891b2;">📎 ${escapeHtml(m.attach_name || 'attach')}</a></div>` : '';
+      const mention = m.has_mention ? ' <span style="color:#dc2626;font-weight:700;font-size:10px;">@</span>' : '';
+      return `<div style="padding:8px 0;border-bottom:1px dashed #e2e8f0;">
+        <div style="font-size:11px;color:#64748b;">${dstr} — <strong style="color:#334155;">${escapeHtml(sender)}</strong>${mention}</div>
+        <div style="font-size:13px;color:#0f172a;margin-top:2px;white-space:pre-wrap;word-break:break-word;">${escapeHtml(m.content || '')}</div>
+        ${attach}
+      </div>`;
+    }).join('');
+    if (append) body.insertAdjacentHTML('afterbegin', html);
+    else body.innerHTML = html;
+    _grpViewerOldest = d.messages[0].created_at;
+    document.getElementById('grp-viewer-meta').textContent = (d.messages.length === 100 ? '直近100件表示中' : d.messages.length + '件表示');
+    document.getElementById('grp-viewer-more').style.display = (d.messages.length === 100) ? 'inline-block' : 'none';
+  } catch (e) {
+    document.getElementById('grp-viewer-body').innerHTML = '<div style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message || '') + '</div>';
+  }
+}
+function loadMoreGroupMessages() { loadGroupMessages(true); }
+
+// ===== 出退勤打刻 + PC起動時刻 ログビューア =====
+async function loadTimecard() {
+  const date = document.getElementById('tc-date').value || new Date().toISOString().slice(0, 10);
+  const tb = document.getElementById('tc-tbody');
+  tb.innerHTML = '<tr><td colspan="6" style="color:#94a3b8;padding:14px;">読み込み中...</td></tr>';
+  document.getElementById('tc-meta').textContent = '';
+  try {
+    const r = await fetch('/api/timecard/admin/daily?date=' + encodeURIComponent(date),
+      { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="6" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    if (!d.list.length) { tb.innerHTML = '<tr><td colspan="6" style="color:#94a3b8;padding:14px;">' + escapeHtml(date) + ' は記録なし</td></tr>'; return; }
+    tb.innerHTML = d.list.map(r => {
+      const ph = (s) => s ? s.slice(11, 16) : '<span style="color:#cbd5e1;">—</span>';
+      const diff = r.diff_min === null ? '<span style="color:#cbd5e1;">—</span>'
+        : (r.suspicion ? '<span style="color:#dc2626;font-weight:800;">⚠ ' + r.diff_min + '</span>' : r.diff_min);
+      return '<tr>' +
+        '<td style="font-size:11px;color:#64748b;">' + escapeHtml(r.company_code || '') + '<br>' + escapeHtml(r.login_id || '') + '</td>' +
+        '<td>' + escapeHtml(r.display_name || '') + (r.dm_group ? '<br><span style="font-size:10px;color:#94a3b8;">' + escapeHtml(r.dm_group) + '</span>' : '') + '</td>' +
+        '<td>' + ph(r.pc_start) + '</td>' +
+        '<td>' + ph(r.punch_in) + '</td>' +
+        '<td>' + ph(r.punch_out) + '</td>' +
+        '<td style="text-align:right;">' + diff + '</td>' +
+      '</tr>';
+    }).join('');
+    const susp = d.list.filter(x => x.suspicion).length;
+    document.getElementById('tc-meta').textContent = d.list.length + '名 — ⚠15分以上ラグ: ' + susp + '名';
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="6" style="color:#dc2626;">通信エラー</td></tr>';
+  }
+}
+async function loadTimecardDiscrepancies() {
+  const tb = document.getElementById('tc-tbody');
+  tb.innerHTML = '<tr><td colspan="6" style="color:#94a3b8;padding:14px;">読み込み中...</td></tr>';
+  try {
+    const r = await fetch('/api/timecard/admin/discrepancies?days=7',
+      { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="6" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    if (!d.rows.length) { tb.innerHTML = '<tr><td colspan="6" style="color:#10b981;padding:14px;">✓ 直近7日に⚠該当なし</td></tr>'; return; }
+    const ph = (s) => s ? s.slice(11, 16) : '—';
+    tb.innerHTML = d.rows.map(r => '<tr>' +
+      '<td style="font-size:11px;color:#64748b;">' + escapeHtml(r.company_code || '') + '<br>' + escapeHtml(r.login_id || '') + '</td>' +
+      '<td>' + escapeHtml(r.display_name || '') + '<br><span style="font-size:10px;color:#94a3b8;">' + r.date + '</span></td>' +
+      '<td>' + ph(r.pc_start) + '</td>' +
+      '<td>' + ph(r.punch_in) + '</td>' +
+      '<td>—</td>' +
+      '<td style="text-align:right;color:#dc2626;font-weight:800;">⚠ ' + Math.round(r.diff_min) + '</td>' +
+    '</tr>').join('');
+    document.getElementById('tc-meta').textContent = '直近7日 ⚠15分以上ラグ: ' + d.rows.length + '件';
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="6" style="color:#dc2626;">通信エラー</td></tr>';
+  }
 }
 
 async function loadAttendance() {
@@ -878,6 +1077,7 @@ async function loadFloors() {
 }
 
 let cachedUsers = [];
+let bulkSelected = new Set();
 
 async function loadUsers() {
   const r = await fetch('/api/admin/users', { headers:{'Authorization':'Bearer '+token} });
@@ -899,27 +1099,225 @@ async function loadUsers() {
       d.users.map(u => `<option value="${u.id}">${escapeHtml(u.display_name)}</option>`).join('');
     asel.value = cur;
   }
+  // 会社・DMグループのフィルタ候補を構築
+  const companyCodes = [...new Set(cachedUsers.map(u => u.company_code).filter(Boolean))].sort();
+  const cSel = document.getElementById('user-company-filter');
+  if (cSel) {
+    cSel.innerHTML = '<option value="">所属すべて</option>' + companyCodes.map(code => {
+      const c = COMPANY_MAP[code] || { name: code };
+      return `<option value="${code}">${escapeHtml(c.name)}</option>`;
+    }).join('');
+  }
+  const dmGroups = [...new Set(cachedUsers.map(u => u.dm_group).filter(Boolean))].sort();
+  const gSel = document.getElementById('user-group-filter');
+  if (gSel) {
+    gSel.innerHTML = '<option value="">DMグループすべて</option>' +
+      '<option value="__none__">(未設定)</option>' +
+      dmGroups.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+  }
+  filterUsers();
+}
+
+function filterUsers() {
+  const q = (document.getElementById('user-search').value || '').toLowerCase();
+  const co = document.getElementById('user-company-filter').value;
+  const grp = document.getElementById('user-group-filter').value;
+  const inactive = document.getElementById('user-inactive-filter').value;
+  const now = Date.now();
+  const list = cachedUsers.filter(u => {
+    if (q && !((u.display_name || '').toLowerCase().includes(q) || (u.login_id || '').toLowerCase().includes(q))) return false;
+    if (co && u.company_code !== co) return false;
+    if (grp === '__none__') { if (u.dm_group) return false; }
+    else if (grp && u.dm_group !== grp) return false;
+    if (inactive === 'never') { if (u.last_seen_at) return false; }
+    else if (inactive) {
+      const days = parseInt(inactive);
+      if (!u.last_seen_at) return true; // 未ログインも該当
+      const t = Date.parse(u.last_seen_at.replace(' ', 'T') + 'Z');
+      if (isNaN(t)) return true;
+      const sinceDays = (now - t) / 86400000;
+      if (sinceDays < days) return false;
+    }
+    return true;
+  });
+  renderUserList(list);
+}
+
+function clearUserFilters() {
+  document.getElementById('user-search').value = '';
+  document.getElementById('user-company-filter').value = '';
+  document.getElementById('user-group-filter').value = '';
+  document.getElementById('user-inactive-filter').value = '';
+  filterUsers();
+}
+
+// 会社(company_code)を元にdm_groupを自動セット → 同期
+async function autoAssignFromCompany() {
+  const empty = cachedUsers.filter(u => u.role !== 'bot' && !u.dm_group).length;
+  const set = cachedUsers.filter(u => u.role !== 'bot' && u.dm_group).length;
+  if (!confirm(
+    `【会社→dm_group自動振分】\n\n` +
+    `dm_group 未設定: ${empty}名 → 所属会社名を dm_group に自動設定\n` +
+    `dm_group 設定済: ${set}名 → そのまま (上書きしない)\n\n` +
+    `その後、各部門のグループチャットに自動加入させます。\n` +
+    `実行しますか？`
+  )) return;
+  try {
+    const r = await fetch('/api/admin/auto-assign-from-company', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ overwrite: false }),
+    });
+    const d = await r.json();
+    if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+    alert(`✓ 会社→dm_group 自動設定 ${d.dm_group_updated}名\n` +
+      `✓ GC新規作成 ${d.created}件 / 加入追加 ${d.added}件 / 余分離脱 ${d.removed}件\n\n` +
+      `(対象 ${d.total}名)`);
+    loadUsers();
+    loadGroups();
+  } catch (e) {
+    alert('通信エラー: ' + e.message);
+  }
+}
+
+// dm_group を権威的に同期: 各ユーザーは現dm_group GCにのみ所属、他のdm_group GCからは離脱
+async function syncDmGroupsToChats() {
+  const groups = {};
+  let withGroup = 0, withoutGroup = 0;
+  for (const u of cachedUsers) {
+    if (u.role === 'bot') continue;
+    if (u.dm_group) {
+      withGroup++;
+      groups[u.dm_group] = (groups[u.dm_group] || 0) + 1;
+    } else withoutGroup++;
+  }
+  const summary = Object.entries(groups)
+    .sort((a, b) => b[1] - a[1])
+    .map(([g, n]) => `  • ${g}: ${n}名`)
+    .join('\n');
+  const msg = `【部門→グループチャット 権威的振分】\n\n` +
+    `dm_group 設定済 : ${withGroup}名\n` +
+    `dm_group 未設定 : ${withoutGroup}名 (全dm_group由来GCから離脱)\n\n` +
+    `部門別:\n${summary || '  (該当なし)'}\n\n` +
+    `動作:\n` +
+    `  ✓ 各ユーザーを現 dm_group の同名GCにのみ加入\n` +
+    `  ✓ 過去設定の別dm_group由来GCからは離脱させる\n` +
+    `  ✓ 特殊GC (現場の声/管理職グループ等) は影響なし\n\n` +
+    `実行しますか？`;
+  if (!confirm(msg)) return;
+  try {
+    const r = await fetch('/api/admin/sync-dm-groups', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    });
+    const d = await r.json();
+    if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+    alert(`✓ 振分完了\n` +
+      `  対象ユーザー : ${d.total}名\n` +
+      `  GC新規作成   : ${d.created || 0}件\n` +
+      `  加入追加     : ${d.added}件\n` +
+      `  離脱(余分)   : ${d.removed}件`);
+    loadGroups();
+    loadUsers();
+  } catch (e) {
+    alert('通信エラー: ' + e.message);
+  }
+}
+
+function renderUserList(list) {
   const tb = document.getElementById('user-tbody');
   tb.innerHTML = '';
-  for (const u of d.users) {
+  for (const u of list) {
     const c = COMPANY_MAP[u.company_code] || { name: u.company_code, color: '#64748b' };
     const tr = document.createElement('tr');
-    const rankLabels = ['一般', '主任/係長', '課長/部長', '役員/社長'];
-    const dgHtml = u.dm_group ? escapeHtml(u.dm_group) : '<span style="color:#94a3b8;">-</span>';
+    const dgHtml = u.dm_group ? escapeHtml(u.dm_group) : '<span style="color:#cbd5e1;">未設定</span>';
+    let lastStr = '<span style="color:#dc2626;font-weight:700;">未ログイン</span>';
+    if (u.last_seen_at) {
+      const t = Date.parse(u.last_seen_at.replace(' ', 'T') + 'Z');
+      if (!isNaN(t)) {
+        const days = Math.floor((Date.now() - t) / 86400000);
+        const cls = days >= 60 ? 'color:#dc2626;font-weight:700;' : (days >= 30 ? 'color:#d97706;font-weight:600;' : 'color:#64748b;');
+        lastStr = `<span style="${cls};font-size:11px;">${days === 0 ? '今日' : days + '日前'}</span>`;
+      }
+    }
+    const checked = bulkSelected.has(u.id) ? 'checked' : '';
     tr.innerHTML = `
-      <td>${escapeHtml(u.login_id)}</td>
+      <td style="text-align:center;"><input type="checkbox" data-uid="${u.id}" onchange="toggleBulkSel('${u.id}', this.checked)" ${checked}></td>
+      <td style="font-family:monospace;font-size:11px;">${escapeHtml(u.login_id)}</td>
       <td><a href="#" onclick="openEditModal('${u.id}');return false;" style="color:#0891b2;text-decoration:none;font-weight:600;">${escapeHtml(u.display_name)}</a></td>
       <td><span class="chip" style="background:${c.color};">${escapeHtml(c.name)}</span></td>
       <td>${u.role === 'admin' ? '<span class="chip chip-role-admin">管理者</span>' : '一般'}</td>
-      <td style="font-size:11px;">${dgHtml}<br><span style="color:#64748b;font-size:10px;">${escapeHtml(rankLabels[u.dm_rank | 0])}</span></td>
-      <td>${u.status || 'offline'}</td>
+      <td style="font-size:12px;">${dgHtml}</td>
+      <td>${lastStr}</td>
       <td>
-        <button class="btn" onclick="openEditModal('${u.id}')">✏️ 編集</button>
-        <button class="btn btn-danger" onclick="delUser('${u.id}','${escapeHtml(u.display_name)}')">削除</button>
+        <button class="btn" onclick="openEditModal('${u.id}')">✏️</button>
+        <button class="btn btn-danger" onclick="delUser('${u.id}','${escapeHtml(u.display_name)}')">🗑</button>
       </td>`;
     tb.appendChild(tr);
   }
-  document.getElementById('user-count').textContent = `（${d.users.length}名）`;
+  document.getElementById('user-count').textContent = `（表示${list.length}名 / 全${cachedUsers.length}名）`;
+  updateBulkBar();
+}
+
+function toggleBulkSel(uid, on) {
+  if (on) bulkSelected.add(uid); else bulkSelected.delete(uid);
+  updateBulkBar();
+}
+function toggleSelAll(checkbox) {
+  document.querySelectorAll('#user-tbody input[type=checkbox][data-uid]').forEach(cb => {
+    cb.checked = checkbox.checked;
+    if (checkbox.checked) bulkSelected.add(cb.dataset.uid);
+    else bulkSelected.delete(cb.dataset.uid);
+  });
+  updateBulkBar();
+}
+function clearBulkSelection() {
+  bulkSelected.clear();
+  document.querySelectorAll('#user-tbody input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('sel-all').checked = false;
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-action-bar');
+  document.getElementById('bulk-sel-count').textContent = bulkSelected.size;
+  bar.style.display = bulkSelected.size > 0 ? 'flex' : 'none';
+}
+
+async function bulkChangeGroup() {
+  if (bulkSelected.size === 0) return;
+  // 既存DMグループ候補を取得して提案 (新規入力もOK)
+  const existing = [...new Set(cachedUsers.map(u => u.dm_group).filter(Boolean))];
+  const hint = existing.length ? '\n\n既存グループ: ' + existing.join(', ') : '';
+  const newGroup = prompt(bulkSelected.size + '名のDMグループを変更します。\n新しいグループ名を入力 (空欄で未設定に)' + hint, '');
+  if (newGroup === null) return; // cancel
+  const ids = [...bulkSelected];
+  const r = await fetch('/api/admin/users/bulk-update-group', {
+    method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_ids: ids, dm_group: newGroup }),
+  });
+  const d = await r.json();
+  if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+  alert(`✓ ${d.changed}名のDMグループを「${newGroup || '未設定'}」に変更しました`);
+  clearBulkSelection();
+  loadUsers();
+  loadGroups();
+}
+
+async function bulkDelete() {
+  if (bulkSelected.size === 0) return;
+  if (!confirm(bulkSelected.size + '名のアカウントを削除します。\n本人投稿・DM・グループ参加情報も全て削除されます。\n本当によろしいですか？')) return;
+  if (!confirm('もう一度確認: 本当に削除しますか？元に戻せません。')) return;
+  const ids = [...bulkSelected];
+  const r = await fetch('/api/admin/users/bulk-delete', {
+    method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_ids: ids }),
+  });
+  const d = await r.json();
+  if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
+  let msg = `✓ ${d.deleted}名を削除しました`;
+  if (d.skipped > 0) msg += ` (${d.skipped}名はスキップ - 自分自身/bot等)`;
+  alert(msg);
+  clearBulkSelection();
+  loadUsers();
+  loadGroups();
 }
 
 async function addUser() {
@@ -973,6 +1371,11 @@ async function bulkAdd() {
 function openEditModal(id) {
   const u = (cachedUsers || []).find(x => x.id === id);
   if (!u) { alert('ユーザーが見つかりません'); return; }
+  // ボタン/エラー状態を確実にリセット (前回の「保存中...」固着を防止)
+  const sb = document.getElementById('edit-save-btn');
+  if (sb) { sb.disabled = false; sb.textContent = '保存'; }
+  const er = document.getElementById('edit-err');
+  if (er) er.textContent = '';
   document.getElementById('edit-user-id').value = u.id;
   document.getElementById('edit-user-title').textContent = u.display_name || u.login_id;
   document.getElementById('edit-login-id').value = u.login_id || '';
@@ -984,6 +1387,8 @@ function openEditModal(id) {
   document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
   document.getElementById('edit-birth').value = u.birth_date || '';
   document.getElementById('edit-guest-rev').checked = !!u.is_guest_reviewer;
+  document.getElementById('edit-field-promoter').checked = !!u.is_field_promoter;
+  document.getElementById('edit-warehouse-promoter').checked = !!u.is_warehouse_promoter;
   document.getElementById('edit-dm-restricted').checked = !!u.dm_restricted;
   document.getElementById('edit-guest-org').value = u.guest_org || '';
   document.getElementById('edit-new-password').value = '';
@@ -1012,34 +1417,50 @@ async function submitEdit() {
     dm_rank: parseInt(document.getElementById('edit-dm-rank').value) || 0,
     birth_date: document.getElementById('edit-birth').value || null,
     is_guest_reviewer: document.getElementById('edit-guest-rev').checked,
+    is_field_promoter: document.getElementById('edit-field-promoter').checked,
+    is_warehouse_promoter: document.getElementById('edit-warehouse-promoter').checked,
     dm_restricted: document.getElementById('edit-dm-restricted').checked,
     guest_org: document.getElementById('edit-guest-org').value.trim(),
   };
   if (!payload.display_name) { err.textContent = '表示名は必須です'; return; }
   btn.disabled = true; btn.textContent = '保存中…';
+
+  // 20秒のハードタイムアウトを必ずかける (固着防止)
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 20000);
+
   try {
     const r = await fetch('/api/admin/users/' + id, {
-      method: 'PATCH',
+      method: 'PATCH', signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify(payload),
     });
+    clearTimeout(tid);
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      throw new Error('HTTP ' + r.status + ' ' + t.slice(0, 100));
+    }
     const d = await r.json();
-    if (!d.success) { err.textContent = d.msg || '保存失敗'; btn.disabled = false; btn.textContent = '保存'; return; }
+    if (!d.success) { err.textContent = d.msg || '保存失敗'; return; }
     // パスワード変更が指定されていれば別途
     const newPw = document.getElementById('edit-new-password').value;
     if (newPw) {
-      if (newPw.length < 8) { err.textContent = '保存OK / ただしパスワードは8文字以上が必要です'; btn.disabled = false; btn.textContent = '保存'; return; }
+      if (newPw.length < 8) { err.textContent = '保存OK / ただしパスワードは8文字以上が必要です'; return; }
       const rr = await fetch('/api/admin/users/' + id + '/password', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ password: newPw }),
       });
       const dd = await rr.json();
-      if (!dd.success) { err.textContent = 'プロフィール保存OK / パスワード変更失敗'; btn.disabled = false; btn.textContent = '保存'; return; }
+      if (!dd.success) { err.textContent = 'プロフィール保存OK / パスワード変更失敗'; return; }
     }
     closeEditModal();
     loadUsers();
   } catch (e) {
-    err.textContent = '通信エラー: ' + e.message;
+    clearTimeout(tid);
+    if (e.name === 'AbortError') err.textContent = 'タイムアウト (20秒) — もう一度お試しください';
+    else err.textContent = '通信エラー: ' + (e.message || e);
+  } finally {
+    // 必ずボタン状態を戻す (成功時に閉じても次回開く時には戻ってる)
     btn.disabled = false; btn.textContent = '保存';
   }
 }

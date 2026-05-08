@@ -4,12 +4,84 @@ const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 
 const PROMOTER_GROUP_ID = 'g_field_voice';
+const WAREHOUSE_GROUP_ID = 'g_warehouse_voice';
 const WELLNESS_DISC_ID = 'g_wellness_disc';
 const LOBBY_ANNOUNCE_ROOM = 'lobby';  // 全社アナウンスはロビーフロアの公開チャットへ
 
 const CATEGORIES = ['体調', '食事', '睡眠', '職場環境', 'その他'];
+// 倉庫POST向けカテゴリ (聞き取りカードの異常項目から自動付与)
+const WAREHOUSE_CATEGORIES = ['体調', '腰・関節', '作業負荷', '設備・動線', '温度・環境', 'ヒヤリハット', 'その他'];
 const URGENCIES = ['低', '中', '高'];
 const IDENTITY_MODES = ['本人特定可', '匿名', '集計のみ'];
+
+// 聞き取りカード選択肢: { value, severity: 0(正常)|1(中)|2(高), category }
+// 提出時に最大severityを urgency、最初の severity>0 項目の category を採用
+const CARD_OPTIONS = {
+  '運管': {
+    title: '点呼カード',
+    fields: [
+      { key: 'facial_color', label: '🌡️ 顔色', category: '体調', options: [
+        { v: '普通', s: 0 }, { v: '疲れ気味', s: 1 }, { v: '赤い', s: 2 }, { v: '青白い', s: 2 }, { v: '不明', s: 0 },
+      ]},
+      { key: 'sleep', label: '😴 睡眠', category: '睡眠', options: [
+        { v: 'しっかり', s: 0 }, { v: 'まあまあ', s: 0 }, { v: '不足', s: 1 }, { v: 'ほぼ寝てない', s: 2 }, { v: '不明', s: 0 },
+      ]},
+      { key: 'breakfast', label: '🍱 朝食', category: '食事', options: [
+        { v: '食べた', s: 0 }, { v: '軽め', s: 0 }, { v: '抜き', s: 1 }, { v: '不明', s: 0 },
+      ]},
+      { key: 'concern', label: '🚨 気になる', category: '職場環境', options: [
+        { v: 'なし', s: 0 }, { v: '体調', s: 1 }, { v: '食事', s: 1 }, { v: '睡眠', s: 1 }, { v: '家族', s: 1 }, { v: '職場', s: 2 }, { v: 'その他', s: 1 },
+      ]},
+    ],
+  },
+  '倉庫': {
+    title: '朝礼・昼礼カード',
+    fields: [
+      { key: 'facial_color', label: '🌡️ 顔色', category: '体調', options: [
+        { v: '普通', s: 0 }, { v: '疲れ気味', s: 1 }, { v: '赤い', s: 2 }, { v: '青白い', s: 2 }, { v: '不明', s: 0 },
+      ]},
+      { key: 'back_joint', label: '🦴 腰・関節', category: '腰・関節', options: [
+        { v: '問題なし', s: 0 }, { v: '張り', s: 1 }, { v: '痛みあり', s: 2 },
+      ]},
+      { key: 'workload', label: '💪 作業負荷', category: '作業負荷', options: [
+        { v: '普通', s: 0 }, { v: 'きつめ', s: 1 }, { v: '限界寄り', s: 2 },
+      ]},
+      { key: 'environment', label: '🚧 設備・動線', category: '設備・動線', options: [
+        { v: '問題なし', s: 0 }, { v: '設備不便', s: 1 }, { v: '動線危険', s: 2 },
+      ]},
+      { key: 'temperature', label: '🌡️ 温度・環境', category: '温度・環境', options: [
+        { v: '普通', s: 0 }, { v: '暑い', s: 1 }, { v: '寒い', s: 1 }, { v: 'その他', s: 1 },
+      ]},
+      { key: 'hiyari', label: '⚠️ ヒヤリハット', category: 'ヒヤリハット', options: [
+        { v: 'なし', s: 0 }, { v: '小さなヒヤリ', s: 1 }, { v: '危険あり', s: 2 },
+      ]},
+    ],
+  },
+};
+
+// カード回答から urgency/category を自動推定
+function deriveCardSummary(sourceType, answers) {
+  const conf = CARD_OPTIONS[sourceType];
+  if (!conf) return { urgency: '低', category: 'その他' };
+  let maxSeverity = 0;
+  let category = null;
+  const fields = conf.fields;
+  for (const f of fields) {
+    const v = answers && answers[f.key];
+    if (!v) continue;
+    const opt = f.options.find(o => o.v === v);
+    if (!opt) continue;
+    if (opt.s > maxSeverity) {
+      maxSeverity = opt.s;
+      category = f.category;
+    } else if (opt.s > 0 && category === null) {
+      category = f.category;
+    }
+  }
+  const urgency = maxSeverity >= 2 ? '高' : maxSeverity >= 1 ? '中' : '低';
+  if (!category) category = sourceType === '倉庫' ? '体調' : '体調';
+  return { urgency, category };
+}
 // 投稿元区分 (B案): 推進メンバー(運管型) 内の役割区別
 // - 運管: 配車・点呼担当 (ドライバー対応の最前線)
 // - 倉庫: 倉庫管理者 (荷役・庫内作業者対応)
@@ -38,6 +110,12 @@ function isFieldPromoter(uid) {
   return !!(r && r.is_field_promoter);
 }
 
+// 倉庫推進メンバー判定 (2026-05-08)
+function isWarehousePromoter(uid) {
+  const r = getDb().prepare('SELECT is_warehouse_promoter FROM users WHERE id = ?').get(uid);
+  return !!(r && r.is_warehouse_promoter);
+}
+
 // 管理職 (employee_type='admin') 判定 — システムadmin (role='admin') とは別物
 function isWellnessManager(uid) {
   const r = getDb().prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
@@ -50,10 +128,10 @@ function isGuestReviewer(uid) {
   return !!(r && r.is_guest_reviewer);
 }
 
-// 健康管理室ページの閲覧権限: 管理職 or 推進メンバー or ゲストレビュアー
+// 健康管理室ページの閲覧権限: 管理職 or 推進メンバー(運管/倉庫) or ゲストレビュアー
 // (一般のシステム管理者は除外 — ドライバーの体調/睡眠/食事POSTを見せない方針)
 function canAccessWellness(uid) {
-  return isWellnessManager(uid) || isFieldPromoter(uid) || isGuestReviewer(uid);
+  return isWellnessManager(uid) || isFieldPromoter(uid) || isWarehousePromoter(uid) || isGuestReviewer(uid);
 }
 
 // POST /api/wellness/post  現場の声を1件登録 + 推進メンバーグループに自動配信
@@ -128,13 +206,24 @@ router.get('/posts', authUser, (req, res) => {
     return res.status(403).json({ success: false, msg: '権限なし' });
   }
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-  const rows = getDb().prepare(`
+  const sourceFilter = req.query.source_type;  // '運管'|'倉庫'|undefined
+  const db = getDb();
+  let sql = `
     SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code,
-           wp.source_type, wp.created_at, u.display_name as poster_name
+           wp.source_type, wp.subject_user_id, wp.structured_json, wp.created_at,
+           u.display_name as poster_name,
+           s.display_name as subject_name
     FROM wellness_posts wp
     LEFT JOIN users u ON u.id = wp.poster_id
-    ORDER BY wp.id DESC LIMIT ?
-  `).all(limit);
+    LEFT JOIN users s ON s.id = wp.subject_user_id`;
+  const params = [];
+  if (sourceFilter && SOURCE_TYPES.includes(sourceFilter)) {
+    sql += ' WHERE wp.source_type = ?';
+    params.push(sourceFilter);
+  }
+  sql += ' ORDER BY wp.id DESC LIMIT ?';
+  params.push(limit);
+  const rows = db.prepare(sql).all(...params);
   res.json({ success: true, posts: rows });
 });
 
@@ -142,21 +231,26 @@ router.get('/posts', authUser, (req, res) => {
 router.get('/meta', authUser, (req, res) => {
   const wm = isWellnessManager(req.uid);
   const fp = isFieldPromoter(req.uid);
+  const wp = isWarehousePromoter(req.uid);
   const gr = isGuestReviewer(req.uid);
   res.json({
     is_field_promoter: fp,
+    is_warehouse_promoter: wp,
     is_wellness_manager: wm,
     is_guest_reviewer: gr,             // 大学/NPO等の外部レビュアー
-    can_access_wellness: wm || fp || gr,
+    can_access_wellness: wm || fp || wp || gr,
     can_approve_actions: wm,           // 承認/却下は管理職のみ (ゲストはレビューコメントのみ)
-    can_edit_actions: wm || fp,        // 起票/編集は管理職+推進メンバー (ゲストは閲覧のみ)
+    can_edit_actions: wm || fp || wp,  // 起票/編集は管理職+推進メンバー(運管/倉庫) (ゲストは閲覧のみ)
     group_id: PROMOTER_GROUP_ID,
+    warehouse_group_id: WAREHOUSE_GROUP_ID,
     disc_group_id: WELLNESS_DISC_ID,
     categories: CATEGORIES,
+    warehouse_categories: WAREHOUSE_CATEGORIES,
     urgencies: URGENCIES,
     identity_modes: IDENTITY_MODES,
     source_types: SOURCE_TYPES,
     action_statuses: ACTION_STATUSES,
+    card_options: CARD_OPTIONS,
   });
 });
 
@@ -1490,6 +1584,139 @@ router.delete('/plaza-comments/:id', authUser, (req, res) => {
   if (c.author_id !== req.uid && !isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
   db.prepare("UPDATE plaza_post_promoter_comments SET deleted_at = datetime('now') WHERE id = ?").run(id);
   res.json({ success: true });
+});
+
+// =============================================================
+// 聞き取りカードPOST (2026-05-08)
+// 推進メンバーが点呼/朝礼・昼礼で目の前の相手を聞き取った結果をPOST
+// =============================================================
+
+// GET /api/wellness/subjects?source_type=運管|倉庫
+// 自分が聞き取り対象にできるメンバー一覧 (同じ会社コードのユーザー、bot/admin除外)
+router.get('/subjects', authUser, (req, res) => {
+  const sourceType = String(req.query.source_type || '').trim();
+  if (!['運管', '倉庫'].includes(sourceType)) {
+    return res.status(400).json({ success: false, msg: 'source_type 不正' });
+  }
+  // 権限: 該当の推進メンバー or admin
+  if (sourceType === '運管' && !(isFieldPromoter(req.uid) || isWellnessManager(req.uid))) {
+    return res.status(403).json({ success: false, msg: '運管推進メンバー権限が必要です' });
+  }
+  if (sourceType === '倉庫' && !(isWarehousePromoter(req.uid) || isWellnessManager(req.uid))) {
+    return res.status(403).json({ success: false, msg: '倉庫推進メンバー権限が必要です' });
+  }
+  const db = getDb();
+  const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
+  const companyCode = me && me.company_code;
+  // 同じ会社コードの社員 (bot 除外、自分は除外) を返す
+  const rows = db.prepare(`
+    SELECT id, login_id, display_name, company_code, employee_type, avatar_url
+    FROM users
+    WHERE company_code = ?
+      AND role != 'bot'
+      AND id != ?
+      AND is_guest_reviewer = 0
+    ORDER BY display_name
+  `).all(companyCode || '', req.uid);
+  res.json({ success: true, subjects: rows, company_code: companyCode });
+});
+
+// POST /api/wellness/post-card  聞き取りカードPOST
+// body: { source_type, subject_user_id, answers: {...}, memo }
+router.post('/post-card', authUser, express.json(), (req, res) => {
+  const body = req.body || {};
+  const sourceType = String(body.source_type || '').trim();
+  if (!['運管', '倉庫'].includes(sourceType)) {
+    return res.status(400).json({ success: false, msg: 'source_type 不正' });
+  }
+  // 権限チェック
+  if (sourceType === '運管' && !isFieldPromoter(req.uid)) {
+    return res.status(403).json({ success: false, msg: '運管推進メンバー権限が必要です' });
+  }
+  if (sourceType === '倉庫' && !isWarehousePromoter(req.uid)) {
+    return res.status(403).json({ success: false, msg: '倉庫推進メンバー権限が必要です' });
+  }
+  const subjectUserId = String(body.subject_user_id || '').trim();
+  const answers = body.answers && typeof body.answers === 'object' ? body.answers : {};
+  const memo = String(body.memo || '').slice(0, 200).trim();
+  if (!subjectUserId) return res.status(400).json({ success: false, msg: '対象者を選択してください' });
+
+  const db = getDb();
+  const subject = db.prepare('SELECT id, display_name, company_code FROM users WHERE id = ?').get(subjectUserId);
+  if (!subject) return res.status(404).json({ success: false, msg: '対象者が見つかりません' });
+  const poster = db.prepare('SELECT id, display_name, company_code FROM users WHERE id = ?').get(req.uid);
+
+  // カード回答の値検証 (存在する選択肢のみ)
+  const conf = CARD_OPTIONS[sourceType];
+  const cleanAnswers = {};
+  for (const f of conf.fields) {
+    const v = answers[f.key];
+    if (!v) continue;
+    const valid = f.options.some(o => o.v === v);
+    if (valid) cleanAnswers[f.key] = v;
+  }
+  const { urgency, category } = deriveCardSummary(sourceType, cleanAnswers);
+  const identityMode = '本人特定可';
+  const structuredJson = JSON.stringify(cleanAnswers);
+
+  const ins = db.prepare(`INSERT INTO wellness_posts
+    (poster_id, company_code, category, urgency, identity_mode, memo, source_type, subject_user_id, structured_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(poster.id, poster.company_code || '', category, urgency, identityMode, memo, sourceType, subject.id, structuredJson);
+  const postId = ins.lastInsertRowid;
+
+  // GC配信メッセージ
+  const urgencyMark = urgency === '高' ? '🔴' : urgency === '中' ? '🟡' : '🟢';
+  const sourceMark = sourceType === '倉庫' ? '📋' : '🩺';
+  const lines = [
+    `${sourceMark} #${postId} 【${sourceType}】 ${urgencyMark}${urgency} / ${category}`,
+    `対象: ${subject.display_name} (${subject.company_code || '-'})`,
+    `聞き取り: ${poster.display_name}`,
+  ];
+  // カード回答を箇条書き
+  const answerLines = [];
+  for (const f of conf.fields) {
+    const v = cleanAnswers[f.key];
+    if (v) answerLines.push(`${f.label}: ${v}`);
+  }
+  if (answerLines.length) lines.push('─', ...answerLines);
+  if (memo) lines.push('─ メモ ─', memo);
+  const content = lines.join('\n');
+
+  const targetGroupId = sourceType === '倉庫' ? WAREHOUSE_GROUP_ID : PROMOTER_GROUP_ID;
+  const roomCode = 'grp_' + targetGroupId;
+  const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, NULL, ?, ?)`)
+    .run(poster.id, content, roomCode);
+
+  const payload = {
+    id: msgIns.lastInsertRowid,
+    from: poster.id,
+    group_id: targetGroupId,
+    content,
+    at: new Date().toISOString(),
+    attach: null,
+  };
+  if (req.app && req.app.locals && req.app.locals.emitToGroupMembers) {
+    req.app.locals.emitToGroupMembers(targetGroupId, 'group:msg', payload);
+  }
+  // Push通知
+  try {
+    const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(targetGroupId);
+    const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
+    if (sendPush) {
+      for (const m of members) {
+        if (m.user_id === poster.id) continue;
+        sendPush(m.user_id, {
+          title: `${sourceMark} ${sourceType}POST [${category}]`,
+          body: `${subject.display_name}: ${urgencyMark}${urgency}` + (memo ? ' / ' + memo : ''),
+          tag: 'wellness-card-' + postId,
+          url: '/?g=' + targetGroupId,
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {}
+
+  res.json({ success: true, post_id: postId, group_id: targetGroupId, urgency, category });
 });
 
 module.exports = router;

@@ -28,6 +28,8 @@ function getDb() {
   ensureColumn(_db, 'users', 'last_wellness_dm_date', 'last_wellness_dm_date TEXT');
   // 推進メンバー(運管型) フラグ — 健康管理室 現場の声POST権限
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
+  // 推進メンバー(倉庫型) フラグ — 朝礼・昼礼カードPOST権限 (2026-05-08)
+  ensureColumn(_db, 'users', 'is_warehouse_promoter', 'is_warehouse_promoter INTEGER DEFAULT 0');
   // DM制限フラグ — 1の場合、共通グループのメンバーまたはadmin/promoterとしかDMできない
   // 新規一般社員に1を設定して部署内チャットに限定する用途 (5/4)
   ensureColumn(_db, 'users', 'dm_restricted', 'dm_restricted INTEGER DEFAULT 0');
@@ -78,6 +80,9 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_wp_cat ON wellness_posts(category, created_at DESC);`);
   // 投稿元区分 (運管/倉庫/総務/その他) - B案で追加
   ensureColumn(_db, 'wellness_posts', 'source_type', "source_type TEXT DEFAULT '運管'");
+  // 聞き取りカード方式 (2026-05-08): 被聞き取り者と構造化回答JSON
+  ensureColumn(_db, 'wellness_posts', 'subject_user_id', "subject_user_id TEXT");
+  ensureColumn(_db, 'wellness_posts', 'structured_json', "structured_json TEXT");
   // 健康管理室 月次施策ボード
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -615,12 +620,49 @@ function getDb() {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
       .run(WELLNESS_DISC_ID, '🏥 健康管理室ディスカッション', '🏥', null);
   }
-  // メンバー: 推進メンバー + 全管理者を自動加入 (両グループ共通、既加入はスキップ)
+  // 管理職グループ (2026-05-08): 全管理者の専用GC
+  const MANAGERS_GROUP_ID = 'g_managers';
+  const mgrExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(MANAGERS_GROUP_ID);
+  if (!mgrExists) {
+    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
+      .run(MANAGERS_GROUP_ID, '👔 管理職グループ', '👔', null);
+  }
+  // 業務連絡グループ (2026-05-08): 車両不具合/事故/荷主クレーム/BC のops.js POSTを自動配信
+  const OPS_GROUP_ID = 'g_ops_reports';
+  const opsGrpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(OPS_GROUP_ID);
+  if (!opsGrpExists) {
+    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
+      .run(OPS_GROUP_ID, '🚛 業務連絡', '🚛', null);
+  }
+  // 倉庫の声 専用グループチャット (2026-05-08): 朝礼・昼礼カードPOST配信先
+  const WAREHOUSE_GROUP_ID = 'g_warehouse_voice';
+  const whGrpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(WAREHOUSE_GROUP_ID);
+  if (!whGrpExists) {
+    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
+      .run(WAREHOUSE_GROUP_ID, '📋 倉庫の声 (朝礼・昼礼)', '📋', null);
+  }
+  // メンバー: 推進メンバー + 全管理者を自動加入 (推進系GC両方共通、既加入はスキップ)
   const promoterRows = _db.prepare("SELECT id FROM users WHERE is_field_promoter = 1 OR role = 'admin'").all();
   const memInsert = _db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
   for (const r of promoterRows) {
     memInsert.run(PROMOTER_GROUP_ID, r.id);
     memInsert.run(WELLNESS_DISC_ID, r.id);
+    memInsert.run(OPS_GROUP_ID, r.id);
+  }
+  // 倉庫の声GC: 倉庫推進メンバー + 全管理者を自動加入
+  const warehousePromoterRows = _db.prepare("SELECT id FROM users WHERE is_warehouse_promoter = 1 OR role = 'admin'").all();
+  for (const r of warehousePromoterRows) {
+    memInsert.run(WAREHOUSE_GROUP_ID, r.id);
+  }
+  // 管理職グループ: role=admin のみ自動加入
+  const adminRows = _db.prepare("SELECT id FROM users WHERE role = 'admin'").all();
+  for (const r of adminRows) {
+    memInsert.run(MANAGERS_GROUP_ID, r.id);
+  }
+  // 業務連絡GC: employee_type=admin (管理職) も自動加入
+  const opsAdminRows = _db.prepare("SELECT id FROM users WHERE employee_type = 'admin' OR role = 'admin' OR is_field_promoter = 1").all();
+  for (const r of opsAdminRows) {
+    memInsert.run(OPS_GROUP_ID, r.id);
   }
   // 事務所棟フロアの登場位置を正面玄関(下中央)に揃える
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
@@ -956,6 +998,47 @@ function getDb() {
   );`);
   // タブレットPIN認証 (拠点共用デバイス用、社員ID + 4桁ピンで素早くログイン)
   ensureColumn(_db, 'users', 'walk_pin', 'walk_pin TEXT');
+
+  // ==========================================================
+  // 出退勤打刻 + PC起動時刻記録 (2026-05-07: ダウングレード時に追加)
+  // 端末固定で社員ID対応の運用前提。打刻時刻と PC起動時刻の差分から
+  // 「打刻前作業」を検出する内部統制目的のログ。
+  // ==========================================================
+  _db.exec(`CREATE TABLE IF NOT EXISTS time_punches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    punch_type TEXT NOT NULL,             -- 'in' / 'out'
+    punched_at TEXT DEFAULT (datetime('now', 'localtime')),
+    source TEXT DEFAULT 'web',             -- 'web' / 'mobile' / 'auto'
+    pc_id TEXT,
+    ip_address TEXT,
+    note TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_tp_user ON time_punches(user_id, punched_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_tp_at ON time_punches(punched_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pc_startup_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    pc_id TEXT,
+    started_at TEXT DEFAULT (datetime('now', 'localtime')),
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_psl_user ON pc_startup_logs(user_id, started_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_psl_at ON pc_startup_logs(started_at DESC);
+
+  -- 既読管理 (2026-05-08): メッセージ単位で誰が読んだかを記録
+  CREATE TABLE IF NOT EXISTS message_reads (
+    message_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    read_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (message_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_mr_user ON message_reads(user_id);
+  CREATE INDEX IF NOT EXISTS idx_mr_msg ON message_reads(message_id);`);
 
   return _db;
 }
