@@ -37,14 +37,19 @@
     max-width: 160px; overflow: hidden; text-overflow: ellipsis;
   }
   header button {
-    font-size: 11px; padding: 5px 10px;
-    background: rgba(255,255,255,0.18); color: #fff;
-    border: 1px solid rgba(255,255,255,0.35); border-radius: 14px;
-    cursor: pointer; font-weight: 700; backdrop-filter: blur(6px);
-    transition: background 0.15s;
+    font-size: 12px; padding: 5px 11px;
+    background: transparent; color: #fff;
+    border: 1px solid rgba(255,255,255,0.55); border-radius: 4px;
+    cursor: pointer; font-weight: 500; letter-spacing: 0.3px;
+    transition: background 0.12s, border-color 0.12s;
   }
-  header button:hover { background: rgba(255,255,255,0.30); }
-  header #hd-fz-btn { padding: 4px 8px; }
+  header button:hover { background: rgba(255,255,255,0.12); border-color: #fff; }
+  header #hd-fz-btn { padding: 4px 8px; gap: 2px; display: inline-flex; align-items: baseline; }
+  header #hd-fz-lvl {
+    font-size: 10px !important; background: rgba(0,0,0,0.18) !important;
+    padding: 1px 5px !important; border-radius: 3px !important;
+    margin-left: 5px !important; font-weight: 700 !important;
+  }
 
   /* === ログイン画面 === */
   #login-screen {
@@ -223,7 +228,7 @@
     header .ttl { font-size: 15px; }
     header .sub { display: none; }
     header .name { display: none; }
-    header button { font-size: 10px; padding: 4px 8px; border-radius: 12px; }
+    header button { font-size: 11px; padding: 4px 9px; border-radius: 4px; }
     header .right { gap: 6px; }
     #app { padding: 0 12px 80px; }
     .hero { padding: 14px 16px; gap: 10px; border-radius: 14px; }
@@ -269,8 +274,7 @@
   <div class="right">
     <span class="name" id="hd-name"></span>
     <button id="hd-fz-btn" onclick="cycleFontSize()" title="文字サイズ切替" aria-label="文字サイズ切替">
-      <span style="font-size:11px;">A</span>·<span style="font-size:15px;">A</span>
-      <span id="hd-fz-lvl" style="font-size:10px;background:rgba(255,255,255,0.30);padding:1px 6px;border-radius:6px;margin-left:4px;font-weight:900;">M</span>
+      <span style="font-size:10px;">A</span><span style="font-size:14px;margin-left:1px;">A</span><span id="hd-fz-lvl">M</span>
     </button>
     <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" style="display:none;">⚙️ 管理画面</button>
     <button onclick="logout()" title="ログアウト">ログアウト</button>
