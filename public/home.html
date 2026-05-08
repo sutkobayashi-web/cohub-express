@@ -37,13 +37,14 @@
     max-width: 160px; overflow: hidden; text-overflow: ellipsis;
   }
   header button {
-    font-size: 12px; padding: 7px 14px;
+    font-size: 11px; padding: 5px 10px;
     background: rgba(255,255,255,0.18); color: #fff;
-    border: 1px solid rgba(255,255,255,0.35); border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.35); border-radius: 14px;
     cursor: pointer; font-weight: 700; backdrop-filter: blur(6px);
     transition: background 0.15s;
   }
   header button:hover { background: rgba(255,255,255,0.30); }
+  header #hd-fz-btn { padding: 4px 8px; }
 
   /* === ログイン画面 === */
   #login-screen {
@@ -217,11 +218,13 @@
 
   /* スマホ調整 */
   @media (max-width: 600px) {
-    header { padding: 12px 14px; gap: 10px; }
-    header .logo { width: 38px; height: 38px; font-size: 19px; border-radius: 10px; }
-    header .ttl { font-size: 16px; }
+    header { padding: 12px 12px; gap: 8px; }
+    header .logo { width: 36px; height: 36px; font-size: 18px; border-radius: 10px; }
+    header .ttl { font-size: 15px; }
+    header .sub { display: none; }
     header .name { display: none; }
-    header button { font-size: 11px; padding: 6px 11px; }
+    header button { font-size: 10px; padding: 4px 8px; border-radius: 12px; }
+    header .right { gap: 6px; }
     #app { padding: 0 12px 80px; }
     .hero { padding: 14px 16px; gap: 10px; border-radius: 14px; }
     .hero .ic { font-size: 32px; }
@@ -389,12 +392,17 @@ let token = localStorage.getItem('cohub_token') || '';
 let me = null;
 const $ = (id) => document.getElementById(id);
 
-// 文字サイズ切替 (font-zoom.jsと同じ localStorage key を共有)
-const FZ_LEVELS = ['s', 'm', 'l', 'xl', 'xxl', 'xxxl'];
-const FZ_ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32, xxl: 1.55, xxxl: 1.85 };
-const FZ_LBL = { s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: '2XL', xxxl: '3XL' };
+// 文字サイズ切替 (font-zoom.jsと同じ localStorage key を共有、home.htmlは4段階)
+const FZ_LEVELS = ['s', 'm', 'l', 'xl'];
+const FZ_ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32 };
+const FZ_LBL = { s: 'S', m: 'M', l: 'L', xl: 'XL' };
 function getFzLevel() {
-  try { const v = localStorage.getItem('m_fz'); return FZ_LEVELS.indexOf(v) >= 0 ? v : 'm'; } catch (e) { return 'm'; }
+  try {
+    const v = localStorage.getItem('m_fz');
+    // home.htmlは4段階、他ページの2XL/3XLが入っていたら xl にクランプ
+    if (v === 'xxl' || v === 'xxxl') return 'xl';
+    return FZ_LEVELS.indexOf(v) >= 0 ? v : 'm';
+  } catch (e) { return 'm'; }
 }
 function applyFz(level) {
   try { document.documentElement.style.zoom = FZ_ZOOM[level] || 1; } catch (e) {}
