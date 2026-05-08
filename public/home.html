@@ -412,7 +412,13 @@ function getFzLevel() {
   } catch (e) { return 'm'; }
 }
 function applyFz(level) {
-  try { document.documentElement.style.zoom = FZ_ZOOM[level] || 1; } catch (e) {}
+  const z = FZ_ZOOM[level] || 1;
+  try { document.documentElement.style.zoom = z; } catch (e) {}
+  // ヘッダーは逆ズームで等倍維持 (タイトル行を本文サイズと連動させない)
+  try {
+    const hdr = document.getElementById('header');
+    if (hdr) hdr.style.zoom = (1 / z).toFixed(4);
+  } catch (e) {}
   const lbl = document.getElementById('hd-fz-lvl');
   if (lbl) lbl.textContent = FZ_LBL[level] || 'M';
 }
