@@ -14,25 +14,24 @@ const gen8 = () => crypto.randomBytes(6).toString('base64url');
 
 (async () => {
   const db = getDb();
-  // AI入力: 配車結果の納入先(時間指定+ETA+才数つき) を起点にする
-  let sites = db.prepare(`
-    SELECT site_name, address, MAX(time_spec) AS time_spec, MIN(eta) AS eta,
-           SUM(qty) AS qty, SUM(sai) AS sai
-    FROM td_dispatch_history WHERE load_date = ? AND site_name <> ''
-    GROUP BY site_name, address
+  // AI入力: WMS全現場(主入力) + 配車結果の時間指定/住所ヒント
+  const wmsSites = db.prepare(`
+    SELECT site_name, SUM(qty) AS qty, SUM(sai) AS sai
+    FROM td_orders WHERE load_date = ? AND site_name <> ''
+    GROUP BY site_name
   `).all(ld);
-  if (!sites.length) {
-    sites = db.prepare(`
-      SELECT site_name, '' AS address, NULL AS time_spec, NULL AS eta,
-        SUM(qty) AS qty, SUM(sai) AS sai
-      FROM td_orders WHERE load_date = ? GROUP BY site_name
-    `).all(ld);
-  }
+  const dispatchHints = db.prepare(`
+    SELECT site_name, address, time_spec, eta, sai
+    FROM td_dispatch_history WHERE load_date = ? AND time_spec IN ('hard', 'soft')
+    ORDER BY eta
+  `).all(ld);
+  let sites = wmsSites.length ? wmsSites : db.prepare(`
+    SELECT site_name, address, time_spec, eta, qty, sai
+    FROM td_dispatch_history WHERE load_date = ? AND site_name <> ''
+  `).all(ld);
   if (!sites.length) { console.error('No data for load_date', ld); process.exit(1); }
-  console.log('現場数:', sites.length, '合計才数:', sites.reduce((a, s) => a + (s.sai || 0), 0).toFixed(0));
-  const tsHard = sites.filter(s => s.time_spec === 'hard').length;
-  const tsSoft = sites.filter(s => s.time_spec === 'soft').length;
-  console.log(`時間指定: 厳守=${tsHard}件 / 希望=${tsSoft}件`);
+  console.log('WMS現場数:', sites.length, '合計才数:', sites.reduce((a, s) => a + (s.sai || 0), 0).toFixed(0));
+  console.log('時間指定ヒント:', dispatchHints.length, '件');
 
   // 過去履歴から「実号車番号」と「平均車種」を取得 (AIに投入する実号車プール)
   const fleet = db.prepare(`
@@ -44,10 +43,16 @@ const gen8 = () => crypto.randomBytes(6).toString('base64url');
   `).all();
   console.log('実号車プール:', fleet.length, '台');
 
-  const siteListLines = sites.map((s, i) => {
-    const ts = s.time_spec === 'hard' ? '🔒時間指定厳守' : s.time_spec === 'soft' ? '⏰希望帯' : '指定なし';
-    return `${i + 1}. ${s.site_name} | 才数${(s.sai || 0).toFixed(1)} 数量${(s.qty || 0).toFixed(0)} | ${ts} ${s.eta ? '希望' + s.eta : ''} | 住所:${s.address || '推定'}`;
-  }).join('\n');
+  const wmsLines = sites.map((s, i) =>
+    `${i + 1}. ${s.site_name} | 才数${(s.sai || 0).toFixed(1)} 数量${(s.qty || 0).toFixed(0)}`
+  ).join('\n');
+  const hintLines = dispatchHints.length
+    ? dispatchHints.map((h, i) => {
+        const tag = h.time_spec === 'hard' ? '🔒厳守' : '⏰希望';
+        return `${i + 1}. 「${h.site_name}」 ${tag}${h.eta ? ' ' + h.eta : ''} / 才数${(h.sai || 0).toFixed(0)} / 住所:${h.address || '不明'}`;
+      }).join('\n')
+    : '(時間指定ヒントなし)';
+  const siteListLines = wmsLines;
 
   const fleetLines = fleet.map(f => `${f.vehicle_no} (${f.vehicle_type})`).join(', ');
 
@@ -64,20 +69,22 @@ const gen8 = () => crypto.randomBytes(6).toString('base64url');
   - 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ (上限180才・大型品向け)
   - 2t平ﾎﾞﾃﾞｨ (上限200才・大型品向け)
   - 2t (上限150才)
-- **1台あたり 1〜2現場が基本** (実運用準拠):
-  - 中〜大型物件(80才超)が含まれる場合 → 1現場/台
-  - 同方面で合計才数が車種上限以下に収まる場合のみ 2現場/台
-  - 3件以上は特殊ケースのみ (才数極小・近距離・時間調整可能)
-- **合計才数は車種容量上限を絶対超えないこと**。超えるなら別号車に分割
-- 時間指定がある現場+その近隣の指定なし現場をまとめて1台に組む
+- **1台あたり 1〜3現場が基本**、同方面で束ねる
+- **合計才数は車種容量上限を絶対超えないこと**
+- **時間指定の現場 + その住所周辺の時間指定なし現場をまとめて1台に組む** ← 最重要
 - 配送終了後は座間に戻る前提でルート設計
-- **現場数 ≒ 号車数** が標準 (1日 ${sites.length} 現場なら 50〜70台)
 
-【使用可能な実号車プール (この中から号車番号を選ぶこと)】
+【時間指定+住所ヒント (Logistarが組んだ${dispatchHints.length}現場、地理推論の起点に)】
+${hintLines}
+
+※ 上記の住所を地理的アンカーとして、下記WMS全現場を「方面束ね」してください。
+※ WMS現場名と時間指定ヒントの納入先名は表記が異なる場合あり(類推OK)。
+※ WMS現場リストにのみ存在する現場(時間指定なし)も、住所推定で同方面の時間指定ストップの号車に組み込んでください。
+
+【使用可能な実号車プール】
 ${fleetLines}
-※ 上記が当日全車稼働を前提。実運用では1日 ${fleet.length} 台前後 (現場の物量で増減)。
 
-【配送先 (load_date=${ld}, 計${sites.length}現場、納入先名は入力どおり一字一句変更しない)】
+【WMS全配送先 (load_date=${ld}, 計${sites.length}現場、site_nameは入力どおり一字一句変更しない)】
 ${siteListLines}
 
 【出力フォーマット (JSONのみ、それ以外何も書かない)】

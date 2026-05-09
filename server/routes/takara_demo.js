@@ -174,26 +174,26 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
   if (!/^\d{8}$/.test(ld)) return res.status(400).json({ success: false, msg: 'load_date は YYYYMMDD' });
 
   const db = getDb();
-  // AI入力は配車結果(教師)の納入先を使う:
-  //  - 現場名・時間指定・ETA・才数 が同じ座標系で揃うため、AIと実配車の比較が可能
-  //  - WMSは ピッキング側 で別座標(現場名フォーマット違い)
-  // 配車結果が無い日付は WMS にフォールバック (互換維持)
-  let sites = db.prepare(`
-    SELECT site_name, address, MAX(time_spec) AS time_spec, MIN(eta) AS eta,
-           SUM(qty) AS qty, SUM(sai) AS sai
-    FROM td_dispatch_history WHERE load_date = ? AND site_name <> ''
-    GROUP BY site_name, address
+  // AI入力: WMS全現場(品目集計) + 配車結果の時間指定/住所ヒント を結合
+  //  - WMS = 当日の全配送先 (時間指定なしも含む)
+  //  - 配車結果 = Logistarで時間指定が組まれた分のみ (住所付き)
+  //  → AIには両方を渡し、配車結果の住所を地理推定の手がかりに、
+  //    WMS全現場を時間指定+周辺組込で一括配車させる
+  const wmsSites = db.prepare(`
+    SELECT site_name, SUM(qty) AS qty, SUM(sai) AS sai
+    FROM td_orders WHERE load_date = ? AND site_name <> ''
+    GROUP BY site_name
   `).all(ld);
-  if (!sites.length) {
-    // フォールバック: WMS品目集計
-    sites = db.prepare(`
-      SELECT o.site_name, '' AS address,
-        NULL AS time_spec, NULL AS eta,
-        SUM(o.qty) AS qty, SUM(o.sai) AS sai
-      FROM td_orders o WHERE o.load_date = ?
-      GROUP BY o.site_name
-    `).all(ld);
-  }
+  const dispatchHints = db.prepare(`
+    SELECT site_name, address, time_spec, eta, sai
+    FROM td_dispatch_history WHERE load_date = ? AND time_spec IN ('hard', 'soft')
+    ORDER BY eta
+  `).all(ld);
+  // sites = WMS全現場 (AIの主入力)
+  let sites = wmsSites.length ? wmsSites : db.prepare(`
+    SELECT site_name, address, time_spec, eta, qty, sai
+    FROM td_dispatch_history WHERE load_date = ? AND site_name <> ''
+  `).all(ld);
   if (!sites.length) return res.status(400).json({ success: false, msg: '当日のデータがありません (WMSも配車結果も未取込)' });
 
   // ジョブ起票
@@ -211,11 +211,17 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
     `).all();
     const fleetLines = fleet.map(f => `${f.vehicle_no} (${f.vehicle_type})`).join(', ');
 
-    // プロンプト: 時間指定の現場をハードロックし、周辺の非指定現場を組み入れて座間帰着するルートを設計
-    const siteListLines = sites.map((s, i) => {
-      const ts = s.time_spec === 'hard' ? '🔒時間指定厳守' : s.time_spec === 'soft' ? '⏰希望帯' : '指定なし';
-      return `${i + 1}. ${s.site_name} | 才数${(s.sai || 0).toFixed(1)} 数量${(s.qty || 0).toFixed(0)} | ${ts} ${s.eta ? '希望' + s.eta : ''} | 住所:${s.address || '推定'}`;
-    }).join('\n');
+    // プロンプト: WMS全現場をAI主入力、配車結果(時間指定+住所)をヒントとして渡す
+    const wmsLines = sites.map((s, i) =>
+      `${i + 1}. ${s.site_name} | 才数${(s.sai || 0).toFixed(1)} 数量${(s.qty || 0).toFixed(0)}`
+    ).join('\n');
+    const hintLines = dispatchHints.length
+      ? dispatchHints.map((h, i) => {
+          const tag = h.time_spec === 'hard' ? '🔒厳守' : '⏰希望';
+          return `${i + 1}. 「${h.site_name}」 ${tag}${h.eta ? ' ' + h.eta : ''} / 才数${(h.sai || 0).toFixed(0)} / 住所:${h.address || '不明'}`;
+        }).join('\n')
+      : '(時間指定ヒントなし)';
+    const siteListLines = wmsLines;
 
     const prompt = `あなたは座間積替倉庫(神奈川県座間市)を起点とする首都圏配送の配車プランナーです。
 タカラスタンダード様の住宅設備機器を首都圏に2t車両で配送するルートを組成します。
@@ -230,20 +236,26 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
   - 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ (上限180才・大型品向け)
   - 2t平ﾎﾞﾃﾞｨ (上限200才・大型品向け)
   - 2t (上限150才)
-- **1台あたり 1〜2現場が基本** (実運用準拠、現場の実情に合わせて束ねる):
-  - 中〜大型物件(80才超)が含まれる場合 → 1現場/台
-  - 同方面で合計才数が車種上限以下に収まる場合のみ 2現場/台
-  - 3件以上は特殊ケースのみ (才数極小・近距離・時間調整可能)
+- **1台あたり 1〜3現場が基本** (実運用準拠、同方面で束ねる):
+  - 大型物件(150才超)単独 → 1現場/台
+  - 同方面 (徒歩/車で近接) で 2〜3現場/台 を束ねる
+  - 4件以上は近距離・小ロットの特殊ケースのみ
 - **合計才数は車種容量上限を絶対超えないこと**。超えるなら別号車に分割
-- 時間指定がある現場+その近隣の指定なし現場をまとめて1台に組む
+- **時間指定の現場 + その住所周辺の時間指定なし現場をまとめて1台に組む** ← 最重要
 - 配送終了後は座間に戻る前提でルート設計
-- **現場数 ≒ 号車数** が標準 (1日 ${sites.length} 現場なら 50〜70台)
+
+【時間指定+住所ヒント (Logistarが組んだ${dispatchHints.length}現場、これを地理推論の起点に)】
+${hintLines}
+
+※ 上記の住所を地理的アンカーとして、下記WMS全現場を「方面束ね」してください。
+※ WMS現場名と時間指定ヒントの納入先名は表記が異なる場合があります(例:WMS「保川」=ヒント「神奈川県横浜市保土ケ谷区...」のような対応)。
+※ 表記揺れがあれば類推OK。WMS現場リストにのみ存在する現場(時間指定なし)も、住所推定で同方面の時間指定ストップの号車に組み込んでください。
 
 【使用可能な実号車プール (この中から号車番号を選ぶこと)】
 ${fleetLines}
-※ 上記が当日全車稼働を前提。実運用では1日 ${fleet.length} 台前後 (現場の物量で増減)。
+※ 上記が当日全車稼働を前提。実運用では1日50〜70台台前後 (現場の物量で増減)。
 
-【配送先 (load_date=${ld}, 計${sites.length}現場、納入先名は入力どおり一字一句変更しない)】
+【WMS全配送先 (load_date=${ld}, 計${sites.length}現場、site_nameは入力どおり一字一句変更しない)】
 ${siteListLines}
 
 【出力フォーマット (JSONのみ、それ以外何も書かない)】
