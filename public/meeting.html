@@ -149,6 +149,27 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 9500; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 .toast.err { background: var(--danger); }
+.lock-state { background: rgba(220,38,38,0.18); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #fca5a5; }
+.lock-state.unlocked { background: rgba(16,185,129,0.18); color: #86efac; }
+.dlg-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 9800; padding: 20px; }
+.dlg-bg.show { display: flex; }
+.dlg { background: #fff; color: var(--fg); border-radius: 12px; padding: 18px; width: 100%; max-width: 360px; }
+.dlg h3 { margin: 0 0 8px 0; font-size: 16px; }
+.dlg .desc { color: var(--mute); font-size: 12px; line-height: 1.6; margin-bottom: 12px; }
+.dlg input { width: 100%; padding: 10px 12px; font-size: 18px; border: 1px solid var(--border); border-radius: 8px; font-family: ui-monospace, monospace; letter-spacing: 4px; text-align: center; }
+.dlg .row { display: flex; gap: 8px; margin-top: 12px; }
+.dlg button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.dlg .btn-cancel { background: #e2e8f0; color: var(--fg); }
+.dlg .btn-ok { background: var(--accent); color: #fff; }
+.dlg .err-msg { color: var(--danger); font-size: 12px; margin-top: 6px; min-height: 14px; }
+.passcode-display {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b; border-radius: 10px;
+  padding: 14px; text-align: center;
+  font-family: ui-monospace, monospace; font-size: 28px; font-weight: 800;
+  letter-spacing: 6px; color: #92400e;
+  margin: 10px 0;
+}
 
 @media (max-width: 600px) {
   .body { padding: 14px; }
@@ -188,6 +209,7 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   <div class="fs-hd">
     <span class="stage-label" id="stage-label">待機中</span>
     <div class="room-name" id="fs-name">🎙 会議室</div>
+    <span class="lock-state unlocked" id="lock-state">🔓 未ロック</span>
     <div class="timer" id="fs-timer">00:00</div>
   </div>
   <div class="stage" id="stage">
@@ -196,6 +218,34 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   <div class="transcript-panel" id="ts-panel"></div>
   <div class="fs-controls" id="ctrls">
     <!-- 待機中: ビデオ開始ボタン中央 / 会議中: マイク・カメラ・共有・議事録・退室 -->
+  </div>
+</div>
+
+<!-- パスコード入力ダイアログ (入室時) -->
+<div class="dlg-bg" id="dlg-enter">
+  <div class="dlg">
+    <h3>🔒 鍵がかかっています</h3>
+    <div class="desc">主催者から教えてもらった入室パスコードを入力してください。</div>
+    <input id="enter-pass" type="text" inputmode="numeric" maxlength="20" placeholder="0000">
+    <div class="err-msg" id="enter-err"></div>
+    <div class="row">
+      <button class="btn-cancel" onclick="closeEnterDlg()">キャンセル</button>
+      <button class="btn-ok" onclick="submitEnterPass()">入室</button>
+    </div>
+  </div>
+</div>
+
+<!-- ロック設定ダイアログ (主催者) -->
+<div class="dlg-bg" id="dlg-lock">
+  <div class="dlg">
+    <h3>🔒 入室パスコードを設定</h3>
+    <div class="desc">参加者にこのパスコードを伝えてください。設定後の新規入室にロックがかかります。</div>
+    <div class="passcode-display" id="lock-pass-disp">0000</div>
+    <input id="lock-pass" type="text" inputmode="numeric" maxlength="20" placeholder="自動生成 (編集可)">
+    <div class="row">
+      <button class="btn-cancel" onclick="closeLockDlg()">キャンセル</button>
+      <button class="btn-ok" onclick="confirmLock()">🔒 ロック</button>
+    </div>
   </div>
 </div>
 
@@ -221,6 +271,9 @@ let interimText = '';
 let startedAt = null;
 let timerHandle = null;
 let mainScreenUid = null;    // 現在「メイン画面」に表示している画面共有のuid
+let hostUid = null;           // 現在の主催者uid
+let roomLocked = false;       // 部屋ロック状態
+let pendingPasscode = '';     // 鍵をかけた状態で入室拒否されたとき再入力
 
 const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
 
@@ -267,11 +320,40 @@ function setupSocket() {
   socket = io({ auth: { token } });
   socket.on('meeting:peers', async (data) => {
     // 既存メンバーのprofileは初期では空。peer-joined で来るのを待つ。
-    // 既存メンバーには callPeer (offer側) を実行する: ただし自分が ビデオON した時だけ
     for (const peerUid of data.peers) {
-      // profile仮値
       if (!peerProfiles.has(peerUid)) peerProfiles.set(peerUid, { uid: peerUid, display_name: '...', avatar_url: '' });
     }
+    hostUid = data.host_uid || null;
+    roomLocked = !!data.locked;
+    updateLockUI();
+    renderTiles();
+    renderControls();
+  });
+  socket.on('meeting:join-denied', (data) => {
+    if (data.reason === 'passcode') {
+      // 入室処理途中でロビーに戻す
+      inRoom = false;
+      stage = 'lobby';
+      $('fs').classList.remove('show');
+      $('lobby').style.display = '';
+      if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+      $('enter-err').textContent = 'パスコードが違います';
+      $('enter-pass').value = '';
+      $('dlg-enter').classList.add('show');
+      setTimeout(() => $('enter-pass').focus(), 100);
+    }
+  });
+  socket.on('meeting:lock-state', (data) => {
+    roomLocked = !!data.locked;
+    updateLockUI();
+    renderControls();
+    showToast(roomLocked ? '🔒 部屋がロックされました' : '🔓 ロックが解除されました', 1800);
+  });
+  socket.on('meeting:host-change', (data) => {
+    hostUid = data.host_uid || null;
+    const myUid = me.uid || me.id;
+    if (hostUid === myUid) showToast('🎤 あなたが主催者になりました', 2000);
+    renderControls();
     renderTiles();
   });
   socket.on('meeting:peer-joined', (profile) => {
@@ -366,10 +448,29 @@ async function callPeer(peerUid, isOfferer) {
 }
 
 // ロビー → 入室 (アバター待機)
-function enterRoom() {
+async function enterRoom() {
+  // 部屋のロック状態を事前に問い合わせ
+  socket.emit('meeting:peek', { roomId: ROOM_ID });
+  const peek = await new Promise((resolve) => {
+    const handler = (data) => { resolve(data); };
+    socket.once('meeting:peek', handler);
+    setTimeout(() => resolve(null), 1500);
+  });
+  if (peek && peek.locked && peek.count > 0) {
+    pendingPasscode = '';
+    $('enter-err').textContent = '';
+    $('enter-pass').value = '';
+    $('dlg-enter').classList.add('show');
+    setTimeout(() => $('enter-pass').focus(), 100);
+    return;
+  }
+  doJoin('');
+}
+
+function doJoin(passcode) {
   inRoom = true;
   stage = 'waiting';
-  socket.emit('meeting:join', { roomId: ROOM_ID });
+  socket.emit('meeting:join', { roomId: ROOM_ID, passcode });
   $('lobby').style.display = 'none';
   $('fs').classList.add('show');
   $('stage-label').textContent = '⌛ 待機中 (ビデオOFF)';
@@ -377,6 +478,52 @@ function enterRoom() {
   startTimer();
   renderTiles();
   renderControls();
+}
+
+function submitEnterPass() {
+  const pass = $('enter-pass').value.trim();
+  if (!pass) { $('enter-err').textContent = 'パスコードを入力してください'; return; }
+  pendingPasscode = pass;
+  $('dlg-enter').classList.remove('show');
+  doJoin(pass);
+}
+function closeEnterDlg() {
+  $('dlg-enter').classList.remove('show');
+}
+
+function updateLockUI() {
+  const el = $('lock-state');
+  if (!el) return;
+  if (roomLocked) {
+    el.textContent = '🔒 ロック中';
+    el.className = 'lock-state';
+  } else {
+    el.textContent = '🔓 未ロック';
+    el.className = 'lock-state unlocked';
+  }
+}
+
+function isHost() { return hostUid === (me.uid || me.id); }
+
+function openLockDlg() {
+  // 自動生成パスコード (4桁)
+  const auto = String(Math.floor(1000 + Math.random() * 9000));
+  $('lock-pass').value = auto;
+  $('lock-pass-disp').textContent = auto;
+  $('lock-pass').oninput = () => { $('lock-pass-disp').textContent = $('lock-pass').value || '0000'; };
+  $('dlg-lock').classList.add('show');
+}
+function closeLockDlg() { $('dlg-lock').classList.remove('show'); }
+function confirmLock() {
+  const pass = $('lock-pass').value.trim();
+  if (!pass) { showToast('パスコードを入力してください', 1500, true); return; }
+  socket.emit('meeting:lock', { locked: true, passcode: pass });
+  $('dlg-lock').classList.remove('show');
+  // 主催者本人にもパスコードを表示しておく
+  showToast('🔒 パスコード: ' + pass, 4500);
+}
+function unlockRoom() {
+  socket.emit('meeting:lock', { locked: false });
 }
 
 // アバター待機 → ビデオ開始
@@ -413,9 +560,15 @@ function startTimer() {
 
 function renderControls() {
   const c = $('ctrls');
+  const lockBtn = isHost()
+    ? (roomLocked
+        ? `<button class="ctrl-btn on" onclick="unlockRoom()"><span class="ico">🔓</span><span>ロック解除</span></button>`
+        : `<button class="ctrl-btn" onclick="openLockDlg()"><span class="ico">🔒</span><span>鍵をかける</span></button>`)
+    : '';
   if (stage === 'waiting') {
     c.innerHTML = `
       <button class="ctrl-btn start" onclick="startVideoMeeting()"><span class="ico">🎥</span><span>会議開始 (ビデオON)</span></button>
+      ${lockBtn}
       <button class="ctrl-btn danger" onclick="leaveRoom()"><span class="ico">⏏</span><span>退室</span></button>`;
   } else if (stage === 'live') {
     c.innerHTML = `
@@ -423,6 +576,7 @@ function renderControls() {
       <button class="ctrl-btn ${camOn ? 'on' : 'off'}" onclick="toggleCam()"><span class="ico">${camOn ? '🎥' : '📷'}</span><span>${camOn ? 'カメラ' : 'カメラOFF'}</span></button>
       <button class="ctrl-btn ${screenOn ? 'on' : ''}" onclick="toggleScreenShare()"><span class="ico">🖥️</span><span>${screenOn ? '共有中' : '画面共有'}</span></button>
       <button class="ctrl-btn ${recOn ? 'on' : ''}" onclick="toggleRec()"><span class="ico">📝</span><span>${recOn ? '議事録ON' : '議事録'}</span></button>
+      ${lockBtn}
       <button class="ctrl-btn danger" onclick="leaveRoom()"><span class="ico">⏏</span><span>退室</span></button>`;
   }
 }
@@ -661,6 +815,8 @@ async function leaveRoom() {
 
   inRoom = false; stage = 'lobby';
   transcript = []; interimText = ''; mainScreenUid = null;
+  hostUid = null; roomLocked = false;
+  updateLockUI();
   $('fs').classList.remove('show');
   $('lobby').style.display = '';
   $('fs-timer').textContent = '00:00';

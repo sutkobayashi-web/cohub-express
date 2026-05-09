@@ -1683,21 +1683,51 @@ ${latestReport.summary}
 
   // ===== ミーティング (シンプルなZOOM風会議室) =====
   // 部屋単位のメッシュWebRTC。voice:*とは別系統で、フロア概念に依存しない
+  // 部屋ステート: { hostUid, locked, passcode } — server起動中のみ保持
+  if (!app.locals.meetingRooms) app.locals.meetingRooms = new Map();
+  const meetingRooms = app.locals.meetingRooms;
   const userMeetingRoom = (uid2) => {
     const s = io.sockets.sockets.get((presence.get(uid2) || {}).socketId);
     if (!s) return null;
     for (const r of s.rooms) if (r.startsWith('mt:')) return r.slice(3);
     return null;
   };
+  function meetingMemberCount(roomId) {
+    const room = io.sockets.adapter.rooms.get('mt:' + roomId);
+    return room ? room.size : 0;
+  }
+  function pickNewHost(roomId) {
+    const room = io.sockets.adapter.rooms.get('mt:' + roomId);
+    if (!room) return null;
+    for (const sid of room) {
+      const s2 = io.sockets.sockets.get(sid);
+      if (s2 && s2.uid) return s2.uid;
+    }
+    return null;
+  }
   socket.on('meeting:join', (data) => {
     const roomId = String((data && data.roomId) || '').trim();
     if (!/^[a-z0-9_-]{1,40}$/.test(roomId)) return;
+    // パスコード検証 (ロック中の場合)
+    const state = meetingRooms.get(roomId);
+    if (state && state.locked && meetingMemberCount(roomId) > 0) {
+      const passcode = String((data && data.passcode) || '').trim();
+      if (passcode !== state.passcode) {
+        socket.emit('meeting:join-denied', { roomId, reason: 'passcode' });
+        return;
+      }
+    }
     // 既存ミーティング部屋から退出
     for (const r of [...socket.rooms]) if (r.startsWith('mt:')) {
       socket.leave(r);
       io.to(r).emit('meeting:peer-left', { uid });
     }
     socket.join('mt:' + roomId);
+    // 主催者: 部屋に他に誰もいなければ自分が主催者
+    if (meetingMemberCount(roomId) === 1) {
+      meetingRooms.set(roomId, { hostUid: uid, locked: false, passcode: '' });
+    }
+    const curState = meetingRooms.get(roomId) || { hostUid: null, locked: false };
     // 既存メンバーリスト (自分以外)
     const room = io.sockets.adapter.rooms.get('mt:' + roomId) || new Set();
     const peers = [];
@@ -1709,14 +1739,56 @@ ${latestReport.summary}
     // 自分のプロファイル
     const u = getDb().prepare('SELECT display_name, avatar_url, company_code FROM users WHERE id = ?').get(uid) || {};
     const profile = { uid, display_name: u.display_name || '', avatar_url: u.avatar_url || '', company_code: u.company_code || '' };
-    // 自分に既存メンバー通知、既存メンバーには新規参加者通知
-    socket.emit('meeting:peers', { peers, room_id: roomId });
+    socket.emit('meeting:peers', { peers, room_id: roomId, host_uid: curState.hostUid, locked: !!curState.locked });
     socket.to('mt:' + roomId).emit('meeting:peer-joined', profile);
+  });
+  // 部屋ロック (主催者のみ)
+  socket.on('meeting:lock', (data) => {
+    const roomId = userMeetingRoom(uid);
+    if (!roomId) return;
+    const state = meetingRooms.get(roomId);
+    if (!state || state.hostUid !== uid) {
+      socket.emit('meeting:lock-denied', { reason: 'not_host' });
+      return;
+    }
+    state.locked = !!(data && data.locked);
+    state.passcode = state.locked ? String((data && data.passcode) || '').trim().slice(0, 20) : '';
+    meetingRooms.set(roomId, state);
+    io.to('mt:' + roomId).emit('meeting:lock-state', { locked: state.locked });
+  });
+  // 部屋情報の事前確認 (ロビーから入室前に状態を見たい場合)
+  socket.on('meeting:peek', (data) => {
+    const roomId = String((data && data.roomId) || '').trim();
+    if (!/^[a-z0-9_-]{1,40}$/.test(roomId)) return;
+    const state = meetingRooms.get(roomId);
+    socket.emit('meeting:peek', {
+      roomId,
+      count: meetingMemberCount(roomId),
+      locked: !!(state && state.locked),
+      host_uid: state ? state.hostUid : null,
+    });
   });
   socket.on('meeting:leave', () => {
     for (const r of [...socket.rooms]) if (r.startsWith('mt:')) {
+      const roomId = r.slice(3);
       socket.leave(r);
       io.to(r).emit('meeting:peer-left', { uid });
+      // 主催者退出時: 後継者を選定または部屋ステート削除
+      const state = meetingRooms.get(roomId);
+      if (state && state.hostUid === uid) {
+        if (meetingMemberCount(roomId) === 0) {
+          meetingRooms.delete(roomId);
+        } else {
+          const newHost = pickNewHost(roomId);
+          if (newHost) {
+            state.hostUid = newHost;
+            meetingRooms.set(roomId, state);
+            io.to(r).emit('meeting:host-change', { host_uid: newHost });
+          }
+        }
+      } else if (meetingMemberCount(roomId) === 0) {
+        meetingRooms.delete(roomId);
+      }
     }
   });
   socket.on('meeting:signal', (data) => {
@@ -1956,9 +2028,31 @@ ${latestReport.summary}
   });
 
   socket.on('disconnecting', () => {
-    // ミーティング部屋にいた場合、退室通知を送る (disconnect直前なのでrooms有効)
+    // ミーティング部屋にいた場合、退室通知 + 主催権譲渡
     for (const r of socket.rooms) if (r.startsWith('mt:')) {
+      const roomId = r.slice(3);
       socket.to(r).emit('meeting:peer-left', { uid });
+      const state = app.locals.meetingRooms && app.locals.meetingRooms.get(roomId);
+      if (state && state.hostUid === uid) {
+        // disconnect直後はsocketがroomから外れるので、現時点でsizeを確認
+        const remaining = (io.sockets.adapter.rooms.get(r) || new Set()).size - 1;
+        if (remaining <= 0) {
+          app.locals.meetingRooms.delete(roomId);
+        } else {
+          // 自分以外の最初のメンバーを新主催者に
+          let newHost = null;
+          for (const sid of (io.sockets.adapter.rooms.get(r) || new Set())) {
+            if (sid === socket.id) continue;
+            const s2 = io.sockets.sockets.get(sid);
+            if (s2 && s2.uid) { newHost = s2.uid; break; }
+          }
+          if (newHost) {
+            state.hostUid = newHost;
+            app.locals.meetingRooms.set(roomId, state);
+            socket.to(r).emit('meeting:host-change', { host_uid: newHost });
+          }
+        }
+      }
     }
   });
   socket.on('disconnect', () => {
