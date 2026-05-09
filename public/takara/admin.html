@@ -299,14 +299,20 @@ async function loadPlan(ld) {
     <div class="item"><div class="k">時間指定🔒</div><div class="v" style="color:#dc2626;">${hardCount}</div></div>
     <div class="item"><div class="k">時間希望⏰</div><div class="v" style="color:#d97706;">${softCount}</div></div>`;
   // 号車カード
-  document.getElementById('veh-grid').innerHTML = r.vehicles.map(v => {
+  document.getElementById('veh-grid').innerHTML = r.vehicles.map((v, vi) => {
     const tokenForVeh = v.driver_token || '';
     const driverUrl = location.origin + '/takara/driver?t=' + tokenForVeh;
+    // vehicle_type フィールドに「車種 ／ 配送#aaa,bbb」形式が入る場合あり
+    const vt = v.vehicle_type || '';
+    const vtParts = vt.split(' ／ ');
+    const vehTypeShort = vtParts[0] || '車種未設定';
+    const dispNos = vtParts[1] || '';  // 「配送#aaa,bbb,ccc」
     return `<div class="veh-card" data-veh="${escapeHtml(v.vehicle_no)}">
-      <div class="head">
-        <div class="veh-no">${escapeHtml(v.vehicle_no)}</div>
+      <div class="head" style="flex-wrap:wrap;">
+        <div class="veh-no" style="background:#dc2626;">車両#${vi + 1}</div>
         <div style="flex:1;">
-          <div class="vt">${escapeHtml(v.vehicle_type || '車種未設定')}</div>
+          <div class="vt">${escapeHtml(vehTypeShort)}</div>
+          <div style="font-size:10px;color:var(--mute);font-family:ui-monospace,monospace;">代表 ${escapeHtml(v.vehicle_no)}${dispNos ? ' ／ ' + escapeHtml(dispNos) : ''}</div>
         </div>
       </div>
       <input class="driver-input" placeholder="ドライバー名 (任意)" value="${escapeHtml(v.driver_name || '')}" onchange="saveMeta('${escapeHtml(ld)}','${escapeHtml(v.vehicle_no)}','driver_name', this.value)">
@@ -319,6 +325,7 @@ async function loadPlan(ld) {
           <span class="seq">${s.sequence || ''}</span>
           <span class="site">${escapeHtml(s.site_name || '')}</span>
           ${s.time_spec === 'hard' ? '<span class="ts-hard">🔒指定</span>' : (s.time_spec === 'soft' ? '<span class="ts-soft">⏰希望</span>' : '')}
+          ${s.notes ? `<span style="font-size:9px;color:#94a3b8;font-family:ui-monospace,monospace;background:#f1f5f9;padding:0 4px;border-radius:3px;">${escapeHtml(s.notes)}</span>` : ''}
           <span class="eta">${escapeHtml(s.eta || '')}</span>
         </div>`).join('')}
       </div>

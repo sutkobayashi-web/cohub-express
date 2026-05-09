@@ -30,29 +30,37 @@ for (const ld of dates) {
   const rows = db.prepare(`SELECT * FROM td_dispatch_history WHERE load_date = ? ORDER BY id`).all(ld);
   if (!rows.length) { console.log(`  ${ld}: 配車履歴なし`); continue; }
 
-  // 物理車両ごとの代表号車・車種を判定
-  const physVehMap = new Map();  // physical_vehicle_no -> { vehicle_type, stops_count }
+  // 物理車両ごとの代表号車・車種を判定 (xlsx順 sequence=1 で新車両)
+  const physVehMap = new Map();  // physical_vehicle_no -> { vehicle_type, dispatch_nos: [], vseq }
   let currentPhys = null;
   const enriched = [];
+  let vSeqCounter = 0;
   for (const r of rows) {
     const seq = r.sequence;
     if (seq === 1 || !seq || !currentPhys) {
       // 新しい物理車両の開始
       currentPhys = r.original_vehicle_no;
       if (!physVehMap.has(currentPhys)) {
-        physVehMap.set(currentPhys, { vehicle_type: r.vehicle_type || '', stops: 0 });
+        vSeqCounter++;
+        physVehMap.set(currentPhys, {
+          vehicle_type: r.vehicle_type || '',
+          dispatch_nos: [],
+          vseq: vSeqCounter,
+        });
       }
     }
     const m = physVehMap.get(currentPhys);
-    m.stops++;
-    // 車種が空なら後続行のものを代表車種として補完
+    if (r.original_vehicle_no && !m.dispatch_nos.includes(r.original_vehicle_no)) {
+      m.dispatch_nos.push(r.original_vehicle_no);
+    }
     if (!m.vehicle_type && r.vehicle_type) m.vehicle_type = r.vehicle_type;
     enriched.push({ ...r, phys_vehicle_no: currentPhys });
   }
 
   const tx = db.transaction(() => {
-    // stops 投入 (物理車両号車にまとめて入れる)
+    // stops 投入: 各stopに「配送#xxx」を notes として保持 (元の xlsx号車番号)
     for (const r of enriched) {
+      const dispNo = r.original_vehicle_no || '';
       insDisp.run(
         ld, r.phys_vehicle_no,
         r.sequence || null,
@@ -62,12 +70,18 @@ for (const ld of dates) {
         r.time_spec || null,
         r.qty || 0,
         r.sai || 0,
-        '人手配車(実績)',
+        `人手配車(実績) / 配送#${dispNo}`,
       );
+      // notes フィールドに配送番号
+      db.prepare(`UPDATE td_dispatches SET notes = ? WHERE id = last_insert_rowid()`).run(`配送#${dispNo}`);
     }
     // meta 投入 (物理車両ごと、driver_token 自動発行)
     for (const [veh, info] of physVehMap) {
-      insMeta.run(ld, veh, info.vehicle_type || '', gen8());
+      // vehicle_type に「[車両#N] 車種 (配送#aaa,bbb,ccc)」のような表示用文字列を入れる
+      const dispLabel = info.dispatch_nos.length > 1
+        ? `${info.vehicle_type || '車種未設定'} ／ 配送#${info.dispatch_nos.join(',')}`
+        : (info.vehicle_type || '');
+      insMeta.run(ld, veh, dispLabel, gen8());
     }
   });
   tx();
