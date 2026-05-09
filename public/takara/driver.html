@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🚛 配車</title>
+<style>
+:root {
+  --bg: #f1f5f9; --fg: #0f172a; --mute: #64748b;
+  --card: #fff; --border: #e2e8f0;
+  --accent: #1d4ed8; --accent-d: #1e3a8a;
+  --warn: #f59e0b; --danger: #ef4444; --ok: #10b981;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #1e40af, #1e3a8a); color: #fff; padding: 14px 16px; }
+.hd .veh-row { display: flex; align-items: center; gap: 12px; }
+.hd .veh-no { background: #fff; color: var(--accent-d); padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 22px; }
+.hd .info { flex: 1; }
+.hd .info .driver { font-weight: 700; font-size: 16px; }
+.hd .info .meta { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+.hd .progress-bar { background: rgba(255,255,255,0.18); border-radius: 6px; height: 8px; margin-top: 12px; overflow: hidden; }
+.hd .progress-bar > span { display: block; height: 100%; background: var(--ok); transition: width 0.3s; }
+.hd .progress-text { font-size: 11px; margin-top: 4px; opacity: 0.85; }
+
+.body { padding: 14px; max-width: 720px; margin: 0 auto; padding-bottom: 60px; }
+
+.stop {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px; margin-bottom: 12px; position: relative;
+}
+.stop.done { background: #f0fdf4; border-color: #86efac; opacity: 0.85; }
+.stop.arrived { background: #fef3c7; border-color: #fbbf24; }
+.stop.enroute { background: #eff6ff; border-color: #93c5fd; }
+.stop .seq { position: absolute; top: -10px; left: 14px; background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 12px; font-weight: 800; font-size: 12px; }
+.stop.done .seq { background: var(--ok); }
+.stop .site { font-weight: 800; font-size: 17px; line-height: 1.4; margin-top: 4px; }
+.stop .addr { color: var(--mute); font-size: 12px; margin-top: 4px; line-height: 1.5; }
+.stop .badges { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.stop .badges .b { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.stop .b-eta { background: #dbeafe; color: var(--accent-d); }
+.stop .b-hard { background: #fee2e2; color: var(--danger); }
+.stop .b-soft { background: #fef3c7; color: #92400e; }
+.stop .b-qty { background: #f1f5f9; color: var(--mute); }
+.stop .stat-now {
+  margin-top: 8px; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;
+  display: inline-block;
+}
+.stop.done .stat-now { background: var(--ok); color: #fff; }
+.stop.arrived .stat-now { background: var(--warn); color: #fff; }
+.stop.enroute .stat-now { background: var(--accent); color: #fff; }
+.stop .actions { margin-top: 10px; display: flex; gap: 6px; }
+.stop .actions button {
+  flex: 1; padding: 12px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.stop .actions .btn-enroute { background: #3b82f6; color: #fff; }
+.stop .actions .btn-arrived { background: #f59e0b; color: #fff; }
+.stop .actions .btn-done { background: var(--ok); color: #fff; }
+.stop .actions button:disabled { background: #e2e8f0; color: #94a3b8; }
+
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.empty { padding: 60px 20px; text-align: center; color: var(--mute); }
+
+.complete-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.complete-bg.show { display: flex; }
+.complete { background: #fff; border-radius: 16px; padding: 28px; text-align: center; max-width: 400px; }
+.complete h2 { color: var(--ok); font-size: 24px; margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<div class="hd" id="hd"></div>
+<div class="body">
+  <div id="stops"></div>
+</div>
+
+<div class="complete-bg" id="complete-bg">
+  <div class="complete">
+    <h2>🎉 配送完了！</h2>
+    <div style="color:var(--mute);font-size:14px;line-height:1.7;margin:14px 0;" id="comp-summary"></div>
+    <button onclick="document.getElementById('complete-bg').classList.remove('show')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;">閉じる</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const tokenParam = params.get('t') || '';
+let plan = null;
+let stops = [];
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  return r.json();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms || 1800);
+}
+
+async function load() {
+  if (!tokenParam) {
+    document.body.innerHTML = '<div class="empty">配車QRから開いてください</div>';
+    return;
+  }
+  const r = await api('/api/takara/driver/' + encodeURIComponent(tokenParam));
+  if (!r.success) {
+    document.body.innerHTML = '<div class="empty">配車が見つかりません<br><br>管理者に確認してください</div>';
+    return;
+  }
+  plan = r.meta;
+  stops = r.stops;
+  render();
+}
+
+function render() {
+  const ld = plan.load_date;
+  const total = stops.length;
+  const done = stops.filter(s => s.status === 'done').length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('hd').innerHTML = `
+    <div class="veh-row">
+      <div class="veh-no">${escapeHtml(plan.vehicle_no)}</div>
+      <div class="info">
+        <div class="driver">${escapeHtml(plan.driver_name || 'ドライバー名未設定')}</div>
+        <div class="meta">${ld.slice(0,4)}/${ld.slice(4,6)}/${ld.slice(6,8)} / ${escapeHtml(plan.vehicle_type || '車種未設定')}</div>
+      </div>
+    </div>
+    <div class="progress-bar"><span style="width:${pct}%"></span></div>
+    <div class="progress-text">配送進捗 ${done} / ${total} (${pct}%)</div>
+  `;
+
+  document.getElementById('stops').innerHTML = stops.map(s => {
+    const cls = s.status === 'done' ? 'done' : (s.status === 'arrived' ? 'arrived' : (s.status === 'enroute' ? 'enroute' : ''));
+    const statLabel = s.status === 'done' ? '✅ 完了' : (s.status === 'arrived' ? '📍 到着済' : (s.status === 'enroute' ? '🚗 移動中' : ''));
+    const tsBadge = s.time_spec === 'hard' ? '<span class="b b-hard">🔒 時間指定</span>' : (s.time_spec === 'soft' ? '<span class="b b-soft">⏰ 希望</span>' : '');
+    return `<div class="stop ${cls}">
+      <span class="seq">#${s.sequence || '?'}</span>
+      <div class="site">${escapeHtml(s.site_name || '')}</div>
+      ${s.address ? `<div class="addr">📍 ${escapeHtml(s.address)}</div>` : ''}
+      <div class="badges">
+        ${s.eta ? `<span class="b b-eta">🕒 ETA ${escapeHtml(s.eta)}</span>` : ''}
+        ${tsBadge}
+        ${s.sai ? `<span class="b b-qty">📏 ${(s.sai||0).toFixed(0)}才</span>` : ''}
+        ${s.qty ? `<span class="b b-qty">📦 ${(s.qty||0).toFixed(0)}個</span>` : ''}
+      </div>
+      ${statLabel ? `<div class="stat-now">${statLabel}</div>` : ''}
+      <div class="actions">
+        <button class="btn-enroute" onclick="setStatus(${s.id}, 'enroute')" ${s.status === 'done' ? 'disabled' : ''}>🚗 出発</button>
+        <button class="btn-arrived" onclick="setStatus(${s.id}, 'arrived')" ${s.status === 'done' ? 'disabled' : ''}>📍 到着</button>
+        <button class="btn-done" onclick="setStatus(${s.id}, 'done')" ${s.status === 'done' ? 'disabled' : ''}>✅ 完了</button>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">配送先がありません</div>';
+}
+
+async function setStatus(dispatchId, status) {
+  const r = await api('/api/takara/driver/' + encodeURIComponent(tokenParam) + '/progress', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dispatch_id: dispatchId, status }),
+  });
+  if (!r.success) { showToast('❌ ' + (r.msg || '失敗'), 2500); return; }
+  // ローカル即更新
+  const s = stops.find(x => x.id === dispatchId);
+  if (s) s.status = status;
+  render();
+  if (status === 'done') {
+    const remaining = stops.filter(x => x.status !== 'done').length;
+    if (remaining === 0) {
+      document.getElementById('comp-summary').innerHTML = `本日の配送 <b>${stops.length}</b>件 完了しました。<br>お疲れさまでした 🙏`;
+      document.getElementById('complete-bg').classList.add('show');
+    }
+  }
+}
+
+load();
+// 30秒ごとに状態同期 (荷主側からの確認反映等)
+setInterval(load, 30000);
+</script>
+</body>
+</html>

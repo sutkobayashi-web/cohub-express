@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📦 配送進捗</title>
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #fff; --border: #e2e8f0;
+  --takara-red: #dc2626; --takara-blue: #1e40af;
+  --warn: #f59e0b; --ok: #10b981;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 15px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--takara-red), #991b1b); color: #fff; padding: 12px 16px; }
+.hd .title { font-weight: 800; font-size: 17px; }
+.hd .sub { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.hd .meta-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.hd .date-input { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 13px; }
+.hd .live { background: var(--ok); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.hd .live::before { content: '● '; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+.body { padding: 14px; max-width: 1180px; margin: 0 auto; }
+.summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;
+  background: var(--card); padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.summary .item { text-align: center; }
+.summary .item .k { font-size: 11px; color: var(--mute); }
+.summary .item .v { font-size: 22px; font-weight: 800; color: var(--takara-blue); }
+.summary .item .v.ok { color: var(--ok); }
+.summary .item .v.warn { color: var(--warn); }
+
+.veh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.veh-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.veh-card .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.veh-card .veh-no { background: var(--takara-blue); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 14px; }
+.veh-card.completed .veh-no { background: var(--ok); }
+.veh-card.in_progress .veh-no { background: var(--warn); }
+.veh-card .driver { flex: 1; font-size: 12px; color: var(--mute); }
+.veh-card .stat-pill { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.veh-card .stat-pill.draft { background: #f1f5f9; color: var(--mute); }
+.veh-card .stat-pill.confirmed { background: #dbeafe; color: var(--takara-blue); }
+.veh-card .stat-pill.in_progress { background: #fef3c7; color: #92400e; }
+.veh-card .stat-pill.completed { background: #dcfce7; color: #166534; }
+.veh-card .progress-bar { height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+.veh-card .progress-bar > span { display: block; height: 100%; background: var(--ok); transition: width 0.3s; }
+.veh-card .progress-num { font-size: 11px; color: var(--mute); margin-bottom: 8px; }
+.veh-card .stops { font-size: 12px; line-height: 1.5; max-height: 200px; overflow-y: auto; }
+.veh-card .stop { padding: 4px 6px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center; }
+.veh-card .stop:last-child { border-bottom: none; }
+.veh-card .stop .seq { width: 18px; text-align: right; color: var(--mute); flex-shrink: 0; font-size: 11px; }
+.veh-card .stop .site { flex: 1; }
+.veh-card .stop .eta { font-family: ui-monospace, monospace; color: var(--takara-blue); font-size: 11px; }
+.veh-card .stop .stat-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  background: #cbd5e1; flex-shrink: 0;
+}
+.veh-card .stop .stat-dot.enroute { background: #3b82f6; }
+.veh-card .stop .stat-dot.arrived { background: var(--warn); }
+.veh-card .stop .stat-dot.done { background: var(--ok); }
+
+.empty { padding: 60px 20px; text-align: center; color: var(--mute); }
+</style>
+</head>
+<body>
+<div class="hd">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="background:#fff;color:var(--takara-red);padding:3px 8px;border-radius:4px;font-weight:800;font-size:12px;">タカラスタンダード</span>
+    <span class="live">LIVE</span>
+  </div>
+  <div class="title" id="hd-title">📦 本日の配送進捗</div>
+  <div class="sub" id="hd-sub">スタンダード運輸 一括請負プラットフォーム</div>
+  <div class="meta-row">
+    <input type="date" class="date-input" id="date-input">
+    <button onclick="load()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:13px;">🔄 更新</button>
+  </div>
+</div>
+
+<div class="body">
+  <div class="summary" id="summary"></div>
+  <div class="veh-grid" id="veh-grid"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const shipperToken = params.get('t') || 'takara';
+let curDate = '';
+
+async function api(path) {
+  const r = await fetch(path);
+  return r.json();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function todayYYYYMMDD() {
+  const d = new Date();
+  return d.getFullYear() + String(d.getMonth() + 1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+}
+
+async function load() {
+  // 日付選択(YYYY-MM-DD) → load_dateフォーマット (YYYYMMDD)
+  let ld = curDate;
+  const inp = document.getElementById('date-input').value;
+  if (inp) ld = inp.replace(/-/g, '');
+  if (!ld) ld = todayYYYYMMDD();
+  curDate = ld;
+  const r = await api('/api/takara/shipper/' + encodeURIComponent(shipperToken) + '/' + ld);
+  if (!r.success) {
+    document.getElementById('hd-title').textContent = '🚫 アクセス権限がありません';
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('veh-grid').innerHTML = '<div class="empty">' + escapeHtml(r.msg || '') + '</div>';
+    return;
+  }
+  document.getElementById('hd-title').textContent = '📦 ' + ld.slice(0,4) + '/' + ld.slice(4,6) + '/' + ld.slice(6,8) + ' 配送進捗';
+  document.getElementById('hd-sub').textContent = r.shipper + ' 様向け';
+  // 集計
+  let totalStops = 0, doneStops = 0, enroute = 0, arrived = 0;
+  for (const v of r.vehicles) {
+    totalStops += v.total; doneStops += v.done; enroute += v.enroute; arrived += v.arrived;
+  }
+  const completed = r.vehicles.filter(v => v.status === 'completed').length;
+  const inProgress = r.vehicles.filter(v => v.status === 'in_progress').length;
+  document.getElementById('summary').innerHTML = `
+    <div class="item"><div class="k">配車台数</div><div class="v">${r.vehicles.length}</div></div>
+    <div class="item"><div class="k">配送先</div><div class="v">${totalStops}</div></div>
+    <div class="item"><div class="k">完了</div><div class="v ok">${doneStops}</div></div>
+    <div class="item"><div class="k">進行中</div><div class="v warn">${enroute + arrived}</div></div>
+    <div class="item"><div class="k">完了号車</div><div class="v ok">${completed}</div></div>
+    <div class="item"><div class="k">稼働号車</div><div class="v warn">${inProgress}</div></div>`;
+  // 号車カード
+  if (!r.vehicles.length) {
+    document.getElementById('veh-grid').innerHTML = '<div class="empty">この日の配送はありません</div>';
+    return;
+  }
+  document.getElementById('veh-grid').innerHTML = r.vehicles.map(v => {
+    const statLabel = { draft: '配車前', confirmed: '配車済', in_progress: '配送中', completed: '完了' }[v.status] || v.status;
+    return `<div class="veh-card ${v.status}">
+      <div class="head">
+        <div class="veh-no">${escapeHtml(v.vehicle_no)}</div>
+        <div class="driver">${escapeHtml(v.driver_name || '')} ${v.vehicle_type ? '/ ' + escapeHtml(v.vehicle_type) : ''}</div>
+        <div class="stat-pill ${v.status}">${statLabel}</div>
+      </div>
+      <div class="progress-bar"><span style="width:${v.progress_pct}%"></span></div>
+      <div class="progress-num">完了 ${v.done} / ${v.total} (${v.progress_pct}%)</div>
+      <div class="stops">
+        ${v.stops.map(s => `<div class="stop">
+          <span class="seq">${s.sequence || ''}</span>
+          <span class="stat-dot ${s.status || ''}"></span>
+          <span class="site">${escapeHtml(s.site_name || '')}</span>
+          <span class="eta">${escapeHtml(s.eta || '')}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 初期化
+function init() {
+  const today = new Date();
+  const yy = today.getFullYear(), mm = String(today.getMonth() + 1).padStart(2,'0'), dd = String(today.getDate()).padStart(2,'0');
+  document.getElementById('date-input').value = `${yy}-${mm}-${dd}`;
+  load();
+  // 自動更新 15秒ごと
+  setInterval(load, 15000);
+}
+init();
+</script>
+</body>
+</html>

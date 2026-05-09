@@ -48,6 +48,123 @@ function getDb() {
   // PCがなくログインできない社員向け: 推進メンバーが聞き取り代理入力した場合の起票者ID
   // NULL = 本人による自己回答、値あり = 聞き取り入力 (代理入力者のID)
   ensureColumn(_db, 'health_literacy', 'proxy_poster_id', 'proxy_poster_id TEXT');
+
+  // ============================================================
+  // タカラスタンダード一括請負プロトタイプ (2026-05-09 月曜提案用)
+  // 接頭辞 td_ で既存テーブルと完全分離
+  // ============================================================
+  // WMS取込履歴
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    filename TEXT,
+    load_date TEXT,
+    row_count INTEGER DEFAULT 0,
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );`);
+  // WMS品目単位データ
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_id INTEGER,
+    load_date TEXT,
+    warehouse_cd TEXT,
+    shape_cd TEXT,
+    original_vehicle_no TEXT,
+    handai_no TEXT,
+    site_name TEXT,
+    item_cd TEXT,
+    item_name TEXT,
+    qty REAL,
+    sai REAL,
+    source_route TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_td_orders_date ON td_orders(load_date);
+  CREATE INDEX IF NOT EXISTS idx_td_orders_site ON td_orders(load_date, site_name);
+  CREATE INDEX IF NOT EXISTS idx_td_orders_veh ON td_orders(load_date, original_vehicle_no);`);
+  // 教師データ用: 過去の配車結果(人が組んだもの)
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_dispatch_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_id INTEGER,
+    load_date TEXT,
+    original_vehicle_no TEXT,
+    sequence INTEGER,
+    site_name TEXT,
+    address TEXT,
+    time_spec TEXT,
+    eta TEXT,
+    qty REAL,
+    sai REAL,
+    vehicle_type TEXT,
+    transfer_base TEXT,
+    company TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_td_disp_hist_date ON td_dispatch_history(load_date);
+  CREATE INDEX IF NOT EXISTS idx_td_disp_hist_site ON td_dispatch_history(site_name);`);
+  // AIまたは手動で生成した配車プラン (ストップ単位)
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_dispatches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    load_date TEXT NOT NULL,
+    vehicle_no TEXT NOT NULL,
+    sequence INTEGER,
+    site_name TEXT,
+    address TEXT,
+    eta TEXT,
+    time_spec TEXT,
+    qty REAL,
+    sai REAL,
+    notes TEXT,
+    ai_reason TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_td_disp_date_veh ON td_dispatches(load_date, vehicle_no);
+  CREATE INDEX IF NOT EXISTS idx_td_disp_status ON td_dispatches(status, load_date);`);
+  // 号車メタ (ドライバー、トークン、進捗ステータス)
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_dispatch_meta (
+    load_date TEXT,
+    vehicle_no TEXT,
+    vehicle_type TEXT,
+    driver_name TEXT,
+    driver_phone TEXT,
+    driver_token TEXT,
+    status TEXT DEFAULT 'draft',
+    confirmed_at TEXT,
+    started_at TEXT,
+    completed_at TEXT,
+    PRIMARY KEY (load_date, vehicle_no)
+  );
+  CREATE INDEX IF NOT EXISTS idx_td_meta_token ON td_dispatch_meta(driver_token);`);
+  // 配車生成ジョブ (AI実行履歴)
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_dispatch_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    load_date TEXT NOT NULL,
+    started_at TEXT DEFAULT (datetime('now')),
+    finished_at TEXT,
+    status TEXT DEFAULT 'running',
+    request_summary TEXT,
+    response_raw TEXT,
+    error_msg TEXT,
+    created_by TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_td_jobs_date ON td_dispatch_jobs(load_date, started_at DESC);`);
+  // 荷主アクセストークン
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_shipper_tokens (
+    token TEXT PRIMARY KEY,
+    shipper_name TEXT,
+    scope TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    last_seen_at TEXT
+  );`);
+  // デフォルトの荷主トークン (タカラスタンダード) - デモ用
+  try {
+    const exists = _db.prepare("SELECT 1 FROM td_shipper_tokens WHERE token = 'takara'").get();
+    if (!exists) {
+      _db.prepare("INSERT INTO td_shipper_tokens (token, shipper_name, scope) VALUES (?, ?, ?)")
+        .run('takara', 'タカラスタンダード', 'all');
+    }
+  } catch (e) {}
   // ミーティング履歴 (2026-05-09): ZOOM風シンプル会議+AI議事録
   _db.exec(`CREATE TABLE IF NOT EXISTS meetings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

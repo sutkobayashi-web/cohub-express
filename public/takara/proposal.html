@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>タカラスタンダード様 一括請負ご提案</title>
+<style>
+:root {
+  --takara-red: #dc2626; --takara-blue: #1e40af; --takara-deep: #1e3a8a;
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b; --border: #e2e8f0;
+  --ok: #10b981; --warn: #f59e0b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #1e293b; color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
+body { padding: 30px 20px; }
+.deck { max-width: 1180px; margin: 0 auto; }
+.slide {
+  background: #fff; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  margin-bottom: 30px; padding: 50px 60px; min-height: 720px;
+  page-break-after: always;
+  position: relative;
+}
+.slide .slide-no { position: absolute; bottom: 18px; right: 24px; color: var(--mute); font-size: 11px; }
+.slide .brand { position: absolute; top: 18px; right: 24px; color: var(--mute); font-size: 11px; font-weight: 700; }
+.slide h1 { font-size: 32px; color: var(--takara-deep); border-left: 6px solid var(--takara-red); padding-left: 14px; margin: 0 0 26px; line-height: 1.4; }
+.slide h2 { font-size: 22px; color: var(--takara-blue); margin: 22px 0 12px; }
+.slide h3 { font-size: 16px; color: var(--takara-deep); margin: 16px 0 8px; }
+.slide p { line-height: 1.8; font-size: 15px; }
+.slide ul, .slide ol { line-height: 1.9; font-size: 15px; padding-left: 22px; }
+.slide ul li::marker { color: var(--takara-red); }
+
+/* 表紙 */
+.cover {
+  background: linear-gradient(135deg, var(--takara-deep) 0%, var(--takara-blue) 60%, var(--takara-red) 100%);
+  color: #fff; padding: 80px 60px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  min-height: 720px;
+}
+.cover .top-row { display: flex; justify-content: space-between; align-items: center; }
+.cover .badge { background: rgba(255,255,255,0.18); padding: 6px 14px; border-radius: 6px; font-size: 13px; backdrop-filter: blur(8px); }
+.cover .ttl { font-size: 56px; font-weight: 900; line-height: 1.2; margin: 60px 0 30px; letter-spacing: 2px; }
+.cover .sub { font-size: 22px; opacity: 0.9; line-height: 1.5; font-weight: 600; }
+.cover .footer-row { display: flex; justify-content: space-between; font-size: 14px; opacity: 0.85; }
+.cover .key-num {
+  display: flex; gap: 30px; margin: 50px 0 30px;
+}
+.cover .key-num .item { background: rgba(255,255,255,0.12); padding: 16px 22px; border-radius: 10px; backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.25); }
+.cover .key-num .v { font-size: 36px; font-weight: 900; }
+.cover .key-num .k { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+
+/* 表 */
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table th, table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+table th { background: #eff6ff; color: var(--takara-deep); font-weight: 700; font-size: 12px; }
+table td.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+table tr.hi { background: #fef3c7; }
+.arrow-col { font-size: 18px; color: var(--takara-red); text-align: center; }
+
+/* バッジ・カード */
+.kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.kv { background: #f8fafc; border-left: 3px solid var(--takara-blue); padding: 12px 16px; border-radius: 4px; }
+.kv .k { font-size: 11px; color: var(--mute); margin-bottom: 4px; }
+.kv .v { font-size: 14px; font-weight: 700; }
+
+.steps {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin: 18px 0;
+}
+.step {
+  background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+  position: relative;
+}
+.step .ph { font-size: 11px; color: var(--takara-blue); font-weight: 700; }
+.step .when { font-size: 18px; font-weight: 800; margin: 4px 0; }
+.step .what { font-size: 12px; color: var(--mute); line-height: 1.6; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.kpi {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fed7aa; border-radius: 10px; padding: 18px; text-align: center;
+}
+.kpi .v { font-size: 32px; font-weight: 900; color: #c2410c; line-height: 1; }
+.kpi .k { font-size: 12px; color: #9a3412; margin-top: 8px; line-height: 1.5; }
+
+.tag { display: inline-block; padding: 2px 10px; border-radius: 14px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+.tag-ai { background: #dbeafe; color: var(--takara-deep); }
+.tag-bcscan { background: #d1fae5; color: #047857; }
+.tag-new { background: #fee2e2; color: var(--takara-red); }
+
+.hi-box { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+.hi-box .ttl { font-weight: 800; color: #78350f; font-size: 15px; margin-bottom: 4px; }
+.hi-box p { color: #92400e; font-size: 13px; line-height: 1.7; margin: 0; }
+
+.demo-box { background: #ecfdf5; border: 2px solid #5eead4; border-radius: 10px; padding: 16px 20px; margin: 14px 0; }
+.demo-box .ttl { font-weight: 800; color: #047857; font-size: 14px; margin-bottom: 6px; }
+.demo-box .url { font-family: ui-monospace, monospace; font-size: 12px; color: var(--takara-deep); display: block; padding: 4px 0; }
+
+.flow {
+  display: flex; align-items: center; gap: 8px; margin: 20px 0;
+  font-size: 13px; flex-wrap: wrap;
+}
+.flow .node {
+  background: var(--takara-blue); color: #fff; padding: 10px 14px; border-radius: 8px; font-weight: 700;
+}
+.flow .arr { color: var(--takara-red); font-size: 22px; font-weight: 800; }
+.flow .node.ai { background: #dc2626; }
+.flow .node.bc { background: var(--ok); }
+
+@media print {
+  body { padding: 0; background: #fff; }
+  .slide { box-shadow: none; margin: 0; border-radius: 0; min-height: 100vh; padding: 30px 40px; }
+  .slide h1 { font-size: 26px; }
+}
+@page { size: A4 landscape; margin: 0; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 1. 表紙 -->
+<div class="slide cover">
+  <div class="top-row">
+    <span class="badge">CONFIDENTIAL — Logistics Outsourcing Proposal</span>
+    <span style="font-size:13px;opacity:0.9;">2026.05.12</span>
+  </div>
+  <div>
+    <div style="font-size:14px;letter-spacing:3px;opacity:0.85;">タカラスタンダード株式会社 ロジスティクス部 御中</div>
+    <div class="ttl">座間積替拠点<br>輸配送オペレーション<br>一括請負のご提案</div>
+    <div class="sub">AI配車エンジン × bc-scan 現場端末 × 荷主向けリアルタイム追跡<br>3層プラットフォームでお応えします</div>
+    <div class="key-num">
+      <div class="item"><div class="v">2.5<span style="font-size:18px;">人/日</span></div><div class="k">想定工数削減</div></div>
+      <div class="item"><div class="v">7<span style="font-size:18px;">日分</span></div><div class="k">学習データ受領済</div></div>
+      <div class="item"><div class="v">100%</div><div class="k">ペーパレス化</div></div>
+      <div class="item"><div class="v">2<span style="font-size:18px;">週間</span></div><div class="k">並行検証期間</div></div>
+    </div>
+  </div>
+  <div class="footer-row">
+    <span>株式会社スタンダード運輸</span>
+    <span>代表取締役 小林 猛</span>
+  </div>
+</div>
+
+<!-- 2. 提案サマリー -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>提案の核 — 「一括請負」が意味すること</h1>
+  <p style="font-size:18px;line-height:1.9;">
+    座間積替倉庫の <b>WMS取込 → 時間指定配車 → ドライバー配布 → 積込・出荷 → 配送追跡 → 帰着実績</b> までを<br>
+    <b style="color:var(--takara-red);font-size:24px;">スタンダード運輸が一括請負</b>します。
+  </p>
+  <div class="hi-box">
+    <div class="ttl">⚡ 大きな違い: Logistar非依存・自社AIによる配車</div>
+    <p>過去7日分(4/16〜4/24)のWMS+配車実績を学習素材として保有。座間特化の最適化で <b>Logistar より精度の高い配車</b> を提示します。<br>タカラ様の Logistar 契約は <b>継続不要</b>。コスト構造の見直し余地が出ます。</p>
+  </div>
+  <h2>3層プラットフォーム</h2>
+  <div class="flow">
+    <div class="node ai">① AI配車エンジン</div>
+    <div class="arr">→</div>
+    <div class="node bc">② bc-scan 現場端末</div>
+    <div class="arr">→</div>
+    <div class="node">③ 荷主向け追跡アプリ</div>
+  </div>
+  <ul>
+    <li><b>AI配車</b>: WMSデータから時間指定+周辺ルート組込+座間帰着型のルート最適化を自動生成</li>
+    <li><b>bc-scan</b>: 既に4/24時点で座間に実装済み(77台一画面、ドライバーPWA、Box日次バックアップ)</li>
+    <li><b>荷主向け追跡</b>: タカラ様のロジスティクス部・営業所が自社の荷物の進捗をリアルタイム把握</li>
+  </ul>
+  <span class="slide-no">2 / 12</span>
+</div>
+
+<!-- 3. 現状の課題 -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>現状の課題 (お聞きした範囲)</h1>
+  <table>
+    <thead><tr><th style="width:160px;">領域</th><th>現状</th><th style="width:60px;text-align:center;">→</th><th>解決ポイント</th></tr></thead>
+    <tbody>
+      <tr><td>① 配車組成</td><td>営業所→Logistar→座間 の二段階。時間指定後の周辺非指定組込が <b>属人化</b></td><td class="arrow-col">⚡</td><td>AI が両方を一気に最適化</td></tr>
+      <tr><td>② 配車配布</td><td>紙/Excel配布、号車変更時の差替えが手間</td><td class="arrow-col">⚡</td><td>個人携帯への <b>自動転送</b> + <b>QR読取</b> の2モード</td></tr>
+      <tr><td>③ 積込チェック</td><td>紙のチェックリスト、誤積防止が現場経験頼り</td><td class="arrow-col">⚡</td><td>bc-scan PWA で <b>全体スキャン</b> ・自動判定</td></tr>
+      <tr><td>④ 進捗把握</td><td>荷主側からは <b>不可視</b>。電話照会で確認</td><td class="arrow-col">⚡</td><td>専用URLでリアルタイム閲覧</td></tr>
+      <tr><td>⑤ 紙の存在</td><td>出荷案内書/配送先リスト/地図 — 大量印刷</td><td class="arrow-col">⚡</td><td>端末1台で完結、ペーパレス</td></tr>
+      <tr><td>⑥ 帰着実績</td><td>手書き集計、KPI見える化が困難</td><td class="arrow-col">⚡</td><td>bc-scan home で <b>1画面リアルタイム</b></td></tr>
+    </tbody>
+  </table>
+  <span class="slide-no">3 / 12</span>
+</div>
+
+<!-- 4. 一括請負の対象範囲 -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>一括請負の対象範囲 — 8工程</h1>
+  <table>
+    <thead><tr><th style="width:30px;">#</th><th>工程</th><th>現在</th><th>一括請負後</th><th style="width:80px;">主役</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>WMS取込</td><td>xls手動DL</td><td>API/監視取込</td><td><span class="tag tag-bcscan">bc-scan</span></td></tr>
+      <tr class="hi"><td>2</td><td><b>時間指定配車</b></td><td>Logistar</td><td><b>AI (Logistar非依存)</b></td><td><span class="tag tag-ai">AI</span></td></tr>
+      <tr class="hi"><td>3</td><td><b>周辺非指定の組込</b></td><td>人手 (属人化)</td><td><b>AIルート最適化 (座間帰着型)</b></td><td><span class="tag tag-ai">AI</span></td></tr>
+      <tr><td>4</td><td>配車→ドライバー配布</td><td>紙/Excel</td><td><b>自動転送 + QR の2モード</b></td><td><span class="tag tag-new">新規</span></td></tr>
+      <tr><td>5</td><td>積込チェック</td><td>紙</td><td>bc-scan picking PWA</td><td><span class="tag tag-bcscan">bc-scan</span></td></tr>
+      <tr class="hi"><td>6</td><td><b>配送進捗</b></td><td>不可視</td><td><b>荷主向けスマホ追跡アプリ</b></td><td><span class="tag tag-new">新規</span></td></tr>
+      <tr><td>7</td><td>出荷伝票/地図</td><td>紙PDF</td><td>自動生成・電子配布</td><td><span class="tag tag-bcscan">bc-scan</span></td></tr>
+      <tr><td>8</td><td>帰着・実績集計</td><td>手集計</td><td>bc-scan home リアルタイム</td><td><span class="tag tag-bcscan">bc-scan</span></td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:14px;font-size:13px;color:var(--mute);">※ 黄色は属人化解消・新規価値創出の中核工程</p>
+  <span class="slide-no">4 / 12</span>
+</div>
+
+<!-- 5. AI配車の差別化 -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>AI配車エンジン — Logistarより精度高い理由</h1>
+  <div class="kv-grid">
+    <div class="kv">
+      <div class="k">学習素材</div>
+      <div class="v">2026/4/16〜4/24 の WMS + 配車結果 7日分</div>
+    </div>
+    <div class="kv">
+      <div class="k">座間特化</div>
+      <div class="v">「座間帰着」をハードコードした最適化 (汎用ソフトでは出せない解)</div>
+    </div>
+    <div class="kv">
+      <div class="k">2段最適化</div>
+      <div class="v">時間指定厳守 + 周辺非指定の組込みを <b>同時に</b> 解く</div>
+    </div>
+    <div class="kv">
+      <div class="k">エンジン</div>
+      <div class="v">Gemini 2.5 Flash (大規模言語モデル) + ルールエンジン</div>
+    </div>
+    <div class="kv">
+      <div class="k">改善継続性</div>
+      <div class="v">運用しながら <b>毎日学習</b>、人間判断を継続的に取り込む</div>
+    </div>
+    <div class="kv">
+      <div class="k">人間の最終確認</div>
+      <div class="v">bc-scan配車編集モーダルで管理者がいつでも修正可</div>
+    </div>
+  </div>
+  <h2>本日(月曜)のデモでお見せできます</h2>
+  <div class="demo-box">
+    <div class="ttl">🎬 ライブデモ — 実機でその場で生成</div>
+    <span class="url">https://cohub.biz-terrace.org/takara</span>
+    <p style="font-size:12px;color:#047857;margin:6px 0 0;">受領済みの実データ7日分を投入済み。「AI配車生成」ボタンで30秒〜2分で全車の配車プランを出力します。</p>
+  </div>
+  <span class="slide-no">5 / 12</span>
+</div>
+
+<!-- 6. ドライバー配信2モード -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>ドライバー配車配信 — 2モード並走</h1>
+  <div class="kv-grid">
+    <div class="kv" style="border-color:var(--takara-blue);">
+      <div class="k">モードA: 自動転送 (推奨運用)</div>
+      <div class="v" style="font-weight:400;font-size:14px;line-height:1.7;">
+        配車組成完了 → 登録済み携帯番号宛に自動通知。<br>
+        リンクをタップで <b>本人専用 picking 画面</b> が即座に開く (トークン認証)。
+      </div>
+    </div>
+    <div class="kv" style="border-color:var(--takara-red);">
+      <div class="k">モードB: QRコード読取 (バックアップ)</div>
+      <div class="v" style="font-weight:400;font-size:14px;line-height:1.7;">
+        管理画面で号車別QR生成 → 印刷or画面提示。<br>
+        ドライバーがスマホで読取 → 同じpicking画面が開く。<br>
+        通信障害・新人初日・転送設定なし時の保険。
+      </div>
+    </div>
+  </div>
+  <h2>ドライバー画面で出来ること</h2>
+  <ul>
+    <li>配送先一覧 (時系列、時間指定🔒/希望⏰の視認)</li>
+    <li>各配送先で <b>「出発」「到着」「完了」</b> ボタン → 1タップで状態更新</li>
+    <li>進捗バー (X/Y件、◯%) で本日の達成度</li>
+    <li>全完了で「お疲れさまでした」モーダル → 帰着前の確認に</li>
+  </ul>
+  <div class="demo-box">
+    <div class="ttl">🎬 ライブデモ — QRをスキャンしてご体験ください</div>
+    <span class="url">配車QRをタブレットに表示してプレゼン中にお見せします</span>
+  </div>
+  <span class="slide-no">6 / 12</span>
+</div>
+
+<!-- 7. 荷主向け追跡アプリ -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>荷主向け 配送進捗追跡アプリ</h1>
+  <p style="font-size:16px;">
+    タカラ様のロジスティクス部・各営業所のスマホ/PCから、URL一つで自社配送の進捗を <b>リアルタイム閲覧</b> できる軽量Webアプリです。
+  </p>
+  <h2>表示する情報</h2>
+  <div class="kv-grid">
+    <div class="kv"><div class="k">📊 集計サマリ</div><div class="v" style="font-size:13px;font-weight:400;line-height:1.7;">本日の配車台数 / 配送先数 / 完了数 / 進行中数 / 完了号車数 / 稼働号車数</div></div>
+    <div class="kv"><div class="k">🚛 号車別カード</div><div class="v" style="font-size:13px;font-weight:400;line-height:1.7;">各号車の進捗バー、ドライバー名、車種、配車前/配送中/完了 のステータス</div></div>
+    <div class="kv"><div class="k">📍 ストップ単位</div><div class="v" style="font-size:13px;font-weight:400;line-height:1.7;">配送先ごとに状態ドット (未着/移動中/到着/完了)、ETA表示</div></div>
+    <div class="kv"><div class="k">🔄 自動更新</div><div class="v" style="font-size:13px;font-weight:400;line-height:1.7;">15秒ごとに自動リフレッシュ、画面開きっぱなしでLIVEモニター</div></div>
+  </div>
+  <h2>アクセス制御</h2>
+  <ul>
+    <li>荷主専用トークンURL (1荷主=1URL、URLが鍵)</li>
+    <li>タカラ様には専用URLを発行 → 自社分の配車のみ閲覧可</li>
+    <li>アプリのインストール不要、スマホブラウザで開くだけ</li>
+  </ul>
+  <div class="demo-box">
+    <div class="ttl">🎬 ライブデモ — タカラ様向けトークンを発行済</div>
+    <span class="url">https://cohub.biz-terrace.org/takara/shipper?t=takara</span>
+  </div>
+  <span class="slide-no">7 / 12</span>
+</div>
+
+<!-- 8. 検証スケジュール -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>検証・導入スケジュール</h1>
+  <h2>📅 6月集中検証 (2週間)</h2>
+  <div class="steps">
+    <div class="step"><div class="ph">PHASE 1</div><div class="when">5月後半</div><div class="what">受領済7日分でAI配車のバックテスト・プロンプトチューニング</div></div>
+    <div class="step"><div class="ph">PHASE 2</div><div class="when">6月第1〜2週</div><div class="what"><b>タカラ様 座間在社</b><br>現行Logistar vs 新AI<br>並行稼働で精度比較</div></div>
+    <div class="step"><div class="ph">PHASE 3</div><div class="when">6月第3週</div><div class="what">差分レポート提出 (時間指定遵守率/積載効率/実車率/遅延件数)</div></div>
+    <div class="step"><div class="ph">PHASE 4</div><div class="when">6月第4週</div><div class="what">改善反映 → <b>7月本格切替</b> の最終判断</div></div>
+  </div>
+  <div class="hi-box">
+    <div class="ttl">⏱ 実機は本日(月曜)時点で動作中</div>
+    <p>本提案資料の URL からその場で WMS 取込 → AI配車 → ドライバー画面 → 荷主画面 まで全フローご確認いただけます。</p>
+  </div>
+  <h2>横展開の余地</h2>
+  <ul>
+    <li>2026年下期: 三郷拠点への展開判断 (タカラ様も別途検討中とのこと)</li>
+    <li>2027年: 加須拠点・他拠点</li>
+    <li>同時にスタンダード運輸の他荷主 (スズエ電機等) でも運用、規模効果でコスト圧縮</li>
+  </ul>
+  <span class="slide-no">8 / 12</span>
+</div>
+
+<!-- 9. KPI -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>並行検証で測定するKPI</h1>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="v">2.5</div><div class="k">人日/日<br>配車組成の工数削減</div></div>
+    <div class="kpi"><div class="v">±15<sub style="font-size:14px;">分</sub></div><div class="k">時間指定 ETA 遵守<br>(±15分以内 到着率)</div></div>
+    <div class="kpi"><div class="v">▲30%</div><div class="k">空走距離<br>(座間帰着最適化の効果)</div></div>
+    <div class="kpi"><div class="v">▲50%</div><div class="k">遅延発生件数<br>(ETA超過件数)</div></div>
+    <div class="kpi"><div class="v">100%</div><div class="k">紙削減率<br>(出荷案内書/積込リスト/地図)</div></div>
+    <div class="kpi"><div class="v">+◯%</div><div class="k">才数充填率<br>(積載効率)</div></div>
+  </div>
+  <p style="font-size:13px;color:var(--mute);">※ 数字は試算値。並行検証で実数値を計測。</p>
+  <h2>金額換算 (試算)</h2>
+  <ul>
+    <li>2.5人/日 × 22営業日 × 単価 = <b>月◯◯万円のコスト圧縮</b></li>
+    <li>Logistar契約終了 → <b>月◯◯万円の固定費削減</b></li>
+    <li>ペーパレス化 → 印刷代+人件費 月◯万円</li>
+    <li>遅延削減によるクレーム対応工数削減 (定量化困難だが影響大)</li>
+  </ul>
+  <span class="slide-no">9 / 12</span>
+</div>
+
+<!-- 10. 商流 -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>商流のご提案</h1>
+  <h2>業務委託費の内訳</h2>
+  <table>
+    <thead><tr><th>区分</th><th>料金体系</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td>固定費</td><td>月額固定 ◯◯万円</td><td>システム運用・保守・ヘルプデスク</td></tr>
+      <tr><td>変動費</td><td>出荷件数連動 / または号車数連動</td><td>具体的レート別途協議</td></tr>
+      <tr><td>イニシャル</td><td>0 円</td><td>既存bc-scanベースのため初期構築費なし</td></tr>
+      <tr><td>端末</td><td>スタンダード運輸負担</td><td>ドライバー支給端末は弊社で運用・管理</td></tr>
+      <tr><td>Logistar契約</td><td>タカラ様の判断で <b>継続/縮小/終了</b></td><td>並行運用後に判断</td></tr>
+    </tbody>
+  </table>
+  <h2>契約形態</h2>
+  <ul>
+    <li>初年度: <b>業務委託契約 (年間契約)</b></li>
+    <li>SLA: 営業時間内のシステム稼働率99% / 配車生成 1営業日以内 / 障害復旧 4時間以内</li>
+    <li>解約: 90日前通知</li>
+  </ul>
+  <span class="slide-no">10 / 12</span>
+</div>
+
+<!-- 11. リスクと対応 -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>想定リスクと対応</h1>
+  <table>
+    <thead><tr><th style="width:200px;">リスク</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>AIの誤判定</td><td>bc-scan配車編集モーダルで管理者が <b>必ず最終確認・修正</b> できる導線。AI生成は「初版」、確定は人間。</td></tr>
+      <tr><td>通信障害</td><td>ドライバーPWAは <b>オフラインキュー</b> を実装済。復旧時に自動同期。QR配信はオフラインでも動く。</td></tr>
+      <tr><td>並行検証2週で精度が出ない</td><td>1週間延長 or AIチューニング期間として6月末まで延長可。<b>本格切替は精度確認後</b>。</td></tr>
+      <tr><td>個人情報・配送先データ</td><td>座間内クローズド+Box暗号化バックアップ。タカラ様データはタカラ様専用トークンで分離。</td></tr>
+      <tr><td>位置情報の精度</td><td>ドライバー協力前提、許諾フローを丁寧に。位置情報なしでも進捗追跡は機能する設計。</td></tr>
+      <tr><td>三郷等への横展開</td><td>Phase4で別途設計。本提案は座間スコープに限定。</td></tr>
+    </tbody>
+  </table>
+  <span class="slide-no">11 / 12</span>
+</div>
+
+<!-- 12. クロージング -->
+<div class="slide">
+  <span class="brand">スタンダード運輸 → タカラスタンダード様</span>
+  <h1>本日 (月曜) からの動き</h1>
+  <h2>✅ 既に動いているもの</h2>
+  <ul>
+    <li>📥 WMS取込 (受領済み7日分すべて)</li>
+    <li>🤖 AI配車生成 (Gemini 2.5 Flash)</li>
+    <li>📱 ドライバー画面 (QRトークン認証付き)</li>
+    <li>📦 荷主向け追跡画面 (タカラ様トークン発行済)</li>
+    <li>🔐 入室ロック・進捗同期 (CoHub基盤と接続)</li>
+  </ul>
+  <h2>⏭ 来月までに仕上げるもの</h2>
+  <ul>
+    <li>🔁 配車→個人携帯への自動転送 (LINE/SMS の選択)</li>
+    <li>🗺 ドライバー画面に地図ナビ統合</li>
+    <li>📊 並行検証用の差分レポートツール</li>
+    <li>🔍 AIプロンプトの精度チューニング (受領7日分でバックテスト)</li>
+  </ul>
+  <div class="hi-box">
+    <div class="ttl">🤝 ご検討いただきたいこと</div>
+    <p>① 6月並行検証のご了承 (タカラ様 座間在社 2週間)<br>
+    ② 業務委託費の方向性 (固定+変動の比率)<br>
+    ③ 三郷拠点への横展開タイミング</p>
+  </div>
+  <p style="text-align:right;margin-top:30px;font-size:14px;">
+    株式会社スタンダード運輸<br>
+    代表取締役 小林 猛<br>
+    su.t.kobayashi@gmail.com
+  </p>
+  <span class="slide-no">12 / 12</span>
+</div>
+
+</div>
+</body>
+</html>

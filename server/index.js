@@ -272,6 +272,7 @@ app.use('/api/help', require('./routes/help'));
 app.use('/api/timecard', require('./routes/timecard'));
 app.use('/api/meeting', require('./routes/meeting'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
+app.use('/api/takara', require('./routes/takara_demo'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -548,6 +549,10 @@ app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
 app.get('/meeting-archive', (req, res) => sendHtmlNoCache(res, 'meeting-archive.html'));
 app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.html'));
 app.get('/ops-literacy', (req, res) => sendHtmlNoCache(res, 'ops-literacy.html'));
+app.get('/takara', (req, res) => sendHtmlNoCache(res, 'takara/admin.html'));
+app.get('/takara/driver', (req, res) => sendHtmlNoCache(res, 'takara/driver.html'));
+app.get('/takara/shipper', (req, res) => sendHtmlNoCache(res, 'takara/shipper.html'));
+app.get('/takara/proposal', (req, res) => sendHtmlNoCache(res, 'takara/proposal.html'));
 app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
 app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
 app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));

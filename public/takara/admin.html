@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🚛 タカラ一括請負 管理画面</title>
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #fff; --border: #e2e8f0;
+  --accent: #1d4ed8; --accent-d: #1e3a8a;
+  --warn: #f59e0b; --danger: #ef4444; --ok: #10b981;
+  --takara-red: #dc2626; --takara-blue: #1e40af;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 15px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--takara-blue), #1e3a8a); color: #fff; padding: 12px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.hd a.back { color: #fff; text-decoration: none; padding: 6px 10px; background: rgba(255,255,255,0.18); border-radius: 6px; font-size: 13px; }
+.hd .title { flex: 1; font-weight: 800; font-size: 17px; letter-spacing: 1px; }
+.hd .sub { font-size: 11px; opacity: 0.85; }
+
+.body { padding: 18px; max-width: 1280px; margin: 0 auto; }
+
+.step-bar { display: flex; gap: 8px; margin-bottom: 18px; }
+.step { flex: 1; padding: 10px 14px; background: #fff; border: 2px solid var(--border); border-radius: 10px; font-size: 13px; text-align: center; cursor: pointer; }
+.step.active { border-color: var(--accent); background: #eef2ff; color: var(--accent-d); font-weight: 700; }
+.step .num { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--mute); color: #fff; line-height: 22px; font-weight: 800; font-size: 11px; margin-right: 6px; }
+.step.active .num { background: var(--accent); }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.card h2 { margin: 0 0 12px; font-size: 15px; }
+.card .help { font-size: 12px; color: var(--mute); line-height: 1.6; margin-bottom: 12px; }
+
+.uploader {
+  border: 2px dashed #c7d2fe; background: #eef2ff; border-radius: 10px;
+  padding: 24px; text-align: center; cursor: pointer; transition: all 0.15s;
+}
+.uploader:hover { background: #e0e7ff; border-color: var(--accent); }
+.uploader input { display: none; }
+.uploader .ic { font-size: 32px; }
+.uploader .lbl { font-size: 13px; color: var(--accent-d); font-weight: 700; margin-top: 6px; }
+.uploader .hint { font-size: 11px; color: var(--mute); margin-top: 4px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-d); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ok { background: var(--ok); color: #fff; }
+.btn-ghost { background: #f1f5f9; color: var(--fg); }
+
+.dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 8px; }
+.date-card {
+  background: #fff; border: 2px solid var(--border); border-radius: 8px;
+  padding: 10px; cursor: pointer; text-align: center; font-size: 12px;
+}
+.date-card.selected { background: #eef2ff; border-color: var(--accent); }
+.date-card .d { font-size: 16px; font-weight: 800; color: var(--accent-d); }
+.date-card .meta { color: var(--mute); margin-top: 2px; }
+
+.gen-bar {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b; border-radius: 12px;
+  padding: 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+}
+.gen-bar .ic { font-size: 36px; }
+.gen-bar .body { flex: 1; }
+.gen-bar .ttl { font-weight: 800; font-size: 15px; color: #78350f; margin-bottom: 4px; }
+.gen-bar .desc { font-size: 12px; color: #92400e; line-height: 1.6; }
+.gen-bar .btn { background: #d97706; }
+.gen-bar .btn:hover { background: #b45309; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.summary .item { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.summary .item .k { font-size: 10px; color: var(--mute); }
+.summary .item .v { font-size: 18px; font-weight: 800; color: var(--accent-d); }
+
+.veh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 12px; }
+.veh-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+}
+.veh-card .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.veh-card .veh-no { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 14px; }
+.veh-card .vt { color: var(--mute); font-size: 11px; }
+.veh-card .stats { display: flex; gap: 8px; font-size: 11px; color: var(--mute); margin-bottom: 8px; }
+.veh-card .stops { font-size: 12px; line-height: 1.5; max-height: 240px; overflow-y: auto; }
+.veh-card .stop { padding: 4px 6px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; }
+.veh-card .stop .seq { color: var(--mute); width: 18px; text-align: right; flex-shrink: 0; }
+.veh-card .stop .site { flex: 1; }
+.veh-card .stop .eta { font-family: ui-monospace, monospace; color: var(--accent-d); }
+.veh-card .stop .ts-hard { background: #fee2e2; color: var(--danger); padding: 0 4px; border-radius: 3px; font-size: 9px; font-weight: 700; }
+.veh-card .stop .ts-soft { background: #fef3c7; color: #92400e; padding: 0 4px; border-radius: 3px; font-size: 9px; font-weight: 700; }
+.veh-card .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.veh-card .actions button { font-size: 11px; padding: 5px 10px; }
+.veh-card input.driver-input { width: 100%; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; margin-bottom: 4px; }
+
+.qr-modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.qr-modal-bg.show { display: flex; }
+.qr-modal { background: #fff; border-radius: 14px; padding: 24px; max-width: 400px; text-align: center; }
+.qr-modal h2 { margin: 0 0 8px; font-size: 18px; }
+.qr-modal .sub { color: var(--mute); font-size: 12px; margin-bottom: 14px; }
+.qr-modal canvas, .qr-modal img { max-width: 280px; border: 4px solid #fff; box-shadow: 0 0 0 1px var(--border); }
+.qr-modal .url { font-family: ui-monospace, monospace; font-size: 11px; color: var(--mute); margin-top: 10px; word-break: break-all; }
+.qr-modal .close { display: block; width: 100%; margin-top: 14px; padding: 10px; background: #1e293b; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.toast.err { background: var(--danger); }
+
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="hd">
+  <a href="/home" class="back">← CoWell</a>
+  <div>
+    <div class="title">🚛 タカラスタンダード 一括請負プロトタイプ</div>
+    <div class="sub">WMS取込 → AI配車生成 → ドライバー配信 → 荷主追跡</div>
+  </div>
+  <a href="/takara/proposal" class="back">📊 提案資料</a>
+</div>
+
+<div class="body">
+
+  <div class="card">
+    <h2>① WMSデータ取込</h2>
+    <div class="help">座間積替の出荷形態 <code>4C</code> のWMSデータ (DataManagementSearch *.xls) をアップロードします。同日のデータは上書きされます。</div>
+    <label class="uploader" for="wms-file">
+      <input type="file" id="wms-file" accept=".xls,.xlsx" onchange="uploadWms(event)">
+      <div class="ic">📥</div>
+      <div class="lbl">WMS xls をアップロード</div>
+      <div class="hint">12列フォーマット (積込日/倉庫CD/出荷形態/実号車/手配NO/現場名/品名CD/品名/数量/才数/出庫倉庫/積替元号車)</div>
+    </label>
+    <div style="margin-top:10px;">
+      <div class="help" style="margin-bottom:6px;">▼ 配車結果(教師データ)も任意で取込 → AI配車のヒント(住所・時間指定実績)に使われます</div>
+      <label class="uploader" for="dispatch-file" style="background:#fff7ed;border-color:#fdba74;">
+        <input type="file" id="dispatch-file" accept=".xls,.xlsx" onchange="uploadDispatch(event)">
+        <div class="ic">📑</div>
+        <div class="lbl" style="color:#9a3412;">配車結果xlsx をアップロード (任意)</div>
+      </label>
+    </div>
+    <div id="dates-block" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="gen-bar" id="gen-bar" style="display:none;">
+    <div class="ic">🤖</div>
+    <div class="body">
+      <div class="ttl">AI配車生成 (Gemini 2.5 Flash)</div>
+      <div class="desc">時間指定厳守 + 周辺ルート組込 + 座間帰着 の制約で号車別配車を自動生成します。<br>30秒〜2分かかります。</div>
+    </div>
+    <button class="btn btn-primary" id="gen-btn" onclick="generatePlan()">🚀 AI配車生成</button>
+  </div>
+
+  <div id="plan-block" style="display:none;">
+    <div class="card">
+      <h2 id="plan-title">📋 配車プラン</h2>
+      <div class="summary" id="plan-summary"></div>
+      <div class="veh-grid" id="veh-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="qr-modal-bg" id="qr-modal-bg" onclick="if(event.target.id==='qr-modal-bg') closeQr()">
+  <div class="qr-modal">
+    <h2 id="qr-title">配車QRコード</h2>
+    <div class="sub" id="qr-sub"></div>
+    <div id="qr-canvas-wrap"></div>
+    <div class="url" id="qr-url"></div>
+    <button class="close" onclick="closeQr()">閉じる</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- QR生成 (qrcode-svg ベース、ライブラリなしでSVG生成) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let selectedDate = null;
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.replace('/'); return null; }
+  return r.json();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), ms || 2400);
+}
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) { location.replace('/'); return; }
+  me = r.user;
+  if (me.role !== 'admin' && me.employee_type !== 'admin') {
+    document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#dc2626;font-size:18px;">管理者権限が必要です</div>';
+    return;
+  }
+  await loadDates();
+}
+
+async function loadDates() {
+  const r = await api('/api/takara/dates');
+  if (!r || !r.success) return;
+  const block = document.getElementById('dates-block');
+  if (!r.dates.length) {
+    block.innerHTML = '<div style="color:var(--mute);font-size:12px;">取込済みデータがありません。WMS xls をアップロードしてください。</div>';
+    return;
+  }
+  block.innerHTML = '<div style="font-weight:700;font-size:13px;margin-bottom:8px;">📅 取込済み日付 (タップで選択)</div><div class="dates">' +
+    r.dates.map(d => {
+      const yy = d.load_date.slice(0,4), mm = d.load_date.slice(4,6), dd = d.load_date.slice(6,8);
+      return `<div class="date-card ${selectedDate === d.load_date ? 'selected' : ''}" onclick="selectDate('${d.load_date}')">
+        <div class="d">${mm}/${dd}</div>
+        <div class="meta">${d.site_count}現場 / ${(d.total_sai||0).toFixed(0)}才</div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+async function selectDate(ld) {
+  selectedDate = ld;
+  await loadDates();
+  document.getElementById('gen-bar').style.display = 'flex';
+  await loadPlan(ld);
+}
+
+async function uploadWms(e) {
+  const f = e.target.files[0]; if (!f) return;
+  showToast('取込中…');
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch('/api/takara/import-wms', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+  const j = await r.json();
+  if (j.success) {
+    showToast(`✅ ${j.row_count}行取込 (${j.load_date})`);
+    selectedDate = j.load_date;
+    await loadDates();
+    document.getElementById('gen-bar').style.display = 'flex';
+    await loadPlan(j.load_date);
+  } else showToast('❌ ' + j.msg, 4000, true);
+  e.target.value = '';
+}
+
+async function uploadDispatch(e) {
+  const f = e.target.files[0]; if (!f) return;
+  showToast('教師データ取込中…');
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch('/api/takara/import-dispatch', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+  const j = await r.json();
+  if (j.success) showToast(`✅ ${j.row_count}行取込 (教師データ ${j.load_date})`);
+  else showToast('❌ ' + j.msg, 4000, true);
+  e.target.value = '';
+}
+
+async function generatePlan() {
+  if (!selectedDate) return;
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> AI処理中…';
+  showToast('🤖 AIが配車組成中…(30秒〜2分)', 6000);
+  try {
+    const r = await api('/api/takara/generate-dispatch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ load_date: selectedDate }),
+    });
+    if (r.success) {
+      showToast(`✅ ${r.vehicle_count}台分の配車を生成`);
+      await loadPlan(selectedDate);
+    } else showToast('❌ ' + r.msg, 5000, true);
+  } catch (e) { showToast('❌ ' + e.message, 5000, true); }
+  btn.disabled = false; btn.innerHTML = '🚀 AI配車生成';
+}
+
+async function loadPlan(ld) {
+  const r = await api('/api/takara/plan/' + ld);
+  if (!r || !r.success) return;
+  const block = document.getElementById('plan-block');
+  if (!r.vehicles.length) { block.style.display = 'none'; return; }
+  block.style.display = '';
+  document.getElementById('plan-title').textContent = '📋 ' + ld.slice(0,4) + '/' + ld.slice(4,6) + '/' + ld.slice(6,8) + ' 配車プラン';
+  // サマリ
+  const totalStops = r.vehicles.reduce((a, v) => a + v.stops.length, 0);
+  const totalSai = r.vehicles.reduce((a, v) => a + v.total_sai, 0);
+  const hardCount = r.vehicles.reduce((a, v) => a + v.stops.filter(s => s.time_spec === 'hard').length, 0);
+  const softCount = r.vehicles.reduce((a, v) => a + v.stops.filter(s => s.time_spec === 'soft').length, 0);
+  document.getElementById('plan-summary').innerHTML = `
+    <div class="item"><div class="k">号車数</div><div class="v">${r.vehicles.length}</div></div>
+    <div class="item"><div class="k">配送先</div><div class="v">${totalStops}</div></div>
+    <div class="item"><div class="k">合計才数</div><div class="v">${totalSai.toFixed(0)}</div></div>
+    <div class="item"><div class="k">時間指定🔒</div><div class="v" style="color:#dc2626;">${hardCount}</div></div>
+    <div class="item"><div class="k">時間希望⏰</div><div class="v" style="color:#d97706;">${softCount}</div></div>`;
+  // 号車カード
+  document.getElementById('veh-grid').innerHTML = r.vehicles.map(v => {
+    const tokenForVeh = v.driver_token || '';
+    const driverUrl = location.origin + '/takara/driver?t=' + tokenForVeh;
+    return `<div class="veh-card" data-veh="${escapeHtml(v.vehicle_no)}">
+      <div class="head">
+        <div class="veh-no">${escapeHtml(v.vehicle_no)}</div>
+        <div style="flex:1;">
+          <div class="vt">${escapeHtml(v.vehicle_type || '車種未設定')}</div>
+        </div>
+      </div>
+      <input class="driver-input" placeholder="ドライバー名 (任意)" value="${escapeHtml(v.driver_name || '')}" onchange="saveMeta('${escapeHtml(ld)}','${escapeHtml(v.vehicle_no)}','driver_name', this.value)">
+      <input class="driver-input" placeholder="電話番号 (任意・自動転送用)" value="${escapeHtml(v.driver_phone || '')}" onchange="saveMeta('${escapeHtml(ld)}','${escapeHtml(v.vehicle_no)}','driver_phone', this.value)">
+      <div class="stats">
+        🛒 ${v.stops.length}件 / 📏 ${v.total_sai.toFixed(0)}才 / 📦 ${v.total_qty.toFixed(0)}個
+      </div>
+      <div class="stops">
+        ${v.stops.map(s => `<div class="stop">
+          <span class="seq">${s.sequence || ''}</span>
+          <span class="site">${escapeHtml(s.site_name || '')}</span>
+          ${s.time_spec === 'hard' ? '<span class="ts-hard">🔒指定</span>' : (s.time_spec === 'soft' ? '<span class="ts-soft">⏰希望</span>' : '')}
+          <span class="eta">${escapeHtml(s.eta || '')}</span>
+        </div>`).join('')}
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="showQr('${escapeHtml(v.vehicle_no)}','${tokenForVeh}','${escapeHtml(driverUrl)}')">📱 配車QR</button>
+        <a class="btn btn-ghost" href="${driverUrl}" target="_blank">▶️ ドライバー画面</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveMeta(ld, veh, field, val) {
+  const body = {}; body[field] = val;
+  await api('/api/takara/meta/' + ld + '/' + veh, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+function showQr(vehNo, token, url) {
+  document.getElementById('qr-title').textContent = '🚛 号車 ' + vehNo + ' 配車QR';
+  document.getElementById('qr-sub').textContent = 'ドライバーがスマホで読取 → 配車画面へ';
+  document.getElementById('qr-url').textContent = url;
+  const wrap = document.getElementById('qr-canvas-wrap');
+  wrap.innerHTML = '<canvas id="qr-canvas"></canvas>';
+  QRCode.toCanvas(document.getElementById('qr-canvas'), url, { width: 280, margin: 2 }, (err) => {
+    if (err) console.error(err);
+  });
+  document.getElementById('qr-modal-bg').classList.add('show');
+}
+function closeQr() { document.getElementById('qr-modal-bg').classList.remove('show'); }
+
+init();
+</script>
+</body>
+</html>
