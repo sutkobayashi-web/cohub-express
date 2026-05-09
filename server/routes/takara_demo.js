@@ -11,6 +11,7 @@ const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const { generateText } = require('../services/ai');
+const { generateTextClaude } = require('../services/ai_claude');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -224,8 +225,9 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
   sites = expandedSites;
 
   // ジョブ起票
+  const requestProvider = String((req.body && req.body.provider) || 'gemini').trim();
   const jobId = db.prepare(`INSERT INTO td_dispatch_jobs (load_date, status, request_summary, created_by) VALUES (?, 'running', ?, ?)`)
-    .run(ld, JSON.stringify({ site_count: sites.length, total_sai: sites.reduce((a, s) => a + (s.sai || 0), 0) }), req.uid).lastInsertRowid;
+    .run(ld, JSON.stringify({ site_count: sites.length, total_sai: sites.reduce((a, s) => a + (s.sai || 0), 0), provider: requestProvider }), req.uid).lastInsertRowid;
 
   try {
     // 過去履歴から「実号車番号」と「実車種」を取得 (AIに投入する実号車プール)
@@ -345,12 +347,59 @@ ${siteListLines}
 4. 全${sites.length}件のWMS現場が必ずどこかの号車に含まれる
 5. 時間指定厳守(🔒)はETA順`;
 
-    const out = await generateText(prompt, {
-      model: 'gemini-2.5-flash',
-      temperature: 0.3,
-      maxTokens: 60000,
-      responseMimeType: 'application/json',
-    });
+    // provider切替: 'gemini' (default) | 'claude-haiku' | 'claude-sonnet' | 'claude-opus' | 'hybrid'
+    const provider = String((req.body && req.body.provider) || 'gemini').trim();
+    const claudeModelMap = {
+      'claude-haiku': 'claude-haiku-4-5-20251001',
+      'claude-sonnet': 'claude-sonnet-4-6',
+      'claude-opus': 'claude-opus-4-7',
+    };
+    let out;
+    if (provider in claudeModelMap) {
+      out = await generateTextClaude(prompt, {
+        model: claudeModelMap[provider],
+        temperature: 0.3,
+        maxTokens: 32000,
+        responseMimeType: 'application/json',
+      });
+    } else if (provider === 'hybrid') {
+      // Geminiが第一案、Claude Sonnetで才数検証+補正
+      const first = await generateText(prompt, {
+        model: 'gemini-2.5-flash',
+        temperature: 0.3,
+        maxTokens: 60000,
+        responseMimeType: 'application/json',
+      });
+      const verifyPrompt = `以下はAIが組成した配車プランJSONです。
+このプランを検証し、才数オーバー(車種上限超え)や(n)つき大型現場の取り違えがあれば修正してください。
+
+【車種容量上限】
+- 軽ﾊﾞﾝ ≤ 30才, ハイエース ≤ 80才
+- 2tｽﾘﾑ ≤ 150才, 2tｼｮｰﾄ ≤ 180才
+- 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ ≤ 200才, 2t ≤ 250才
+- 2t平ﾎﾞﾃﾞｨ ≤ 280才, 2ワイド ≤ 280才
+
+【入力プラン】
+${first}
+
+【検証手順】
+1. 各号車の sai合計 を計算 → 上限超過なら同方面で別号車に分割
+2. 軽ﾊﾞﾝ・ハイエース が1台以上含まれているか確認、不足なら 30才以下/80才以下の現場を抽出して割当
+3. 修正済みプランを **同じJSONフォーマット** で返す (それ以外何も書かない)`;
+      out = await generateTextClaude(verifyPrompt, {
+        model: 'claude-sonnet-4-6',
+        temperature: 0.2,
+        maxTokens: 32000,
+        responseMimeType: 'application/json',
+      });
+    } else {
+      out = await generateText(prompt, {
+        model: 'gemini-2.5-flash',
+        temperature: 0.3,
+        maxTokens: 60000,
+        responseMimeType: 'application/json',
+      });
+    }
 
     let plan;
     try { plan = JSON.parse(out); } catch (e) {
@@ -436,7 +485,7 @@ ${siteListLines}
     tx();
     db.prepare(`UPDATE td_dispatch_jobs SET status = 'success', finished_at = datetime('now'), response_raw = ? WHERE id = ?`)
       .run(out.slice(0, 8000), jobId);
-    res.json({ success: true, job_id: jobId, summary: plan.summary || '', vehicle_count: (plan.vehicles || []).length });
+    res.json({ success: true, job_id: jobId, summary: plan.summary || '', vehicle_count: (plan.vehicles || []).length, provider: requestProvider });
   } catch (e) {
     db.prepare(`UPDATE td_dispatch_jobs SET status = 'failed', finished_at = datetime('now'), error_msg = ? WHERE id = ?`)
       .run(e.message.slice(0, 500), jobId);

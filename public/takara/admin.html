@@ -148,8 +148,18 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   <div class="gen-bar" id="gen-bar" style="display:none;">
     <div class="ic">🤖</div>
     <div class="body">
-      <div class="ttl">AI配車生成 (Gemini 2.5 Flash)</div>
-      <div class="desc">時間指定厳守 + 周辺ルート組込 + 座間帰着 の制約で号車別配車を自動生成します。<br>30秒〜2分かかります。</div>
+      <div class="ttl">AI配車生成</div>
+      <div class="desc">時間指定厳守 + 周辺ルート組込 + 座間帰着 + GHG最適化で号車別配車を自動生成。<br>30秒〜2分かかります。</div>
+      <div style="margin-top:8px;font-size:12px;color:#92400e;">
+        AIモデル:
+        <select id="ai-provider" style="font-size:13px;padding:4px 8px;border-radius:4px;border:1px solid #fdba74;">
+          <option value="gemini">Gemini 2.5 Flash (約0.7円/回・高速)</option>
+          <option value="claude-haiku">Claude Haiku 4.5 (約12円/回)</option>
+          <option value="claude-sonnet">Claude Sonnet 4.6 (約38円/回・推奨)</option>
+          <option value="claude-opus">Claude Opus 4.7 (約190円/回・最高品質)</option>
+          <option value="hybrid">ハイブリッド (Gemini→Claude検証 約40円/回)</option>
+        </select>
+      </div>
     </div>
     <button class="btn btn-primary" id="gen-btn" onclick="generatePlan()">🚀 AI配車生成</button>
   </div>
@@ -263,17 +273,18 @@ async function uploadDispatch(e) {
 
 async function generatePlan() {
   if (!selectedDate) return;
+  const provider = document.getElementById('ai-provider').value;
   const btn = document.getElementById('gen-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> AI処理中…';
-  showToast('🤖 AIが配車組成中…(30秒〜2分)', 6000);
+  showToast(`🤖 ${provider} で配車組成中…(30秒〜2分)`, 6000);
   try {
     const r = await api('/api/takara/generate-dispatch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ load_date: selectedDate }),
+      body: JSON.stringify({ load_date: selectedDate, provider }),
     });
     if (r.success) {
-      showToast(`✅ ${r.vehicle_count}台分の配車を生成`);
+      showToast(`✅ ${r.vehicle_count}台分の配車を生成 (${r.provider})`);
       await loadPlan(selectedDate);
     } else showToast('❌ ' + r.msg, 5000, true);
   } catch (e) { showToast('❌ ' + e.message, 5000, true); }

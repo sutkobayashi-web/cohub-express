@@ -5,9 +5,12 @@ const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 const { getDb } = require('../services/db');
 const { generateText } = require('../services/ai');
+const { generateTextClaude } = require('../services/ai_claude');
 
 const ld = process.argv[2];
-if (!/^\d{8}$/.test(ld || '')) { console.error('Usage: node td_run_dispatch.js YYYYMMDD'); process.exit(1); }
+const provider = process.argv[3] || 'gemini';  // gemini | claude-haiku | claude-sonnet | claude-opus | hybrid
+if (!/^\d{8}$/.test(ld || '')) { console.error('Usage: node td_run_dispatch.js YYYYMMDD [provider]'); process.exit(1); }
+console.log('provider:', provider);
 
 const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 const gen8 = () => crypto.randomBytes(6).toString('base64url');
@@ -156,13 +159,46 @@ ${siteListLines}
   "summary": "号車数X台、平均◯ストップ、座間帰着前提で計画"
 }`;
 
-  console.log('Geminiに問い合わせ中...');
-  const out = await generateText(prompt, {
-    model: 'gemini-2.5-flash',
-    temperature: 0.3,
-    maxTokens: 60000,
-    responseMimeType: 'application/json',
-  });
+  const claudeModelMap = {
+    'claude-haiku': 'claude-haiku-4-5-20251001',
+    'claude-sonnet': 'claude-sonnet-4-6',
+    'claude-opus': 'claude-opus-4-7',
+  };
+  let out;
+  console.log(`AI問い合わせ中... (provider=${provider})`);
+  if (provider in claudeModelMap) {
+    out = await generateTextClaude(prompt, {
+      model: claudeModelMap[provider],
+      temperature: 0.3,
+      maxTokens: 32000,
+      responseMimeType: 'application/json',
+    });
+  } else if (provider === 'hybrid') {
+    console.log('  Phase1: Gemini第一案...');
+    const first = await generateText(prompt, {
+      model: 'gemini-2.5-flash', temperature: 0.3, maxTokens: 60000, responseMimeType: 'application/json',
+    });
+    console.log('  Phase2: Claude Sonnetで才数検証...');
+    const verifyPrompt = `以下はAIが組成した配車プランJSONです。検証し、才数オーバー(車種上限超え)があれば修正してください。
+
+【車種容量上限】
+- 軽ﾊﾞﾝ ≤ 30才, ハイエース ≤ 80才, 2tｽﾘﾑ ≤ 150才, 2tｼｮｰﾄ ≤ 180才
+- 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ ≤ 200才, 2t ≤ 250才, 2t平ﾎﾞﾃﾞｨ ≤ 280才, 2ワイド ≤ 280才
+
+【入力プラン】
+${first}
+
+各号車の sai合計 を計算 → 上限超過なら同方面で別号車に分割。
+軽ﾊﾞﾝ・ハイエース が1台以上含まれているか確認、不足なら 30才以下/80才以下の現場を抽出して割当。
+修正済みプランを **同じJSONフォーマット** で返してください (それ以外何も書かない)。`;
+    out = await generateTextClaude(verifyPrompt, {
+      model: 'claude-sonnet-4-6', temperature: 0.2, maxTokens: 32000, responseMimeType: 'application/json',
+    });
+  } else {
+    out = await generateText(prompt, {
+      model: 'gemini-2.5-flash', temperature: 0.3, maxTokens: 60000, responseMimeType: 'application/json',
+    });
+  }
   let plan;
   try { plan = JSON.parse(out); }
   catch (e) { console.error('JSON parse error:', out.slice(0, 200)); process.exit(1); }
