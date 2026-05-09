@@ -33,6 +33,18 @@ function getDb() {
   // 職種 (driver/warehouse/office/construction/manufacturing) — enroll登録時の細分化 (2026-05-08)
   // employee_type(office/field/admin) は権限軸として温存し、職種は別軸で管理
   ensureColumn(_db, 'users', 'job_role', 'job_role TEXT');
+  // ヘルスリテラシー調査 (2026-05-09): 西村さん依頼。CCHL 5項目4段階尺度
+  // q1〜q5 は 1=全くできない / 2=あまりできない / 3=どちらともいえない / 4=とてもそう思う
+  _db.exec(`CREATE TABLE IF NOT EXISTS health_literacy (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    q1 INTEGER, q2 INTEGER, q3 INTEGER, q4 INTEGER, q5 INTEGER,
+    total INTEGER,
+    avg_score REAL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_hl_user_at ON health_literacy(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_hl_at ON health_literacy(created_at DESC);`);
   // ミーティング履歴 (2026-05-09): ZOOM風シンプル会議+AI議事録
   _db.exec(`CREATE TABLE IF NOT EXISTS meetings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

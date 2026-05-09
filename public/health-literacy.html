@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📊 ヘルスリテラシー調査</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #fff; --border: #e2e8f0;
+  --accent: #0d9488; --accent-d: #0f766e;
+  --warn: #f59e0b; --danger: #ef4444; --ok: #10b981;
+  --chip: #f1f5f9; --chip-on: #ccfbf1; --chip-on-fg: #115e59;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.hd a.back { color: #fff; text-decoration: none; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.16); font-weight: 600; }
+.hd .title { flex: 1; font-weight: 700; font-size: 16px; }
+
+.body { padding: 16px; max-width: 720px; margin: 0 auto; }
+.intro {
+  background: linear-gradient(135deg, #f0fdfa, #ecfeff);
+  border: 1px solid #99f6e4; border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 18px;
+  color: #134e4a; font-size: 13px; line-height: 1.7;
+}
+.intro b { color: var(--accent-d); }
+.note { color: var(--mute); font-size: 11px; margin-top: 6px; line-height: 1.5; }
+
+.previous {
+  background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 18px;
+  color: #92400e; font-size: 13px; line-height: 1.6;
+}
+.previous b { color: #78350f; }
+
+.q-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; margin-bottom: 14px;
+}
+.q-num {
+  display: inline-block; background: var(--accent); color: #fff;
+  border-radius: 50%; width: 26px; height: 26px;
+  text-align: center; line-height: 26px; font-weight: 800;
+  font-size: 13px; margin-right: 8px;
+}
+.q-text { font-size: 14px; line-height: 1.7; font-weight: 600; margin-bottom: 12px; }
+.q-text .num-wrap { display: inline-flex; align-items: center; }
+
+.scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.scale-opt {
+  background: var(--chip); border: 2px solid var(--border); border-radius: 10px;
+  padding: 10px 6px; text-align: center; cursor: pointer; user-select: none;
+  font-size: 12px; line-height: 1.4; transition: all 0.12s;
+  color: #475569;
+}
+.scale-opt .v { font-size: 18px; font-weight: 800; color: var(--mute); margin-bottom: 4px; display: block; }
+.scale-opt:hover { border-color: var(--accent); }
+.scale-opt.on { background: var(--chip-on); border-color: var(--accent); color: var(--chip-on-fg); font-weight: 700; }
+.scale-opt.on .v { color: var(--accent-d); }
+
+.foot {
+  position: sticky; bottom: 0; background: linear-gradient(180deg, transparent, var(--bg) 25%);
+  padding-top: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 10px;
+}
+.btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-cancel { background: #e2e8f0; color: var(--fg); }
+.btn-submit { background: var(--accent); color: #fff; box-shadow: 0 4px 10px rgba(13,148,136,0.3); }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 9500; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+/* 結果モーダル */
+.result-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.result-bg.show { display: flex; }
+.result {
+  background: #fff; border-radius: 16px; padding: 24px;
+  max-width: 460px; width: 100%; text-align: center;
+}
+.result h2 { margin: 0 0 8px; color: var(--ok); font-size: 22px; }
+.result .score-big {
+  background: linear-gradient(135deg, #f0fdfa, #ccfbf1);
+  border: 2px solid #5eead4; border-radius: 12px;
+  padding: 22px; margin: 16px 0;
+}
+.result .score-big .num { font-size: 48px; font-weight: 800; color: var(--accent-d); line-height: 1; }
+.result .score-big .denom { color: var(--mute); font-size: 16px; margin-top: 6px; }
+.result .interp { color: var(--mute); font-size: 13px; line-height: 1.7; margin-bottom: 14px; }
+.result .close { display: block; width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+@media (max-width: 600px) {
+  .scale-opt { padding: 8px 4px; font-size: 11px; }
+  .scale-opt .v { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="hd">
+  <a href="/home" class="back">←</a>
+  <div class="title">📊 ヘルスリテラシー調査</div>
+</div>
+<div class="body">
+  <div class="intro">
+    <b>アンケートご協力のお願い</b><br>
+    本アンケートは、健康づくり活動の評価および今後の改善を目的として実施するものです。<br>
+    回答は自由意思によるものであり、回答しない場合でも不利益は一切ありません。
+    <div class="note">※ 帝京大学公衆衛生学研究科 西村さん監修 / CCHL尺度 (5項目4段階)</div>
+  </div>
+
+  <div class="previous" id="prev-block" style="display:none;"></div>
+
+  <div id="q-list"></div>
+
+  <div class="foot">
+    <a class="btn btn-cancel" href="/home" style="text-align:center;text-decoration:none;line-height:1;display:flex;align-items:center;justify-content:center;">戻る</a>
+    <button class="btn btn-submit" id="submit-btn" onclick="submit()" disabled>回答を送信</button>
+  </div>
+</div>
+
+<div class="result-bg" id="result-bg">
+  <div class="result">
+    <h2>✅ ご回答ありがとうございました</h2>
+    <div class="score-big">
+      <div class="num" id="r-score">0.0</div>
+      <div class="denom">/ 4.0 点 (5問平均)</div>
+    </div>
+    <div class="interp" id="r-interp"></div>
+    <button class="close" onclick="location.replace('/home')">閉じる</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let questions = [];
+let scale = [];
+let answers = [null, null, null, null, null];
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.replace('/'); return null; }
+  return r.json();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms || 2000);
+}
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const meR = await api('/api/auth/me');
+  if (!meR || !meR.success) { location.replace('/'); return; }
+  me = meR.user;
+  const m = await api('/api/health-literacy/meta');
+  if (!m || !m.success) return;
+  questions = m.questions; scale = m.scale;
+  renderQuestions();
+  // 過去の回答チェック
+  const latest = await api('/api/health-literacy/latest');
+  if (latest && latest.success && latest.latest) {
+    const d = latest.latest;
+    const dt = d.created_at ? new Date(d.created_at + (d.created_at.endsWith('Z')?'':'Z')).toLocaleDateString('ja-JP') : '-';
+    document.getElementById('prev-block').style.display = '';
+    document.getElementById('prev-block').innerHTML =
+      `📅 前回回答: <b>${dt}</b> (5問平均 ${(d.avg_score || 0).toFixed(2)} 点)<br>
+       経年変化を見るため、再度ご回答いただけます。`;
+  }
+}
+
+function renderQuestions() {
+  const el = document.getElementById('q-list');
+  el.innerHTML = questions.map((q, i) => {
+    const opts = scale.map(s =>
+      `<div class="scale-opt" data-q="${i}" data-v="${s.v}" onclick="pick(${i}, ${s.v})">
+        <span class="v">${s.v}</span>${escapeHtml(s.label)}
+      </div>`
+    ).join('');
+    return `<div class="q-card">
+      <div class="q-text"><span class="q-num">${i+1}</span>${escapeHtml(q)}</div>
+      <div class="scale">${opts}</div>
+    </div>`;
+  }).join('');
+}
+
+function pick(qi, v) {
+  answers[qi] = v;
+  document.querySelectorAll(`[data-q="${qi}"]`).forEach(el => el.classList.remove('on'));
+  document.querySelector(`[data-q="${qi}"][data-v="${v}"]`).classList.add('on');
+  // 全問回答済みなら送信ボタン有効化
+  document.getElementById('submit-btn').disabled = answers.some(v => v === null);
+}
+
+async function submit() {
+  if (answers.some(v => v === null)) { showToast('全5問にお答えください'); return; }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '送信中…';
+  const r = await api('/api/health-literacy/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q1: answers[0], q2: answers[1], q3: answers[2], q4: answers[3], q5: answers[4] }),
+  });
+  if (r && r.success) {
+    document.getElementById('r-score').textContent = (r.avg_score || 0).toFixed(2);
+    const interp = r.avg_score >= 3.5 ? '十分なヘルスリテラシーをお持ちです 👏'
+      : r.avg_score >= 2.5 ? '一定のヘルスリテラシーがあります。さらに高めるには信頼できる情報源の確認を意識すると◎'
+      : '健康情報の集め方や信頼性判断について、推進メンバーや産業医がサポートできます。';
+    document.getElementById('r-interp').textContent = interp;
+    document.getElementById('result-bg').classList.add('show');
+  } else {
+    btn.disabled = false; btn.textContent = '回答を送信';
+    showToast('送信エラー: ' + (r && r.msg || '通信失敗'), 3000);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

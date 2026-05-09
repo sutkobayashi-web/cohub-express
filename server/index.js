@@ -271,6 +271,7 @@ app.use('/api/walk', require('./routes/walk'));
 app.use('/api/help', require('./routes/help'));
 app.use('/api/timecard', require('./routes/timecard'));
 app.use('/api/meeting', require('./routes/meeting'));
+app.use('/api/health-literacy', require('./routes/health_literacy'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -545,6 +546,7 @@ app.get('/full', (req, res) => sendHtmlNoCache(res, 'index.html'));
 app.get('/home', (req, res) => sendHtmlNoCache(res, 'home.html'));
 app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
 app.get('/meeting-archive', (req, res) => sendHtmlNoCache(res, 'meeting-archive.html'));
+app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.html'));
 app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
 app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
 app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));
