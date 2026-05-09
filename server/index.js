@@ -553,6 +553,7 @@ app.get('/takara', (req, res) => sendHtmlNoCache(res, 'takara/admin.html'));
 app.get('/takara/driver', (req, res) => sendHtmlNoCache(res, 'takara/driver.html'));
 app.get('/takara/shipper', (req, res) => sendHtmlNoCache(res, 'takara/shipper.html'));
 app.get('/takara/proposal', (req, res) => sendHtmlNoCache(res, 'takara/proposal.html'));
+app.get('/takara/onepager', (req, res) => sendHtmlNoCache(res, 'takara/onepager.html'));
 app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
 app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
 app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));
