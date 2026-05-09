@@ -196,6 +196,33 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
   `).all(ld);
   if (!sites.length) return res.status(400).json({ success: false, msg: '当日のデータがありません (WMSも配車結果も未取込)' });
 
+  // (n)つき大型現場の自動分割: 集合住宅n戸まとめは複数台に分散配送が前提
+  // 例: 神奈川区栗田谷(12) 508才 → 12分割 (各42才) で AIに渡す
+  const expandedSites = [];
+  let splitOriginCount = 0;
+  for (const s of sites) {
+    const m = s.site_name.match(/[(（](\d+)[)）]/);
+    if (m) {
+      const n = parseInt(m[1]);
+      if (n >= 2 && (s.sai || 0) > 100) {
+        const eachSai = Math.round((s.sai || 0) / n * 10) / 10;
+        const eachQty = Math.round((s.qty || 0) / n);
+        for (let i = 1; i <= n; i++) {
+          expandedSites.push({
+            ...s,
+            site_name: `${s.site_name} 第${i}/${n}便`,
+            sai: eachSai,
+            qty: eachQty,
+          });
+        }
+        splitOriginCount++;
+        continue;
+      }
+    }
+    expandedSites.push(s);
+  }
+  sites = expandedSites;
+
   // ジョブ起票
   const jobId = db.prepare(`INSERT INTO td_dispatch_jobs (load_date, status, request_summary, created_by) VALUES (?, 'running', ?, ?)`)
     .run(ld, JSON.stringify({ site_count: sites.length, total_sai: sites.reduce((a, s) => a + (s.sai || 0), 0) }), req.uid).lastInsertRowid;
@@ -223,40 +250,58 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
       : '(時間指定ヒントなし)';
     const siteListLines = wmsLines;
 
+    const totalSai = sites.reduce((a, s) => a + (s.sai || 0), 0).toFixed(0);
+    const minVehicles = Math.ceil(totalSai / 200);  // 平均200才/台と仮定して下限
     const prompt = `あなたは座間積替倉庫(神奈川県座間市)を起点とする首都圏配送の配車プランナーです。
 タカラスタンダード様の住宅設備機器を首都圏に2t車両で配送するルートを組成します。
 
-【絶対制約】
-- 起点・終点: 座間倉庫
-- 時間指定厳守(🔒)の現場: 希望ETA±15分以内で訪問
-- 時間希望(⏰)の現場: できるだけ希望帯を守る (±60分許容)
-- **車種は2t車のみ**。容量上限の目安(実運用準拠):
-  - 2tｼｮｰﾄ (上限150才)
-  - 2tｽﾘﾑ (上限120才)
-  - 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ (上限180才・大型品向け)
-  - 2t平ﾎﾞﾃﾞｨ (上限200才・大型品向け)
-  - 2t (上限150才)
-- **1台あたり 1〜3現場が基本** (実運用準拠、同方面で束ねる):
-  - 大型物件(150才超)単独 → 1現場/台
-  - 同方面 (徒歩/車で近接) で 2〜3現場/台 を束ねる
-  - 4件以上は近距離・小ロットの特殊ケースのみ
-- **合計才数は車種容量上限を絶対超えないこと**。超えるなら別号車に分割
-- **時間指定の現場 + その住所周辺の時間指定なし現場をまとめて1台に組む** ← 最重要
-- 配送終了後は座間に戻る前提でルート設計
+【🚨 厳守 — 才数容量(積載量)・実態準拠】
+1台の合計才数(saiの合計)は以下の上限を**絶対に**超えてはなりません:
+- 2tｼｮｰﾄ ≤ 200才
+- 2tｽﾘﾑ ≤ 150才
+- 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ ≤ 250才 (大型品向け)
+- 2t平ﾎﾞﾃﾞｨ ≤ 280才 (大型品向け)
+- 2t ≤ 200才
+- 軽ﾊﾞﾝ ≤ 50才, ハイエース ≤ 80才, 2ワイド ≤ 280才
 
-【時間指定+住所ヒント (Logistarが組んだ${dispatchHints.length}現場、これを地理推論の起点に)】
+⚠️ **才数を必ず暗算で検算してから配車を確定する。**
+- 容量を超える場合は必ず別号車に分割
+- 1物件で容量超 → 運べる大型車種を選ぶ
+
+【📐 当日の規模感】
+- WMS総才数: 約${totalSai}才
+- 必要号車数の下限: 約${minVehicles}台 (平均200才/台 で計算)
+- **実運用は1日 35〜70台**。これより極端に少ない出力は才数違反の証拠。
+
+【その他の制約】
+- 起点・終点: 座間倉庫
+- 時間指定厳守(🔒): ETA±15分以内
+- 時間希望(⏰): ETA±60分許容
+- **1台あたり 1〜3現場**:
+  - 大型(才数150才超単独) → 1現場/台
+  - 同方面で容量内に収まる場合のみ 2〜3現場/台
+  - 4現場以上は禁止
+- 同方面束ね優先 (時間指定の住所周辺に時間指定なし現場を組み込む)
+- 座間帰着前提
+
+【時間指定+住所ヒント (Logistarが組んだ${dispatchHints.length}現場、地理推論の起点)】
 ${hintLines}
 
-※ 上記の住所を地理的アンカーとして、下記WMS全現場を「方面束ね」してください。
-※ WMS現場名と時間指定ヒントの納入先名は表記が異なる場合があります(例:WMS「保川」=ヒント「神奈川県横浜市保土ケ谷区...」のような対応)。
-※ 表記揺れがあれば類推OK。WMS現場リストにのみ存在する現場(時間指定なし)も、住所推定で同方面の時間指定ストップの号車に組み込んでください。
+※ 上記の住所を地理的アンカーに、下記WMS全現場を方面束ね。
+※ 表記揺れ可。WMSのみ存在する現場(時間指定なし)も同方面の号車に組み込む。
 
-【使用可能な実号車プール (この中から号車番号を選ぶこと)】
+【使用可能な実号車プール】
 ${fleetLines}
-※ 上記が当日全車稼働を前提。実運用では1日50〜70台台前後 (現場の物量で増減)。
 
 【WMS全配送先 (load_date=${ld}, 計${sites.length}現場、site_nameは入力どおり一字一句変更しない)】
 ${siteListLines}
+
+【📋 出力前の自己チェック】
+出力する前に以下を必ず確認:
+1. 各号車の sai合計 を計算し、車種上限以下であることを確認
+2. 違反があれば、その号車を分割
+3. 全WMS現場(${sites.length}件)が必ずどこかの号車に含まれている
+4. 時間指定厳守(🔒)の現場が ETA順に並んでいる
 
 【出力フォーマット (JSONのみ、それ以外何も書かない)】
 {
@@ -283,13 +328,58 @@ ${siteListLines}
     const out = await generateText(prompt, {
       model: 'gemini-2.5-flash',
       temperature: 0.3,
-      maxTokens: 16000,
+      maxTokens: 60000,
       responseMimeType: 'application/json',
     });
 
     let plan;
     try { plan = JSON.parse(out); } catch (e) {
       throw new Error('AI応答のJSON解析失敗: ' + (out || '').slice(0, 200));
+    }
+
+    // 🚨 才数オーバーチェック+自動分割
+    const CAPACITY = { '2tｼｮｰﾄ': 200, '2tｽﾘﾑ': 150, '2tｼｮｰﾄ平ﾎﾞﾃﾞｨ': 250, '2t平ﾎﾞﾃﾞｨ': 280, '2t': 200, '軽ﾊﾞﾝ': 50, 'ハイエース': 80, '2ワイド': 280 };
+    const splitVehicles = [];
+    let splitCount = 0;
+    // 利用可能な号車プールから既使用以外を取得
+    const usedVehicles = new Set((plan.vehicles || []).map(v => v.vehicle_no));
+    const availablePool = fleet.filter(f => !usedVehicles.has(f.vehicle_no)).map(f => f.vehicle_no);
+    let poolIdx = 0;
+
+    for (const v of (plan.vehicles || [])) {
+      const cap = CAPACITY[v.vehicle_type] || 150;
+      const stops = v.stops || [];
+      const totalSai = stops.reduce((a, s) => a + (parseFloat(s.sai) || 0), 0);
+      if (totalSai <= cap) {
+        splitVehicles.push(v);
+        continue;
+      }
+      // 超過: 順番に詰めて、超えたら次の号車に
+      let buf = []; let bufSai = 0;
+      const buckets = [];
+      for (const s of stops) {
+        const ssai = parseFloat(s.sai) || 0;
+        if (bufSai + ssai > cap && buf.length > 0) {
+          buckets.push(buf);
+          buf = []; bufSai = 0;
+        }
+        buf.push(s); bufSai += ssai;
+      }
+      if (buf.length) buckets.push(buf);
+      // 1個目は元号車、以降は予備プールから
+      buckets.forEach((b, i) => {
+        const vehNo = i === 0 ? v.vehicle_no : (availablePool[poolIdx++] || (v.vehicle_no + '_split' + i));
+        splitVehicles.push({
+          vehicle_no: vehNo,
+          vehicle_type: v.vehicle_type,
+          stops: b.map((s, j) => ({ ...s, sequence: j + 1 })),
+        });
+        if (i > 0) splitCount++;
+      });
+    }
+    plan.vehicles = splitVehicles;
+    if (splitCount > 0) {
+      plan.summary = (plan.summary || '') + ` /[サーバ側で${splitCount}台分割: 才数オーバー自動補正]`;
     }
 
     // 既存当日のAI配車をクリアして再保存
