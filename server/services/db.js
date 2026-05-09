@@ -45,6 +45,9 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_hl_user_at ON health_literacy(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_hl_at ON health_literacy(created_at DESC);`);
+  // PCがなくログインできない社員向け: 推進メンバーが聞き取り代理入力した場合の起票者ID
+  // NULL = 本人による自己回答、値あり = 聞き取り入力 (代理入力者のID)
+  ensureColumn(_db, 'health_literacy', 'proxy_poster_id', 'proxy_poster_id TEXT');
   // ミーティング履歴 (2026-05-09): ZOOM風シンプル会議+AI議事録
   _db.exec(`CREATE TABLE IF NOT EXISTS meetings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

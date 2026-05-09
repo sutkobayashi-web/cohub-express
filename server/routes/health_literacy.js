@@ -56,15 +56,59 @@ router.post('/submit', authUser, express.json(), (req, res) => {
   res.json({ success: true, id: ins.lastInsertRowid, total, avg_score: avg });
 });
 
+// 聞き取り対象メンバー一覧 (PCがない社員向け代理入力。推進メンバー/管理職のみ)
+router.get('/subjects', authUser, (req, res) => {
+  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const db = getDb();
+  const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
+  const companyCode = me && me.company_code;
+  const rows = db.prepare(`
+    SELECT u.id, u.login_id, u.display_name, u.company_code, u.job_role, u.avatar_url,
+           h.created_at AS last_answered_at, h.avg_score AS last_avg_score
+    FROM users u
+    LEFT JOIN (SELECT user_id, MAX(id) AS max_id FROM health_literacy GROUP BY user_id) mx
+      ON mx.user_id = u.id
+    LEFT JOIN health_literacy h ON h.id = mx.max_id
+    WHERE u.company_code = ?
+      AND u.role != 'bot'
+      AND u.id != ?
+      AND u.is_guest_reviewer = 0
+    ORDER BY u.display_name
+  `).all(companyCode || '', req.uid);
+  res.json({ success: true, subjects: rows, company_code: companyCode });
+});
+
+// 代理入力(聞き取り)で他メンバーの回答を保存。推進メンバー/管理職のみ
+router.post('/proxy-submit', authUser, express.json(), (req, res) => {
+  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const b = req.body || {};
+  const subjectUserId = String(b.subject_user_id || '').trim();
+  if (!subjectUserId) return res.status(400).json({ success: false, msg: '対象者を選択してください' });
+  const ans = [b.q1, b.q2, b.q3, b.q4, b.q5].map(v => parseInt(v));
+  if (ans.some(v => !Number.isInteger(v) || v < 1 || v > 4)) {
+    return res.status(400).json({ success: false, msg: '全5問に1〜4で回答してください' });
+  }
+  const db = getDb();
+  const subj = db.prepare('SELECT id FROM users WHERE id = ?').get(subjectUserId);
+  if (!subj) return res.status(404).json({ success: false, msg: '対象者が見つかりません' });
+  const total = ans.reduce((a, b) => a + b, 0);
+  const avg = total / 5;
+  const ins = db.prepare(`INSERT INTO health_literacy (user_id, q1, q2, q3, q4, q5, total, avg_score, proxy_poster_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(subjectUserId, ans[0], ans[1], ans[2], ans[3], ans[4], total, avg, req.uid);
+  res.json({ success: true, id: ins.lastInsertRowid, total, avg_score: avg });
+});
+
 // 推進メンバー/管理職向け: 全員の最新回答 (個人別)
 router.get('/all-latest', authUser, (req, res) => {
   if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
   // 各 user_id の最新1件を取得
   const rows = getDb().prepare(`
-    SELECT h.user_id, h.q1, h.q2, h.q3, h.q4, h.q5, h.total, h.avg_score, h.created_at,
-           u.display_name, u.company_code, u.job_role
+    SELECT h.user_id, h.q1, h.q2, h.q3, h.q4, h.q5, h.total, h.avg_score, h.created_at, h.proxy_poster_id,
+           u.display_name, u.company_code, u.job_role,
+           p.display_name AS proxy_name
     FROM health_literacy h
     JOIN users u ON u.id = h.user_id
+    LEFT JOIN users p ON p.id = h.proxy_poster_id
     JOIN (SELECT user_id, MAX(id) AS max_id FROM health_literacy GROUP BY user_id) mx
       ON mx.max_id = h.id
     ORDER BY h.created_at DESC

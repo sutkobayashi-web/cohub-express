@@ -416,6 +416,11 @@
         <div class="label">聞き取りカードPOST</div>
         <div class="desc">点呼・朝礼・昼礼で1人1枚。投稿のバックアップとして同拠点全員の様子を記録。</div>
       </a>
+      <a id="p-card-literacy" class="card p-rollcall" href="/ops-literacy" style="display:none;">
+        <div class="icon-pill">📊</div>
+        <div class="label">ヘルスリテラシー 聞き取り</div>
+        <div class="desc">PCがない社員向け。代理入力でCCHL5問4択を記録 (90日経過で再聞き取り推奨)。</div>
+      </a>
       <a id="p-card-enroll" class="card p-enroll" href="/enroll.html" style="display:none;">
         <div class="icon-pill">📷</div>
         <div class="label">社員登録</div>
@@ -565,6 +570,9 @@ async function init() {
     if (isPromoter || isWarehousePromoter || isAdmin) {
       const c = $('p-card-listening');
       if (c) c.style.display = '';
+      // ヘルスリテラシー聞き取り (推進メンバーが代理入力)
+      const c2 = $('p-card-literacy');
+      if (c2) c2.style.display = '';
     }
     // 社員登録: 管理職(employee_type=admin) / 推進メンバー / システムadmin
     const isMgr = me.employee_type === 'admin';

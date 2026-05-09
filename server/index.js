@@ -547,6 +547,7 @@ app.get('/home', (req, res) => sendHtmlNoCache(res, 'home.html'));
 app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
 app.get('/meeting-archive', (req, res) => sendHtmlNoCache(res, 'meeting-archive.html'));
 app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.html'));
+app.get('/ops-literacy', (req, res) => sendHtmlNoCache(res, 'ops-literacy.html'));
 app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
 app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
 app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));

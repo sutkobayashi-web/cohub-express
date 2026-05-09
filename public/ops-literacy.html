@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📊 ヘルスリテラシー 聞き取り</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #fff; --border: #e2e8f0;
+  --accent: #0d9488; --accent-d: #0f766e;
+  --warn: #f59e0b; --danger: #ef4444; --ok: #10b981;
+  --chip: #f1f5f9; --chip-on: #ccfbf1; --chip-on-fg: #115e59;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, #f0fdfa, #ecfeff); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.hd a.back { color: var(--accent-d); text-decoration: none; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(20,184,166,.1); }
+.hd .title { flex: 1; font-weight: 700; font-size: 16px; }
+.hd .meta { color: var(--mute); font-size: 12px; }
+.intro { padding: 12px 16px; color: var(--mute); font-size: 13px; line-height: 1.6; background: #fff; border-bottom: 1px solid var(--border); }
+.intro b { color: var(--accent-d); }
+
+.list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.subj { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; position: relative; }
+.subj:hover { border-color: var(--accent); }
+.subj .av { width: 48px; height: 48px; border-radius: 50%; background: var(--chip); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
+.subj .av img { width: 100%; height: 100%; object-fit: cover; }
+.subj .name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.subj .co { color: var(--mute); font-size: 11px; }
+.subj .last {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  background: #f1f5f9; color: var(--mute);
+}
+.subj.has-recent { background: #f0fdfa; border-color: #5eead4; }
+.subj.has-recent .last { background: #ccfbf1; color: var(--accent-d); font-weight: 700; }
+.subj.no-data { background: #fffbeb; border-color: #fde68a; }
+.subj.no-data .last { background: #fef3c7; color: #92400e; font-weight: 700; }
+.empty { padding: 40px 20px; text-align: center; color: var(--mute); }
+
+.modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+.modal-bg.show { display: flex; }
+.modal { background: #fff; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 18px 18px 0 18px; -webkit-overflow-scrolling: touch; }
+@media (min-width: 600px) { .modal-bg { align-items: center; } .modal { border-radius: 16px; max-height: 88vh; } }
+.modal h2 { margin: 0 0 4px 0; font-size: 17px; }
+.modal .sub { color: var(--mute); font-size: 12px; margin-bottom: 12px; }
+.q-card { margin: 14px 0; }
+.q-text { font-size: 13px; font-weight: 600; line-height: 1.6; margin-bottom: 8px; display: flex; gap: 6px; align-items: flex-start; }
+.q-num { background: var(--accent); color: #fff; border-radius: 50%; min-width: 22px; height: 22px; text-align: center; line-height: 22px; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.scale-opt {
+  background: var(--chip); border: 2px solid var(--border); border-radius: 8px;
+  padding: 8px 4px; text-align: center; cursor: pointer; font-size: 11px;
+  line-height: 1.3; color: #475569;
+}
+.scale-opt .v { display: block; font-size: 16px; font-weight: 800; color: var(--mute); margin-bottom: 2px; }
+.scale-opt.on { background: var(--chip-on); border-color: var(--accent); color: var(--chip-on-fg); font-weight: 700; }
+.scale-opt.on .v { color: var(--accent-d); }
+
+.summary { background: #f0fdfa; border: 1px solid #5eead4; border-radius: 8px; padding: 8px 12px; font-size: 12px; margin: 10px 0; color: var(--accent-d); }
+.fixed-foot {
+  position: sticky; bottom: 0; background: #fff;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px)) 18px;
+  margin: 16px -18px 0 -18px;
+  display: flex; gap: 10px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 14px rgba(15,23,42,0.06);
+}
+.btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-cancel { background: #e2e8f0; color: var(--fg); }
+.btn-submit { background: var(--accent); color: #fff; }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="hd">
+  <a href="/home" class="back">←</a>
+  <div>
+    <div class="title">📊 ヘルスリテラシー 聞き取り</div>
+    <div class="meta" id="hd-co">…</div>
+  </div>
+</div>
+<div class="intro">
+  <b>PCがなくログインできない社員向け</b>のヘルスリテラシー調査の聞き取り入力です。
+  対象者を選び、健康情報の集め方や判断について <b>1人ずつ</b> 5問4択で記録します。<br>
+  ※ 本人がログインしている場合は本人入力を優先してください。
+</div>
+
+<div id="list" class="list"></div>
+
+<div id="modal-bg" class="modal-bg" onclick="if (event.target.id==='modal-bg') closeModal()">
+  <div class="modal">
+    <h2 id="m-title">ヘルスリテラシー聞き取り</h2>
+    <div class="sub" id="m-sub"></div>
+    <div id="m-q-list"></div>
+    <div class="summary" id="m-summary" style="display:none;"></div>
+    <div class="fixed-foot">
+      <button class="btn btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-submit" id="m-submit" onclick="submitCard()" disabled>提出</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let questions = [];
+let scale = [];
+let subjects = [];
+let currentSubject = null;
+let answers = [null, null, null, null, null];
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.replace('/'); return null; }
+  return r.json();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms || 2000);
+}
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const meR = await api('/api/auth/me');
+  if (!meR || !meR.success) { location.replace('/'); return; }
+  me = meR.user;
+  document.getElementById('hd-co').textContent = me.display_name + 'さん / ' + (me.company_code || '-');
+  const m = await api('/api/health-literacy/meta');
+  if (!m || !m.success) return;
+  questions = m.questions; scale = m.scale;
+  await loadSubjects();
+}
+
+async function loadSubjects() {
+  const r = await api('/api/health-literacy/subjects');
+  if (!r || !r.success) {
+    document.getElementById('list').innerHTML = '<div class="empty">対象者の取得に失敗しました（推進メンバー権限が必要です）</div>';
+    return;
+  }
+  subjects = r.subjects || [];
+  renderList();
+}
+
+function renderList() {
+  const el = document.getElementById('list');
+  if (!subjects.length) { el.innerHTML = '<div class="empty">同じ営業所のメンバーが見つかりません。</div>'; return; }
+  // 未回答を先頭、古い順
+  const sorted = subjects.slice().sort((a, b) => {
+    const aHas = a.last_answered_at ? 1 : 0;
+    const bHas = b.last_answered_at ? 1 : 0;
+    if (aHas !== bHas) return aHas - bHas;
+    if (!aHas) return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
+    return (a.last_answered_at || '').localeCompare(b.last_answered_at || '');
+  });
+  el.innerHTML = sorted.map(s => {
+    const ic = s.avatar_url ? `<img src="${escapeHtml(s.avatar_url)}" alt="">` : '👤';
+    let lastLabel; let cls = '';
+    if (!s.last_answered_at) { lastLabel = '未回答'; cls = 'no-data'; }
+    else {
+      const dt = new Date(s.last_answered_at + (s.last_answered_at.endsWith('Z')?'':'Z'));
+      const days = Math.floor((Date.now() - dt.getTime()) / 86400000);
+      lastLabel = days === 0 ? '本日 ' + (s.last_avg_score || 0).toFixed(1) + '点'
+        : (days < 90 ? days + '日前 ' + (s.last_avg_score || 0).toFixed(1) + '点' : '90日以上前');
+      cls = days < 90 ? 'has-recent' : '';
+    }
+    return `<div class="subj ${cls}" onclick="openCard('${escapeHtml(s.id)}')">
+      <div class="av">${ic}</div>
+      <div class="name">${escapeHtml(s.display_name)}</div>
+      <div class="co">${escapeHtml(s.company_code || '-')}</div>
+      <div class="last">${lastLabel}</div>
+    </div>`;
+  }).join('');
+}
+
+function openCard(uid) {
+  currentSubject = subjects.find(s => s.id === uid);
+  if (!currentSubject) return;
+  answers = [null, null, null, null, null];
+  document.getElementById('m-title').textContent = 'ヘルスリテラシー: ' + currentSubject.display_name;
+  document.getElementById('m-sub').textContent = (currentSubject.company_code || '') + ' / 聞き取り: ' + me.display_name;
+  document.getElementById('m-summary').style.display = 'none';
+  document.getElementById('m-submit').disabled = true;
+  const ql = document.getElementById('m-q-list');
+  ql.innerHTML = questions.map((q, i) => {
+    const opts = scale.map(s =>
+      `<div class="scale-opt" data-q="${i}" data-v="${s.v}" onclick="pick(${i}, ${s.v})">
+        <span class="v">${s.v}</span>${escapeHtml(s.label)}
+      </div>`
+    ).join('');
+    return `<div class="q-card">
+      <div class="q-text"><span class="q-num">${i+1}</span><span>${escapeHtml(q)}</span></div>
+      <div class="scale">${opts}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('modal-bg').classList.add('show');
+}
+
+function pick(qi, v) {
+  answers[qi] = v;
+  document.querySelectorAll(`[data-q="${qi}"]`).forEach(el => el.classList.remove('on'));
+  document.querySelector(`[data-q="${qi}"][data-v="${v}"]`).classList.add('on');
+  refreshSummary();
+}
+
+function refreshSummary() {
+  const filled = answers.filter(v => v !== null).length;
+  const sumEl = document.getElementById('m-summary');
+  const submitBtn = document.getElementById('m-submit');
+  if (filled === 0) { sumEl.style.display = 'none'; submitBtn.disabled = true; return; }
+  const total = answers.reduce((a, b) => a + (b || 0), 0);
+  const avg = filled === 5 ? (total / 5).toFixed(2) : '–';
+  sumEl.style.display = 'block';
+  sumEl.innerHTML = `回答済み: ${filled}/5問　平均スコア: <b>${avg}</b> / 4.00`;
+  submitBtn.disabled = filled < 5;
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('show');
+  currentSubject = null;
+  answers = [null, null, null, null, null];
+}
+
+async function submitCard() {
+  if (!currentSubject || answers.some(v => v === null)) return;
+  const btn = document.getElementById('m-submit');
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    const r = await api('/api/health-literacy/proxy-submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject_user_id: currentSubject.id,
+        q1: answers[0], q2: answers[1], q3: answers[2], q4: answers[3], q5: answers[4],
+      }),
+    });
+    if (r && r.success) {
+      showToast(`✅ #${r.id} 提出 (平均 ${r.avg_score.toFixed(2)} 点)`);
+      closeModal();
+      // ローカル状態更新
+      const subj = subjects.find(s => s.id === currentSubject.id);
+      if (subj) {
+        subj.last_answered_at = new Date().toISOString();
+        subj.last_avg_score = r.avg_score;
+      }
+      renderList();
+    } else {
+      showToast('❌ ' + (r && r.msg || '送信失敗'));
+      btn.disabled = false;
+    }
+  } catch (e) {
+    showToast('❌ 通信エラー');
+    btn.disabled = false;
+  }
+  btn.textContent = '提出';
+}
+
+init();
+</script>
+</body>
+</html>
