@@ -26,22 +26,35 @@ for (const ld of dates) {
   db.prepare(`DELETE FROM td_dispatches WHERE load_date = ?`).run(ld);
   db.prepare(`DELETE FROM td_dispatch_meta WHERE load_date = ?`).run(ld);
 
-  const rows = db.prepare(`SELECT * FROM td_dispatch_history WHERE load_date = ? ORDER BY original_vehicle_no, sequence, id`).all(ld);
+  // xlsx順 (id ASC) で走査。sequence=1 で新しい物理車両、2,3,... は同車両の追加ストップ
+  const rows = db.prepare(`SELECT * FROM td_dispatch_history WHERE load_date = ? ORDER BY id`).all(ld);
   if (!rows.length) { console.log(`  ${ld}: 配車履歴なし`); continue; }
 
-  // 号車別に車種をまとめる (車種は号車に1つ)
-  const vehTypeMap = new Map();
+  // 物理車両ごとの代表号車・車種を判定
+  const physVehMap = new Map();  // physical_vehicle_no -> { vehicle_type, stops_count }
+  let currentPhys = null;
+  const enriched = [];
   for (const r of rows) {
-    if (r.vehicle_type && r.vehicle_type !== '車種' && !vehTypeMap.has(r.original_vehicle_no)) {
-      vehTypeMap.set(r.original_vehicle_no, r.vehicle_type);
+    const seq = r.sequence;
+    if (seq === 1 || !seq || !currentPhys) {
+      // 新しい物理車両の開始
+      currentPhys = r.original_vehicle_no;
+      if (!physVehMap.has(currentPhys)) {
+        physVehMap.set(currentPhys, { vehicle_type: r.vehicle_type || '', stops: 0 });
+      }
     }
+    const m = physVehMap.get(currentPhys);
+    m.stops++;
+    // 車種が空なら後続行のものを代表車種として補完
+    if (!m.vehicle_type && r.vehicle_type) m.vehicle_type = r.vehicle_type;
+    enriched.push({ ...r, phys_vehicle_no: currentPhys });
   }
 
   const tx = db.transaction(() => {
-    // stops 投入
-    for (const r of rows) {
+    // stops 投入 (物理車両号車にまとめて入れる)
+    for (const r of enriched) {
       insDisp.run(
-        ld, r.original_vehicle_no,
+        ld, r.phys_vehicle_no,
         r.sequence || null,
         r.site_name || '',
         r.address || '',
@@ -52,16 +65,9 @@ for (const ld of dates) {
         '人手配車(実績)',
       );
     }
-    // meta 投入 (号車別、driver_token 自動発行)
-    for (const [veh, vt] of vehTypeMap) {
-      insMeta.run(ld, veh, vt, gen8());
-    }
-    // 車種が空の号車もメタ投入 (driver_tokenだけは発行)
-    const allVehs = [...new Set(rows.map(r => r.original_vehicle_no))];
-    for (const v of allVehs) {
-      if (!vehTypeMap.has(v)) {
-        insMeta.run(ld, v, '', gen8());
-      }
+    // meta 投入 (物理車両ごと、driver_token 自動発行)
+    for (const [veh, info] of physVehMap) {
+      insMeta.run(ld, veh, info.vehicle_type || '', gen8());
     }
   });
   tx();
