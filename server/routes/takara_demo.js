@@ -172,18 +172,27 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
   if (!/^\d{8}$/.test(ld)) return res.status(400).json({ success: false, msg: 'load_date は YYYYMMDD' });
 
   const db = getDb();
-  // 当日の現場集約データを準備
-  const sites = db.prepare(`
-    SELECT o.site_name,
-      SUM(o.qty) AS qty,
-      SUM(o.sai) AS sai,
-      (SELECT address FROM td_dispatch_history h WHERE h.site_name = o.site_name ORDER BY h.id DESC LIMIT 1) AS address,
-      (SELECT time_spec FROM td_dispatch_history h WHERE h.site_name = o.site_name AND h.load_date = ? ORDER BY h.id DESC LIMIT 1) AS time_spec,
-      (SELECT eta FROM td_dispatch_history h WHERE h.site_name = o.site_name AND h.load_date = ? ORDER BY h.id DESC LIMIT 1) AS eta
-    FROM td_orders o WHERE o.load_date = ?
-    GROUP BY o.site_name
-  `).all(ld, ld, ld);
-  if (!sites.length) return res.status(400).json({ success: false, msg: '当日のWMSデータがありません' });
+  // AI入力は配車結果(教師)の納入先を使う:
+  //  - 現場名・時間指定・ETA・才数 が同じ座標系で揃うため、AIと実配車の比較が可能
+  //  - WMSは ピッキング側 で別座標(現場名フォーマット違い)
+  // 配車結果が無い日付は WMS にフォールバック (互換維持)
+  let sites = db.prepare(`
+    SELECT site_name, address, MAX(time_spec) AS time_spec, MIN(eta) AS eta,
+           SUM(qty) AS qty, SUM(sai) AS sai
+    FROM td_dispatch_history WHERE load_date = ? AND site_name <> ''
+    GROUP BY site_name, address
+  `).all(ld);
+  if (!sites.length) {
+    // フォールバック: WMS品目集計
+    sites = db.prepare(`
+      SELECT o.site_name, '' AS address,
+        NULL AS time_spec, NULL AS eta,
+        SUM(o.qty) AS qty, SUM(o.sai) AS sai
+      FROM td_orders o WHERE o.load_date = ?
+      GROUP BY o.site_name
+    `).all(ld);
+  }
+  if (!sites.length) return res.status(400).json({ success: false, msg: '当日のデータがありません (WMSも配車結果も未取込)' });
 
   // ジョブ起票
   const jobId = db.prepare(`INSERT INTO td_dispatch_jobs (load_date, status, request_summary, created_by) VALUES (?, 'running', ?, ?)`)
@@ -207,27 +216,32 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
     }).join('\n');
 
     const prompt = `あなたは座間積替倉庫(神奈川県座間市)を起点とする首都圏配送の配車プランナーです。
-タカラスタンダード様の住宅設備機器を首都圏に配送する2t車両のルートを組成します。
+タカラスタンダード様の住宅設備機器を首都圏に2t車両で配送するルートを組成します。
 
 【絶対制約】
 - 起点・終点: 座間倉庫
 - 時間指定厳守(🔒)の現場: 希望ETA±15分以内で訪問
 - 時間希望(⏰)の現場: できるだけ希望帯を守る (±60分許容)
-- **車種は2t車のみ** (4t/3tユニック等は存在しない):
-  - 2tｼｮｰﾄ (容量目安: 約45才)
-  - 2tｽﾘﾑ (容量目安: 約40才)
-  - 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ (容量目安: 約45才・大型品向け)
-  - 2t平ﾎﾞﾃﾞｨ (容量目安: 約50才)
-  - 2t (容量目安: 約45才)
-- 各号車1日 **3〜6現場、合計才数50才以下** が現実的
-- 時間指定がある現場 + その近隣の指定なし現場をまとめて1台に組む
+- **車種は2t車のみ**。容量上限の目安(実運用準拠):
+  - 2tｼｮｰﾄ (上限150才)
+  - 2tｽﾘﾑ (上限120才)
+  - 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ (上限180才・大型品向け)
+  - 2t平ﾎﾞﾃﾞｨ (上限200才・大型品向け)
+  - 2t (上限150才)
+- **1台あたり 1〜2現場が基本** (実運用準拠、現場の実情に合わせて束ねる):
+  - 中〜大型物件(80才超)が含まれる場合 → 1現場/台
+  - 同方面で合計才数が車種上限以下に収まる場合のみ 2現場/台
+  - 3件以上は特殊ケースのみ (才数極小・近距離・時間調整可能)
+- **合計才数は車種容量上限を絶対超えないこと**。超えるなら別号車に分割
+- 時間指定がある現場+その近隣の指定なし現場をまとめて1台に組む
 - 配送終了後は座間に戻る前提でルート設計
+- **現場数 ≒ 号車数** が標準 (1日 ${sites.length} 現場なら 50〜70台)
 
 【使用可能な実号車プール (この中から号車番号を選ぶこと)】
 ${fleetLines}
-※ 上記が当日全車稼働を前提。1日 ${fleet.length} 台前後の運用が標準。
+※ 上記が当日全車稼働を前提。実運用では1日 ${fleet.length} 台前後 (現場の物量で増減)。
 
-【配送先 (load_date=${ld}, 計${sites.length}現場)】
+【配送先 (load_date=${ld}, 計${sites.length}現場、納入先名は入力どおり一字一句変更しない)】
 ${siteListLines}
 
 【出力フォーマット (JSONのみ、それ以外何も書かない)】
@@ -239,11 +253,11 @@ ${siteListLines}
       "stops": [
         {
           "sequence": 1,
-          "site_name": "(現場名 入力リストのものをそのまま)",
+          "site_name": "(納入先名 入力リストのものをそのまま、改変禁止)",
           "eta": "0800",
           "time_spec": "hard|soft|null",
           "qty": 27,
-          "sai": 27,
+          "sai": 97,
           "reason": "時間指定厳守、神奈川中部"
         }
       ]
@@ -270,7 +284,7 @@ ${siteListLines}
     const insDisp = db.prepare(`INSERT INTO td_dispatches
       (load_date, vehicle_no, sequence, site_name, address, eta, time_spec, qty, sai, ai_reason, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`);
-    const insMeta = db.prepare(`INSERT INTO td_dispatch_meta
+    const insMeta = db.prepare(`INSERT OR IGNORE INTO td_dispatch_meta
       (load_date, vehicle_no, vehicle_type, driver_token, status) VALUES (?, ?, ?, ?, 'draft')`);
     const tx = db.transaction(() => {
       for (const v of (plan.vehicles || [])) {
