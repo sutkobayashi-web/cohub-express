@@ -69,7 +69,7 @@ async function init() {
   if (!r || !r.success) return;
   const el = document.getElementById('list');
   if (!r.meetings.length) { el.innerHTML = '<div class="empty">まだ議事録はありません</div>'; return; }
-  const ROOM_NAMES = { meeting_a: '会議室A', meeting_b: '会議室B', meeting_c: '会議室C' };
+  const ROOM_NAMES = { main: '会議室', meeting_a: '会議室A', meeting_b: '会議室B', meeting_c: '会議室C' };
   el.innerHTML = r.meetings.map(m => {
     const when = m.started_at ? new Date(m.started_at + (m.started_at.endsWith('Z')?'':'Z')).toLocaleString('ja-JP') : '-';
     const sumPreview = (m.summary || '').slice(0, 120);

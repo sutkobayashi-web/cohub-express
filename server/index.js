@@ -1730,6 +1730,17 @@ ${latestReport.summary}
     const s = io.sockets.sockets.get(target.socketId);
     if (s) s.emit('meeting:signal', { from: uid, type: data.type, payload: data.payload });
   });
+  // ビデオON/OFF/画面共有開始のステート変更を同部屋にブロードキャスト
+  socket.on('meeting:state', (data) => {
+    const roomId = userMeetingRoom(uid);
+    if (!roomId) return;
+    socket.to('mt:' + roomId).emit('meeting:state', {
+      uid,
+      video_on: !!(data && data.video_on),
+      mic_on: !!(data && data.mic_on),
+      screen_on: !!(data && data.screen_on),
+    });
+  });
 
   // ===== 1:1 通話 (DMから音声/ビデオ通話を開始する) =====
   // 設計: chat-simple.html で使用。WebRTC signaling のリレーのみ。

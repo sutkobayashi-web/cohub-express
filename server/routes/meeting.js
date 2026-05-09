@@ -9,9 +9,7 @@ const { authUser } = require('../middleware/auth');
 const { generateText } = require('../services/ai');
 
 const ROOMS = [
-  { id: 'meeting_a', name: '会議室A', icon: '🟦' },
-  { id: 'meeting_b', name: '会議室B', icon: '🟩' },
-  { id: 'meeting_c', name: '会議室C', icon: '🟧' },
+  { id: 'main', name: '会議室', icon: '🎙' },
 ];
 
 // メタ
