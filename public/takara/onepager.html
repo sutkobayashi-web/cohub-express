@@ -168,8 +168,9 @@ html, body { background: #1e293b; font-family: -apple-system, BlinkMacSystemFont
     <div class="before">
       <h3>❌ 現在の課題</h3>
       <ul>
-        <li>営業所→<b>Logistar</b>→座間 の二段階で配車組成</li>
+        <li>営業所→<b>Logistar</b>→座間 の二段階で配車組成 (時間指定分のみ)</li>
         <li>時間指定後の周辺非指定の組込が <b>属人化</b> (2.5人/日)</li>
+        <li>常用車両超過時の<b>庸車手配判断</b>も人手で都度対応</li>
         <li>配車表は紙/Excel配布、変更時の差替えが手間</li>
         <li>積込チェックは紙、誤積防止が経験頼り</li>
         <li>荷主から配送進捗が <b>見えない</b> (電話照会のみ)</li>
@@ -180,33 +181,46 @@ html, body { background: #1e293b; font-family: -apple-system, BlinkMacSystemFont
     <div class="after">
       <h3>✅ 一括請負後の姿</h3>
       <ul>
-        <li><b>自社AI配車</b>(Gemini)がワンストップで時間指定+周辺最適化</li>
-        <li>「<b>座間帰着</b>」をハードコード、実車率↑空走距離↓</li>
-        <li>QR読取/個人携帯転送の <b>2モード</b> でドライバー配信</li>
-        <li>bc-scanで全体スキャン → 誤積ゼロ・自動判定</li>
-        <li>荷主専用URLで <b>15秒自動更新</b> のLIVE進捗</li>
+        <li><b>OR-Tools+AI補完</b>で時間指定+周辺最適化を自動組成</li>
+        <li>「<b>常用車両60-70台で完結</b>」「<b>14:00座間帰庫</b>」をハードコード、2回転運用前提</li>
+        <li>収まらない時は「<b>庸車◯台必要</b>」と自動警告 → 配車担当が即判断</li>
+        <li><b>軽ﾊﾞﾝ・ハイエース活用</b>で時間指定なし小ロットを集約 (GHG削減)</li>
+        <li>QR読取/個人携帯転送の2モードでドライバー配信</li>
+        <li>bc-scanで全体スキャン → 誤積ゼロ、荷主専用URLで15秒自動更新LIVE</li>
         <li>紙ゼロ、電子配布のみ</li>
       </ul>
     </div>
   </div>
 
-  <!-- 3層プラットフォーム -->
-  <div class="platform">
+  <!-- 4層配車プラットフォーム -->
+  <div class="platform" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+    <div class="layer ai" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border-color:#3b82f6;">
+      <div class="icon">🧮</div>
+      <div class="ttl">① OR-Tools 数理最適化</div>
+      <div class="desc">Google製ソルバー。常用車両60-70台固定で全現場を解く。容量・時間窓・帰庫制約を厳密遵守。</div>
+    </div>
     <div class="layer ai">
       <div class="icon">🤖</div>
-      <div class="ttl">① AI配車エンジン</div>
-      <div class="desc">Gemini 2.5 Flash + ルールエンジン。時間指定厳守 + 周辺ルート組込 + 座間帰着の3条件を同時最適化。Logistar非依存。</div>
+      <div class="ttl">② AI補完 (Gemini/Claude)</div>
+      <div class="desc">(n)つき大型現場の分割判断、地理推論、意図説明、異常検知。LLMの強みを補助に集中。</div>
     </div>
     <div class="layer bc">
-      <div class="icon">📱</div>
-      <div class="ttl">② bc-scan 現場端末</div>
-      <div class="desc">既に座間で稼働中。ドライバーPWA/管理画面/壁掛けモニター 3画面で全体スキャン・誤積防止・Box日次バックアップ。</div>
-      <div class="url">stdun.biz-terrace.org/bcscan/</div>
+      <div class="icon">👤</div>
+      <div class="ttl">③ 人による最終調整</div>
+      <div class="desc">bc-scan配車編集モーダルで管理者がD&Dで号車間移動・微調整。AI判断の最終確認。</div>
     </div>
-    <div class="layer shipper">
-      <div class="icon">📦</div>
-      <div class="ttl">③ 荷主向け追跡</div>
-      <div class="desc">タカラ様専用URL。営業所・ロジスティクス部のスマホで自社配送のLIVE状況を確認、インストール不要。</div>
+    <div class="layer shipper" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;">
+      <div class="icon">🚚</div>
+      <div class="ttl">④ 庸車不足警告</div>
+      <div class="desc">常用車両で収まらない物件は「庸車-N」として警告。当日チャーター手配や翌日繰越を判断材料化。</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:2mm;">
+    <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:1.5mm;padding:2mm 3mm;font-size:7.5pt;">
+      <b style="color:#047857;">📱 bc-scan 現場端末</b>(既稼働 stdun.biz-terrace.org/bcscan): ドライバーPWA・誤積防止・Box日次バックアップ・配車編集モーダル
+    </div>
+    <div style="background:#fce7f3;border:1px solid #f9a8d4;border-radius:1.5mm;padding:2mm 3mm;font-size:7.5pt;">
+      <b style="color:#9d174d;">📦 荷主向けLIVE追跡</b>: タカラ様専用URL・15秒自動更新・SCOPE3排出量 計算可能
     </div>
   </div>
 

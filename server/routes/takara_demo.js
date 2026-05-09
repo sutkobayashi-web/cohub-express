@@ -11,7 +11,7 @@ const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const { generateText } = require('../services/ai');
-const { generateTextClaude } = require('../services/ai_claude');
+const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -257,8 +257,8 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
     const prompt = `あなたは座間積替倉庫(神奈川県座間市)を起点とする首都圏配送の配車プランナーです。
 タカラスタンダード様の住宅設備機器を首都圏に2t車両で配送するルートを組成します。
 
-【🚨 厳守 — 才数容量(積載量)・実運用準拠】
-1台の合計才数(saiの合計)は以下の上限を**絶対に**超えてはなりません:
+【🚨 絶対厳守 — 才数容量(積載量)】
+1台の合計才数(saiの合計)は以下の上限を**絶対に**超えてはなりません(超過=配車不可):
 - 軽ﾊﾞﾝ ≤ 30才
 - ハイエース ≤ 80才
 - 2tｽﾘﾑ ≤ 150才
@@ -268,19 +268,36 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
 - 2t平ﾎﾞﾃﾞｨ ≤ 280才
 - 2ワイド ≤ 280才
 
-⚠️ **才数を必ず暗算で検算してから配車を確定する。**
+⚠️ 才数を必ず暗算で検算してから配車を確定。1才でも超えたら別号車に分割せよ。
 
-【🌍 GHG排出量・脱炭素経営】
-スタンダード運輸はGHG排出量削減を経営方針として推進中(SBTi認定済 1.5℃目標)。
-配車最適化では**過剰サイズの車両を避ける**こと:
-- 車両別排出係数(目安 g-CO2/km): 軽ﾊﾞﾝ約120 / ハイエース約200 / 2tｼｮｰﾄ約400 / 2t系約500
-- **才数に応じた最小サイズ車種選択**:
-  - 合計才数 ≤ 30才 → **軽ﾊﾞﾝ優先**
-  - 31〜80才 → **ハイエース優先**
-  - 81〜180才 → 2tｼｮｰﾄ
-  - 181〜250才 → 2t / 2t平ﾎﾞﾃﾞｨ
-- 1日に **軽ﾊﾞﾝ・ハイエースを必ず1台以上活用** すること(小ロット荷物の集約配送)
-- 大型車に小ロットだけ載せるのは GHG浪費 → 必ず該当サイズに振る
+【🚨 絶対厳守 — 車種表記の完全一致】
+車種は以下8種類のいずれかを**そのまま**記載。誤記禁止(例: 「2tｼｮｴﾄ」「2t SHORT」「2tショート」等は全部NG):
+**軽ﾊﾞﾝ / ハイエース / 2tｽﾘﾑ / 2tｼｮｰﾄ / 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ / 2t / 2t平ﾎﾞﾃﾞｨ / 2ワイド**
+
+【🚨 絶対厳守 — 常用車両台数で完結】
+スタンダード運輸の常用車両は **1日 約60-70台** が固定上限です。
+- 配車プランの **総号車数は60-75台に収める** (これを超えるのは禁止)
+- 配車を分割しすぎるな (1台あたり3-5現場が普通)
+- 才数容量を多少超えても (実態の人手は1台250-290才も普通)、台数を増やしてはいけない
+- それでも収まらなければ summary に「庸車◯台必要」と明記して該当現場を警告
+- 庸車警告対象は vehicle_no を "庸車-1", "庸車-2" として末尾にまとめる
+
+【🚨 絶対厳守 — 14:00座間帰庫 (2t系車両)】
+2t系車両 (2tｽﾘﾑ/2tｼｮｰﾄ/2tｼｮｰﾄ平ﾎﾞﾃﾞｨ/2t/2t平ﾎﾞﾃﾞｨ/2ワイド) は
+**遅くとも14:00までに座間倉庫へ帰庫必須** (午後の積込作業のため、2回転運用)。
+- 最終ストップETA + 配送・移動時間 ≤ 13:30 を目処に組成
+- 14:00超のルートは **軽ﾊﾞﾝ・ハイエースに振る** (午後便扱い)
+- 朝便+昼便の2回転を前提に午前で2t系業務完結
+
+【🚐 必須 — 軽ﾊﾞﾝ・ハイエース 常用車両として必ず複数台稼働】
+軽ﾊﾞﾝ・ハイエースは**常用車両**であり、毎日必ず複数台稼働:
+- **時間指定が無い納品先は 軽ﾊﾞﾝ・ハイエースに優先割当** (才数大小問わず)
+- 1日 軽ﾊﾞﾝ最低2台、ハイエース最低2台 必須
+- 14:00以降の配送・午後便・小ロットを担当(2t系の補完)
+
+【🌍 GHG排出量・脱炭素経営 (SBTi認定済 1.5℃)】
+排出係数 g-CO2/km: 軽ﾊﾞﾝ約120 / ハイエース約200 / 2tｼｮｰﾄ約400 / 2t系約500
+時間指定なし小ロットは軽ﾊﾞﾝ・ハイエースで GHG最小化
 
 【📐 当日の規模感】
 - WMS総才数: 約${totalSai}才
@@ -415,11 +432,15 @@ ${first}
     const availablePool = fleet.filter(f => !usedVehicles.has(f.vehicle_no)).map(f => f.vehicle_no);
     let poolIdx = 0;
 
+    // 1.3倍までの過積載は実態として許容(人手も250-290才あり)、台数増を避ける
+    const HARD_OVERFLOW_RATIO = 1.4;
     for (const v of (plan.vehicles || [])) {
+      v.vehicle_type = normalizeVehicleType(v.vehicle_type);
       const cap = CAPACITY[v.vehicle_type] || 150;
       const stops = v.stops || [];
       const totalSai = stops.reduce((a, s) => a + (parseFloat(s.sai) || 0), 0);
-      if (totalSai <= cap) {
+      // 容量1.4倍以下なら分割しない (実態許容)
+      if (totalSai <= cap * HARD_OVERFLOW_RATIO) {
         splitVehicles.push(v);
         continue;
       }

@@ -5,7 +5,7 @@ const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 const { getDb } = require('../services/db');
 const { generateText } = require('../services/ai');
-const { generateTextClaude } = require('../services/ai_claude');
+const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
 
 const ld = process.argv[2];
 const provider = process.argv[3] || 'gemini';  // gemini | claude-haiku | claude-sonnet | claude-opus | hybrid
@@ -90,25 +90,37 @@ const gen8 = () => crypto.randomBytes(6).toString('base64url');
   const minVehicles = Math.ceil(totalSai / 200);
   const prompt = `あなたは座間積替倉庫(神奈川県座間市)を起点とする首都圏配送の配車プランナーです。
 
-【🚨 厳守 — 才数容量(積載量)・実運用準拠】
-1台の合計才数(saiの合計)は以下の上限を**絶対に**超えてはなりません:
-- 軽ﾊﾞﾝ ≤ 30才
-- ハイエース ≤ 80才
-- 2tｽﾘﾑ ≤ 150才
-- 2tｼｮｰﾄ ≤ 180才
-- 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ ≤ 200才
-- 2t ≤ 250才
-- 2t平ﾎﾞﾃﾞｨ ≤ 280才
-- 2ワイド ≤ 280才
+【🚨 絶対厳守 — 才数容量(積載量)】
+1台の合計才数(saiの合計)は以下の上限を**絶対に**超えてはなりません(超過=配車不可):
+- 軽ﾊﾞﾝ ≤ 30才 / ハイエース ≤ 80才 / 2tｽﾘﾑ ≤ 150才 / 2tｼｮｰﾄ ≤ 180才
+- 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ ≤ 200才 / 2t ≤ 250才 / 2t平ﾎﾞﾃﾞｨ ≤ 280才 / 2ワイド ≤ 280才
+⚠️ 1才でも超えたら別号車に分割。
+
+【🚨 絶対厳守 — 車種表記】
+車種は以下8種類完全一致のみ(誤記禁止):
+**軽ﾊﾞﾝ / ハイエース / 2tｽﾘﾑ / 2tｼｮｰﾄ / 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ / 2t / 2t平ﾎﾞﾃﾞｨ / 2ワイド**
+
+【🚨 絶対厳守 — 常用車両台数で完結】
+スタンダード運輸の常用車両は **1日 60-70台が上限** (固定):
+- 総号車数は60-75台に収める (超過禁止)
+- 1台あたり3-5現場が普通、分割しすぎNG
+- 才数は実態の人手に倣い、容量を多少超えてもOK (1台250-290才も普通)
+- 収まらない時は summary に「庸車◯台必要」と明記、該当を vehicle_no="庸車-N" で末尾にまとめる
+
+【🚨 絶対厳守 — 14:00座間帰庫】
+2t系車両 (2tｽﾘﾑ/2tｼｮｰﾄ/2tｼｮｰﾄ平ﾎﾞﾃﾞｨ/2t/2t平ﾎﾞﾃﾞｨ/2ワイド) は
+**遅くとも14:00座間帰庫必須**(午後積込作業の2回転運用)。
+- 最終ストップETA + 移動時間 ≤ 13:30 目処
+- 14:00超のルートは軽ﾊﾞﾝ・ハイエースに振る
+
+【🚐 必須 — 軽ﾊﾞﾝ・ハイエース 常用車両】
+軽ﾊﾞﾝ・ハイエースは常用車両、毎日必ず複数台稼働:
+- **時間指定なし納品先は 軽ﾊﾞﾝ・ハイエースに優先割当** (才数大小問わず)
+- 1日 軽ﾊﾞﾝ最低2台、ハイエース最低2台 必須
+- 午後便・小ロット便担当 (2t系の補完、GHG最小化)
 
 【🌍 GHG排出量・脱炭素経営 (SBTi認定済 1.5℃)】
-車両別排出係数(目安 g-CO2/km): 軽ﾊﾞﾝ約120 / ハイエース約200 / 2tｼｮｰﾄ約400 / 2t系約500
-**才数に応じた最小サイズ車種選択**:
-- ≤30才 → 軽ﾊﾞﾝ優先
-- 31〜80才 → ハイエース優先
-- 81〜180才 → 2tｼｮｰﾄ
-- 181〜250才 → 2t / 2t平ﾎﾞﾃﾞｨ
-**1日に軽ﾊﾞﾝ・ハイエースを1台以上必ず活用** (大型車に小ロットだけ載せるのはGHG浪費)
+排出係数 g-CO2/km: 軽ﾊﾞﾝ約120 / ハイエース約200 / 2tｼｮｰﾄ約400 / 2t系約500
 
 【📐 当日の規模感】
 - WMS総才数: 約${totalSai}才
@@ -211,11 +223,13 @@ ${first}
   const usedVehicles = new Set((plan.vehicles || []).map(v => v.vehicle_no));
   const availablePool = fleet.filter(f => !usedVehicles.has(f.vehicle_no)).map(f => f.vehicle_no);
   let poolIdx = 0;
+  const HARD_OVERFLOW_RATIO = 1.4;  // 1.4倍以下は実態許容
   for (const v of (plan.vehicles || [])) {
+    v.vehicle_type = normalizeVehicleType(v.vehicle_type);
     const cap = CAPACITY[v.vehicle_type] || 150;
     const stops = v.stops || [];
     const totalSai = stops.reduce((a, s) => a + (parseFloat(s.sai) || 0), 0);
-    if (totalSai <= cap) { splitVehicles.push(v); continue; }
+    if (totalSai <= cap * HARD_OVERFLOW_RATIO) { splitVehicles.push(v); continue; }
     let buf = []; let bufSai = 0;
     const buckets = [];
     for (const s of stops) {
