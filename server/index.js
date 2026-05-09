@@ -270,6 +270,7 @@ app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
 app.use('/api/help', require('./routes/help'));
 app.use('/api/timecard', require('./routes/timecard'));
+app.use('/api/meeting', require('./routes/meeting'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -542,6 +543,8 @@ app.get('/overview', (req, res) => sendHtmlNoCache(res, 'overview.html'));
 app.get('/report', (req, res) => sendHtmlNoCache(res, 'report.html'));
 app.get('/full', (req, res) => sendHtmlNoCache(res, 'index.html'));
 app.get('/home', (req, res) => sendHtmlNoCache(res, 'home.html'));
+app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
+app.get('/meeting-archive', (req, res) => sendHtmlNoCache(res, 'meeting-archive.html'));
 app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
 app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
 app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));
@@ -1678,6 +1681,56 @@ ${latestReport.summary}
     }
   });
 
+  // ===== ミーティング (シンプルなZOOM風会議室) =====
+  // 部屋単位のメッシュWebRTC。voice:*とは別系統で、フロア概念に依存しない
+  const userMeetingRoom = (uid2) => {
+    const s = io.sockets.sockets.get((presence.get(uid2) || {}).socketId);
+    if (!s) return null;
+    for (const r of s.rooms) if (r.startsWith('mt:')) return r.slice(3);
+    return null;
+  };
+  socket.on('meeting:join', (data) => {
+    const roomId = String((data && data.roomId) || '').trim();
+    if (!/^[a-z0-9_-]{1,40}$/.test(roomId)) return;
+    // 既存ミーティング部屋から退出
+    for (const r of [...socket.rooms]) if (r.startsWith('mt:')) {
+      socket.leave(r);
+      io.to(r).emit('meeting:peer-left', { uid });
+    }
+    socket.join('mt:' + roomId);
+    // 既存メンバーリスト (自分以外)
+    const room = io.sockets.adapter.rooms.get('mt:' + roomId) || new Set();
+    const peers = [];
+    for (const sid of room) {
+      if (sid === socket.id) continue;
+      const s2 = io.sockets.sockets.get(sid);
+      if (s2 && s2.uid) peers.push(s2.uid);
+    }
+    // 自分のプロファイル
+    const u = getDb().prepare('SELECT display_name, avatar_url, company_code FROM users WHERE id = ?').get(uid) || {};
+    const profile = { uid, display_name: u.display_name || '', avatar_url: u.avatar_url || '', company_code: u.company_code || '' };
+    // 自分に既存メンバー通知、既存メンバーには新規参加者通知
+    socket.emit('meeting:peers', { peers, room_id: roomId });
+    socket.to('mt:' + roomId).emit('meeting:peer-joined', profile);
+  });
+  socket.on('meeting:leave', () => {
+    for (const r of [...socket.rooms]) if (r.startsWith('mt:')) {
+      socket.leave(r);
+      io.to(r).emit('meeting:peer-left', { uid });
+    }
+  });
+  socket.on('meeting:signal', (data) => {
+    if (!data || !data.to) return;
+    const target = presence.get(data.to);
+    if (!target) return;
+    const roomId = userMeetingRoom(uid);
+    if (!roomId) return;
+    const targetRoomId = userMeetingRoom(data.to);
+    if (roomId !== targetRoomId) return; // 異部屋は中継しない
+    const s = io.sockets.sockets.get(target.socketId);
+    if (s) s.emit('meeting:signal', { from: uid, type: data.type, payload: data.payload });
+  });
+
   // ===== 1:1 通話 (DMから音声/ビデオ通話を開始する) =====
   // 設計: chat-simple.html で使用。WebRTC signaling のリレーのみ。
   // payload は最小限の検証 (相手存在/ブロックなし) のみ実施し、SDP/ICE は中継。
@@ -1891,6 +1944,12 @@ ${latestReport.summary}
     io.to('floor:' + p.floor).emit('recording:state', { uid, on: !!(data && data.on) });
   });
 
+  socket.on('disconnecting', () => {
+    // ミーティング部屋にいた場合、退室通知を送る (disconnect直前なのでrooms有効)
+    for (const r of socket.rooms) if (r.startsWith('mt:')) {
+      socket.to(r).emit('meeting:peer-left', { uid });
+    }
+  });
   socket.on('disconnect', () => {
     const p = presence.get(uid);
     if (!p) return;

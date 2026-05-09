@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🎙 ミーティング</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #ffffff; --border: #e2e8f0;
+  --accent: #4f46e5; --accent-d: #3730a3;
+  --danger: #ef4444; --warn: #f59e0b; --ok: #10b981;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.hd a.back { color: #fff; text-decoration: none; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.16); }
+.hd .title { flex: 1; font-weight: 700; font-size: 16px; }
+.hd .archive-btn { background: rgba(255,255,255,0.16); color: #fff; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; }
+
+.body { padding: 16px; max-width: 900px; margin: 0 auto; }
+.intro { color: var(--mute); font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.room-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; cursor: pointer; transition: all 0.15s; }
+.room-card:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(79,70,229,0.18); transform: translateY(-2px); }
+.room-card .ic { font-size: 28px; margin-bottom: 6px; }
+.room-card .name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.room-card .count { color: var(--mute); font-size: 13px; }
+.room-card .count b { color: var(--accent-d); }
+
+/* === 入室後 === */
+.in-room { display: none; }
+.in-room.show { display: block; }
+.room-hd {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: #1e293b; color: #fff; border-radius: 10px 10px 0 0;
+  font-weight: 700;
+}
+.room-hd .room-name { flex: 1; }
+.room-hd .timer { font-family: ui-monospace, monospace; font-size: 14px; }
+
+.video-grid {
+  background: #0f172a; padding: 12px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px; min-height: 320px; align-content: start;
+}
+.tile {
+  background: #1e293b; border-radius: 10px; aspect-ratio: 4/3;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.tile video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+.tile .placeholder { color: #64748b; font-size: 48px; }
+.tile .name {
+  position: absolute; bottom: 6px; left: 8px; right: 8px;
+  background: rgba(15,23,42,0.7); color: #fff; padding: 3px 8px;
+  border-radius: 6px; font-size: 12px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tile .speaking { box-shadow: inset 0 0 0 3px var(--ok); border-radius: 10px; }
+.tile.muted .name::before { content: '🔇 '; }
+
+.controls {
+  background: #0f172a; padding: 12px;
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  border-radius: 0 0 10px 10px;
+}
+.ctrl-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #334155; color: #fff; border: none; padding: 8px 14px;
+  border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.ctrl-btn.on { background: #475569; }
+.ctrl-btn.off { background: #7f1d1d; }
+.ctrl-btn.danger { background: #dc2626; }
+.ctrl-btn:hover { filter: brightness(1.15); }
+.ctrl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.transcript-area {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  margin-top: 12px; padding: 12px; max-height: 200px; overflow-y: auto;
+  font-size: 13px; line-height: 1.6;
+}
+.transcript-area .turn { margin-bottom: 6px; padding: 6px 8px; background: #f1f5f9; border-radius: 6px; }
+.transcript-area .turn .who { color: var(--accent-d); font-weight: 700; font-size: 11px; }
+.transcript-area .empty { color: var(--mute); font-size: 12px; text-align: center; padding: 20px; }
+.transcript-status { font-size: 11px; color: var(--mute); margin-top: 6px; text-align: right; }
+.transcript-status.live::before { content: '● '; color: var(--danger); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.toast.err { background: var(--danger); }
+
+@media (max-width: 600px) {
+  .body { padding: 12px; }
+  .video-grid { grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; min-height: 240px; }
+  .tile { aspect-ratio: 3/4; }
+  .ctrl-btn { padding: 7px 10px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="hd">
+  <a href="/home" class="back" id="back-btn">←</a>
+  <div class="title" id="hd-title">🎙 ミーティング</div>
+  <a href="/meeting-archive" class="archive-btn">📚 議事録</a>
+</div>
+
+<div class="body" id="lobby">
+  <div class="intro">
+    シンプルな会議室です。会議室を選んで入室するとビデオ・音声が始まります。<br>
+    話した内容はブラウザ側で文字起こしされ、退室時にAIが要約して議事録を保存します。
+  </div>
+  <div class="room-grid" id="room-grid"></div>
+</div>
+
+<div class="body in-room" id="in-room">
+  <div class="room-hd">
+    <div class="room-name" id="rm-name">-</div>
+    <div class="timer" id="rm-timer">00:00</div>
+  </div>
+  <div class="video-grid" id="video-grid"></div>
+  <div class="controls">
+    <button class="ctrl-btn on" id="btn-mic" onclick="toggleMic()">🎤 マイク</button>
+    <button class="ctrl-btn on" id="btn-cam" onclick="toggleCam()">🎥 カメラ</button>
+    <button class="ctrl-btn on" id="btn-rec" onclick="toggleRec()">📝 議事録</button>
+    <button class="ctrl-btn danger" onclick="leaveRoom()">⏏ 退室</button>
+  </div>
+  <div class="transcript-area" id="transcript">
+    <div class="empty">議事録ON にすると、自分の発話を文字起こしします (Chrome/Safari/Edge推奨)</div>
+  </div>
+  <div class="transcript-status" id="ts-status"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let socket = null;
+let currentRoom = null;
+let localStream = null;
+let micOn = true, camOn = true, recOn = false;
+let peerConnections = new Map();  // uid → { pc, profile, videoEl }
+let peerProfiles = new Map();      // uid → profile
+let recognition = null;
+let transcript = [];               // [{at, who, text}]
+let interimText = '';
+let startedAt = null;
+let timerHandle = null;
+
+const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.replace('/'); return null; }
+  return r.json();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), ms || 2200);
+}
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) { location.replace('/'); return; }
+  me = r.user;
+  await loadRooms();
+  setupSocket();
+}
+
+async function loadRooms() {
+  const r = await api('/api/meeting/rooms/status');
+  if (!r || !r.success) return;
+  const grid = document.getElementById('room-grid');
+  grid.innerHTML = r.rooms.map(rm =>
+    `<div class="room-card" onclick="joinRoom('${escapeHtml(rm.id)}', '${escapeHtml(rm.name)}')">
+      <div class="ic">${rm.icon}</div>
+      <div class="name">${escapeHtml(rm.name)}</div>
+      <div class="count">参加中: <b>${rm.count}</b>名</div>
+    </div>`
+  ).join('');
+}
+
+function setupSocket() {
+  socket = io({ auth: { token } });
+  socket.on('connect', () => {});
+  socket.on('disconnect', () => {});
+  socket.on('meeting:peers', async (data) => {
+    // 既存メンバー一覧。自分がofferを作る
+    for (const peerUid of data.peers) {
+      await callPeer(peerUid, true);
+    }
+  });
+  socket.on('meeting:peer-joined', (profile) => {
+    peerProfiles.set(profile.uid, profile);
+    // 既存メンバーは answer 待ち (offerは新規参加者から来る)
+  });
+  socket.on('meeting:peer-left', (data) => {
+    const pc = peerConnections.get(data.uid);
+    if (pc) { try { pc.pc.close(); } catch (e) {} peerConnections.delete(data.uid); }
+    renderTiles();
+  });
+  socket.on('meeting:signal', async (data) => {
+    const peerUid = data.from;
+    let entry = peerConnections.get(peerUid);
+    if (!entry) entry = await callPeer(peerUid, false);
+    if (!entry) return;
+    const pc = entry.pc;
+    try {
+      if (data.type === 'offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.payload));
+        const ans = await pc.createAnswer();
+        await pc.setLocalDescription(ans);
+        socket.emit('meeting:signal', { to: peerUid, type: 'answer', payload: ans });
+      } else if (data.type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.payload));
+      } else if (data.type === 'ice') {
+        await pc.addIceCandidate(new RTCIceCandidate(data.payload));
+      }
+    } catch (e) { console.error('signal error', e); }
+  });
+}
+
+async function callPeer(peerUid, isOfferer) {
+  if (peerConnections.has(peerUid)) return peerConnections.get(peerUid);
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  if (localStream) {
+    for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
+  }
+  pc.onicecandidate = (e) => {
+    if (e.candidate) socket.emit('meeting:signal', { to: peerUid, type: 'ice', payload: e.candidate });
+  };
+  pc.ontrack = (e) => {
+    let entry = peerConnections.get(peerUid);
+    if (!entry) return;
+    if (!entry.stream) entry.stream = new MediaStream();
+    for (const t of e.streams[0].getTracks()) {
+      if (!entry.stream.getTracks().some(x => x.id === t.id)) entry.stream.addTrack(t);
+    }
+    renderTiles();
+  };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      peerConnections.delete(peerUid);
+      renderTiles();
+    }
+  };
+  const entry = { pc, profile: peerProfiles.get(peerUid) || { uid: peerUid, display_name: '...', avatar_url: '' }, stream: null };
+  peerConnections.set(peerUid, entry);
+  if (isOfferer) {
+    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+    await pc.setLocalDescription(offer);
+    socket.emit('meeting:signal', { to: peerUid, type: 'offer', payload: offer });
+  }
+  return entry;
+}
+
+async function joinRoom(roomId, roomName) {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { width: 640, height: 480 } });
+  } catch (e) {
+    showToast('マイク/カメラの取得に失敗: ' + e.message, 3500, true);
+    return;
+  }
+  currentRoom = roomId;
+  startedAt = Date.now();
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('in-room').classList.add('show');
+  document.getElementById('rm-name').textContent = '🎙 ' + roomName;
+  document.getElementById('hd-title').textContent = '🎙 ' + roomName + ' (会議中)';
+  startTimer();
+  socket.emit('meeting:join', { roomId });
+  renderTiles();
+}
+
+function startTimer() {
+  if (timerHandle) clearInterval(timerHandle);
+  timerHandle = setInterval(() => {
+    if (!startedAt) return;
+    const sec = Math.floor((Date.now() - startedAt) / 1000);
+    const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+    const ss = String(sec % 60).padStart(2, '0');
+    document.getElementById('rm-timer').textContent = mm + ':' + ss;
+  }, 1000);
+}
+
+function renderTiles() {
+  const grid = document.getElementById('video-grid');
+  const tiles = [];
+  // 自分
+  tiles.push(tileFor(me.uid || me.id, me.display_name + ' (自分)', me.avatar_url, localStream, true));
+  // 他人
+  for (const [uid, entry] of peerConnections) {
+    const p = entry.profile || peerProfiles.get(uid) || {};
+    tiles.push(tileFor(uid, p.display_name || '...', p.avatar_url, entry.stream, false));
+  }
+  grid.innerHTML = tiles.join('');
+  // video src 設定
+  for (const [uid, entry] of peerConnections) {
+    if (entry.stream) {
+      const v = document.getElementById('vid-' + uid);
+      if (v && v.srcObject !== entry.stream) v.srcObject = entry.stream;
+    }
+  }
+  if (localStream) {
+    const v = document.getElementById('vid-self');
+    if (v && v.srcObject !== localStream) { v.srcObject = localStream; v.muted = true; }
+  }
+}
+
+function tileFor(uid, name, avatar, stream, isSelf) {
+  const idAttr = isSelf ? 'vid-self' : 'vid-' + uid;
+  const placeholder = avatar
+    ? `<img src="${escapeHtml(avatar)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">`
+    : '<span class="placeholder">👤</span>';
+  return `<div class="tile">
+    ${stream ? `<video id="${idAttr}" autoplay playsinline${isSelf ? ' muted' : ''}></video>` : placeholder}
+    <div class="name">${escapeHtml(name || '')}</div>
+  </div>`;
+}
+
+function toggleMic() {
+  micOn = !micOn;
+  if (localStream) for (const t of localStream.getAudioTracks()) t.enabled = micOn;
+  const btn = document.getElementById('btn-mic');
+  btn.className = 'ctrl-btn ' + (micOn ? 'on' : 'off');
+  btn.textContent = micOn ? '🎤 マイク' : '🔇 マイクOFF';
+}
+
+function toggleCam() {
+  camOn = !camOn;
+  if (localStream) for (const t of localStream.getVideoTracks()) t.enabled = camOn;
+  const btn = document.getElementById('btn-cam');
+  btn.className = 'ctrl-btn ' + (camOn ? 'on' : 'off');
+  btn.textContent = camOn ? '🎥 カメラ' : '🚫 カメラOFF';
+}
+
+function toggleRec() {
+  recOn = !recOn;
+  const btn = document.getElementById('btn-rec');
+  btn.className = 'ctrl-btn ' + (recOn ? 'on' : 'off');
+  btn.textContent = recOn ? '📝 議事録ON' : '📝 議事録OFF';
+  if (recOn) startRecognition();
+  else stopRecognition();
+}
+
+function startRecognition() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    showToast('このブラウザは文字起こし非対応 (Chrome推奨)', 3000, true);
+    recOn = false;
+    document.getElementById('btn-rec').className = 'ctrl-btn off';
+    document.getElementById('btn-rec').textContent = '📝 議事録OFF';
+    return;
+  }
+  recognition = new SpeechRec();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) {
+        const txt = r[0].transcript.trim();
+        if (txt) {
+          transcript.push({ at: new Date().toISOString(), who: me.display_name, text: txt });
+          renderTranscript();
+        }
+      } else {
+        interim += r[0].transcript;
+      }
+    }
+    interimText = interim;
+    if (interim) updateInterim();
+  };
+  recognition.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    console.warn('SpeechRecognition error:', e.error);
+  };
+  recognition.onend = () => {
+    // recOnのままなら自動再開
+    if (recOn) { try { recognition.start(); } catch (e) {} }
+  };
+  try { recognition.start(); } catch (e) {}
+  document.getElementById('ts-status').className = 'transcript-status live';
+  document.getElementById('ts-status').textContent = '文字起こし中…';
+}
+
+function stopRecognition() {
+  if (recognition) {
+    try { recognition.stop(); } catch (e) {}
+    recognition = null;
+  }
+  interimText = '';
+  document.getElementById('ts-status').className = 'transcript-status';
+  document.getElementById('ts-status').textContent = '';
+}
+
+function renderTranscript() {
+  const el = document.getElementById('transcript');
+  if (!transcript.length && !interimText) {
+    el.innerHTML = '<div class="empty">議事録ON にすると、自分の発話を文字起こしします</div>';
+    return;
+  }
+  let html = transcript.map(t =>
+    `<div class="turn"><span class="who">${escapeHtml(t.who)}</span> ${escapeHtml(t.text)}</div>`
+  ).join('');
+  if (interimText) {
+    html += `<div class="turn" style="opacity:0.5;font-style:italic;"><span class="who">${escapeHtml(me.display_name)}</span> ${escapeHtml(interimText)}…</div>`;
+  }
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateInterim() {
+  renderTranscript();
+}
+
+async function leaveRoom() {
+  if (!currentRoom) return;
+  // 議事録保存
+  const endedAt = new Date().toISOString();
+  const startedAtIso = startedAt ? new Date(startedAt).toISOString() : null;
+  const participants = [me.uid || me.id, ...peerConnections.keys()];
+  const fullText = transcript.map(t => `[${new Date(t.at).toLocaleTimeString('ja-JP')}] ${t.who}: ${t.text}`).join('\n');
+
+  // クリーンアップ
+  socket.emit('meeting:leave');
+  for (const [, entry] of peerConnections) try { entry.pc.close(); } catch (e) {}
+  peerConnections.clear();
+  if (localStream) for (const t of localStream.getTracks()) t.stop();
+  localStream = null;
+  stopRecognition();
+  if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+
+  // 保存 (議事録ありの場合のみ)
+  let savedSummary = null;
+  if (fullText.length > 0) {
+    showToast('議事録を保存中…', 2000);
+    try {
+      const r = await api('/api/meeting/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_id: currentRoom,
+          started_at: startedAtIso,
+          ended_at: endedAt,
+          participants,
+          transcript: fullText,
+        }),
+      });
+      if (r && r.success) {
+        savedSummary = r.summary || '';
+        showToast('✅ 議事録を保存しました');
+      }
+    } catch (e) { showToast('保存エラー: ' + e.message, 3000, true); }
+  }
+
+  currentRoom = null; transcript = []; interimText = '';
+  document.getElementById('in-room').classList.remove('show');
+  document.getElementById('lobby').style.display = '';
+  document.getElementById('hd-title').textContent = '🎙 ミーティング';
+  document.getElementById('rm-timer').textContent = '00:00';
+  await loadRooms();
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (currentRoom) {
+    socket && socket.emit('meeting:leave');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

@@ -33,6 +33,20 @@ function getDb() {
   // 職種 (driver/warehouse/office/construction/manufacturing) — enroll登録時の細分化 (2026-05-08)
   // employee_type(office/field/admin) は権限軸として温存し、職種は別軸で管理
   ensureColumn(_db, 'users', 'job_role', 'job_role TEXT');
+  // ミーティング履歴 (2026-05-09): ZOOM風シンプル会議+AI議事録
+  _db.exec(`CREATE TABLE IF NOT EXISTS meetings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id TEXT NOT NULL,
+    title TEXT,
+    started_by TEXT,
+    started_at TEXT DEFAULT (datetime('now')),
+    ended_at TEXT,
+    participants TEXT,
+    transcript TEXT,
+    summary TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_mt_room ON meetings(room_id, started_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_mt_at ON meetings(started_at DESC);`);
   // DM制限フラグ — 1の場合、共通グループのメンバーまたはadmin/promoterとしかDMできない
   // 新規一般社員に1を設定して部署内チャットに限定する用途 (5/4)
   ensureColumn(_db, 'users', 'dm_restricted', 'dm_restricted INTEGER DEFAULT 0');
