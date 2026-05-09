@@ -128,6 +128,26 @@
     box-shadow: 0 3px 8px rgba(15,23,42,0.18);
     flex-shrink: 0;
   }
+  .hero .me-avatar-inline {
+    width: 32px; height: 32px; border-radius: 50%;
+    vertical-align: middle; margin-left: 8px;
+    object-fit: cover; border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.14);
+  }
+  .hero .timecard-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #fff; border: none; border-radius: 16px;
+    cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(245,158,11,0.35);
+    text-decoration: none; gap: 1px;
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .hero .timecard-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(245,158,11,0.45); }
+  .hero .timecard-btn:active { transform: translateY(0); }
+  .hero .timecard-btn .ic { font-size: 24px; line-height: 1; }
+  .hero .timecard-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
 
   /* セクション見出し */
   .sec-title {
@@ -244,6 +264,10 @@
     .hero .ic { font-size: 32px; }
     .hero .greet { font-size: 14px; }
     .hero .me-avatar { width: 44px; height: 44px; border-width: 2px; }
+    .hero .me-avatar-inline { width: 26px; height: 26px; margin-left: 6px; }
+    .hero .timecard-btn { width: 54px; height: 54px; border-radius: 14px; }
+    .hero .timecard-btn .ic { font-size: 20px; }
+    .hero .timecard-btn .lbl { font-size: 10px; }
     .grid { grid-template-columns: 1fr; gap: 12px; }
     .card { padding: 16px 16px 14px 16px; }
     .card .icon-pill { width: 44px; height: 44px; font-size: 24px; border-radius: 12px; margin-bottom: 10px; }
@@ -300,6 +324,10 @@
       <div class="greet" id="greet">CoWellへようこそ</div>
       <div class="note">今日も健康と安全のためにご活用ください。</div>
     </div>
+    <a href="/timecard" id="hero-timecard-btn" class="timecard-btn" title="打刻" aria-label="打刻" style="display:none;">
+      <span class="ic">⏰</span>
+      <span class="lbl">打刻</span>
+    </a>
     <img id="me-avatar" class="me-avatar" alt="" style="display:none;">
   </div>
 
@@ -477,10 +505,27 @@ async function init() {
   $('hd-name').textContent = me.display_name + 'さん';
   const g = greetInfo();
   $('hero-ic').textContent = g.ic;
-  $('greet').innerHTML = g.word + '、<strong>' + escapeHtml(me.display_name) + '</strong>さん';
-  const ava = $('me-avatar');
-  if (me.avatar_url) { ava.src = me.avatar_url; ava.style.display = ''; }
-  else { ava.style.display = 'none'; }
+  // 現場系職種(ドライバー/倉庫/施工/製造)は別途打刻記録があるため対象外
+  const FIELD_JOBS = ['driver', 'warehouse', 'construction', 'manufacturing'];
+  const isFieldJob = me.job_role && FIELD_JOBS.indexOf(me.job_role) >= 0;
+  const isLegacyField = !me.job_role && me.employee_type === 'field';
+  const isFieldStaff = isFieldJob || isLegacyField;
+
+  let greetHtml = g.word + '、<strong>' + escapeHtml(me.display_name) + '</strong>さん';
+  const tcBtn = $('hero-timecard-btn');
+  const heroAva = $('me-avatar');
+
+  if (isFieldStaff) {
+    // 現場系: 右端にアバター大、打刻ボタンなし
+    if (me.avatar_url) { heroAva.src = me.avatar_url; heroAva.style.display = ''; }
+  } else {
+    // 事務/管理職: 右端に打刻ボタン、アバターは挨拶テキスト末尾にインライン
+    tcBtn.style.display = '';
+    if (me.avatar_url) {
+      greetHtml += '<img class="me-avatar-inline" src="' + escapeHtml(me.avatar_url) + '" alt="">';
+    }
+  }
+  $('greet').innerHTML = greetHtml;
 
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;

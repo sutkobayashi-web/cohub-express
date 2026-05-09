@@ -58,6 +58,7 @@ router.post('/login', (req, res) => {
       role: user.role,
       employee_type: user.employee_type || 'office',
       avatar_url: user.avatar_url,
+      job_role: user.job_role || null,
       is_field_promoter: !!user.is_field_promoter,
       is_warehouse_promoter: !!user.is_warehouse_promoter,
       is_guest_reviewer: !!user.is_guest_reviewer,
@@ -75,7 +76,7 @@ router.post('/login', (req, res) => {
 
 // 自分の最新ユーザー情報 (フラグ追加時に既存ログイン中ユーザーが再取得できるよう)
 router.get('/me', authUser, (req, res) => {
-  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, role, employee_type, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at FROM users WHERE id = ?').get(req.uid);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
   const needsConsent = u.role !== 'bot' && u.consent_version !== CONSENT_VERSION;
   res.json({
@@ -88,6 +89,7 @@ router.get('/me', authUser, (req, res) => {
       role: u.role,
       employee_type: u.employee_type || 'office',
       avatar_url: u.avatar_url,
+      job_role: u.job_role || null,
       is_field_promoter: !!u.is_field_promoter,
       is_warehouse_promoter: !!u.is_warehouse_promoter,
       is_guest_reviewer: !!u.is_guest_reviewer,
