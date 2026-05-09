@@ -228,6 +228,7 @@
   .card.challenges { --c1: #fb923c; --c2: #f97316; }
   .card.meeting    { --c1: #818cf8; --c2: #4338ca; }
   .card.literacy   { --c1: #2dd4bf; --c2: #0d9488; }
+  .card.takara     { --c1: #f87171; --c2: #1e40af; }
 
   /* 推進メンバー専用 (色味を統一) */
   #promoter-section .grid { gap: 12px; }
@@ -421,6 +422,11 @@
         <div class="label">ヘルスリテラシー 聞き取り</div>
         <div class="desc">PCがない社員向け。代理入力でCCHL5問4択を記録 (90日経過で再聞き取り推奨)。</div>
       </a>
+      <a id="p-card-takara" class="card takara" href="/takara/admin.html" style="display:none;">
+        <div class="icon-pill">🚛</div>
+        <div class="label">タカラ一括請負デモ</div>
+        <div class="desc">WMS取込→AI配車→QR配信→荷主追跡。月曜プレゼン用プロトタイプ。</div>
+      </a>
       <a id="p-card-enroll" class="card p-enroll" href="/enroll.html" style="display:none;">
         <div class="icon-pill">📷</div>
         <div class="label">社員登録</div>
@@ -578,6 +584,11 @@ async function init() {
     const isMgr = me.employee_type === 'admin';
     if (isPromoter || isWarehousePromoter || isMgr || isAdmin) {
       const c = $('p-card-enroll');
+      if (c) c.style.display = '';
+    }
+    // タカラ一括請負デモ: システムadminのみ
+    if (isAdmin) {
+      const c = $('p-card-takara');
       if (c) c.style.display = '';
     }
   }
