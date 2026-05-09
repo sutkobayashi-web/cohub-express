@@ -190,6 +190,16 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
     .run(ld, JSON.stringify({ site_count: sites.length, total_sai: sites.reduce((a, s) => a + (s.sai || 0), 0) }), req.uid).lastInsertRowid;
 
   try {
+    // 過去履歴から「実号車番号」と「実車種」を取得 (AIに投入する実号車プール)
+    const fleet = db.prepare(`
+      SELECT DISTINCT original_vehicle_no AS vehicle_no, vehicle_type
+      FROM td_dispatch_history
+      WHERE original_vehicle_no <> ''
+        AND vehicle_type IN ('2tｼｮｰﾄ','2tｽﾘﾑ','2tｼｮｰﾄ平ﾎﾞﾃﾞｨ','2t平ﾎﾞﾃﾞｨ','2t')
+      ORDER BY original_vehicle_no
+    `).all();
+    const fleetLines = fleet.map(f => `${f.vehicle_no} (${f.vehicle_type})`).join(', ');
+
     // プロンプト: 時間指定の現場をハードロックし、周辺の非指定現場を組み入れて座間帰着するルートを設計
     const siteListLines = sites.map((s, i) => {
       const ts = s.time_spec === 'hard' ? '🔒時間指定厳守' : s.time_spec === 'soft' ? '⏰希望帯' : '指定なし';
@@ -197,16 +207,25 @@ router.post('/generate-dispatch', authUser, express.json(), async (req, res) => 
     }).join('\n');
 
     const prompt = `あなたは座間積替倉庫(神奈川県座間市)を起点とする首都圏配送の配車プランナーです。
-以下のWMS現場リストを、時間指定厳守+周辺ルート組込み+座間帰着 の制約で号車別に配車計画してください。
+タカラスタンダード様の住宅設備機器を首都圏に配送する2t車両のルートを組成します。
 
 【絶対制約】
 - 起点・終点: 座間倉庫
 - 時間指定厳守(🔒)の現場: 希望ETA±15分以内で訪問
 - 時間希望(⏰)の現場: できるだけ希望帯を守る (±60分許容)
-- 各号車の才数容量: 2tショート=80才, 3tユニック=120才, 4tユニック=160才
+- **車種は2t車のみ** (4t/3tユニック等は存在しない):
+  - 2tｼｮｰﾄ (容量目安: 約45才)
+  - 2tｽﾘﾑ (容量目安: 約40才)
+  - 2tｼｮｰﾄ平ﾎﾞﾃﾞｨ (容量目安: 約45才・大型品向け)
+  - 2t平ﾎﾞﾃﾞｨ (容量目安: 約50才)
+  - 2t (容量目安: 約45才)
+- 各号車1日 **3〜6現場、合計才数50才以下** が現実的
 - 時間指定がある現場 + その近隣の指定なし現場をまとめて1台に組む
 - 配送終了後は座間に戻る前提でルート設計
-- 同一車両は5〜10現場/日が現実的、20現場超は分割
+
+【使用可能な実号車プール (この中から号車番号を選ぶこと)】
+${fleetLines}
+※ 上記が当日全車稼働を前提。1日 ${fleet.length} 台前後の運用が標準。
 
 【配送先 (load_date=${ld}, 計${sites.length}現場)】
 ${siteListLines}
@@ -215,8 +234,8 @@ ${siteListLines}
 {
   "vehicles": [
     {
-      "vehicle_no": "201",
-      "vehicle_type": "2tショート|3tユニック|4tユニック",
+      "vehicle_no": "401",
+      "vehicle_type": "2tｼｮｰﾄ",
       "stops": [
         {
           "sequence": 1,
@@ -224,7 +243,7 @@ ${siteListLines}
           "eta": "0800",
           "time_spec": "hard|soft|null",
           "qty": 27,
-          "sai": 97,
+          "sai": 27,
           "reason": "時間指定厳守、神奈川中部"
         }
       ]
