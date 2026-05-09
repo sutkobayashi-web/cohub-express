@@ -107,7 +107,9 @@ router.post('/import-dispatch', authUser, upload.single('file'), (req, res) => {
       const addr = nz(r[11]);
       const qty = num(r[12]); const sai = num(r[13]);
       const eta = nz(r[14]);
-      const vt = nz(r[15]);
+      // col16(idx15)は「車種」見出しだが実データは納入数(2か所等)が混入。
+      // 正規の車種は col22(idx21)。col21(idx20)は積替基地コード。
+      const vt = nz(r[21]);
       const tb = nz(r[20]);
       // 時間指定の正規化
       let level = '';

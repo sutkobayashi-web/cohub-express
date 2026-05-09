@@ -88,7 +88,9 @@ for (const f of dispFiles) {
       const ts = nz(r[9]);
       const site = nz(r[10]); const addr = nz(r[11]);
       const qty = num(r[12]); const sai = num(r[13]);
-      const eta = nz(r[14]); const vt = nz(r[15]); const tb = nz(r[20]);
+      const eta = nz(r[14]);
+      // 正規の車種は col22(idx21)。col16は納入数が混入。
+      const vt = nz(r[21]); const tb = nz(r[20]);
       let level = '';
       if (ts === '時間指定') level = 'hard';
       else if (ts === '有') level = 'soft';
