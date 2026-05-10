@@ -506,48 +506,132 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
   }
 
   // ===== 時間指定車両: 物理車両単位でグルーピング =====
+  // 車種マスタから容量取得
+  const vehTypeMaster = new Map();
+  for (const t of db.prepare(`SELECT * FROM td_vehicle_types WHERE is_active = 1`).all()) {
+    vehTypeMaster.set(t.vehicle_type, t);
+  }
+  const matchVehType = (raw) => {
+    const s = (raw || '').trim();
+    if (vehTypeMaster.has(s)) return vehTypeMaster.get(s);
+    for (const [k, v] of vehTypeMaster) if (s.includes(k) || (k && s.includes(k))) return v;
+    return vehTypeMaster.get('2tｼｮｰﾄ') || { capacity_sai: 100, max_stops: 6 };
+  };
+
+  // 時間指定車両: Logistarの物理車両単位で構築
   const fixedVehMap = new Map();
   for (const s of timeFixedStops) {
     if (!fixedVehMap.has(s.vehicle_no)) {
-      fixedVehMap.set(s.vehicle_no, { vehicle_no: s.vehicle_no, vehicle_type: vtMap.get(s.vehicle_no) || '', stops: [], is_route_only: false });
+      const vt = matchVehType(vtMap.get(s.vehicle_no) || '');
+      fixedVehMap.set(s.vehicle_no, {
+        vehicle_no: s.vehicle_no,
+        vehicle_type: vtMap.get(s.vehicle_no) || vt.vehicle_type || '2tｼｮｰﾄ',
+        capacity: vt.capacity_sai,
+        max_stops: vt.max_stops || 12,
+        stops: [], total_sai: 0, is_route_only: false,
+      });
     }
-    fixedVehMap.get(s.vehicle_no).stops.push(s);
-  }
-  for (const v of fixedVehMap.values()) {
-    v.stops.sort((a, b) => (a.eta || '').localeCompare(b.eta || ''));
-    v.stops.forEach((st, i) => st.sequence = i + 1);
+    const v = fixedVehMap.get(s.vehicle_no);
+    v.stops.push(s); v.total_sai += s.sai || 0;
   }
 
-  // ===== ルート便車両: 9-16時で物理車両に容量配分 =====
-  // 才数容量別に並べる (才数大きい順 = First Fit Decreasing)
-  // ルート便は才数少ない傾向だが、容量内で詰める
-  const ROUTE_CAP = 80;  // 2tスリム想定 (才数容量、車種マスタで変更可)
-  const routeVehicles = [];
+  // ===== 方面コード判定 (時間指定先と同方面のルート便のみ混載) =====
+  // 座間中心→各方面。時間指定先と「同じ方面 or 経由地点になる方面」のみ混載許可
+  // 例: 横須賀(SE)時間指定 → SE方面のルート便だけ混載 (小田原SW方面は積まない)
+  const DIRECTION_MAP = [
+    ['横須賀', 'SE'], ['三浦', 'SE'], ['逗子', 'SE'], ['葉山', 'SE'], ['鎌倉', 'SE'],
+    ['横浜市金沢', 'SE'], ['磯子', 'SE'], ['港南', 'SE'], ['栄区', 'SE'], ['戸塚', 'SE'],
+    ['藤沢', 'S'], ['茅ヶ崎', 'S'], ['茅ケ崎', 'S'], ['寒川', 'S'],
+    ['平塚', 'SW'], ['二宮', 'SW'], ['小田原', 'SW'], ['南足柄', 'SW'], ['大磯', 'SW'], ['足柄', 'SW'],
+    ['伊勢原', 'W'], ['厚木', 'W'], ['秦野', 'W'], ['愛川', 'W'], ['清川', 'W'],
+    ['相模原', 'N'], ['大和', 'N'], ['海老名', 'N'], ['綾瀬', 'N'], ['座間', 'C'],
+    ['町田', 'NW'], ['八王子', 'NW'], ['多摩', 'NW'], ['日野', 'NW'],
+    ['川崎', 'NE'], ['大田', 'NE'], ['品川', 'NE'], ['目黒', 'NE'], ['世田谷', 'NE'], ['杉並', 'NE'],
+    ['東京都', 'NE'],
+    ['鶴見', 'E'], ['神奈川区', 'E'], ['西区', 'E'], ['中区', 'E'], ['南区', 'E'], ['保土ヶ谷', 'E'],
+    ['保土ケ谷', 'E'], ['港北', 'E'], ['緑区', 'E'], ['青葉', 'E'], ['都筑', 'E'], ['泉区', 'E'],
+    ['横浜市', 'E'],
+  ];
+  function detectDirection(addr) {
+    if (!addr) return 'X';  // 不明
+    for (const [prefix, dir] of DIRECTION_MAP) if (addr.includes(prefix)) return dir;
+    return 'X';
+  }
+  // 各時間指定車両の代表方面 = ストップの方面の最頻
+  for (const v of fixedVehMap.values()) {
+    const dirCount = {};
+    for (const s of v.stops) {
+      const d = detectDirection(s.address || s.site_name);
+      dirCount[d] = (dirCount[d] || 0) + 1;
+    }
+    let bestDir = 'X', bestN = 0;
+    for (const [d, n] of Object.entries(dirCount)) if (n > bestN && d !== 'X') { bestDir = d; bestN = n; }
+    v.direction = bestDir;
+  }
+
+  const fixedArr = [...fixedVehMap.values()];
   routeStops.sort((a, b) => (b.sai || 0) - (a.sai || 0));
+  const remainingRoute = [];
   for (const s of routeStops) {
+    const sDir = detectDirection(s.address || s.site_name);
+    let target = null;
+    // 同方面の時間指定車両を優先 (容量空きあるもの)
+    if (sDir !== 'X') {
+      for (const v of fixedArr) {
+        if (v.direction !== sDir) continue;
+        if (v.total_sai + (s.sai || 0) > v.capacity) continue;
+        if (v.stops.length >= v.max_stops + 4) continue;
+        target = v; break;
+      }
+    }
+    if (target) {
+      s.vehicle_no = target.vehicle_no;
+      s.kind = 'route_mixed';
+      target.stops.push(s);
+      target.total_sai += s.sai || 0;
+    } else {
+      remainingRoute.push(s);
+    }
+  }
+
+  // 時間指定車両のストップ順並べ替え: ETA順 + ルート便(ETA空)は末尾に挿入してETA振付
+  for (const v of fixedArr) {
+    const fixed = v.stops.filter(s => s.kind !== 'route_mixed').sort((a,b)=>(a.eta||'').localeCompare(b.eta||''));
+    const mixed = v.stops.filter(s => s.kind === 'route_mixed');
+    // 時間指定の後 (最後ETA+30分間隔) にルート便を配置
+    const lastEtaMin = fixed.length ? (() => { const m = (fixed[fixed.length-1].eta || '').match(/(\d{1,2}):(\d{2})/); return m ? +m[1]*60 + +m[2] : 9*60; })() : 9*60;
+    mixed.forEach((s, i) => {
+      const t = lastEtaMin + 30 + i * 30;
+      const hh = Math.floor(t / 60), mm = t % 60;
+      s.eta = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+    });
+    v.stops = [...fixed, ...mixed];
+    v.stops.forEach((s, i) => s.sequence = i + 1);
+  }
+
+  // ===== 残ったルート便のみ専用車両 =====
+  const ROUTE_CAP = 80;
+  const ROUTE_MAX_STOPS = 14;
+  const routeVehicles = [];
+  remainingRoute.sort((a, b) => (b.sai || 0) - (a.sai || 0));
+  for (const s of remainingRoute) {
     let placed = false;
     for (const v of routeVehicles) {
-      if (v.total_sai + (s.sai || 0) <= v.capacity && v.stops.length < 12) {
-        v.stops.push(s);
-        v.total_sai += s.sai || 0;
-        placed = true;
-        break;
+      if (v.total_sai + (s.sai || 0) <= v.capacity && v.stops.length < ROUTE_MAX_STOPS) {
+        v.stops.push(s); v.total_sai += s.sai || 0; placed = true; break;
       }
     }
     if (!placed) {
       routeVehicles.push({
-        vehicle_no: `ルート${routeVehicles.length + 1}`,
-        capacity: ROUTE_CAP,
-        vehicle_type: 'ルート便',
-        stops: [s], total_sai: s.sai || 0,
-        is_route_only: true,
+        vehicle_no: `ルート補完${routeVehicles.length + 1}`,
+        capacity: ROUTE_CAP, vehicle_type: 'ルート便',
+        stops: [s], total_sai: s.sai || 0, is_route_only: true, max_stops: ROUTE_MAX_STOPS,
       });
     }
   }
-  // ETA: 9:00-16:00 (420分間) で件数分等間隔
   for (const v of routeVehicles) {
     const n = v.stops.length;
-    const startMin = 9 * 60, endMin = 16 * 60;
+    const startMin = 9*60, endMin = 16*60;
     const interval = n > 1 ? Math.floor((endMin - startMin) / n) : 60;
     v.stops.forEach((s, i) => {
       const m = startMin + i * interval;
@@ -559,7 +643,7 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
   }
 
   // 統合
-  const allVehicles = [...fixedVehMap.values(), ...routeVehicles];
+  const allVehicles = [...fixedArr, ...routeVehicles];
 
   // DB反映
   const tx = db.transaction(() => {
@@ -583,12 +667,14 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
   });
   tx();
 
+  const mixedCount = fixedArr.reduce((a, v) => a + v.stops.filter(s => s.kind === 'route_mixed').length, 0);
   res.json({
     success: true,
-    msg: `WMS反映: 時間指定${fixedVehMap.size}台/${timeFixedStops.length}件 + ルート便${routeVehicles.length}台/${routeStops.length}件`,
+    msg: `WMS反映: 時間指定車両${fixedVehMap.size}台 (時間指定${timeFixedStops.length}件+混載${mixedCount}件) / 補完便${routeVehicles.length}台/${remainingRoute.length}件 = 計${allVehicles.length}台`,
     delivery_dates: deliveryDates,
-    time_fixed: { vehicles: fixedVehMap.size, stops: timeFixedStops.length },
-    route: { vehicles: routeVehicles.length, stops: routeStops.length },
+    time_fixed: { vehicles: fixedVehMap.size, stops: timeFixedStops.length, mixed_route: mixedCount },
+    route_supplement: { vehicles: routeVehicles.length, stops: remainingRoute.length },
+    total_vehicles: allVehicles.length,
   });
 });
 
