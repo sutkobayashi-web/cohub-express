@@ -220,10 +220,29 @@
   /* セクションラベル (グループ/DMの区切り) */
   .list-sec-label {
     padding: 10px 16px 6px; font-size: 10px; font-weight: 800;
-    color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase;
-    background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(248,250,252,0.50));
+    letter-spacing: 1.5px; text-transform: uppercase;
     position: sticky; top: 0; z-index: 1;
   }
+  /* セクション別背景色 (グループ=青系 / 個人=緑系) */
+  .section-group { background: linear-gradient(180deg, #eff6ff 0%, #f0f9ff 100%); border-left: 3px solid #3b82f6; }
+  .section-group .list-sec-label {
+    background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+    color: #1e40af;
+    border-bottom: 1px solid #bfdbfe;
+  }
+  .section-group .chat-row { background: transparent; }
+  .section-group .chat-row:hover { background: rgba(59,130,246,0.10); }
+  .section-group .chat-row.active { background: rgba(59,130,246,0.18); }
+
+  .section-dm { background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%); border-left: 3px solid #10b981; }
+  .section-dm .list-sec-label {
+    background: linear-gradient(180deg, #d1fae5 0%, #f0fdf4 100%);
+    color: #047857;
+    border-bottom: 1px solid #a7f3d0;
+  }
+  .section-dm .chat-row { background: transparent; }
+  .section-dm .chat-row:hover { background: rgba(16,185,129,0.10); }
+  .section-dm .chat-row.active { background: rgba(16,185,129,0.18); }
   .list-empty {
     padding: 18px 16px; font-size: 12px; color: #94a3b8; text-align: center;
     font-style: italic;
@@ -1665,12 +1684,16 @@ function renderGroupList() {
   const grpUnread = groupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const dmUnread = dmRows.reduce((a, r) => a + (unreadDms.get(r.id) || 0), 0);
   if (groupRows.length > 0) {
+    html.push('<div class="section-group">');
     html.push(`<div class="list-sec-label">👥 グループ${grpUnread > 0 ? ` <span style="color:#dc2626;">(${grpUnread})</span>` : ''}</div>`);
     html.push(groupRows.map(r => chatRowHtml(r)).join(''));
+    html.push('</div>');
   }
   if (dmRows.length > 0) {
+    html.push('<div class="section-dm">');
     html.push(`<div class="list-sec-label">👤 個人 (DM)${dmUnread > 0 ? ` <span style="color:#dc2626;">(${dmUnread})</span>` : ''}</div>`);
     html.push(dmRows.map(r => chatRowHtml(r)).join(''));
+    html.push('</div>');
   }
   list.innerHTML = html.join('');
 }
