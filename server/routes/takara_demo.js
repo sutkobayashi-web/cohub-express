@@ -320,6 +320,122 @@ router.delete('/vehicle-types/:vt', authUser, (req, res) => {
 });
 
 // ============================================================
+// WMS → td_dispatches 反映 (タカラ配車を素直に画面化)
+// 物理車両単位の集約は Logistar履歴があれば適用、なければ号車番号=1物理車両
+// ============================================================
+router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  const db = getDb();
+  const orderRows = db.prepare(`SELECT * FROM td_orders WHERE load_date = ? ORDER BY original_vehicle_no, id`).all(ld);
+  if (!orderRows.length) return res.status(400).json({ success: false, msg: 'WMSデータがありません' });
+
+  // 施工引取分(950-959/971-979)は配車対象外
+  const isPickupOnly = (vno) => {
+    const n = parseInt(vno, 10);
+    return !isNaN(n) && ((n >= 950 && n <= 959) || (n >= 971 && n <= 979));
+  };
+
+  // 物理車両マップ: Logistar履歴から原号車→代表号車を引く
+  // (例: 237/238/239 が連続物理車両なら全部 237 にまとめる)
+  const histRows = db.prepare(`SELECT * FROM td_dispatch_history WHERE load_date = ? ORDER BY id`).all(ld);
+  const physMap = new Map();  // dispatch_no(個別号車番号) → phys_vehicle_no(代表号車番号)
+  let curPhys = null;
+  for (const r of histRows) {
+    if (r.sequence === 1 || !r.sequence) curPhys = r.original_vehicle_no;
+    if (curPhys) physMap.set(r.original_vehicle_no, curPhys);
+  }
+
+  // 履歴住所・時間指定マップ (現場名→補完情報)
+  const addrMap = new Map();
+  const tspecMap = new Map();
+  const etaHistMap = new Map();
+  const allHist = db.prepare(`SELECT site_name, address, time_spec, eta FROM td_dispatch_history`).all();
+  for (const h of allHist) {
+    if (h.address && !addrMap.has(h.site_name)) addrMap.set(h.site_name, h.address);
+    if (h.time_spec && !tspecMap.has(h.site_name)) tspecMap.set(h.site_name, h.time_spec);
+    if (h.eta && !etaHistMap.has(h.site_name)) etaHistMap.set(h.site_name, h.eta);
+  }
+
+  // 履歴の vehicle_type (代表号車別)
+  const vtMap = new Map();
+  for (const r of histRows) {
+    const phys = physMap.get(r.original_vehicle_no) || r.original_vehicle_no;
+    if (!vtMap.has(phys) && r.vehicle_type) vtMap.set(phys, (r.vehicle_type || '').split('／')[0].trim());
+  }
+
+  // WMS現場×号車を集約 (現場名+号車番号で1ストップ)
+  const stopMap = new Map();
+  for (const o of orderRows) {
+    if (isPickupOnly(o.original_vehicle_no)) continue;
+    const veh = String(o.original_vehicle_no || '').trim();
+    if (!veh) continue;
+    // 物理車両に集約
+    const physVeh = physMap.get(veh) || veh;
+    const key = `${physVeh}__${o.site_name || ''}__${veh}`;
+    if (!stopMap.has(key)) {
+      stopMap.set(key, {
+        phys_vehicle_no: physVeh,
+        original_vehicle_no: veh,
+        site_name: o.site_name || '',
+        sai: 0, qty: 0,
+      });
+    }
+    const s = stopMap.get(key);
+    s.sai += parseFloat(o.sai) || 0;
+    s.qty += parseFloat(o.qty) || 0;
+  }
+  const stops = [...stopMap.values()];
+
+  // 各stopに住所・時間指定・etaを補完、物理号車内でsequence順に並べる
+  const byVeh = new Map();
+  for (const s of stops) {
+    s.address = addrMap.get(s.site_name) || '';
+    s.time_spec = tspecMap.get(s.site_name) || null;
+    s.eta = etaHistMap.get(s.site_name) || '';
+    if (!byVeh.has(s.phys_vehicle_no)) byVeh.set(s.phys_vehicle_no, []);
+    byVeh.get(s.phys_vehicle_no).push(s);
+  }
+  // sequence: ETAでソート (ETAなしは末尾)
+  for (const [veh, arr] of byVeh) {
+    arr.sort((a, b) => {
+      if (!a.eta && !b.eta) return 0;
+      if (!a.eta) return 1; if (!b.eta) return -1;
+      return a.eta.localeCompare(b.eta);
+    });
+    arr.forEach((s, i) => s.sequence = i + 1);
+  }
+
+  // DB反映
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM td_dispatches WHERE load_date = ?`).run(ld);
+    db.prepare(`DELETE FROM td_dispatch_meta WHERE load_date = ?`).run(ld);
+    const insStop = db.prepare(`INSERT INTO td_dispatches
+      (load_date, vehicle_no, sequence, site_name, address, eta, time_spec, qty, sai, notes, ai_reason, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'WMS反映 (タカラ配車)', 'pending')`);
+    const insMeta = db.prepare(`INSERT OR REPLACE INTO td_dispatch_meta
+      (load_date, vehicle_no, vehicle_type, driver_token, status, driver_name)
+      VALUES (?, ?, ?, ?, 'draft', '')`);
+    for (const [veh, arr] of byVeh) {
+      insMeta.run(ld, veh, vtMap.get(veh) || '', gen8());
+      for (const s of arr) {
+        const note = s.original_vehicle_no !== veh ? `(配送#${s.original_vehicle_no})` : '';
+        insStop.run(ld, veh, s.sequence, s.site_name, s.address || '',
+          s.eta || '', s.time_spec || null, s.qty || 0, s.sai || 0, note);
+      }
+    }
+  });
+  tx();
+
+  res.json({
+    success: true,
+    msg: `WMS反映完了: ${byVeh.size}号車 / ${stops.length}現場`,
+    vehicles: byVeh.size,
+    stops: stops.length,
+  });
+});
+
+// ============================================================
 // OR-Tools 骨組み配車生成 (Phase A)
 // 業者×配送日で号車プールを分離 → CVRP+TW でストップを割付
 // 結果は td_dispatches に UPSERT (既存の AI/手動データを上書き)

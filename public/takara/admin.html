@@ -307,6 +307,7 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
           <option value="平日">平日配送のみ</option>
           <option value="土曜">土曜配送のみ</option>
         </select>
+        <button class="btn" id="wms-btn" style="background:#0891b2;color:#fff;" onclick="reflectWms()">📥 WMS反映 (タカラ配車)</button>
         <button class="btn" id="or-btn" style="background:#7c3aed;color:#fff;" onclick="generateOrTools()">⚙️ OR-Tools骨組み生成</button>
         <span style="margin-left:14px;border-left:1px solid #fdba74;padding-left:14px;font-size:12px;color:#92400e;">
           AIモデル:
@@ -504,6 +505,20 @@ async function generatePlan() {
     } else showToast('❌ ' + r.msg, 5000, true);
   } catch (e) { showToast('❌ ' + e.message, 5000, true); }
   btn.disabled = false; btn.innerHTML = '🤖 AI配車生成';
+}
+
+async function reflectWms() {
+  if (!selectedDate) return;
+  if (!confirm('この日のWMS全現場を配車プランに反映します(既存の配車は上書き)。続行しますか？')) return;
+  const btn = document.getElementById('wms-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 反映中…';
+  try {
+    const r = await api('/api/takara/from-wms/' + selectedDate, { method: 'POST', body: '{}' });
+    if (r.success) { showToast(`✅ ${r.msg}`); await loadPlan(selectedDate); }
+    else showToast('❌ ' + r.msg, 6000, true);
+  } catch (e) { showToast('❌ ' + e.message, 6000, true); }
+  btn.disabled = false; btn.innerHTML = '📥 WMS反映 (タカラ配車)';
 }
 
 async function generateOrTools() {
