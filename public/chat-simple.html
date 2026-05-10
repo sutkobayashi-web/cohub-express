@@ -1,0 +1,3114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0ea5e9">
+<title>営業所チャット — CoWell</title>
+<link rel="manifest" href="/manifest.json?v=4">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: #f1f5f9; color: #0f172a; }
+  body { display: flex; flex-direction: column; height: 100dvh; }
+  header { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; }
+  header a, header button { color: #fff; text-decoration: none; font-size: 12px; padding: 6px 10px; background: rgba(255,255,255,0.2); border-radius: 6px; border: none; cursor: pointer; }
+  header a:hover, header button:hover { background: rgba(255,255,255,0.3); }
+  #me-name { font-size: 11px; opacity: 0.9; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  /* グループ一覧 */
+  #side {
+    width: 280px; background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    border-right: 1px solid #e2e8f0;
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  #side h2 {
+    margin: 0; padding: 14px 16px 10px;
+    font-size: 12px; font-weight: 800; color: #1e293b;
+    letter-spacing: 2px; text-transform: uppercase;
+    background: linear-gradient(180deg, #f1f5f9, #f8fafc);
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #side h2:before { content: '🗨'; font-size: 14px; }
+  #side h2 .cnt-num { color: #94a3b8; font-weight: 700; font-size: 10px; margin-left: auto; letter-spacing: 0; }
+  #group-list { flex: 1; overflow-y: auto; padding: 4px 10px 12px; }
+
+  .grp-item {
+    --c1: #38bdf8; --c2: #0ea5e9;
+    cursor: pointer; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 12px;
+    margin-bottom: 6px;
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    position: relative; overflow: hidden;
+  }
+  .grp-item:hover {
+    transform: translateX(2px);
+    border-color: rgba(14,165,233,0.40);
+    box-shadow: 0 4px 12px rgba(15,23,42,0.06);
+  }
+  .grp-item.active {
+    background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(56,189,248,0.05));
+    border-color: rgba(14,165,233,0.50);
+    box-shadow: 0 4px 14px rgba(14,165,233,0.18);
+  }
+  .grp-item.active:before {
+    content: ''; position: absolute; left: 0; top: 12%; bottom: 12%;
+    width: 3px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--c1), var(--c2));
+  }
+
+  .grp-item .ic {
+    flex-shrink: 0;
+    width: 38px; height: 38px; border-radius: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 19px; line-height: 1; color: #fff;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    box-shadow: 0 3px 8px rgba(14,165,233,0.25), inset 0 1px 0 rgba(255,255,255,0.30);
+  }
+  .grp-item.active .ic { box-shadow: 0 4px 12px rgba(14,165,233,0.45), inset 0 1px 0 rgba(255,255,255,0.30); }
+
+  .grp-item .meta { flex: 1; min-width: 0; }
+  .grp-item .gn {
+    font-size: 13px; font-weight: 800; color: #0f172a;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    letter-spacing: 0.2px;
+  }
+  .grp-item .lc {
+    font-size: 11px; color: #64748b; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+  .grp-item .lc.empty-content { color: #cbd5e1; font-style: italic; }
+  .grp-item .cnt {
+    font-size: 10px; color: #94a3b8; flex-shrink: 0;
+    background: #f1f5f9; padding: 2px 7px; border-radius: 999px;
+    font-weight: 700; align-self: flex-start; margin-top: 2px;
+  }
+  .grp-item.active .cnt { background: rgba(14,165,233,0.12); color: #0369a1; }
+
+  /* (テーマ色は .grp-block に移譲) */
+
+  /* ====== Teams風フラット チャット一覧 ====== */
+  .chat-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer; text-decoration: none; color: inherit;
+    transition: background 0.12s, box-shadow 0.12s;
+    position: relative;
+    box-sizing: border-box;
+  }
+  .chat-row:hover {
+    background: #f1f5f9;
+    box-shadow: inset 0 0 0 1px rgba(14,165,233,0.15);
+  }
+  .chat-row.active {
+    background: linear-gradient(90deg, rgba(14,165,233,0.18), rgba(14,165,233,0.06));
+    box-shadow: inset 0 0 0 1px rgba(14,165,233,0.30);
+  }
+  .chat-row.active .row-name { color: #0c4a6e; }
+  .chat-row.active:before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #0ea5e9, #0369a1);
+    box-shadow: 2px 0 8px rgba(14,165,233,0.30);
+  }
+  .chat-row .row-av {
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 16px; line-height: 1;
+    overflow: visible; flex-shrink: 0; position: relative;
+    background: linear-gradient(135deg, var(--av-c1, #475569), var(--av-c2, #1e293b));
+    box-shadow: 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.30);
+  }
+  /* 画像本体だけを円形クリップ (ドットがはみ出せるように親はoverflow:visible) */
+  .chat-row .row-av img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+  /* 絵文字の見かけ上の大きさは独立に調整 (人と同じ視覚バランス) */
+  .chat-row .row-av.group { font-size: 18px; }
+  .chat-row .row-av .ring-dot {
+    position: absolute; right: 0; bottom: 0;
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid #fff; z-index: 2;
+  }
+  /* オンライン/オフラインインジケーター (右上、円外にしっかり浮かす) */
+  .chat-row .row-av .online-dot,
+  .mem-row .av-mini .online-dot {
+    position: absolute; right: -3px; top: -3px;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2.5px solid #fff;
+    background: #94a3b8;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    z-index: 3;
+  }
+  .chat-row .row-av .online-dot.online,
+  .mem-row .av-mini .online-dot.online {
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34,197,94,0.18), 0 0 8px rgba(34,197,94,0.65);
+  }
+  .mem-row .av-mini .online-dot { width: 12px; height: 12px; right: -2px; top: -2px; }
+  .chat-row .row-meta {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 3px;
+  }
+  .chat-row .row-top {
+    display: flex; align-items: baseline; gap: 8px;
+    line-height: 1.3; min-width: 0;
+  }
+  .chat-row .row-name {
+    flex: 1; min-width: 0; font-size: 14px; font-weight: 800; color: #0f172a;
+    letter-spacing: 0.2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chat-row .row-time {
+    flex-shrink: 0; font-size: 11px; color: #64748b; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .chat-row .row-preview {
+    font-size: 12px; color: #475569;
+    line-height: 1.4; min-width: 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chat-row .row-preview .preview-text {
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chat-row .row-preview.empty .preview-text { color: #cbd5e1; font-style: italic; }
+  .chat-row .row-preview .pre-tag {
+    flex-shrink: 0; font-size: 9px; padding: 1px 6px; border-radius: 999px;
+    color: #fff; font-weight: 700;
+    background: var(--ring-color, #94a3b8);
+    line-height: 1.4;
+  }
+  .chat-row .unread-badge {
+    flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 7px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff; font-size: 11px; font-weight: 800;
+    border-radius: 999px;
+    box-shadow: 0 3px 8px rgba(220,38,38,0.30);
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: 4px;
+  }
+  /* 未読あり行は名前を太く強調 */
+  .chat-row.has-unread .row-name { color: #0f172a; font-weight: 900; }
+  .chat-row.has-unread .row-preview { color: #1e293b; font-weight: 600; }
+
+  /* 既読/未読インジケータ (LINE風: 自分メッセージの右下、時刻と並べて) */
+  .msg.me .ts {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 6px; font-size: 10px; color: #94a3b8;
+    margin-top: 2px; padding: 0 4px;
+  }
+  .msg.me .ts .read-mark {
+    font-weight: 800;
+    color: #0ea5e9;
+  }
+  .msg.me .ts .unread-mark {
+    font-weight: 700;
+    color: #cbd5e1;
+  }
+  /* グループの既読人数 */
+  .msg.me .ts .read-mark.group-cnt {
+    background: rgba(14,165,233,0.12);
+    padding: 1px 7px; border-radius: 999px;
+  }
+
+  /* セクションラベル (グループ/DMの区切り) */
+  .list-sec-label {
+    padding: 10px 16px 6px; font-size: 10px; font-weight: 800;
+    color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase;
+    background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(248,250,252,0.50));
+    position: sticky; top: 0; z-index: 1;
+  }
+  .list-empty {
+    padding: 18px 16px; font-size: 12px; color: #94a3b8; text-align: center;
+    font-style: italic;
+  }
+
+  /* グループブロック (折りたたみ可能、テーマ色背景) — 旧仕様、もう使わないが互換のため残置 */
+  .grp-block { display: none !important; }
+  .grp-block.legacy { display: block !important; }
+
+  /* 旧グループブロック CSS */
+  .grp-block.legacy {
+    --c1: #38bdf8; --c2: #0ea5e9;
+    --bg-tint: rgba(14,165,233,0.05);
+    margin-bottom: 8px; border-radius: 14px;
+    background: var(--bg-tint);
+    border: 1px solid rgba(0,0,0,0.04);
+    overflow: hidden;
+    transition: background 0.15s;
+  }
+  .grp-block-deprecated {
+    --c1: #38bdf8; --c2: #0ea5e9;
+    --bg-tint: rgba(14,165,233,0.05);
+    margin-bottom: 8px; border-radius: 14px;
+    background: var(--bg-tint);
+    border: 1px solid rgba(0,0,0,0.04);
+    overflow: hidden;
+    transition: background 0.15s;
+  }
+  /* テーマ色 (themeKey 1〜6 で色違いの背景) */
+  .grp-block.theme-1 { --c1: #38bdf8; --c2: #0ea5e9; --bg-tint: rgba(14,165,233,0.06); }
+  .grp-block.theme-2 { --c1: #34d399; --c2: #059669; --bg-tint: rgba(16,185,129,0.06); }
+  .grp-block.theme-3 { --c1: #fb923c; --c2: #ea580c; --bg-tint: rgba(234,88,12,0.06); }
+  .grp-block.theme-4 { --c1: #a78bfa; --c2: #7c3aed; --bg-tint: rgba(124,58,237,0.06); }
+  .grp-block.theme-5 { --c1: #f472b6; --c2: #db2777; --bg-tint: rgba(219,39,119,0.06); }
+  .grp-block.theme-6 { --c1: #facc15; --c2: #ca8a04; --bg-tint: rgba(202,138,4,0.06); }
+
+  /* グループブロック内のヘッダー (.grp-item をオーバーライド) */
+  .grp-block .grp-item {
+    margin-bottom: 0; border: none; border-radius: 0;
+    background: transparent;
+  }
+  .grp-block .grp-item:hover { background: rgba(255,255,255,0.40); transform: none; }
+  .grp-block .grp-item.active {
+    background: linear-gradient(135deg, rgba(255,255,255,0.50), rgba(255,255,255,0.20));
+    box-shadow: none;
+  }
+  .grp-block .grp-item.active:before {
+    content: ''; position: absolute; left: 0; top: 12%; bottom: 12%;
+    width: 3px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--c1), var(--c2));
+  }
+
+  /* 折りたたみトグル */
+  .grp-toggle {
+    flex-shrink: 0;
+    width: 24px; height: 24px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #475569; font-size: 11px;
+    transition: transform 0.18s, background 0.15s;
+    user-select: none;
+    cursor: pointer;
+  }
+  .grp-toggle:hover { background: rgba(255,255,255,0.50); color: #0f172a; }
+  .grp-block.collapsed .grp-toggle { transform: rotate(-90deg); }
+
+  /* メンバー縦リスト */
+  .grp-members-v {
+    display: flex; flex-direction: column;
+    padding: 2px 8px 8px 8px;
+    gap: 1px;
+    overflow: hidden;
+    transition: max-height 0.25s ease, padding 0.2s, opacity 0.2s;
+    max-height: 1000px; opacity: 1;
+  }
+  .grp-block.collapsed .grp-members-v { max-height: 0; padding: 0 8px; opacity: 0; }
+  .grp-members-v .empty-mem {
+    padding: 8px 14px; font-size: 11px; color: #94a3b8; font-style: italic;
+  }
+
+  .mem-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.12s;
+    text-decoration: none; color: inherit;
+    position: relative;
+  }
+  .mem-row:hover { background: rgba(255,255,255,0.65); }
+  .mem-row.active {
+    background: rgba(255,255,255,0.80);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .mem-row.active:before {
+    content: ''; position: absolute; left: 0; top: 18%; bottom: 18%;
+    width: 3px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--c1), var(--c2));
+  }
+  .mem-row.self { opacity: 0.55; cursor: default; }
+  .mem-row.self:hover { background: transparent; }
+
+  .mem-row .av-mini {
+    width: 30px; height: 30px; border-radius: 50%;
+    flex-shrink: 0; overflow: visible; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 12px;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    box-shadow: 0 1px 3px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    border: 2px solid #fff;
+  }
+  .mem-row .av-mini img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .mem-row .av-mini .ring-dot {
+    position: absolute; right: -1px; bottom: -1px;
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 2px solid #fff;
+  }
+  .mem-row .mem-name {
+    flex: 1; min-width: 0; font-size: 12px;
+    color: #1e293b; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mem-row.self .mem-name:after {
+    content: ' (自分)'; color: #94a3b8; font-weight: 500;
+  }
+  .mem-row .mem-tag {
+    flex-shrink: 0; font-size: 9px; padding: 1px 6px; border-radius: 999px;
+    color: #fff; font-weight: 700;
+    background: var(--ring-color, #94a3b8);
+    line-height: 1.4;
+  }
+
+  /* ======== チェックボックス選択 (常時可視) ======== */
+  .mem-row .mem-check {
+    flex-shrink: 0; width: 20px; height: 20px;
+    border-radius: 6px; border: 2px solid #cbd5e1;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; transition: all 0.12s;
+  }
+  .mem-row:hover .mem-check { border-color: #94a3b8; }
+  .mem-row.checked .mem-check {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+    border-color: transparent;
+    color: #fff; font-size: 12px; font-weight: 800;
+  }
+  .mem-row.checked .mem-check:before { content: '✓'; }
+  /* 自分自身はチェックボックス非表示 (DM不可) */
+  .mem-row.self .mem-check { visibility: hidden; }
+
+  /* 選択ステータスバー (旧仕様、now in members modal、常時非表示) */
+  #select-bar { display: none !important; }
+  #select-bar.has-selection {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff;
+    box-shadow: 0 2px 8px rgba(14,165,233,0.20);
+  }
+  #select-bar .lbl { font-size: 12px; font-weight: 700; flex: 1; min-width: 0; }
+  #select-bar .lbl strong { font-size: 14px; }
+  #select-bar .lbl .lbl-hint { display: block; font-size: 10px; opacity: 0.75; font-weight: 500; margin-top: 1px; }
+  #select-bar button {
+    padding: 6px 12px; font-size: 11px; font-weight: 800;
+    border: 1px solid; border-radius: 999px; cursor: pointer;
+    background: rgba(255,255,255,0.85); color: #475569; border-color: #cbd5e1;
+    flex-shrink: 0;
+  }
+  #select-bar button:hover { background: #fff; border-color: #94a3b8; }
+  #select-bar.has-selection button {
+    background: rgba(255,255,255,0.20); color: #fff;
+    border-color: rgba(255,255,255,0.40);
+  }
+  #select-bar.has-selection button:hover { background: rgba(255,255,255,0.30); }
+
+  /* メンバー行: アバター右に2行表示 (名前/最新コメント) */
+  .mem-row .mem-meta {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .mem-row .mem-meta .mn {
+    font-size: 13px; color: #1e293b; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; gap: 6px; min-width: 0;
+  }
+  .mem-row .mem-meta .mn-tag {
+    flex-shrink: 0; font-size: 9px; padding: 1px 6px; border-radius: 999px;
+    color: #fff; font-weight: 700;
+    background: var(--ring-color, #94a3b8);
+    line-height: 1.4;
+  }
+  .mem-row .mem-meta .mc {
+    font-size: 11px; color: #64748b; line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mem-row .mem-meta .mc.empty { color: #cbd5e1; font-style: italic; }
+  .mem-row .mem-meta .mc-time {
+    font-size: 10px; color: #94a3b8; flex-shrink: 0; margin-left: 4px;
+  }
+  /* 旧 .mem-name は新 .mem-meta .mn に統合 (互換のため残置) */
+  .mem-row .mem-name { display: none; }
+
+  /* スマホ最適化 (大きめアバター・読みやすい余白) */
+  @media (max-width: 720px) {
+    .mem-row { padding: 9px 12px; gap: 12px; }
+    .mem-row .av-mini { width: 40px !important; height: 40px !important; font-size: 14px !important; }
+    .mem-row .mem-meta .mn { font-size: 14px; }
+    .mem-row .mem-meta .mc { font-size: 12px; }
+    .grp-block .grp-item { padding: 11px 12px; }
+    .grp-block .grp-item .ic { font-size: 24px !important; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .grp-block .grp-item .gn { font-size: 14px !important; }
+    .grp-block .grp-item .lc { font-size: 12px !important; }
+    .grp-members-v { padding: 0 6px 6px 6px !important; }
+    .grp-actions { padding: 4px 8px 8px !important; }
+  }
+
+  /* グループ毎の全選択/解除ボタン (メンバーリスト下) */
+  .grp-actions {
+    display: flex; gap: 6px; padding: 4px 12px 8px 12px;
+    border-top: 1px dashed rgba(15,23,42,0.06);
+    margin-top: 4px;
+  }
+  .grp-actions button {
+    flex: 1; padding: 5px 8px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    background: rgba(255,255,255,0.65); color: #475569;
+    border: 1px solid rgba(15,23,42,0.08);
+    border-radius: 8px;
+    transition: all 0.12s;
+  }
+  .grp-actions button:hover {
+    background: #fff;
+    border-color: var(--c2, #475569);
+    color: var(--c2, #1e293b);
+  }
+  .grp-actions button.active {
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    color: #fff; border-color: transparent;
+  }
+  .grp-block.collapsed .grp-actions { display: none; }
+
+  .empty {
+    padding: 28px 16px; color: #94a3b8; font-size: 12px;
+    text-align: center; line-height: 1.7;
+  }
+  .empty .e-ic { font-size: 32px; opacity: 0.4; display: block; margin-bottom: 6px; }
+
+  /* メッセージエリア (Teams風) */
+  #panel { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #f8fafc; }
+  #panel-head {
+    padding: 12px 18px; background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.04);
+  }
+  #panel-head .ttl {
+    font-weight: 800; font-size: 15px; flex: 1; color: #0f172a;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #panel-head .members {
+    font-size: 11px; color: #64748b;
+    background: #f1f5f9; padding: 4px 10px; border-radius: 999px;
+    font-weight: 700;
+  }
+  /* メンバーアバター帯 (グループの場合だけ表示) */
+  #member-strip {
+    display: none;
+    align-items: center; gap: 4px;
+    padding: 8px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+  }
+  #member-strip.show { display: flex; }
+  #member-strip::-webkit-scrollbar { height: 4px; }
+  #member-strip::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  .ms-av {
+    position: relative; width: 32px; height: 32px; border-radius: 50%;
+    flex-shrink: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 12px;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: transform 0.12s;
+  }
+  .ms-av:hover { transform: translateY(-2px) scale(1.08); }
+  .ms-av img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .ms-av.self { border-color: #0ea5e9; box-shadow: 0 0 0 1px #0ea5e9; }
+  .ms-av .online-dot {
+    position: absolute; right: -2px; top: -2px;
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid #fff; background: #94a3b8;
+  }
+  .ms-av .online-dot.online { background: #22c55e; box-shadow: 0 0 0 1px rgba(34,197,94,0.18), 0 0 4px rgba(34,197,94,0.6); }
+  .ms-av-name {
+    font-size: 9px; color: #475569; max-width: 32px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-align: center; margin-top: 2px;
+  }
+  .ms-cell { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  #msgs { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 18px 8px; background: #f8fafc; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
+  /* 1メッセージ単位 */
+  .msg { display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start; }
+  .msg.me { flex-direction: row-reverse; }
+  /* 連続発言: 余白だけ詰める (アバター/名前は描画されない) */
+  .msg.cont { margin-bottom: 4px; }
+  .msg.cont + .msg:not(.cont) { margin-top: 14px; }
+  /* グループ末端 (次が別人/別日) は底にも余白 */
+  .msg.last-of-group { margin-bottom: 14px; }
+
+  /* アバター */
+  .msg .av {
+    width: 36px; height: 36px; border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #fff; font-weight: 800; letter-spacing: 0.5px;
+    overflow: hidden; position: relative;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+  }
+  .msg .av img { width: 100%; height: 100%; object-fit: cover; }
+  .msg .av-spacer { width: 36px; flex-shrink: 0; }
+
+  /* バブル */
+  .msg .body { max-width: 72%; min-width: 0; }
+  .msg .name {
+    font-size: 12px; font-weight: 800; color: #1e293b;
+    margin-bottom: 4px; padding-left: 2px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .msg.me .name { display: none; }
+  .msg .name .company {
+    font-size: 10px; font-weight: 700; color: #fff;
+    padding: 1px 7px; border-radius: 999px;
+    background: var(--ring-color, #64748b);
+  }
+  .msg .name .ts-inline { font-size: 10px; font-weight: 500; color: #94a3b8; }
+  .msg .bub {
+    padding: 9px 13px;
+    background: #fff; color: #0f172a;
+    border: 1px solid #e2e8f0; border-radius: 14px;
+    font-size: 14px; line-height: 1.55;
+    word-break: break-word; white-space: pre-wrap;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.05);
+  }
+  .msg.me .bub {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff;
+    border-color: transparent;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(14,165,233,0.25);
+  }
+
+  .msg .ts {
+    font-size: 10px; color: #94a3b8; margin-top: 2px;
+    padding: 0 4px;
+  }
+  .msg.me .ts { text-align: right; }
+
+  /* 添付ファイル */
+  .msg .attach-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 6px; font-size: 11px;
+    padding: 4px 10px; border-radius: 8px;
+    background: rgba(0,0,0,0.04); color: #0891b2;
+    text-decoration: none; font-weight: 600;
+  }
+  .msg.me .attach-link { background: rgba(255,255,255,0.20); color: #fff; }
+  .msg .attach-link:hover { text-decoration: underline; }
+
+  /* 日付セパレータ */
+  .day-sep {
+    text-align: center; margin: 18px 0 12px;
+    font-size: 11px; color: #64748b; font-weight: 700;
+    position: relative;
+  }
+  .day-sep:before, .day-sep:after {
+    content: ''; position: absolute; top: 50%; width: 30%; height: 1px; background: #e2e8f0;
+  }
+  .day-sep:before { left: 0; }
+  .day-sep:after  { right: 0; }
+  .day-sep span {
+    background: #fff; padding: 4px 14px; border-radius: 999px;
+    border: 1px solid #e2e8f0; font-size: 11px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* システム発言/Bot — 後で使用 */
+  .msg.system .bub { background: #fef3c7; border-color: #fde68a; color: #78350f; font-size: 12px; }
+
+  /* トースト */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #0f172a; color: #fff; padding: 10px 18px;
+    border-radius: 24px; font-size: 13px; font-weight: 700;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none; z-index: 200;
+  }
+  #toast.show { opacity: 1; }
+
+  /* 入力中インジケーター (typing dots アニメーション) */
+  @keyframes typingDot {
+    0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3px); }
+  }
+  .typing-dots span { font-weight: 800; font-size: 14px; color: #0ea5e9; }
+
+  /* 添付ファイルプレビュー (送信前) */
+  #attach-preview {
+    display: none; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    background: #ecfeff; border-top: 1px solid #cffafe;
+    font-size: 12px; color: #0891b2;
+    flex-shrink: 0;
+  }
+  #attach-preview.show { display: flex; }
+  #attach-preview .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+  #attach-preview .sz { color: #64748b; font-size: 11px; }
+  #attach-preview .clr {
+    flex-shrink: 0; background: transparent; border: none;
+    color: #ef4444; font-size: 18px; cursor: pointer; line-height: 1;
+  }
+
+  /* メッセージ内の添付画像 */
+  .msg .bub .attach-img {
+    display: block; max-width: 280px; max-height: 280px;
+    border-radius: 10px; margin-top: 6px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  /* チャットヘッダー右の操作ボタン */
+  .head-btn {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+    border: none; cursor: pointer; font-size: 16px;
+    align-items: center; justify-content: center;
+    transition: transform 0.1s, box-shadow 0.15s;
+    display: flex;
+  }
+  .head-btn:hover { transform: translateY(-1px); }
+  .call-btn { /* 後方互換 */ display: flex; }
+  .head-btn.members { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; box-shadow: none; }
+  .head-btn.members:hover { background: #e2e8f0; }
+  .call-btn.voice, .head-btn.voice { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 3px 10px rgba(16,185,129,0.30); }
+  .call-btn.video, .head-btn.video { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; box-shadow: 0 3px 10px rgba(99,102,241,0.30); }
+  .call-btn:hover { transform: translateY(-1px); }
+  .head-btn.disabled { opacity: 0.40; cursor: not-allowed; }
+  .head-btn.disabled:hover { transform: none; }
+
+  /* ===== メンバーピッカー モーダル ===== */
+  #members-modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.55); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  @media (min-width: 600px) {
+    #members-modal { align-items: center; }
+  }
+  #members-modal.show { display: flex; }
+  #members-modal .sheet {
+    background: #fff; border-radius: 18px 18px 0 0;
+    width: 100%; max-width: 560px; max-height: 85vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 -8px 32px rgba(15,23,42,0.30);
+  }
+  @media (min-width: 600px) {
+    #members-modal .sheet { border-radius: 18px; max-height: 80vh; }
+  }
+  #members-modal .head {
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+    color: #fff; display: flex; align-items: center; gap: 10px;
+  }
+  #members-modal .head .ttl { font-size: 15px; font-weight: 800; flex: 1; }
+  #members-modal .head .cnt { font-size: 11px; opacity: 0.85; }
+  #members-modal .head .x {
+    background: rgba(255,255,255,0.20); border: none; color: #fff;
+    width: 32px; height: 32px; border-radius: 8px;
+    cursor: pointer; font-size: 18px;
+  }
+  #members-modal .toolbar {
+    padding: 10px 14px;
+    background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  #members-modal .toolbar .info {
+    flex: 1; min-width: 0; font-size: 11px; color: #475569;
+  }
+  #members-modal .toolbar .info strong { color: #0ea5e9; font-size: 14px; }
+  #members-modal .toolbar button {
+    padding: 6px 12px; font-size: 11px; font-weight: 800;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 999px;
+    cursor: pointer; color: #475569;
+  }
+  #members-modal .toolbar button:hover { background: #f1f5f9; }
+  #members-modal .body { flex: 1; overflow-y: auto; padding: 6px 0; }
+  #members-modal .mp-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  #members-modal .mp-row:hover { background: #f8fafc; }
+  #members-modal .mp-row.checked { background: rgba(14,165,233,0.08); }
+  #members-modal .mp-row.self { opacity: 0.5; cursor: default; }
+  #members-modal .mp-row.self:hover { background: transparent; }
+  #members-modal .mp-row .av {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 14px; overflow: hidden;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30);
+  }
+  #members-modal .mp-row .av img { width: 100%; height: 100%; object-fit: cover; }
+  #members-modal .mp-row .info { flex: 1; min-width: 0; }
+  #members-modal .mp-row .nm { font-size: 14px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #members-modal .mp-row .co { font-size: 11px; color: #64748b; margin-top: 2px; }
+  #members-modal .mp-row .actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  #members-modal .mp-row .dm-btn {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff;
+    border: none; border-radius: 999px;
+    padding: 6px 12px; font-size: 11px; font-weight: 800; cursor: pointer;
+  }
+  #members-modal .mp-row .chk {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid #cbd5e1; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.12s;
+  }
+  #members-modal .mp-row.checked .chk {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+    border-color: transparent; color: #fff; font-size: 13px; font-weight: 800;
+  }
+  #members-modal .mp-row.checked .chk:before { content: '✓'; }
+  #members-modal .footer {
+    padding: 12px 16px env(safe-area-inset-bottom, 16px);
+    background: #fff; border-top: 1px solid #e2e8f0;
+    display: flex; gap: 10px;
+  }
+  #members-modal .footer button {
+    flex: 1; padding: 12px;
+    border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 800; cursor: pointer;
+  }
+  #members-modal .footer .cancel { background: #f1f5f9; color: #475569; }
+  #members-modal .footer .send {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff;
+    box-shadow: 0 4px 12px rgba(14,165,233,0.30);
+  }
+  #members-modal .footer .send:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+  /* (旧入力ボタンCSSは下方に統合済) */
+
+  /* ===== 着信モーダル ===== */
+  #incoming-call {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.92); z-index: 300;
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: 30px 20px;
+  }
+  #incoming-call.show { display: flex; }
+  #incoming-call .ic-av {
+    width: 110px; height: 110px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 44px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.40), inset 0 2px 0 rgba(255,255,255,0.30);
+    margin-bottom: 16px;
+    animation: ringPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes ringPulse { 0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,0.40), inset 0 2px 0 rgba(255,255,255,0.30), 0 0 0 0 rgba(14,165,233,0.50); } 50% { box-shadow: 0 8px 24px rgba(0,0,0,0.40), inset 0 2px 0 rgba(255,255,255,0.30), 0 0 0 18px rgba(14,165,233,0.0); } }
+  #incoming-call .ic-av img { width: 100%; height: 100%; object-fit: cover; }
+  #incoming-call .ic-name { color: #fff; font-size: 22px; font-weight: 800; }
+  #incoming-call .ic-sub { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  #incoming-call .ic-buttons { display: flex; gap: 30px; margin-top: 36px; }
+  #incoming-call .ic-btn {
+    width: 70px; height: 70px; border-radius: 50%;
+    border: none; cursor: pointer; font-size: 28px;
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.30);
+    transition: transform 0.12s;
+  }
+  #incoming-call .ic-btn:hover { transform: scale(1.05); }
+  #incoming-call .ic-btn.accept { background: linear-gradient(135deg, #10b981, #059669); }
+  #incoming-call .ic-btn.reject { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+  #incoming-call .ic-btn-label {
+    color: #fff; font-size: 11px; text-align: center;
+    margin-top: 6px; font-weight: 700;
+  }
+
+  /* ===== 通話中画面 ===== */
+  #call-screen {
+    display: none; position: fixed; inset: 0;
+    background: #0f172a; z-index: 250;
+    flex-direction: column;
+  }
+  #call-screen.show { display: flex; }
+  #call-screen .top-bar {
+    padding: 14px 18px; background: rgba(0,0,0,0.4);
+    color: #fff; display: flex; align-items: center; gap: 12px;
+    backdrop-filter: blur(8px);
+  }
+  #call-screen .peer-av {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 16px; overflow: hidden;
+    flex-shrink: 0;
+  }
+  #call-screen .peer-av img { width: 100%; height: 100%; object-fit: cover; }
+  #call-screen .top-meta { flex: 1; line-height: 1.3; }
+  #call-screen .top-name { font-size: 15px; font-weight: 800; }
+  #call-screen .top-status { font-size: 11px; color: #94a3b8; }
+  #call-screen .video-area {
+    flex: 1; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+  }
+  #remote-video, #remote-audio {
+    width: 100%; height: 100%; object-fit: contain; background: #000;
+  }
+  #remote-audio { display: none; }
+  #call-screen.audio-only .video-area { display: flex; align-items: center; justify-content: center; }
+  #call-screen.audio-only #remote-video { display: none; }
+  #call-screen.audio-only #remote-audio { display: block; width: 0; height: 0; }
+  #call-screen.audio-only .audio-only-vis {
+    display: flex; flex-direction: column; align-items: center;
+    color: #fff;
+  }
+  #call-screen:not(.audio-only) .audio-only-vis { display: none; }
+  .audio-only-vis .big-av {
+    width: 140px; height: 140px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 56px; overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.40);
+    margin-bottom: 18px;
+  }
+  .audio-only-vis .big-av img { width: 100%; height: 100%; object-fit: cover; }
+  .audio-only-vis .vis-name { font-size: 22px; font-weight: 800; }
+  .audio-only-vis .vis-status { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+  #local-video {
+    position: absolute; right: 12px; bottom: 12px;
+    width: 100px; height: 140px;
+    object-fit: cover; border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.40);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.40);
+    background: #000; transform: scaleX(-1);
+    z-index: 5;
+  }
+  #call-screen.audio-only #local-video { display: none; }
+
+  #call-screen .bottom-bar {
+    padding: 18px 20px env(safe-area-inset-bottom, 18px);
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+    display: flex; gap: 18px; align-items: center; justify-content: center;
+  }
+  #call-screen .ctl-btn {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(255,255,255,0.18); color: #fff;
+    border: 1px solid rgba(255,255,255,0.30);
+    cursor: pointer; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+  }
+  #call-screen .ctl-btn:hover { background: rgba(255,255,255,0.28); }
+  #call-screen .ctl-btn.active { background: rgba(255,255,255,0.85); color: #0f172a; }
+  #call-screen .ctl-btn.end {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    border: none; box-shadow: 0 4px 14px rgba(220,38,38,0.40);
+  }
+  #call-screen .ctl-btn.end:hover { background: linear-gradient(135deg, #b91c1c, #991b1b); }
+
+  /* アバター設定誘導バナー (未設定者だけに表示) */
+  #avatar-prompt {
+    display: none;  /* 既定は非表示。.show が付いた時だけ flex で表示 */
+    margin: 12px 18px 0;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1px solid #fde68a; border-left: 4px solid #f59e0b;
+    border-radius: 12px;
+    font-size: 12px; color: #78350f; line-height: 1.55;
+    align-items: center; gap: 12px;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.10);
+  }
+  #avatar-prompt.show { display: flex; }
+  #avatar-prompt .ic { font-size: 28px; flex-shrink: 0; line-height: 1; }
+  #avatar-prompt .body { flex: 1; }
+  #avatar-prompt .ttl { font-weight: 800; color: #78350f; }
+  #avatar-prompt .desc { font-size: 11px; color: #92400e; opacity: 0.85; margin-top: 2px; }
+  #avatar-prompt button {
+    flex-shrink: 0; padding: 8px 16px;
+    background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
+    border: none; border-radius: 10px; font-size: 12px; font-weight: 800;
+    cursor: pointer; box-shadow: 0 4px 10px rgba(245,158,11,0.30);
+    transition: transform 0.1s;
+  }
+  #avatar-prompt button:hover { transform: translateY(-1px); }
+  #avatar-prompt .dismiss {
+    background: transparent; box-shadow: none;
+    color: #92400e; padding: 6px 10px; font-weight: 600; opacity: 0.7;
+  }
+  #avatar-prompt .dismiss:hover { opacity: 1; transform: none; }
+
+  /* 入力 (Teams/LINE風: 一段揃え) */
+  #input {
+    padding: 8px 10px env(safe-area-inset-bottom, 8px) 10px;
+    border-top: 1px solid #e2e8f0; background: #fff;
+    display: flex; gap: 6px; align-items: flex-end; flex-shrink: 0;
+    box-shadow: 0 -2px 8px rgba(15,23,42,0.04);
+  }
+  /* 旧 me-av (撤去済) */
+  #input textarea {
+    flex: 1; min-width: 0;
+    height: 40px; min-height: 40px; max-height: 120px;
+    padding: 9px 14px; line-height: 1.5;
+    border: 1px solid #cbd5e1; border-radius: 20px;
+    font-size: 14px; font-family: inherit; resize: none; outline: none;
+    background: #f8fafc; box-sizing: border-box;
+  }
+  #input textarea:focus {
+    background: #fff; border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+  }
+  /* 入力欄左の📎ボタンと送信ボタンを同じ40x40の円形で統一 */
+  #input .attach-btn,
+  #input #send-btn {
+    flex-shrink: 0;
+    width: 40px; height: 40px; border-radius: 50%;
+    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 18px; line-height: 1;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
+    box-sizing: border-box;
+  }
+  #input .attach-btn {
+    background: #f1f5f9; color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+  #input .attach-btn:hover { background: #e2e8f0; color: #0f172a; }
+  #input #send-btn {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff;
+    border: none;
+    box-shadow: 0 3px 10px rgba(14,165,233,0.30);
+    font-size: 16px;
+  }
+  #input #send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(14,165,233,0.40); }
+  #input #send-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+  /* スマホ用: 一覧↔チャットの全画面切替 (Teamsモバイル方式) */
+  @media (max-width: 720px) {
+    main { flex-direction: column; position: relative; }
+    /* サイドバーは標準で全画面 */
+    #side {
+      width: 100%; height: 100%; border-right: 0; border-bottom: 0;
+      flex: 1;
+    }
+    /* チャットパネルは標準で非表示。chat-active 時に全画面表示 */
+    #panel {
+      position: absolute; inset: 0; z-index: 5;
+      transform: translateX(100%);
+      transition: transform 0.18s ease;
+      background: #f8fafc;
+    }
+    body.chat-active #panel { transform: translateX(0); }
+    body.chat-active #side { display: none; }
+    /* 戻るボタン (panel-head 左端) */
+    #btn-back-list { display: flex !important; }
+  }
+  /* PCではbackボタン非表示 */
+  #btn-back-list { display: none; }
+
+  #login-screen { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #login-screen.show { display: flex; }
+  .login-card { background: #fff; padding: 24px; border-radius: 14px; text-align: center; max-width: 320px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <p style="margin:0 0 12px;color:#64748b;">ログインが必要です</p>
+    <a href="/" style="color:#0ea5e9;font-weight:800;">ホームへ戻る</a>
+  </div>
+</div>
+
+<div id="app" style="display:none;flex-direction:column;height:100%;">
+<header>
+  <a href="/" title="ホーム">←</a>
+  <h1>💬 営業所チャット</h1>
+  <span id="me-name"></span>
+  <button id="notif-toggle-btn" type="button" onclick="toggleChatNotif()" title="着信通知ON" style="font-size:16px;padding:6px 8px;">🔔</button>
+</header>
+
+<main>
+  <aside id="side">
+    <h2 id="side-head" onclick="toggleSide()">グループ <span class="cnt-num" id="grp-count"></span></h2>
+    <div id="group-list"><div class="empty">読み込み中...</div></div>
+  </aside>
+
+  <section id="panel">
+    <div id="panel-head">
+      <button class="head-btn" type="button" id="btn-back-list" title="一覧へ戻る" onclick="backToList()" style="background:transparent;color:#0f172a;font-size:22px;width:32px;height:32px;flex-shrink:0;border:none;">←</button>
+      <div class="ttl" id="panel-title">チャットを選択してください</div>
+      <button class="head-btn members" type="button" id="btn-members" title="メンバー一覧" onclick="openMembersModal()" style="display:none;">👥</button>
+      <button class="head-btn voice" type="button" id="btn-call-voice" title="音声通話" onclick="startCall('voice')">📞</button>
+      <button class="head-btn video" type="button" id="btn-call-video" title="ビデオ通話" onclick="startCall('video')">📹</button>
+      <div class="members" id="panel-members"></div>
+    </div>
+    <div id="member-strip" title="メンバーアバター (タップでDM)"></div>
+    <div id="select-bar">
+      <span class="lbl">
+        <strong id="sel-count">0</strong> 人選択中
+        <span class="lbl-hint" id="sel-hint">チェックなし → グループ全員へ送信 / チェックあり → 選択した人へ個別DM</span>
+      </span>
+    </div>
+    <div id="avatar-prompt">
+      <span class="ic">🎨</span>
+      <div class="body">
+        <div class="ttl">アバターを設定するとチャットが見やすくなります</div>
+        <div class="desc">あなたの顔写真風アイコンを AI が自動生成。誰の発言か一目で分かるようになります。</div>
+      </div>
+      <button onclick="dismissAvatarPrompt()" class="dismiss">あとで</button>
+      <button onclick="goToAvatarSetup()">設定する</button>
+    </div>
+    <div id="msgs"><div class="empty" style="padding:40px 14px;">左のグループを選ぶとメッセージが表示されます</div></div>
+    <div id="typing-indicator" style="display:none;padding:6px 14px;font-size:11px;color:#64748b;font-style:italic;background:linear-gradient(180deg,transparent,rgba(241,245,249,0.6));">
+      <span id="typing-text"></span>
+      <span class="typing-dots" style="display:inline-block;margin-left:4px;">
+        <span style="display:inline-block;animation:typingDot 1.4s infinite;">•</span><span style="display:inline-block;animation:typingDot 1.4s infinite 0.2s;">•</span><span style="display:inline-block;animation:typingDot 1.4s infinite 0.4s;">•</span>
+      </span>
+    </div>
+    <div id="attach-preview">
+      <span style="font-size:18px;">📎</span>
+      <span class="nm" id="ap-name"></span>
+      <span class="sz" id="ap-size"></span>
+      <button class="clr" type="button" onclick="clearAttach()" title="取消">×</button>
+    </div>
+    <input type="file" id="file-input" style="display:none;">
+    <div id="input">
+      <button class="attach-btn" type="button" id="btn-attach" title="ファイル添付">📎</button>
+      <textarea id="input-text" rows="1" placeholder="メッセージを入力" disabled></textarea>
+      <button id="send-btn" disabled title="送信 (Enter)">➤</button>
+    </div>
+  </section>
+</main>
+</div>
+
+<div id="toast"></div>
+
+<!-- メンバーピッカー (グループ内のメンバー一覧 / DM起動 / 選択送信) -->
+<div id="members-modal" onclick="if(event.target.id==='members-modal')closeMembersModal()">
+  <div class="sheet">
+    <div class="head">
+      <div class="ttl" id="mp-title">メンバー</div>
+      <span class="cnt" id="mp-count"></span>
+      <button class="x" type="button" onclick="closeMembersModal()">×</button>
+    </div>
+    <div class="toolbar">
+      <span class="info"><strong id="mp-sel-count">0</strong>人選択中 — チェックして送信、もしくは個別に <em>DM</em> ボタン</span>
+      <button type="button" onclick="mpSelectAll()">☑ 全選択</button>
+      <button type="button" onclick="mpClearAll()">解除</button>
+    </div>
+    <div class="body" id="mp-list"></div>
+    <div class="footer">
+      <button class="cancel" type="button" onclick="closeMembersModal()">閉じる</button>
+      <button class="send" type="button" id="mp-send-btn" onclick="mpSendToSelected()" disabled>選択した0人に一斉DM</button>
+    </div>
+  </div>
+</div>
+
+<!-- 着信モーダル -->
+<div id="incoming-call">
+  <div class="ic-av" id="ic-av"></div>
+  <div class="ic-name" id="ic-name">...</div>
+  <div class="ic-sub" id="ic-sub">📞 着信中</div>
+  <div class="ic-buttons">
+    <div style="text-align:center;">
+      <button class="ic-btn reject" type="button" onclick="rejectIncomingCall()">✕</button>
+      <div class="ic-btn-label">拒否</div>
+    </div>
+    <div style="text-align:center;">
+      <button class="ic-btn accept" type="button" onclick="acceptIncomingCall()">📞</button>
+      <div class="ic-btn-label">応答</div>
+    </div>
+  </div>
+</div>
+
+<!-- 通話中画面 -->
+<div id="call-screen">
+  <div class="top-bar">
+    <div class="peer-av" id="cs-peer-av"></div>
+    <div class="top-meta">
+      <div class="top-name" id="cs-peer-name">...</div>
+      <div class="top-status" id="cs-status">接続中...</div>
+    </div>
+  </div>
+  <div class="video-area">
+    <div class="audio-only-vis">
+      <div class="big-av" id="cs-big-av"></div>
+      <div class="vis-name" id="cs-big-name"></div>
+      <div class="vis-status" id="cs-big-status">通話中</div>
+    </div>
+    <video id="remote-video" autoplay playsinline></video>
+    <audio id="remote-audio" autoplay></audio>
+    <video id="local-video" autoplay playsinline muted></video>
+  </div>
+  <div class="bottom-bar">
+    <button class="ctl-btn" type="button" id="btn-mute" onclick="toggleMute()" title="ミュート">🎙</button>
+    <button class="ctl-btn" type="button" id="btn-camera-off" onclick="toggleCamera()" title="カメラON/OFF">📹</button>
+    <button class="ctl-btn end" type="button" onclick="endCall()" title="終話">✕</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let socket = null;
+let groups = [];
+let currentGid = null;          // 'group' モード時: 選択中のGC ID
+let currentDmPeer = null;       // 'dm' モード時: 相手ユーザー
+let currentMode = null;         // 'group' | 'dm' | null
+let groupMembers = new Map();   // gid → members[]
+let messageCache = new Map();   // 'grp_xxx' or 'dm_yyy' → message[]
+let dmPeerInfo = new Map();     // peer_id → { last_content, last_at, last_sender_id }
+let unreadGroups = new Map();   // gid → 未読数
+let unreadDms = new Map();      // peer_id → 未読数
+let messageReaders = new Map(); // message_id → readers[]
+// AIボット (チャット一覧から除外)
+const BOT_IDS = new Set(['bot_aoi', 'bot_health', 'bot_safety', 'bot_yui', 'bot_misaki', 'bot_master']);
+function isBot(uid) { return BOT_IDS.has(uid); }
+// 折りたたみ状態 (localStorage で永続化)
+let collapsedGroups = new Set(JSON.parse(localStorage.getItem('cohub_chat_collapsed') || '[]'));
+function persistCollapsed() {
+  localStorage.setItem('cohub_chat_collapsed', JSON.stringify([...collapsedGroups]));
+}
+// 選択送信 (常時有効)
+let selectedPeers = new Set(); // user_id Set
+let onlineUids = new Set();    // 現在オンラインのuid集合 (presence ベース)
+const $ = (id) => document.getElementById(id);
+
+function onlineDotHtml(uid) {
+  if (!uid || isBot(uid)) return '';
+  const cls = onlineUids.has(uid) ? 'online-dot online' : 'online-dot';
+  const title = onlineUids.has(uid) ? 'オンライン' : 'オフライン';
+  return `<span class="${cls}" title="${title}"></span>`;
+}
+
+async function loadOnlineUsers() {
+  try {
+    const r = await api('/api/online-users');
+    if (r && r.success) {
+      onlineUids = new Set(r.online || []);
+      // 自分自身もオンライン扱い
+      if (me && me.uid) onlineUids.add(me.uid);
+    }
+  } catch (e) {}
+}
+
+function setUserOnline(uid, on) {
+  if (!uid) return;
+  if (on) onlineUids.add(uid); else onlineUids.delete(uid);
+  // サイドバー一覧+メンバーモーダル+選択中DMヘッダーを更新
+  try { renderGroupList(); } catch (e) {}
+  try {
+    const mm = document.getElementById('members-modal');
+    if (mm && mm.classList.contains('show')) renderMpList();
+  } catch (e) {}
+  // メンバーストリップのドットも更新
+  try { renderMemberStrip(); } catch (e) {}
+}
+
+// グループ選択中ならメンバーアバター帯を描画 (DM/未選択なら隠す)
+function renderMemberStrip() {
+  const strip = document.getElementById('member-strip');
+  if (!strip) return;
+  if (currentMode !== 'group' || !currentGid) {
+    strip.classList.remove('show');
+    strip.innerHTML = '';
+    return;
+  }
+  const members = groupMembers.get(currentGid) || [];
+  if (!members.length) { strip.classList.remove('show'); strip.innerHTML = ''; return; }
+  // オンライン → 自分 → 他の順にソート
+  const sorted = [...members].sort((a, b) => {
+    const ao = onlineUids.has(a.id) ? 1 : 0;
+    const bo = onlineUids.has(b.id) ? 1 : 0;
+    if (ao !== bo) return bo - ao;  // online先
+    if (a.id === me.uid) return -1;
+    if (b.id === me.uid) return 1;
+    return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
+  });
+  const html = sorted.map(m => {
+    const isSelf = m.id === me.uid;
+    const [c1, c2] = avatarColorPair(m.id || m.display_name || '');
+    const initial = avatarInitial(m.display_name);
+    const inner = m.avatar_url
+      ? `<img src="${escapeHtml(m.avatar_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createTextNode('${escapeHtml(initial)}'), {}))">`
+      : escapeHtml(initial);
+    const onlineCls = onlineUids.has(m.id) ? 'online-dot online' : 'online-dot';
+    const onclick = isSelf ? '' : `onclick="onMemberClick('${escapeHtml(m.id)}')"`;
+    const cls = 'ms-av' + (isSelf ? ' self' : '');
+    const shortName = (m.display_name || '').slice(0, 4);
+    return `<div class="ms-cell">
+      <div class="${cls}" style="--av-c1:${c1};--av-c2:${c2};" title="${escapeHtml(m.display_name || '')}" ${onclick}>${inner}<span class="${onlineCls}"></span></div>
+      <div class="ms-av-name">${escapeHtml(shortName)}</div>
+    </div>`;
+  }).join('');
+  strip.innerHTML = html;
+  strip.classList.add('show');
+}
+
+// ===== 着信通知 (チャイム + TTS + OS通知 + トースト) =====
+let chatNotifOn = true;        // チャイム/TTS のオン/オフ (右上🔔で切替、localStorage 永続化)
+try { if (localStorage.getItem('cohub_chat_notif_on') === '0') chatNotifOn = false; } catch (e) {}
+let _chatAudioCtx = null;
+let _audioUnlocked = false;     // ユーザー操作で一度でも音を鳴らせばtrue
+const CHAT_CHIME_DURATION_MS = 1450;  // 3音×2回 (TTS発話までの待機)
+
+// MP3チャイム (大音量・確実に鳴る) ＋ WebAudio合成 (フォールバック)
+const NOTIF_MP3_URL = '/assets/notif-mention.mp3?v=1';
+let _notifAudio = null;  // 事前ロードしたAudioインスタンス
+function ensureNotifAudio() {
+  if (!_notifAudio) {
+    _notifAudio = new Audio(NOTIF_MP3_URL);
+    _notifAudio.preload = 'auto';
+    _notifAudio.volume = 1.0;
+  }
+  return _notifAudio;
+}
+
+// 初回ユーザー操作で音声をアンロック (Chrome/Safariのautoplay制約対策)
+function unlockAudio() {
+  if (_audioUnlocked) return;
+  try {
+    if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_chatAudioCtx.state === 'suspended') _chatAudioCtx.resume();
+    const a = ensureNotifAudio();
+    // 0.001 秒だけ無音再生してロックを解除 (mute→play→pause→unmute)
+    a.muted = true;
+    a.play().then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
+    _audioUnlocked = true;
+    console.log('[chat] audio unlocked');
+  } catch (e) { console.warn('[chat] audio unlock fail', e); }
+}
+
+// タブ復帰時にAudioContextを毎回再開 + 表示中スレッドを既読化
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (_chatAudioCtx && _chatAudioCtx.state === 'suspended') {
+      _chatAudioCtx.resume().catch(() => {});
+      console.log('[chat] visibility resumed audio ctx');
+    }
+    // 表示中のスレッドの未読を既読化
+    try { markVisibleMessagesRead(); } catch (e) {}
+  }
+});
+// ウィンドウフォーカス取得時にも既読化 (タブを切替えた時の取りこぼし対策)
+window.addEventListener('focus', () => {
+  try { markVisibleMessagesRead(); } catch (e) {}
+});
+
+async function playChatChime() {
+  if (!chatNotifOn) return;
+  // インパクト重視「ピンポンピーン↑」3音アラート×2回 (約1.4秒)
+  try {
+    if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _chatAudioCtx;
+    // ★ 非アクティブタブ復帰時の無音対策: resume() を待ってから再生
+    if (ctx.state !== 'running') {
+      try { await ctx.resume(); } catch (e) {}
+    }
+    if (ctx.state !== 'running') {
+      // それでもサスペンドのままなら MP3 で確実再生
+      console.warn('[chat] ctx still suspended, fallback mp3');
+      const a = ensureNotifAudio();
+      a.currentTime = 0;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+      return;
+    }
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 2.0;  // 大音量
+    // 軽くハイカットして耳痛を抑える
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 6000;
+    master.connect(lp); lp.connect(ctx.destination);
+
+    // 音=三角波(主音) + 矩形波(倍音) を重ねて存在感を増す
+    const note = (freq, startOffset, dur, vol) => {
+      const t0 = now + startOffset;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005); // 鋭いアタック5ms
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      env.connect(master);
+      // 主音 (三角波)
+      const o1 = ctx.createOscillator();
+      o1.type = 'triangle';
+      o1.frequency.setValueAtTime(freq, t0);
+      o1.connect(env);
+      o1.start(t0); o1.stop(t0 + dur + 0.02);
+      // 倍音 (矩形波・音量小さめ) で派手さを足す
+      const o2 = ctx.createOscillator();
+      o2.type = 'square';
+      o2.frequency.setValueAtTime(freq * 2, t0);
+      const o2Gain = ctx.createGain();
+      o2Gain.gain.value = 0.18;
+      o2.connect(o2Gain); o2Gain.connect(env);
+      o2.start(t0); o2.stop(t0 + dur + 0.02);
+    };
+    // C6 → E6 → G6 (Cメジャーの上昇) を2回連続で鳴らす
+    // 1回目
+    note(1047, 0.00,  0.14, 0.55);  // C6 ピン
+    note(1319, 0.13,  0.14, 0.55);  // E6 ポン
+    note(1568, 0.26,  0.38, 0.65);  // G6 ピーン
+    // 2回目 (約750ms後にリピート)
+    const REP = 0.75;
+    note(1047, REP + 0.00, 0.14, 0.55);
+    note(1319, REP + 0.13, 0.14, 0.55);
+    note(1568, REP + 0.26, 0.38, 0.65);
+  } catch (e) {
+    try {
+      const a = ensureNotifAudio();
+      a.currentTime = 0;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e2) {}
+  }
+}
+
+const NAME_READINGS = {
+  '小林 猛': 'コバヤシ タケシ', '小林　猛': 'コバヤシ タケシ', '小林猛': 'コバヤシ タケシ',
+  '金子 力': 'カネコ チカラ', '金子　力': 'カネコ チカラ', '金子力': 'カネコ チカラ',
+  '岡田 恭司': 'オカダ ヤスジ', '岡田　恭司': 'オカダ ヤスジ', '岡田恭司': 'オカダ ヤスジ',
+};
+function readingOf(name) {
+  if (!name) return name;
+  if (NAME_READINGS[name]) return NAME_READINGS[name];
+  const norm = name.replace(/\s+/g, '').replace(/　/g, '');
+  for (const k of Object.keys(NAME_READINGS)) {
+    if (k.replace(/\s+/g, '').replace(/　/g, '') === norm) return NAME_READINGS[k];
+  }
+  return name;
+}
+
+const _ttsBlobCache = new Map();
+async function speakViaTTS(text, opts) {
+  if (!text || !chatNotifOn) return;
+  opts = opts || {};
+  const speed = opts.speed || 1.15;
+  const voice = opts.voice || 'ja-JP-Neural2-B';
+  try {
+    let url = _ttsBlobCache.get(text);
+    if (!url) {
+      const res = await fetch('/api/voice/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+        body: JSON.stringify({ text, voice, speed }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      url = URL.createObjectURL(blob);
+      _ttsBlobCache.set(text, url);
+      if (_ttsBlobCache.size > 60) {
+        const first = _ttsBlobCache.keys().next().value;
+        try { URL.revokeObjectURL(_ttsBlobCache.get(first)); } catch (e) {}
+        _ttsBlobCache.delete(first);
+      }
+    }
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    await audio.play();
+  } catch (e) {}
+}
+
+// 短い単音「ピッ」(連投時の控えめ通知用)
+async function playShortBlip() {
+  if (!chatNotifOn) return;
+  try {
+    if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _chatAudioCtx;
+    if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
+    if (ctx.state !== 'running') {
+      // suspendedまま → MP3軽量化フォールバック (full chime使い回しは長すぎなので諦めて何もしない)
+      console.warn('[chat] blip ctx suspended, skip');
+      return;
+    }
+    const t0 = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0.7;
+    master.connect(ctx.destination);
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = 1568;  // G6 1音だけ
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.exponentialRampToValueAtTime(0.5, t0 + 0.005);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.10);
+    osc.connect(env); env.connect(master);
+    osc.start(t0); osc.stop(t0 + 0.12);
+  } catch (e) {}
+}
+
+// 連投時のフル通知抑制: 同一送信者から60秒以内の続報はピッ音のみ
+const _lastFullAnnounceAt = new Map();
+const _FULL_ANNOUNCE_COOLDOWN_MS = 60000;
+function announceSender(senderUid, name, isGroup, groupName) {
+  if (!senderUid) return;
+  const now = Date.now();
+  const key = senderUid + (isGroup ? '|g' : '|d');
+  const last = _lastFullAnnounceAt.get(key) || 0;
+  if (now - last < _FULL_ANNOUNCE_COOLDOWN_MS) {
+    // 連投: 短い単音のみ (会話のテンポを邪魔しない)
+    playShortBlip();
+    return;
+  }
+  _lastFullAnnounceAt.set(key, now);
+  const reading = readingOf(name) || 'どなたか';
+  const text = isGroup
+    ? reading + 'さんから' + (groupName || 'グループ') + 'にメッセージが届いています'
+    : reading + 'さんからメッセージが届いています';
+  playChatChime();
+  setTimeout(() => speakViaTTS(text, { speed: 1.15 }), CHAT_CHIME_DURATION_MS + 150);
+}
+
+function fireOSNotif(title, body, onClick) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (document.visibilityState === 'visible' && document.hasFocus()) return;
+  try {
+    const n = new Notification(title, { body: (body || '').slice(0, 120), tag: 'cohub-chat-' + Date.now(), icon: '/assets/office_bg.png' });
+    n.onclick = () => { try { window.focus(); } catch (e) {} if (onClick) onClick(); n.close(); };
+    setTimeout(() => { try { n.close(); } catch (e) {} }, 8000);
+  } catch (e) {}
+}
+
+function tryRequestNotifPerm() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    try { Notification.requestPermission(); } catch (e) {}
+  }
+}
+
+function toggleChatNotif() {
+  chatNotifOn = !chatNotifOn;
+  try { localStorage.setItem('cohub_chat_notif_on', chatNotifOn ? '1' : '0'); } catch (e) {}
+  const b = document.getElementById('notif-toggle-btn');
+  if (b) { b.textContent = chatNotifOn ? '🔔' : '🔕'; b.title = chatNotifOn ? '着信通知ON' : '着信通知OFF'; }
+  showToastMsg(chatNotifOn ? '🔔 着信通知ON (テスト音再生)' : '🔕 着信通知OFF');
+  if (chatNotifOn) {
+    tryRequestNotifPerm();
+    unlockAudio();
+    // ONにした瞬間にテスト音を鳴らして動作確認
+    setTimeout(() => playChatChime(), 100);
+  }
+}
+
+function ctxKey() {
+  if (currentMode === 'group' && currentGid) return 'grp_' + currentGid;
+  if (currentMode === 'dm' && currentDmPeer) return 'dm_' + currentDmPeer.id;
+  return null;
+}
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin(); return null; }
+  return r.json();
+}
+
+function showLogin() { $('login-screen').classList.add('show'); $('app').style.display = 'none'; }
+function showApp() { $('login-screen').classList.remove('show'); $('app').style.display = 'flex'; }
+
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+function fmtTime(s) {
+  if (!s) return '';
+  const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDay(s) {
+  if (!s) return '';
+  const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  const today = new Date();
+  const yest = new Date(); yest.setDate(today.getDate() - 1);
+  const ds = d.toDateString();
+  if (ds === today.toDateString()) return '今日';
+  if (ds === yest.toDateString()) return '昨日';
+  return d.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+}
+
+function fmtLastContent(s) {
+  if (!s) return '';
+  return s.length > 22 ? s.slice(0, 22) + '…' : s;
+}
+
+function relativeTime(s) {
+  if (!s) return '';
+  const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff/60) + '分前';
+  if (diff < 86400) return Math.floor(diff/3600) + '時間前';
+  if (diff < 86400*7) return Math.floor(diff/86400) + '日前';
+  return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+}
+
+async function init() {
+  if (!token) { showLogin(); return; }
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) { showLogin(); return; }
+  me = r.user;
+  showApp();
+  $('me-name').textContent = me.display_name + 'さん';
+  // 着信通知ボタンの状態を初期化 + OS通知許可をリクエスト
+  const _nb = document.getElementById('notif-toggle-btn');
+  if (_nb) { _nb.textContent = chatNotifOn ? '🔔' : '🔕'; _nb.title = chatNotifOn ? '着信通知ON' : '着信通知OFF'; }
+  tryRequestNotifPerm();
+  // 初回ユーザー操作で音声アンロック (autoplay制約対策)
+  const _unlockOnce = () => {
+    unlockAudio();
+    document.removeEventListener('click', _unlockOnce);
+    document.removeEventListener('keydown', _unlockOnce);
+    document.removeEventListener('touchstart', _unlockOnce);
+  };
+  document.addEventListener('click', _unlockOnce, { passive: true });
+  document.addEventListener('keydown', _unlockOnce);
+  document.addEventListener('touchstart', _unlockOnce, { passive: true });
+  // アバター未設定 + 「あとで」未押下なら誘導バナー表示
+  if (!me.avatar_url && localStorage.getItem('cohub_avatar_prompt_dismissed') !== '1') {
+    $('avatar-prompt').classList.add('show');
+  }
+  await Promise.all([loadGroups(), loadDmPeers(), loadUnread(), loadOnlineUsers()]);
+  renderGroupList(); // DM最新メッセージが入ったので再描画
+  setupSocket();
+  // URLパラメータでグループ指定があればそれを開く (モバイルは自動選択しない)
+  const params = new URLSearchParams(location.search);
+  const gid = params.get('g');
+  const isMobile = window.innerWidth <= 720;
+  if (gid && groups.find(g => g.id === gid)) {
+    selectGroup(gid);
+  } else if (!isMobile && groups.length) {
+    // PCだけ先頭グループを開く (2分割レイアウトで右側が空にならないように)
+    selectGroup(groups[0].id);
+  }
+}
+
+async function loadGroups() {
+  const r = await api('/api/chat/groups');
+  const list = $('group-list');
+  if (!r || !r.success) { list.innerHTML = '<div class="empty"><span class="e-ic">⚠</span>取得失敗</div>'; return; }
+  groups = r.groups || [];
+  $('grp-count').textContent = groups.length ? '(' + groups.length + ')' : '';
+  if (!groups.length) {
+    list.innerHTML = '<div class="empty"><span class="e-ic">💬</span>参加中のグループがありません<br><span style="font-size:10px;">管理者にDMグループ設定を依頼してください</span></div>';
+    return;
+  }
+  renderGroupList();
+  // 全グループのメンバーを並列で先読み (Teams風の常時アバター表示用)
+  await Promise.all(groups.map(async g => {
+    if (groupMembers.has(g.id)) return;
+    try {
+      const mr = await api('/api/chat/groups/' + g.id + '/members');
+      if (mr && mr.success) {
+        const filtered = (mr.members || []).filter(m => !['bot_aoi','bot_health','bot_safety'].includes(m.id));
+        filtered.sort((a, b) => {
+          if (a.id === me.uid) return -1;
+          if (b.id === me.uid) return 1;
+          return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
+        });
+        groupMembers.set(g.id, filtered);
+      }
+    } catch (e) {}
+  }));
+  renderGroupList();
+}
+
+// グループID から安定したテーマ番号 (1〜6) を返す (営業所ごとに色違いに見せるため)
+function themeKey(gid) {
+  let h = 0;
+  for (let i = 0; i < gid.length; i++) h = (h * 31 + gid.charCodeAt(i)) | 0;
+  return Math.abs(h) % 6 + 1;
+}
+
+// Teams風フラット チャット一覧 (グループ + 最近のDM相手を統合)
+function renderGroupList() {
+  const list = $('group-list');
+  // グループと個人(DM)を別配列で構築
+  const groupRows = [];
+  const dmRows = [];
+  for (const g of groups) {
+    groupRows.push({
+      type: 'group', id: g.id,
+      name: g.name, icon: g.icon || '💬',
+      last_content: g.last_content,
+      last_at: g.last_at,
+      member_count: g.member_count,
+    });
+  }
+  for (const [peerId, info] of dmPeerInfo.entries()) {
+    if (peerId === me.uid) continue;
+    if (isBot(peerId)) continue; // AIボットはチャット一覧に出さない
+    let peer = null;
+    for (const arr of groupMembers.values()) {
+      peer = arr.find(m => m.id === peerId);
+      if (peer) break;
+    }
+    dmRows.push({
+      type: 'dm', id: peerId,
+      name: peer ? peer.display_name : '...',
+      avatar_url: peer ? peer.avatar_url : '',
+      company_code: peer ? peer.company_code : '',
+      ring_color: peer ? peer.ring_color : '',
+      last_content: info.last_content,
+      last_at: info.last_at,
+      last_sender_id: info.last_sender_id,
+    });
+  }
+  // それぞれ最終アクティビティ降順
+  const byActivity = (a, b) => (b.last_at || '0').localeCompare(a.last_at || '0');
+  groupRows.sort(byActivity);
+  dmRows.sort(byActivity);
+  // 描画 (セクションラベル付き)
+  if (groupRows.length === 0 && dmRows.length === 0) {
+    list.innerHTML = '<div class="list-empty">チャットがありません</div>';
+    return;
+  }
+  const html = [];
+  // グループ未読合計
+  const grpUnread = groupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const dmUnread = dmRows.reduce((a, r) => a + (unreadDms.get(r.id) || 0), 0);
+  if (groupRows.length > 0) {
+    html.push(`<div class="list-sec-label">👥 グループ${grpUnread > 0 ? ` <span style="color:#dc2626;">(${grpUnread})</span>` : ''}</div>`);
+    html.push(groupRows.map(r => chatRowHtml(r)).join(''));
+  }
+  if (dmRows.length > 0) {
+    html.push(`<div class="list-sec-label">👤 個人 (DM)${dmUnread > 0 ? ` <span style="color:#dc2626;">(${dmUnread})</span>` : ''}</div>`);
+    html.push(dmRows.map(r => chatRowHtml(r)).join(''));
+  }
+  list.innerHTML = html.join('');
+}
+
+// グループ名の先頭にあるアイコン絵文字を取り除く ('👔 管理職グループ' → '管理職グループ')
+function stripLeadingIcon(name, icon) {
+  if (!name) return '';
+  const n = name.trim();
+  if (icon && n.startsWith(icon)) return n.slice(icon.length).trim();
+  // 先頭1〜2文字が絵文字っぽければ除去 (Unicode: pictographic)
+  const m = n.match(/^[\p{Extended_Pictographic}☀-➿\u{1F300}-\u{1F9FF}]+\s*/u);
+  if (m) return n.slice(m[0].length);
+  return n;
+}
+
+function chatRowHtml(r) {
+  const isActive = (r.type === 'group' && currentMode === 'group' && currentGid === r.id)
+    || (r.type === 'dm' && currentMode === 'dm' && currentDmPeer && currentDmPeer.id === r.id);
+  const displayName = r.type === 'group' ? stripLeadingIcon(r.name, r.icon) : (r.name || '');
+  // 共通レイアウト: 構造完全一致 (avatar + meta[name+preview])
+  let avInner;
+  if (r.type === 'group') {
+    avInner = escapeHtml(r.icon || '💬');
+  } else {
+    const initial = avatarInitial(r.name);
+    avInner = r.avatar_url
+      ? `<img src="${escapeHtml(r.avatar_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createTextNode('${escapeHtml(initial)}'), {}))">`
+      : escapeHtml(initial);
+  }
+  const [c1, c2] = avatarColorPair(r.id || r.name || '');
+  const ringDot = '';
+  const onDot = (r.type === 'dm') ? onlineDotHtml(r.id) : '';
+  // プレビュー文字列 (両タイプ同じ生成)
+  let preview;
+  if (r.last_content) {
+    const prefix = (r.type === 'dm' && r.last_sender_id === me.uid) ? 'あなた: ' : '';
+    preview = prefix + fmtLastContent(r.last_content);
+  } else {
+    preview = r.type === 'group' ? 'まだメッセージなし' : '個別メッセージを送る';
+  }
+  const timeStr = r.last_at ? relativeTime(r.last_at) : '';
+  const onclick = r.type === 'group'
+    ? `selectGroup('${escapeHtml(r.id)}')`
+    : `selectDmPeer('${escapeHtml(r.id)}')`;
+  const unread = r.type === 'group' ? (unreadGroups.get(r.id) || 0) : (unreadDms.get(r.id) || 0);
+  const unreadBadge = unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : '';
+  const cls = ['chat-row'];
+  if (isActive) cls.push('active');
+  if (unread > 0) cls.push('has-unread');
+  return `<a class="${cls.join(' ')}" onclick="${onclick}">
+    <div class="row-av" style="--av-c1:${c1};--av-c2:${c2};">${avInner}${ringDot}${onDot}</div>
+    <div class="row-meta">
+      <div class="row-top">
+        <span class="row-name">${escapeHtml(displayName)}</span>
+        <span class="row-time">${escapeHtml(timeStr)}</span>
+        ${unreadBadge}
+      </div>
+      <div class="row-preview">
+        <span class="preview-text">${escapeHtml(preview)}</span>
+      </div>
+    </div>
+  </a>`;
+}
+
+function memberRowHtml(m) {
+  const isDmActive = currentMode === 'dm' && currentDmPeer && currentDmPeer.id === m.id;
+  const isSelf = m.id === me.uid;
+  const isChecked = selectedPeers.has(m.id);
+  const ringColor = m.ring_color || '';
+  const ringDot = '';
+  const [pc1, pc2] = avatarColorPair(m.id || m.display_name || '');
+  const initial = avatarInitial(m.display_name);
+  const inner = m.avatar_url
+    ? `<img src="${escapeHtml(m.avatar_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createTextNode('${escapeHtml(initial)}'), {}))">`
+    : escapeHtml(initial);
+  const cls = ['mem-row'];
+  if (isDmActive) cls.push('active');
+  if (isSelf) cls.push('self');
+  if (isChecked) cls.push('checked');
+  // 2行目: DM最新メッセージ → 無ければ会社名
+  const dmInfo = dmPeerInfo.get(m.id);
+  let line2 = '', line2Cls = '';
+  let timeStr = '';
+  if (dmInfo && dmInfo.last_content) {
+    const prefix = dmInfo.last_sender_id === me.uid ? 'あなた: ' : '';
+    line2 = prefix + fmtLastContent(dmInfo.last_content);
+    if (dmInfo.last_at) timeStr = relativeTime(dmInfo.last_at);
+  } else if (m.company_code) {
+    line2 = m.company_code; line2Cls = ' empty';
+  } else {
+    line2 = '個別メッセージを送る'; line2Cls = ' empty';
+  }
+  const tag = m.company_code && dmInfo ? `<span class="mn-tag" style="--ring-color:${ringColor || '#94a3b8'};background:${ringColor || '#94a3b8'};">${escapeHtml(m.company_code)}</span>` : '';
+  return `<a class="${cls.join(' ')}" onclick="event.stopPropagation();onMemberClick('${escapeHtml(m.id)}')">
+    <div class="mem-check"></div>
+    <div class="av-mini" style="--av-c1:${pc1};--av-c2:${pc2};">${inner}${ringDot}${onlineDotHtml(m.id)}</div>
+    <div class="mem-meta">
+      <div class="mn">${escapeHtml(m.display_name || '')}${tag}${timeStr ? '<span class="mc-time">' + escapeHtml(timeStr) + '</span>' : ''}</div>
+      <div class="mc${line2Cls}">${escapeHtml(line2)}</div>
+    </div>
+  </a>`;
+}
+
+async function loadUnread() {
+  try {
+    const r = await api('/api/chat/unread');
+    if (!r || !r.success) return;
+    unreadGroups.clear();
+    unreadDms.clear();
+    (r.groups || []).forEach(g => { if (g.unread > 0) unreadGroups.set(g.group_id, g.unread); });
+    (r.dms || []).forEach(d => { if (d.unread > 0 && !isBot(d.peer_id)) unreadDms.set(d.peer_id, d.unread); });
+  } catch (e) {}
+}
+
+async function markVisibleMessagesRead() {
+  // 現在表示中のチャットのメッセージを既読化
+  const k = ctxKey();
+  if (!k) { console.log('[read] no ctxKey, skip'); return; }
+  // ★ 先にローカル未読バッジをクリア (UI即時反映、API失敗時もリセット)
+  if (currentMode === 'group' && currentGid) unreadGroups.delete(currentGid);
+  if (currentMode === 'dm' && currentDmPeer) unreadDms.delete(currentDmPeer.id);
+  renderGroupList();
+  // メッセージID一覧を取得して /api/chat/read に送信 (送信者通知のため)
+  const arr = messageCache.get(k) || [];
+  const ids = arr
+    .filter(m => typeof m.id === 'number' && m.sender_id !== me.uid)
+    .map(m => m.id);
+  console.log('[read] mark', ids.length, 'ids in', k);
+  if (ids.length === 0) return;
+  try {
+    const r = await api('/api/chat/read', { method: 'POST', body: JSON.stringify({ message_ids: ids }), headers: { 'Content-Type': 'application/json' } });
+    console.log('[read] api response', r);
+  } catch (e) { console.warn('[read] api fail', e); }
+}
+
+async function loadReaders(messageIds) {
+  if (!messageIds.length) return;
+  try {
+    const r = await fetch('/api/chat/messages/readers-bulk', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message_ids: messageIds }),
+    });
+    const d = await r.json();
+    if (d && d.success) {
+      const byMsg = d.by_message || {};
+      Object.keys(byMsg).forEach(mid => messageReaders.set(parseInt(mid), byMsg[mid]));
+      renderMessages();
+    }
+  } catch (e) {}
+}
+
+async function loadDmPeers() {
+  try {
+    const r = await api('/api/chat/dm');
+    if (r && r.success) {
+      (r.peers || []).forEach(p => {
+        if (isBot(p.peer_id)) return; // AIボットは除外
+        dmPeerInfo.set(p.peer_id, {
+          last_content: p.last_content,
+          last_at: p.last_at,
+          last_sender_id: p.last_sender_id,
+        });
+      });
+    }
+  } catch (e) {}
+}
+
+// メンバー行タップ: グループモード = チェックON/OFF / DMモード = DM切替
+function onMemberClick(uid) {
+  if (uid === me.uid) return;
+  if (currentMode === 'group') {
+    // グループモード: チェックトグル
+    if (selectedPeers.has(uid)) selectedPeers.delete(uid);
+    else selectedPeers.add(uid);
+    updateSelectionUI();
+    renderGroupList();
+  } else {
+    // DMモード: 別の相手をクリックしたら相手切替
+    selectDmPeer(uid);
+  }
+}
+
+function updateSelectionUI() {
+  const n = selectedPeers.size;
+  $('sel-count').textContent = n;
+  const bar = $('select-bar');
+  bar.classList.toggle('has-selection', n > 0);
+  // ヒント文言を切替
+  $('sel-hint').textContent = n > 0
+    ? `📨 ${n}人にDMで個別送信モード`
+    : 'チェックなし → グループ全員へ送信 / チェックあり → 選択した人へ個別DM';
+  // 送信ボタン表記
+  if (currentMode === 'group') {
+    $('send-btn').textContent = n > 0 ? `📨 送信(${n})` : '送信';
+    $('input-text').placeholder = n > 0
+      ? `${n}人にDMで送信 (Enter=送信)`
+      : 'グループ全員へ送信 (Enter=送信、Shift+Enter=改行)';
+  }
+  $('send-btn').disabled = !$('input-text').value.trim();
+}
+
+// 指定グループのメンバー全員を選択 (他グループの既選択はそのまま)
+function selectAllInGroup(gid) {
+  const members = groupMembers.get(gid) || [];
+  const others = members.filter(m => m.id !== me.uid);
+  const allChecked = others.length > 0 && others.every(m => selectedPeers.has(m.id));
+  if (allChecked) {
+    // 既に全選択 → そのグループだけ解除 (トグル動作)
+    others.forEach(m => selectedPeers.delete(m.id));
+  } else {
+    others.forEach(m => selectedPeers.add(m.id));
+  }
+  updateSelectionUI();
+  renderGroupList();
+}
+
+// 指定グループのメンバーだけ選択解除
+function clearGroupSelection(gid) {
+  const members = groupMembers.get(gid) || [];
+  members.forEach(m => selectedPeers.delete(m.id));
+  updateSelectionUI();
+  renderGroupList();
+}
+
+// 全グループの選択を解除 (互換用、未使用なら削除可)
+function clearSelection() {
+  selectedPeers.clear();
+  updateSelectionUI();
+  renderGroupList();
+}
+
+function showToastMsg(s) {
+  const t = document.getElementById('toast');
+  if (t) { t.textContent = s; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+  else alert(s);
+}
+
+// ===== メンバーピッカー モーダル =====
+function openMembersModal() {
+  if (currentMode !== 'group' || !currentGid) {
+    showToastMsg('グループ選択中のみ利用できます');
+    return;
+  }
+  const g = groups.find(x => x.id === currentGid);
+  if (!g) return;
+  $('mp-title').textContent = (g.icon || '💬') + ' ' + g.name;
+  $('mp-count').textContent = (g.member_count || 0) + '名';
+  renderMpList();
+  $('members-modal').classList.add('show');
+}
+function closeMembersModal() {
+  $('members-modal').classList.remove('show');
+}
+function renderMpList() {
+  if (!currentGid) return;
+  const members = groupMembers.get(currentGid) || [];
+  const others = members.filter(m => m.id !== me.uid);
+  const list = $('mp-list');
+  if (others.length === 0) {
+    list.innerHTML = '<div style="padding:30px 16px;text-align:center;color:#94a3b8;font-size:13px;">他のメンバーはいません</div>';
+  } else {
+    list.innerHTML = others.map(m => mpRowHtml(m)).join('');
+  }
+  // 自分を末尾に閲覧用 (操作不可) で追加
+  const self = members.find(m => m.id === me.uid);
+  if (self) list.insertAdjacentHTML('beforeend', mpRowHtml(self, true));
+  updateMpCount();
+}
+function mpRowHtml(m, isSelf) {
+  const ringColor = m.ring_color || '';
+  const [c1, c2] = avatarColorPair(m.id || m.display_name || '');
+  const initial = avatarInitial(m.display_name);
+  const inner = m.avatar_url
+    ? `<img src="${escapeHtml(m.avatar_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createTextNode('${escapeHtml(initial)}'), {}))">`
+    : escapeHtml(initial);
+  const isChecked = selectedPeers.has(m.id);
+  const cls = ['mp-row'];
+  if (isSelf) cls.push('self');
+  if (isChecked) cls.push('checked');
+  const co = m.company_code ? `<div class="co">${escapeHtml(m.company_code)}${isSelf ? ' (自分)' : ''}</div>` : (isSelf ? '<div class="co">(自分)</div>' : '');
+  if (isSelf) {
+    return `<div class="${cls.join(' ')}">
+      <div class="av" style="--av-c1:${c1};--av-c2:${c2};">${inner}</div>
+      <div class="info"><div class="nm">${escapeHtml(m.display_name)}</div>${co}</div>
+    </div>`;
+  }
+  return `<div class="${cls.join(' ')}" data-uid="${escapeHtml(m.id)}">
+    <div class="av" style="--av-c1:${c1};--av-c2:${c2};">${inner}</div>
+    <div class="info"><div class="nm">${escapeHtml(m.display_name)}</div>${co}</div>
+    <div class="actions">
+      <button class="dm-btn" type="button" onclick="event.stopPropagation();mpDmPeer('${escapeHtml(m.id)}')">DM</button>
+      <div class="chk" onclick="mpToggle('${escapeHtml(m.id)}')"></div>
+    </div>
+  </div>`;
+}
+function mpToggle(uid) {
+  if (selectedPeers.has(uid)) selectedPeers.delete(uid);
+  else selectedPeers.add(uid);
+  renderMpList();
+}
+function mpSelectAll() {
+  if (!currentGid) return;
+  const members = groupMembers.get(currentGid) || [];
+  members.forEach(m => { if (m.id !== me.uid) selectedPeers.add(m.id); });
+  renderMpList();
+}
+function mpClearAll() {
+  if (!currentGid) return;
+  const members = groupMembers.get(currentGid) || [];
+  members.forEach(m => selectedPeers.delete(m.id));
+  renderMpList();
+}
+function updateMpCount() {
+  const n = selectedPeers.size;
+  $('mp-sel-count').textContent = n;
+  const btn = $('mp-send-btn');
+  btn.textContent = n > 0 ? `📨 選択した ${n}人に一斉DM` : '選択した0人に一斉DM';
+  btn.disabled = n === 0;
+}
+function mpDmPeer(uid) {
+  closeMembersModal();
+  selectDmPeer(uid);
+}
+function mpSendToSelected() {
+  const n = selectedPeers.size;
+  if (n === 0) return;
+  const msg = prompt(`${n}人にDMで送信するメッセージを入力してください`, '');
+  if (!msg || !msg.trim()) return;
+  if (n >= 5 && !confirm(n + '人にDMを送信します。よろしいですか？')) return;
+  let sent = 0;
+  selectedPeers.forEach(uid => {
+    if (uid === me.uid) return;
+    socket.emit('chat:dm', { to: uid, content: msg.trim() });
+    sent++;
+  });
+  showToastMsg(`✓ ${sent}人にDMで送信しました`);
+  closeMembersModal();
+}
+
+function toggleCollapse(gid) {
+  if (collapsedGroups.has(gid)) collapsedGroups.delete(gid);
+  else collapsedGroups.add(gid);
+  persistCollapsed();
+  renderGroupList();
+}
+
+async function selectGroup(gid) {
+  // 旧スレッドのtyping停止信号
+  stopTypingNow();
+  // グループ切替: 選択をクリア
+  selectedPeers.clear();
+  currentMode = 'group';
+  currentGid = gid;
+  currentDmPeer = null;
+  applyTypingDisplay();
+  renderMemberStrip();  // プリロード済みメンバーがあれば即時描画
+  document.body.classList.remove('dm-mode');
+  document.body.classList.add('chat-active');
+  $('btn-members').style.display = 'flex';
+  $('btn-call-voice').classList.add('disabled');
+  $('btn-call-video').classList.add('disabled');
+  const g = groups.find(x => x.id === gid);
+  if (!g) return;
+  renderGroupList();
+  $('panel-title').textContent = (g.icon || '💬') + ' ' + g.name;
+  $('panel-members').textContent = g.member_count + '名';
+  $('select-bar').classList.add('group-mode');
+  $('input-text').disabled = false;
+  $('send-btn').disabled = false;
+  updateSelectionUI();
+  if (window.innerWidth <= 720) $('side').classList.add('collapsed');
+  $('msgs').innerHTML = '<div class="empty" style="padding:40px 14px;">読み込み中...</div>';
+  const [memRes, msgRes] = await Promise.all([
+    api('/api/chat/groups/' + gid + '/members'),
+    api('/api/chat/groups/' + gid + '/messages'),
+  ]);
+  if (memRes && memRes.success) {
+    const filtered = (memRes.members || []).filter(m => !['bot_aoi','bot_health','bot_safety'].includes(m.id));
+    filtered.sort((a, b) => {
+      if (a.id === me.uid) return -1;
+      if (b.id === me.uid) return 1;
+      return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
+    });
+    groupMembers.set(gid, filtered);
+    renderGroupList(); // メンバーが入ったので再描画
+    renderMemberStrip();
+  }
+  if (!msgRes || !msgRes.success) {
+    $('msgs').innerHTML = '<div class="empty">取得失敗: ' + escapeHtml(msgRes && msgRes.msg || '') + '</div>';
+    return;
+  }
+  messageCache.set('grp_' + gid, msgRes.messages || []);
+  renderMessages();
+  // 既読化 + 既読者一覧を取得
+  markVisibleMessagesRead();
+  const ids = (msgRes.messages || []).filter(m => typeof m.id === 'number').map(m => m.id);
+  loadReaders(ids);
+}
+
+async function selectDmPeer(peerId) {
+  if (!peerId || peerId === me.uid) return;
+  // 旧スレッドのtyping停止信号
+  stopTypingNow();
+  selectedPeers.clear();
+  currentMode = 'dm';
+  currentGid = null;
+  applyTypingDisplay();
+  renderMemberStrip();  // DMモードならstripを隠す
+  document.body.classList.add('dm-mode');
+  document.body.classList.add('chat-active');
+  $('btn-members').style.display = 'none';
+  $('btn-call-voice').classList.remove('disabled');
+  $('btn-call-video').classList.remove('disabled');
+  $('select-bar').classList.remove('group-mode');
+  $('select-bar').classList.remove('has-selection');
+  // メンバー情報を groupMembers から検索 (なければ後でAPI応答で埋める)
+  let peer = null;
+  for (const arr of groupMembers.values()) {
+    peer = arr.find(m => m.id === peerId);
+    if (peer) break;
+  }
+  currentDmPeer = peer || { id: peerId, display_name: '...', avatar_url: '', company_code: '', ring_color: '' };
+  renderGroupList();
+  $('panel-title').innerHTML = '💬 <span style="color:#0ea5e9;">' + escapeHtml(currentDmPeer.display_name || '...') + '</span> <span style="font-size:11px;color:#94a3b8;font-weight:500;">との個別チャット</span>';
+  $('panel-members').textContent = '1対1';
+  $('input-text').disabled = false;
+  $('input-text').placeholder = (currentDmPeer.display_name || '相手') + 'さんに個別メッセージ';
+  $('send-btn').disabled = false;
+  if (window.innerWidth <= 720) $('side').classList.add('collapsed');
+  $('msgs').innerHTML = '<div class="empty" style="padding:40px 14px;">読み込み中...</div>';
+  const r = await api('/api/chat/dm/' + peerId);
+  if (!r || !r.success) {
+    $('msgs').innerHTML = '<div class="empty" style="color:#dc2626;">取得失敗: ' + escapeHtml(r && r.msg || '') + '</div>';
+    return;
+  }
+  if (r.peer) currentDmPeer = r.peer;
+  // DMメッセージを sender_* で解決済みの形に整形
+  const me_id = me.uid;
+  const messages = (r.messages || []).map(m => ({
+    id: m.id,
+    sender_id: m.sender_id,
+    sender_name: m.sender_id === me_id ? me.display_name : (currentDmPeer.display_name || ''),
+    sender_avatar: m.sender_id === me_id ? (me.avatar_url || '') : (currentDmPeer.avatar_url || ''),
+    sender_company: m.sender_id === me_id ? (me.company_code || '') : (currentDmPeer.company_code || ''),
+    sender_ring: m.sender_id === me_id ? '' : (currentDmPeer.ring_color || ''),
+    content: m.content,
+    created_at: m.created_at,
+    attach_url: m.attach_url, attach_name: m.attach_name,
+  }));
+  messageCache.set('dm_' + peerId, messages);
+  renderMessages();
+  // 既読化 + 既読者(自分のメッセージへの相手の既読)取得
+  markVisibleMessagesRead();
+  const ids = messages.filter(m => typeof m.id === 'number').map(m => m.id);
+  loadReaders(ids);
+}
+
+// 文字列ハッシュ → 安定した色 (アバター画像なし時のフォールバック背景)
+function avatarColorPair(str) {
+  let h = 0;
+  const s = String(str || 'x');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  const palettes = [
+    ['#fb923c','#ea580c'], ['#34d399','#059669'], ['#60a5fa','#2563eb'],
+    ['#a78bfa','#7c3aed'], ['#f472b6','#db2777'], ['#facc15','#ca8a04'],
+    ['#22d3ee','#0891b2'], ['#fb7185','#e11d48'], ['#4ade80','#16a34a']
+  ];
+  return palettes[Math.abs(h) % palettes.length];
+}
+
+// 表示名から先頭1〜2文字を取り出す (英字なら2文字、漢字/かなは1文字)
+function avatarInitial(name) {
+  const n = String(name || '?').trim();
+  if (!n) return '?';
+  if (/^[A-Za-z]/.test(n)) return n.slice(0, 2).toUpperCase();
+  return n.slice(0, 1);
+}
+
+// 同一発言者・3分以内なら連続扱い
+function isContinuation(prev, curr) {
+  if (!prev || !curr) return false;
+  if (prev.sender_id !== curr.sender_id) return false;
+  const dp = new Date((prev.created_at || '').replace(' ', 'T'));
+  const dc = new Date((curr.created_at || '').replace(' ', 'T'));
+  if (isNaN(dp.getTime()) || isNaN(dc.getTime())) return false;
+  return (dc - dp) <= 3 * 60 * 1000;
+}
+
+// 前回renderしたコンテキストとメッセージ数を記憶 (スクロール挙動の判定用)
+let _lastRenderCtx = null;
+let _lastRenderCount = 0;
+function renderMessages() {
+  const msgsEl = $('msgs');
+  // ★ 再描画前に「ユーザーが下端付近を見ているか」を判定
+  const wasAtBottom = msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 120;
+  const k = ctxKey();
+  const arr = (k && messageCache.get(k)) || [];
+  // チャット切替 or 履歴大量読み込み = 初期表示扱い (即時jump)
+  // 同じスレッドで新着1〜2件 = スムーズスクロール
+  const isInitialLoad = (k !== _lastRenderCtx) || (arr.length - _lastRenderCount) > 2;
+  _lastRenderCtx = k;
+  _lastRenderCount = arr.length;
+  if (!arr.length) {
+    msgsEl.innerHTML = '<div class="empty" style="padding:50px 14px;text-align:center;color:#94a3b8;"><div style="font-size:36px;opacity:0.4;margin-bottom:6px;">💬</div>まだメッセージがありません<br><span style="font-size:11px;">最初の一言を書いてみましょう</span></div>';
+    return;
+  }
+  let lastDay = '';
+  const parts = [];
+  for (let i = 0; i < arr.length; i++) {
+    const m = arr[i];
+    const next = arr[i + 1];
+    const day = (m.created_at || '').slice(0, 10);
+    if (day !== lastDay) {
+      parts.push('<div class="day-sep"><span>' + escapeHtml(fmtDay(m.created_at)) + '</span></div>');
+      lastDay = day;
+    }
+    const cont = isContinuation(arr[i - 1], m);
+    // 次のメッセージとの境目 (発言者が変わる/日付が変わる) なら last-of-group
+    const nextDay = next ? (next.created_at || '').slice(0, 10) : null;
+    const nextIsSame = next && isContinuation(m, next) && nextDay === day;
+    const isMe = m.sender_id === me.uid;
+    const cls = ['msg'];
+    if (isMe) cls.push('me');
+    if (cont) cls.push('cont');
+    if (!nextIsSame) cls.push('last-of-group');
+
+    // アバター: 自分のメッセージは非表示 (右側にアバター不要)
+    let avatar;
+    if (isMe) {
+      avatar = '';
+    } else if (cont) {
+      avatar = '<span class="av-spacer"></span>';
+    } else if (m.sender_avatar) {
+      avatar = `<div class="av" title="${escapeHtml(m.sender_name||'')}"><img src="${escapeHtml(m.sender_avatar)}" alt="" onerror="this.parentNode.innerHTML='${escapeHtml(avatarInitial(m.sender_name))}'"></div>`;
+    } else {
+      const [c1, c2] = avatarColorPair(m.sender_id || m.sender_name || '');
+      avatar = `<div class="av" style="--av-c1:${c1};--av-c2:${c2}" title="${escapeHtml(m.sender_name||'')}">${escapeHtml(avatarInitial(m.sender_name))}</div>`;
+    }
+
+    // 名前ヘッダー (連続発言時は省略)
+    let header = '';
+    if (!cont && !isMe) {
+      const ringColor = m.sender_ring || '#64748b';
+      const company = m.sender_company ? `<span class="company" style="--ring-color:${ringColor};background:${ringColor};">${escapeHtml(m.sender_company)}</span>` : '';
+      header = `<div class="name">${escapeHtml(m.sender_name || '(不明)')}${company}<span class="ts-inline">${fmtTime(m.created_at)}</span></div>`;
+    }
+
+    // バブル本文 + 添付
+    const attach = m.attach_url ? `<a class="attach-link" href="${escapeHtml(m.attach_url)}" target="_blank">📎 ${escapeHtml(m.attach_name || 'attach')}</a>` : '';
+    const bubble = `<div class="bub">${escapeHtml(m.content || '')}${attach}</div>`;
+
+    // 自分の連続でないメッセージは右下に時刻 + 既読/未読
+    let tsBottom = '';
+    if (isMe && !cont) {
+      let readMark = '';
+      if (typeof m.id === 'number') {
+        const readers = (messageReaders.get(m.id) || []).filter(r => r.id !== me.uid);
+        if (currentMode === 'dm') {
+          readMark = readers.length > 0
+            ? '<span class="read-mark">✓ 既読</span>'
+            : '<span class="unread-mark">未読</span>';
+        } else if (currentMode === 'group') {
+          readMark = readers.length > 0
+            ? `<span class="read-mark group-cnt">既読 ${readers.length}</span>`
+            : '<span class="unread-mark">未読</span>';
+        }
+      } else {
+        // 楽観的pendingメッセージ (送信中)
+        readMark = '<span class="unread-mark">送信中…</span>';
+      }
+      tsBottom = `<div class="ts">${readMark}<span>${fmtTime(m.created_at)}</span></div>`;
+    }
+
+    parts.push(`<div class="${cls.join(' ')}">${avatar}<div class="body">${header}${bubble}${tsBottom}</div></div>`);
+  }
+  msgsEl.innerHTML = parts.join('');
+  // 初期表示 = 即時jump、新着 = スムーズスクロール (下端付近を見ていた場合のみ)
+  if (isInitialLoad) {
+    // チャット切替時は瞬時に下端へ (アニメーション無し)
+    requestAnimationFrame(() => {
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    });
+  } else if (wasAtBottom) {
+    requestAnimationFrame(() => {
+      msgsEl.scrollTo({ top: msgsEl.scrollHeight, behavior: 'smooth' });
+    });
+  } else {
+    // 履歴閲覧中: 新着があった旨をバッジで表示
+    showNewMsgBadge();
+  }
+}
+
+// 新着バッジ (履歴閲覧中に新着が来た時の通知 + クリックで下端へ)
+function showNewMsgBadge() {
+  let badge = document.getElementById('new-msg-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'new-msg-badge';
+    badge.style.cssText = 'position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#0ea5e9;color:#fff;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.4);z-index:10;display:flex;align-items:center;gap:6px;';
+    badge.innerHTML = '↓ 新着メッセージ';
+    badge.onclick = () => {
+      const msgsEl = $('msgs');
+      msgsEl.scrollTo({ top: msgsEl.scrollHeight, behavior: 'smooth' });
+      badge.remove();
+    };
+    document.getElementById('panel').appendChild(badge);
+  }
+}
+// スクロールで下端まで来たら新着バッジを消す
+$('msgs').addEventListener('scroll', () => {
+  const el = $('msgs');
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
+    const b = document.getElementById('new-msg-badge');
+    if (b) b.remove();
+  }
+});
+
+function appendMessage(m, key) {
+  const k = key || ctxKey();
+  if (!k) return;
+  const arr = messageCache.get(k) || [];
+  arr.push(m);
+  messageCache.set(k, arr);
+  if (k === ctxKey()) renderMessages();
+}
+
+function setupSocket() {
+  socket = io({ auth: { token } });
+  socket.on('connect', () => {
+    console.log('socket connected');
+    // 再接続時のオンライン一覧再取得
+    loadOnlineUsers().then(() => { try { renderGroupList(); } catch (e) {} });
+  });
+
+  // 在席状態
+  socket.on('user:login', (d) => { if (d && d.uid) setUserOnline(d.uid, true); });
+  socket.on('user:logout', (d) => { if (d && d.uid) setUserOnline(d.uid, false); });
+  socket.on('user:floor', (d) => {
+    if (!d || !d.uid) return;
+    if (d.offline) setUserOnline(d.uid, false);
+    else if (d.floor) setUserOnline(d.uid, true);
+  });
+
+  // 入力中インジケーター
+  socket.on('chat:typing', (d) => {
+    if (!d || !d.from || d.from === me.uid) return;
+    // 送信者の表示名を解決
+    let name = '';
+    for (const arr of groupMembers.values()) {
+      const f = arr.find(m => m.id === d.from);
+      if (f) { name = f.display_name || ''; break; }
+    }
+    if (d.group_id) {
+      setTypingFrom(d.from, true, d.group_id, name, !!d.typing);
+    } else if (d.peer_id) {
+      setTypingFrom(d.from, false, null, name, !!d.typing);
+    }
+  });
+
+  // 既読通知 (他人が自分の関係するメッセージを読んだ)
+  socket.on('message:read', (payload) => {
+    if (!payload || !payload.message_ids) return;
+    const reader = {
+      id: payload.reader_id,
+      display_name: payload.reader_name,
+      avatar_url: payload.reader_avatar,
+      ring_color: '',
+      read_at: payload.read_at,
+    };
+    payload.message_ids.forEach(mid => {
+      const arr = messageReaders.get(mid) || [];
+      if (!arr.find(r => r.id === reader.id)) arr.push(reader);
+      messageReaders.set(mid, arr);
+    });
+    renderMessages();
+  });
+
+  // DMメッセージ受信
+  socket.on('dm:msg', (payload) => {
+    if (!payload) return;
+    const peerId = payload.from === me.uid ? payload.to : payload.from;
+    if (!peerId) return;
+    // AIボットとのDMはチャット一覧に表示しない (kept silent)
+    if (!isBot(peerId)) {
+      dmPeerInfo.set(peerId, {
+        last_content: payload.content,
+        last_at: payload.at,
+        last_sender_id: payload.from,
+      });
+      renderGroupList();
+    }
+    const k = 'dm_' + peerId;
+    const arr = messageCache.get(k) || [];
+    if (arr.find(x => x.id === payload.id)) return;
+    // 楽観的pending置換 (自分の発言エコー時)
+    if (payload.from === me.uid) {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const x = arr[i];
+        if (typeof x.id === 'string' && x.id.startsWith('pending_') && x.content === payload.content) {
+          arr[i] = {
+            id: payload.id,
+            sender_id: payload.from,
+            sender_name: me.display_name,
+            sender_avatar: me.avatar_url || '',
+            sender_company: me.company_code || '',
+            sender_ring: '',
+            content: payload.content,
+            created_at: payload.at,
+            attach_url: payload.attach && payload.attach.url,
+            attach_name: payload.attach && payload.attach.name,
+          };
+          if (k === ctxKey()) renderMessages();
+          return;
+        }
+      }
+    }
+    // 受信側: peer 情報を補完
+    let peerInfo = null;
+    if (payload.from !== me.uid && currentDmPeer && currentDmPeer.id === payload.from) peerInfo = currentDmPeer;
+    if (!peerInfo) {
+      for (const arr2 of groupMembers.values()) {
+        peerInfo = arr2.find(m => m.id === peerId);
+        if (peerInfo) break;
+      }
+    }
+    appendMessage({
+      id: payload.id,
+      sender_id: payload.from,
+      sender_name: payload.from === me.uid ? me.display_name : (peerInfo && peerInfo.display_name) || '',
+      sender_avatar: payload.from === me.uid ? (me.avatar_url || '') : ((peerInfo && peerInfo.avatar_url) || ''),
+      sender_company: payload.from === me.uid ? (me.company_code || '') : ((peerInfo && peerInfo.company_code) || ''),
+      sender_ring: payload.from === me.uid ? '' : ((peerInfo && peerInfo.ring_color) || ''),
+      content: payload.content,
+      created_at: payload.at,
+      attach_url: payload.attach && payload.attach.url,
+      attach_name: payload.attach && payload.attach.name,
+    }, k);
+    // 自分宛DM (相手→自分) の処理: 表示中なら既読化、それ以外なら未読+1+通知
+    if (payload.from !== me.uid) {
+      const senderName = (peerInfo && peerInfo.display_name) || '';
+      const viewingThisDm = currentMode === 'dm' && currentDmPeer && currentDmPeer.id === payload.from;
+      const visible = document.visibilityState === 'visible';
+      console.log('[dm:msg]', { from: payload.from, viewingThisDm, visible });
+      if (viewingThisDm && visible) {
+        // ★ 表示中: 既読化のみ、通知音は鳴らさない
+        markVisibleMessagesRead();
+      } else {
+        // 別スレッド or タブ背面: 未読+1 + 通知
+        if (!viewingThisDm) {
+          unreadDms.set(payload.from, (unreadDms.get(payload.from) || 0) + 1);
+          renderGroupList();
+        }
+        if (!isBot(payload.from)) {
+          announceSender(payload.from, senderName, false);
+          fireOSNotif('💬 ' + (senderName || 'メッセージ'), payload.content || '', () => {
+            try { selectDmPeer(payload.from); } catch (e) {}
+          });
+          showToastMsg('💬 ' + (senderName || '誰か') + 'さんからメッセージ');
+        }
+      }
+    }
+  });
+
+  // DMがブロックされた時の通知
+  socket.on('dm:blocked', (payload) => {
+    if (payload && payload.msg) alert(payload.msg);
+  });
+
+  socket.on('group:msg', (payload) => {
+    if (!payload || !payload.group_id) return;
+    const g = groups.find(x => x.id === payload.group_id);
+    if (g) {
+      g.last_content = payload.content;
+      g.last_at = payload.at;
+      groups.sort((a, b) => (new Date(b.last_at || 0)) - (new Date(a.last_at || 0)));
+      renderGroupList();
+    }
+    const k = 'grp_' + payload.group_id;
+    const arr = messageCache.get(k) || [];
+    if (arr.find(x => x.id === payload.id)) return;
+    // 楽観的pending置換 (自分のエコー時)
+    if (payload.from === me.uid) {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const x = arr[i];
+        if (typeof x.id === 'string' && x.id.startsWith('pending_') && x.content === payload.content) {
+          arr[i] = {
+            id: payload.id,
+            sender_id: payload.from,
+            sender_name: payload.sender_name || me.display_name,
+            sender_avatar: payload.sender_avatar || me.avatar_url,
+            sender_company: payload.sender_company || me.company_code,
+            sender_ring: payload.sender_ring || '',
+            content: payload.content,
+            created_at: payload.at,
+            attach_url: payload.attach && payload.attach.url,
+            attach_name: payload.attach && payload.attach.name,
+          };
+          if (k === ctxKey()) renderMessages();
+          return;
+        }
+      }
+    }
+    appendMessage({
+      id: payload.id,
+      sender_id: payload.from,
+      sender_name: payload.sender_name || '',
+      sender_avatar: payload.sender_avatar || '',
+      sender_company: payload.sender_company || '',
+      sender_ring: payload.sender_ring || '',
+      content: payload.content,
+      created_at: payload.at,
+      attach_url: payload.attach && payload.attach.url,
+      attach_name: payload.attach && payload.attach.name,
+    }, k);
+    // 自分宛(自分以外送信) の処理: 表示中なら既読化、それ以外なら未読+1+通知
+    if (payload.from !== me.uid) {
+      const viewingThisGroup = currentMode === 'group' && currentGid === payload.group_id;
+      const visible = document.visibilityState === 'visible';
+      console.log('[group:msg]', { gid: payload.group_id, viewingThisGroup, visible });
+      if (viewingThisGroup && visible) {
+        markVisibleMessagesRead();
+      } else {
+        if (!viewingThisGroup) {
+          unreadGroups.set(payload.group_id, (unreadGroups.get(payload.group_id) || 0) + 1);
+          renderGroupList();
+        }
+        if (!isBot(payload.from)) {
+          const g = groups.find(x => x.id === payload.group_id);
+          const groupName = g ? (g.name || '') : '';
+          announceSender(payload.from, payload.sender_name || '', true, groupName);
+          fireOSNotif('💬 [' + (groupName || 'グループ') + '] ' + (payload.sender_name || ''), payload.content || '', () => {
+            try { selectGroup(payload.group_id); } catch (e) {}
+          });
+          showToastMsg('💬 [' + (groupName || 'グループ') + '] ' + (payload.sender_name || '誰か') + 'さんからメッセージ');
+        }
+      }
+    }
+  });
+}
+
+function send() {
+  const t = $('input-text').value.trim();
+  if (!t || !socket) return;
+  // 送信したらtyping停止信号
+  stopTypingNow();
+  // グループモードで誰かをチェック中なら個別DM一斉送信
+  if (currentMode === 'group' && selectedPeers.size > 0) {
+    if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) return;
+    let sent = 0;
+    selectedPeers.forEach(uid => {
+      if (uid === me.uid) return;
+      socket.emit('chat:dm', { to: uid, content: t });
+      sent++;
+    });
+    showToastMsg(`✓ ${sent}人にDMで送信しました`);
+    $('input-text').value = '';
+    $('input-text').style.height = '40px';
+    updateSelectionUI();
+    return;
+  }
+  if (currentMode === 'group' && currentGid) {
+    socket.emit('chat:group', { group_id: currentGid, content: t });
+  } else if (currentMode === 'dm' && currentDmPeer) {
+    socket.emit('chat:dm', { to: currentDmPeer.id, content: t });
+  } else {
+    return;
+  }
+  appendMessage({
+    id: 'pending_' + Date.now(),
+    sender_id: me.uid,
+    sender_name: me.display_name,
+    sender_avatar: me.avatar_url || '',
+    sender_company: me.company_code || '',
+    content: t,
+    created_at: new Date().toISOString(),
+  });
+  $('input-text').value = '';
+  $('input-text').style.height = '40px';
+}
+
+function toggleSide() { $('side').classList.toggle('collapsed'); }
+
+// スマホ: 一覧へ戻る (chat-active を外すとサイドバー全画面が復帰)
+function backToList() {
+  document.body.classList.remove('chat-active');
+  // モード状態は維持 (再度選んだチャットを再描画するため、currentMode は触らない)
+}
+
+// ブラウザの戻るボタンでも一覧へ戻すフック
+window.addEventListener('popstate', () => {
+  if (document.body.classList.contains('chat-active') && window.innerWidth <= 720) {
+    document.body.classList.remove('chat-active');
+  }
+});
+
+function dismissAvatarPrompt() {
+  localStorage.setItem('cohub_avatar_prompt_dismissed', '1');
+  $('avatar-prompt').classList.remove('show');
+}
+function goToAvatarSetup() {
+  location.href = '/avatar';
+}
+
+// ★ window.send は後で添付対応版に差し替えられるため、毎回動的に呼ぶ
+$('send-btn').addEventListener('click', () => window.send());
+$('input-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    window.send();
+  }
+});
+$('input-text').addEventListener('input', e => {
+  // 1行高(40px)をベースに、内容に応じて伸ばす (max 120px)
+  e.target.style.height = '40px';
+  if (e.target.scrollHeight > 40) {
+    e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px';
+  }
+  if (currentMode === 'group') updateSelectionUI();
+  else $('send-btn').disabled = !e.target.value.trim();
+  // 入力中インジケーターを相手に送信 (3秒スロットル + 6秒で停止)
+  emitTypingThrottled();
+});
+
+// ===== 入力中インジケーター =====
+let _typingActive = false;
+let _typingTimer = null;       // 6秒後に停止信号
+let _typingThrottle = 0;       // 3秒ごとにしか開始信号を送らない
+function emitTypingThrottled() {
+  if (!socket) return;
+  const now = Date.now();
+  // 開始信号を3秒に1度
+  if (!_typingActive || (now - _typingThrottle) > 3000) {
+    _typingActive = true;
+    _typingThrottle = now;
+    sendTypingSignal(true);
+  }
+  // 停止タイマーを6秒に再セット
+  if (_typingTimer) clearTimeout(_typingTimer);
+  _typingTimer = setTimeout(() => {
+    _typingActive = false;
+    sendTypingSignal(false);
+  }, 6000);
+}
+function sendTypingSignal(typing) {
+  if (!socket) return;
+  if (currentMode === 'dm' && currentDmPeer) {
+    socket.emit('chat:typing', { peer_id: currentDmPeer.id, typing });
+  } else if (currentMode === 'group' && currentGid) {
+    socket.emit('chat:typing', { group_id: currentGid, typing });
+  }
+}
+// 送信完了したら typing 停止
+function stopTypingNow() {
+  if (_typingTimer) { clearTimeout(_typingTimer); _typingTimer = null; }
+  if (_typingActive) {
+    _typingActive = false;
+    sendTypingSignal(false);
+  }
+}
+
+// 受信側: 表示中スレッドのpeer/groupに合致する場合のみ表示
+const _typingDisplay = new Map();  // key="dm:uid" or "grp:gid" → { name, expiresAt }
+const _typingTimers = new Map();   // 同じkey → setTimeout
+function applyTypingDisplay() {
+  // 現在表示中のスレッドに対応する入力者を集約
+  const el = document.getElementById('typing-indicator');
+  const txtEl = document.getElementById('typing-text');
+  if (!el || !txtEl) return;
+  let curThread = null;
+  if (currentMode === 'dm' && currentDmPeer) curThread = 'dm:' + currentDmPeer.id;
+  else if (currentMode === 'group' && currentGid) curThread = 'grp:' + currentGid;
+  if (!curThread) { el.style.display = 'none'; return; }
+  const entries = [];
+  for (const [, v] of _typingDisplay) {
+    if (v.displayKey === curThread) entries.push(v);
+  }
+  if (!entries.length) { el.style.display = 'none'; return; }
+  // DMは「〇〇さんが入力中」、グループは「〇〇さんが入力中」or「複数名が入力中」
+  if (entries.length === 1) {
+    txtEl.textContent = (entries[0].name || '相手') + 'さんが入力中';
+  } else {
+    txtEl.textContent = entries.length + '名が入力中';
+  }
+  el.style.display = '';
+}
+function setTypingFrom(uid, isGroup, gid, name, typing) {
+  const key = (isGroup ? 'grp:' + gid : 'dm:' + uid) + ':' + uid;
+  if (typing) {
+    const displayKey = isGroup ? 'grp:' + gid : 'dm:' + uid;
+    _typingDisplay.set(key, { name, displayKey });
+    // 7秒後に自動消去 (停止信号が届かない場合の保険)
+    if (_typingTimers.get(key)) clearTimeout(_typingTimers.get(key));
+    _typingTimers.set(key, setTimeout(() => {
+      _typingDisplay.delete(key);
+      _typingTimers.delete(key);
+      applyTypingDisplay();
+    }, 7000));
+  } else {
+    _typingDisplay.delete(key);
+    if (_typingTimers.get(key)) { clearTimeout(_typingTimers.get(key)); _typingTimers.delete(key); }
+  }
+  // 表示中スレッドに該当する入力者だけを集計表示
+  const targetKey = isGroup ? 'grp:' + gid : 'dm:' + uid;
+  const cur = (currentMode === 'dm' && currentDmPeer) ? 'dm:' + currentDmPeer.id
+            : (currentMode === 'group' && currentGid) ? 'grp:' + currentGid : '';
+  if (targetKey === cur) applyTypingDisplay();
+}
+
+// ===================== ファイル送信 =====================
+let pendingAttach = null; // { url, name, size, type } 送信予定の添付
+function fmtSize(n) {
+  if (!n && n !== 0) return '';
+  if (n < 1024) return n + 'B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + 'KB';
+  return (n / 1024 / 1024).toFixed(1) + 'MB';
+}
+$('btn-attach').addEventListener('click', () => $('file-input').click());
+$('file-input').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  await uploadChatAttachment(f);
+  e.target.value = '';
+});
+
+// 共通アップロード処理 (ファイル選択 / クリップボード貼り付け 共用)
+let _uploadingAttach = false;  // 多重アップロード防止フラグ
+async function uploadChatAttachment(file) {
+  if (!file) return;
+  if (_uploadingAttach) { console.log('[upload] already in progress, skip'); return; }
+  if (file.size > 20 * 1024 * 1024) { showToastMsg('20MB以下のファイルにしてください'); return; }
+  _uploadingAttach = true;
+  showToastMsg('📤 アップロード中... (' + fmtSize(file.size) + ')');
+  const fd = new FormData();
+  fd.append('file', file, file.name || ('image-' + Date.now() + '.png'));
+  try {
+    const r = await fetch('/api/chat/upload', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd,
+    });
+    console.log('[upload] http status', r.status);
+    if (r.status === 413) { showToastMsg('❌ ファイルサイズ超過 (サーバー制限)', true); return; }
+    if (!r.ok) { showToastMsg('❌ アップロード失敗 HTTP ' + r.status, true); return; }
+    const d = await r.json();
+    console.log('[upload] response', d);
+    if (!d.success) { showToastMsg('❌ ' + (d.msg || 'アップロード失敗'), true); return; }
+    pendingAttach = { url: d.url, name: d.name, size: d.size, type: d.type };
+    $('ap-name').textContent = d.name;
+    $('ap-size').textContent = fmtSize(d.size);
+    $('attach-preview').classList.add('show');
+    $('send-btn').disabled = false;
+    showToastMsg('✓ 添付セット完了。送信してください');
+  } catch (err) {
+    console.warn('[upload] error', err);
+    showToastMsg('❌ 通信エラー: ' + (err.message || ''), true);
+  } finally {
+    _uploadingAttach = false;
+  }
+}
+
+// クリップボードから画像貼り付け (Ctrl+V でスクショ送信)
+// 二重発火防止: 直近1秒以内の重複イベントは無視
+let _lastPasteAt = 0;
+async function handleChatPaste(e) {
+  const now = Date.now();
+  if (now - _lastPasteAt < 1000) { console.log('[paste] dedup (within 1s)'); return; }
+  const items = e.clipboardData && e.clipboardData.items;
+  console.log('[paste] items=', items && items.length);
+  if (!items || !items.length) return;
+  if (!currentMode) {
+    showToastMsg('⚠ チャットを選択してから貼り付けてください');
+    return;
+  }
+  for (const it of items) {
+    console.log('[paste] item', it.kind, it.type);
+    if (it.kind === 'file' && it.type && it.type.startsWith('image/')) {
+      e.preventDefault();
+      e.stopPropagation();  // バブリング防止
+      const blob = it.getAsFile();
+      if (!blob) { console.warn('[paste] getAsFile null'); continue; }
+      console.log('[paste] image size=', blob.size, 'type=', blob.type);
+      _lastPasteAt = now;  // 受理した時点でフラグ更新
+      const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
+      const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      const named = new File([blob], 'screenshot-' + ts + '.' + ext, { type: blob.type });
+      await uploadChatAttachment(named);
+      return;
+    }
+  }
+  console.log('[paste] no image item found');
+}
+// 一箇所だけにリスナー (バブリングで textarea のpaste も拾う)
+document.getElementById('panel').addEventListener('paste', handleChatPaste);
+function clearAttach() {
+  pendingAttach = null;
+  $('attach-preview').classList.remove('show');
+  if (currentMode === 'group') updateSelectionUI();
+  else $('send-btn').disabled = !$('input-text').value.trim();
+}
+// 既存の send 関数に attach を渡すためラップ
+const _origSend = send;
+window.send = function() {
+  const t = $('input-text').value.trim();
+  if (!t && !pendingAttach) return;
+  if (!socket) return;
+  // 添付ありの選択送信は1人ずつ chat:dm で送る (既存ロジックに合流)
+  const attach = pendingAttach;
+  if (currentMode === 'group' && selectedPeers.size > 0) {
+    if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) return;
+    let sent = 0;
+    selectedPeers.forEach(uid => {
+      if (uid === me.uid) return;
+      socket.emit('chat:dm', { to: uid, content: t, attach });
+      sent++;
+    });
+    showToastMsg(`✓ ${sent}人にDMで送信しました`);
+  } else if (currentMode === 'group' && currentGid) {
+    socket.emit('chat:group', { group_id: currentGid, content: t, attach });
+    appendMessage(buildLocalMsg(t, attach));
+  } else if (currentMode === 'dm' && currentDmPeer) {
+    socket.emit('chat:dm', { to: currentDmPeer.id, content: t, attach });
+    appendMessage(buildLocalMsg(t, attach));
+  } else {
+    return;
+  }
+  $('input-text').value = '';
+  $('input-text').style.height = '40px';
+  pendingAttach = null;
+  $('attach-preview').classList.remove('show');
+  if (currentMode === 'group') updateSelectionUI();
+};
+function buildLocalMsg(t, attach) {
+  return {
+    id: 'pending_' + Date.now(),
+    sender_id: me.uid,
+    sender_name: me.display_name,
+    sender_avatar: me.avatar_url || '',
+    sender_company: me.company_code || '',
+    content: t,
+    created_at: new Date().toISOString(),
+    attach_url: attach && attach.url,
+    attach_name: attach && attach.name,
+    attach_size: attach && attach.size,
+    attach_type: attach && attach.type,
+  };
+}
+
+// 添付画像をメッセージ内にインライン表示するため renderMessages 後に画像化
+// (renderMessages の attach-link を画像なら<img>に差し替えるラップ)
+const _origRenderMessages = renderMessages;
+window.renderMessages = function() {
+  _origRenderMessages();
+  // 各 .attach-link が画像(image/* type)なら画像表示に置換
+  document.querySelectorAll('#msgs .attach-link').forEach(a => {
+    const url = a.getAttribute('href') || '';
+    const isImg = /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(url);
+    if (isImg) {
+      const img = document.createElement('img');
+      img.className = 'attach-img';
+      img.src = url;
+      img.onclick = () => window.open(url, '_blank');
+      a.replaceWith(img);
+    }
+  });
+};
+
+// ===================== 1:1 通話 (WebRTC) =====================
+let pc = null;             // RTCPeerConnection
+let localStream = null;
+let remoteStream = null;
+let callPeer = null;       // 通話相手 (user object)
+let callType = null;       // 'voice' | 'video'
+let isCaller = false;
+let pendingIncoming = null; // 着信モーダルで保留中
+let iceServers = null;     // 起動時取得
+
+async function getIceServers() {
+  if (iceServers) return iceServers;
+  try {
+    const r = await api('/api/voice/ice-servers');
+    if (r && r.success) iceServers = r.iceServers || [];
+  } catch (e) {}
+  if (!iceServers) iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+  return iceServers;
+}
+
+async function startCall(type) {
+  if (currentMode !== 'dm' || !currentDmPeer) {
+    showToastMsg('DMモードで使用できます');
+    return;
+  }
+  if (pc) { showToastMsg('既に通話中です'); return; }
+  callPeer = currentDmPeer;
+  callType = type;
+  isCaller = true;
+  // ローカルメディア取得
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: type === 'video' ? { width: { ideal: 640 }, height: { ideal: 480 } } : false,
+    });
+  } catch (e) {
+    showToastMsg('マイク/カメラへのアクセスが拒否されました', true);
+    callPeer = null; callType = null; isCaller = false;
+    return;
+  }
+  // signaling: invite
+  socket.emit('call:invite', { to: callPeer.id, type });
+  // 通話画面表示 (相手が応答するまで「呼び出し中」)
+  showCallScreen('呼び出し中...');
+}
+
+async function setupPeerConnection() {
+  const servers = await getIceServers();
+  pc = new RTCPeerConnection({ iceServers: servers });
+  remoteStream = new MediaStream();
+  // ローカルtrackを追加
+  if (localStream) {
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  }
+  pc.ontrack = (ev) => {
+    ev.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+    if (callType === 'video') $('remote-video').srcObject = remoteStream;
+    $('remote-audio').srcObject = remoteStream;
+  };
+  pc.onicecandidate = (ev) => {
+    if (ev.candidate && callPeer) {
+      socket.emit('call:signal', { to: callPeer.id, candidate: ev.candidate, kind: 'ice' });
+    }
+  };
+  pc.onconnectionstatechange = () => {
+    if (!pc) return;
+    const s = pc.connectionState;
+    if (s === 'connected') $('cs-status').textContent = '通話中';
+    else if (s === 'failed' || s === 'disconnected') {
+      showToastMsg('接続が切れました', true);
+      cleanupCall();
+    }
+  };
+  // ローカル映像表示
+  if (localStream && callType === 'video') $('local-video').srcObject = localStream;
+}
+
+function showCallScreen(statusText) {
+  if (!callPeer) return;
+  document.body.classList.toggle('audio-only', callType === 'voice');
+  $('call-screen').classList.toggle('audio-only', callType === 'voice');
+  $('cs-peer-name').textContent = callPeer.display_name || '...';
+  $('cs-big-name').textContent = callPeer.display_name || '...';
+  $('cs-status').textContent = statusText;
+  $('cs-big-status').textContent = statusText;
+  // アバター
+  const [c1, c2] = avatarColorPair(callPeer.id || callPeer.display_name || '');
+  const setAv = (el) => {
+    el.style.setProperty('--av-c1', c1);
+    el.style.setProperty('--av-c2', c2);
+    if (callPeer.avatar_url) {
+      el.innerHTML = '<img src="' + escapeHtml(callPeer.avatar_url) + '" alt="">';
+    } else {
+      el.textContent = avatarInitial(callPeer.display_name);
+    }
+  };
+  setAv($('cs-peer-av'));
+  setAv($('cs-big-av'));
+  $('call-screen').classList.add('show');
+  $('btn-camera-off').style.display = callType === 'video' ? '' : 'none';
+}
+
+function showIncoming(payload) {
+  pendingIncoming = payload;
+  const [c1, c2] = avatarColorPair(payload.from || payload.sender_name || '');
+  $('ic-av').style.setProperty('--av-c1', c1);
+  $('ic-av').style.setProperty('--av-c2', c2);
+  if (payload.sender_avatar) {
+    $('ic-av').innerHTML = '<img src="' + escapeHtml(payload.sender_avatar) + '" alt="">';
+  } else {
+    $('ic-av').textContent = avatarInitial(payload.sender_name);
+  }
+  $('ic-name').textContent = payload.sender_name || '...';
+  $('ic-sub').textContent = (payload.type === 'video' ? '📹 ビデオ通話' : '📞 音声通話') + ' 着信中';
+  $('incoming-call').classList.add('show');
+  // 着信音 (シンプル: ビープ音)
+  try {
+    if (window.AudioContext || window.webkitAudioContext) {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.frequency.value = 600; g.gain.value = 0.05;
+      o.connect(g); g.connect(ac.destination);
+      o.start(); setTimeout(() => { o.stop(); ac.close(); }, 300);
+    }
+  } catch (e) {}
+}
+
+async function acceptIncomingCall() {
+  if (!pendingIncoming) return;
+  const inv = pendingIncoming;
+  pendingIncoming = null;
+  $('incoming-call').classList.remove('show');
+  callType = inv.type === 'video' ? 'video' : 'voice';
+  callPeer = {
+    id: inv.from,
+    display_name: inv.sender_name,
+    avatar_url: inv.sender_avatar,
+    company_code: inv.sender_company,
+  };
+  isCaller = false;
+  // メディア取得
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: callType === 'video' ? { width: { ideal: 640 }, height: { ideal: 480 } } : false,
+    });
+  } catch (e) {
+    socket.emit('call:reject', { to: callPeer.id, reason: 'media_denied' });
+    showToastMsg('マイク/カメラへのアクセスが拒否されました', true);
+    callPeer = null; callType = null;
+    return;
+  }
+  await setupPeerConnection();
+  socket.emit('call:accept', { to: callPeer.id });
+  showCallScreen('接続中...');
+}
+
+function rejectIncomingCall() {
+  if (pendingIncoming) {
+    socket.emit('call:reject', { to: pendingIncoming.from });
+    pendingIncoming = null;
+  }
+  $('incoming-call').classList.remove('show');
+}
+
+async function endCall() {
+  if (callPeer) socket.emit('call:end', { to: callPeer.id });
+  cleanupCall();
+}
+
+function cleanupCall() {
+  if (pc) { try { pc.close(); } catch (e) {} pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  remoteStream = null;
+  $('remote-video').srcObject = null;
+  $('remote-audio').srcObject = null;
+  $('local-video').srcObject = null;
+  $('call-screen').classList.remove('show');
+  $('call-screen').classList.remove('audio-only');
+  callPeer = null; callType = null; isCaller = false;
+}
+
+function toggleMute() {
+  if (!localStream) return;
+  const t = localStream.getAudioTracks()[0];
+  if (!t) return;
+  t.enabled = !t.enabled;
+  $('btn-mute').classList.toggle('active', !t.enabled);
+  $('btn-mute').textContent = t.enabled ? '🎙' : '🚫';
+}
+
+function toggleCamera() {
+  if (!localStream) return;
+  const t = localStream.getVideoTracks()[0];
+  if (!t) return;
+  t.enabled = !t.enabled;
+  $('btn-camera-off').classList.toggle('active', !t.enabled);
+  $('btn-camera-off').textContent = t.enabled ? '📹' : '📷';
+}
+
+// 通話イベントハンドラを socket に登録 (init→setupSocket() の後で実行する)
+function attachCallHandlers() {
+  if (!socket) return;
+  socket.on('call:invite', (payload) => {
+    if (pc || pendingIncoming) {
+      // 既に通話中/着信中: 自動拒否
+      socket.emit('call:reject', { to: payload.from, reason: 'busy' });
+      return;
+    }
+    showIncoming(payload);
+  });
+  socket.on('call:accept', async () => {
+    if (!isCaller || !callPeer) return;
+    await setupPeerConnection();
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('call:signal', { to: callPeer.id, sdp: pc.localDescription, kind: 'offer' });
+    $('cs-status').textContent = '接続中...';
+  });
+  socket.on('call:reject', (payload) => {
+    if (callPeer && callPeer.id === payload.from) {
+      showToastMsg(payload.reason === 'busy' ? '通話中のため拒否されました' : '通話を拒否されました', true);
+      cleanupCall();
+    }
+  });
+  socket.on('call:cancel', (payload) => {
+    if (pendingIncoming && pendingIncoming.from === payload.from) {
+      pendingIncoming = null;
+      $('incoming-call').classList.remove('show');
+    }
+  });
+  socket.on('call:end', () => {
+    showToastMsg('通話が終了しました');
+    cleanupCall();
+  });
+  socket.on('call:peer-offline', () => {
+    showToastMsg('相手はオフラインです', true);
+    cleanupCall();
+  });
+  socket.on('call:blocked', (payload) => {
+    showToastMsg(payload.reason === 'self_blocked' ? 'ブロック中の相手です' : '通話できません', true);
+    cleanupCall();
+  });
+  socket.on('call:signal', async (payload) => {
+    if (!pc) return;
+    try {
+      if (payload.kind === 'offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('call:signal', { to: payload.from, sdp: pc.localDescription, kind: 'answer' });
+      } else if (payload.kind === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      } else if (payload.kind === 'ice' && payload.candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+      }
+    } catch (e) { console.warn('signal err', e); }
+  });
+}
+
+// init→setupSocket()→socket作成 後に呼出。socket出現を待ってから登録
+async function bootstrap() {
+  await init();
+  // socket がまだなら少し待つ
+  for (let i = 0; i < 30 && !socket; i++) await new Promise(r => setTimeout(r, 100));
+  if (socket) attachCallHandlers();
+}
+
+bootstrap();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
