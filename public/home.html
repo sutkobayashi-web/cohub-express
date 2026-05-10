@@ -422,11 +422,6 @@
         <div class="label">ヘルスリテラシー 聞き取り</div>
         <div class="desc">PCがない社員向け。代理入力でCCHL5問4択を記録 (90日経過で再聞き取り推奨)。</div>
       </a>
-      <a id="p-card-takara" class="card takara" href="/takara/admin.html" style="display:none;">
-        <div class="icon-pill">🚛</div>
-        <div class="label">タカラ一括請負デモ</div>
-        <div class="desc">WMS取込→AI配車→QR配信→荷主追跡。月曜プレゼン用プロトタイプ。</div>
-      </a>
       <a id="p-card-enroll" class="card p-enroll" href="/enroll.html" style="display:none;">
         <div class="icon-pill">📷</div>
         <div class="label">社員登録</div>
@@ -446,6 +441,31 @@
         <div class="icon-pill">📖</div>
         <div class="label">オリエンテーション</div>
         <div class="desc">帝京大学公衆衛生学研究科 西村さん提供 (4スライド・音声付)。</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 配送オペレーション (LogiHub) -->
+  <section id="logistics-section" style="display:none;">
+    <div class="sec-title" style="border-left-color:#0d9488;">
+      <span class="lbl" style="color:#0f766e;">🚛 配送オペレーション</span>
+      <span class="desc">配車組成・地図・ガント編集・荷主追跡 (LogiHub)</span>
+    </div>
+    <div class="grid">
+      <a id="p-card-logihub" class="card takara" href="/takara/admin.html">
+        <div class="icon-pill">🚛</div>
+        <div class="label">LogiHub</div>
+        <div class="desc">WMS取込 → OR-Tools骨組み + AI補完 → ガント編集 → 地図可視化 → QR配信 → 荷主追跡。</div>
+      </a>
+      <a id="p-card-logihub-gantt" class="card takara" href="/takara/gantt.html">
+        <div class="icon-pill">📅</div>
+        <div class="label">ガント編集</div>
+        <div class="desc">号車×時間軸でストップをドラッグ＆ドロップ。自社・他社貨物の入れ替えに。</div>
+      </a>
+      <a id="p-card-logihub-map" class="card takara" href="/takara/route-map.html">
+        <div class="icon-pill">🗺️</div>
+        <div class="label">ルート地図</div>
+        <div class="desc">座間拠点起点の号車別ルートを地図で可視化。業者・配送日フィルタ。</div>
       </a>
     </div>
   </section>
@@ -586,10 +606,10 @@ async function init() {
       const c = $('p-card-enroll');
       if (c) c.style.display = '';
     }
-    // タカラ一括請負デモ: システムadminのみ
+    // LogiHub (配送オペレーション): システムadminのみ
     if (isAdmin) {
-      const c = $('p-card-takara');
-      if (c) c.style.display = '';
+      const sec = $('logistics-section');
+      if (sec) sec.style.display = '';
     }
   }
   fetchBadges();
