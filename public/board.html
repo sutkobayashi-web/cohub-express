@@ -149,8 +149,8 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
         <button class="preview-clear" onclick="clearImage()">×</button>
       </div>
       <div class="composer-bar">
-        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="画像">📷</button>
-        <input type="file" id="cmp-file" accept="image/*" style="display:none;" onchange="onPickImage(event)">
+        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="画像 / PDF">📎</button>
+        <input type="file" id="cmp-file" accept="image/*,.pdf,application/pdf" style="display:none;" onchange="onPickImage(event)">
         <div class="composer-meta"><span id="cmp-count">0</span>/280</div>
         <button class="btn" id="cmp-submit" onclick="submitPost()">投稿</button>
       </div>
@@ -264,14 +264,35 @@ document.getElementById('cmp-text').addEventListener('input', e => {
 function onPickImage(ev) {
   const f = ev.target.files[0];
   if (!f) return;
-  if (f.size > 10 * 1024 * 1024) { alert('10MB以下にしてください'); return; }
+  if (f.size > 20 * 1024 * 1024) { alert('20MB以下にしてください'); return; }
   _imageFile = f;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('cmp-preview-img').src = e.target.result;
+  const isPdf = (f.type === 'application/pdf') || /\.pdf$/i.test(f.name || '');
+  if (isPdf) {
+    // PDFはアイコン+ファイル名表示
+    const img = document.getElementById('cmp-preview-img');
+    img.removeAttribute('src');
+    img.style.display = 'none';
+    let pdfBadge = document.getElementById('cmp-preview-pdf');
+    if (!pdfBadge) {
+      pdfBadge = document.createElement('div');
+      pdfBadge.id = 'cmp-preview-pdf';
+      pdfBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:#fee2e2;color:#991b1b;border-radius:8px;font-size:13px;font-weight:600;';
+      document.getElementById('cmp-preview').insertBefore(pdfBadge, document.getElementById('cmp-preview').firstChild);
+    }
+    pdfBadge.innerHTML = '📄 ' + (f.name || 'PDF') + ' <span style="font-size:11px;color:#7f1d1d;font-weight:400;">(' + Math.round(f.size/1024) + 'KB)</span>';
+    pdfBadge.style.display = 'inline-flex';
     document.getElementById('cmp-preview').style.display = 'inline-block';
-  };
-  reader.readAsDataURL(f);
+  } else {
+    document.getElementById('cmp-preview-img').style.display = '';
+    const pdfBadge = document.getElementById('cmp-preview-pdf');
+    if (pdfBadge) pdfBadge.style.display = 'none';
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('cmp-preview-img').src = e.target.result;
+      document.getElementById('cmp-preview').style.display = 'inline-block';
+    };
+    reader.readAsDataURL(f);
+  }
 }
 
 function clearImage() {
@@ -282,7 +303,7 @@ function clearImage() {
 
 async function submitPost() {
   const text = document.getElementById('cmp-text').value.trim();
-  if (!text && !_imageFile) { alert('本文か画像を入力してください'); return; }
+  if (!text && !_imageFile) { alert('本文か添付ファイル(画像/PDF)を入力してください'); return; }
   const btn = document.getElementById('cmp-submit');
   btn.disabled = true; btn.textContent = '投稿中…';
   try {
@@ -323,7 +344,16 @@ function postHtml(p) {
     const mine = !!(p.my_reactions && p.my_reactions[e]);
     return `<button class="react-btn ${mine ? 'mine' : ''}" onclick="toggleReact(${p.id}, '${e}')">${e}${ct ? ' <span class="ct">' + ct + '</span>' : ''}</button>`;
   }).join('');
-  const img = p.image_url ? `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">` : '';
+  let attach = '';
+  if (p.image_url) {
+    if (/\.pdf$/i.test(p.image_url)) {
+      const fname = (p.image_url.split('/').pop() || 'document.pdf').replace(/^\d+_[a-z0-9]+/, '添付ファイル');
+      attach = `<a class="post-pdf" href="${escapeHtml(p.image_url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;margin-top:10px;padding:12px 16px;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b;border-radius:10px;text-decoration:none;font-weight:600;border:1px solid #fca5a5;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(220,38,38,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">📄 PDFを開く <span style="font-size:11px;color:#7f1d1d;font-weight:400;">${escapeHtml(fname)}</span></a>`;
+    } else {
+      attach = `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">`;
+    }
+  }
+  const img = attach;
   const delBtn = p.can_delete ? `<button class="del-btn" onclick="deletePost(${p.id})" title="削除">🗑</button>` : '';
   const cnt = p.comment_count || 0;
   return `<article class="post" id="post-${p.id}" data-id="${p.id}">

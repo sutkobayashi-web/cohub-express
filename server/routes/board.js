@@ -21,10 +21,11 @@ const boardUpload = multer({
       cb(null, Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext);
     },
   }),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB (PDF対応)
   fileFilter: (req, file, cb) => {
-    if (!/^image\//.test(file.mimetype || '')) return cb(new Error('画像のみアップロード可'));
-    cb(null, true);
+    const mt = file.mimetype || '';
+    if (/^image\//.test(mt) || mt === 'application/pdf') return cb(null, true);
+    cb(new Error('画像またはPDFのみアップロード可'));
   },
 });
 
@@ -71,11 +72,11 @@ router.get('/posts', authUser, (req, res) => {
   res.json({ success: true, posts: enriched });
 });
 
-// 投稿
+// 投稿 (画像 or PDF添付対応)
 router.post('/posts', authUser, boardUpload.single('image'), (req, res) => {
   const content = String((req.body && req.body.content) || '').slice(0, MAX_CONTENT).trim();
   const imageUrl = req.file ? '/uploads/board/' + req.file.filename : null;
-  if (!content && !imageUrl) return res.status(400).json({ success: false, msg: '本文または画像が必要です' });
+  if (!content && !imageUrl) return res.status(400).json({ success: false, msg: '本文または添付ファイルが必要です' });
   const db = getDb();
   const ins = db.prepare(`INSERT INTO board_posts (author_id, content, image_url) VALUES (?, ?, ?)`)
     .run(req.uid, content, imageUrl);
@@ -191,6 +192,28 @@ router.delete('/comments/:id', authUser, (req, res) => {
   if (!c) return res.status(404).json({ success: false, msg: '見つかりません' });
   if (c.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ削除可' });
   db.prepare("UPDATE board_comments SET deleted_at = datetime('now') WHERE id = ?").run(id);
+  res.json({ success: true });
+});
+
+// 未読件数 (新着バッジ用、軽量)
+// last_board_seen_at より新しい他人の投稿数。未設定時はゼロ扱い (初訪問でバッジ氾濫を避ける)
+router.get('/unread-count', authUser, (req, res) => {
+  const db = getDb();
+  const u = db.prepare('SELECT last_board_seen_at FROM users WHERE id = ?').get(req.uid) || {};
+  if (!u.last_board_seen_at) {
+    // 初回はゼロ件として扱い、現在時刻を埋め込む (以降の新着のみカウント)
+    db.prepare("UPDATE users SET last_board_seen_at = datetime('now') WHERE id = ?").run(req.uid);
+    return res.json({ success: true, count: 0 });
+  }
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM board_posts
+                          WHERE deleted_at IS NULL AND author_id != ? AND created_at > ?`)
+                .get(req.uid, u.last_board_seen_at);
+  res.json({ success: true, count: Math.min(row.n || 0, 99) });
+});
+
+// 既読化 (board.html を開いたタイミングで叩く)
+router.post('/mark-seen', authUser, (req, res) => {
+  getDb().prepare("UPDATE users SET last_board_seen_at = datetime('now') WHERE id = ?").run(req.uid);
   res.json({ success: true });
 });
 
