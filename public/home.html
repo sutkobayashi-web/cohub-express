@@ -474,7 +474,7 @@
   </section>
 
   <div class="footer">
-    <a href="/announcements.html">📢 告知一覧</a>
+    <a href="/announcements.html" style="position:relative;">📢 告知一覧<span id="b-announce" style="display:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;box-shadow:0 2px 6px rgba(220,38,38,0.30);">0</span></a>
     <a href="/mylog">📜 自分のログ</a>
     <a href="/help.html">❓ ヘルプ</a>
     <a href="/security.html">🔒 セキュリティ</a>
@@ -619,21 +619,49 @@ async function init() {
 }
 
 async function fetchBadges() {
+  // 掲示板 (board): 新着投稿数
+  try {
+    const b = await api('/api/board/unread-count');
+    if (b && b.success && b.count > 0) {
+      $('b-board').textContent = b.count;
+      $('b-board').style.display = '';
+    } else if ($('b-board')) {
+      $('b-board').style.display = 'none';
+    }
+  } catch(e) {}
+  // お知らせ (announcements): フッターの告知一覧
   try {
     const a = await api('/api/announcements/unread-count');
     if (a && a.success && a.count > 0) {
-      $('b-board').textContent = a.count;
-      $('b-board').style.display = '';
+      const el = $('b-announce');
+      if (el) { el.textContent = a.count; el.style.display = 'inline-block'; }
+    } else if ($('b-announce')) {
+      $('b-announce').style.display = 'none';
     }
   } catch(e) {}
+  // チャット未読
+  try {
+    const c = await api('/api/chat/unread-count');
+    if (c && c.success && c.count > 0) {
+      $('b-chat').textContent = c.count;
+      $('b-chat').style.display = '';
+    } else if ($('b-chat')) {
+      $('b-chat').style.display = 'none';
+    }
+  } catch(e) {}
+  // 業務連絡/運管
   try {
     const o = await api('/api/ops/pending-count');
     if (o && o.success && o.count > 0) {
       $('b-ops').textContent = o.count;
       $('b-ops').style.display = '';
+    } else if ($('b-ops')) {
+      $('b-ops').style.display = 'none';
     }
   } catch(e) {}
 }
+// 30秒ごとにバッジ更新 (画面表示中のリアルタイム性)
+setInterval(() => { if (token) fetchBadges(); }, 30000);
 
 async function login() {
   const id = $('lid').value.trim();
