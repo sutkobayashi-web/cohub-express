@@ -14,7 +14,7 @@ const { generateText } = require('../services/ai');
 const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
 const { classifyVehicle, COMPANY_COLORS } = require('../services/takara_helpers');
 const { solveVRP } = require('../services/ortools');
-const { geocode } = require('../services/geocoder');
+const { geocode, inKanto } = require('../services/geocoder');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -178,15 +178,31 @@ router.get('/sites/:load_date', authUser, (req, res) => {
 router.post('/geocode/:load_date', authUser, express.json(), async (req, res) => {
   if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
   const ld = req.params.load_date;
+  const force = !!(req.body && req.body.force);
+  const db = getDb();
+
+  // viewbox外 (関東外) のキャッシュは強制クリーンアップ
+  const dirty = db.prepare(`SELECT address, lat, lng FROM td_geocache WHERE lat IS NOT NULL`).all();
+  let purged = 0;
+  for (const d of dirty) {
+    if (!inKanto(d.lat, d.lng)) {
+      db.prepare(`DELETE FROM td_geocache WHERE address = ?`).run(d.address);
+      purged++;
+    }
+  }
+  // force=1なら全削除して再取得
+  if (force) {
+    const n = db.prepare(`SELECT COUNT(*) AS c FROM td_geocache`).get().c;
+    db.prepare(`DELETE FROM td_geocache`).run();
+    purged += n;
+  }
+
   // 配車中の住所一覧 (重複除去)
-  const stops = getDb().prepare(`SELECT DISTINCT address FROM td_dispatches WHERE load_date = ? AND address <> ''`).all(ld);
-  // 履歴住所 (現場名→住所マップで補完)
-  const histAddrs = getDb().prepare(`SELECT DISTINCT address FROM td_dispatch_history WHERE address <> ''`).all();
+  const stops = db.prepare(`SELECT DISTINCT address FROM td_dispatches WHERE load_date = ? AND address <> ''`).all(ld);
+  const histAddrs = db.prepare(`SELECT DISTINCT address FROM td_dispatch_history WHERE address <> ''`).all();
   const all = new Set([...stops.map(s => s.address), ...histAddrs.map(h => h.address)]);
   let processed = 0, hits = 0, fails = 0, cached = 0;
-  // クライアントはタイムアウト避けるため即時応答 (バックグラウンド処理)
-  res.json({ success: true, msg: `ジオコード処理開始 (${all.size}件)`, count: all.size });
-  // バックグラウンドで実行
+  res.json({ success: true, msg: `ジオコード処理開始 (${all.size}件 / 関東外キャッシュ${purged}件削除)`, count: all.size, purged });
   (async () => {
     for (const addr of all) {
       processed++;
@@ -196,7 +212,7 @@ router.post('/geocode/:load_date', authUser, express.json(), async (req, res) =>
         if (r.cached) cached++;
       } else fails++;
     }
-    console.log(`[geocode] ${ld} done: ${hits}/${all.size} hits (cache${cached}), fails ${fails}`);
+    console.log(`[geocode] ${ld} done: ${hits}/${all.size} hits (cache${cached}), fails ${fails}, purged ${purged}`);
   })().catch(e => console.error('geocode error', e));
 });
 

@@ -59,7 +59,8 @@ header .geo-status { font-size: 11px; color: #64748b; padding: 4px 10px; backgro
   <select id="dateSel"></select>
   <select id="coFilter"><option value="">全業者</option><option value="スタ運">スタ運</option><option value="昭栄">昭栄</option><option value="ｶｰﾚﾝﾄ">ｶｰﾚﾝﾄ</option></select>
   <select id="dayFilter"><option value="">全配送日</option><option value="平日">平日</option><option value="土曜">土曜</option></select>
-  <button id="geoBtn" onclick="runGeocode()">📍 ジオコード実行</button>
+  <button id="geoBtn" onclick="runGeocode(false)">📍 ジオコード実行</button>
+  <button id="geoBtnForce" onclick="runGeocode(true)" style="background:#fef3c7;color:#92400e;border-color:#fcd34d">♻️ 全件再取得</button>
   <span id="geoStatus" class="geo-status">-</span>
   <div class="spacer"></div>
   <button onclick="location.href='/takara/admin.html'">← 配車一覧へ</button>
@@ -223,12 +224,13 @@ function toggleAll(show) {
   document.querySelectorAll('.veh-card').forEach(c => c.classList.toggle('hidden', !show));
 }
 
-async function runGeocode() {
+async function runGeocode(force) {
   if (!curDate) return;
-  const btn = document.getElementById('geoBtn');
+  if (force && !confirm('全キャッシュを削除して再ジオコードします。1件1秒で全件取り直すため数分かかります。続行しますか？')) return;
+  const btn = document.getElementById(force ? 'geoBtnForce' : 'geoBtn');
   btn.disabled = true; btn.textContent = '⏳ 実行中…';
   try {
-    const r = await api('/api/takara/geocode/' + curDate, { method: 'POST', body: '{}' });
+    const r = await api('/api/takara/geocode/' + curDate, { method: 'POST', body: JSON.stringify({ force }) });
     toast(`📍 ${r.msg} - 1件1秒なので完了まで時間かかります。30秒ごとに状況確認`, false);
     // ポーリング
     const poll = async () => {
@@ -237,14 +239,18 @@ async function runGeocode() {
       if (r2.pending > 0) {
         setTimeout(poll, 30000);
       } else {
-        btn.disabled = false; btn.textContent = '📍 ジオコード実行';
+        document.getElementById('geoBtn').disabled = false;
+        document.getElementById('geoBtn').textContent = '📍 ジオコード実行';
+        document.getElementById('geoBtnForce').disabled = false;
+        document.getElementById('geoBtnForce').textContent = '♻️ 全件再取得';
         toast('✅ ジオコード完了。地図再読込');
         await loadAll();
       }
     };
     setTimeout(poll, 5000);
   } catch (e) {
-    btn.disabled = false; btn.textContent = '📍 ジオコード実行';
+    btn.disabled = false;
+    btn.textContent = force ? '♻️ 全件再取得' : '📍 ジオコード実行';
   }
 }
 
