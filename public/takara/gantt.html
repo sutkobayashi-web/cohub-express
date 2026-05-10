@@ -52,6 +52,15 @@ header button.primary:hover { background: #1e3a8a; }
 .stop.time-fixed { background: #fee2e2; border-color: #dc2626; }
 .stop.charter { background: #fef3c7; border-color: #f59e0b; border-style: dashed; }
 .stop.outside { background: #e0e7ff; border-color: #6366f1; }
+.stop.route-leg { background: #d1fae5; border-color: #10b981; }
+.stop.route-leg .s-time { color: #065f46; }
+/* 同一号車のストップを結ぶルート線 (帯上端) */
+.route-line {
+  position: absolute; top: 14px; height: 4px;
+  background: linear-gradient(to right, #10b981 0%, #34d399 100%);
+  border-radius: 2px; z-index: 1; opacity: 0.55;
+  box-shadow: 0 0 0 1px rgba(16,185,129,0.3);
+}
 .stop .s-time { font-weight: 700; font-size: 10px; color: #1e293b; }
 .stop .s-name { font-weight: 600; color: #0f172a; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
 .stop .s-sai { font-size: 10px; color: #64748b; }
@@ -99,6 +108,7 @@ header button.primary:hover { background: #1e3a8a; }
 <div class="legend">
   <span>凡例:</span>
   <span class="chip" style="background:#ddd6fe;color:#5b21b6">通常配送</span>
+  <span class="chip" style="background:#d1fae5;color:#065f46">🔗 ルート便</span>
   <span class="chip" style="background:#fee2e2;color:#991b1b">時間指定</span>
   <span class="chip" style="background:#fef3c7;color:#92400e">庸車</span>
   <span class="chip" style="background:#e0e7ff;color:#3730a3">自社追加(他社貨物)</span>
@@ -229,19 +239,42 @@ function render() {
     html += `<div class="veh-stat">${stops.length}件 / <span class="${overRatio > 1 ? 'over' : 'ok'}">${Math.round(totalSai)}才</span> / 容量${cap}才</div>`;
     html += `</div>`;
     html += `<div class="timeline" data-veh="${v.vehicle_no}" style="width:${TOTAL_PX}px">`;
-    for (const s of stops) {
+    // ETAでソートして帯幅・ルート線を計算
+    const sortedStops = stops.slice().sort((a, b) => {
+      const ma = etaToMin(a.eta), mb = etaToMin(b.eta);
+      if (ma == null && mb == null) return (a.sequence||0) - (b.sequence||0);
+      if (ma == null) return 1; if (mb == null) return -1;
+      return ma - mb;
+    });
+    // 同号車の連続ストップ間ルート線 (帯の上端を結ぶ)
+    for (let i = 0; i < sortedStops.length - 1; i++) {
+      const a = sortedStops[i], b = sortedStops[i+1];
+      const ma = etaToMin(a.eta), mb = etaToMin(b.eta);
+      if (ma == null || mb == null) continue;
+      const left = minToPx(ma);
+      const right = minToPx(mb);
+      html += `<div class="route-line" style="left:${left}px;width:${right-left}px"></div>`;
+    }
+    sortedStops.forEach((s, i) => {
       const m = etaToMin(s.eta);
       const left = m != null ? minToPx(m) : 0;
-      const dur = 60;  // 60分幅
-      const width = (dur / 60) * HOUR_PX - 4;
+      // 次ストップETAとの差で帯幅を計算 (最小24分=32px / 最大60分=80px)
+      let durMin = 60;
+      const next = sortedStops[i+1];
+      const nextM = next ? etaToMin(next.eta) : null;
+      if (m != null && nextM != null) {
+        durMin = Math.max(24, Math.min(60, nextM - m));
+      }
+      const width = (durMin / 60) * HOUR_PX - 2;
       const cls = s.notes && s.notes.includes('自社追加') ? 'outside' : (v.company === '庸車' || s.charter ? 'charter' : (s.time_spec ? 'time-fixed' : ''));
-      html += `<div class="stop ${cls}" data-id="${s.id}" draggable="true" style="left:${left}px;width:${width}px"`;
+      const isRoute = sortedStops.length >= 2 && !s.time_spec;
+      html += `<div class="stop ${cls} ${isRoute ? 'route-leg' : ''}" data-id="${s.id}" draggable="true" style="left:${left}px;width:${width}px"`;
       html += ` title="${(s.site_name||'').replace(/"/g,'')} / ${s.address||''} / ${s.eta||''} / ${s.sai||0}才${s.time_spec?' / 指定:'+s.time_spec:''}">`;
-      html += `<div class="s-time">${s.eta || '--:--'}${s.time_spec ? ' ⏰' : ''}</div>`;
+      html += `<div class="s-time">${s.eta || '--:--'}${s.time_spec ? ' ⏰' : ''}${isRoute && i === 0 ? ' 🔗' : ''}</div>`;
       html += `<div class="s-name">${s.site_name || '-'}</div>`;
       html += `<div class="s-sai">${Math.round(s.sai||0)}才 ${s.qty?'/'+s.qty+'個':''}</div>`;
       html += `</div>`;
-    }
+    });
     html += `</div></div>`;
   }
   wrap.innerHTML = html;
