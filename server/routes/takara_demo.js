@@ -91,6 +91,33 @@ router.post('/import-dispatch', authUser, upload.single('file'), (req, res) => {
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+
+    // ヘッダー行を動的に探す ("業者" "号車" "時間指定" のいずれか含む最初の行)
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(8, rows.length); i++) {
+      const r = (rows[i] || []).map(c => String(c || '').trim());
+      if (r.includes('業者') || r.includes('号車') || r.includes('時間指定')) { headerIdx = i; break; }
+    }
+    const headerVals = headerIdx >= 0 ? (rows[headerIdx] || []).map(c => String(c || '').trim()) : [];
+    // デフォルト列マップ (ユーザー指定の旧仕様)
+    const cm = { company: 2, vehicle: 3, date: 5, seq: 6, timeSpec: 9, site: 10, address: 11, qty: 12, sai: 13, eta: 14, vehType: 21, transferBase: 20 };
+    // ヘッダー名で動的上書き
+    headerVals.forEach((h, i) => {
+      if (h === '業者') cm.company = i;
+      else if (h === '号車' || h === '車番' || h === '号車番号') cm.vehicle = i;
+      else if (h === '配送日' || h === '配送日付') cm.date = i;
+      else if (h === '配送順' || h === '配車順' || h === '順') cm.seq = i;
+      else if (h === '時間指定' || h === '指定') cm.timeSpec = i;
+      else if (h === '納入先' || h === '現場名' || h === '届先' || h === '配送先') cm.site = i;
+      else if (h === '住所' || h === '住所等' || h === '所在地') cm.address = i;
+      else if (h === '数量' || h === '個数') cm.qty = i;
+      else if (h === '才数' || h === 'サイ数' || h === 'M3') cm.sai = i;
+      else if (h === 'ETA' || h === '到着予定' || h === '時刻') cm.eta = i;
+      else if (h === '車種' || h === '車両タイプ') cm.vehType = i;
+      else if (h === '積替基地' || h === '基地' || h === '積替') cm.transferBase = i;
+    });
+    console.log('[import-dispatch] header idx=' + headerIdx + ' map=', cm, 'header values=', headerVals.slice(0, 22));
+
     const db = getDb();
     const ins = db.prepare(`INSERT INTO td_dispatch_history
       (import_id, load_date, original_vehicle_no, sequence, site_name, address, time_spec, eta, qty, sai, vehicle_type, transfer_base, company)
@@ -98,34 +125,42 @@ router.post('/import-dispatch', authUser, upload.single('file'), (req, res) => {
     const importIns = db.prepare(`INSERT INTO td_imports (type, filename, load_date, row_count, created_by) VALUES ('dispatch', ?, ?, ?, ?)`);
     let loadDate = '';
     let inserted = 0;
+    let hardCount = 0, softCount = 0, emptyCount = 0;
+    const tsSamples = [];
     const importId = importIns.run(req.file.originalname || '', '', 0, req.uid).lastInsertRowid;
-    for (const r of rows) {
-      // 列インデックス: 業者=2, 号車=3, 営業所=4, 配送日=5, 配送順=6, 返品=7, 倉庫CD=8, 時間指定=9, 納入先=10, 住所=11, 数量=12, 才数=13, ETA=14, 車種=15, 備考=16, 受取り=17, 機種=18, 助手=19, 積替基地=20
-      const company = nz(r[2]);
-      if (company === '業者') continue; // ヘッダー
-      const veh = nz(r[3]); if (!veh) continue;
-      const ld = nz(r[5]); if (!loadDate) loadDate = ld;
-      const seq = parseInt(r[6]) || null;
-      const ts = nz(r[9]); // '時間指定'(hard) or '有'(soft) or ''
-      const site = nz(r[10]);
-      const addr = nz(r[11]);
-      const qty = num(r[12]); const sai = num(r[13]);
-      let eta = nz(r[14]);
-      // eta フォーマット正規化: 4桁数字(0800)→HH:MM(08:00)
+    const startIdx = headerIdx >= 0 ? headerIdx + 1 : 0;
+    for (let i = startIdx; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const company = nz(r[cm.company]);
+      if (company === '業者') continue;
+      const veh = nz(r[cm.vehicle]); if (!veh) continue;
+      const ld = nz(r[cm.date]); if (!loadDate) loadDate = ld;
+      const seq = parseInt(r[cm.seq]) || null;
+      const ts = nz(r[cm.timeSpec]);
+      if (tsSamples.length < 10 && ts) tsSamples.push(ts);
+      const site = nz(r[cm.site]);
+      const addr = nz(r[cm.address]);
+      const qty = num(r[cm.qty]); const sai = num(r[cm.sai]);
+      let eta = nz(r[cm.eta]);
       if (/^\d{4}$/.test(eta)) eta = eta.slice(0, 2) + ':' + eta.slice(2);
-      // col16(idx15)は「車種」見出しだが実データは納入数(2か所等)が混入。
-      // 正規の車種は col22(idx21)。col21(idx20)は積替基地コード。
-      const vt = nz(r[21]);
-      const tb = nz(r[20]);
-      // 時間指定の正規化
+      const vt = nz(r[cm.vehType]);
+      const tb = nz(r[cm.transferBase]);
       let level = '';
-      if (ts === '時間指定') level = 'hard';
-      else if (ts === '有') level = 'soft';
+      // 時間指定の柔軟判定: 「時間指定」「指定」「●」等→hard, 「有」「○」→soft
+      if (ts === '時間指定' || ts === '指定' || ts === '●' || ts === '時指' || ts === '★') { level = 'hard'; hardCount++; }
+      else if (ts === '有' || ts === '○' || ts === '◯') { level = 'soft'; softCount++; }
+      else emptyCount++;
       ins.run(importId, ld, veh, seq, site, addr, level, eta, qty, sai, vt, tb, company);
       inserted++;
     }
     db.prepare(`UPDATE td_imports SET load_date = ?, row_count = ? WHERE id = ?`).run(loadDate, inserted, importId);
-    res.json({ success: true, import_id: importId, load_date: loadDate, row_count: inserted });
+    res.json({
+      success: true, import_id: importId, load_date: loadDate, row_count: inserted,
+      time_spec_stats: { hard: hardCount, soft: softCount, empty: emptyCount },
+      ts_samples: tsSamples,
+      detected_columns: cm,
+      header_values: headerVals.slice(0, 22),
+    });
   } catch (e) {
     console.error('[takara import-dispatch]', e);
     res.status(500).json({ success: false, msg: '配車結果取込失敗: ' + e.message });
@@ -336,7 +371,7 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
     return !isNaN(n) && ((n >= 950 && n <= 959) || (n >= 971 && n <= 979));
   };
 
-  // 物理車両マップ: Logistar履歴から原号車→代表号車を引く
+  // 物理車両マップ: Logistar履歴(=同じ load_date)から原号車→代表号車を引く
   // (例: 237/238/239 が連続物理車両なら全部 237 にまとめる)
   const histRows = db.prepare(`SELECT * FROM td_dispatch_history WHERE load_date = ? ORDER BY id`).all(ld);
   const physMap = new Map();  // dispatch_no(個別号車番号) → phys_vehicle_no(代表号車番号)
