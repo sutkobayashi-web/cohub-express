@@ -572,21 +572,36 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
   const fixedArr = [...fixedVehMap.values()];
   routeStops.sort((a, b) => (b.sai || 0) - (a.sai || 0));
   const remainingRoute = [];
+  // 件数上限緩和: 時間指定+混載で合計14件まで許容
+  const MAX_STOPS_MIXED = 14;
   for (const s of routeStops) {
     const sDir = detectDirection(s.address || s.site_name);
     let target = null;
-    // 同方面の時間指定車両を優先 (容量空きあるもの)
+    // 1段目: 同方面の時間指定車両 (容量空きあり)
     if (sDir !== 'X') {
+      let bestFree = -1;
       for (const v of fixedArr) {
         if (v.direction !== sDir) continue;
-        if (v.total_sai + (s.sai || 0) > v.capacity) continue;
-        if (v.stops.length >= v.max_stops + 4) continue;
-        target = v; break;
+        const free = v.capacity - v.total_sai;
+        if (free < (s.sai || 0)) continue;
+        if (v.stops.length >= MAX_STOPS_MIXED) continue;
+        if (free > bestFree) { target = v; bestFree = free; }
+      }
+    }
+    // 2段目: 方面不問、空き容量最大の時間指定車両に詰める
+    if (!target) {
+      let bestFree = -1;
+      for (const v of fixedArr) {
+        const free = v.capacity - v.total_sai;
+        if (free < (s.sai || 0)) continue;
+        if (v.stops.length >= MAX_STOPS_MIXED) continue;
+        if (free > bestFree) { target = v; bestFree = free; }
       }
     }
     if (target) {
       s.vehicle_no = target.vehicle_no;
       s.kind = 'route_mixed';
+      s.target_dir = target.direction;
       target.stops.push(s);
       target.total_sai += s.sai || 0;
     } else {

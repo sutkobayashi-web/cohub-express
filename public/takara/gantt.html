@@ -54,6 +54,8 @@ header button.primary:hover { background: #1e3a8a; }
 .stop.outside { background: #e0e7ff; border-color: #6366f1; }
 .stop.route-leg { background: #d1fae5; border-color: #10b981; }
 .stop.route-leg .s-time { color: #065f46; }
+.stop.route-mixed { background: #fef3c7; border-color: #f59e0b; border-style: dashed; }
+.stop.route-mixed .s-time { color: #92400e; }
 /* 同一号車のストップを結ぶルート線 (帯上端) */
 .route-line {
   position: absolute; top: 14px; height: 4px;
@@ -108,9 +110,9 @@ header button.primary:hover { background: #1e3a8a; }
 <div class="legend">
   <span>凡例:</span>
   <span class="chip" style="background:#ddd6fe;color:#5b21b6">通常配送</span>
-  <span class="chip" style="background:#d1fae5;color:#065f46">🔗 ルート便</span>
   <span class="chip" style="background:#fee2e2;color:#991b1b">時間指定</span>
-  <span class="chip" style="background:#fef3c7;color:#92400e">庸車</span>
+  <span class="chip" style="background:#fef3c7;color:#92400e;border:1px dashed #f59e0b">ルート混載</span>
+  <span class="chip" style="background:#d1fae5;color:#065f46">🔗 ルート便補完</span>
   <span class="chip" style="background:#e0e7ff;color:#3730a3">自社追加(他社貨物)</span>
   <span style="margin-left:auto">操作: <b>ストップをドラッグ</b>→他号車・他時間へ移動 / <b>クリック</b>→詳細編集</span>
 </div>
@@ -266,7 +268,11 @@ function render() {
         durMin = Math.max(24, Math.min(60, nextM - m));
       }
       const width = (durMin / 60) * HOUR_PX - 2;
-      const cls = s.notes && s.notes.includes('自社追加') ? 'outside' : (v.company === '庸車' || s.charter ? 'charter' : (s.time_spec ? 'time-fixed' : ''));
+      const isMixed = s.notes && s.notes.includes('ルート混載');
+      const cls = s.notes && s.notes.includes('自社追加') ? 'outside'
+        : isMixed ? 'route-mixed'
+        : (v.company === '庸車' || s.charter ? 'charter'
+        : (s.time_spec ? 'time-fixed' : ''));
       const isRoute = sortedStops.length >= 2 && !s.time_spec;
       html += `<div class="stop ${cls} ${isRoute ? 'route-leg' : ''}" data-id="${s.id}" draggable="true" style="left:${left}px;width:${width}px"`;
       html += ` title="${(s.site_name||'').replace(/"/g,'')} / ${s.address||''} / ${s.eta||''} / ${s.sai||0}才${s.time_spec?' / 指定:'+s.time_spec:''}">`;
