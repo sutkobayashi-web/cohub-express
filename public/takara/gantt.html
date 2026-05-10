@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1400">
+<title>配車ガントチャート | タカラ一括請負</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='80' font-size='90'%3E📅%3C/text%3E%3C/svg%3E">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif; background: #f1f5f9; color: #0f172a; font-size: 13px; }
+header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }
+header h1 { font-size: 16px; font-weight: 700; }
+header .sub { color: #64748b; font-size: 12px; }
+header .spacer { flex: 1; }
+header select, header button, header input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; font-size: 12px; cursor: pointer; }
+header button.primary { background: #1e40af; color: #fff; border-color: #1e40af; }
+header button.danger { background: #fff; color: #dc2626; border-color: #fecaca; }
+header button:hover { background: #f1f5f9; }
+header button.primary:hover { background: #1e3a8a; }
+.filter-group { display: flex; gap: 4px; align-items: center; }
+.filter-group label { font-size: 11px; color: #64748b; }
+.legend { display: flex; gap: 8px; align-items: center; font-size: 11px; color: #475569; padding: 8px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+.legend .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; }
+.gantt-wrap { padding: 12px; overflow: auto; height: calc(100vh - 92px); }
+.gantt { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; min-width: 1400px; }
+.gantt-header { display: grid; grid-template-columns: 220px 1fr; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+.gantt-header .col-veh { padding: 8px 12px; font-weight: 700; border-right: 1px solid #e2e8f0; }
+.time-axis { position: relative; height: 28px; }
+.time-tick { position: absolute; top: 0; height: 100%; border-left: 1px dashed #e2e8f0; padding-left: 4px; font-size: 10px; color: #64748b; line-height: 28px; }
+.time-tick.major { border-left-style: solid; border-left-color: #cbd5e1; font-weight: 600; color: #334155; }
+.gantt-row { display: grid; grid-template-columns: 220px 1fr; border-bottom: 1px solid #f1f5f9; min-height: 56px; }
+.gantt-row:hover { background: #fafafa; }
+.veh-cell { padding: 6px 10px; border-right: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 2px; }
+.veh-line1 { display: flex; align-items: center; gap: 6px; }
+.veh-no { font-weight: 800; font-size: 14px; }
+.co-badge { padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; color: #fff; }
+.day-badge { padding: 1px 5px; border-radius: 8px; font-size: 10px; background: #fef3c7; color: #92400e; font-weight: 600; }
+.veh-meta { font-size: 10px; color: #64748b; }
+.veh-stat { font-size: 10px; color: #475569; }
+.veh-stat .over { color: #dc2626; font-weight: 700; }
+.veh-stat .ok { color: #16a34a; }
+.timeline { position: relative; min-height: 56px; background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(10% - 1px), #f1f5f9 calc(10% - 1px), #f1f5f9 10%); }
+.stop {
+  position: absolute; top: 6px; height: 44px;
+  background: #ddd6fe; border: 2px solid #7c3aed; border-radius: 6px;
+  padding: 3px 6px; cursor: grab; overflow: hidden;
+  font-size: 11px; line-height: 1.2; user-select: none;
+  transition: box-shadow .15s, transform .15s;
+}
+.stop:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); transform: translateY(-1px); z-index: 5; }
+.stop.dragging { opacity: .4; cursor: grabbing; }
+.stop.time-fixed { background: #fee2e2; border-color: #dc2626; }
+.stop.charter { background: #fef3c7; border-color: #f59e0b; border-style: dashed; }
+.stop.outside { background: #e0e7ff; border-color: #6366f1; }
+.stop .s-time { font-weight: 700; font-size: 10px; color: #1e293b; }
+.stop .s-name { font-weight: 600; color: #0f172a; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.stop .s-sai { font-size: 10px; color: #64748b; }
+.timeline.drag-over { background-color: #f0f9ff; }
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: center; justify-content: center; }
+.modal-bg.show { display: flex; }
+.modal { background: #fff; border-radius: 10px; padding: 18px; min-width: 380px; max-width: 90vw; max-height: 90vh; overflow: auto; }
+.modal h3 { margin-bottom: 10px; font-size: 15px; }
+.modal label { display: block; margin: 8px 0 3px; font-size: 11px; color: #475569; font-weight: 600; }
+.modal input, .modal select, .modal textarea { width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 13px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity .2s; z-index: 300; }
+.toast.show { opacity: 1; }
+.toast.error { background: #dc2626; }
+.empty { text-align: center; padding: 40px; color: #94a3b8; }
+.unloaded { background: #fef3c7; padding: 8px 12px; border-radius: 6px; margin: 8px 12px; font-size: 12px; color: #92400e; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📅 配車ガントチャート</h1>
+  <span class="sub">D&Dで号車間移動・時刻変更</span>
+  <select id="dateSel"></select>
+  <div class="filter-group">
+    <label>業者:</label>
+    <select id="coFilter">
+      <option value="">全業者</option>
+      <option value="スタ運">スタ運</option>
+      <option value="昭栄">昭栄</option>
+      <option value="ｶｰﾚﾝﾄ">ｶｰﾚﾝﾄ</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>配送日:</label>
+    <select id="dayFilter">
+      <option value="">全配送日</option>
+      <option value="平日">平日配送</option>
+      <option value="土曜">土曜配送</option>
+    </select>
+  </div>
+  <div class="spacer"></div>
+  <button id="addBtn" class="primary">+ 自社貨物追加</button>
+  <button onclick="location.href='/takara/admin.html'">← 配車一覧へ</button>
+</header>
+<div class="legend">
+  <span>凡例:</span>
+  <span class="chip" style="background:#ddd6fe;color:#5b21b6">通常配送</span>
+  <span class="chip" style="background:#fee2e2;color:#991b1b">時間指定</span>
+  <span class="chip" style="background:#fef3c7;color:#92400e">庸車</span>
+  <span class="chip" style="background:#e0e7ff;color:#3730a3">自社追加(他社貨物)</span>
+  <span style="margin-left:auto">操作: <b>ストップをドラッグ</b>→他号車・他時間へ移動 / <b>クリック</b>→詳細編集</span>
+</div>
+<div class="gantt-wrap">
+  <div id="gantt" class="gantt"></div>
+</div>
+<div id="modalBg" class="modal-bg">
+  <div class="modal">
+    <h3 id="modalTitle">ストップ編集</h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button id="modalDel" class="danger" style="display:none">🗑️ 削除</button>
+      <button onclick="closeModal()">キャンセル</button>
+      <button id="modalSave" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+const HOUR_START = 6;   // 06:00
+const HOUR_END = 20;    // 20:00
+const HOUR_PX = 80;     // 1時間 = 80px
+const TOTAL_PX = (HOUR_END - HOUR_START) * HOUR_PX;
+let dates = [];
+let curDate = null;
+let plan = null;
+let curStopId = null;
+
+const token = localStorage.getItem('cohub_token') || '';
+async function api(path, opts = {}) {
+  const r = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    toast('エラー: ' + t.slice(0, 100), true);
+    throw new Error(t);
+  }
+  return r.json();
+}
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (isErr ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2000);
+}
+
+function etaToMin(eta) {
+  if (!eta) return null;
+  const m = String(eta).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return parseInt(m[1]) * 60 + parseInt(m[2]);
+}
+function minToEta(m) {
+  if (m == null) return '';
+  m = Math.max(0, Math.min(23 * 60 + 59, m));
+  const h = Math.floor(m / 60), mm = m % 60;
+  return String(h).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+function minToPx(m) {
+  if (m == null) return 0;
+  return Math.max(0, ((m - HOUR_START * 60) / 60) * HOUR_PX);
+}
+function pxToMin(px) {
+  return Math.round(HOUR_START * 60 + (px / HOUR_PX) * 60 / 5) * 5;  // 5分単位スナップ
+}
+
+async function loadDates() {
+  const r = await api('/api/takara/dates');
+  dates = r.dates || [];
+  const sel = document.getElementById('dateSel');
+  sel.innerHTML = dates.map(d => `<option value="${d.load_date}">${d.load_date} (${d.kind || ''})</option>`).join('');
+  curDate = dates[0]?.load_date;
+  if (curDate) await loadPlan();
+}
+
+async function loadPlan() {
+  if (!curDate) return;
+  const r = await api(`/api/takara/plan/${curDate}`);
+  plan = r;
+  render();
+}
+
+function render() {
+  const co = document.getElementById('coFilter').value;
+  const day = document.getElementById('dayFilter').value;
+  const vehicles = (plan?.vehicles || []).filter(v =>
+    (!co || v.company === co) && (!day || v.delivery_day === day)
+  );
+  const wrap = document.getElementById('gantt');
+  if (vehicles.length === 0) {
+    wrap.innerHTML = '<div class="empty">該当する号車がありません</div>';
+    return;
+  }
+  // ヘッダ (時間軸)
+  let html = '<div class="gantt-header">';
+  html += '<div class="col-veh">号車 / 車種・ドライバー</div>';
+  html += '<div class="time-axis" style="width:' + TOTAL_PX + 'px">';
+  for (let h = HOUR_START; h <= HOUR_END; h++) {
+    const left = (h - HOUR_START) * HOUR_PX;
+    const major = (h % 2 === 0);
+    html += `<div class="time-tick ${major ? 'major' : ''}" style="left:${left}px">${String(h).padStart(2,'0')}:00</div>`;
+  }
+  html += '</div></div>';
+  // 各号車行
+  for (const v of vehicles) {
+    const stops = v.stops || [];
+    const totalSai = stops.reduce((s, x) => s + (x.sai || 0), 0);
+    const cap = v.capacity || 240;
+    const overRatio = totalSai / cap;
+    const bgColor = v.company === 'スタ運' ? '#1e40af' : v.company === '昭栄' ? '#ea580c' : v.company === 'ｶｰﾚﾝﾄ' ? '#dc2626' : '#64748b';
+    html += `<div class="gantt-row" data-veh="${v.vehicle_no}">`;
+    html += `<div class="veh-cell">`;
+    html += `<div class="veh-line1">`;
+    html += `<span class="veh-no">${v.vehicle_no}</span>`;
+    html += `<span class="co-badge" style="background:${bgColor}">${v.company || ''}</span>`;
+    if (v.delivery_day === '土曜') html += `<span class="day-badge">土曜</span>`;
+    html += `</div>`;
+    html += `<div class="veh-meta">${v.vehicle_type || '-'} / ${v.driver_name || '未割当'}</div>`;
+    html += `<div class="veh-stat">${stops.length}件 / <span class="${overRatio > 1 ? 'over' : 'ok'}">${Math.round(totalSai)}才</span> / 容量${cap}才</div>`;
+    html += `</div>`;
+    html += `<div class="timeline" data-veh="${v.vehicle_no}" style="width:${TOTAL_PX}px">`;
+    for (const s of stops) {
+      const m = etaToMin(s.eta);
+      const left = m != null ? minToPx(m) : 0;
+      const dur = 60;  // 60分幅
+      const width = (dur / 60) * HOUR_PX - 4;
+      const cls = s.notes && s.notes.includes('自社追加') ? 'outside' : (v.company === '庸車' || s.charter ? 'charter' : (s.time_spec ? 'time-fixed' : ''));
+      html += `<div class="stop ${cls}" data-id="${s.id}" draggable="true" style="left:${left}px;width:${width}px"`;
+      html += ` title="${(s.site_name||'').replace(/"/g,'')} / ${s.address||''} / ${s.eta||''} / ${s.sai||0}才${s.time_spec?' / 指定:'+s.time_spec:''}">`;
+      html += `<div class="s-time">${s.eta || '--:--'}${s.time_spec ? ' ⏰' : ''}</div>`;
+      html += `<div class="s-name">${s.site_name || '-'}</div>`;
+      html += `<div class="s-sai">${Math.round(s.sai||0)}才 ${s.qty?'/'+s.qty+'個':''}</div>`;
+      html += `</div>`;
+    }
+    html += `</div></div>`;
+  }
+  wrap.innerHTML = html;
+  bindDnD();
+  bindClicks();
+}
+
+function bindDnD() {
+  document.querySelectorAll('.stop').forEach(el => {
+    el.addEventListener('dragstart', (e) => {
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', el.dataset.id);
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  });
+  document.querySelectorAll('.timeline').forEach(tl => {
+    tl.addEventListener('dragover', (e) => { e.preventDefault(); tl.classList.add('drag-over'); });
+    tl.addEventListener('dragleave', () => tl.classList.remove('drag-over'));
+    tl.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      tl.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const veh = tl.dataset.veh;
+      const rect = tl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const newMin = pxToMin(x);
+      const newEta = minToEta(newMin);
+      try {
+        await api('/api/takara/dispatch/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify({ vehicle_no: veh, eta: newEta })
+        });
+        toast(`移動: ${veh} ${newEta}`);
+        await loadPlan();
+      } catch(e) {}
+    });
+  });
+}
+
+function bindClicks() {
+  document.querySelectorAll('.stop').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (el.classList.contains('dragging')) return;
+      openEditModal(el.dataset.id);
+    });
+  });
+}
+
+function openEditModal(id) {
+  const stop = (plan?.vehicles || []).flatMap(v => v.stops || []).find(s => String(s.id) === String(id));
+  if (!stop) return;
+  curStopId = id;
+  document.getElementById('modalTitle').textContent = '🚚 ストップ編集';
+  document.getElementById('modalBody').innerHTML = `
+    <label>号車</label><input id="m-veh" value="${stop.vehicle_no || ''}">
+    <label>順序</label><input id="m-seq" type="number" value="${stop.sequence || ''}">
+    <label>ETA</label><input id="m-eta" value="${stop.eta || ''}" placeholder="HH:MM">
+    <label>備考</label><textarea id="m-notes" rows="2">${stop.notes || ''}</textarea>
+    <div style="margin-top:10px;font-size:11px;color:#64748b">
+      ${stop.site_name || ''}<br>${stop.address || ''}<br>
+      ${Math.round(stop.sai||0)}才 / ${stop.qty || 0}個 ${stop.time_spec ? '/ 指定: ' + stop.time_spec : ''}
+    </div>
+  `;
+  document.getElementById('modalDel').style.display = 'inline-block';
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function openAddModal() {
+  curStopId = null;
+  document.getElementById('modalTitle').textContent = '+ 自社貨物追加 (他社貨物)';
+  document.getElementById('modalBody').innerHTML = `
+    <label>号車</label><input id="m-veh" placeholder="例: 250">
+    <label>現場名</label><input id="m-name" placeholder="例: 横浜市〇〇邸">
+    <label>住所</label><input id="m-addr">
+    <label>ETA</label><input id="m-eta" placeholder="HH:MM">
+    <label>才数</label><input id="m-sai" type="number" value="0">
+    <label>個数</label><input id="m-qty" type="number" value="0">
+    <label>時間指定</label><input id="m-tspec" placeholder="任意 (AM/PM/13:00等)">
+    <label>備考</label><textarea id="m-notes" rows="2"></textarea>
+  `;
+  document.getElementById('modalDel').style.display = 'none';
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modalBg').classList.remove('show'); curStopId = null; }
+
+document.getElementById('modalSave').onclick = async () => {
+  const v = id => document.getElementById(id)?.value || '';
+  try {
+    if (curStopId) {
+      await api('/api/takara/dispatch/' + curStopId, {
+        method: 'PATCH',
+        body: JSON.stringify({ vehicle_no: v('m-veh'), sequence: parseInt(v('m-seq')) || null, eta: v('m-eta'), notes: v('m-notes') })
+      });
+      toast('保存しました');
+    } else {
+      await api('/api/takara/dispatch/' + curDate, {
+        method: 'POST',
+        body: JSON.stringify({ vehicle_no: v('m-veh'), site_name: v('m-name'), address: v('m-addr'), eta: v('m-eta'), sai: parseFloat(v('m-sai'))||0, qty: parseFloat(v('m-qty'))||0, time_spec: v('m-tspec') || null, notes: v('m-notes') })
+      });
+      toast('追加しました');
+    }
+    closeModal();
+    await loadPlan();
+  } catch(e) {}
+};
+
+document.getElementById('modalDel').onclick = async () => {
+  if (!curStopId || !confirm('このストップを削除しますか？')) return;
+  try {
+    await api('/api/takara/dispatch/' + curStopId, { method: 'DELETE' });
+    toast('削除しました');
+    closeModal();
+    await loadPlan();
+  } catch(e) {}
+};
+
+document.getElementById('addBtn').onclick = openAddModal;
+document.getElementById('dateSel').onchange = (e) => { curDate = e.target.value; loadPlan(); };
+document.getElementById('coFilter').onchange = render;
+document.getElementById('dayFilter').onchange = render;
+document.getElementById('modalBg').onclick = (e) => { if (e.target.id === 'modalBg') closeModal(); };
+
+if (!token) location.href = '/login.html';
+loadDates();
+</script>
+</body>
+</html>

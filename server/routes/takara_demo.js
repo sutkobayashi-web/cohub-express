@@ -578,6 +578,60 @@ router.get('/pickup/:load_date', authUser, (req, res) => {
   res.json({ success: true, load_date: ld, vehicles, total_items: rows.length });
 });
 
+// ストップを別号車/時間に移動 (ガントチャート D&D 用)
+router.patch('/dispatch/:id', authUser, express.json(), (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const id = parseInt(req.params.id);
+  const { vehicle_no, sequence, eta, notes } = req.body || {};
+  const db = getDb();
+  const cur = db.prepare(`SELECT * FROM td_dispatches WHERE id = ?`).get(id);
+  if (!cur) return res.status(404).json({ success: false, msg: 'ストップが見つかりません' });
+  const updates = [];
+  const params = [];
+  if (vehicle_no !== undefined) { updates.push('vehicle_no = ?'); params.push(String(vehicle_no).trim()); }
+  if (sequence !== undefined) { updates.push('sequence = ?'); params.push(parseInt(sequence) || null); }
+  if (eta !== undefined) { updates.push('eta = ?'); params.push(String(eta).trim()); }
+  if (notes !== undefined) { updates.push('notes = ?'); params.push(String(notes).slice(0, 200)); }
+  updates.push("updated_at = datetime('now')");
+  if (updates.length === 1) return res.json({ success: true });  // updated_at のみ
+  params.push(id);
+  db.prepare(`UPDATE td_dispatches SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  // 別号車に移動した場合、移動先のmetaが無ければ自動作成
+  if (vehicle_no !== undefined && vehicle_no !== cur.vehicle_no) {
+    const m = db.prepare(`SELECT 1 FROM td_dispatch_meta WHERE load_date = ? AND vehicle_no = ?`).get(cur.load_date, vehicle_no);
+    if (!m) {
+      db.prepare(`INSERT INTO td_dispatch_meta (load_date, vehicle_no, vehicle_type, driver_token, status) VALUES (?, ?, '', ?, 'draft')`)
+        .run(cur.load_date, vehicle_no, gen8());
+    }
+  }
+  res.json({ success: true, dispatch: { ...cur, vehicle_no: vehicle_no ?? cur.vehicle_no, sequence: sequence ?? cur.sequence, eta: eta ?? cur.eta } });
+});
+
+// 新規ストップ追加 (自社他社貨物用)
+router.post('/dispatch/:load_date', authUser, express.json(), (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  const b = req.body || {};
+  const veh = String(b.vehicle_no || '').trim();
+  if (!veh) return res.status(400).json({ success: false, msg: '号車必須' });
+  const ins = getDb().prepare(`INSERT INTO td_dispatches
+    (load_date, vehicle_no, sequence, site_name, address, eta, time_spec, qty, sai, notes, ai_reason, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '自社追加(他社貨物)', 'pending')`).run(
+      ld, veh, parseInt(b.sequence) || null, String(b.site_name || ''), String(b.address || ''),
+      String(b.eta || ''), b.time_spec || null,
+      parseFloat(b.qty) || 0, parseFloat(b.sai) || 0,
+      String(b.notes || ''),
+    );
+  res.json({ success: true, id: ins.lastInsertRowid });
+});
+
+// ストップ削除
+router.delete('/dispatch/:id', authUser, (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  getDb().prepare(`DELETE FROM td_dispatches WHERE id = ?`).run(parseInt(req.params.id));
+  res.json({ success: true });
+});
+
 // 確定 (status=confirmed)
 router.post('/confirm/:load_date', authUser, express.json(), (req, res) => {
   if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
