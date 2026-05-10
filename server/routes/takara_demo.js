@@ -110,7 +110,9 @@ router.post('/import-dispatch', authUser, upload.single('file'), (req, res) => {
       const site = nz(r[10]);
       const addr = nz(r[11]);
       const qty = num(r[12]); const sai = num(r[13]);
-      const eta = nz(r[14]);
+      let eta = nz(r[14]);
+      // eta フォーマット正規化: 4桁数字(0800)→HH:MM(08:00)
+      if (/^\d{4}$/.test(eta)) eta = eta.slice(0, 2) + ':' + eta.slice(2);
       // col16(idx15)は「車種」見出しだが実データは納入数(2か所等)が混入。
       // 正規の車種は col22(idx21)。col21(idx20)は積替基地コード。
       const vt = nz(r[21]);

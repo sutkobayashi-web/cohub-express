@@ -61,13 +61,16 @@ for (const ld of dates) {
     // stops 投入: 各stopに「配送#xxx」を notes として保持 (元の xlsx号車番号)
     for (const r of enriched) {
       const dispNo = r.original_vehicle_no || '';
+      let eta = r.eta || '';
+      if (/^\d{4}$/.test(eta)) eta = eta.slice(0, 2) + ':' + eta.slice(2);
+      const ts = r.time_spec && r.time_spec !== 'soft' && r.time_spec !== '' ? r.time_spec : null;
       insDisp.run(
         ld, r.phys_vehicle_no,
         r.sequence || null,
         r.site_name || '',
         r.address || '',
-        r.eta || '',
-        r.time_spec || null,
+        eta,
+        ts,
         r.qty || 0,
         r.sai || 0,
         `人手配車(実績) / 配送#${dispNo}`,
