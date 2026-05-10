@@ -305,8 +305,12 @@ async function loadDates() {
   block.innerHTML = '<div style="font-weight:700;font-size:13px;margin-bottom:8px;">📅 取込済み日付 (タップで選択)</div><div class="dates">' +
     r.dates.map(d => {
       const yy = d.load_date.slice(0,4), mm = d.load_date.slice(4,6), dd = d.load_date.slice(6,8);
+      const wd = ['日','月','火','水','木','金','土'];
+      const dt = new Date(+yy, +mm - 1, +dd);
+      const day = wd[dt.getDay()];
+      const dayColor = day === '土' ? '#ea580c' : (day === '日' ? '#dc2626' : '#475569');
       return `<div class="date-card ${selectedDate === d.load_date ? 'selected' : ''}" onclick="selectDate('${d.load_date}')">
-        <div class="d">${mm}/${dd}</div>
+        <div class="d">${mm}/${dd} <span style="color:${dayColor};font-weight:700;">(${day})</span></div>
         <div class="meta">${d.site_count}現場 / ${(d.total_sai||0).toFixed(0)}才</div>
       </div>`;
     }).join('') + '</div>';

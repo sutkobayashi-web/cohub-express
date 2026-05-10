@@ -120,7 +120,13 @@ async function loadDates() {
   const r = await api('/api/takara/dates');
   dates = r.dates || [];
   const sel = document.getElementById('dateSel');
-  sel.innerHTML = dates.map(d => `<option value="${d.load_date}">${d.load_date} (${d.kind || ''})</option>`).join('');
+  const wd = ['日','月','火','水','木','金','土'];
+  const fmt = (s) => {
+    const y = s.slice(0,4), m = s.slice(4,6), d = s.slice(6,8);
+    const dt = new Date(+y, +m - 1, +d);
+    return `${y}/${m}/${d} (${wd[dt.getDay()]})`;
+  };
+  sel.innerHTML = dates.map(d => `<option value="${d.load_date}">${fmt(d.load_date)} ${d.kind || ''}</option>`).join('');
   curDate = dates[0]?.load_date;
   if (curDate) await loadAll();
 }
