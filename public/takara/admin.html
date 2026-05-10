@@ -372,15 +372,24 @@ async function loadPlan(ld) {
   if (!r.vehicles.length) { block.style.display = 'none'; return; }
   block.style.display = '';
   document.getElementById('plan-title').textContent = '📋 ' + ld.slice(0,4) + '/' + ld.slice(4,6) + '/' + ld.slice(6,8) + ' 配車プラン';
-  // 業者別サマリー
+  // 業者別+配送日サマリー
   const summary = r.summary || {};
+  const byDelivery = r.by_delivery || {};
   const colors = r.company_colors || {};
   const coSummaryHtml = ['スタ運','昭栄','ｶｰﾚﾝﾄ','その他'].map(co => {
     const s = summary[co]; if (!s) return '';
     const c = colors[co] || { bg: '#64748b' };
     return `<span class="pill" style="background:${c.bg};">${co} <span class="num">${s.count}台 / ${s.stops}件</span></span>`;
   }).filter(Boolean).join('');
-  document.getElementById('co-summary').innerHTML = coSummaryHtml;
+  // 配送日別 (平日/土曜)
+  let deliveryHtml = '';
+  if (byDelivery['平日'] && byDelivery['平日'].count) {
+    deliveryHtml += `<span class="pill" style="background:#0d9488;">平日配送 <span class="num">${byDelivery['平日'].count}台</span></span>`;
+  }
+  if (byDelivery['土曜'] && byDelivery['土曜'].count) {
+    deliveryHtml += `<span class="pill" style="background:#f59e0b;">土曜配送 <span class="num">${byDelivery['土曜'].count}台</span></span>`;
+  }
+  document.getElementById('co-summary').innerHTML = coSummaryHtml + deliveryHtml;
   // サマリ
   const totalStops = r.vehicles.reduce((a, v) => a + v.stops.length, 0);
   const totalSai = r.vehicles.reduce((a, v) => a + v.total_sai, 0);
@@ -402,8 +411,12 @@ async function loadPlan(ld) {
     const vehTypeShort = vtParts[0] || '車種未設定';
     const dispNos = vtParts[1] || '';  // 「配送#aaa,bbb,ccc」
     const coColor = (v.company_color && v.company_color.bg) || '#64748b';
+    const satBadge = v.delivery_day === '土曜'
+      ? `<span class="co-badge" style="background:#f59e0b;left:auto;right:8px;">土曜配送</span>`
+      : '';
     return `<div class="veh-card" data-veh="${escapeHtml(v.vehicle_no)}">
       <span class="co-badge" style="background:${coColor};">${escapeHtml(v.company || 'その他')}</span>
+      ${satBadge}
       <div class="head" style="flex-wrap:wrap;margin-top:6px;">
         <div class="veh-no" style="background:#dc2626;">車両#${vi + 1}</div>
         <div style="flex:1;">

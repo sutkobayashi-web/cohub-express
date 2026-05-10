@@ -1,18 +1,23 @@
 // タカラ提案デモ用の共通ヘルパー
 // 号車番号→業者分類など
 
+// 号車番号→{業者, 配送日種別}を返す
+// スタ運の番号レンジは複数あり、用途で分類:
+//   200-390 / 400-590 = 平日配送(金曜積込→月曜配送等)
+//   600-799 / 800-899 = 土曜配送 (金曜積込→土曜配送)
 function classifyVehicle(vehNo) {
-  if (!vehNo) return 'その他';
+  if (!vehNo) return { company: 'その他', delivery_day: null };
   const s = String(vehNo).trim();
-  if (/^[AB][0-9]/.test(s)) return 'ｶｰﾚﾝﾄ';
+  if (/^[AB][0-9]/.test(s)) return { company: 'ｶｰﾚﾝﾄ', delivery_day: '平日' };
   const n = parseInt(s, 10);
-  if (isNaN(n)) return 'その他';
-  if ((n >= 200 && n <= 390) || (n >= 400 && n <= 590)) return 'スタ運';
-  if (n >= 961 && n <= 969) return '昭栄';
-  if (n >= 981 && n <= 989) return '昭栄';
-  if (n >= 950 && n <= 959) return '施工引取';
-  if (n >= 971 && n <= 979) return '施工引取';
-  return 'その他';
+  if (isNaN(n)) return { company: 'その他', delivery_day: null };
+  if ((n >= 200 && n <= 390) || (n >= 400 && n <= 590)) return { company: 'スタ運', delivery_day: '平日' };
+  if (n >= 600 && n <= 899) return { company: 'スタ運', delivery_day: '土曜' };
+  if (n >= 961 && n <= 969) return { company: '昭栄', delivery_day: '平日' };
+  if (n >= 981 && n <= 989) return { company: '昭栄', delivery_day: '平日' };
+  if (n >= 950 && n <= 959) return { company: '施工引取', delivery_day: null };
+  if (n >= 971 && n <= 979) return { company: '施工引取', delivery_day: null };
+  return { company: 'その他', delivery_day: null };
 }
 
 const COMPANY_COLORS = {

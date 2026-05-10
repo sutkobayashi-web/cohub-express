@@ -531,10 +531,10 @@ router.get('/plan/:load_date', authUser, (req, res) => {
   }
   const vehicles = [...byVeh.values()].map(g => {
     const m = meta.find(x => x.vehicle_no === g.vehicle_no) || {};
-    const company = classifyVehicle(g.vehicle_no);
-    return { ...g, ...m, company, company_color: COMPANY_COLORS[company] };
+    const cls = classifyVehicle(g.vehicle_no);
+    return { ...g, ...m, company: cls.company, delivery_day: cls.delivery_day, company_color: COMPANY_COLORS[cls.company] };
   });
-  // 業者別サマリー
+  // 業者別+配送日種別 サマリー
   const summary = {};
   for (const v of vehicles) {
     if (!summary[v.company]) summary[v.company] = { count: 0, stops: 0, total_sai: 0 };
@@ -542,7 +542,15 @@ router.get('/plan/:load_date', authUser, (req, res) => {
     summary[v.company].stops += v.stops.length;
     summary[v.company].total_sai += v.total_sai || 0;
   }
-  res.json({ success: true, load_date: ld, vehicles, summary, company_colors: COMPANY_COLORS });
+  // 配送日別 (平日/土曜)
+  const byDelivery = { '平日': { count: 0, sai: 0 }, '土曜': { count: 0, sai: 0 } };
+  for (const v of vehicles) {
+    if (v.delivery_day && byDelivery[v.delivery_day]) {
+      byDelivery[v.delivery_day].count++;
+      byDelivery[v.delivery_day].sai += v.total_sai || 0;
+    }
+  }
+  res.json({ success: true, load_date: ld, vehicles, summary, by_delivery: byDelivery, company_colors: COMPANY_COLORS });
 });
 
 // 施工引取号車のWMS品目一覧 (配車対象外だがピッキング対象)
