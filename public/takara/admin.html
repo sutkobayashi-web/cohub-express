@@ -74,6 +74,42 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 .summary .item .k { font-size: 10px; color: var(--mute); }
 .summary .item .v { font-size: 18px; font-weight: 800; color: var(--accent-d); }
 
+/* 業者別サマリー */
+.co-summary { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.co-summary .pill {
+  padding: 8px 14px; border-radius: 18px; color: #fff; font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.10);
+}
+.co-summary .pill .num { background: rgba(255,255,255,0.30); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+
+/* 業者色バッジ (号車カード左上) */
+.co-badge {
+  position: absolute; top: -7px; left: 8px;
+  padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 800;
+  color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.veh-card { position: relative; }
+
+/* タブ */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 14px; }
+.tab {
+  padding: 8px 18px; cursor: pointer; font-size: 13px; font-weight: 700;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  color: var(--mute);
+}
+.tab.active { color: var(--accent-d); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* 引取カード */
+.pickup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.pickup-card { background: #f5f3ff; border: 1.5px solid #c4b5fd; border-radius: 10px; padding: 12px; }
+.pickup-card .head { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.pickup-card .veh { background: #7c3aed; color: #fff; padding: 3px 10px; border-radius: 6px; font-weight: 800; font-size: 12px; }
+.pickup-card .stat { color: var(--mute); font-size: 11px; }
+.pickup-card .sites { font-size: 12px; color: #4c1d95; line-height: 1.6; margin-top: 6px; }
+
 .veh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 12px; }
 .veh-card {
   background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px;
@@ -167,8 +203,19 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   <div id="plan-block" style="display:none;">
     <div class="card">
       <h2 id="plan-title">📋 配車プラン</h2>
+      <div class="co-summary" id="co-summary"></div>
       <div class="summary" id="plan-summary"></div>
-      <div class="veh-grid" id="veh-grid"></div>
+      <div class="tabs">
+        <div class="tab active" data-pane="dispatch" onclick="switchTab('dispatch')">🚛 配車 (業者別)</div>
+        <div class="tab" data-pane="pickup" onclick="switchTab('pickup')">📦 引取 ピッキング</div>
+      </div>
+      <div class="tab-pane active" id="pane-dispatch">
+        <div class="veh-grid" id="veh-grid"></div>
+      </div>
+      <div class="tab-pane" id="pane-pickup">
+        <div style="font-size:12px;color:var(--mute);margin-bottom:10px;">施工業者が来庫して持ち帰り。スタンダード運輸はピッキング対応のみ。</div>
+        <div class="pickup-grid" id="pickup-grid"></div>
+      </div>
     </div>
   </div>
 
@@ -242,6 +289,33 @@ async function selectDate(ld) {
   await loadDates();
   document.getElementById('gen-bar').style.display = 'flex';
   await loadPlan(ld);
+  await loadPickup(ld);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pane === name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+}
+
+async function loadPickup(ld) {
+  const r = await api('/api/takara/pickup/' + ld);
+  const grid = document.getElementById('pickup-grid');
+  if (!r || !r.success || !r.vehicles.length) {
+    grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--mute);">この日は施工引取分がありません</div>';
+    // タブのラベルに件数を反映
+    document.querySelector('.tab[data-pane="pickup"]').textContent = '📦 引取 ピッキング (0)';
+    return;
+  }
+  document.querySelector('.tab[data-pane="pickup"]').textContent = `📦 引取 ピッキング (${r.vehicles.length}号車・${r.total_items}品目)`;
+  grid.innerHTML = r.vehicles.map(v =>
+    `<div class="pickup-card">
+      <div class="head">
+        <span class="veh">${escapeHtml(v.vehicle_no)}</span>
+        <span class="stat">${v.items.length}品目 / ${v.sites.length}現場 / ${(v.total_sai||0).toFixed(0)}才</span>
+      </div>
+      <div class="sites">${v.sites.slice(0,5).map(escapeHtml).join('<br>')}${v.sites.length > 5 ? `<br>… 他${v.sites.length - 5}現場` : ''}</div>
+    </div>`
+  ).join('');
 }
 
 async function uploadWms(e) {
@@ -298,6 +372,15 @@ async function loadPlan(ld) {
   if (!r.vehicles.length) { block.style.display = 'none'; return; }
   block.style.display = '';
   document.getElementById('plan-title').textContent = '📋 ' + ld.slice(0,4) + '/' + ld.slice(4,6) + '/' + ld.slice(6,8) + ' 配車プラン';
+  // 業者別サマリー
+  const summary = r.summary || {};
+  const colors = r.company_colors || {};
+  const coSummaryHtml = ['スタ運','昭栄','ｶｰﾚﾝﾄ','その他'].map(co => {
+    const s = summary[co]; if (!s) return '';
+    const c = colors[co] || { bg: '#64748b' };
+    return `<span class="pill" style="background:${c.bg};">${co} <span class="num">${s.count}台 / ${s.stops}件</span></span>`;
+  }).filter(Boolean).join('');
+  document.getElementById('co-summary').innerHTML = coSummaryHtml;
   // サマリ
   const totalStops = r.vehicles.reduce((a, v) => a + v.stops.length, 0);
   const totalSai = r.vehicles.reduce((a, v) => a + v.total_sai, 0);
@@ -318,8 +401,10 @@ async function loadPlan(ld) {
     const vtParts = vt.split(' ／ ');
     const vehTypeShort = vtParts[0] || '車種未設定';
     const dispNos = vtParts[1] || '';  // 「配送#aaa,bbb,ccc」
+    const coColor = (v.company_color && v.company_color.bg) || '#64748b';
     return `<div class="veh-card" data-veh="${escapeHtml(v.vehicle_no)}">
-      <div class="head" style="flex-wrap:wrap;">
+      <span class="co-badge" style="background:${coColor};">${escapeHtml(v.company || 'その他')}</span>
+      <div class="head" style="flex-wrap:wrap;margin-top:6px;">
         <div class="veh-no" style="background:#dc2626;">車両#${vi + 1}</div>
         <div style="flex:1;">
           <div class="vt">${escapeHtml(vehTypeShort)}</div>

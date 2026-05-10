@@ -12,6 +12,7 @@ const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const { generateText } = require('../services/ai');
 const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
+const { classifyVehicle, COMPANY_COLORS } = require('../services/takara_helpers');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -530,9 +531,43 @@ router.get('/plan/:load_date', authUser, (req, res) => {
   }
   const vehicles = [...byVeh.values()].map(g => {
     const m = meta.find(x => x.vehicle_no === g.vehicle_no) || {};
-    return { ...g, ...m };
+    const company = classifyVehicle(g.vehicle_no);
+    return { ...g, ...m, company, company_color: COMPANY_COLORS[company] };
   });
-  res.json({ success: true, load_date: ld, vehicles });
+  // 業者別サマリー
+  const summary = {};
+  for (const v of vehicles) {
+    if (!summary[v.company]) summary[v.company] = { count: 0, stops: 0, total_sai: 0 };
+    summary[v.company].count++;
+    summary[v.company].stops += v.stops.length;
+    summary[v.company].total_sai += v.total_sai || 0;
+  }
+  res.json({ success: true, load_date: ld, vehicles, summary, company_colors: COMPANY_COLORS });
+});
+
+// 施工引取号車のWMS品目一覧 (配車対象外だがピッキング対象)
+router.get('/pickup/:load_date', authUser, (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  const rows = getDb().prepare(`
+    SELECT original_vehicle_no AS vehicle_no, site_name, item_cd, item_name, qty, sai
+    FROM td_orders
+    WHERE load_date = ?
+      AND ((CAST(original_vehicle_no AS INTEGER) BETWEEN 950 AND 959)
+        OR (CAST(original_vehicle_no AS INTEGER) BETWEEN 971 AND 979))
+    ORDER BY original_vehicle_no, sai DESC
+  `).all(ld);
+  // 号車別グループ化
+  const byVeh = new Map();
+  for (const r of rows) {
+    if (!byVeh.has(r.vehicle_no)) byVeh.set(r.vehicle_no, { vehicle_no: r.vehicle_no, items: [], total_sai: 0, sites: new Set() });
+    const g = byVeh.get(r.vehicle_no);
+    g.items.push(r);
+    g.total_sai += r.sai || 0;
+    if (r.site_name) g.sites.add(r.site_name);
+  }
+  const vehicles = [...byVeh.values()].map(g => ({ ...g, sites: [...g.sites] }));
+  res.json({ success: true, load_date: ld, vehicles, total_items: rows.length });
 });
 
 // 確定 (status=confirmed)
