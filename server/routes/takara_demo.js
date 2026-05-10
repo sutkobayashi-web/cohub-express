@@ -13,6 +13,7 @@ const { authUser } = require('../middleware/auth');
 const { generateText } = require('../services/ai');
 const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
 const { classifyVehicle, COMPANY_COLORS } = require('../services/takara_helpers');
+const { solveVRP } = require('../services/ortools');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -170,6 +171,152 @@ router.get('/sites/:load_date', authUser, (req, res) => {
 // 入力: load_date
 // 出力: td_dispatches に配車プラン保存 + JSON返却
 // ============================================================
+// ============================================================
+// OR-Tools 骨組み配車生成 (Phase A)
+// 業者×配送日で号車プールを分離 → CVRP+TW でストップを割付
+// 結果は td_dispatches に UPSERT (既存の AI/手動データを上書き)
+// ============================================================
+router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  const dayFilter = (req.body && req.body.delivery_day) || null;  // '平日' / '土曜' / null=両方
+  const timeLimit = parseInt(req.body && req.body.time_limit_sec) || 20;
+  const db = getDb();
+
+  // 1) WMS現場集約 (現場名で1ストップに集約)
+  const orderRows = db.prepare(`SELECT * FROM td_orders WHERE load_date = ?`).all(ld);
+  if (!orderRows.length) return res.status(400).json({ success: false, msg: 'WMSデータが取り込まれていません' });
+
+  // 施工引取分(950-959/971-979)は配車対象外
+  const isPickupOnly = (vno) => {
+    const n = parseInt(vno, 10);
+    return !isNaN(n) && ((n >= 950 && n <= 959) || (n >= 971 && n <= 979));
+  };
+
+  const siteMap = new Map();  // 現場名+元号車 → {id, site_name, sai, qty, original_vehicle_no, items}
+  for (const o of orderRows) {
+    if (isPickupOnly(o.original_vehicle_no)) continue;
+    const key = `${o.site_name || ''}__${o.original_vehicle_no || ''}`;
+    if (!siteMap.has(key)) {
+      siteMap.set(key, { id: siteMap.size + 1, site_name: o.site_name, original_vehicle_no: o.original_vehicle_no, sai: 0, qty: 0, items: [] });
+    }
+    const s = siteMap.get(key);
+    s.sai += parseFloat(o.sai) || 0;
+    s.qty += parseFloat(o.qty) || 0;
+    s.items.push({ name: o.product_name, qty: o.qty, sai: o.sai });
+  }
+  let stops = [...siteMap.values()];
+
+  // 2) 配車履歴 td_dispatch_history から site_name→address・time_spec マップ作成 (近い日付ほど優先)
+  const histRows = db.prepare(`SELECT site_name, address, time_spec, eta FROM td_dispatch_history WHERE address <> '' OR time_spec IS NOT NULL`).all();
+  const addrMap = new Map();
+  const tspecMap = new Map();
+  for (const h of histRows) {
+    if (h.address && !addrMap.has(h.site_name)) addrMap.set(h.site_name, h.address);
+    if (h.time_spec && !tspecMap.has(h.site_name)) tspecMap.set(h.site_name, { time_spec: h.time_spec, eta: h.eta });
+  }
+  for (const s of stops) {
+    s.address = addrMap.get(s.site_name) || '';
+    const t = tspecMap.get(s.site_name);
+    if (t) { s.time_spec = t.time_spec; s.hint_eta = t.eta; }
+    s.service_min = 25;
+  }
+
+  // 3) 配送日種別ごとに分割
+  const splitByDay = (orig) => classifyVehicle(orig).delivery_day;
+  if (dayFilter) stops = stops.filter(s => splitByDay(s.original_vehicle_no) === dayFilter);
+
+  // 4) 号車プール: 配車履歴の 物理車両 (sequence=1で区切る) から業者×配送日 でユニーク化
+  // ただし配送日フィルタが指定されてる場合はその種別のみ
+  const allHist = db.prepare(`SELECT * FROM td_dispatch_history ORDER BY load_date, id`).all();
+  const physVehicles = new Map();  // company__delivery_day__veh_no => { vehicle_no, company, delivery_day, vehicle_type, capacity_sai }
+  let curPhys = null;
+  for (const r of allHist) {
+    if (r.sequence === 1 || !r.sequence) curPhys = r.original_vehicle_no;
+    if (!curPhys) continue;
+    const cls = classifyVehicle(curPhys);
+    if (!cls.company || cls.company === '施工引取' || cls.company === 'その他') continue;
+    if (dayFilter && cls.delivery_day !== dayFilter) continue;
+    const key = `${cls.company}__${cls.delivery_day}__${curPhys}`;
+    if (!physVehicles.has(key)) {
+      const vt = (r.vehicle_type || '').split('／')[0].trim() || '2tｼｮｰﾄ';
+      const cap = vt.includes('4t') ? 160 : (vt.includes('3t') ? 120 : (vt.includes('軽') ? 30 : 100));
+      physVehicles.set(key, {
+        id: curPhys,
+        company: cls.company,
+        delivery_day: cls.delivery_day,
+        vehicle_type: vt,
+        capacity_sai: cap,
+        return_by_min: vt.includes('2t') ? 14 * 60 : 18 * 60,  // 2t車14:00帰庫
+      });
+    }
+  }
+  const vehicles = [...physVehicles.values()];
+  if (!vehicles.length) return res.status(400).json({ success: false, msg: '号車プールが空です。配車履歴を取り込んでください' });
+
+  // 5) ortools 呼び出し
+  const payload = {
+    depot_address: '神奈川県座間市',
+    vehicles,
+    stops: stops.map(s => ({
+      id: s.id, site_name: s.site_name, address: s.address || '', sai: s.sai, qty: s.qty,
+      time_spec: s.time_spec || null, service_min: s.service_min,
+    })),
+    time_limit_sec: timeLimit,
+    charter_max: 5,
+    charter_capacity: 600,
+    day_start_min: 7 * 60,
+    day_end_min: 18 * 60,
+  };
+
+  let result;
+  try {
+    result = await solveVRP(payload, { timeoutSec: timeLimit + 30 });
+  } catch (e) {
+    return res.status(500).json({ success: false, msg: 'OR-Tools実行失敗: ' + e.message });
+  }
+  if (!result.success) return res.status(500).json({ success: false, msg: result.msg || 'solver no solution', detail: result });
+
+  // 6) DB 反映: 既存 td_dispatches を消して書き込み (delivery_day フィルタの場合はその範囲のみ)
+  const tx = db.transaction(() => {
+    if (dayFilter) {
+      // 配送日フィルタ範囲の既存ストップを削除
+      const targets = db.prepare(`SELECT DISTINCT vehicle_no FROM td_dispatches WHERE load_date = ?`).all(ld);
+      for (const t of targets) {
+        const cls = classifyVehicle(t.vehicle_no);
+        if (cls.delivery_day === dayFilter) {
+          db.prepare(`DELETE FROM td_dispatches WHERE load_date = ? AND vehicle_no = ?`).run(ld, t.vehicle_no);
+        }
+      }
+    } else {
+      db.prepare(`DELETE FROM td_dispatches WHERE load_date = ?`).run(ld);
+      db.prepare(`DELETE FROM td_dispatch_meta WHERE load_date = ?`).run(ld);
+    }
+    const insStop = db.prepare(`INSERT INTO td_dispatches
+      (load_date, vehicle_no, sequence, site_name, address, eta, time_spec, qty, sai, notes, ai_reason, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OR-Tools骨組み(Phase A)', 'pending')`);
+    const insMeta = db.prepare(`INSERT OR REPLACE INTO td_dispatch_meta
+      (load_date, vehicle_no, vehicle_type, driver_token, status, driver_name)
+      VALUES (?, ?, ?, ?, 'draft', '')`);
+    for (const a of result.assignments) {
+      insMeta.run(ld, a.vehicle_id, a.vehicle_type || '', gen8());
+      for (const s of a.stops) {
+        const orig = stops.find(x => x.id === s.stop_id);
+        insStop.run(ld, a.vehicle_id, s.sequence, s.site_name, s.address || '',
+          s.eta || '', s.time_spec || null, orig?.qty || 0, orig?.sai || 0, '');
+      }
+    }
+  });
+  tx();
+
+  res.json({
+    success: true,
+    msg: `OR-Tools配車完了: ${result.stats.assigned_stops}/${result.stats.total_stops}件 / 実車${result.stats.vehicles_used_real}台 / 庸車${result.stats.vehicles_used_charter}台`,
+    stats: result.stats,
+    unassigned: result.unassigned,
+  });
+});
+
 router.post('/generate-dispatch', authUser, express.json(), async (req, res) => {
   if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
   const ld = String((req.body && req.body.load_date) || '').trim();
