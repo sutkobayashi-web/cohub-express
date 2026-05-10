@@ -569,15 +569,19 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
     v.direction = bestDir;
   }
 
+  // 14時帰庫可能エリア (座間から近距離片道1h以内)
+  // SE/S/SW (横須賀・藤沢・小田原) は遠方=14時帰庫困難 → 第二候補に含めない
+  const CLOSE_DIRECTIONS = new Set(['N', 'W', 'E', 'NW', 'NE', 'C']);
+
   const fixedArr = [...fixedVehMap.values()];
   routeStops.sort((a, b) => (b.sai || 0) - (a.sai || 0));
   const remainingRoute = [];
-  // 件数上限緩和: 時間指定+混載で合計14件まで許容
-  const MAX_STOPS_MIXED = 14;
+  const MAX_STOPS_MIXED = 14;  // 時間指定+混載 合計件数上限
   for (const s of routeStops) {
     const sDir = detectDirection(s.address || s.site_name);
     let target = null;
-    // 1段目: 同方面の時間指定車両 (容量空きあり)
+    let stage = 0;
+    // 1段目: 同方面の時間指定車両 (時間指定先→座間 道中ルート)
     if (sDir !== 'X') {
       let bestFree = -1;
       for (const v of fixedArr) {
@@ -585,23 +589,23 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
         const free = v.capacity - v.total_sai;
         if (free < (s.sai || 0)) continue;
         if (v.stops.length >= MAX_STOPS_MIXED) continue;
-        if (free > bestFree) { target = v; bestFree = free; }
+        if (free > bestFree) { target = v; bestFree = free; stage = 1; }
       }
     }
-    // 2段目: 方面不問、空き容量最大の時間指定車両に詰める
-    if (!target) {
+    // 2段目: ルート便が14時帰庫可能エリア → 容量空き最大の時間指定車両 (方面不問)
+    if (!target && CLOSE_DIRECTIONS.has(sDir)) {
       let bestFree = -1;
       for (const v of fixedArr) {
         const free = v.capacity - v.total_sai;
         if (free < (s.sai || 0)) continue;
         if (v.stops.length >= MAX_STOPS_MIXED) continue;
-        if (free > bestFree) { target = v; bestFree = free; }
+        if (free > bestFree) { target = v; bestFree = free; stage = 2; }
       }
     }
     if (target) {
       s.vehicle_no = target.vehicle_no;
       s.kind = 'route_mixed';
-      s.target_dir = target.direction;
+      s.mix_stage = stage;
       target.stops.push(s);
       target.total_sai += s.sai || 0;
     } else {
