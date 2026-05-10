@@ -172,6 +172,55 @@ router.get('/sites/:load_date', authUser, (req, res) => {
 // 出力: td_dispatches に配車プラン保存 + JSON返却
 // ============================================================
 // ============================================================
+// 車種マスタ
+// ============================================================
+router.get('/vehicle-types', authUser, (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const rows = getDb().prepare(`SELECT * FROM td_vehicle_types ORDER BY sort_order, vehicle_type`).all();
+  res.json({ success: true, types: rows });
+});
+
+router.post('/vehicle-types', authUser, express.json(), (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const types = (req.body && req.body.types) || [];
+  if (!Array.isArray(types)) return res.status(400).json({ success: false, msg: 'types は配列必須' });
+  const db = getDb();
+  const upsert = db.prepare(`INSERT INTO td_vehicle_types
+    (vehicle_type, capacity_sai, return_by_min, max_stops, is_active, sort_order, notes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(vehicle_type) DO UPDATE SET
+      capacity_sai = excluded.capacity_sai,
+      return_by_min = excluded.return_by_min,
+      max_stops = excluded.max_stops,
+      is_active = excluded.is_active,
+      sort_order = excluded.sort_order,
+      notes = excluded.notes,
+      updated_at = datetime('now')`);
+  const tx = db.transaction(() => {
+    for (const t of types) {
+      const vt = String(t.vehicle_type || '').trim();
+      if (!vt) continue;
+      upsert.run(vt,
+        Math.max(1, parseInt(t.capacity_sai) || 100),
+        Math.max(0, parseInt(t.return_by_min) || 840),
+        Math.max(1, parseInt(t.max_stops) || 6),
+        t.is_active ? 1 : 0,
+        parseInt(t.sort_order) || 100,
+        String(t.notes || ''),
+      );
+    }
+  });
+  tx();
+  res.json({ success: true, count: types.length });
+});
+
+router.delete('/vehicle-types/:vt', authUser, (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  getDb().prepare(`DELETE FROM td_vehicle_types WHERE vehicle_type = ?`).run(req.params.vt);
+  res.json({ success: true });
+});
+
+// ============================================================
 // OR-Tools 骨組み配車生成 (Phase A)
 // 業者×配送日で号車プールを分離 → CVRP+TW でストップを割付
 // 結果は td_dispatches に UPSERT (既存の AI/手動データを上書き)
@@ -227,9 +276,23 @@ router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, re
   if (dayFilter) stops = stops.filter(s => splitByDay(s.original_vehicle_no) === dayFilter);
 
   // 4) 号車プール: 配車履歴の 物理車両 (sequence=1で区切る) から業者×配送日 でユニーク化
-  // ただし配送日フィルタが指定されてる場合はその種別のみ
+  // 車種マスタ td_vehicle_types を参照して capacity/return_by_min を決定
+  const typeMaster = new Map();
+  for (const t of db.prepare(`SELECT * FROM td_vehicle_types WHERE is_active = 1`).all()) {
+    typeMaster.set(t.vehicle_type, t);
+  }
+  // 入力車種文字列をマスタにマッチ (前方一致 / 部分一致のフォールバック)
+  const matchType = (raw) => {
+    const s = (raw || '').trim();
+    if (typeMaster.has(s)) return typeMaster.get(s);
+    // 完全一致なし → 含む
+    for (const [k, v] of typeMaster) if (s.includes(k)) return v;
+    for (const [k, v] of typeMaster) if (k.includes(s) && s) return v;
+    return typeMaster.get('2tｼｮｰﾄ') || { vehicle_type: '2tｼｮｰﾄ', capacity_sai: 100, return_by_min: 840 };
+  };
+
   const allHist = db.prepare(`SELECT * FROM td_dispatch_history ORDER BY load_date, id`).all();
-  const physVehicles = new Map();  // company__delivery_day__veh_no => { vehicle_no, company, delivery_day, vehicle_type, capacity_sai }
+  const physVehicles = new Map();
   let curPhys = null;
   for (const r of allHist) {
     if (r.sequence === 1 || !r.sequence) curPhys = r.original_vehicle_no;
@@ -239,15 +302,15 @@ router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, re
     if (dayFilter && cls.delivery_day !== dayFilter) continue;
     const key = `${cls.company}__${cls.delivery_day}__${curPhys}`;
     if (!physVehicles.has(key)) {
-      const vt = (r.vehicle_type || '').split('／')[0].trim() || '2tｼｮｰﾄ';
-      const cap = vt.includes('4t') ? 160 : (vt.includes('3t') ? 120 : (vt.includes('軽') ? 30 : 100));
+      const rawVt = (r.vehicle_type || '').split('／')[0].trim() || '2tｼｮｰﾄ';
+      const tm = matchType(rawVt);
       physVehicles.set(key, {
         id: curPhys,
         company: cls.company,
         delivery_day: cls.delivery_day,
-        vehicle_type: vt,
-        capacity_sai: cap,
-        return_by_min: vt.includes('2t') ? 14 * 60 : 18 * 60,  // 2t車14:00帰庫
+        vehicle_type: tm.vehicle_type,
+        capacity_sai: tm.capacity_sai,
+        return_by_min: tm.return_by_min,
       });
     }
   }

@@ -149,6 +149,34 @@ function getDb() {
     created_by TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_td_jobs_date ON td_dispatch_jobs(load_date, started_at DESC);`);
+  // 車種マスタ (タカラ配車用) - 容量・帰庫制約・最大ストップ数
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_vehicle_types (
+    vehicle_type TEXT PRIMARY KEY,
+    capacity_sai INTEGER NOT NULL DEFAULT 100,
+    return_by_min INTEGER NOT NULL DEFAULT 840,
+    max_stops INTEGER NOT NULL DEFAULT 6,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 100,
+    notes TEXT DEFAULT '',
+    updated_at TEXT DEFAULT (datetime('now'))
+  );`);
+  // 初期シード (実データに存在する8車種、3t/4tは存在しないので含めない)
+  try {
+    const seedTypes = [
+      ['軽ﾊﾞﾝ',          30, 840,  8, 10, '常用優先・時間指定なし向け'],
+      ['ハイエース',     50, 840,  8, 20, '常用優先'],
+      ['2tｽﾘﾑ',          80, 840,  6, 30, '狭路向け'],
+      ['2tｼｮｰﾄ',         100, 840, 6, 40, '主力'],
+      ['2tｼｮｰﾄ平ﾎﾞﾃﾞｨ', 100, 840, 6, 50, '長尺対応'],
+      ['2t平ﾎﾞﾃﾞｨ',     110, 840, 6, 60, '長尺対応'],
+      ['2t',             100, 840, 6, 70, '汎用'],
+      ['2ワイド',        120, 840, 6, 80, '幅広積載'],
+    ];
+    const ins = _db.prepare(`INSERT OR IGNORE INTO td_vehicle_types
+      (vehicle_type, capacity_sai, return_by_min, max_stops, is_active, sort_order, notes)
+      VALUES (?, ?, ?, ?, 1, ?, ?)`);
+    for (const t of seedTypes) ins.run(...t);
+  } catch (e) {}
   // 荷主アクセストークン
   _db.exec(`CREATE TABLE IF NOT EXISTS td_shipper_tokens (
     token TEXT PRIMARY KEY,

@@ -153,6 +153,7 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
     <div class="title">🚛 タカラスタンダード 一括請負プロトタイプ</div>
     <div class="sub">WMS取込 → AI配車生成 → ドライバー配信 → 荷主追跡</div>
   </div>
+  <a href="javascript:openVehicleTypeModal()" class="back" style="background:rgba(234,88,12,0.65);">🚛 車種マスタ</a>
   <a href="/takara/gantt.html" class="back" style="background:rgba(124,58,237,0.65);">📅 ガント編集</a>
   <a href="/takara/onepager" class="back">📄 A4資料</a>
   <a href="/takara/proposal" class="back">📊 詳細</a>
@@ -230,6 +231,20 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
     </div>
   </div>
 
+</div>
+
+<div class="qr-modal-bg" id="vt-modal-bg" onclick="if(event.target.id==='vt-modal-bg') closeVT()" style="z-index:120">
+  <div class="qr-modal" style="max-width:95vw;width:980px;max-height:90vh;overflow:auto">
+    <h2 style="margin-bottom:6px;">🚛 車種マスタ</h2>
+    <div class="sub" style="font-size:12px;color:#64748b;margin-bottom:10px;">
+      OR-Tools骨組み生成で使われる車種別の容量・帰庫時刻・最大件数。3t/4tは存在しないため軽ﾊﾞﾝ〜2tワイドの2t系のみ。
+    </div>
+    <div id="vt-modal-body"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="close" onclick="closeVT()">キャンセル</button>
+      <button class="close" style="background:#1e40af;color:#fff" onclick="saveVTs()">💾 保存</button>
+    </div>
+  </div>
 </div>
 
 <div class="qr-modal-bg" id="qr-modal-bg" onclick="if(event.target.id==='qr-modal-bg') closeQr()">
@@ -501,6 +516,80 @@ function showQr(vehNo, token, url) {
   document.getElementById('qr-modal-bg').classList.add('show');
 }
 function closeQr() { document.getElementById('qr-modal-bg').classList.remove('show'); }
+
+// ==== 車種マスタ ====
+async function openVehicleTypeModal() {
+  const r = await api('/api/takara/vehicle-types');
+  if (!r.success) return;
+  const types = r.types || [];
+  const rows = types.map((t, i) => `
+    <tr data-i="${i}">
+      <td><input class="vt-name" value="${t.vehicle_type}" style="width:140px"></td>
+      <td><input class="vt-cap" type="number" value="${t.capacity_sai}" style="width:70px;text-align:right"> 才</td>
+      <td><input class="vt-ret" type="time" value="${String(Math.floor(t.return_by_min/60)).padStart(2,'0')}:${String(t.return_by_min%60).padStart(2,'0')}" style="width:100px"></td>
+      <td><input class="vt-stops" type="number" value="${t.max_stops}" style="width:60px;text-align:right"> 件</td>
+      <td><input class="vt-sort" type="number" value="${t.sort_order}" style="width:60px;text-align:right"></td>
+      <td><label><input class="vt-active" type="checkbox" ${t.is_active ? 'checked' : ''}> 有効</label></td>
+      <td><input class="vt-notes" value="${(t.notes||'').replace(/"/g,'&quot;')}" placeholder="メモ" style="width:140px"></td>
+      <td><button class="btn-del" onclick="deleteVT('${t.vehicle_type}')" style="color:#dc2626">🗑</button></td>
+    </tr>`).join('');
+  document.getElementById('vt-modal-body').innerHTML = `
+    <table style="width:100%;font-size:13px;border-collapse:collapse;">
+      <thead style="background:#f1f5f9">
+        <tr><th>車種</th><th>容量</th><th>帰庫時刻</th><th>最大件数</th><th>表示順</th><th>状態</th><th>メモ</th><th></th></tr>
+      </thead>
+      <tbody id="vt-tbody">${rows}</tbody>
+    </table>
+    <button onclick="addVTRow()" style="margin-top:8px;padding:5px 10px;background:#1e40af;color:#fff;border:none;border-radius:4px;">+ 行追加</button>
+    <p style="margin-top:8px;font-size:12px;color:#64748b">帰庫時刻 = OR-Toolsで「この車両は◯時までに座間着」制約として使われます (2t系=14:00)。</p>
+  `;
+  document.getElementById('vt-modal-bg').classList.add('show');
+}
+function addVTRow() {
+  const tbody = document.getElementById('vt-tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="vt-name" value="" style="width:140px" placeholder="例: 4tユニック"></td>
+    <td><input class="vt-cap" type="number" value="100" style="width:70px;text-align:right"> 才</td>
+    <td><input class="vt-ret" type="time" value="14:00" style="width:100px"></td>
+    <td><input class="vt-stops" type="number" value="6" style="width:60px;text-align:right"> 件</td>
+    <td><input class="vt-sort" type="number" value="100" style="width:60px;text-align:right"></td>
+    <td><label><input class="vt-active" type="checkbox" checked> 有効</label></td>
+    <td><input class="vt-notes" value="" placeholder="メモ" style="width:140px"></td>
+    <td></td>`;
+  tbody.appendChild(tr);
+}
+async function saveVTs() {
+  const trs = document.querySelectorAll('#vt-tbody tr');
+  const types = [];
+  trs.forEach(tr => {
+    const name = tr.querySelector('.vt-name').value.trim();
+    if (!name) return;
+    const ret = tr.querySelector('.vt-ret').value;  // "14:00"
+    const [h, m] = ret.split(':').map(Number);
+    types.push({
+      vehicle_type: name,
+      capacity_sai: parseInt(tr.querySelector('.vt-cap').value) || 100,
+      return_by_min: (h || 14) * 60 + (m || 0),
+      max_stops: parseInt(tr.querySelector('.vt-stops').value) || 6,
+      sort_order: parseInt(tr.querySelector('.vt-sort').value) || 100,
+      is_active: tr.querySelector('.vt-active').checked ? 1 : 0,
+      notes: tr.querySelector('.vt-notes').value,
+    });
+  });
+  const r = await api('/api/takara/vehicle-types', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ types }),
+  });
+  if (r.success) { showToast(`✅ ${types.length}車種を保存しました`); closeVT(); }
+  else showToast('❌ ' + (r.msg || '保存失敗'), 5000, true);
+}
+async function deleteVT(name) {
+  if (!confirm(`車種「${name}」を削除しますか？`)) return;
+  await api('/api/takara/vehicle-types/' + encodeURIComponent(name), { method: 'DELETE' });
+  openVehicleTypeModal();
+}
+function closeVT() { document.getElementById('vt-modal-bg').classList.remove('show'); }
 
 init();
 </script>
