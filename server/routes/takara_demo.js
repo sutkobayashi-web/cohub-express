@@ -347,14 +347,22 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
   }
 
   // 履歴住所・時間指定マップ (現場名→補完情報)
+  // site_name 正規化: 空白除去・敬称/期間記号除去で表記揺れに対応
+  const normalizeSite = (s) => String(s || '')
+    .replace(/[\s　]+/g, '')
+    .replace(/様|殿|邸|建売|号棟|号室|期|号/g, '')
+    .toLowerCase()
+    .trim();
   const addrMap = new Map();
   const tspecMap = new Map();
   const etaHistMap = new Map();
   const allHist = db.prepare(`SELECT site_name, address, time_spec, eta FROM td_dispatch_history`).all();
   for (const h of allHist) {
-    if (h.address && !addrMap.has(h.site_name)) addrMap.set(h.site_name, h.address);
-    if (h.time_spec && !tspecMap.has(h.site_name)) tspecMap.set(h.site_name, h.time_spec);
-    if (h.eta && !etaHistMap.has(h.site_name)) etaHistMap.set(h.site_name, h.eta);
+    const k = normalizeSite(h.site_name);
+    if (!k) continue;
+    if (h.address && !addrMap.has(k)) addrMap.set(k, h.address);
+    if (h.time_spec && !tspecMap.has(k)) tspecMap.set(k, h.time_spec);
+    if (h.eta && !etaHistMap.has(k)) etaHistMap.set(k, h.eta);
   }
 
   // 履歴の vehicle_type (代表号車別)
@@ -388,11 +396,26 @@ router.post('/from-wms/:load_date', authUser, express.json(), (req, res) => {
   const stops = [...stopMap.values()];
 
   // 各stopに住所・時間指定・etaを補完、物理号車内でsequence順に並べる
+  // address補完できない現場は site_name を「住所候補」として保存
+  // (例: 「あざみ野4-13/岡田」はNominatimで地名「あざみ野4」がヒットする)
+  const extractLocation = (name) => {
+    if (!name) return '';
+    let s = String(name).trim();
+    // スラッシュで分割し地名側を優先 (「あざみ野4-13/岡田」→「あざみ野4-13」)
+    const slash = s.split(/[／\/]/);
+    if (slash.length >= 2) s = slash[0];
+    // 末尾の客様名(漢字+敬称)を除去
+    s = s.replace(/(様|殿|邸)$/, '').trim();
+    // 「区」「市」「町」「丁目」「号棟」「号室」を含むなら地名候補
+    if (/[区市町丁目県号棟号室]/.test(s)) return s;
+    return '';
+  };
   const byVeh = new Map();
   for (const s of stops) {
-    s.address = addrMap.get(s.site_name) || '';
-    s.time_spec = tspecMap.get(s.site_name) || null;
-    s.eta = etaHistMap.get(s.site_name) || '';
+    const k = normalizeSite(s.site_name);
+    s.address = addrMap.get(k) || extractLocation(s.site_name) || '';
+    s.time_spec = tspecMap.get(k) || null;
+    s.eta = etaHistMap.get(k) || '';
     if (!byVeh.has(s.phys_vehicle_no)) byVeh.set(s.phys_vehicle_no, []);
     byVeh.get(s.phys_vehicle_no).push(s);
   }
