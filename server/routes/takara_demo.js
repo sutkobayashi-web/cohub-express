@@ -12,7 +12,7 @@ const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const { generateText } = require('../services/ai');
 const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
-const { classifyVehicle, COMPANY_COLORS } = require('../services/takara_helpers');
+const { classifyVehicle, COMPANY_COLORS, DEPOTS, depotForCompany } = require('../services/takara_helpers');
 const { solveVRP } = require('../services/ortools');
 const { geocode, inKanto } = require('../services/geocoder');
 
@@ -259,9 +259,13 @@ router.get('/route-map/:load_date', authUser, (req, res) => {
     const geocoded = g.stops.filter(s => s.lat != null).length;
     return { ...g, ...m, company: cls.company, delivery_day: cls.delivery_day, geocoded_count: geocoded };
   });
-  // 座間拠点 (固定)
-  const depot = { lat: 35.4869, lng: 139.4061, name: '座間積替倉庫' };
-  res.json({ success: true, load_date: ld, depot, vehicles });
+  // 拠点一覧 (業者ごとに切替) + 各号車に depot 紐付
+  for (const v of vehicles) {
+    const dep = depotForCompany(v.company);
+    v.depot_key = dep.key;
+    v.depot = dep;
+  }
+  res.json({ success: true, load_date: ld, depots: DEPOTS, vehicles });
 });
 
 // ============================================================
@@ -374,11 +378,9 @@ router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, re
   for (const t of db.prepare(`SELECT * FROM td_vehicle_types WHERE is_active = 1`).all()) {
     typeMaster.set(t.vehicle_type, t);
   }
-  // 入力車種文字列をマスタにマッチ (前方一致 / 部分一致のフォールバック)
   const matchType = (raw) => {
     const s = (raw || '').trim();
     if (typeMaster.has(s)) return typeMaster.get(s);
-    // 完全一致なし → 含む
     for (const [k, v] of typeMaster) if (s.includes(k)) return v;
     for (const [k, v] of typeMaster) if (k.includes(s) && s) return v;
     return typeMaster.get('2tｼｮｰﾄ') || { vehicle_type: '2tｼｮｰﾄ', capacity_sai: 100, return_by_min: 840 };
@@ -407,36 +409,73 @@ router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, re
       });
     }
   }
-  const vehicles = [...physVehicles.values()];
-  if (!vehicles.length) return res.status(400).json({ success: false, msg: '号車プールが空です。配車履歴を取り込んでください' });
+  const allVehicles = [...physVehicles.values()];
+  if (!allVehicles.length) return res.status(400).json({ success: false, msg: '号車プールが空です。配車履歴を取り込んでください' });
 
-  // 5) ortools 呼び出し
-  const payload = {
-    depot_address: '神奈川県座間市',
-    vehicles,
-    stops: stops.map(s => ({
-      id: s.id, site_name: s.site_name, address: s.address || '', sai: s.sai, qty: s.qty,
-      time_spec: s.time_spec || null, service_min: s.service_min,
-    })),
-    time_limit_sec: timeLimit,
-    charter_max: 5,
-    charter_capacity: 600,
-    day_start_min: 7 * 60,
-    day_end_min: 18 * 60,
-  };
-
-  let result;
-  try {
-    result = await solveVRP(payload, { timeoutSec: timeLimit + 30 });
-  } catch (e) {
-    return res.status(500).json({ success: false, msg: 'OR-Tools実行失敗: ' + e.message });
+  // 5) 業者×depotで分割呼び出し (スタ運/昭栄→座間, ｶｰﾚﾝﾄ→東扇島)
+  // ストップは original_vehicle_no から業者を判定して振り分け
+  const groups = {};  // company → { depot, vehicles, stops }
+  for (const v of allVehicles) {
+    if (!groups[v.company]) {
+      const dep = depotForCompany(v.company);
+      groups[v.company] = { depot: dep, vehicles: [], stops: [] };
+    }
+    groups[v.company].vehicles.push(v);
   }
-  if (!result.success) return res.status(500).json({ success: false, msg: result.msg || 'solver no solution', detail: result });
+  for (const s of stops) {
+    const cls = classifyVehicle(s.original_vehicle_no);
+    if (!cls.company || !groups[cls.company]) continue;  // 該当業者の号車プールがなければスキップ
+    groups[cls.company].stops.push(s);
+  }
 
-  // 6) DB 反映: 既存 td_dispatches を消して書き込み (delivery_day フィルタの場合はその範囲のみ)
+  // 6) 業者ごとに solveVRP 呼び出し → 結果統合
+  const allAssignments = [];
+  const allUnassigned = [];
+  let totalStats = { total_stops: 0, assigned_stops: 0, vehicles_used_real: 0, vehicles_used_charter: 0, total_sai_assigned: 0 };
+  const groupResults = {};
+
+  for (const [company, g] of Object.entries(groups)) {
+    if (!g.stops.length) continue;
+    const payload = {
+      depot_address: g.depot.address,
+      vehicles: g.vehicles,
+      stops: g.stops.map(s => ({
+        id: s.id, site_name: s.site_name, address: s.address || '', sai: s.sai, qty: s.qty,
+        time_spec: s.time_spec || null, service_min: s.service_min,
+      })),
+      time_limit_sec: timeLimit,
+      charter_max: 5,
+      charter_capacity: 600,
+      day_start_min: 7 * 60,
+      day_end_min: 18 * 60,
+    };
+    try {
+      const r = await solveVRP(payload, { timeoutSec: timeLimit + 30 });
+      if (!r.success) {
+        groupResults[company] = { error: r.msg || 'no solution' };
+        continue;
+      }
+      groupResults[company] = { stats: r.stats, depot: g.depot.name };
+      // 庸車IDに会社名サフィックスを付けて衝突回避
+      for (const a of r.assignments) {
+        if (a.is_charter) a.vehicle_id = `庸車-${company}-${a.vehicle_id.replace('庸車-','')}`;
+        a.depot = g.depot.key;
+      }
+      allAssignments.push(...r.assignments);
+      allUnassigned.push(...(r.unassigned || []).map(u => ({ ...u, company })));
+      totalStats.total_stops += r.stats.total_stops;
+      totalStats.assigned_stops += r.stats.assigned_stops;
+      totalStats.vehicles_used_real += r.stats.vehicles_used_real;
+      totalStats.vehicles_used_charter += r.stats.vehicles_used_charter;
+      totalStats.total_sai_assigned += r.stats.total_sai_assigned;
+    } catch (e) {
+      groupResults[company] = { error: e.message };
+    }
+  }
+
+  // 7) DB 反映
   const tx = db.transaction(() => {
     if (dayFilter) {
-      // 配送日フィルタ範囲の既存ストップを削除
       const targets = db.prepare(`SELECT DISTINCT vehicle_no FROM td_dispatches WHERE load_date = ?`).all(ld);
       for (const t of targets) {
         const cls = classifyVehicle(t.vehicle_no);
@@ -450,16 +489,18 @@ router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, re
     }
     const insStop = db.prepare(`INSERT INTO td_dispatches
       (load_date, vehicle_no, sequence, site_name, address, eta, time_spec, qty, sai, notes, ai_reason, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OR-Tools骨組み(Phase A)', 'pending')`);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`);
     const insMeta = db.prepare(`INSERT OR REPLACE INTO td_dispatch_meta
       (load_date, vehicle_no, vehicle_type, driver_token, status, driver_name)
       VALUES (?, ?, ?, ?, 'draft', '')`);
-    for (const a of result.assignments) {
+    for (const a of allAssignments) {
       insMeta.run(ld, a.vehicle_id, a.vehicle_type || '', gen8());
       for (const s of a.stops) {
-        const orig = stops.find(x => x.id === s.stop_id);
+        const stopList = Object.values(groups).flatMap(g => g.stops);
+        const orig = stopList.find(x => x.id === s.stop_id);
+        const reason = `OR-Tools骨組み (${a.depot || '座間'}起点)`;
         insStop.run(ld, a.vehicle_id, s.sequence, s.site_name, s.address || '',
-          s.eta || '', s.time_spec || null, orig?.qty || 0, orig?.sai || 0, '');
+          s.eta || '', s.time_spec || null, orig?.qty || 0, orig?.sai || 0, '', reason);
       }
     }
   });
@@ -467,9 +508,10 @@ router.post('/ortools-plan/:load_date', authUser, express.json(), async (req, re
 
   res.json({
     success: true,
-    msg: `OR-Tools配車完了: ${result.stats.assigned_stops}/${result.stats.total_stops}件 / 実車${result.stats.vehicles_used_real}台 / 庸車${result.stats.vehicles_used_charter}台`,
-    stats: result.stats,
-    unassigned: result.unassigned,
+    msg: `OR-Tools配車完了: ${totalStats.assigned_stops}/${totalStats.total_stops}件 / 実車${totalStats.vehicles_used_real}台 / 庸車${totalStats.vehicles_used_charter}台`,
+    stats: totalStats,
+    by_company: groupResults,
+    unassigned: allUnassigned,
   });
 });
 

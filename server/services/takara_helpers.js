@@ -28,4 +28,36 @@ const COMPANY_COLORS = {
   'その他':     { bg: '#64748b', light: '#e2e8f0', label: 'その他' },
 };
 
-module.exports = { classifyVehicle, COMPANY_COLORS };
+// 拠点マスタ (業者別の積替倉庫)
+//   スタ運/昭栄 → 座間積替倉庫
+//   ｶｰﾚﾝﾄ → 東扇島ESR DC1 (自社倉庫)
+const DEPOTS = {
+  '座間': {
+    key: '座間',
+    name: '座間積替倉庫',
+    address: '神奈川県座間市',
+    lat: 35.4869, lng: 139.4061,
+    icon: '🏢',
+  },
+  '東扇島': {
+    key: '東扇島',
+    name: 'ESR東扇島DC1 (ｶｰﾚﾝﾄ自社倉庫)',
+    address: '神奈川県川崎市川崎区東扇島',
+    lat: 35.5021, lng: 139.7742,
+    icon: '🏭',
+  },
+};
+
+const COMPANY_DEPOT = {
+  'スタ運':  '座間',
+  '昭栄':   '座間',
+  'ｶｰﾚﾝﾄ':  '東扇島',
+  '施工引取': '座間',
+  'その他':  '座間',
+};
+
+function depotForCompany(company) {
+  return DEPOTS[COMPANY_DEPOT[company] || '座間'];
+}
+
+module.exports = { classifyVehicle, COMPANY_COLORS, DEPOTS, COMPANY_DEPOT, depotForCompany };

@@ -85,7 +85,8 @@ async function api(path, opts = {}) {
 }
 function toast(m, err = false) { const t = document.getElementById('toast'); t.textContent = m; t.className = 'toast show' + (err ? ' error' : ''); setTimeout(() => t.className = 'toast', 2500); }
 
-let map, depotMarker;
+let map;
+let depotMarkers = {};  // depot_key → marker
 let layers = {};       // vehicle_no → L.LayerGroup
 let visible = {};      // vehicle_no → bool
 let curDate = null;
@@ -93,19 +94,26 @@ let curData = null;
 let dates = [];
 
 function vehColor(vehNo, idx) {
-  // HSLで色を巡回 (160度シフト)
   const h = (idx * 47) % 360;
   return `hsl(${h}, 70%, 45%)`;
 }
 
 function initMap() {
-  map = L.map('map').setView([35.4869, 139.4061], 10);
+  map = L.map('map').setView([35.495, 139.59], 10);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap', maxZoom: 18,
   }).addTo(map);
-  // 座間拠点
-  const depotIcon = L.divIcon({ className: '', html: '<div class="map-marker depot">🏢</div>', iconSize: [36,36], iconAnchor: [18,18] });
-  depotMarker = L.marker([35.4869, 139.4061], { icon: depotIcon }).addTo(map).bindPopup('<b>座間積替倉庫</b><br>全ルート起点');
+}
+
+function renderDepots(depots) {
+  // 既存depotマーカー削除
+  for (const k of Object.keys(depotMarkers)) map.removeLayer(depotMarkers[k]);
+  depotMarkers = {};
+  if (!depots) return;
+  for (const [key, d] of Object.entries(depots)) {
+    const icon = L.divIcon({ className: '', html: `<div class="map-marker depot">${d.icon || '🏢'}</div>`, iconSize: [36,36], iconAnchor: [18,18] });
+    depotMarkers[key] = L.marker([d.lat, d.lng], { icon }).addTo(map).bindPopup(`<b>${d.name}</b><br>${d.address}`);
+  }
 }
 
 async function loadDates() {
@@ -145,7 +153,8 @@ function render() {
   const vehicles = (curData?.vehicles || []).filter(v =>
     (!co || v.company === co) && (!day || v.delivery_day === day)
   );
-  // 既存レイヤー全消去
+  renderDepots(curData?.depots || {});
+
   for (const k of Object.keys(layers)) { map.removeLayer(layers[k]); }
   layers = {}; visible = {};
 
@@ -155,17 +164,21 @@ function render() {
     return;
   }
   let html = '';
-  const allBounds = [[35.4869, 139.4061]];
+  const allBounds = [];
+  // 拠点を境界に含める
+  if (curData?.depots) for (const d of Object.values(curData.depots)) allBounds.push([d.lat, d.lng]);
   vehicles.forEach((v, i) => {
     const color = vehColor(v.vehicle_no, i);
     const stops = v.stops.filter(s => s.lat != null);
     const noGeo = v.stops.length - stops.length;
     visible[v.vehicle_no] = true;
 
-    // レイヤー作成
+    // この号車の depot
+    const dep = v.depot || (curData?.depots && curData.depots[v.depot_key]) || { lat: 35.4869, lng: 139.4061, name: '座間積替倉庫', icon: '🏢' };
+
     const layer = L.layerGroup().addTo(map);
-    // 線
-    const path = [[35.4869, 139.4061], ...stops.map(s => [s.lat, s.lng]), [35.4869, 139.4061]];
+    // ルート線: depot → 各stop → depot
+    const path = [[dep.lat, dep.lng], ...stops.map(s => [s.lat, s.lng]), [dep.lat, dep.lng]];
     L.polyline(path, { color, weight: 3, opacity: 0.7 }).addTo(layer);
     // マーカー
     stops.forEach(s => {
@@ -200,6 +213,7 @@ function render() {
         <span class="veh-no">${v.vehicle_no}</span>
         <span class="co-badge" style="background:${bgColor}">${v.company || ''}</span>
         ${v.delivery_day === '土曜' ? '<span class="day-badge">土曜</span>' : ''}
+        <span style="margin-left:auto;font-size:11px;color:#475569;">${dep.icon || '🏢'} ${dep.name?.replace(/積替倉庫|\(.*\)/g,'').trim() || ''}</span>
       </div>
       <div class="veh-meta">${v.vehicle_type || '-'} / ${v.driver_name || '未割当'}</div>
       <div class="veh-stat">${v.stops.length}件 / ${Math.round(v.total_sai||0)}才 ${noGeo > 0 ? `<span class="geo-warn">⚠️ 未測位${noGeo}</span>` : ''}</div>
