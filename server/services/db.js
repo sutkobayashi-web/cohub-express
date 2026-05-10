@@ -177,6 +177,15 @@ function getDb() {
       VALUES (?, ?, ?, ?, 1, ?, ?)`);
     for (const t of seedTypes) ins.run(...t);
   } catch (e) {}
+  // ジオコードキャッシュ (Nominatim呼び出し結果)
+  _db.exec(`CREATE TABLE IF NOT EXISTS td_geocache (
+    address TEXT PRIMARY KEY,
+    lat REAL,
+    lng REAL,
+    source TEXT DEFAULT 'nominatim',
+    accuracy TEXT,
+    updated_at TEXT DEFAULT (datetime('now'))
+  );`);
   // 荷主アクセストークン
   _db.exec(`CREATE TABLE IF NOT EXISTS td_shipper_tokens (
     token TEXT PRIMARY KEY,

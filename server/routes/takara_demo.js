@@ -14,6 +14,7 @@ const { generateText } = require('../services/ai');
 const { generateTextClaude, normalizeVehicleType } = require('../services/ai_claude');
 const { classifyVehicle, COMPANY_COLORS } = require('../services/takara_helpers');
 const { solveVRP } = require('../services/ortools');
+const { geocode } = require('../services/geocoder');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -171,6 +172,82 @@ router.get('/sites/:load_date', authUser, (req, res) => {
 // 入力: load_date
 // 出力: td_dispatches に配車プラン保存 + JSON返却
 // ============================================================
+// ============================================================
+// ルート地図用 ジオコード (Nominatim) + マップデータ取得
+// ============================================================
+router.post('/geocode/:load_date', authUser, express.json(), async (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  // 配車中の住所一覧 (重複除去)
+  const stops = getDb().prepare(`SELECT DISTINCT address FROM td_dispatches WHERE load_date = ? AND address <> ''`).all(ld);
+  // 履歴住所 (現場名→住所マップで補完)
+  const histAddrs = getDb().prepare(`SELECT DISTINCT address FROM td_dispatch_history WHERE address <> ''`).all();
+  const all = new Set([...stops.map(s => s.address), ...histAddrs.map(h => h.address)]);
+  let processed = 0, hits = 0, fails = 0, cached = 0;
+  // クライアントはタイムアウト避けるため即時応答 (バックグラウンド処理)
+  res.json({ success: true, msg: `ジオコード処理開始 (${all.size}件)`, count: all.size });
+  // バックグラウンドで実行
+  (async () => {
+    for (const addr of all) {
+      processed++;
+      const r = await geocode(addr);
+      if (r) {
+        hits++;
+        if (r.cached) cached++;
+      } else fails++;
+    }
+    console.log(`[geocode] ${ld} done: ${hits}/${all.size} hits (cache${cached}), fails ${fails}`);
+  })().catch(e => console.error('geocode error', e));
+});
+
+// 単発住所のジオコード状況取得
+router.get('/geocode-status/:load_date', authUser, (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  const stops = getDb().prepare(`SELECT DISTINCT address FROM td_dispatches WHERE load_date = ? AND address <> ''`).all(ld);
+  let total = stops.length, hit = 0, fail = 0, pending = 0;
+  for (const s of stops) {
+    const c = getDb().prepare(`SELECT lat, accuracy FROM td_geocache WHERE address = ?`).get(s.address);
+    if (!c) pending++;
+    else if (c.lat != null) hit++;
+    else fail++;
+  }
+  res.json({ success: true, total, hit, fail, pending });
+});
+
+// ルート地図用データ (各号車のストップに緯度経度を付与)
+router.get('/route-map/:load_date', authUser, (req, res) => {
+  if (!isAdmin(req.uid)) return res.status(403).json({ success: false, msg: '管理者権限が必要です' });
+  const ld = req.params.load_date;
+  const stops = getDb().prepare(`SELECT * FROM td_dispatches WHERE load_date = ? ORDER BY vehicle_no, sequence`).all(ld);
+  const meta = getDb().prepare(`SELECT * FROM td_dispatch_meta WHERE load_date = ?`).all(ld);
+  const cacheRows = getDb().prepare(`SELECT * FROM td_geocache`).all();
+  const cache = new Map(cacheRows.map(c => [c.address, c]));
+  // 号車別グループ化
+  const byVeh = new Map();
+  for (const s of stops) {
+    if (!byVeh.has(s.vehicle_no)) byVeh.set(s.vehicle_no, { vehicle_no: s.vehicle_no, stops: [], total_sai: 0 });
+    const g = byVeh.get(s.vehicle_no);
+    const c = cache.get(s.address || '');
+    g.stops.push({
+      ...s,
+      lat: c && c.lat != null ? c.lat : null,
+      lng: c && c.lng != null ? c.lng : null,
+      geo_accuracy: c ? c.accuracy : null,
+    });
+    g.total_sai += s.sai || 0;
+  }
+  const vehicles = [...byVeh.values()].map(g => {
+    const m = meta.find(x => x.vehicle_no === g.vehicle_no) || {};
+    const cls = classifyVehicle(g.vehicle_no);
+    const geocoded = g.stops.filter(s => s.lat != null).length;
+    return { ...g, ...m, company: cls.company, delivery_day: cls.delivery_day, geocoded_count: geocoded };
+  });
+  // 座間拠点 (固定)
+  const depot = { lat: 35.4869, lng: 139.4061, name: '座間積替倉庫' };
+  res.json({ success: true, load_date: ld, depot, vehicles });
+});
+
 // ============================================================
 // 車種マスタ
 // ============================================================
