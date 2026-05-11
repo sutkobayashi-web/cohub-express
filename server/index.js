@@ -272,6 +272,7 @@ app.use('/api/help', require('./routes/help'));
 app.use('/api/timecard', require('./routes/timecard'));
 app.use('/api/meeting', require('./routes/meeting'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
+app.use('/api/members', require('./routes/members'));
 app.use('/api/takara', require('./routes/takara_demo'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====

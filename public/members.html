@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>メンバー一覧 - CoWell</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<style>
+:root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --sub:#64748b; --accent:#0d9488; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Hiragino Sans,system-ui,sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+header .back{background:none;border:none;font-size:22px;color:var(--ink);cursor:pointer;padding:4px 8px;border-radius:8px}
+header .back:hover{background:#f1f5f9}
+header h1{font-size:17px;font-weight:800;margin:0;flex:1}
+header .count{font-size:12px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:999px;font-weight:700}
+.toolbar{padding:12px 16px 8px;display:flex;flex-direction:column;gap:10px;max-width:1100px;margin:0 auto;width:100%}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;box-shadow:0 1px 3px rgba(15,23,42,0.04)}
+.search input{flex:1;border:none;outline:none;font-size:15px;background:transparent}
+.search .ico{color:var(--sub)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 12px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--sub);cursor:pointer;user-select:none;transition:all 0.15s}
+.chip:hover{border-color:#94a3b8;color:var(--ink)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip .n{opacity:0.75;margin-left:4px;font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
+.section{margin-top:16px}
+.section h2{font-size:13px;font-weight:800;color:var(--sub);margin:0 0 10px;padding-left:8px;border-left:3px solid var(--accent);letter-spacing:0.3px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.member{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 10px 12px;text-align:center;cursor:default;position:relative}
+.member.role-admin{background:linear-gradient(180deg,#fef3c7 0%,#fff 35%)}
+.member .ava{width:72px;height:72px;border-radius:50%;margin:0 auto 8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#64748b;overflow:hidden;border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,0.08)}
+.member.com-STD .ava{box-shadow:0 0 0 2px #1f2937,0 2px 6px rgba(15,23,42,0.08)}
+.member.com-KBC .ava{box-shadow:0 0 0 2px #2563eb,0 2px 6px rgba(15,23,42,0.08)}
+.member.com-SZE .ava{box-shadow:0 0 0 2px #059669,0 2px 6px rgba(15,23,42,0.08)}
+.member .ava img{width:100%;height:100%;object-fit:cover}
+.member .nm{font-size:13px;font-weight:800;color:var(--ink);line-height:1.3;margin-bottom:2px;word-break:break-all}
+.member .nk{font-size:11px;color:var(--sub);font-weight:600;min-height:14px;line-height:1.2}
+.member .gp{font-size:10px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:999px;display:inline-block;margin-top:6px;font-weight:700}
+.member .pro-badge{position:absolute;top:8px;right:8px;background:#7c3aed;color:#fff;font-size:9px;padding:2px 6px;border-radius:999px;font-weight:800;letter-spacing:0.3px}
+.empty{padding:60px 20px;text-align:center;color:var(--sub)}
+.empty .em{font-size:42px;margin-bottom:10px}
+@media (max-width:600px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+  .member{padding:12px 6px 10px;border-radius:12px}
+  .member .ava{width:60px;height:60px;font-size:24px;margin-bottom:6px}
+  .member .nm{font-size:12px}
+  .member .nk{font-size:10px}
+  .member .gp{font-size:9px;padding:1px 6px}
+}
+</style>
+</head>
+<body>
+<header>
+  <button class="back" onclick="history.length>1?history.back():(location.href='/')" aria-label="戻る">←</button>
+  <h1>👥 メンバー一覧</h1>
+  <span class="count" id="count">—</span>
+</header>
+
+<div class="toolbar">
+  <div class="search">
+    <span class="ico">🔍</span>
+    <input type="text" id="q" placeholder="名前・ニックネーム・拠点で検索" autocomplete="off">
+  </div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<main id="app">
+  <div class="empty"><div class="em">⏳</div>読み込み中...</div>
+</main>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) { location.href = '/'; }
+
+let allMembers = [];
+let currentFilter = '';
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function renderChips(){
+  const counts = {};
+  allMembers.forEach(m => { const g = m.group || '(未設定)'; counts[g] = (counts[g]||0) + 1; });
+  const groups = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  const total = allMembers.length;
+  const chipsEl = document.getElementById('chips');
+  let html = '<div class="chip ' + (currentFilter===''?'active':'') + '" data-g="">すべて<span class="n">'+total+'</span></div>';
+  groups.forEach(g => {
+    const val = g==='(未設定)' ? '__empty__' : g;
+    html += '<div class="chip ' + (currentFilter===val?'active':'') + '" data-g="'+escapeHtml(val)+'">'+escapeHtml(g)+'<span class="n">'+counts[g]+'</span></div>';
+  });
+  chipsEl.innerHTML = html;
+  chipsEl.querySelectorAll('.chip').forEach(c => c.onclick = () => { currentFilter = c.dataset.g; renderChips(); renderList(); });
+}
+
+function renderList(){
+  const q = (document.getElementById('q').value || '').trim().toLowerCase();
+  let list = allMembers.slice();
+  if (currentFilter === '__empty__') list = list.filter(m => !m.group);
+  else if (currentFilter) list = list.filter(m => m.group === currentFilter);
+  if (q) list = list.filter(m =>
+    (m.name && m.name.toLowerCase().includes(q)) ||
+    (m.nickname && m.nickname.toLowerCase().includes(q)) ||
+    (m.group && m.group.toLowerCase().includes(q))
+  );
+
+  document.getElementById('count').textContent = list.length + ' 名';
+
+  if (!list.length) {
+    document.getElementById('app').innerHTML = '<div class="empty"><div class="em">🔍</div>該当するメンバーはいません</div>';
+    return;
+  }
+
+  const byGroup = {};
+  list.forEach(m => { const g = m.group || '(未設定)'; (byGroup[g] = byGroup[g] || []).push(m); });
+  const groupOrder = Object.keys(byGroup).sort((a,b)=>{
+    if (a==='管理職') return -1;
+    if (b==='管理職') return 1;
+    return byGroup[b].length - byGroup[a].length;
+  });
+
+  let html = '';
+  groupOrder.forEach(g => {
+    html += '<section class="section"><h2>'+escapeHtml(g)+' ('+byGroup[g].length+')</h2><div class="grid">';
+    byGroup[g].forEach(m => {
+      const initial = (m.name||'?').trim().charAt(0);
+      const ava = m.avatar
+        ? '<img src="'+escapeHtml(m.avatar)+'" alt="" onerror="this.replaceWith(document.createTextNode(\''+escapeHtml(initial)+'\'))">'
+        : escapeHtml(initial);
+      html += '<div class="member com-'+escapeHtml(m.company)+' role-'+escapeHtml(m.role)+'">'
+        + (m.promoter ? '<span class="pro-badge">推進</span>' : '')
+        + '<div class="ava">'+ava+'</div>'
+        + '<div class="nm">'+escapeHtml(m.name)+'</div>'
+        + '<div class="nk">'+(m.nickname?escapeHtml(m.nickname):'&nbsp;')+'</div>'
+        + (m.group ? '<div class="gp">'+escapeHtml(m.group)+'</div>' : '')
+        + '</div>';
+    });
+    html += '</div></section>';
+  });
+  document.getElementById('app').innerHTML = html;
+}
+
+async function load(){
+  try {
+    const r = await fetch('/api/members', { headers: { Authorization: 'Bearer ' + token }});
+    if (r.status === 401) { localStorage.removeItem('cohub_token'); location.href = '/'; return; }
+    const j = await r.json();
+    if (!j.success) throw new Error(j.msg || 'fail');
+    allMembers = j.items || [];
+    renderChips();
+    renderList();
+  } catch (e) {
+    document.getElementById('app').innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込み失敗<br><span style="font-size:11px">'+escapeHtml(e.message||e)+'</span></div>';
+  }
+}
+
+document.getElementById('q').addEventListener('input', renderList);
+load();
+</script>
+</body>
+</html>
