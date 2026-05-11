@@ -105,19 +105,6 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div id="add-msg"></div>
   </div>
 
-  <div class="card">
-    <h2>CSV一括登録</h2>
-    <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-      形式: <code>login_id,display_name,company_code,password,role,employee_type,dm_group,dm_rank,birth_date</code> (5列目以降は省略可)<br>
-      所属コード: SU_HQ / SU_SAITAMA / SU_MKANTO / SU_ZAMA / IBA_KASHIMA / IBA_SANWA / SUZUE / ADMIN<br>
-      生年月日: YYYY-MM-DD (健診Box連携用、空欄可)<br>
-      例: <code>taro,山田太郎,SU_HQ,Pass1234,member,office,営業部,0,1985-04-15</code>
-    </div>
-    <textarea id="csv-input" placeholder="taro,山田太郎,SU_HQ,Pass1234"></textarea>
-    <div style="margin-top:8px;"><button class="btn" onclick="bulkAdd()">一括登録</button></div>
-    <div id="bulk-msg"></div>
-  </div>
-
   <!-- 外部相談窓口の集計 (本文/送信者は管理者でも見えない、件数のみ) -->
   <div class="card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border-left:4px solid #10b981;">
     <h2 style="color:#065f46;">🆘 外部相談窓口 (集計のみ) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">本文・送信者は管理者でも閲覧不可。NPO/専門家への匿名相談</span></h2>
@@ -1346,21 +1333,6 @@ async function addUser() {
   document.getElementById('new-birth').value = '';
   document.getElementById('new-guest-rev').checked = false;
   document.getElementById('new-guest-org').value = '';
-  loadUsers();
-}
-
-async function bulkAdd() {
-  const csv = document.getElementById('csv-input').value;
-  const msg = document.getElementById('bulk-msg');
-  const r = await fetch('/api/admin/users/bulk', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-    body: JSON.stringify({ csv })
-  });
-  const d = await r.json();
-  if (!d.success) { msg.className = 'err'; msg.textContent = d.msg || '失敗'; return; }
-  msg.className = 'ok';
-  msg.textContent = `追加: ${d.created}件 / スキップ: ${d.skipped}件` + (d.errors.length ? ` / エラー: ${d.errors.join(', ')}` : '');
   loadUsers();
 }
 
