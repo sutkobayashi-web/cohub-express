@@ -166,7 +166,7 @@ router.get('/groups', authUser, (req, res) => {
         (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
         EXISTS(SELECT 1 FROM chat_group_members WHERE group_id = g.id AND user_id = ?) AS is_member
       FROM chat_groups g
-      ORDER BY COALESCE(last_at, g.created_at) DESC
+      ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
     `).all(req.uid);
   } else {
     rows = getDb().prepare(`
@@ -178,7 +178,7 @@ router.get('/groups', authUser, (req, res) => {
       FROM chat_groups g
       JOIN chat_group_members m ON m.group_id = g.id
       WHERE m.user_id = ?
-      ORDER BY COALESCE(last_at, g.created_at) DESC
+      ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
     `).all(req.uid);
   }
   res.json({ success: true, groups: rows, is_manager_view: admin });

@@ -792,6 +792,13 @@ function getDb() {
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用
   _db.prepare("UPDATE users SET is_field_promoter = 1 WHERE login_id IN ('y_yoshizawa','a_yamada','e_sugai','taketake')").run();
+  // [migration] chat_groups に sort_order カラム追加 (idempotent)
+  try {
+    const cgCols = _db.prepare('PRAGMA table_info(chat_groups)').all().map(c => c.name);
+    if (!cgCols.includes('sort_order')) {
+      _db.prepare('ALTER TABLE chat_groups ADD COLUMN sort_order INTEGER DEFAULT 100').run();
+    }
+  } catch (e) { console.warn('[chat_groups sort_order migration]', e.message); }
   // 現場の声 専用グループチャット作成 (idempotent)
   const PROMOTER_GROUP_ID = 'g_field_voice';
   const grpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(PROMOTER_GROUP_ID);
@@ -843,6 +850,18 @@ function getDb() {
   for (const r of opsAdminRows) {
     memInsert.run(OPS_GROUP_ID, r.id);
   }
+  // 特殊GCの sort_order を権威的に設定 (idempotent)
+  const specialOrders = [
+    [OPS_GROUP_ID, 10],
+    [MANAGERS_GROUP_ID, 20],
+    [WELLNESS_DISC_ID, 30],
+    [PROMOTER_GROUP_ID, 40],
+  ];
+  for (const [gid, n] of specialOrders) {
+    _db.prepare('UPDATE chat_groups SET sort_order = ? WHERE id = ?').run(n, gid);
+  }
+  // dm_group由来 GC: 「管理職」を50、それ以外を100 (default) のまま (ユーザーが個別に並べ替え可能)
+  _db.prepare("UPDATE chat_groups SET sort_order = 50 WHERE name = '管理職'").run();
   // 事務所棟フロアの登場位置を正面玄関(下中央)に揃える
   _db.prepare(`UPDATE floors SET entry_x=672, entry_y=678
                WHERE code IN ('lobby','office','meeting_a','meeting_b','meeting_c')
