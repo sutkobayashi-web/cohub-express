@@ -76,7 +76,7 @@ router.post('/login', (req, res) => {
 
 // 自分の最新ユーザー情報 (フラグ追加時に既存ログイン中ユーザーが再取得できるよう)
 router.get('/me', authUser, (req, res) => {
-  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, dm_group, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at FROM users WHERE id = ?').get(req.uid);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
   const needsConsent = u.role !== 'bot' && u.consent_version !== CONSENT_VERSION;
   res.json({
@@ -96,6 +96,7 @@ router.get('/me', authUser, (req, res) => {
       guest_org: u.guest_org || null,
       birth_date: u.birth_date || null,
       nickname: u.nickname || null,
+      dm_group: u.dm_group || null,
       needs_nickname_setup: !u.nickname,
       consent_version: u.consent_version || null,
       consent_accepted_at: u.consent_accepted_at || null,
@@ -181,6 +182,26 @@ router.post('/change-password', authUser, express.json(), (req, res) => {
   db.prepare('UPDATE users SET password_hash = ?, session_token = ? WHERE id = ?').run(newHash, sid, u.id);
   const token = generateToken({ uid: u.id, role: (req.user && req.user.role) || 'member', sid });
   res.json({ success: true, token, msg: 'パスワードを変更しました' });
+});
+
+// 所属 (dm_group) 変更 (本人のみ)
+router.post('/dm-group', authUser, express.json(), (req, res) => {
+  const dg = String((req.body && req.body.dm_group) || '').trim();
+  if (dg.length === 0 || dg.length > 40) {
+    return res.status(400).json({ success: false, msg: '所属は1〜40文字で入力してください' });
+  }
+  if (/[ -]/.test(dg)) {
+    return res.status(400).json({ success: false, msg: '使えない文字が含まれています' });
+  }
+  const db = getDb();
+  db.prepare('UPDATE users SET dm_group = ? WHERE id = ?').run(dg, req.uid);
+  res.json({ success: true, dm_group: dg });
+});
+
+// 既存所属の候補リスト取得 (本人用のドロップダウン)
+router.get('/dm-groups', authUser, (req, res) => {
+  const rows = getDb().prepare("SELECT dm_group, COUNT(*) AS n FROM users WHERE dm_group IS NOT NULL AND dm_group <> '' AND COALESCE(role,'')<>'bot' GROUP BY dm_group ORDER BY n DESC").all();
+  res.json({ success: true, groups: rows.map(r => r.dm_group) });
 });
 
 // ポリシー評価専用 (リアルタイムバー表示用)

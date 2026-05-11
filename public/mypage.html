@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マイページ - CoWell</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<style>
+:root{--bg:#f8fafc;--card:#fff;--line:#e2e8f0;--ink:#0f172a;--sub:#64748b;--accent:#0d9488;--danger:#dc2626;--ok:#059669}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Hiragino Sans,system-ui,sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+header .back{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:8px}
+header .back:hover{background:#f1f5f9}
+header h1{font-size:17px;font-weight:800;margin:0;flex:1}
+main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
+.profile{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px}
+.profile .ava{width:72px;height:72px;border-radius:50%;background:#e2e8f0;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#64748b;border:3px solid #fff;box-shadow:0 0 0 2px #cbd5e1,0 2px 6px rgba(15,23,42,0.08)}
+.profile.com-STD .ava{box-shadow:0 0 0 2px #1f2937,0 2px 6px rgba(15,23,42,0.08)}
+.profile.com-KBC .ava{box-shadow:0 0 0 2px #2563eb,0 2px 6px rgba(15,23,42,0.08)}
+.profile.com-SZE .ava{box-shadow:0 0 0 2px #059669,0 2px 6px rgba(15,23,42,0.08)}
+.profile.com-NPO .ava{box-shadow:0 0 0 2px #f59e0b,0 2px 6px rgba(15,23,42,0.08)}
+.profile .ava img{width:100%;height:100%;object-fit:cover}
+.profile .info{flex:1;min-width:0}
+.profile .nm{font-size:18px;font-weight:800;line-height:1.3}
+.profile .id{font-size:12px;color:var(--sub);margin-top:2px;font-family:ui-monospace,'SF Mono',monospace}
+.profile .gp{display:inline-block;margin-top:6px;font-size:11px;background:#e0f2fe;color:#0369a1;padding:2px 10px;border-radius:999px;font-weight:700}
+.section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.section h2{font-size:14px;font-weight:800;color:var(--sub);margin:0 0 12px;padding-left:8px;border-left:3px solid var(--accent);letter-spacing:0.3px;display:flex;align-items:center;gap:8px}
+.section h2 .ic{font-size:18px;border-left:none;padding:0}
+.section .desc{font-size:12px;color:var(--sub);margin:-6px 0 12px;line-height:1.5}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;letter-spacing:0.3px}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;outline:none;font-family:inherit}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(13,148,136,0.15)}
+.row-2{display:flex;gap:8px}
+.row-2 select{flex:1}
+.row-2 input{flex:1}
+.btn{display:inline-block;padding:10px 18px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 10px rgba(13,148,136,0.30)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(13,148,136,0.40)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-ghost{background:#f1f5f9;color:#334155;border:1px solid var(--line)}
+.btn-ghost:hover{background:#e2e8f0}
+.btn-block{display:block;width:100%}
+.msg{font-size:12px;min-height:16px;margin-top:6px;font-weight:600}
+.msg.err{color:var(--danger)}
+.msg.ok{color:var(--ok)}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#0f172a;color:#fff;padding:12px 24px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:all 0.25s;pointer-events:none;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.pw-bar{height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden;margin-top:4px}
+.pw-bar i{display:block;height:100%;width:0;background:var(--danger);transition:all 0.2s}
+.pw-bar i.s2{background:#f59e0b;width:50%}
+.pw-bar i.s3{background:#10b981;width:80%}
+.pw-bar i.s4{background:#059669;width:100%}
+.pw-hint{font-size:11px;color:var(--sub);line-height:1.5;margin-top:6px}
+.pw-hint b{color:var(--ink)}
+@media(max-width:600px){
+  .profile .ava{width:60px;height:60px;font-size:24px}
+  .profile .nm{font-size:16px}
+  main{padding:12px 12px 60px}
+}
+</style>
+</head>
+<body>
+<header>
+  <button class="back" onclick="history.length>1?history.back():(location.href='/')" aria-label="戻る">←</button>
+  <h1>👤 マイページ</h1>
+</header>
+
+<main>
+  <div class="profile" id="profile-card">
+    <div class="ava" id="me-ava">?</div>
+    <div class="info">
+      <div class="nm" id="me-name">読み込み中…</div>
+      <div class="id" id="me-id"></div>
+      <span class="gp" id="me-gp" style="display:none;"></span>
+    </div>
+  </div>
+
+  <!-- ニックネーム -->
+  <div class="section">
+    <h2><span class="ic">🏷</span>ニックネーム</h2>
+    <div class="desc">匿名投稿や他の社員からの呼び方として使われます。2〜20文字。</div>
+    <div class="field">
+      <input type="text" id="nick" maxlength="20" placeholder="例) たろちゃん">
+    </div>
+    <button class="btn btn-primary" id="save-nick" onclick="saveNickname()">変更を保存</button>
+    <div class="msg" id="nick-msg"></div>
+  </div>
+
+  <!-- 所属 -->
+  <div class="section">
+    <h2><span class="ic">🏢</span>所属</h2>
+    <div class="desc">所属する拠点・グループ。一覧画面や日報集計に使われます。</div>
+    <div class="field">
+      <label>既存の所属から選ぶ</label>
+      <select id="dg-select">
+        <option value="">― 選択 ―</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>または新しい所属を入力</label>
+      <input type="text" id="dg-input" maxlength="40" placeholder="例) SU横浜">
+    </div>
+    <button class="btn btn-primary" id="save-dg" onclick="saveDmGroup()">変更を保存</button>
+    <div class="msg" id="dg-msg"></div>
+  </div>
+
+  <!-- パスワード -->
+  <div class="section">
+    <h2><span class="ic">🔒</span>パスワード変更</h2>
+    <div class="desc">変更後はすべての端末から再ログインが必要になります。</div>
+    <div class="field">
+      <label>現在のパスワード</label>
+      <input type="password" id="pw-cur" autocomplete="current-password">
+    </div>
+    <div class="field">
+      <label>新しいパスワード</label>
+      <input type="password" id="pw-new" autocomplete="new-password">
+      <div class="pw-bar"><i id="pw-bar"></i></div>
+      <div class="pw-hint">
+        <b>条件:</b> 8文字以上 / 英大文字・小文字・数字・記号のうち <b>3種類以上</b><br>
+        ログインIDや表示名・連続文字 (abc / 123) は使えません。
+      </div>
+    </div>
+    <div class="field">
+      <label>新しいパスワード(確認)</label>
+      <input type="password" id="pw-new2" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" id="save-pw" onclick="savePassword()">パスワードを変更</button>
+    <div class="msg" id="pw-msg"></div>
+  </div>
+
+  <!-- アバター -->
+  <div class="section">
+    <h2><span class="ic">📷</span>アバター撮影</h2>
+    <div class="desc">スマートフォンで自分の顔を撮影 → AIがアニメ風に変換 → 3候補から1つ選ぶ流れです。</div>
+    <button class="btn btn-primary btn-block" onclick="location.href='/avatar.html'">📸 アバターを撮り直す</button>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) { location.replace('/'); }
+
+let me = null;
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+  return r.json();
+}
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2000);
+}
+function setMsg(id, text, kind){
+  const el = document.getElementById(id);
+  el.textContent = text || '';
+  el.className = 'msg' + (kind?' '+kind:'');
+}
+
+async function loadMe(){
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) return;
+  me = r.user;
+  // profile card
+  const card = document.getElementById('profile-card');
+  card.classList.add('com-' + (me.company_code || 'STD'));
+  const ava = document.getElementById('me-ava');
+  if (me.avatar_url) {
+    ava.innerHTML = '<img src="' + escapeHtml(me.avatar_url) + '?_=' + Date.now() + '" alt="">';
+  } else {
+    ava.textContent = (me.display_name || '?').trim().charAt(0);
+  }
+  document.getElementById('me-name').textContent = me.display_name || '';
+  document.getElementById('me-id').textContent = '@' + (me.login_id || '');
+  const gp = document.getElementById('me-gp');
+  if (me.dm_group) { gp.textContent = me.dm_group; gp.style.display = ''; }
+  // fields
+  document.getElementById('nick').value = me.nickname || '';
+  document.getElementById('dg-input').value = me.dm_group || '';
+}
+
+async function loadGroups(){
+  const r = await api('/api/auth/dm-groups');
+  if (!r || !r.success) return;
+  const sel = document.getElementById('dg-select');
+  sel.innerHTML = '<option value="">― 選択 ―</option>' + r.groups.map(g =>
+    '<option value="' + escapeHtml(g) + '"' + (me && me.dm_group === g ? ' selected' : '') + '>' + escapeHtml(g) + '</option>'
+  ).join('');
+  sel.addEventListener('change', () => {
+    if (sel.value) document.getElementById('dg-input').value = sel.value;
+  });
+}
+
+// ニックネーム保存
+async function saveNickname(){
+  const nick = document.getElementById('nick').value.trim();
+  if (!nick) { setMsg('nick-msg', 'ニックネームを入力してください', 'err'); return; }
+  if (nick === me.nickname) { setMsg('nick-msg', '変更がありません', 'err'); return; }
+  const btn = document.getElementById('save-nick');
+  btn.disabled = true;
+  setMsg('nick-msg', '');
+  try {
+    const r = await api('/api/auth/nickname', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname: nick }),
+    });
+    if (!r || !r.success) { setMsg('nick-msg', (r && r.msg) || '保存失敗', 'err'); return; }
+    me.nickname = r.nickname;
+    setMsg('nick-msg', '保存しました', 'ok');
+    toast('ニックネームを更新しました');
+  } finally { btn.disabled = false; }
+}
+
+// 所属保存
+async function saveDmGroup(){
+  const dg = document.getElementById('dg-input').value.trim();
+  if (!dg) { setMsg('dg-msg', '所属を入力してください', 'err'); return; }
+  if (dg === me.dm_group) { setMsg('dg-msg', '変更がありません', 'err'); return; }
+  const btn = document.getElementById('save-dg');
+  btn.disabled = true;
+  setMsg('dg-msg', '');
+  try {
+    const r = await api('/api/auth/dm-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dm_group: dg }),
+    });
+    if (!r || !r.success) { setMsg('dg-msg', (r && r.msg) || '保存失敗', 'err'); return; }
+    me.dm_group = r.dm_group;
+    document.getElementById('me-gp').textContent = r.dm_group;
+    document.getElementById('me-gp').style.display = '';
+    setMsg('dg-msg', '保存しました', 'ok');
+    toast('所属を更新しました');
+    loadGroups();
+  } finally { btn.disabled = false; }
+}
+
+// パスワード強度 (簡易・サーバー側でも検証)
+function pwStrength(p, login, name){
+  if (!p || p.length < 8) return 0;
+  let kinds = 0;
+  if (/[a-z]/.test(p)) kinds++;
+  if (/[A-Z]/.test(p)) kinds++;
+  if (/[0-9]/.test(p)) kinds++;
+  if (/[^a-zA-Z0-9]/.test(p)) kinds++;
+  if (kinds < 3) return 1;
+  if (login && p.toLowerCase().includes(login.toLowerCase())) return 1;
+  if (name && p.includes(name)) return 1;
+  if (p.length >= 12) return 4;
+  if (p.length >= 10) return 3;
+  return 2;
+}
+document.getElementById('pw-new').addEventListener('input', () => {
+  const p = document.getElementById('pw-new').value;
+  const s = pwStrength(p, me && me.login_id, me && me.display_name);
+  const bar = document.getElementById('pw-bar');
+  bar.className = s >= 2 ? ('s' + s) : '';
+});
+
+async function savePassword(){
+  const cur = document.getElementById('pw-cur').value;
+  const np = document.getElementById('pw-new').value;
+  const np2 = document.getElementById('pw-new2').value;
+  if (!cur || !np) { setMsg('pw-msg', '現在と新しいパスワードを入力してください', 'err'); return; }
+  if (np !== np2) { setMsg('pw-msg', '新パスワードの確認が一致しません', 'err'); return; }
+  if (np.length < 8) { setMsg('pw-msg', '新パスワードは8文字以上必要です', 'err'); return; }
+  if (cur === np) { setMsg('pw-msg', '新しいパスワードは現在と同じにできません', 'err'); return; }
+  const btn = document.getElementById('save-pw');
+  btn.disabled = true;
+  setMsg('pw-msg', '');
+  try {
+    const r = await api('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: cur, new_password: np }),
+    });
+    if (!r || !r.success) { setMsg('pw-msg', (r && r.msg) || '変更失敗', 'err'); return; }
+    if (r.token) localStorage.setItem('cohub_token', r.token);
+    document.getElementById('pw-cur').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-new2').value = '';
+    document.getElementById('pw-bar').className = '';
+    setMsg('pw-msg', 'パスワードを変更しました', 'ok');
+    toast('パスワードを更新しました');
+  } finally { btn.disabled = false; }
+}
+
+(async () => {
+  await loadMe();
+  await loadGroups();
+})();
+</script>
+</body>
+</html>
