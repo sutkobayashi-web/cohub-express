@@ -61,7 +61,7 @@ main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
 <div class="toolbar">
   <div class="search">
     <span class="ico">🔍</span>
-    <input type="text" id="q" placeholder="名前・ニックネーム・拠点で検索" autocomplete="off">
+    <input type="text" id="q" placeholder="名前・拠点で検索" autocomplete="off">
   </div>
   <div class="chips" id="chips"></div>
 </div>
@@ -101,7 +101,6 @@ function renderList(){
   else if (currentFilter) list = list.filter(m => m.group === currentFilter);
   if (q) list = list.filter(m =>
     (m.name && m.name.toLowerCase().includes(q)) ||
-    (m.nickname && m.nickname.toLowerCase().includes(q)) ||
     (m.group && m.group.toLowerCase().includes(q))
   );
 
@@ -132,7 +131,6 @@ function renderList(){
         + (m.promoter ? '<span class="pro-badge">推進</span>' : '')
         + '<div class="ava">'+ava+'</div>'
         + '<div class="nm">'+escapeHtml(m.name)+'</div>'
-        + '<div class="nk">'+(m.nickname?escapeHtml(m.nickname):'&nbsp;')+'</div>'
         + (m.group ? '<div class="gp">'+escapeHtml(m.group)+'</div>' : '')
         + '</div>';
     });

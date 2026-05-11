@@ -6,11 +6,12 @@ const { authUser } = require('../middleware/auth');
 // GET /api/members - 全社員一覧 (閲覧専用、認証必要)
 router.get('/', authUser, (req, res) => {
   try {
+    // ニックネームは匿名投稿のアイデンティティとして使われるため、
+    // メンバーディレクトリでは返さない (実名とニックネームを紐付けさせない)
     const rows = getDb().prepare(`
       SELECT
         id,
         display_name,
-        nickname,
         company_code,
         dm_group,
         avatar_url,
@@ -29,11 +30,9 @@ router.get('/', authUser, (req, res) => {
         display_name COLLATE NOCASE
     `).all();
 
-    // 一覧用に最小限の情報だけ返す (login_id, session_token等は出さない)
     const items = rows.map(r => ({
       id: r.id,
       name: r.display_name,
-      nickname: r.nickname || '',
       company: r.company_code || 'STD',
       group: r.dm_group || '',
       avatar: r.avatar_url || '',
