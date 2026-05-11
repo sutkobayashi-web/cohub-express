@@ -25,15 +25,33 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 .progress .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; }
 .progress .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
 .list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.subj { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; position: relative; }
+.subj { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 30px 8px 10px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center; position: relative; min-height: 140px; }
 .subj:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(20,184,166,.15); }
 .subj .av { width: 48px; height: 48px; border-radius: 50%; background: var(--chip); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
 .subj .av img { width: 100%; height: 100%; object-fit: cover; }
 .subj .name { font-weight: 600; font-size: 14px; line-height: 1.3; }
 .subj .co { color: var(--mute); font-size: 11px; }
-.subj .badge { background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 10px; font-weight: 600; }
+.subj .badges { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
+.subj .badge { background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
 .subj.posted { background: #f0fdfa; border-color: #5eead4; }
-.subj .urg-mark { position: absolute; top: 6px; right: 6px; font-size: 14px; }
+/* 2つの調査結果バッジを左上(HL)/右上(聞き取り)に配置 */
+.subj .stat-mark {
+  position: absolute; top: 5px; font-size: 10px; padding: 2px 6px;
+  border-radius: 6px; max-width: 47%; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 600;
+}
+.subj .stat-hl { left: 5px; background: #f1f5f9; color: var(--mute); }
+.subj .stat-hl.recent { background: #ccfbf1; color: var(--accent-d); }
+.subj .stat-hl.stale { background: #fef3c7; color: #92400e; }
+.subj .stat-hl.none { background: #fee2e2; color: #991b1b; }
+.subj .stat-post { right: 5px; background: #f1f5f9; color: var(--mute); }
+.subj .stat-post.today { background: #ccfbf1; color: var(--accent-d); }
+.subj .stat-post.recent { background: #e0f2fe; color: #075985; }
+.subj .stat-post.old { background: #f1f5f9; color: var(--mute); }
+.subj .stat-post.high { background: #fee2e2; color: #991b1b; }
+.subj .stat-post.mid { background: #fef3c7; color: #92400e; }
+.subj .stat-post.none { background: #fee2e2; color: #991b1b; }
 .empty { padding: 40px 20px; text-align: center; color: var(--mute); }
 .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
 .modal-bg.show { display: flex; }
@@ -78,9 +96,6 @@ textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(-
 .scale-opt.on .v { color: var(--accent-d); }
 .hl-actions { display: flex; gap: 8px; margin-top: 6px; }
 .hl-clear { font-size: 11px; color: var(--mute); background: none; border: none; cursor: pointer; padding: 2px 6px; text-decoration: underline; }
-.subj .hl-mark { position: absolute; top: 6px; left: 6px; font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #f1f5f9; color: var(--mute); }
-.subj .hl-mark.recent { background: #ccfbf1; color: var(--accent-d); font-weight: 700; }
-.subj .hl-mark.none, .subj .hl-mark.stale { background: #fef3c7; color: #92400e; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -189,7 +204,17 @@ async function init() {
   await loadHlMeta();
   await loadSubjects();
   await loadHlSubjects();
-  await loadTodayPosts();
+  recomputePostedToday();
+  renderList();
+  updateProgress();
+}
+
+function recomputePostedToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  postedToday = new Set();
+  for (const s of subjects) {
+    if (s.last_post_at && s.last_post_at.slice(0, 10) === today) postedToday.add(s.id);
+  }
 }
 
 async function loadHlMeta() {
@@ -215,16 +240,30 @@ async function loadHlSubjects() {
 
 function hlStatusFor(uid) {
   const h = hlBySubject.get(uid);
-  if (!h || !h.last_answered_at) return { state: 'none', label: '📊 未回答', days: null, score: null };
+  if (!h || !h.last_answered_at) return { state: 'none', label: '📊 未', days: null, score: null };
   const ts = h.last_answered_at + (h.last_answered_at.endsWith('Z') ? '' : 'Z');
   const dt = new Date(ts);
   const days = Math.floor((Date.now() - dt.getTime()) / 86400000);
   const score = (h.last_avg_score == null) ? null : Number(h.last_avg_score);
-  const scoreLabel = score == null ? '' : ' ' + score.toFixed(1) + '点';
+  const scoreLabel = score == null ? '' : ' ' + score.toFixed(1);
+  const dayLabel = days === 0 ? '本日' : days + '日前';
   if (days < HL_RECENT_DAYS) {
-    return { state: 'recent', label: '📊 ' + (days === 0 ? '本日' : days + '日前') + scoreLabel, days, score };
+    return { state: 'recent', label: '📊 ' + dayLabel + scoreLabel, days, score };
   }
-  return { state: 'stale', label: '📊 ' + days + '日前' + scoreLabel + ' (要更新)', days, score };
+  return { state: 'stale', label: '📊 ' + dayLabel + scoreLabel, days, score };
+}
+
+function postStatusFor(s) {
+  if (!s.last_post_at) return { state: 'none', label: '🩺 未', days: null };
+  const ts = s.last_post_at + (s.last_post_at.endsWith('Z') ? '' : 'Z');
+  const dt = new Date(ts);
+  const days = Math.floor((Date.now() - dt.getTime()) / 86400000);
+  const urgMark = s.last_urgency === '高' ? '🔴' : s.last_urgency === '中' ? '🟡' : '🟢';
+  const dayLabel = days === 0 ? '本日' : days + '日前';
+  let state = 'old';
+  if (days === 0) state = (s.last_urgency === '高' ? 'high' : s.last_urgency === '中' ? 'mid' : 'today');
+  else if (days < 7) state = 'recent';
+  return { state, label: '🩺 ' + dayLabel + urgMark, days, urgency: s.last_urgency };
 }
 
 async function loadSubjects() {
@@ -237,23 +276,6 @@ async function loadSubjects() {
   renderList();
 }
 
-async function loadTodayPosts() {
-  // 統合後は source_type='聞き取り' を取得対象、過去互換で運管/倉庫もカウント
-  const today = new Date().toISOString().slice(0, 10);
-  postedToday = new Set();
-  const sources = ['聞き取り', '運管', '倉庫'];
-  for (const src of sources) {
-    const r = await api('/api/wellness/posts?source_type=' + encodeURIComponent(src) + '&limit=200');
-    if (!r || !r.success) continue;
-    for (const p of (r.posts || [])) {
-      if (p.created_at && p.created_at.slice(0, 10) === today && p.subject_user_id) {
-        postedToday.add(p.subject_user_id);
-      }
-    }
-  }
-  renderList();
-  updateProgress();
-}
 
 function updateProgress() {
   const wrap = document.getElementById('prog-wrap');
@@ -273,7 +295,7 @@ function renderList() {
     el.innerHTML = '<div class="empty">同じ営業所のメンバーが見つかりません。</div>';
     return;
   }
-  // (1)本日聞き取り済みを後ろへ (2)HL未回答/古い人を前へ (3)名前順
+  // (1)本日聞き取り済みを後ろへ (2)HL未/古い人を前へ (3)聞き取り古い人を前へ (4)名前順
   const sorted = subjects.slice().sort((a, b) => {
     const pa = postedToday.has(a.id) ? 1 : 0;
     const pb = postedToday.has(b.id) ? 1 : 0;
@@ -282,18 +304,25 @@ function renderList() {
     const hb = hlStatusFor(b.id);
     const rank = { none: 0, stale: 1, recent: 2 };
     if (rank[ha.state] !== rank[hb.state]) return rank[ha.state] - rank[hb.state];
+    const pad = a.last_post_at ? new Date(a.last_post_at).getTime() : 0;
+    const pbd = b.last_post_at ? new Date(b.last_post_at).getTime() : 0;
+    if (pad !== pbd) return pad - pbd; // 古い/未を先頭へ
     return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
   });
   const html = sorted.map(s => {
     const posted = postedToday.has(s.id);
     const ic = s.avatar_url ? `<img src="${escapeHtml(s.avatar_url)}" alt="">` : '👤';
     const hl = hlStatusFor(s.id);
+    const ps = postStatusFor(s);
     return `<div class="subj ${posted ? 'posted' : ''}" onclick="openCard('${escapeHtml(s.id)}')">
-      <div class="hl-mark ${hl.state}">${escapeHtml(hl.label)}</div>
+      <div class="stat-mark stat-hl ${hl.state}" title="ヘルスリテラシー">${escapeHtml(hl.label)}</div>
+      <div class="stat-mark stat-post ${ps.state}" title="聞き取り (最新${ps.urgency ? ' / 緊急度: '+ps.urgency : ''})">${escapeHtml(ps.label)}</div>
       <div class="av">${ic}</div>
       <div class="name">${escapeHtml(s.display_name)}</div>
       <div class="co">${escapeHtml(s.company_code || '-')}</div>
-      ${posted ? '<div class="badge">本日 済</div>' : ''}
+      <div class="badges">
+        ${posted ? '<div class="badge">本日聞済</div>' : ''}
+      </div>
     </div>`;
   }).join('');
   el.innerHTML = html;
@@ -439,6 +468,13 @@ async function submitCard() {
       if (r && r.success) {
         msgs.push(`🩺#${r.post_id} ${r.urgency}/${r.category}`);
         postedToday.add(subjectId);
+        // タイル即時反映用に subject の最新聞き取り情報を更新
+        const subj = subjects.find(x => x.id === subjectId);
+        if (subj) {
+          subj.last_post_at = new Date().toISOString();
+          subj.last_urgency = r.urgency;
+          subj.last_category = r.category;
+        }
       } else {
         anyFail = true;
         msgs.push('🩺❌ ' + (r && r.msg || '送信失敗'));
