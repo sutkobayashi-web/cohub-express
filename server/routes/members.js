@@ -14,6 +14,7 @@ router.get('/', authUser, (req, res) => {
         display_name,
         company_code,
         dm_group,
+        dm_rank,
         avatar_url,
         employee_type,
         role,
@@ -27,6 +28,7 @@ router.get('/', authUser, (req, res) => {
       ORDER BY
         CASE WHEN dm_group IS NULL OR dm_group = '' THEN 1 ELSE 0 END,
         dm_group COLLATE NOCASE,
+        COALESCE(dm_rank, 0) DESC,
         display_name COLLATE NOCASE
     `).all();
 
@@ -35,6 +37,7 @@ router.get('/', authUser, (req, res) => {
       name: r.display_name,
       company: r.company_code || 'STD',
       group: r.dm_group || '',
+      rank: r.dm_rank | 0,
       avatar: r.avatar_url || '',
       type: r.employee_type || 'office',
       promoter: !!r.is_field_promoter,
