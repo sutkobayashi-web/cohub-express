@@ -219,11 +219,10 @@ router.post('/users/bulk', authAdmin, (req, res) => {
 router.post('/sync-dm-groups', authAdmin, (req, res) => {
   const db = getDb();
 
-  // dm_group由来GCの判定: id が g_* で始まらず、name が「現場」suffixでないもの
+  // dm_group由来GCの判定: id が g_* で始まらないもの (= 通常のdm_group同期対象)
   const isDmDerivedGroup = (g) => {
     if (!g) return false;
     if (g.id && g.id.startsWith('g_')) return false;
-    if (g.name && / 現場$/.test(g.name)) return false;
     return true;
   };
 
