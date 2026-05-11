@@ -165,6 +165,13 @@
   .hero .mypage-btn:active { transform: translateY(0); }
   .hero .mypage-btn .ic { font-size: 22px; line-height: 1; }
   .hero .mypage-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
+  .hero .mypage-btn .ava {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.85);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    flex-shrink: 0;
+  }
 
   /* セクション見出し */
   .sec-title {
@@ -322,6 +329,7 @@
     .hero .mypage-btn { width: 54px; height: 54px; border-radius: 14px; }
     .hero .mypage-btn .ic { font-size: 18px; }
     .hero .mypage-btn .lbl { font-size: 10px; }
+    .hero .mypage-btn .ava { width: 28px; height: 28px; border-width: 1.5px; }
     /* スマホはQR非表示 (既にスマホで開いているため不要) */
     #qr-mobile { display: none !important; }
     .grid { grid-template-columns: 1fr; gap: 12px; }
@@ -385,7 +393,8 @@
       <span class="lbl">打刻</span>
     </a>
     <a href="/mypage.html" id="hero-mypage-btn" class="mypage-btn" title="マイページ" aria-label="マイページ">
-      <span class="ic">👤</span>
+      <img id="mypage-btn-avatar" class="ava" alt="" style="display:none;">
+      <span class="ic" id="mypage-btn-icon">👤</span>
       <span class="lbl">マイページ</span>
     </a>
     <!-- スマホ用QRコード (PC画面のみ表示) -->
@@ -393,7 +402,6 @@
       <img src="/img/qr-mobile.png?v=20260511" alt="モバイル版QR" style="width:64px;height:64px;display:block;image-rendering:pixelated;">
       <div style="font-size:10px;color:#0f766e;font-weight:700;letter-spacing:0.3px;margin-top:2px;">📱 スマホ版</div>
     </div>
-    <img id="me-avatar" class="me-avatar" alt="" style="display:none;">
   </div>
 
   <!-- 主要メニュー -->
@@ -630,19 +638,21 @@ async function init() {
 
   let greetHtml = g.word + '、<strong>' + escapeHtml(me.display_name) + '</strong>さん';
   const tcBtn = $('hero-timecard-btn');
-  const heroAva = $('me-avatar');
 
-  if (isFieldStaff) {
-    // 現場系: 右端にアバター大、打刻ボタンなし
-    if (me.avatar_url) { heroAva.src = me.avatar_url; heroAva.style.display = ''; }
-  } else {
-    // 事務/管理職: 右端に打刻ボタン、アバターは挨拶テキスト末尾にインライン
+  if (!isFieldStaff) {
+    // 事務/管理職: 打刻ボタンを表示 (現場系は別途打刻があるため非表示のまま)
     tcBtn.style.display = '';
-    if (me.avatar_url) {
-      greetHtml += '<img class="me-avatar-inline" src="' + escapeHtml(me.avatar_url) + '" alt="">';
-    }
   }
   $('greet').innerHTML = greetHtml;
+
+  // マイページボタンに本人アバターを埋め込み (絵文字👤を置換)
+  if (me.avatar_url) {
+    const ava = $('mypage-btn-avatar');
+    const ico = $('mypage-btn-icon');
+    ava.src = me.avatar_url;
+    ava.style.display = '';
+    if (ico) ico.style.display = 'none';
+  }
 
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;
