@@ -151,6 +151,20 @@
   .hero .timecard-btn:active { transform: translateY(0); }
   .hero .timecard-btn .ic { font-size: 24px; line-height: 1; }
   .hero .timecard-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
+  .hero .mypage-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, #94a3b8, #475569);
+    color: #fff; border: none; border-radius: 16px;
+    cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(71,85,105,0.30);
+    text-decoration: none; gap: 1px;
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .hero .mypage-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(71,85,105,0.40); }
+  .hero .mypage-btn:active { transform: translateY(0); }
+  .hero .mypage-btn .ic { font-size: 22px; line-height: 1; }
+  .hero .mypage-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
 
   /* セクション見出し */
   .sec-title {
@@ -247,7 +261,6 @@
   .card.challenges { --c1: #fb923c; --c2: #f97316; }
   .card.meeting    { --c1: #818cf8; --c2: #4338ca; }
   .card.literacy   { --c1: #2dd4bf; --c2: #0d9488; }
-  .card.mypage     { --c1: #cbd5e1; --c2: #475569; }
   .card.members    { --c1: #fda4af; --c2: #e11d48; }
   .card.takara     { --c1: #f87171; --c2: #1e40af; }
 
@@ -306,6 +319,9 @@
     .hero .timecard-btn { width: 54px; height: 54px; border-radius: 14px; }
     .hero .timecard-btn .ic { font-size: 20px; }
     .hero .timecard-btn .lbl { font-size: 10px; }
+    .hero .mypage-btn { width: 54px; height: 54px; border-radius: 14px; }
+    .hero .mypage-btn .ic { font-size: 18px; }
+    .hero .mypage-btn .lbl { font-size: 10px; }
     /* スマホはQR非表示 (既にスマホで開いているため不要) */
     #qr-mobile { display: none !important; }
     .grid { grid-template-columns: 1fr; gap: 12px; }
@@ -367,6 +383,10 @@
     <a href="/timecard" id="hero-timecard-btn" class="timecard-btn" title="打刻" aria-label="打刻" style="display:none;">
       <span class="ic">⏰</span>
       <span class="lbl">打刻</span>
+    </a>
+    <a href="/mypage.html" id="hero-mypage-btn" class="mypage-btn" title="マイページ" aria-label="マイページ">
+      <span class="ic">👤</span>
+      <span class="lbl">マイページ</span>
     </a>
     <!-- スマホ用QRコード (PC画面のみ表示) -->
     <div id="qr-mobile" style="display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px 4px;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;">
@@ -435,11 +455,6 @@
       <div class="icon-pill">👥</div>
       <div class="label">メンバー一覧</div>
       <div class="desc">全社員をアバター付きで一覧表示。拠点別に絞り込み・名前で検索可能。</div>
-    </a>
-    <a class="card mypage" href="/mypage.html">
-      <div class="icon-pill">👤</div>
-      <div class="label">マイページ</div>
-      <div class="desc">ニックネーム・所属・パスワード・アバターの変更。</div>
     </a>
   </div>
 
