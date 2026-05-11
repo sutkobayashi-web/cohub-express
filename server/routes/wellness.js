@@ -4,7 +4,6 @@ const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 
 const PROMOTER_GROUP_ID = 'g_field_voice';
-const WAREHOUSE_GROUP_ID = 'g_warehouse_voice';
 const WELLNESS_DISC_ID = 'g_wellness_disc';
 const LOBBY_ANNOUNCE_ROOM = 'lobby';  // 全社アナウンスはロビーフロアの公開チャットへ
 
@@ -230,7 +229,6 @@ router.get('/meta', authUser, (req, res) => {
     can_approve_actions: wm,           // 承認/却下は管理職のみ (ゲストはレビューコメントのみ)
     can_edit_actions: wm || fp || wp,  // 起票/編集は管理職+推進メンバー(運管/倉庫) (ゲストは閲覧のみ)
     group_id: PROMOTER_GROUP_ID,
-    warehouse_group_id: WAREHOUSE_GROUP_ID,
     disc_group_id: WELLNESS_DISC_ID,
     categories: CATEGORIES,
     warehouse_categories: WAREHOUSE_CATEGORIES,
@@ -1656,7 +1654,7 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
   if (memo) lines.push('─ メモ ─', memo);
   const content = lines.join('\n');
 
-  const targetGroupId = PROMOTER_GROUP_ID;  // 統合後は g_field_voice 一本
+  const targetGroupId = PROMOTER_GROUP_ID;  // 運管/倉庫いずれも g_field_voice に集約
   const roomCode = 'grp_' + targetGroupId;
   const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, NULL, ?, ?)`)
     .run(poster.id, content, roomCode);

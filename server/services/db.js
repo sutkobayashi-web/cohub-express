@@ -820,13 +820,6 @@ function getDb() {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
       .run(OPS_GROUP_ID, '🚛 業務連絡', '🚛', null);
   }
-  // 倉庫の声 専用グループチャット (2026-05-08): 朝礼・昼礼カードPOST配信先
-  const WAREHOUSE_GROUP_ID = 'g_warehouse_voice';
-  const whGrpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(WAREHOUSE_GROUP_ID);
-  if (!whGrpExists) {
-    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
-      .run(WAREHOUSE_GROUP_ID, '📋 倉庫の声 (朝礼・昼礼)', '📋', null);
-  }
   // メンバー: 推進メンバー + 全管理者を自動加入 (推進系GC両方共通、既加入はスキップ)
   const promoterRows = _db.prepare("SELECT id FROM users WHERE is_field_promoter = 1 OR role = 'admin'").all();
   const memInsert = _db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
@@ -835,10 +828,10 @@ function getDb() {
     memInsert.run(WELLNESS_DISC_ID, r.id);
     memInsert.run(OPS_GROUP_ID, r.id);
   }
-  // 倉庫の声GC: 倉庫推進メンバー + 全管理者を自動加入
-  const warehousePromoterRows = _db.prepare("SELECT id FROM users WHERE is_warehouse_promoter = 1 OR role = 'admin'").all();
+  // 倉庫推進メンバーも統合後の現場の声 (g_field_voice) に自動加入
+  const warehousePromoterRows = _db.prepare("SELECT id FROM users WHERE is_warehouse_promoter = 1").all();
   for (const r of warehousePromoterRows) {
-    memInsert.run(WAREHOUSE_GROUP_ID, r.id);
+    memInsert.run(PROMOTER_GROUP_ID, r.id);
   }
   // 管理職グループ: role=admin のみ自動加入
   const adminRows = _db.prepare("SELECT id FROM users WHERE role = 'admin'").all();

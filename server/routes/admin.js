@@ -158,7 +158,8 @@ router.patch('/users/:id', authAdmin, (req, res) => {
       memInsert.run('g_wellness_disc', req.params.id);
     }
     if (is_warehouse_promoter === true || is_warehouse_promoter === 1) {
-      memInsert.run('g_warehouse_voice', req.params.id);
+      // 倉庫推進メンバーも統合後の現場の声 (g_field_voice) に加入
+      memInsert.run('g_field_voice', req.params.id);
     }
   } catch (e) { console.warn('[promoter GC sync]', e.message); }
   res.json({ success: true });
