@@ -59,6 +59,28 @@ textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(-
 .toast.show { opacity: 1; }
 .summary { background: #f0fdfa; border: 1px solid #5eead4; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 10px 0; }
 .summary .urg { font-weight: 700; }
+.hl-section { margin-top: 18px; padding-top: 14px; border-top: 2px dashed var(--border); }
+.hl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.hl-head .ttl { font-weight: 700; font-size: 14px; }
+.hl-head .hint { font-size: 11px; color: var(--mute); }
+.hl-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: var(--mute); }
+.hl-status.recent { background: #ccfbf1; color: var(--accent-d); font-weight: 700; }
+.hl-status.stale { background: #fef3c7; color: #92400e; font-weight: 700; }
+.hl-status.none { background: #fee2e2; color: #991b1b; font-weight: 700; }
+.q-card { margin: 10px 0; }
+.q-text { font-size: 12px; font-weight: 600; line-height: 1.55; margin-bottom: 6px; display: flex; gap: 6px; align-items: flex-start; color: var(--fg); }
+.q-num { background: var(--accent); color: #fff; border-radius: 50%; min-width: 20px; height: 20px; text-align: center; line-height: 20px; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+.scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.scale-opt { background: var(--chip); border: 2px solid var(--border); border-radius: 8px; padding: 6px 2px; text-align: center; cursor: pointer; font-size: 10px; line-height: 1.25; color: #475569; user-select: none; }
+.scale-opt .v { display: block; font-size: 15px; font-weight: 800; color: var(--mute); margin-bottom: 1px; }
+.scale-opt:active { transform: scale(.96); }
+.scale-opt.on { background: var(--chip-on); border-color: var(--accent); color: var(--chip-on-fg); font-weight: 700; }
+.scale-opt.on .v { color: var(--accent-d); }
+.hl-actions { display: flex; gap: 8px; margin-top: 6px; }
+.hl-clear { font-size: 11px; color: var(--mute); background: none; border: none; cursor: pointer; padding: 2px 6px; text-decoration: underline; }
+.subj .hl-mark { position: absolute; top: 6px; left: 6px; font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #f1f5f9; color: var(--mute); }
+.subj .hl-mark.recent { background: #ccfbf1; color: var(--accent-d); font-weight: 700; }
+.subj .hl-mark.none, .subj .hl-mark.stale { background: #fef3c7; color: #92400e; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -73,7 +95,8 @@ textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(-
   <b>原則は社員自身の投稿</b>から悩み・相談を吸い上げます。
   このカードはそのバックアップとして、点呼や朝礼・昼礼で <b>1人1枚</b> 様子を記録します。<br>
   <b>全項目必須ではありません</b>。気になった項目だけ選んで提出してOK。
-  健康アクションプランの元情報として食事傾向・偏食もまとめて拾えます。
+  健康アクションプランの元情報として食事傾向・偏食もまとめて拾えます。<br>
+  <b>📊 ヘルスリテラシー5問</b> も同じカードから入力可能（90日に1回でOK・未回答/古い人を優先）。
 </div>
 <div class="progress" id="prog-wrap" style="display:none;">
   <div>本日 <b id="prog-cnt">0</b> / <b id="prog-tot">0</b></div>
@@ -90,6 +113,19 @@ textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(-
       <div class="lbl">📝 メモ (任意・200字)</div>
       <textarea id="m-memo" maxlength="200" placeholder="気になる一言があれば"></textarea>
     </div>
+    <div class="hl-section" id="m-hl-section">
+      <div class="hl-head">
+        <span class="ttl">📊 ヘルスリテラシー (任意・5問4択)</span>
+        <span class="hl-status" id="m-hl-status">…</span>
+      </div>
+      <div class="hl-head">
+        <span class="hint">CCHL尺度 / 90日に1回程度でOK。5問すべて答えると保存されます。</span>
+      </div>
+      <div id="m-hl-questions"></div>
+      <div class="hl-actions">
+        <button type="button" class="hl-clear" onclick="clearHL()">この5問の回答をクリア</button>
+      </div>
+    </div>
     <div class="summary" id="m-summary" style="display:none;"></div>
     <div class="fixed-foot">
       <button class="btn btn-cancel" onclick="closeModal()">キャンセル</button>
@@ -101,6 +137,7 @@ textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(-
 
 <script>
 const SOURCE_TYPE = '聞き取り';
+const HL_RECENT_DAYS = 90;
 const token = localStorage.getItem('cohub_token') || '';
 let me = null;
 let meta = null;
@@ -109,6 +146,11 @@ let subjects = [];
 let postedToday = new Set();
 let currentSubject = null;
 let answers = {};
+// ヘルスリテラシー関連
+let hlQuestions = [];
+let hlScale = [];
+let hlBySubject = new Map(); // user_id -> { last_answered_at, last_avg_score }
+let hlAnswers = [null, null, null, null, null];
 
 async function api(path, opts = {}) {
   opts.headers = opts.headers || {};
@@ -144,8 +186,45 @@ async function init() {
     document.getElementById('list').innerHTML = '<div class="empty">カード設定の取得に失敗しました。</div>';
     return;
   }
+  await loadHlMeta();
   await loadSubjects();
+  await loadHlSubjects();
   await loadTodayPosts();
+}
+
+async function loadHlMeta() {
+  const r = await api('/api/health-literacy/meta');
+  if (r && r.success) {
+    hlQuestions = r.questions || [];
+    hlScale = r.scale || [];
+  }
+}
+
+async function loadHlSubjects() {
+  const r = await api('/api/health-literacy/subjects');
+  if (!r || !r.success) return;
+  hlBySubject = new Map();
+  for (const s of (r.subjects || [])) {
+    hlBySubject.set(s.id, {
+      last_answered_at: s.last_answered_at || null,
+      last_avg_score: s.last_avg_score || null,
+    });
+  }
+  renderList();
+}
+
+function hlStatusFor(uid) {
+  const h = hlBySubject.get(uid);
+  if (!h || !h.last_answered_at) return { state: 'none', label: '📊 未回答', days: null, score: null };
+  const ts = h.last_answered_at + (h.last_answered_at.endsWith('Z') ? '' : 'Z');
+  const dt = new Date(ts);
+  const days = Math.floor((Date.now() - dt.getTime()) / 86400000);
+  const score = (h.last_avg_score == null) ? null : Number(h.last_avg_score);
+  const scoreLabel = score == null ? '' : ' ' + score.toFixed(1) + '点';
+  if (days < HL_RECENT_DAYS) {
+    return { state: 'recent', label: '📊 ' + (days === 0 ? '本日' : days + '日前') + scoreLabel, days, score };
+  }
+  return { state: 'stale', label: '📊 ' + days + '日前' + scoreLabel + ' (要更新)', days, score };
 }
 
 async function loadSubjects() {
@@ -194,17 +273,23 @@ function renderList() {
     el.innerHTML = '<div class="empty">同じ営業所のメンバーが見つかりません。</div>';
     return;
   }
-  // 未済を先に、済を後に並び替え
+  // (1)本日聞き取り済みを後ろへ (2)HL未回答/古い人を前へ (3)名前順
   const sorted = subjects.slice().sort((a, b) => {
     const pa = postedToday.has(a.id) ? 1 : 0;
     const pb = postedToday.has(b.id) ? 1 : 0;
     if (pa !== pb) return pa - pb;
+    const ha = hlStatusFor(a.id);
+    const hb = hlStatusFor(b.id);
+    const rank = { none: 0, stale: 1, recent: 2 };
+    if (rank[ha.state] !== rank[hb.state]) return rank[ha.state] - rank[hb.state];
     return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
   });
   const html = sorted.map(s => {
     const posted = postedToday.has(s.id);
     const ic = s.avatar_url ? `<img src="${escapeHtml(s.avatar_url)}" alt="">` : '👤';
+    const hl = hlStatusFor(s.id);
     return `<div class="subj ${posted ? 'posted' : ''}" onclick="openCard('${escapeHtml(s.id)}')">
+      <div class="hl-mark ${hl.state}">${escapeHtml(hl.label)}</div>
       <div class="av">${ic}</div>
       <div class="name">${escapeHtml(s.display_name)}</div>
       <div class="co">${escapeHtml(s.company_code || '-')}</div>
@@ -218,6 +303,7 @@ function openCard(uid) {
   currentSubject = subjects.find(s => s.id === uid);
   if (!currentSubject) return;
   answers = {};
+  hlAnswers = [null, null, null, null, null];
   document.getElementById('m-title').textContent = cardConf.title + ': ' + currentSubject.display_name;
   document.getElementById('m-sub').textContent = currentSubject.company_code + ' / 聞き取り: ' + me.display_name;
   document.getElementById('m-memo').value = '';
@@ -229,13 +315,54 @@ function openCard(uid) {
     ).join('');
     return `<div class="field"><div class="lbl">${f.label}</div><div class="chips">${chips}</div></div>`;
   }).join('');
+  renderHlSection();
   document.getElementById('modal-bg').classList.add('show');
+}
+
+function renderHlSection() {
+  const sect = document.getElementById('m-hl-section');
+  if (!hlQuestions.length || !hlScale.length) {
+    sect.style.display = 'none';
+    return;
+  }
+  sect.style.display = '';
+  const hl = currentSubject ? hlStatusFor(currentSubject.id) : { state: 'none', label: '📊 未回答' };
+  const statEl = document.getElementById('m-hl-status');
+  statEl.className = 'hl-status ' + hl.state;
+  statEl.textContent = hl.label;
+  const ql = document.getElementById('m-hl-questions');
+  ql.innerHTML = hlQuestions.map((q, i) => {
+    const opts = hlScale.map(s =>
+      `<div class="scale-opt" data-q="${i}" data-v="${s.v}" onclick="pickHl(${i}, ${s.v})">
+        <span class="v">${s.v}</span>${escapeHtml(s.label)}
+      </div>`
+    ).join('');
+    return `<div class="q-card">
+      <div class="q-text"><span class="q-num">${i+1}</span><span>${escapeHtml(q)}</span></div>
+      <div class="scale">${opts}</div>
+    </div>`;
+  }).join('');
+}
+
+function pickHl(qi, v) {
+  hlAnswers[qi] = v;
+  document.querySelectorAll(`#m-hl-questions [data-q="${qi}"]`).forEach(el => el.classList.remove('on'));
+  const el = document.querySelector(`#m-hl-questions [data-q="${qi}"][data-v="${v}"]`);
+  if (el) el.classList.add('on');
+  refreshSummary();
+}
+
+function clearHL() {
+  hlAnswers = [null, null, null, null, null];
+  document.querySelectorAll('#m-hl-questions .scale-opt.on').forEach(el => el.classList.remove('on'));
+  refreshSummary();
 }
 
 function closeModal() {
   document.getElementById('modal-bg').classList.remove('show');
   currentSubject = null;
   answers = {};
+  hlAnswers = [null, null, null, null, null];
 }
 
 function pickChip(btn) {
@@ -258,41 +385,90 @@ function refreshSummary() {
     else if (opt.s > 0 && cat === null) cat = f.category;
   }
   const filled = Object.keys(answers).length;
+  const hlFilled = hlAnswers.filter(v => v !== null).length;
   const sumEl = document.getElementById('m-summary');
-  if (filled === 0) { sumEl.style.display = 'none'; return; }
-  const urg = maxSev >= 2 ? '高 🔴' : maxSev >= 1 ? '中 🟡' : '低 🟢';
+  const parts = [];
+  if (filled > 0) {
+    const urg = maxSev >= 2 ? '高 🔴' : maxSev >= 1 ? '中 🟡' : '低 🟢';
+    parts.push(`聞き取り: <span class="urg">${urg}</span>${cat ? ' / ' + escapeHtml(cat) : ''} (${filled}/${cardConf.fields.length})`);
+  }
+  if (hlFilled > 0) {
+    if (hlFilled === 5) {
+      const total = hlAnswers.reduce((a, b) => a + (b || 0), 0);
+      parts.push(`HL: 平均 <b>${(total / 5).toFixed(2)}</b> / 4.00 (5/5)`);
+    } else {
+      parts.push(`HL: ${hlFilled}/5 (5問すべて答えると保存)`);
+    }
+  }
+  if (!parts.length) { sumEl.style.display = 'none'; return; }
   sumEl.style.display = 'block';
-  sumEl.innerHTML = `自動判定: <span class="urg">${urg}</span>${cat ? ' / ' + escapeHtml(cat) : ''}　(回答 ${filled}/${cardConf.fields.length})`;
+  sumEl.innerHTML = parts.join('　');
 }
 
 async function submitCard() {
   if (!currentSubject) return;
   const memo = document.getElementById('m-memo').value.trim();
-  if (Object.keys(answers).length === 0 && !memo) {
-    showToast('1項目以上選ぶか、メモを記入してください');
+  const cardFilled = Object.keys(answers).length > 0 || !!memo;
+  const hlFilled = hlAnswers.filter(v => v !== null).length;
+  const hlComplete = hlFilled === 5;
+  if (hlFilled > 0 && !hlComplete) {
+    showToast('ヘルスリテラシーは5問すべて答えてください（または全クリア）');
+    return;
+  }
+  if (!cardFilled && !hlComplete) {
+    showToast('聞き取り1項目/メモ、またはHL5問のどれかを記入してください');
     return;
   }
   const btn = document.getElementById('m-submit');
   btn.disabled = true;
   btn.textContent = '送信中…';
+  const msgs = [];
+  let anyFail = false;
+  const subjectId = currentSubject.id;
   try {
-    const r = await api('/api/wellness/post-card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject_user_id: currentSubject.id,
-        answers,
-        memo,
-      }),
-    });
-    if (r && r.success) {
-      showToast(`✅ #${r.post_id} 提出 (${r.urgency}/${r.category})`);
-      postedToday.add(currentSubject.id);
+    if (cardFilled) {
+      const r = await api('/api/wellness/post-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject_user_id: subjectId,
+          answers,
+          memo,
+        }),
+      });
+      if (r && r.success) {
+        msgs.push(`🩺#${r.post_id} ${r.urgency}/${r.category}`);
+        postedToday.add(subjectId);
+      } else {
+        anyFail = true;
+        msgs.push('🩺❌ ' + (r && r.msg || '送信失敗'));
+      }
+    }
+    if (hlComplete) {
+      const r = await api('/api/health-literacy/proxy-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject_user_id: subjectId,
+          q1: hlAnswers[0], q2: hlAnswers[1], q3: hlAnswers[2], q4: hlAnswers[3], q5: hlAnswers[4],
+        }),
+      });
+      if (r && r.success) {
+        msgs.push(`📊#${r.id} 平均${r.avg_score.toFixed(2)}点`);
+        hlBySubject.set(subjectId, {
+          last_answered_at: new Date().toISOString(),
+          last_avg_score: r.avg_score,
+        });
+      } else {
+        anyFail = true;
+        msgs.push('📊❌ ' + (r && r.msg || 'HL送信失敗'));
+      }
+    }
+    showToast((anyFail ? '⚠️ ' : '✅ ') + msgs.join(' / '), 3000);
+    if (!anyFail) {
       closeModal();
       renderList();
       updateProgress();
-    } else {
-      showToast('❌ ' + (r && r.msg || '送信に失敗しました'));
     }
   } catch (e) {
     showToast('❌ 通信エラー');
