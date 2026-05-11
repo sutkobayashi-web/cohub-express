@@ -487,7 +487,7 @@
   .empty .e-ic { font-size: 32px; opacity: 0.4; display: block; margin-bottom: 6px; }
 
   /* メッセージエリア (Teams風) */
-  #panel { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #f8fafc; }
+  #panel { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #f8fafc; position: relative; }
   #panel-head {
     padding: 12px 18px; background: #fff;
     border-bottom: 1px solid #e2e8f0;
@@ -700,36 +700,33 @@
   .head-btn.disabled { opacity: 0.40; cursor: not-allowed; }
   .head-btn.disabled:hover { transform: none; }
 
-  /* ===== メンバーピッカー モーダル ===== */
+  /* ===== メンバー一覧 (パネル内インライン表示) ===== */
   #members-modal {
-    display: none; position: fixed; inset: 0;
-    background: rgba(15,23,42,0.55); z-index: 200;
-    align-items: flex-end; justify-content: center;
-  }
-  @media (min-width: 600px) {
-    #members-modal { align-items: center; }
+    display: none; position: absolute; inset: 0;
+    background: #fff; z-index: 50;
+    flex-direction: column;
   }
   #members-modal.show { display: flex; }
   #members-modal .sheet {
-    background: #fff; border-radius: 18px 18px 0 0;
-    width: 100%; max-width: 560px; max-height: 85vh;
+    background: #fff; border-radius: 0;
+    width: 100%; height: 100%; max-width: none; max-height: none;
     display: flex; flex-direction: column; overflow: hidden;
-    box-shadow: 0 -8px 32px rgba(15,23,42,0.30);
-  }
-  @media (min-width: 600px) {
-    #members-modal .sheet { border-radius: 18px; max-height: 80vh; }
+    box-shadow: none;
   }
   #members-modal .head {
     padding: 14px 18px;
     background: linear-gradient(135deg, #0ea5e9, #06b6d4);
     color: #fff; display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
   }
   #members-modal .head .ttl { font-size: 15px; font-weight: 800; flex: 1; }
   #members-modal .head .cnt { font-size: 11px; opacity: 0.85; }
-  #members-modal .head .x {
+  #members-modal .head .back {
     background: rgba(255,255,255,0.20); border: none; color: #fff;
     width: 32px; height: 32px; border-radius: 8px;
-    cursor: pointer; font-size: 18px;
+    cursor: pointer; font-size: 20px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
   #members-modal .toolbar {
     padding: 10px 14px;
@@ -1096,32 +1093,32 @@
       <textarea id="input-text" rows="1" placeholder="メッセージを入力" disabled></textarea>
       <button id="send-btn" disabled title="送信 (Enter)">➤</button>
     </div>
+
+    <!-- メンバー一覧 (パネル内インライン表示。← で元のチャット画面に戻る) -->
+    <div id="members-modal">
+      <div class="sheet">
+        <div class="head">
+          <button class="back" type="button" onclick="closeMembersModal()" title="戻る" aria-label="戻る">←</button>
+          <div class="ttl" id="mp-title">メンバー</div>
+          <span class="cnt" id="mp-count"></span>
+        </div>
+        <div class="toolbar">
+          <span class="info"><strong id="mp-sel-count">0</strong>人選択中 — チェックして送信、もしくは個別に <em>DM</em> ボタン</span>
+          <button type="button" onclick="mpSelectAll()">☑ 全選択</button>
+          <button type="button" onclick="mpClearAll()">解除</button>
+        </div>
+        <div class="body" id="mp-list"></div>
+        <div class="footer">
+          <button class="cancel" type="button" onclick="closeMembersModal()">戻る</button>
+          <button class="send" type="button" id="mp-send-btn" onclick="mpSendToSelected()" disabled>選択した0人に一斉DM</button>
+        </div>
+      </div>
+    </div>
   </section>
 </main>
 </div>
 
 <div id="toast"></div>
-
-<!-- メンバーピッカー (グループ内のメンバー一覧 / DM起動 / 選択送信) -->
-<div id="members-modal" onclick="if(event.target.id==='members-modal')closeMembersModal()">
-  <div class="sheet">
-    <div class="head">
-      <div class="ttl" id="mp-title">メンバー</div>
-      <span class="cnt" id="mp-count"></span>
-      <button class="x" type="button" onclick="closeMembersModal()">×</button>
-    </div>
-    <div class="toolbar">
-      <span class="info"><strong id="mp-sel-count">0</strong>人選択中 — チェックして送信、もしくは個別に <em>DM</em> ボタン</span>
-      <button type="button" onclick="mpSelectAll()">☑ 全選択</button>
-      <button type="button" onclick="mpClearAll()">解除</button>
-    </div>
-    <div class="body" id="mp-list"></div>
-    <div class="footer">
-      <button class="cancel" type="button" onclick="closeMembersModal()">閉じる</button>
-      <button class="send" type="button" id="mp-send-btn" onclick="mpSendToSelected()" disabled>選択した0人に一斉DM</button>
-    </div>
-  </div>
-</div>
 
 <!-- 着信モーダル -->
 <div id="incoming-call">
