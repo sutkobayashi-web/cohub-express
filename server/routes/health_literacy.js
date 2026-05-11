@@ -62,6 +62,7 @@ router.get('/subjects', authUser, (req, res) => {
   const db = getDb();
   const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
   const companyCode = me && me.company_code;
+  // 登録されている全員を対象に返す (拠点フィルタなし)
   const rows = db.prepare(`
     SELECT u.id, u.login_id, u.display_name, u.company_code, u.job_role, u.avatar_url,
            h.created_at AS last_answered_at, h.avg_score AS last_avg_score
@@ -69,12 +70,11 @@ router.get('/subjects', authUser, (req, res) => {
     LEFT JOIN (SELECT user_id, MAX(id) AS max_id FROM health_literacy GROUP BY user_id) mx
       ON mx.user_id = u.id
     LEFT JOIN health_literacy h ON h.id = mx.max_id
-    WHERE u.company_code = ?
-      AND u.role != 'bot'
+    WHERE u.role != 'bot'
       AND u.id != ?
       AND u.is_guest_reviewer = 0
-    ORDER BY u.display_name
-  `).all(companyCode || '', req.uid);
+    ORDER BY u.company_code, u.display_name
+  `).all(req.uid);
   res.json({ success: true, subjects: rows, company_code: companyCode });
 });
 

@@ -207,6 +207,16 @@ async function init() {
   recomputePostedToday();
   renderList();
   updateProgress();
+  // 新規登録に追従するため60秒ごとに対象者を自動更新 (モーダル表示中はスキップ)
+  setInterval(async () => {
+    if (document.getElementById('modal-bg').classList.contains('show')) return;
+    if (document.hidden) return;
+    await loadSubjects();
+    await loadHlSubjects();
+    recomputePostedToday();
+    renderList();
+    updateProgress();
+  }, 60000);
 }
 
 function recomputePostedToday() {
@@ -292,7 +302,7 @@ function updateProgress() {
 function renderList() {
   const el = document.getElementById('list');
   if (!subjects.length) {
-    el.innerHTML = '<div class="empty">同じ営業所のメンバーが見つかりません。</div>';
+    el.innerHTML = '<div class="empty">対象者が登録されていません。</div>';
     return;
   }
   // (1)本日聞き取り済みを後ろへ (2)HL未/古い人を前へ (3)聞き取り古い人を前へ (4)名前順

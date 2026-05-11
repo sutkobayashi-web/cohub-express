@@ -1587,7 +1587,7 @@ router.get('/subjects', authUser, (req, res) => {
   const db = getDb();
   const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
   const companyCode = me && me.company_code;
-  // 各対象者の最新聞き取り結果も併せて返す (created_at, urgency, category)
+  // 登録されている全員を対象に返す (拠点フィルタなし)。各対象者の最新聞き取り結果も併せて返す
   const rows = db.prepare(`
     SELECT u.id, u.login_id, u.display_name, u.company_code, u.employee_type, u.avatar_url,
            wp.created_at AS last_post_at,
@@ -1601,12 +1601,11 @@ router.get('/subjects', authUser, (req, res) => {
       GROUP BY subject_user_id
     ) mx ON mx.subject_user_id = u.id
     LEFT JOIN wellness_posts wp ON wp.id = mx.max_id
-    WHERE u.company_code = ?
-      AND u.role != 'bot'
+    WHERE u.role != 'bot'
       AND u.id != ?
       AND u.is_guest_reviewer = 0
-    ORDER BY u.display_name
-  `).all(companyCode || '', req.uid);
+    ORDER BY u.company_code, u.display_name
+  `).all(req.uid);
   res.json({ success: true, subjects: rows, company_code: companyCode });
 });
 
