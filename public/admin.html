@@ -77,10 +77,6 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <option value="GUEST">👥 ゲスト</option>
       </select>
       <input type="text" id="new-pass" placeholder="初期パスワード">
-      <select id="new-type">
-        <option value="office">事務所棟</option>
-        <option value="field">現場棟</option>
-      </select>
       <select id="new-role">
         <option value="member">一般</option>
         <option value="admin">管理者</option>
@@ -384,10 +380,9 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div><label style="font-size:12px;font-weight:600;color:#475569;">雇用区分</label>
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">権限種別</label>
           <select id="edit-employee-type" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
-            <option value="office">事務所棟</option>
-            <option value="field">現場棟</option>
+            <option value="office">一般</option>
             <option value="admin">管理職</option>
           </select>
         </div>
@@ -1328,7 +1323,7 @@ async function addUser() {
     company_code: document.getElementById('new-company').value,
     password: document.getElementById('new-pass').value,
     role: document.getElementById('new-role').value,
-    employee_type: document.getElementById('new-type').value,
+    employee_type: 'office',
     dm_group: document.getElementById('new-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('new-dm-rank').value) || 0,
     birth_date: document.getElementById('new-birth').value || null,
@@ -1383,7 +1378,7 @@ function openEditModal(id) {
   document.getElementById('edit-display-name').value = u.display_name || '';
   document.getElementById('edit-company').value = u.company_code || 'SU_HQ';
   document.getElementById('edit-role').value = u.role || 'member';
-  document.getElementById('edit-employee-type').value = u.employee_type || 'office';
+  document.getElementById('edit-employee-type').value = (u.employee_type === 'admin') ? 'admin' : 'office';
   document.getElementById('edit-dm-group').value = u.dm_group || '';
   document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
   document.getElementById('edit-birth').value = u.birth_date || '';
