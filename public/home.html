@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>CoWell — ホーム</title>
 <link rel="manifest" href="/manifest.json?v=4">
 <link rel="apple-touch-icon" href="/assets/icon-192.png">
@@ -301,6 +304,8 @@
     .hero .timecard-btn { width: 54px; height: 54px; border-radius: 14px; }
     .hero .timecard-btn .ic { font-size: 20px; }
     .hero .timecard-btn .lbl { font-size: 10px; }
+    /* スマホはQR非表示 (既にスマホで開いているため不要) */
+    #qr-mobile { display: none !important; }
     .grid { grid-template-columns: 1fr; gap: 12px; }
     .card { padding: 16px 16px 14px 16px; }
     .card .icon-pill { width: 44px; height: 44px; font-size: 24px; border-radius: 12px; margin-bottom: 10px; }
@@ -361,6 +366,11 @@
       <span class="ic">⏰</span>
       <span class="lbl">打刻</span>
     </a>
+    <!-- スマホ用QRコード (PC画面のみ表示) -->
+    <div id="qr-mobile" style="display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px 4px;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;">
+      <img src="/img/qr-mobile.png?v=20260511" alt="モバイル版QR" style="width:64px;height:64px;display:block;image-rendering:pixelated;">
+      <div style="font-size:10px;color:#0f766e;font-weight:700;letter-spacing:0.3px;margin-top:2px;">📱 スマホ版</div>
+    </div>
     <img id="me-avatar" class="me-avatar" alt="" style="display:none;">
   </div>
 
