@@ -1198,7 +1198,9 @@ async function syncDmGroupsToChats() {
     `動作:\n` +
     `  ✓ 各ユーザーを現 dm_group の同名GCにのみ加入\n` +
     `  ✓ 過去設定の別dm_group由来GCからは離脱させる\n` +
-    `  ✓ 特殊GC (現場の声/管理職グループ等) は影響なし\n\n` +
+    `  ✓ 特殊GC (現場の声/管理職グループ/X 現場 等) は影響なし\n` +
+    `  ✓ 削除済みユーザーの孤立メンバーシップを掃除\n` +
+    `  ✓ 空かつ現役dm_groupに無いdm_group由来GCは自動削除\n\n` +
     `実行しますか？`;
   if (!confirm(msg)) return;
   try {
@@ -1208,10 +1210,12 @@ async function syncDmGroupsToChats() {
     const d = await r.json();
     if (!d.success) { alert('失敗: ' + (d.msg || '')); return; }
     alert(`✓ 振分完了\n` +
-      `  対象ユーザー : ${d.total}名\n` +
-      `  GC新規作成   : ${d.created || 0}件\n` +
-      `  加入追加     : ${d.added}件\n` +
-      `  離脱(余分)   : ${d.removed}件`);
+      `  対象ユーザー   : ${d.total}名\n` +
+      `  GC新規作成     : ${d.created || 0}件\n` +
+      `  加入追加       : ${d.added}件\n` +
+      `  離脱(余分)     : ${d.removed}件\n` +
+      `  孤立掃除       : ${d.orphans || 0}件\n` +
+      `  空GC削除       : ${d.deletedGroups || 0}件`);
     loadGroups();
     loadUsers();
   } catch (e) {

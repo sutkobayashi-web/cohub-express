@@ -213,27 +213,41 @@ router.post('/users/bulk', authAdmin, (req, res) => {
 // - dm_group が設定されているユーザーは同名のチャットグループに加入
 // - 旧 dm_group の(別名)チャットグループからは離脱
 // - dm_group 未設定のユーザーはdm_group由来のGCから全離脱
-// - 特殊GC (g_field_voice / g_wellness_disc / g_managers) は触らない
+// - 特殊GC (g_* プレフィックス) と「X 現場」suffix GC は触らない
+// - 孤立メンバーシップ (削除済みユーザー残骸) を掃除
+// - 空かつ現役dm_groupに無いdm_group由来GCを削除
 router.post('/sync-dm-groups', authAdmin, (req, res) => {
   const db = getDb();
-  const SPECIAL_GROUP_IDS = ['g_field_voice', 'g_wellness_disc', 'g_managers'];
+
+  // dm_group由来GCの判定: id が g_* で始まらず、name が「現場」suffixでないもの
+  const isDmDerivedGroup = (g) => {
+    if (!g) return false;
+    if (g.id && g.id.startsWith('g_')) return false;
+    if (g.name && / 現場$/.test(g.name)) return false;
+    return true;
+  };
 
   // ユーザー一覧 (bot除外)
   const users = db.prepare("SELECT id, dm_group FROM users WHERE role != 'bot'").all();
+  const activeDmGroups = new Set(users.map(u => u.dm_group).filter(Boolean));
 
-  // 既存の dm_group 由来チャットグループ (= 特殊以外) と name→id マップを構築
+  // 既存の dm_group 由来チャットグループ と name→id マップ
   const allGroups = db.prepare('SELECT id, name FROM chat_groups').all();
   const dmGroupSet = new Set();
   const groupByName = {};
   for (const g of allGroups) {
-    if (SPECIAL_GROUP_IDS.includes(g.id)) continue;
+    if (!isDmDerivedGroup(g)) continue;
     dmGroupSet.add(g.id);
     if (g.name) groupByName[g.name] = g.id;
   }
 
-  let added = 0, removed = 0, created = 0;
+  let added = 0, removed = 0, created = 0, orphans = 0, deletedGroups = 0;
 
   const txn = db.transaction(() => {
+    // STEP 1: 孤立メンバーシップ掃除 (削除済みユーザーが残してた行)
+    orphans = db.prepare('DELETE FROM chat_group_members WHERE user_id NOT IN (SELECT id FROM users)').run().changes;
+
+    // STEP 2: ユーザーごとに正しいdm_group GCに揃える
     for (const u of users) {
       let expectedGid = null;
       if (u.dm_group) {
@@ -249,12 +263,12 @@ router.post('/sync-dm-groups', authAdmin, (req, res) => {
         }
       }
 
-      // このユーザーが現在加入しているグループID一覧
+      // 現在加入グループ
       const currentGids = db.prepare('SELECT group_id FROM chat_group_members WHERE user_id = ?').all(u.id).map(r => r.group_id);
-      // dm_group由来GCの内、外したいもの (=expectedGid以外)
+      // dm_group由来GCで expectedGid 以外から離脱
       for (const gid of currentGids) {
-        if (!dmGroupSet.has(gid)) continue; // 特殊GCはノータッチ
-        if (gid === expectedGid) continue;  // 正しい所属はスキップ
+        if (!dmGroupSet.has(gid)) continue;
+        if (gid === expectedGid) continue;
         db.prepare('DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?').run(gid, u.id);
         removed++;
       }
@@ -264,10 +278,21 @@ router.post('/sync-dm-groups', authAdmin, (req, res) => {
         added++;
       }
     }
+
+    // STEP 3: 空かつ現役dm_groupに無いdm_group由来GCを削除
+    for (const g of allGroups) {
+      if (!isDmDerivedGroup(g)) continue;
+      if (activeDmGroups.has(g.name)) continue;
+      const cnt = db.prepare('SELECT COUNT(*) AS n FROM chat_group_members WHERE group_id = ?').get(g.id).n;
+      if (cnt === 0) {
+        db.prepare('DELETE FROM chat_groups WHERE id = ?').run(g.id);
+        deletedGroups++;
+      }
+    }
   });
   txn();
 
-  res.json({ success: true, total: users.length, added, removed, created });
+  res.json({ success: true, total: users.length, added, removed, created, orphans, deletedGroups });
 });
 
 // CSVテンプレート (BOM付きUTF-8でExcel/Numbers互換)
