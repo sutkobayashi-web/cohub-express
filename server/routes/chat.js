@@ -6,6 +6,19 @@ const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser, authAdmin } = require('../middleware/auth');
 
+// 管理者(role=admin かつ employee_type=admin)かどうか
+function isManager(uid) {
+  const u = getDb().prepare("SELECT role, employee_type FROM users WHERE id=?").get(uid);
+  return !!(u && u.role === 'admin' && u.employee_type === 'admin');
+}
+// グループ閲覧/操作の可否 (メンバー OR 管理者)
+function canAccessGroup(uid, gid) {
+  const m = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(gid, uid);
+  if (m) return true;
+  return isManager(uid);
+}
+
+
 // チャット添付ファイル保存
 const chatDir = path.join(__dirname, '..', '..', 'uploads', 'chat');
 if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
@@ -142,23 +155,38 @@ router.get('/dm', authUser, (req, res) => {
 
 // 自分が参加しているグループ一覧 (最新メッセージ順)
 router.get('/groups', authUser, (req, res) => {
-  const rows = getDb().prepare(`
-    SELECT g.id, g.name, g.icon, g.created_at,
-      (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
-      (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
-      (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count
-    FROM chat_groups g
-    JOIN chat_group_members m ON m.group_id = g.id
-    WHERE m.user_id = ?
-    ORDER BY COALESCE(last_at, g.created_at) DESC
-  `).all(req.uid);
-  res.json({ success: true, groups: rows });
+  const admin = isManager(req.uid);
+  let rows;
+  if (admin) {
+    // 管理者: 全GCを返す。is_memberフラグで自身がメンバーかも示す
+    rows = getDb().prepare(`
+      SELECT g.id, g.name, g.icon, g.created_at,
+        (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
+        (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
+        (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
+        EXISTS(SELECT 1 FROM chat_group_members WHERE group_id = g.id AND user_id = ?) AS is_member
+      FROM chat_groups g
+      ORDER BY COALESCE(last_at, g.created_at) DESC
+    `).all(req.uid);
+  } else {
+    rows = getDb().prepare(`
+      SELECT g.id, g.name, g.icon, g.created_at,
+        (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
+        (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
+        (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
+        1 AS is_member
+      FROM chat_groups g
+      JOIN chat_group_members m ON m.group_id = g.id
+      WHERE m.user_id = ?
+      ORDER BY COALESCE(last_at, g.created_at) DESC
+    `).all(req.uid);
+  }
+  res.json({ success: true, groups: rows, is_manager_view: admin });
 });
 
 // グループのメッセージ履歴 (参加者のみ)
 router.get('/groups/:gid/messages', authUser, (req, res) => {
-  const member = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(req.params.gid, req.uid);
-  if (!member) return res.status(403).json({ success: false, msg: 'メンバーではありません' });
+  if (!canAccessGroup(req.uid, req.params.gid)) return res.status(403).json({ success: false, msg: 'メンバーではありません' });
   const rows = getDb().prepare(`
     SELECT m.id, m.sender_id, m.content, m.created_at,
            m.attach_url, m.attach_name, m.attach_size, m.attach_type,
@@ -173,8 +201,7 @@ router.get('/groups/:gid/messages', authUser, (req, res) => {
 
 // グループ メンバー一覧
 router.get('/groups/:gid/members', authUser, (req, res) => {
-  const member = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(req.params.gid, req.uid);
-  if (!member) return res.status(403).json({ success: false });
+  if (!canAccessGroup(req.uid, req.params.gid)) return res.status(403).json({ success: false });
   const rows = getDb().prepare(`SELECT u.id, u.display_name, u.avatar_url, c.ring_color
     FROM chat_group_members gm JOIN users u ON u.id = gm.user_id
     LEFT JOIN companies c ON c.code = u.company_code WHERE gm.group_id = ?`).all(req.params.gid);

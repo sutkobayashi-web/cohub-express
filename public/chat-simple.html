@@ -1659,6 +1659,7 @@ function renderGroupList() {
       last_content: g.last_content,
       last_at: g.last_at,
       member_count: g.member_count,
+      is_member: g.is_member !== 0,
     });
   }
   for (const [peerId, info] of dmPeerInfo.entries()) {
@@ -1757,7 +1758,7 @@ function chatRowHtml(r) {
     <div class="row-av" style="--av-c1:${c1};--av-c2:${c2};">${avInner}${ringDot}${onDot}</div>
     <div class="row-meta">
       <div class="row-top">
-        <span class="row-name">${escapeHtml(displayName)}</span>
+        <span class="row-name">${escapeHtml(displayName)}${r.type === 'group' && r.is_member === false ? ' <span style="font-size:9px;background:#fde68a;color:#92400e;padding:1px 6px;border-radius:6px;margin-left:4px;font-weight:700;vertical-align:middle;">閲覧</span>' : ''}</span>
         <span class="row-time">${escapeHtml(timeStr)}</span>
         ${unreadBadge}
       </div>

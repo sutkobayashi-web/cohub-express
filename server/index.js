@@ -1262,9 +1262,13 @@ io.on('connection', (socket) => {
     const gid = (data && data.group_id || '').toString();
     const content = (data && data.content || '').toString().trim().slice(0, 2000);
     if (!gid || (!content && !(data && data.attach))) return;
-    // メンバー確認
+    // メンバー確認 (管理者は全GCに送信可)
     const isMember = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(gid, uid);
-    if (!isMember) return;
+    if (!isMember) {
+      const u = getDb().prepare('SELECT role, employee_type FROM users WHERE id=?').get(uid);
+      const isAdmin = !!(u && u.role === 'admin' && u.employee_type === 'admin');
+      if (!isAdmin) return;
+    }
     const a = data && data.attach && data.attach.url ? data.attach : null;
     const attachUrl = a ? String(a.url).slice(0, 500) : null;
     const attachName = a ? String(a.name || '').slice(0, 200) : null;
