@@ -51,6 +51,7 @@ const recUpload = multer({
 // ユーザー一覧 (AIボットはインフラなので非表示。削除しても ensureConciergeBots が再生成するため、UIに出さない)
 router.get('/users', authAdmin, (req, res) => {
   const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter,
+    CASE WHEN u.tablet_pin_hash IS NOT NULL AND u.tablet_pin_hash <> '' THEN 1 ELSE 0 END AS has_tablet_pin,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id WHERE u.role != 'bot' ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
 });
@@ -259,6 +260,21 @@ router.post('/users/:id/password', authAdmin, (req, res) => {
   const hash = bcrypt.hashSync(password, 10);
   const r = getDb().prepare('UPDATE users SET password_hash = ?, session_token = NULL WHERE id = ?').run(hash, req.params.id);
   res.json({ success: r.changes > 0 });
+});
+
+// タブレットPIN管理者発行/リセット (2026-05-12)
+// body: { pin: '0000-9999' } または { clear: true } で削除
+router.post('/users/:id/tablet-pin', authAdmin, (req, res) => {
+  const { pin, clear } = req.body || {};
+  const db = getDb();
+  if (clear) {
+    const r = db.prepare('UPDATE users SET tablet_pin_hash = NULL WHERE id = ?').run(req.params.id);
+    return res.json({ success: r.changes > 0, msg: 'PINを削除しました' });
+  }
+  if (!pin || !/^\d{4}$/.test(String(pin))) return res.status(400).json({ success: false, msg: 'PINは4桁の数字' });
+  const hash = bcrypt.hashSync(String(pin), 10);
+  const r = db.prepare('UPDATE users SET tablet_pin_hash = ? WHERE id = ?').run(hash, req.params.id);
+  res.json({ success: r.changes > 0, msg: 'タブレットPINを発行しました' });
 });
 
 // ユーザー削除

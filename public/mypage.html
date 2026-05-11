@@ -139,6 +139,22 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
     <div class="desc">スマートフォンで自分の顔を撮影 → AIがアニメ風に変換 → 3候補から1つ選ぶ流れです。</div>
     <button class="btn btn-primary btn-block" onclick="location.href='/avatar.html'">📸 アバターを撮り直す</button>
   </div>
+
+  <!-- タブレットPIN -->
+  <div class="section">
+    <h2><span class="ic">📱</span>タブレットPIN設定</h2>
+    <div class="desc">事務所設置タブレット (<a href="/tablet" target="_blank">/tablet</a>) からログインする際の4桁数字PIN。連続数字 (1234) や同一数字4桁 (0000) は使えません。</div>
+    <div class="field">
+      <label>新しい4桁PIN</label>
+      <input type="password" id="tp-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="数字4桁">
+    </div>
+    <div class="field" id="tp-cur-wrap" style="display:none;">
+      <label>確認: ログインパスワード</label>
+      <input type="password" id="tp-cur" autocomplete="current-password" placeholder="既にPIN設定済みの場合のみ">
+    </div>
+    <button class="btn btn-primary" id="save-tpin" onclick="saveTabletPin()">PINを設定</button>
+    <div class="msg" id="tp-msg"></div>
+  </div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -271,6 +287,29 @@ document.getElementById('pw-new').addEventListener('input', () => {
   const bar = document.getElementById('pw-bar');
   bar.className = s >= 2 ? ('s' + s) : '';
 });
+
+async function saveTabletPin(){
+  const pin = (document.getElementById('tp-pin').value || '').trim();
+  const cur = (document.getElementById('tp-cur').value || '').trim();
+  if (!/^\d{4}$/.test(pin)) { setMsg('tp-msg', '4桁の数字で入力してください', 'err'); return; }
+  const btn = document.getElementById('save-tpin');
+  btn.disabled = true; setMsg('tp-msg', '');
+  try {
+    const body = { new_pin: pin };
+    if (cur) body.current_password = cur;
+    const r = await api('/api/auth/tablet-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r || !r.success) { setMsg('tp-msg', (r && r.msg) || '設定失敗', 'err'); return; }
+    document.getElementById('tp-pin').value = '';
+    document.getElementById('tp-cur').value = '';
+    document.getElementById('tp-cur-wrap').style.display = '';  // 次回からはパスワード欄を出す
+    setMsg('tp-msg', '✅ タブレットPINを設定しました', 'ok');
+    toast('タブレットPINを更新しました');
+  } finally { btn.disabled = false; }
+}
 
 async function savePassword(){
   const cur = document.getElementById('pw-cur').value;

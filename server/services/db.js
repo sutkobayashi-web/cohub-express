@@ -33,6 +33,8 @@ function getDb() {
   // 職種 (driver/warehouse/office/construction/manufacturing) — enroll登録時の細分化 (2026-05-08)
   // employee_type(office/field/admin) は権限軸として温存し、職種は別軸で管理
   ensureColumn(_db, 'users', 'job_role', 'job_role TEXT');
+  // タブレットキオスク用4桁PIN (bcryptハッシュ)。NULL=未設定。事務所設置タブレットからログイン (2026-05-12)
+  ensureColumn(_db, 'users', 'tablet_pin_hash', 'tablet_pin_hash TEXT');
   // ヘルスリテラシー調査 (2026-05-09): 西村さん依頼。CCHL 5項目4段階尺度
   // q1〜q5 は 1=全くできない / 2=あまりできない / 3=どちらともいえない / 4=とてもそう思う
   _db.exec(`CREATE TABLE IF NOT EXISTS health_literacy (

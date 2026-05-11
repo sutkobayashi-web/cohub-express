@@ -213,6 +213,91 @@ router.post('/check-password', authUser, express.json(), (req, res) => {
   res.json({ success: errors.length === 0, errors });
 });
 
+// ============================================================
+// タブレットキオスク用ログイン (2026-05-12)
+// PC環境のない社員向け: 事務所設置タブレットでアバター選択 + 4桁PIN
+// ============================================================
+
+// 全社員ロスター (タブレット選択画面用、認証不要だが個人情報は最小限)
+router.get('/tablet-roster', (req, res) => {
+  const rows = getDb().prepare(`
+    SELECT id, display_name, company_code, avatar_url,
+           CASE WHEN tablet_pin_hash IS NOT NULL AND tablet_pin_hash <> '' THEN 1 ELSE 0 END AS has_pin
+    FROM users
+    WHERE role != 'bot'
+      AND is_guest_reviewer = 0
+    ORDER BY company_code, display_name
+  `).all();
+  res.json({ success: true, users: rows });
+});
+
+// タブレットPINログイン
+router.post('/tablet-login', express.json(), (req, res) => {
+  const { user_id, pin } = req.body || {};
+  if (!user_id || !pin) return res.status(400).json({ success: false, msg: '対象者とPINを入力してください' });
+  if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ success: false, msg: 'PINは4桁の数字です' });
+  const db = getDb();
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
+  if (!user) return res.status(401).json({ success: false, msg: '対象者が見つかりません' });
+  if (!user.tablet_pin_hash) return res.status(401).json({ success: false, msg: 'PIN未設定です。管理者に連絡してください' });
+  if (!bcrypt.compareSync(String(pin), user.tablet_pin_hash)) {
+    return res.status(401).json({ success: false, msg: 'PINが違います' });
+  }
+  const sid = crypto.randomBytes(16).toString('hex');
+  db.prepare("UPDATE users SET session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  db.prepare(`INSERT INTO positions (user_id, x, y, status) VALUES (?, ?, ?, 'online')
+    ON CONFLICT(user_id) DO UPDATE SET status='online', updated_at=datetime('now')`)
+    .run(user.id, 400 + Math.floor(Math.random() * 200) - 100, 300 + Math.floor(Math.random() * 200) - 100);
+  const token = generateToken({ uid: user.id, role: user.role, sid });
+  const needsConsent = user.role !== 'bot' && user.consent_version !== CONSENT_VERSION;
+  res.json({
+    success: true,
+    token,
+    user: {
+      uid: user.id,
+      login_id: user.login_id,
+      display_name: user.display_name,
+      company_code: user.company_code,
+      role: user.role,
+      employee_type: user.employee_type || 'office',
+      avatar_url: user.avatar_url,
+      job_role: user.job_role || null,
+      is_field_promoter: !!user.is_field_promoter,
+      is_warehouse_promoter: !!user.is_warehouse_promoter,
+      is_guest_reviewer: !!user.is_guest_reviewer,
+      nickname: user.nickname || null,
+      needs_nickname_setup: !user.nickname,
+      consent_version: user.consent_version || null,
+      needs_consent: needsConsent,
+      current_consent_version: CONSENT_VERSION,
+    },
+  });
+});
+
+// 本人による4桁PIN設定/変更 (タブレットログイン用)
+router.post('/tablet-pin', authUser, express.json(), (req, res) => {
+  const { new_pin, current_password } = req.body || {};
+  if (!new_pin) return res.status(400).json({ success: false, msg: '新しいPINを入力してください' });
+  if (!/^\d{4}$/.test(String(new_pin))) return res.status(400).json({ success: false, msg: 'PINは4桁の数字で設定してください' });
+  // 連続/同一は弱いPINとして拒否 (例: 0000, 1234, 4321)
+  const p = String(new_pin);
+  if (/^(.)\1{3}$/.test(p)) return res.status(400).json({ success: false, msg: '同じ数字4桁は使えません (例: 0000)' });
+  const seq = '0123456789'; const seqRev = '9876543210';
+  if (seq.includes(p) || seqRev.includes(p)) return res.status(400).json({ success: false, msg: '連続した数字は使えません (例: 1234)' });
+  const db = getDb();
+  const u = db.prepare('SELECT password_hash, tablet_pin_hash FROM users WHERE id = ?').get(req.uid);
+  if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
+  // 初回設定は不要、既存PIN差し替え時は念のためログインパスワード確認 (誤操作防止)
+  if (u.tablet_pin_hash && current_password) {
+    if (!bcrypt.compareSync(current_password, u.password_hash)) {
+      return res.status(401).json({ success: false, msg: 'ログインパスワードが違います' });
+    }
+  }
+  const hash = bcrypt.hashSync(p, 10);
+  db.prepare('UPDATE users SET tablet_pin_hash = ? WHERE id = ?').run(hash, req.uid);
+  res.json({ success: true, msg: 'タブレットPINを設定しました' });
+});
+
 router.post('/logout', (req, res) => {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.json({ success: true });

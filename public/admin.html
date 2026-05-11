@@ -423,6 +423,16 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <input type="text" id="edit-new-password" placeholder="空欄ならパスワード変更なし" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
         <div style="font-size:10px;color:#64748b;margin-top:4px;">入力すると保存時に新パスワードに置き換えます (8文字以上)。</div>
       </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:6px;">📱 タブレットPIN (4桁、/tablet ログイン用)</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:8px;">現在: <span id="edit-tpin-status">…</span></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="edit-tpin" inputmode="numeric" maxlength="4" placeholder="数字4桁" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+          <button type="button" onclick="adminSetTabletPin()" class="btn" style="padding:8px 12px;font-size:12px;">PIN発行</button>
+          <button type="button" onclick="adminClearTabletPin()" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;">削除</button>
+        </div>
+        <div style="font-size:10px;color:#64748b;margin-top:4px;">発行したPINは口頭/紙で本人に伝えてください (画面には2度と表示されません)。</div>
+      </div>
       <div id="edit-err" style="color:#dc2626;font-size:12px;margin-top:10px;min-height:14px;"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;background:#f8fafc;">
@@ -1359,6 +1369,8 @@ function openEditModal(id) {
   document.getElementById('edit-dm-restricted').checked = !!u.dm_restricted;
   document.getElementById('edit-guest-org').value = u.guest_org || '';
   document.getElementById('edit-new-password').value = '';
+  document.getElementById('edit-tpin').value = '';
+  document.getElementById('edit-tpin-status').textContent = (u.has_tablet_pin || u.tablet_pin_set) ? '設定済み' : '未設定';
   document.getElementById('edit-err').textContent = '';
   // DMグループのdatalistを既存メンバーから収集
   const groups = Array.from(new Set((cachedUsers || []).map(x => x.dm_group).filter(Boolean))).sort();
@@ -1369,6 +1381,39 @@ function openEditModal(id) {
 }
 function closeEditModal() {
   document.getElementById('edit-user-modal').style.display = 'none';
+}
+async function adminSetTabletPin() {
+  const id = document.getElementById('edit-user-id').value;
+  const pin = (document.getElementById('edit-tpin').value || '').trim();
+  if (!/^\d{4}$/.test(pin)) { alert('PINは4桁の数字で入力してください'); return; }
+  if (!confirm(`このPIN「${pin}」を本人に伝えてください。発行しますか？`)) return;
+  const r = await fetch('/api/admin/users/' + id + '/tablet-pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ pin }),
+  }).then(x => x.json()).catch(() => null);
+  if (r && r.success) {
+    document.getElementById('edit-tpin-status').textContent = '設定済み';
+    document.getElementById('edit-tpin').value = '';
+    alert('✅ PINを発行しました');
+  } else {
+    alert('❌ ' + (r && r.msg || '失敗'));
+  }
+}
+async function adminClearTabletPin() {
+  const id = document.getElementById('edit-user-id').value;
+  if (!confirm('タブレットPINを削除しますか？本人は /tablet からログインできなくなります。')) return;
+  const r = await fetch('/api/admin/users/' + id + '/tablet-pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ clear: true }),
+  }).then(x => x.json()).catch(() => null);
+  if (r && r.success) {
+    document.getElementById('edit-tpin-status').textContent = '未設定';
+    alert('🗑 PINを削除しました');
+  } else {
+    alert('❌ ' + (r && r.msg || '失敗'));
+  }
 }
 async function submitEdit() {
   const id = document.getElementById('edit-user-id').value;

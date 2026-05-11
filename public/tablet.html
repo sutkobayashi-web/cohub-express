@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📱 CoWell タブレットログイン</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root {
+  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --card: #fff; --border: #e2e8f0;
+  --accent: #14b8a6; --accent-d: #0f766e;
+  --danger: #ef4444;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 18px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, #ecfeff, #f0fdfa); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+.hd .ttl { flex: 1; font-weight: 800; font-size: 20px; color: var(--accent-d); }
+.hd .sub { color: var(--mute); font-size: 13px; }
+.bar { padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.bar input, .bar select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; background: #fff; }
+.bar input { flex: 1; min-width: 180px; }
+.list { padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+.cell { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 8px 12px; cursor: pointer; text-align: center; transition: all .12s; min-height: 170px; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+.cell.disabled { opacity: .5; }
+.cell:not(.disabled):active { transform: scale(.96); border-color: var(--accent); }
+.cell .av { width: 84px; height: 84px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 36px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(15,23,42,.08); }
+.cell .av img { width: 100%; height: 100%; object-fit: cover; }
+.cell .nm { font-weight: 700; font-size: 16px; line-height: 1.3; }
+.cell .co { color: var(--mute); font-size: 12px; }
+.cell .nopin { position: absolute; top: 8px; right: 8px; background: #fef3c7; color: #92400e; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+.empty { padding: 60px 20px; text-align: center; color: var(--mute); }
+/* PINモーダル */
+.modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+.modal-bg.show { display: flex; }
+.modal { background: #fff; width: 100%; max-width: 380px; border-radius: 18px; padding: 24px 20px; text-align: center; }
+.modal .who { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 18px; }
+.modal .who .av { width: 80px; height: 80px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 36px; overflow: hidden; }
+.modal .who .av img { width: 100%; height: 100%; object-fit: cover; }
+.modal .who .nm { font-weight: 800; font-size: 18px; }
+.modal h3 { margin: 4px 0 14px 0; font-size: 16px; color: var(--mute); font-weight: 500; }
+.pin-dots { display: flex; justify-content: center; gap: 14px; margin: 10px 0 18px 0; }
+.pin-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent); background: #fff; transition: all .15s; }
+.pin-dot.on { background: var(--accent); }
+.pin-dot.err { border-color: var(--danger); background: var(--danger); animation: shake .25s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.key { padding: 18px 0; font-size: 22px; font-weight: 700; background: #f1f5f9; border: none; border-radius: 12px; cursor: pointer; transition: all .08s; }
+.key:active { background: #ccfbf1; transform: scale(.96); }
+.key.fn { background: #fee2e2; color: #991b1b; font-size: 16px; font-weight: 600; }
+.key.fn.ok { background: var(--accent); color: #fff; }
+.msg { color: var(--danger); font-size: 13px; min-height: 18px; margin: 6px 0 10px 0; }
+.msg.info { color: var(--mute); }
+.foot { text-align: center; padding: 14px; color: var(--mute); font-size: 12px; }
+.foot a { color: var(--accent-d); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="hd">
+  <div>
+    <div class="ttl">📱 CoWell タブレットログイン</div>
+    <div class="sub">自分のアバターをタップしてPINを入力してください</div>
+  </div>
+</div>
+<div class="bar">
+  <select id="f-co">
+    <option value="">全拠点</option>
+  </select>
+  <input id="f-q" type="search" placeholder="名前で検索">
+</div>
+<div id="list" class="list"><div class="empty">読み込み中…</div></div>
+
+<div id="modal" class="modal-bg" onclick="if(event.target.id==='modal') closeModal()">
+  <div class="modal">
+    <div class="who">
+      <div class="av" id="m-av">👤</div>
+      <div class="nm" id="m-nm">…</div>
+    </div>
+    <h3>4桁PINを入力</h3>
+    <div class="pin-dots" id="m-dots">
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="msg" id="m-msg"></div>
+    <div class="keypad">
+      <button class="key" onclick="kp(1)">1</button>
+      <button class="key" onclick="kp(2)">2</button>
+      <button class="key" onclick="kp(3)">3</button>
+      <button class="key" onclick="kp(4)">4</button>
+      <button class="key" onclick="kp(5)">5</button>
+      <button class="key" onclick="kp(6)">6</button>
+      <button class="key" onclick="kp(7)">7</button>
+      <button class="key" onclick="kp(8)">8</button>
+      <button class="key" onclick="kp(9)">9</button>
+      <button class="key fn" onclick="closeModal()">戻る</button>
+      <button class="key" onclick="kp(0)">0</button>
+      <button class="key fn" onclick="kpBack()">⌫</button>
+    </div>
+  </div>
+</div>
+<div class="foot">PIN未設定の方は推進メンバーまたは管理者に発行を依頼してください。</div>
+
+<script>
+let users = [];
+let companyCodes = new Set();
+let currentUid = null;
+let pin = '';
+let submitting = false;
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function init() {
+  // すでにログイン済みなら/mへ
+  if (localStorage.getItem('cohub_token')) {
+    try {
+      const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + localStorage.getItem('cohub_token') }});
+      if (r.ok) { location.replace('/m'); return; }
+    } catch (e) {}
+  }
+  await loadRoster();
+  document.getElementById('f-q').addEventListener('input', render);
+  document.getElementById('f-co').addEventListener('change', render);
+  // 数字キー対応 (BTキーボード/外付け用)
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('modal').classList.contains('show')) return;
+    if (/^[0-9]$/.test(e.key)) { kp(parseInt(e.key)); }
+    else if (e.key === 'Backspace') kpBack();
+    else if (e.key === 'Escape') closeModal();
+  });
+}
+
+async function loadRoster() {
+  const r = await fetch('/api/auth/tablet-roster').then(x => x.json()).catch(()=>null);
+  if (!r || !r.success) { document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
+  users = r.users || [];
+  companyCodes = new Set(users.map(u => u.company_code || ''));
+  const sel = document.getElementById('f-co');
+  for (const c of [...companyCodes].sort()) {
+    if (!c) continue;
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  }
+  render();
+}
+
+function render() {
+  const co = document.getElementById('f-co').value;
+  const q = (document.getElementById('f-q').value || '').trim().toLowerCase();
+  let arr = users.slice();
+  if (co) arr = arr.filter(u => (u.company_code || '') === co);
+  if (q) arr = arr.filter(u => (u.display_name || '').toLowerCase().includes(q));
+  const el = document.getElementById('list');
+  if (!arr.length) { el.innerHTML = '<div class="empty">該当者が見つかりません</div>'; return; }
+  el.innerHTML = arr.map(u => {
+    const av = u.avatar_url ? `<img src="${escapeHtml(u.avatar_url)}" alt="">` : '👤';
+    const dis = u.has_pin ? '' : 'disabled';
+    const badge = u.has_pin ? '' : '<div class="nopin">PIN未設定</div>';
+    const click = u.has_pin ? `onclick="openPin('${escapeHtml(u.id)}')"` : '';
+    return `<div class="cell ${dis}" ${click}>
+      ${badge}
+      <div class="av">${av}</div>
+      <div class="nm">${escapeHtml(u.display_name)}</div>
+      <div class="co">${escapeHtml(u.company_code || '-')}</div>
+    </div>`;
+  }).join('');
+}
+
+function openPin(uid) {
+  currentUid = uid;
+  pin = '';
+  const u = users.find(x => x.id === uid);
+  if (!u) return;
+  document.getElementById('m-av').innerHTML = u.avatar_url ? `<img src="${escapeHtml(u.avatar_url)}" alt="">` : '👤';
+  document.getElementById('m-nm').textContent = u.display_name;
+  document.getElementById('m-msg').textContent = '';
+  document.getElementById('m-msg').className = 'msg';
+  updateDots(false);
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  currentUid = null; pin = '';
+}
+
+function updateDots(err) {
+  document.querySelectorAll('.pin-dot').forEach((d, i) => {
+    d.classList.toggle('on', !err && i < pin.length);
+    d.classList.toggle('err', !!err);
+  });
+}
+
+function kp(n) {
+  if (submitting) return;
+  if (pin.length >= 4) return;
+  pin += String(n);
+  updateDots(false);
+  if (pin.length === 4) trySubmit();
+}
+
+function kpBack() {
+  if (submitting) return;
+  pin = pin.slice(0, -1);
+  updateDots(false);
+}
+
+async function trySubmit() {
+  submitting = true;
+  document.getElementById('m-msg').textContent = '認証中…';
+  document.getElementById('m-msg').className = 'msg info';
+  try {
+    const r = await fetch('/api/auth/tablet-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUid, pin }),
+    }).then(x => x.json());
+    if (r && r.success && r.token) {
+      localStorage.setItem('cohub_token', r.token);
+      if (r.user) localStorage.setItem('cohub_user', JSON.stringify(r.user));
+      document.getElementById('m-msg').textContent = '✅ ログイン成功';
+      setTimeout(() => location.replace('/m'), 300);
+      return;
+    }
+    updateDots(true);
+    document.getElementById('m-msg').textContent = (r && r.msg) || 'ログインに失敗しました';
+    document.getElementById('m-msg').className = 'msg';
+    pin = '';
+    setTimeout(() => updateDots(false), 350);
+  } catch (e) {
+    document.getElementById('m-msg').textContent = '通信エラー';
+    pin = '';
+    setTimeout(() => updateDots(false), 300);
+  } finally {
+    submitting = false;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

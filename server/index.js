@@ -213,6 +213,7 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
+app.use('/api/auth/tablet-login', authLimiter);
 app.use('/api/', apiLimiter);
 
 // /api/* は絶対にキャッシュさせない (ブラウザ/Cloudflareが古い401を304で返す事故を防止)
@@ -549,6 +550,7 @@ app.get('/home', (req, res) => sendHtmlNoCache(res, 'home.html'));
 app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
 app.get('/meeting-archive', (req, res) => sendHtmlNoCache(res, 'meeting-archive.html'));
 app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.html'));
+app.get('/tablet', (req, res) => sendHtmlNoCache(res, 'tablet.html'));
 app.get('/ops-literacy', (req, res) => sendHtmlNoCache(res, 'ops-literacy.html'));
 app.get('/takara', (req, res) => sendHtmlNoCache(res, 'takara/admin.html'));
 app.get('/takara/driver', (req, res) => sendHtmlNoCache(res, 'takara/driver.html'));
