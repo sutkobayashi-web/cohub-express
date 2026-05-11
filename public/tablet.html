@@ -110,12 +110,19 @@ let submitting = false;
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 async function init() {
-  // すでにログイン済みなら/mへ
-  if (localStorage.getItem('cohub_token')) {
+  // ?demo=1 ならログイン済みでもキオスク画面を表示 (PC版からのプレビュー用)
+  const demoMode = new URLSearchParams(location.search).get('demo') === '1';
+  if (!demoMode && localStorage.getItem('cohub_token')) {
     try {
       const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + localStorage.getItem('cohub_token') }});
       if (r.ok) { location.replace('/m'); return; }
     } catch (e) {}
+  }
+  if (demoMode) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:#fef3c7;color:#92400e;padding:8px 14px;font-size:12px;text-align:center;border-bottom:1px solid #fde68a;';
+    banner.innerHTML = '👀 プレビューモード (PC版からの表示確認)　<a href="/home" style="color:#0f766e;font-weight:700;">← ホームに戻る</a>';
+    document.body.insertBefore(banner, document.body.firstChild);
   }
   await loadRoster();
   document.getElementById('f-q').addEventListener('input', render);
