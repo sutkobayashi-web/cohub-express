@@ -20,6 +20,9 @@ router.get('/', authUser, (req, res) => {
         last_seen_at
       FROM users
       WHERE COALESCE(status, 'active') NOT IN ('deleted', 'archived')
+        AND COALESCE(role, '') <> 'bot'
+        AND COALESCE(employee_type, '') <> 'bot'
+        AND id NOT LIKE 'bot_%'
       ORDER BY
         CASE WHEN dm_group IS NULL OR dm_group = '' THEN 1 ELSE 0 END,
         dm_group COLLATE NOCASE,
