@@ -216,6 +216,22 @@
   }
   .card-prep { opacity: 0.7; }
   .card-prep:hover { opacity: 0.85; }
+  /* テスト運用中バッジ (アクティブだが検証段階) */
+  .badge-test {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-6deg);
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 1px;
+    padding: 6px 14px; border-radius: 6px; z-index: 2;
+    box-shadow: 0 3px 10px rgba(217,119,6,0.40);
+    border: 2px solid rgba(255,255,255,0.7);
+    white-space: nowrap;
+    animation: pulse-test 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-test {
+    0%, 100% { transform: translate(-50%, -50%) rotate(-6deg) scale(1); }
+    50% { transform: translate(-50%, -50%) rotate(-6deg) scale(1.06); }
+  }
 
   /* カードのカラーパレット */
   .card.chat       { --c1: #38bdf8; --c2: #0ea5e9; }
@@ -469,6 +485,12 @@
         <div class="icon-pill">🗺️</div>
         <div class="label">ルート地図</div>
         <div class="desc">座間拠点起点の号車別ルートを地図で可視化。業者・配送日フィルタ。</div>
+      </a>
+      <a id="p-card-bcscan" class="card takara" href="https://stdun.biz-terrace.org/bcscan/home.html" target="_blank" style="position:relative;">
+        <span class="badge-test">読取テスト運用中</span>
+        <div class="icon-pill">📦</div>
+        <div class="label">bc-scan</div>
+        <div class="desc">バーコード読取で出庫管理・ピッキング・ダメージ報告。座間で1週間徹底テスト中(5/11〜)。</div>
       </a>
     </div>
   </section>
