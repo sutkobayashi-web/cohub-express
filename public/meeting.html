@@ -930,7 +930,22 @@ async function startMeeting(mode) {
   try {
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
   } catch (e) {
-    showToast((meetingMode === 'camera' ? 'マイク/カメラ' : 'マイク') + 'の取得失敗: ' + e.message, 3500, true);
+    // エラー種別ごとに分かりやすいメッセージ
+    let msg = '';
+    const errName = (e && e.name) || '';
+    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+      msg = 'ブラウザのカメラ/マイク権限が拒否されています。アドレス欄左の🔒からカメラ・マイクを「許可」に変更してください';
+    } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+      msg = 'カメラ/マイクが他のアプリ(Zoom/Teams等)に使用中です。他アプリを閉じて再試行してください';
+    } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+      msg = 'カメラ/マイクが検出できませんでした。デバイスの接続を確認してください';
+    } else if (errName === 'OverconstrainedError') {
+      msg = 'カメラがこの解像度に対応していません (' + (e.message || '') + ')';
+    } else {
+      msg = (meetingMode === 'camera' ? 'マイク/カメラ' : 'マイク') + 'の取得失敗: ' + (e.message || errName || 'unknown');
+    }
+    showToast(msg, 6000, true);
+    console.warn('[meeting] getUserMedia failed:', errName, e);
     meetingMode = null;
     return;
   }

@@ -193,6 +193,9 @@ app.use(helmet({
     }
   },
   crossOriginEmbedderPolicy: false,
+  // 既定の no-referrer だと外部リンク(bc-scan等)で document.referrer が空になり
+  // 「戻る」JSで遷移元判定不能。strict-origin-when-cross-origin で origin のみ送る
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
 app.use(cors({
@@ -272,14 +275,32 @@ app.use('/api/walk', require('./routes/walk'));
 app.use('/api/help', require('./routes/help'));
 app.use('/api/timecard', require('./routes/timecard'));
 app.use('/api/meeting', require('./routes/meeting'));
+{
+  const mp = require('./routes/meeting_poll');
+  app.use('/api/poll', mp);
+  if (typeof mp.startReminderScheduler === 'function') {
+    setTimeout(() => mp.startReminderScheduler(app), 3000);
+  }
+}
+app.use('/api/daily-message', require('./routes/daily_message'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/takara', require('./routes/takara_demo'));
+app.use('/api/circles', require('./routes/circles'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
 // 0または未設定なら従来の index.html (フル機能) を返す。
 const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
+
+// アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
+// (古い HTML を使い続けるメンバー対策)
+const APP_VERSION = '2026-05-15-1';
+app.get('/api/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, version: APP_VERSION });
+});
+
 app.get('/api/config', (req, res) => {
   res.json({
     success: true,
@@ -411,6 +432,16 @@ app.delete('/api/users/block/:uid', authUser, (req, res) => {
   if (!blockedId) return res.status(400).json({ success: false });
   getDb().prepare('DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?').run(req.uid, blockedId);
   res.json({ success: true });
+});
+
+// 人間同士チャット用 送信前安全チェック (本人にだけ警告を返す。ログは送信時に別途記録)
+app.post('/api/safety/check-message', authUser, express.json({ limit: '32kb' }), (req, res) => {
+  const text = (req.body && req.body.text || '').toString();
+  if (!text.trim()) return res.json({ success: true, hit: null });
+  const hit = safety.checkForHumanChat(text);
+  if (!hit) return res.json({ success: true, hit: null });
+  const tpl = safety.warningTemplate(hit.category);
+  res.json({ success: true, hit: { category: hit.category, severity: hit.severity }, warning: tpl });
 });
 
 app.get('/api/floor-presence/:code', authUser, (req, res) => {
@@ -583,7 +614,7 @@ const io = new Server(server, {
 // ルート側からioを使えるようlocalsに共有
 app.locals.io = io;
 
-// ソケット認証
+// ソケット認証 (JWT + デバイス種別セッション照合)
 io.use((socket, next) => {
   const token = socket.handshake.auth && socket.handshake.auth.token;
   if (!token) return next(new Error('unauth'));
@@ -591,7 +622,29 @@ io.use((socket, next) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     socket.uid = payload.uid;
     socket.role = payload.role;
+    socket.dev = payload.dev || null;
+    socket.sid = payload.sid || null;
     socket.isMobile = !!(socket.handshake.auth && socket.handshake.auth.isMobile);
+    // デバイス種別ごとのセッション照合 (新しいログインで旧セッションをキック)
+    if (payload.sid && payload.role !== 'bot') {
+      try {
+        const u = getDb().prepare('SELECT pc_session_token, mobile_session_token, session_token FROM users WHERE id = ?').get(payload.uid);
+        let ok = false;
+        if (payload.dev === 'mobile') ok = !!(u && u.mobile_session_token && u.mobile_session_token === payload.sid);
+        else if (payload.dev === 'pc') ok = !!(u && u.pc_session_token && u.pc_session_token === payload.sid);
+        else {
+          // 旧JWT互換: dev未指定なら3フィールドのいずれかに一致すればOK
+          ok = !!(u && (
+            (u.session_token && u.session_token === payload.sid) ||
+            (u.pc_session_token && u.pc_session_token === payload.sid) ||
+            (u.mobile_session_token && u.mobile_session_token === payload.sid)
+          ));
+        }
+        if (!ok) {
+          return next(new Error('session_kicked'));
+        }
+      } catch (e) { /* DB失敗時はフェイルオープン */ }
+    }
     next();
   } catch (e) { next(new Error('unauth')); }
 });
@@ -697,6 +750,7 @@ function canDm(sender, receiver) {
   if (!sender || !receiver) return false;
   if (sender.role === 'admin' || sender.role === 'bot') return true;
   if (receiver.role === 'bot') return true;
+  if (receiver.role === 'admin') return true; // ★5/14 B案: 一般→管理者は常に許可
   const sr = sender.dm_restricted | 0;
   const rr = receiver.dm_restricted | 0;
   if (!sr && !rr) return true; // 双方制限なし
@@ -834,6 +888,20 @@ function clampForFloor(floor, x, y) {
 io.on('connection', (socket) => {
   const uid = socket.uid;
   const db = getDb();
+  // 同一uid+同一デバイス種別の旧socketを即時切断 (デバイス種別単位の単一セッション維持)
+  if (socket.dev) {
+    try {
+      const peers = Array.from(io.sockets.sockets.values());
+      for (const p of peers) {
+        if (p === socket) continue;
+        if (p.uid === uid && p.dev === socket.dev) {
+          try { p.emit('session:kicked', { reason: 'same_device_login', dev: socket.dev }); } catch (e) {}
+          try { p.disconnect(true); } catch (e) {}
+          console.log(`[session] kicked old socket uid=${uid} dev=${socket.dev}`);
+        }
+      }
+    } catch (e) {}
+  }
   const saved = db.prepare('SELECT x, y, floor_code, status_text FROM positions WHERE user_id = ?').get(uid);
   const userInfo = db.prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
   // 初回ログイン時のデフォルトフロア: 現場社員は乗務員詰所、その他はロビー
@@ -1312,6 +1380,18 @@ io.on('connection', (socket) => {
         }).catch(() => {});
       }
     }
+    // 安全フィルタ: 警告を無視して送信された場合に静かに監査ログのみ記録 (Push通知なし)
+    if (content) {
+      try {
+        const safetyHit = safety.checkForHumanChat(content);
+        if (safetyHit) {
+          db.prepare(`INSERT INTO inappropriate_logs (user_id, bot_id, content, detection_layer, category, matched_pattern, severity)
+            VALUES (?, ?, ?, 'L1_human_chat', ?, ?, ?)`)
+            .run(uid, 'grp_' + gid, content, safetyHit.category, safetyHit.matched, safetyHit.severity);
+          console.warn(`[safety human-chat] uid=${uid} gid=${gid} category=${safetyHit.category}`);
+        }
+      } catch (e) { console.error('[safety log group]', e.message); }
+    }
   });
 
   // 入力中インジケーター (chat-simple.htmlの「○○さんが入力中...」)
@@ -1378,6 +1458,18 @@ io.on('connection', (socket) => {
     if (tp && !tp.isBot) {
       const s = io.sockets.sockets.get(tp.socketId);
       if (s) s.emit('dm:msg', payload);
+    }
+    // 安全フィルタ: 人間宛DMで警告を押し切って送信された場合に静かに監査ログを記録 (Push通知なし)
+    if (content && target.role !== 'bot') {
+      try {
+        const safetyHit = safety.checkForHumanChat(content);
+        if (safetyHit) {
+          db.prepare(`INSERT INTO inappropriate_logs (user_id, bot_id, content, detection_layer, category, matched_pattern, severity)
+            VALUES (?, ?, ?, 'L1_human_chat', ?, ?, ?)`)
+            .run(uid, to, content, safetyHit.category, safetyHit.matched, safetyHit.severity);
+          console.warn(`[safety human-chat] uid=${uid} to=${to} category=${safetyHit.category}`);
+        }
+      } catch (e) { console.error('[safety log dm]', e.message); }
     }
     // bot宛ならGeminiに転送して返答を生成
     if (tp && tp.isBot && content) {
@@ -1827,8 +1919,23 @@ ${latestReport.summary}
       video_on: !!(data && data.video_on),
       mic_on: !!(data && data.mic_on),
       screen_on: !!(data && data.screen_on),
+      hand_raised: !!(data && data.hand_raised), // ★5/14 アバター会議: 挙手
     });
   });
+
+  // ★5/14 アバター会議: 音量(amp)をルーム内ブロードキャスト (リップシンク用)
+  // 高頻度 (~10fps) のため最小限の検証だけして即リレー
+  socket.on('meeting:amp', (data) => {
+    const roomId = userMeetingRoom(uid);
+    if (!roomId) return;
+    let amp = (data && typeof data.amp === 'number') ? data.amp : 0;
+    if (!isFinite(amp)) amp = 0;
+    if (amp < 0) amp = 0;
+    if (amp > 1) amp = 1;
+    socket.to('mt:' + roomId).emit('meeting:amp', { uid, amp });
+  });
+
+  // ★字幕ブロードキャストは2026-05-14に撤去 (議事録ボタンで個別保存のみ)
 
   // ===== 1:1 通話 (DMから音声/ビデオ通話を開始する) =====
   // 設計: chat-simple.html で使用。WebRTC signaling のリレーのみ。
