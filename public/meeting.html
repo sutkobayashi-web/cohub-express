@@ -793,6 +793,7 @@ async function callPeer(peerUid, isOfferer) {
       senderTracks.push(s);
       if (!screenSender) screenSender = s;  // 後で removeTrack できるよう video sender を保持
     }
+    if (screenSender) _applyScreenSenderParams(screenSender);
   }
   pc.onicecandidate = (e) => {
     if (e.candidate) socket.emit('meeting:signal', { to: peerUid, type: 'ice', payload: e.candidate });
@@ -1251,13 +1252,35 @@ function toggleCam() {
   renderTiles();
 }
 
+// 画面共有sender に上限ビットレート/FPSを適用 (会議資料の共有用に絞る)
+async function _applyScreenSenderParams(sender) {
+  if (!sender) return;
+  try {
+    const params = sender.getParameters();
+    if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+    params.encodings[0].maxBitrate = 800000;   // 800kbps
+    params.encodings[0].maxFramerate = 10;
+    await sender.setParameters(params);
+  } catch (e) { console.warn('screen setParameters failed', e); }
+}
+
 async function toggleScreenShare() {
   if (!screenOn) {
     try {
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      // 解像度・FPSを絞ってから取得 (ディスプレイ原寸×30fpsで上り回線を食い尽くすのを防ぐ)
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 8, max: 12 }, width: { max: 1920 }, height: { max: 1080 } },
+        audio: false
+      });
     } catch (e) {
       showToast('画面共有がキャンセルされました', 2000);
       return;
+    }
+    // エンコーダに「資料/文字」のヒント (静止画優先で文字が滲まない)
+    const vTrack = screenStream.getVideoTracks()[0];
+    if (vTrack) {
+      try { vTrack.contentHint = 'detail'; } catch (e) {}
+      try { await vTrack.applyConstraints({ frameRate: { max: 10 } }); } catch (e) {}
     }
     screenOn = true;
     // 既存ピアに画面共有trackを追加 (または既存senderにreplaceTrack) して再ネゴ。
@@ -1270,6 +1293,7 @@ async function toggleScreenShare() {
           entry.screenSender = entry.pc.addTrack(t, screenStream);
         }
       }
+      await _applyScreenSenderParams(entry.screenSender);
       try {
         const offer = await entry.pc.createOffer();
         await entry.pc.setLocalDescription(offer);
