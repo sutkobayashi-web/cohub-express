@@ -766,10 +766,16 @@ function setupSocket() {
     if (name) showToast('👋 ' + name + ' が退室しました', 1500);
   });
   socket.on('meeting:state', (data) => {
+    const prev = peerStates.get(data.uid) || {};
     peerStates.set(data.uid, { video_on: data.video_on, mic_on: data.mic_on, screen_on: data.screen_on });
     // 自分がビデオONなら、ビデオONした相手とpeer接続を確立 (offerを送る)
     if (data.video_on && (camOn || micOn) && !peerConnections.has(data.uid)) {
       callPeer(data.uid, true);
+    }
+    // 画面共有OFF遷移時: 受信側に残る古いscreenStream参照を切り、再共有のontrackを受け入れられるようにする
+    if (prev.screen_on && !data.screen_on) {
+      const entry = peerConnections.get(data.uid);
+      if (entry) entry.screenStream = null;
     }
     // 画面共有モード判定
     updateScreenMode();
@@ -801,8 +807,15 @@ async function callPeer(peerUid, isOfferer) {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   // 自分が持っているトラックを追加
   const senderTracks = [];
+  let screenSender = null;
   if (localStream) for (const t of localStream.getTracks()) senderTracks.push(pc.addTrack(t, localStream));
-  if (screenStream) for (const t of screenStream.getTracks()) senderTracks.push(pc.addTrack(t, screenStream));
+  if (screenStream) {
+    for (const t of screenStream.getTracks()) {
+      const s = pc.addTrack(t, screenStream);
+      senderTracks.push(s);
+      if (!screenSender) screenSender = s;  // 後で removeTrack できるよう video sender を保持
+    }
+  }
   pc.onicecandidate = (e) => {
     if (e.candidate) socket.emit('meeting:signal', { to: peerUid, type: 'ice', payload: e.candidate });
   };
@@ -833,7 +846,7 @@ async function callPeer(peerUid, isOfferer) {
       renderTiles();
     }
   };
-  const entry = { pc, profile: peerProfiles.get(peerUid) || { uid: peerUid, display_name: '...', avatar_url: '' }, stream: null, screenStream: null, senderTracks };
+  const entry = { pc, profile: peerProfiles.get(peerUid) || { uid: peerUid, display_name: '...', avatar_url: '' }, stream: null, screenStream: null, screenSender, senderTracks };
   peerConnections.set(peerUid, entry);
   if (isOfferer) {
     const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
@@ -1268,10 +1281,16 @@ async function toggleScreenShare() {
       return;
     }
     screenOn = true;
-    // 既存ピアに画面共有trackを追加して再ネゴ。
-    // ※ontrack側はストリームID識別なのでstateの先行通知は不要。
+    // 既存ピアに画面共有trackを追加 (または既存senderにreplaceTrack) して再ネゴ。
+    // 再共有時にaddTrackが重複senderを作るのを避けるため、entry.screenSenderを使い回す。
     for (const [, entry] of peerConnections) {
-      for (const t of screenStream.getTracks()) entry.pc.addTrack(t, screenStream);
+      for (const t of screenStream.getTracks()) {
+        if (entry.screenSender) {
+          try { await entry.screenSender.replaceTrack(t); } catch (e) { console.warn('replaceTrack failed', e); }
+        } else {
+          entry.screenSender = entry.pc.addTrack(t, screenStream);
+        }
+      }
       try {
         const offer = await entry.pc.createOffer();
         await entry.pc.setLocalDescription(offer);
@@ -1285,16 +1304,28 @@ async function toggleScreenShare() {
     renderControls();
     renderTiles();
   } else {
-    stopScreenShare();
+    await stopScreenShare();
   }
 }
 
-function stopScreenShare() {
+async function stopScreenShare() {
   if (screenStream) {
     for (const t of screenStream.getTracks()) t.stop();
     screenStream = null;
   }
   screenOn = false;
+  // 各ピアからsenderを取り外し再ネゴ (これをやらないと受信側に古いtrackが残り再共有不可)
+  for (const [, entry] of peerConnections) {
+    if (entry.screenSender) {
+      try { entry.pc.removeTrack(entry.screenSender); } catch (e) {}
+      entry.screenSender = null;
+      try {
+        const offer = await entry.pc.createOffer();
+        await entry.pc.setLocalDescription(offer);
+        socket.emit('meeting:signal', { to: entry.profile.uid, type: 'offer', payload: offer });
+      } catch (e) {}
+    }
+  }
   socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: false });
   updateScreenMode();
   renderControls();
