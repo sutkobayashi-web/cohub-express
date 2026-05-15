@@ -435,7 +435,8 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
     <div class="timer" id="fs-timer">00:00</div>
   </div>
   <div class="stage" id="stage">
-    <div class="grid" id="grid"></div>
+    <div class="main-area" id="main-area" style="display:none;"><video id="main-screen-video" autoplay playsinline></video></div>
+    <div class="grid" id="tile-container"></div>
   </div>
   <div class="transcript-panel" id="ts-panel"></div>
   <div class="fs-controls" id="ctrls">
@@ -1080,34 +1081,50 @@ function avatarPlaceholder(profile) {
   return '👤';
 }
 
-function tileHtml(uid, profile, stream, isSelf, isHost, mySpeaking) {
-  const idAttr = isSelf ? 'vid-self' : 'vid-' + uid;
-  const peerState = peerStates.get(uid) || {};
-  const camFlag = isSelf ? camOn : peerState.video_on;
-  const micFlag = isSelf ? micOn : peerState.mic_on;
-  const showVideo = !!stream && camFlag;
+// タイル内側HTML (data-uid付きの外側 .tile はDOM側で持続管理)
+function buildTileInner(key, profile, showVideo, isHost, micFlag, isSelf) {
+  const idAttr = isSelf ? 'vid-self' : 'vid-' + key;
   const icons = (!micFlag ? '🔇' : '');
   const hostBadge = isHost ? '<span class="badge-host">主催</span>' : '';
-  const tileKey = isSelf ? 'self' : uid;
   const nameRow = `<div class="name">${escapeHtml(profile.display_name || '...')}${isSelf ? ' (自分)' : ''} <span class="icons">${icons}</span></div>`;
   if (showVideo) {
-    // カメラON: タイル全体に映像 (Zoom風) + 上端に吹き出し + 縁発光で発話表示
-    return `<div class="tile has-video" data-uid="${escapeHtml(tileKey)}">
-      ${hostBadge}
-      <video id="${idAttr}" autoplay playsinline${isSelf ? ' muted' : ''}></video>
-      <div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div>
-      ${nameRow}
-    </div>`;
+    return `${hostBadge}<video id="${idAttr}" autoplay playsinline${isSelf ? ' muted' : ''}></video><div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div>${nameRow}`;
   }
-  // カメラOFF/アバターモード: 円形アバター
-  return `<div class="tile" data-uid="${escapeHtml(tileKey)}">
-    ${hostBadge}
-    <div class="placeholder"><div class="ava-big">
-      <div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div>
-      <div class="ava-clip">${avatarPlaceholder(profile)}</div>
-    </div></div>
-    ${nameRow}
-  </div>`;
+  return `${hostBadge}<div class="placeholder"><div class="ava-big"><div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div><div class="ava-clip">${avatarPlaceholder(profile)}</div></div></div>${nameRow}`;
+}
+
+// 既存タイルの属性のみ差分更新 (構造は維持)
+function updateTileAttrs(el, profile, isHost, micFlag, isSelf, showVideo) {
+  // 主催バッジ
+  const firstChild = el.firstElementChild;
+  const hasHost = firstChild && firstChild.classList && firstChild.classList.contains('badge-host');
+  if (isHost && !hasHost) {
+    const span = document.createElement('span');
+    span.className = 'badge-host';
+    span.textContent = '主催';
+    el.insertBefore(span, el.firstChild);
+  } else if (!isHost && hasHost) {
+    firstChild.remove();
+  }
+  // 名前行
+  const nameEl = el.querySelector(':scope > .name');
+  if (nameEl) {
+    const displayName = escapeHtml(profile.display_name || '...');
+    const suffix = isSelf ? ' (自分)' : '';
+    const icons = !micFlag ? '🔇' : '';
+    const wantHtml = `${displayName}${suffix} <span class="icons">${icons}</span>`;
+    if (nameEl.innerHTML !== wantHtml) nameEl.innerHTML = wantHtml;
+  }
+  // アバター画像 (カメラOFF時のみ存在)
+  if (!showVideo) {
+    const avaClip = el.querySelector('.ava-clip');
+    if (avaClip) {
+      const wantInner = profile.avatar_url
+        ? `<img src="${escapeHtml(profile.avatar_url)}" alt="">`
+        : '👤';
+      if (avaClip.innerHTML !== wantInner) avaClip.innerHTML = wantInner;
+    }
+  }
 }
 
 function updateScreenMode() {
@@ -1123,56 +1140,106 @@ function updateScreenMode() {
   }
 }
 
+// renderTiles: RAFで集約。連続呼び出しは1フレームに1回だけ実行。
+let _renderTilesScheduled = false;
 function renderTiles() {
+  if (_renderTilesScheduled) return;
+  _renderTilesScheduled = true;
+  requestAnimationFrame(() => {
+    _renderTilesScheduled = false;
+    _renderTilesNow();
+  });
+}
+
+// 実際の差分レンダリング: <video> 要素や DOM ノードを破棄せず、属性のみ更新する
+function _renderTilesNow() {
   if (stage === 'lobby') return;
   const stageEl = $('stage');
+  const tileContainer = $('tile-container');
+  const mainArea = $('main-area');
+  if (!tileContainer || !stageEl) return;
   const myUid = me.uid || me.id;
   const myProf = { uid: myUid, display_name: me.display_name, avatar_url: me.avatar_url };
 
-  // 全タイル定義 (自分 + ピア)
-  const tiles = [];
-  tiles.push({ uid: myUid, profile: myProf, stream: localStream, isSelf: true });
-  for (const [uid, prof] of peerProfiles) {
-    const entry = peerConnections.get(uid);
-    tiles.push({ uid, profile: prof, stream: entry ? entry.stream : null, isSelf: false });
-  }
-
+  // モード切替 (構造は保持してクラスのみトグル)
   if (mainScreenUid) {
-    // 画面共有モード: メイン領域 + サムネ
+    stageEl.classList.add('screen-mode');
+    tileContainer.classList.remove('grid');
+    tileContainer.classList.add('thumbs');
+    mainArea.style.display = '';
     let mainStream = null;
     if (mainScreenUid === myUid) mainStream = screenStream;
     else {
       const entry = peerConnections.get(mainScreenUid);
       if (entry) mainStream = entry.screenStream || entry.stream;
     }
-    const mainHtml = mainStream ? '<video id="main-screen-video" autoplay playsinline></video>' : '<div style="color:#94a3b8;">画面共有準備中…</div>';
-    let html = '<div class="main-area">' + mainHtml + '</div>';
-    html += '<div class="thumbs">';
-    for (const t of tiles) html += tileHtml(t.uid, t.profile, t.stream, t.isSelf);
-    html += '</div>';
-    stageEl.innerHTML = html;
-    if (mainStream) {
-      const v = document.getElementById('main-screen-video');
-      if (v) v.srcObject = mainStream;
-    }
+    const v = $('main-screen-video');
+    if (v && v.srcObject !== (mainStream || null)) v.srcObject = mainStream || null;
   } else {
-    let html = '<div class="grid">';
-    for (const t of tiles) html += tileHtml(t.uid, t.profile, t.stream, t.isSelf);
-    html += '</div>';
-    stageEl.innerHTML = html;
+    stageEl.classList.remove('screen-mode');
+    tileContainer.classList.remove('thumbs');
+    tileContainer.classList.add('grid');
+    mainArea.style.display = 'none';
+    const v = $('main-screen-video');
+    if (v && v.srcObject) v.srcObject = null;
   }
-  // 各タイルの video.srcObject を再アタッチ
-  if (localStream) {
-    const v = document.getElementById('vid-self');
-    if (v) { v.srcObject = localStream; v.muted = true; }
+
+  // 望ましいタイル列
+  const wanted = [{ key: 'self', uid: myUid, profile: myProf, stream: localStream, isSelf: true }];
+  for (const [uid, prof] of peerProfiles) {
+    const entry = peerConnections.get(uid);
+    wanted.push({ key: uid, uid, profile: prof, stream: entry ? entry.stream : null, isSelf: false });
   }
-  for (const [uid, entry] of peerConnections) {
-    if (entry.stream) {
-      const v = document.getElementById('vid-' + uid);
-      if (v) v.srcObject = entry.stream;
+
+  // 既存タイルを uid→element でマップ化
+  const existing = new Map();
+  for (const el of Array.from(tileContainer.children)) {
+    const k = el.getAttribute('data-uid');
+    if (k) existing.set(k, el);
+  }
+
+  for (let i = 0; i < wanted.length; i++) {
+    const t = wanted[i];
+    const isHostNow = !!(hostUid && hostUid === t.uid);
+    const peerState = peerStates.get(t.uid) || {};
+    const camFlag = t.isSelf ? camOn : peerState.video_on;
+    const micFlag = t.isSelf ? micOn : peerState.mic_on;
+    const showVideo = !!t.stream && camFlag;
+
+    let el = existing.get(t.key);
+    // タイル構造(video⇔avatar)が変わるとき、または新規のときだけinnerHTML書き換え
+    const structureChanged = !el || el.classList.contains('has-video') !== showVideo;
+
+    if (structureChanged) {
+      if (!el) el = document.createElement('div');
+      el.setAttribute('data-uid', t.key);
+      const speaking = el.classList.contains('speaking');
+      el.className = 'tile' + (showVideo ? ' has-video' : '') + (speaking ? ' speaking' : '');
+      el.innerHTML = buildTileInner(t.key, t.profile, showVideo, isHostNow, micFlag, t.isSelf);
+    } else {
+      updateTileAttrs(el, t.profile, isHostNow, micFlag, t.isSelf, showVideo);
     }
+
+    // srcObject はストリーム参照が変わったときのみ差し替え (映像中断の主因)
+    if (showVideo) {
+      const v = el.querySelector('video');
+      if (v) {
+        if (v.srcObject !== t.stream) v.srcObject = t.stream;
+        if (t.isSelf) v.muted = true;
+      }
+    }
+
+    // 位置合わせ
+    if (tileContainer.children[i] !== el) {
+      tileContainer.insertBefore(el, tileContainer.children[i] || null);
+    }
+    existing.delete(t.key);
   }
-  // 再レンダリング後に speaking クラスを復元
+
+  // 余った既存タイルを削除
+  for (const [, el] of existing) el.remove();
+
+  // speaking クラスをモニタの最新状態で復元 (構造再構築されたタイル向け)
   reattachAllSpeakingMonitors();
 }
 
