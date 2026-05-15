@@ -91,19 +91,51 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }
-.tile video { width: 100%; height: 100%; object-fit: cover; background: #000; }
 .tile .placeholder {
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%;
   background: linear-gradient(135deg, #2c2c2e, #3c3c3e);
+  position: relative;
 }
 .tile .placeholder .ava-big {
-  width: 90px; height: 90px; border-radius: 50%; background: #475569;
-  display: flex; align-items: center; justify-content: center; overflow: hidden;
-  font-size: 36px; color: #cbd5e1;
-  border: 3px solid rgba(255,255,255,0.2);
+  width: min(45%, 160px); aspect-ratio: 1 / 1; border-radius: 50%; background: #475569;
+  position: relative;
+  border: 3px solid rgba(255,255,255,0.25);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
 }
-.tile .placeholder .ava-big img { width: 100%; height: 100%; object-fit: cover; }
+.tile .placeholder .ava-big .ava-clip {
+  width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #475569; color: #cbd5e1; font-size: 36px;
+}
+.tile .placeholder .ava-big .ava-clip img,
+.tile .placeholder .ava-big .ava-clip video {
+  width: 100%; height: 100%; object-fit: cover; display: block; background: #000;
+}
+.stage.screen-mode .thumbs .tile .placeholder .ava-big { width: 70%; }
+/* カメラON時: タイル全体に映像 (Zoom/Meet風) */
+.tile.has-video > video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+  background: #000; display: block;
+}
+.tile.has-video .speak-bubble {
+  top: 12px;
+  transform: translate(-50%, 0) scale(0);
+  transform-origin: center;
+  animation: none;
+}
+.tile.has-video.speaking {
+  outline: 3px solid rgba(34,197,94,0.9);
+  outline-offset: -3px;
+  box-shadow: 0 0 32px 8px rgba(34,197,94,0.45);
+}
+.tile.has-video.speaking .speak-bubble {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+  transition: transform 0.32s cubic-bezier(0.34, 1.65, 0.64, 1), opacity 0.14s;
+  animation: none;
+}
 .tile .name {
   position: absolute; bottom: 6px; left: 8px; right: 8px;
   background: rgba(0,0,0,0.55); color: #fff; padding: 3px 8px;
@@ -113,7 +145,85 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 }
 .tile .name .icons { color: #fbbf24; }
 .tile .badge-host { position: absolute; top: 6px; left: 8px; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
-.tile.speaking { box-shadow: inset 0 0 0 3px var(--ok); }
+/* 喋っている演出: アバターが弾むようにバウンス */
+.tile.speaking .placeholder .ava-big {
+  border-color: rgba(34,197,94,0.95);
+  box-shadow:
+    0 0 0 5px rgba(34,197,94,0.55),
+    0 0 36px 12px rgba(34,197,94,0.65),
+    0 10px 28px rgba(0,0,0,0.40);
+  animation: ava-bounce 0.55s ease-in-out infinite;
+}
+@keyframes ava-bounce {
+  0%   { transform: translateY(0) scale(1) rotate(0deg); }
+  20%  { transform: translateY(-8px) scale(1.08) rotate(-2deg); }
+  40%  { transform: translateY(0) scale(1.04) rotate(2deg); }
+  60%  { transform: translateY(-4px) scale(1.06) rotate(-1deg); }
+  80%  { transform: translateY(0) scale(1.02) rotate(1deg); }
+  100% { transform: translateY(0) scale(1) rotate(0deg); }
+}
+/* 吹き出し: アバター円の真上中央に固定 (ava-big内に配置) */
+.tile .speak-bubble {
+  position: absolute;
+  left: 50%; top: -10px;
+  transform: translate(-50%, -100%) scale(0);
+  transform-origin: bottom center;
+  background: linear-gradient(135deg, #22c55e, #15803d); color: #fff;
+  padding: 6px 14px; border-radius: 18px;
+  font-size: 14px; font-weight: 900;
+  display: flex; align-items: center; gap: 6px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(34,197,94,0.45), 0 2px 4px rgba(0,0,0,0.25);
+  white-space: nowrap;
+  z-index: 3;
+}
+.tile .speak-bubble::after {
+  content: ''; position: absolute;
+  bottom: -7px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-top: 8px solid #15803d;
+  filter: drop-shadow(0 2px 1px rgba(0,0,0,0.18));
+}
+.tile.speaking .speak-bubble {
+  opacity: 1;
+  animation: bubble-pop 0.32s cubic-bezier(0.34, 1.65, 0.64, 1) forwards, bubble-wobble 1.2s ease-in-out 0.32s infinite;
+}
+@keyframes bubble-pop {
+  0%   { transform: translate(-50%, -100%) scale(0) rotate(-10deg); }
+  60%  { transform: translate(-50%, -100%) scale(1.18) rotate(4deg); }
+  100% { transform: translate(-50%, -100%) scale(1) rotate(0deg); }
+}
+@keyframes bubble-wobble {
+  0%, 100% { transform: translate(-50%, -100%) scale(1) rotate(0deg); }
+  25% { transform: translate(-50%, -103%) scale(1.05) rotate(-2deg); }
+  75% { transform: translate(-50%, -103%) scale(1.05) rotate(2deg); }
+}
+.tile .speak-bubble .dots b {
+  width: 5px; height: 5px;
+}
+.tile.speaking .speak-bubble .dots b {
+  animation: dot-bounce 0.6s ease-in-out infinite;
+}
+.tile.speaking .speak-bubble .dots b:nth-child(2) { animation-delay: 0.15s; }
+.tile.speaking .speak-bubble .dots b:nth-child(3) { animation-delay: 0.30s; }
+@keyframes dot-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-5px); opacity: 1; }
+}
+.tile .speak-bubble .dots b {
+  display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+  background: #fff; margin: 0 1px;
+  animation: dot-pulse 1s ease-in-out infinite;
+}
+.tile .speak-bubble .dots b:nth-child(2) { animation-delay: 0.18s; }
+.tile .speak-bubble .dots b:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
 
 .fs-controls {
   background: rgba(0,0,0,0.6); padding: 10px 14px;
@@ -171,6 +281,103 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   margin: 10px 0;
 }
 
+/* ============ 時刻表（かいぎ出太郎） ============ */
+.kaigi-section {
+  background: linear-gradient(135deg, #fff8e6, #fef3c7);
+  border: 2px solid #fbbf24; border-radius: 16px;
+  padding: 16px 18px; margin: 18px 0;
+  box-shadow: 0 6px 18px rgba(251,191,36,0.18);
+}
+.tt-title-bar {
+  font-size: 14px; font-weight: 800; color: #92400e;
+  margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1.5px solid #fbbf24;
+  letter-spacing: 0.5px;
+}
+.tt-group {
+  margin-bottom: 14px;
+}
+.tt-group:last-child { margin-bottom: 0; }
+.tt-group-title {
+  font-size: 12px; font-weight: 800; color: #92400e;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  letter-spacing: 0.5px;
+}
+.tt-card {
+  background: #fff; border: 1px solid #fde68a; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 10px;
+  transition: transform 0.12s, box-shadow 0.12s;
+  cursor: pointer;
+}
+.tt-card:last-child { margin-bottom: 0; }
+.tt-card:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.10); }
+.tt-card.live { border-color: #dc2626; background: linear-gradient(135deg, #fef2f2, #fff); }
+.tt-card.soon { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb, #fff); }
+.tt-card.open { border-color: #94a3b8; background: linear-gradient(135deg, #f8fafc, #fff); border-style: dashed; }
+.tt-when {
+  flex-shrink: 0; min-width: 80px; text-align: center;
+  font-family: ui-monospace, monospace; font-size: 13px; font-weight: 800;
+  color: #1f2937; line-height: 1.2;
+}
+.tt-when .date { font-size: 10px; color: #64748b; font-weight: 600; }
+.tt-when .live-badge {
+  display: inline-block; background: #dc2626; color: #fff;
+  font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+  animation: live-blink 1.2s ease-in-out infinite;
+}
+.tt-when .soon-badge {
+  display: inline-block; background: #f59e0b; color: #fff;
+  font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+}
+.tt-when .open-badge {
+  display: inline-block; background: #64748b; color: #fff;
+  font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+}
+@keyframes live-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+  50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+}
+.tt-body { flex: 1; min-width: 0; }
+.tt-title { font-size: 14px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-meta { font-size: 11px; color: #64748b; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+.tt-avatars { display: flex; flex-shrink: 0; }
+.tt-avatars img, .tt-avatars .ph {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid #fff; margin-left: -6px;
+  object-fit: cover; background: #cbd5e1;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+}
+.tt-avatars img:first-child, .tt-avatars .ph:first-child { margin-left: 0; }
+.tt-room-now {
+  margin-top: 6px; display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px; background: rgba(34,197,94,0.10);
+  border-radius: 6px; border: 1px solid rgba(34,197,94,0.30);
+}
+.tt-room-now .rn-label {
+  font-size: 10px; font-weight: 800; color: #15803d;
+  white-space: nowrap;
+}
+.tt-room-now .tt-avatars img, .tt-room-now .tt-avatars .ph {
+  width: 22px; height: 22px;
+}
+.tt-empty {
+  background: #fff; border: 1px dashed #fde68a; border-radius: 10px;
+  padding: 14px; text-align: center; color: #92400e;
+  font-size: 12px; font-weight: 600;
+}
+.tt-cta {
+  text-align: right; margin-top: 10px;
+}
+.tt-cta a {
+  display: inline-block; background: #f59e0b; color: #fff;
+  padding: 6px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 800; text-decoration: none;
+  box-shadow: 0 2px 6px rgba(245,158,11,0.30);
+}
+.tt-cta a:hover { background: #d97706; }
+
 @media (max-width: 600px) {
   .body { padding: 14px; }
   .room-card { padding: 18px; }
@@ -179,8 +386,12 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   .stage.screen-mode .thumbs .tile { flex: 0 0 auto; width: 100px; }
   .ctrl-btn { padding: 6px 10px; min-width: 54px; font-size: 10px; }
   .ctrl-btn .ico { font-size: 16px; }
+  .tt-when { min-width: 64px; font-size: 12px; }
+  .tt-card { padding: 8px 10px; gap: 8px; }
+  .tt-avatars img, .tt-avatars .ph { width: 22px; height: 22px; }
 }
 </style>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 <!-- ロビー -->
@@ -192,7 +403,7 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   </div>
   <div class="body">
     <div class="intro">
-      会議室に入室すると、まずアバターで参加します。「会議開始」を押すとビデオ会議が始まり、画面共有や議事録も使えます。
+      会議室に入室すると、まずアバターで参加します。会議開始時に「アバターモード（音声のみ）」または「カメラモード（音声＋映像）」を選べます。画面共有・議事録はどちらのモードでも利用可能です。
     </div>
     <div class="room-card" id="room-card">
       <div class="ic">🎙</div>
@@ -200,6 +411,17 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
       <div class="count">参加中: <b id="room-count">0</b>名</div>
       <div class="members" id="room-members"></div>
       <button class="enter-btn" onclick="enterRoom()">▶ 入室する</button>
+    </div>
+
+    <!-- ━━━ ミーティング時刻表 ━━━ -->
+    <div class="kaigi-section">
+      <div class="tt-title-bar">🎬 ミーティング予定</div>
+      <div id="timetable">
+        <div class="tt-empty">読み込み中…</div>
+      </div>
+      <div class="tt-cta">
+        <a href="/poll.html">📅 日程調整一覧 / 新規予約</a>
+      </div>
     </div>
   </div>
 </div>
@@ -262,6 +484,7 @@ let inRoom = false;
 let localStream = null;
 let screenStream = null;     // 画面共有時の MediaStream
 let micOn = false, camOn = false, screenOn = false, recOn = false;
+let meetingMode = null;     // 'avatar' | 'camera' (live段階で確定)
 let peerConnections = new Map();   // uid → {pc, profile, stream, screenStream, hasScreen}
 let peerProfiles = new Map();      // uid → profile (uid/display_name/avatar_url)
 let peerStates = new Map();        // uid → {video_on, mic_on, screen_on}
@@ -298,9 +521,172 @@ async function init() {
   if (!r || !r.success) { location.replace('/'); return; }
   me = r.user;
   await refreshRoomStatus();
+  loadTimetable();
   setupSocket();
-  // ロビー状態は10秒ごとに更新
+  // ロビー状態は10秒ごとに更新、時刻表は30秒ごと
   setInterval(() => { if (stage === 'lobby') refreshRoomStatus(); }, 10000);
+  setInterval(() => { if (stage === 'lobby') loadTimetable(); }, 30000);
+}
+
+// ============ 時刻表 ============
+const DOWS_TT = ['日','月','火','水','木','金','土'];
+function _ttFmtTime(iso) {
+  if (!iso) return '';
+  const s = String(iso).length === 16 ? iso + ':00' : iso;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return iso;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return hh + ':' + mm;
+}
+function _ttFmtDate(iso) {
+  if (!iso) return '';
+  const s = String(iso).length === 16 ? iso + ':00' : iso;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(d); target.setHours(0,0,0,0);
+  const diffDays = Math.round((target - today) / (24*3600*1000));
+  if (diffDays === 0) return '本日';
+  if (diffDays === 1) return '明日';
+  if (diffDays === -1) return '昨日';
+  return (d.getMonth()+1) + '/' + d.getDate() + '(' + DOWS_TT[d.getDay()] + ')';
+}
+function _ttAvatarHtml(participants) {
+  const visible = participants.slice(0, 5);
+  const rest = Math.max(0, participants.length - visible.length);
+  let html = '<div class="tt-avatars">';
+  for (const p of visible) {
+    const initial = escapeHtml((p.name || '?').slice(0, 1));
+    html += p.avatar
+      ? `<img src="${escapeHtml(p.avatar)}" alt="" title="${escapeHtml(p.name||'')}">`
+      : `<span class="ph" title="${escapeHtml(p.name||'')}">${initial}</span>`;
+  }
+  if (rest > 0) html += `<span class="ph" style="background:#9ca3af;">+${rest}</span>`;
+  html += '</div>';
+  return html;
+}
+function _ttRoomBadge(currentRoom) {
+  if (!currentRoom || !currentRoom.length) return '';
+  const visible = currentRoom.slice(0, 6);
+  const rest = Math.max(0, currentRoom.length - visible.length);
+  let inner = '';
+  for (const p of visible) {
+    const initial = escapeHtml((p.name || '?').slice(0, 1));
+    inner += p.avatar
+      ? `<img src="${escapeHtml(p.avatar)}" alt="" title="${escapeHtml(p.name||'')}">`
+      : `<span class="ph" title="${escapeHtml(p.name||'')}">${initial}</span>`;
+  }
+  if (rest > 0) inner += `<span class="ph" style="background:#9ca3af;">+${rest}</span>`;
+  return `<div class="tt-room-now"><span class="rn-label">🟢 入室中</span><div class="tt-avatars">${inner}</div></div>`;
+}
+function _ttDecidedCard(d, serverNow, currentRoom) {
+  const start = new Date(d.starts_at.length === 16 ? d.starts_at + ':00' : d.starts_at);
+  const dur = (d.duration_minutes || 30) * 60000;
+  const end = new Date(start.getTime() + dur);
+  const now = serverNow ? new Date(serverNow) : new Date();
+  const minsUntil = Math.round((start - now) / 60000);
+  let klass = '', badge = '', metaExtra = '';
+  if (now >= start && now < end) {
+    klass = 'live';
+    badge = '<div class="live-badge">🔴 会議中</div>';
+    const remain = Math.max(0, Math.round((end - now) / 60000));
+    metaExtra = '残り' + remain + '分';
+  } else if (minsUntil <= 30 && minsUntil > 0) {
+    klass = 'soon';
+    badge = '<div class="soon-badge">⏰ もうすぐ</div>';
+    metaExtra = 'あと' + minsUntil + '分';
+  } else if (minsUntil > 0) {
+    metaExtra = (minsUntil < 60*24 ? Math.round(minsUntil/60) + '時間後' : Math.round(minsUntil/60/24) + '日後');
+  }
+  const dateLbl = _ttFmtDate(d.starts_at);
+  const timeLbl = _ttFmtTime(d.starts_at);
+  const roomBadge = (klass === 'live') ? _ttRoomBadge(currentRoom) : '';
+  return `<div class="tt-card ${klass}" onclick="location.href='/poll.html?id=${d.id}'">
+    <div class="tt-when">
+      <div class="date">${escapeHtml(dateLbl)}</div>
+      <div>${timeLbl}</div>
+      ${badge}
+    </div>
+    <div class="tt-body">
+      <div class="tt-title">${escapeHtml(d.title || '(無題)')}</div>
+      <div class="tt-meta">
+        <span>主催: ${escapeHtml(d.organizer_name || '')}</span>
+        <span>${d.duration_minutes||30}分</span>
+        ${metaExtra ? '<span>' + metaExtra + '</span>' : ''}
+      </div>
+      ${roomBadge}
+    </div>
+    ${_ttAvatarHtml(d.participants || [])}
+  </div>`;
+}
+function _ttOpenCard(p) {
+  const dateLbl = p.earliest_candidate ? _ttFmtDate(p.earliest_candidate) : '';
+  const timeLbl = p.earliest_candidate ? _ttFmtTime(p.earliest_candidate) : '';
+  const voted = p.voted_count || 0;
+  const total = p.invitee_count || 0;
+  return `<div class="tt-card open" onclick="location.href='/poll.html?id=${p.id}'">
+    <div class="tt-when">
+      <div class="date">${escapeHtml(dateLbl || '日程未定')}</div>
+      <div style="color:#64748b;">${timeLbl ? '〜' + timeLbl : ''}</div>
+      <div class="open-badge">📋 調整中</div>
+    </div>
+    <div class="tt-body">
+      <div class="tt-title">${escapeHtml(p.title || '(無題)')}</div>
+      <div class="tt-meta">
+        <span>主催: ${escapeHtml(p.organizer_name || '')}</span>
+        <span>候補${p.slot_count || 0}件</span>
+        <span>回答 ${voted}/${total}名</span>
+      </div>
+    </div>
+  </div>`;
+}
+async function loadTimetable() {
+  const root = document.getElementById('timetable');
+  if (!root) return;
+  try {
+    const r = await api('/api/poll/timetable');
+    if (!r || !r.success) { root.innerHTML = '<div class="tt-empty">読み込み失敗</div>'; return; }
+    const decided = r.decided || [];
+    const open = r.open || [];
+    const serverNow = r.server_now;
+    const now = serverNow ? new Date(serverNow) : new Date();
+    // 分類
+    const live = [], soon = [], today = [], later = [];
+    const todayKey = (() => { const x = new Date(now); x.setHours(0,0,0,0); return x.getTime(); })();
+    for (const d of decided) {
+      const start = new Date(d.starts_at.length === 16 ? d.starts_at + ':00' : d.starts_at);
+      const dur = (d.duration_minutes || 30) * 60000;
+      const end = new Date(start.getTime() + dur);
+      const minsUntil = Math.round((start - now) / 60000);
+      const dayKey = (() => { const x = new Date(start); x.setHours(0,0,0,0); return x.getTime(); })();
+      if (now >= start && now < end) live.push(d);
+      else if (minsUntil <= 30 && minsUntil > 0) soon.push(d);
+      else if (dayKey === todayKey) today.push(d);
+      else later.push(d);
+    }
+    let html = '';
+    const currentRoom = r.current_room || [];
+    if (live.length) {
+      html += '<div class="tt-group"><div class="tt-group-title">🔴 会議中</div>' + live.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    }
+    if (soon.length) {
+      html += '<div class="tt-group"><div class="tt-group-title">⏰ もうすぐ (30分以内)</div>' + soon.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    }
+    if (today.length) {
+      html += '<div class="tt-group"><div class="tt-group-title">📅 本日この後</div>' + today.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    }
+    if (later.length) {
+      html += '<div class="tt-group"><div class="tt-group-title">📆 今後の予定</div>' + later.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    }
+    if (open.length) {
+      html += '<div class="tt-group"><div class="tt-group-title">📋 日程調整中</div>' + open.map(p => _ttOpenCard(p)).join('') + '</div>';
+    }
+    if (!html) html = '<div class="tt-empty">予定はまだありません。「+ 日程調整一覧」から予約をどうぞ。</div>';
+    root.innerHTML = html;
+  } catch (e) {
+    root.innerHTML = '<div class="tt-empty">読み込みエラー</div>';
+  }
 }
 
 async function refreshRoomStatus() {
@@ -360,6 +746,12 @@ function setupSocket() {
     peerProfiles.set(profile.uid, profile);
     renderTiles();
     showToast('👤 ' + profile.display_name + ' が入室しました', 1500);
+    // 自分が会議中(live)なら、新参加者にもカメラ/画面共有のstateを通知する。
+    // (meeting:peers スナップショットはuidのみで state を含まないため、再emitしないと
+    //  新参加者の updateScreenMode が既存の画面共有者を取りこぼす)
+    if (stage === 'live') {
+      socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: screenOn });
+    }
   });
   socket.on('meeting:peer-left', (data) => {
     const pc = peerConnections.get(data.uid);
@@ -367,6 +759,7 @@ function setupSocket() {
     const name = (peerProfiles.get(data.uid) || {}).display_name || '';
     peerProfiles.delete(data.uid);
     peerStates.delete(data.uid);
+    detachSpeakingMonitor(data.uid);
     if (mainScreenUid === data.uid) mainScreenUid = null;
     renderTiles();
     if (name) showToast('👋 ' + name + ' が退室しました', 1500);
@@ -415,18 +808,20 @@ async function callPeer(peerUid, isOfferer) {
   pc.ontrack = (e) => {
     let entry = peerConnections.get(peerUid);
     if (!entry) return;
-    // ストリーム識別: 単一trackで判別不能なので、相手のscreen_on状態を見て screenStream か localStream を区別する
-    const peerState = peerStates.get(peerUid) || {};
+    // ストリーム識別はpeerStatesに依存せず、MediaStream IDで行う。
+    // (state イベントと再ネゴオファーの到着順は保証されないため、
+    //  peerStates.screen_on を見ると camera と screen を取り違える事故が起きる)
+    // 仕様: addTrack 順は (1) localStream(audio+video) (2) screenStream(video)。
+    // 受信側もこの順でストリームが届くので、1本目=stream, 2本目=screenStream。
     const stream = e.streams[0];
-    if (peerState.screen_on && !entry.screenStream) {
-      // 2本目のストリーム来たら screenStream とみなす (簡易判定)
-      if (entry.stream && entry.stream !== stream) {
-        entry.screenStream = stream;
-      } else {
-        entry.stream = stream;
-      }
-    } else {
+    if (!entry.stream) {
       entry.stream = stream;
+    } else if (stream !== entry.stream && !entry.screenStream) {
+      entry.screenStream = stream;
+    }
+    // 相手の喋り検出を開始 (音声トラックを含むstreamのみ)
+    if (entry.stream && entry.stream.getAudioTracks().length) {
+      attachSpeakingMonitor(peerUid, entry.stream);
     }
     updateScreenMode();
     renderTiles();
@@ -526,26 +921,36 @@ function unlockRoom() {
   socket.emit('meeting:lock', { locked: false });
 }
 
-// アバター待機 → ビデオ開始
-async function startVideoMeeting() {
+// アバター待機 → 会議開始 (mode: 'avatar' | 'camera')
+async function startMeeting(mode) {
+  meetingMode = (mode === 'camera') ? 'camera' : 'avatar';
+  const constraints = (meetingMode === 'camera')
+    ? { audio: true, video: { width: 640, height: 480 } }
+    : { audio: true, video: false };
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { width: 640, height: 480 } });
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
   } catch (e) {
-    showToast('マイク/カメラの取得失敗: ' + e.message, 3500, true);
+    showToast((meetingMode === 'camera' ? 'マイク/カメラ' : 'マイク') + 'の取得失敗: ' + e.message, 3500, true);
+    meetingMode = null;
     return;
   }
-  micOn = true; camOn = true;
+  micOn = true;
+  camOn = (meetingMode === 'camera');
   stage = 'live';
-  $('stage-label').textContent = '🔴 会議中';
+  $('stage-label').textContent = (meetingMode === 'camera' ? '🔴 会議中 (カメラ)' : '🔴 会議中 (アバター)');
   // 既存メンバー全員と接続 (自分がofferer)
   for (const [uid] of peerProfiles) {
     if (!peerConnections.has(uid)) await callPeer(uid, true);
   }
   // 状態通知
-  socket.emit('meeting:state', { video_on: true, mic_on: micOn, screen_on: false });
+  socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: false });
   renderTiles();
   renderControls();
+  // 自分の喋り検出を開始
+  attachSpeakingMonitor('self', localStream);
 }
+// 後方互換用エイリアス
+async function startVideoMeeting() { return startMeeting('camera'); }
 
 function startTimer() {
   if (timerHandle) clearInterval(timerHandle);
@@ -567,18 +972,92 @@ function renderControls() {
     : '';
   if (stage === 'waiting') {
     c.innerHTML = `
-      <button class="ctrl-btn start" onclick="startVideoMeeting()"><span class="ico">🎥</span><span>会議開始 (ビデオON)</span></button>
+      <button class="ctrl-btn start" onclick="startMeeting('avatar')"><span class="ico">🎭</span><span>アバターモードで開始<br><small style="font-size:10px;opacity:0.85;">音声のみ・顔出しなし</small></span></button>
+      <button class="ctrl-btn start" onclick="startMeeting('camera')"><span class="ico">🎥</span><span>カメラモードで開始<br><small style="font-size:10px;opacity:0.85;">音声＋映像</small></span></button>
       ${lockBtn}
       <button class="ctrl-btn danger" onclick="leaveRoom()"><span class="ico">⏏</span><span>退室</span></button>`;
   } else if (stage === 'live') {
+    const camBtn = (meetingMode === 'camera')
+      ? `<button class="ctrl-btn ${camOn ? 'on' : 'off'}" onclick="toggleCam()"><span class="ico">${camOn ? '🎥' : '📷'}</span><span>${camOn ? 'カメラ' : 'カメラOFF'}</span></button>`
+      : `<button class="ctrl-btn on" disabled style="opacity:0.7;cursor:default;"><span class="ico">🎭</span><span>アバターモード</span></button>`;
     c.innerHTML = `
       <button class="ctrl-btn ${micOn ? 'on' : 'off'}" onclick="toggleMic()"><span class="ico">${micOn ? '🎤' : '🔇'}</span><span>${micOn ? 'マイク' : 'マイクOFF'}</span></button>
-      <button class="ctrl-btn ${camOn ? 'on' : 'off'}" onclick="toggleCam()"><span class="ico">${camOn ? '🎥' : '📷'}</span><span>${camOn ? 'カメラ' : 'カメラOFF'}</span></button>
+      ${camBtn}
       <button class="ctrl-btn ${screenOn ? 'on' : ''}" onclick="toggleScreenShare()"><span class="ico">🖥️</span><span>${screenOn ? '共有中' : '画面共有'}</span></button>
       <button class="ctrl-btn ${recOn ? 'on' : ''}" onclick="toggleRec()"><span class="ico">📝</span><span>${recOn ? '議事録ON' : '議事録'}</span></button>
       ${lockBtn}
       <button class="ctrl-btn danger" onclick="leaveRoom()"><span class="ico">⏏</span><span>退室</span></button>`;
   }
+}
+
+// ===== 喋っている検出 (音声レベル監視) =====
+const SPEAK_THRESHOLD = 0.025;   // RMS閾値
+const SPEAK_HOLD_MS = 700;       // 静音化を遅延させる時間 (チラつき防止)
+let _audioCtx = null;
+const speakingMonitors = new Map(); // key('self' or uid) → { source, analyser, buf, raf, lastSpokeAt, isSpeaking }
+
+function _ensureAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { console.warn('AudioContext unavailable', e); return null; }
+  }
+  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+  return _audioCtx;
+}
+
+function attachSpeakingMonitor(key, stream) {
+  if (!stream || !stream.getAudioTracks().length) return;
+  detachSpeakingMonitor(key);
+  const ctx = _ensureAudioCtx();
+  if (!ctx) return;
+  let source;
+  try { source = ctx.createMediaStreamSource(stream); }
+  catch (e) { console.warn('createMediaStreamSource failed', key, e); return; }
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.5;
+  source.connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  const monitor = { source, analyser, buf, raf: null, lastSpokeAt: 0, isSpeaking: false };
+  speakingMonitors.set(key, monitor);
+
+  const loop = () => {
+    if (!speakingMonitors.has(key)) return;
+    analyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    const now = Date.now();
+    // 自分がマイクOFFのときは無効化
+    const effectiveOn = (key === 'self') ? micOn : true;
+    if (effectiveOn && rms > SPEAK_THRESHOLD) monitor.lastSpokeAt = now;
+    const speaking = effectiveOn && (now - monitor.lastSpokeAt < SPEAK_HOLD_MS);
+    if (speaking !== monitor.isSpeaking) {
+      monitor.isSpeaking = speaking;
+      _updateTileSpeaking(key, speaking);
+    }
+    monitor.raf = requestAnimationFrame(loop);
+  };
+  monitor.raf = requestAnimationFrame(loop);
+}
+
+function detachSpeakingMonitor(key) {
+  const m = speakingMonitors.get(key);
+  if (!m) return;
+  if (m.raf) cancelAnimationFrame(m.raf);
+  try { m.source.disconnect(); } catch (e) {}
+  speakingMonitors.delete(key);
+  _updateTileSpeaking(key, false);
+}
+
+function _updateTileSpeaking(key, speaking) {
+  const el = document.querySelector('.tile[data-uid="' + CSS.escape(key) + '"]');
+  if (el) el.classList.toggle('speaking', speaking);
+}
+
+function reattachAllSpeakingMonitors() {
+  // 再レンダリング後の状態を即反映
+  for (const [key, m] of speakingMonitors) _updateTileSpeaking(key, m.isSpeaking);
 }
 
 function avatarPlaceholder(profile) {
@@ -588,17 +1067,31 @@ function avatarPlaceholder(profile) {
 
 function tileHtml(uid, profile, stream, isSelf, isHost, mySpeaking) {
   const idAttr = isSelf ? 'vid-self' : 'vid-' + uid;
-  const placeholder = `<div class="placeholder"><div class="ava-big">${avatarPlaceholder(profile)}</div></div>`;
-  const showVideo = !!stream;
   const peerState = peerStates.get(uid) || {};
   const camFlag = isSelf ? camOn : peerState.video_on;
   const micFlag = isSelf ? micOn : peerState.mic_on;
+  const showVideo = !!stream && camFlag;
   const icons = (!micFlag ? '🔇' : '');
   const hostBadge = isHost ? '<span class="badge-host">主催</span>' : '';
-  return `<div class="tile">
+  const tileKey = isSelf ? 'self' : uid;
+  const nameRow = `<div class="name">${escapeHtml(profile.display_name || '...')}${isSelf ? ' (自分)' : ''} <span class="icons">${icons}</span></div>`;
+  if (showVideo) {
+    // カメラON: タイル全体に映像 (Zoom風) + 上端に吹き出し + 縁発光で発話表示
+    return `<div class="tile has-video" data-uid="${escapeHtml(tileKey)}">
+      ${hostBadge}
+      <video id="${idAttr}" autoplay playsinline${isSelf ? ' muted' : ''}></video>
+      <div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div>
+      ${nameRow}
+    </div>`;
+  }
+  // カメラOFF/アバターモード: 円形アバター
+  return `<div class="tile" data-uid="${escapeHtml(tileKey)}">
     ${hostBadge}
-    ${(showVideo && camFlag) ? `<video id="${idAttr}" autoplay playsinline${isSelf ? ' muted' : ''}></video>` : placeholder}
-    <div class="name">${escapeHtml(profile.display_name || '...')}${isSelf ? ' (自分)' : ''} <span class="icons">${icons}</span></div>
+    <div class="placeholder"><div class="ava-big">
+      <div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div>
+      <div class="ava-clip">${avatarPlaceholder(profile)}</div>
+    </div></div>
+    ${nameRow}
   </div>`;
 }
 
@@ -664,6 +1157,8 @@ function renderTiles() {
       if (v) v.srcObject = entry.stream;
     }
   }
+  // 再レンダリング後に speaking クラスを復元
+  reattachAllSpeakingMonitors();
 }
 
 function toggleMic() {
@@ -691,18 +1186,17 @@ async function toggleScreenShare() {
       return;
     }
     screenOn = true;
-    // 既存ピアに画面共有trackを追加
+    // 既存ピアに画面共有trackを追加して再ネゴ。
+    // ※ontrack側はストリームID識別なのでstateの先行通知は不要。
     for (const [, entry] of peerConnections) {
       for (const t of screenStream.getTracks()) entry.pc.addTrack(t, screenStream);
-      // 再ネゴシエーションが必要だが簡略化のため省略 (新規参加者には callPeer 時に渡る)
-      // 既存接続には offer を再送
       try {
         const offer = await entry.pc.createOffer();
         await entry.pc.setLocalDescription(offer);
         socket.emit('meeting:signal', { to: entry.profile.uid, type: 'offer', payload: offer });
       } catch (e) {}
     }
-    // 共有停止イベント
+    // 共有停止イベント (ブラウザ標準の「共有を停止」ボタン)
     screenStream.getVideoTracks()[0].onended = () => stopScreenShare();
     socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: true });
     updateScreenMode();
@@ -793,10 +1287,12 @@ async function leaveRoom() {
   peerConnections.clear();
   peerProfiles.clear();
   peerStates.clear();
+  for (const key of Array.from(speakingMonitors.keys())) detachSpeakingMonitor(key);
   if (localStream) for (const t of localStream.getTracks()) t.stop();
   if (screenStream) for (const t of screenStream.getTracks()) t.stop();
   localStream = null; screenStream = null;
   micOn = false; camOn = false; screenOn = false;
+  meetingMode = null;
   stopRecognition();
   recOn = false;
   if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
