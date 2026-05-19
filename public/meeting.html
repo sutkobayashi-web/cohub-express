@@ -139,7 +139,10 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 }
 .tt-body { flex: 1; min-width: 0; }
 .tt-title { font-size: 14px; font-weight: 800; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tt-meta { font-size: 11px; color: #64748b; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+.tt-meta { font-size: 11px; color: #64748b; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fmt-chip { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+.fmt-chip.online { background: #dbeafe; color: #1d4ed8; }
+.fmt-chip.inperson { background: #fef3c7; color: #92400e; }
 .tt-avatars { display: flex; flex-shrink: 0; }
 .tt-avatars img, .tt-avatars .ph {
   width: 26px; height: 26px; border-radius: 50%;
@@ -445,6 +448,13 @@ function _ttRoomBadge(currentRoom) {
   if (rest > 0) inner += `<span class="ph" style="background:#9ca3af;">+${rest}</span>`;
   return `<div class="tt-room-now"><span class="rn-label">🟢 入室中</span><div class="tt-avatars">${inner}</div></div>`;
 }
+function _ttFmtChip(d) {
+  if (d && d.format === 'inperson') {
+    const loc = d.location ? ' ' + escapeHtml(d.location) : '';
+    return '<span class="fmt-chip inperson">📍 対面' + loc + '</span>';
+  }
+  return '<span class="fmt-chip online">📹 オンライン</span>';
+}
 function _ttDecidedCard(d, serverNow, currentRoom) {
   const start = new Date(d.starts_at.length === 16 ? d.starts_at + ':00' : d.starts_at);
   const dur = (d.duration_minutes || 30) * 60000;
@@ -464,7 +474,7 @@ function _ttDecidedCard(d, serverNow, currentRoom) {
   }
   const dateLbl = _ttFmtDate(d.starts_at);
   const timeLbl = _ttFmtTime(d.starts_at);
-  const roomBadge = (klass === 'live') ? _ttRoomBadge(currentRoom) : '';
+  const roomBadge = (klass === 'live' && d.format !== 'inperson') ? _ttRoomBadge(currentRoom) : '';
   return `<div class="tt-card ${klass}" onclick="location.href='/poll.html?id=${d.id}'">
     <div class="tt-when">
       <div class="date">${escapeHtml(dateLbl)}</div>
@@ -476,6 +486,7 @@ function _ttDecidedCard(d, serverNow, currentRoom) {
       <div class="tt-meta">
         <span>主催: ${escapeHtml(d.organizer_name || '')}</span>
         <span>${d.duration_minutes||30}分</span>
+        ${_ttFmtChip(d)}
         ${metaExtra ? '<span>' + metaExtra + '</span>' : ''}
       </div>
       ${roomBadge}
@@ -498,6 +509,7 @@ function _ttOpenCard(p) {
       <div class="tt-title">${escapeHtml(p.title || '(無題)')}</div>
       <div class="tt-meta">
         <span>主催: ${escapeHtml(p.organizer_name || '')}</span>
+        ${_ttFmtChip(p)}
         <span>候補${p.slot_count || 0}件</span>
         <span>回答 ${voted}/${total}名</span>
       </div>

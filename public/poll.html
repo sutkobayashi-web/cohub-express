@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📅 日程調整 — CoWell</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+:root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --sub:#64748b; --teal:#0d9488; --teal-d:#0f766e; --yes:#16a34a; --maybe:#f59e0b; --no:#dc2626; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif; min-height: 100vh; }
+main { max-width: 960px; margin: 0 auto; padding: 16px; }
+/* かいぎ出太郎 (画面左下・全身固定表示、フローティング) */
+@keyframes detarouFloat {
+  0%   { transform: translateY(0) rotate(-0.6deg); }
+  50%  { transform: translateY(-10px) rotate(0.6deg); }
+  100% { transform: translateY(0) rotate(-0.6deg); }
+}
+@keyframes detarouBubblePop {
+  0%, 80%, 100% { transform: scale(1); }
+  85%           { transform: scale(1.08); }
+  90%           { transform: scale(0.97); }
+  95%           { transform: scale(1.03); }
+}
+.detarou-hero { position: fixed; right: 16px; left: auto; bottom: 8px; z-index: 50; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; animation: detarouFloat 4.5s ease-in-out infinite; transform-origin: 50% 100%; }
+.detarou-hero .ava-full { width: 168px; height: auto; display: block; filter: drop-shadow(0 8px 14px rgba(15,23,42,0.20)); pointer-events: auto; }
+.detarou-hero .bubble { position: relative; margin-bottom: 150px; background: #fff; border: 2px solid #0d9488; border-radius: 16px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #0f766e; box-shadow: 0 4px 10px rgba(13,148,136,0.18); max-width: 240px; line-height: 1.5; pointer-events: auto; animation: detarouBubblePop 4.5s ease-in-out infinite; transform-origin: 100% 50%; }
+.detarou-hero .bubble .name { display: block; font-size: 10px; color: #0d9488; font-weight: 800; margin-bottom: 3px; letter-spacing: 0.5px; }
+.detarou-hero .bubble::after { content: ''; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid #0d9488; }
+.detarou-hero .bubble::before { content: ''; position: absolute; right: -7px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 8px solid #fff; z-index: 1; }
+@media (max-width: 480px) {
+  .detarou-hero { right: 8px; left: auto; bottom: 6px; gap: 6px; }
+  .detarou-hero .ava-full { width: 108px; }
+  .detarou-hero .bubble { font-size: 11px; padding: 6px 10px; margin-bottom: 95px; max-width: 160px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .detarou-hero, .detarou-hero .bubble { animation: none; }
+}
+.detarou-hero .close-btn { position: absolute; top: 4px; right: -4px; left: auto; width: 28px; height: 28px; border-radius: 50%; background: rgba(15,23,42,0.65); color: #fff; border: 2px solid #fff; font-size: 13px; font-weight: 900; cursor: pointer; pointer-events: auto; box-shadow: 0 3px 8px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; z-index: 2; }
+.detarou-hero .close-btn:hover { background: rgba(15,23,42,0.85); }
+.detarou-hero.hidden { display: none; }
+.detarou-restore { position: fixed; right: 12px; left: auto; bottom: 12px; z-index: 50; width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; border: 2px solid #fff; box-shadow: 0 4px 12px rgba(13,148,136,0.35); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 22px; pointer-events: auto; }
+.detarou-restore.show { display: flex; }
+.detarou-restore:hover { transform: scale(1.06); }
+@media (max-width: 480px) {
+  .detarou-hero .close-btn { width: 24px; height: 24px; font-size: 11px; right: -2px; left: auto; top: 2px; }
+  .detarou-restore { width: 42px; height: 42px; font-size: 20px; right: 8px; left: auto; bottom: 10px; }
+}
+.sec-title { font-size: 13px; font-weight: 800; color: var(--sub); margin: 20px 0 10px; padding-left: 8px; border-left: 3px solid var(--teal); letter-spacing: 0.3px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: none; border-radius: 8px; background: linear-gradient(135deg, var(--teal), var(--teal-d)); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.btn:hover { opacity: 0.9; }
+.btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.poll-list { display: grid; gap: 10px; }
+.poll-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; text-decoration: none; color: inherit; display: block; }
+.poll-card:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); transform: translateY(-1px); }
+.poll-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.poll-card .title { font-size: 16px; font-weight: 800; flex: 1; }
+.poll-card .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.poll-card .badge.open { background: #dcfce7; color: #166534; }
+.poll-card .badge.decided { background: #dbeafe; color: #1d4ed8; }
+.poll-card .badge.cancelled { background: #f1f5f9; color: #64748b; }
+.poll-card .meta { font-size: 12px; color: var(--sub); display: flex; gap: 14px; flex-wrap: wrap; }
+.fmt-chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.fmt-chip.online { background: #dbeafe; color: #1d4ed8; }
+.fmt-chip.inperson { background: #fef3c7; color: #92400e; }
+.fmt-badge { display: inline-block; margin: 4px 0 10px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.fmt-badge.online { background: #dbeafe; color: #1d4ed8; }
+.fmt-badge.inperson { background: #fef3c7; color: #92400e; }
+.poll-card .role { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+.poll-card .role.org { background: #fef3c7; color: #92400e; }
+.poll-card .role.invited { background: #ede9fe; color: #6d28d9; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--sub); font-size: 13px; }
+.empty .em { font-size: 40px; margin-bottom: 8px; }
+
+/* 作成フォーム */
+.form { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-top: 12px; }
+.form label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px; margin-top: 14px; }
+.form label:first-child { margin-top: 0; }
+.form input[type=text], .form textarea, .form input[type=number], .form input[type=datetime-local] {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; outline: none;
+}
+.form input:focus, .form textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,148,136,0.15); }
+.form .slot-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.form .slot-row input { flex: 1; }
+.form .slot-row button { background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-weight: 700; font-size: 12px; }
+.form .add-slot { margin-top: 8px; background: #f1f5f9; color: #0f172a; border: 1px dashed #cbd5e1; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.form .add-slot:hover { background: #e2e8f0; }
+.form .invitees-pick { max-height: 280px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px; margin-top: 4px; background: #fafafa; }
+.form .invitee-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.form .invitee-item:hover { background: #fff; }
+.form .invitee-item.checked { background: #ecfeff; }
+.form .invitee-item input { margin: 0; }
+.form .invitee-item .ava { width: 28px; height: 28px; border-radius: 50%; background: #cbd5e1; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.form .invitee-item .ava img { width: 100%; height: 100%; object-fit: cover; }
+.form .invitee-item .nm { font-size: 13px; }
+.form .invitee-item .grp { font-size: 11px; color: var(--sub); margin-left: auto; }
+.form .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.form .format-pick { display: flex; gap: 8px; margin-top: 4px; }
+.form .fmt-opt { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; cursor: pointer; background: #fafafa; transition: border-color 0.15s, background 0.15s; }
+.form .fmt-opt:hover { background: #fff; }
+.form .fmt-opt input { display: none; }
+.form .fmt-opt .ic { font-size: 22px; }
+.form .fmt-opt .lbl { font-size: 12px; line-height: 1.4; }
+.form .fmt-opt .lbl b { font-size: 13px; color: #0f172a; }
+.form .fmt-opt .lbl .hint { color: #64748b; font-size: 11px; }
+.form .fmt-opt.selected { border-color: var(--teal); background: #ecfeff; }
+.form .fmt-opt.selected .lbl b { color: #0f766e; }
+@media (max-width: 480px) { .form .format-pick { flex-direction: column; } }
+
+/* 詳細 (マトリクス) */
+.poll-detail { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-top: 12px; }
+.poll-detail h2 { margin: 0 0 4px; font-size: 18px; }
+.poll-detail .ds { color: var(--sub); font-size: 12px; margin-bottom: 14px; }
+.poll-detail .decided-banner { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e3a8a; padding: 10px 14px; border-radius: 10px; font-weight: 700; margin-bottom: 14px; }
+.poll-detail .cancelled-banner { background: #f1f5f9; color: #64748b; padding: 10px 14px; border-radius: 10px; font-weight: 600; margin-bottom: 14px; }
+
+.matrix-wrap { overflow-x: auto; margin-bottom: 14px; }
+.matrix { border-collapse: collapse; width: 100%; min-width: 480px; }
+.matrix th, .matrix td { border: 1px solid var(--line); padding: 8px; text-align: center; font-size: 12px; }
+.matrix thead th { background: #f8fafc; font-weight: 700; color: var(--ink); }
+.matrix thead th.slot-h { min-width: 110px; }
+.matrix thead th.slot-h.best { background: #dcfce7; color: #166534; }
+.matrix thead th.slot-h.decided { background: #dbeafe; color: #1d4ed8; }
+.matrix tbody th { text-align: left; font-weight: 700; background: #f8fafc; min-width: 110px; max-width: 180px; }
+.matrix .ans { font-size: 16px; font-weight: 700; }
+.matrix .ans.yes { color: var(--yes); }
+.matrix .ans.maybe { color: var(--maybe); }
+.matrix .ans.no { color: var(--no); }
+.matrix .ans.none { color: #cbd5e1; }
+.matrix .tally { font-size: 11px; color: var(--sub); }
+.matrix tbody th .me-mark { background: #14b8a6; color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 999px; margin-left: 5px; }
+
+.decide-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.decide-row .pick { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.decide-row .pick:hover { background: #e0f2fe; border-color: #0d9488; }
+
+/* 投票UI */
+.vote-form { background: #fff; border: 2px solid var(--teal); border-radius: 14px; padding: 16px 18px; margin-top: 14px; }
+.vote-form h3 { margin: 0 0 10px; font-size: 15px; }
+.vote-row { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+.vote-row .slot { flex: 1; font-size: 14px; font-weight: 700; min-width: 140px; }
+.vote-row .opts { display: flex; gap: 6px; }
+.vote-row .opts label { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; user-select: none; min-width: 50px; text-align: center; }
+.vote-row .opts label input { display: none; }
+.vote-row .opts label.yes { border-color: #86efac; }
+.vote-row .opts label.maybe { border-color: #fde68a; }
+.vote-row .opts label.no { border-color: #fca5a5; }
+.vote-row .opts label.yes.sel { background: #dcfce7; color: var(--yes); border-color: var(--yes); }
+.vote-row .opts label.maybe.sel { background: #fef3c7; color: var(--maybe); border-color: var(--maybe); }
+.vote-row .opts label.no.sel { background: #fee2e2; color: var(--no); border-color: var(--no); }
+
+@media (max-width:600px){
+  .vote-row .opts label { min-width: 44px; padding: 8px; font-size: 16px; }
+  .matrix th, .matrix td { padding: 5px; font-size: 11px; }
+}
+</style>
+<script src="/unify-header.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+<header>
+  <a href="/home" class="back">←</a>
+  <h1>📅 日程調整</h1>
+</header>
+
+<main>
+  <div class="detarou-hero" id="detarou-hero">
+    <button class="close-btn" type="button" onclick="hideDetarou()" aria-label="かいぎ出太郎を非表示">✕</button>
+    <div class="bubble">
+      <span class="name">かいぎ出太郎</span>
+      <span id="detarou-line">よろしくお願いします。会議の日程調整、ワシが取り仕切りますんで。</span>
+    </div>
+    <img class="ava-full" src="/assets/kaigi_detarou_full.png?v=2" alt="かいぎ出太郎">
+  </div>
+  <button class="detarou-restore" id="detarou-restore" type="button" onclick="showDetarou()" aria-label="かいぎ出太郎を表示" title="かいぎ出太郎を呼ぶ">📅</button>
+
+  <div id="view-list" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="sec-title" style="margin:0;">投票一覧</div>
+      <button class="btn" onclick="showCreate()">＋ 新規作成</button>
+    </div>
+    <div id="poll-list" class="poll-list"></div>
+  </div>
+
+  <div id="view-create" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="sec-title" style="margin:0;">新規作成</div>
+      <button class="btn ghost" onclick="showList()">← 一覧へ</button>
+    </div>
+    <div class="form">
+      <label>タイトル <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="f-title" maxlength="120" placeholder="例: 経営会議 5月">
+
+      <label>概要 (任意)</label>
+      <textarea id="f-desc" rows="3" maxlength="2000" placeholder="議題や補足説明"></textarea>
+
+      <label>所要時間 (分)</label>
+      <input type="number" id="f-duration" min="10" max="480" value="30" style="max-width:120px;">
+
+      <label>開催形式 <span style="color:#dc2626;">*</span></label>
+      <div class="format-pick">
+        <label class="fmt-opt selected">
+          <input type="radio" name="fmt" value="online" checked onchange="onFormatChange()">
+          <span class="ic">📹</span>
+          <span class="lbl"><b>オンライン</b><br><span class="hint">CoHubの会議ボタンからZoom入室</span></span>
+        </label>
+        <label class="fmt-opt">
+          <input type="radio" name="fmt" value="inperson" onchange="onFormatChange()">
+          <span class="ic">📍</span>
+          <span class="lbl"><b>対面</b><br><span class="hint">場所を入力してください</span></span>
+        </label>
+      </div>
+      <div id="location-row" style="display:none;margin-top:8px;">
+        <input type="text" id="f-location" maxlength="200" placeholder="例: 海老名本社 2F 会議室A">
+      </div>
+
+      <label>候補日時 <span style="color:#dc2626;">*</span> (1〜30件)</label>
+      <div id="slot-list"></div>
+      <button type="button" class="add-slot" onclick="addSlotRow()">＋ 候補を追加</button>
+
+      <label>出席者 <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()">
+      <div class="invitees-pick" id="invitees-pick">読み込み中...</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;" id="invitees-count">0名選択中</div>
+
+      <div class="actions">
+        <button class="btn ghost" onclick="showList()">キャンセル</button>
+        <button class="btn" id="btn-create-submit" onclick="submitCreate()">作成 → 招待DM送信</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none;"></div>
+</main>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) location.replace('/');
+let me = null;
+let allMembers = [];
+
+// 出太郎フローティング表示トグル (localStorage 永続)
+function hideDetarou() {
+  document.getElementById('detarou-hero').classList.add('hidden');
+  document.getElementById('detarou-restore').classList.add('show');
+  try { localStorage.setItem('cohub_detarou_hidden', '1'); } catch (e) {}
+}
+function showDetarou() {
+  document.getElementById('detarou-hero').classList.remove('hidden');
+  document.getElementById('detarou-restore').classList.remove('show');
+  try { localStorage.setItem('cohub_detarou_hidden', '0'); } catch (e) {}
+}
+(function () {
+  try {
+    if (localStorage.getItem('cohub_detarou_hidden') === '1') {
+      document.addEventListener('DOMContentLoaded', function () {
+        const h = document.getElementById('detarou-hero');
+        const r = document.getElementById('detarou-restore');
+        if (h) h.classList.add('hidden');
+        if (r) r.classList.add('show');
+      });
+    }
+  } catch (e) {}
+})();
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object') {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+  return r.json();
+}
+function fmtJa(iso) {
+  const m = String(iso || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return iso;
+  const dows = ['日','月','火','水','木','金','土'];
+  const d = new Date(iso.length === 16 ? iso + ':00' : iso);
+  return parseInt(m[2]) + '/' + parseInt(m[3]) + '(' + dows[d.getDay()] + ') ' + m[4] + ':' + m[5];
+}
+
+async function init() {
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) return;
+  me = r.user;
+  // ルーティング
+  const params = new URLSearchParams(location.search);
+  if (params.get('new') === '1') showCreate();
+  else if (params.get('id')) showDetail(parseInt(params.get('id')));
+  else showList();
+}
+
+function setView(v) {
+  document.getElementById('view-list').style.display = v === 'list' ? '' : 'none';
+  document.getElementById('view-create').style.display = v === 'create' ? '' : 'none';
+  document.getElementById('view-detail').style.display = v === 'detail' ? '' : 'none';
+  const lines = {
+    list: 'よろしくお願いします。会議の日程調整、ワシが取り仕切りますんで。○△×で回答お願いします。',
+    create: 'ほな、会議の段取り組みましょか。候補日時と出席者を選んでください、ワシが招待DM飛ばしますんで。',
+    detail: 'みんなの回答揃いましたか? 一番○が多い日に決めるのが王道ですが、主催者の判断で確定してください。',
+  };
+  const el = document.getElementById('detarou-line');
+  if (el && lines[v]) el.textContent = lines[v];
+}
+
+function formatChip(p) {
+  if (p && p.format === 'inperson') {
+    const loc = p.location ? ' ' + escapeHtml(p.location) : '';
+    return '<span class="fmt-chip inperson">📍 対面' + loc + '</span>';
+  }
+  return '<span class="fmt-chip online">📹 オンライン</span>';
+}
+function renderFormatBadge(p) {
+  if (p && p.format === 'inperson') {
+    const loc = p.location ? ' (' + escapeHtml(p.location) + ')' : '';
+    return '<div class="fmt-badge inperson">📍 対面' + loc + '</div>';
+  }
+  return '<div class="fmt-badge online">📹 オンライン (Zoom) — <a href="/meeting" style="color:#1d4ed8;text-decoration:underline;">/meeting</a> から入室</div>';
+}
+async function showList() {
+  history.replaceState({}, '', '/poll.html');
+  setView('list');
+  const r = await api('/api/poll');
+  if (!r || !r.success) { document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込み失敗</div>'; return; }
+  if (!r.polls.length) {
+    document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">📅</div>まだ日程調整はありません<br><span style="font-size:11px;">「＋ 新規作成」から始められます</span></div>';
+    return;
+  }
+  document.getElementById('poll-list').innerHTML = r.polls.map(p => {
+    const isOrg = p.organizer_id === r.me;
+    const role = isOrg ? '<span class="role org">主催</span>' : '<span class="role invited">招待</span>';
+    const badge = p.status === 'open' ? '<span class="badge open">投票中</span>'
+                : p.status === 'decided' ? '<span class="badge decided">確定</span>'
+                : '<span class="badge cancelled">中止</span>';
+    const decidedInfo = p.status === 'decided' && p.decided_at_slot ? '<span>🎯 ' + escapeHtml(fmtJa(p.decided_at_slot)) + '</span>' : '';
+    const fmtChip = formatChip(p);
+    return '<a class="poll-card" href="/poll.html?id=' + p.id + '">'
+      + '<div class="head"><div class="title">' + escapeHtml(p.title) + '</div>' + badge + role + '</div>'
+      + '<div class="meta">'
+      + '<span>主催: ' + escapeHtml(p.organizer_name || '') + '</span>'
+      + fmtChip
+      + '<span>📅 候補 ' + p.slot_count + '件</span>'
+      + '<span>👥 ' + p.voted_count + '/' + p.invitee_count + '名 回答済</span>'
+      + decidedInfo
+      + '</div></a>';
+  }).join('');
+}
+
+async function showCreate() {
+  history.replaceState({}, '', '/poll.html?new=1');
+  setView('create');
+  document.getElementById('slot-list').innerHTML = '';
+  // 開催形式をオンラインで初期化
+  const fmtOnline = document.querySelector('input[name=fmt][value=online]');
+  if (fmtOnline) fmtOnline.checked = true;
+  onFormatChange();
+  document.getElementById('f-location').value = '';
+  // 候補日時を3行初期化
+  const now = new Date();
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getTime() + (i + 1) * 86400000);
+    d.setHours(10, 0, 0, 0);
+    addSlotRow(localPart(d));
+  }
+  // メンバー一覧を取得
+  const r = await api('/api/members');
+  if (r && r.success) {
+    allMembers = r.items || [];
+    renderMembersPick();
+  } else {
+    document.getElementById('invitees-pick').innerHTML = '<div style="padding:10px;color:#dc2626;">メンバー読み込み失敗</div>';
+  }
+}
+function onFormatChange() {
+  const val = (document.querySelector('input[name=fmt]:checked') || {}).value || 'online';
+  document.querySelectorAll('.fmt-opt').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('input').value === val);
+  });
+  document.getElementById('location-row').style.display = (val === 'inperson') ? '' : 'none';
+}
+function localPart(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function addSlotRow(initial) {
+  const wrap = document.getElementById('slot-list');
+  const div = document.createElement('div');
+  div.className = 'slot-row';
+  div.innerHTML = '<input type="datetime-local" value="' + (initial || '') + '" /><button type="button" onclick="this.parentNode.remove()">削除</button>';
+  wrap.appendChild(div);
+}
+function renderMembersPick() {
+  const q = (document.getElementById('f-members-search').value || '').toLowerCase().trim();
+  const list = allMembers.filter(m =>
+    m.id !== me.id && (!q || (m.name || '').toLowerCase().includes(q) || (m.group || '').toLowerCase().includes(q))
+  ).slice(0, 200);
+  const checked = getSelectedInvitees();
+  document.getElementById('invitees-pick').innerHTML = list.map(m => {
+    const isChecked = checked.has(m.id);
+    const initial = (m.name || '?').trim().charAt(0);
+    const ava = m.avatar
+      ? '<img src="' + escapeHtml(m.avatar) + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initial) + '\'))">'
+      : escapeHtml(initial);
+    return '<label class="invitee-item' + (isChecked ? ' checked' : '') + '">'
+      + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="updateInviteeCount()">'
+      + '<div class="ava">' + ava + '</div>'
+      + '<div class="nm">' + escapeHtml(m.name) + '</div>'
+      + (m.group ? '<div class="grp">' + escapeHtml(m.group) + '</div>' : '')
+      + '</label>';
+  }).join('');
+  updateInviteeCount();
+}
+function getSelectedInvitees() {
+  const s = new Set();
+  document.querySelectorAll('#invitees-pick input[type=checkbox]:checked').forEach(c => s.add(c.dataset.uid));
+  return s;
+}
+function updateInviteeCount() {
+  const n = document.querySelectorAll('#invitees-pick input[type=checkbox]:checked').length;
+  document.getElementById('invitees-count').textContent = n + '名選択中';
+  document.querySelectorAll('#invitees-pick .invitee-item').forEach(el => {
+    el.classList.toggle('checked', el.querySelector('input').checked);
+  });
+}
+async function submitCreate() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { alert('タイトルを入力してください'); return; }
+  const desc = document.getElementById('f-desc').value.trim();
+  const duration = parseInt(document.getElementById('f-duration').value) || 30;
+  const slots = [...document.querySelectorAll('#slot-list input[type=datetime-local]')]
+    .map(i => i.value).filter(v => v);
+  if (slots.length < 1) { alert('候補日時を1つ以上入力してください'); return; }
+  const invitees = [...getSelectedInvitees()];
+  if (invitees.length < 1) { alert('出席者を1人以上選んでください'); return; }
+  const format = (document.querySelector('input[name=fmt]:checked') || {}).value || 'online';
+  let location_ = '';
+  if (format === 'inperson') {
+    location_ = document.getElementById('f-location').value.trim();
+    if (!location_) { alert('対面の場合は場所を入力してください'); return; }
+  }
+  const btn = document.getElementById('btn-create-submit');
+  btn.disabled = true;
+  const r = await api('/api/poll', { method: 'POST', body: { title, description: desc, duration_minutes: duration, slots, invitees, format, location: location_ } });
+  btn.disabled = false;
+  if (r && r.success) {
+    location.href = '/poll.html?id=' + r.id;
+  } else {
+    alert('作成失敗: ' + (r && r.msg || '通信エラー'));
+  }
+}
+
+async function showDetail(id) {
+  history.replaceState({}, '', '/poll.html?id=' + id);
+  setView('detail');
+  const wrap = document.getElementById('view-detail');
+  wrap.innerHTML = '<div class="empty"><div class="em">⏳</div>読み込み中...</div>';
+  const r = await api('/api/poll/' + id);
+  if (!r || !r.success) { wrap.innerHTML = '<div class="empty"><div class="em">⚠️</div>' + escapeHtml((r && r.msg) || '読み込み失敗') + '<br><a href="/poll.html">← 一覧へ</a></div>'; return; }
+
+  const { poll, slots, invitees, votes, is_organizer, is_invited, voted } = r;
+
+  // スコア計算 (yes=2, maybe=1, no=0)
+  const score = {};
+  slots.forEach(s => { score[s.id] = { yes: 0, maybe: 0, no: 0, pts: 0 }; });
+  votes.forEach(v => {
+    if (!score[v.slot_id]) return;
+    if (v.answer === 'yes') { score[v.slot_id].yes++; score[v.slot_id].pts += 2; }
+    else if (v.answer === 'maybe') { score[v.slot_id].maybe++; score[v.slot_id].pts += 1; }
+    else if (v.answer === 'no') { score[v.slot_id].no++; }
+  });
+  const maxPts = Math.max(0, ...slots.map(s => score[s.id].pts));
+  // 自分の投票
+  const myVotes = {};
+  votes.forEach(v => { if (v.user_id === r.me) myVotes[v.slot_id] = v.answer; });
+
+  let html = '<div class="poll-detail">';
+  html += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">';
+  html += '<h2 style="margin:0;flex:1;">' + escapeHtml(poll.title) + '</h2>';
+  html += '<a class="btn ghost" href="/poll.html">← 一覧</a>';
+  html += '</div>';
+  html += '<div class="ds">主催: ' + escapeHtml(poll.organizer_name || '') + ' / 所要時間: ' + (poll.duration_minutes || 30) + '分 / 状態: '
+    + (poll.status === 'open' ? '<b style="color:#16a34a;">投票中</b>' : poll.status === 'decided' ? '<b style="color:#1d4ed8;">確定済</b>' : '中止')
+    + '</div>';
+  html += renderFormatBadge(poll);
+  if (poll.description) html += '<div style="background:#f8fafc;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;color:#334155;margin-bottom:14px;white-space:pre-wrap;">' + escapeHtml(poll.description) + '</div>';
+
+  if (poll.status === 'decided') {
+    const ds = slots.find(s => s.id === poll.decided_slot_id);
+    html += '<div class="decided-banner">🎯 確定: ' + escapeHtml(ds ? fmtJa(ds.starts_at) : '不明') + '</div>';
+  }
+  if (poll.status === 'cancelled') html += '<div class="cancelled-banner">この日程調整は中止されました</div>';
+
+  // 投票UI (招待者、未確定時)
+  if (is_invited && poll.status === 'open') {
+    html += '<div class="vote-form"><h3>👇 あなたの回答</h3>';
+    slots.forEach(s => {
+      const sel = myVotes[s.id] || '';
+      html += '<div class="vote-row">'
+        + '<div class="slot">' + escapeHtml(fmtJa(s.starts_at)) + '</div>'
+        + '<div class="opts">'
+        + '<label class="yes' + (sel === 'yes' ? ' sel' : '') + '"><input type="radio" name="v_' + s.id + '" value="yes"' + (sel === 'yes' ? ' checked' : '') + ' onchange="markSel(this)"> ○</label>'
+        + '<label class="maybe' + (sel === 'maybe' ? ' sel' : '') + '"><input type="radio" name="v_' + s.id + '" value="maybe"' + (sel === 'maybe' ? ' checked' : '') + ' onchange="markSel(this)"> △</label>'
+        + '<label class="no' + (sel === 'no' ? ' sel' : '') + '"><input type="radio" name="v_' + s.id + '" value="no"' + (sel === 'no' ? ' checked' : '') + ' onchange="markSel(this)"> ×</label>'
+        + '</div></div>';
+    });
+    html += '<div style="text-align:right;margin-top:12px;"><button class="btn" id="btn-vote-submit" onclick="submitVote(' + poll.id + ')">' + (voted ? '回答を更新' : '回答する') + '</button></div></div>';
+  }
+
+  // マトリクス (全員の回答可視化)
+  html += '<div class="sec-title" style="margin-top:18px;">📊 全員の回答</div>';
+  html += '<div class="matrix-wrap"><table class="matrix"><thead><tr><th></th>';
+  slots.forEach(s => {
+    const isBest = poll.status === 'open' && maxPts > 0 && score[s.id].pts === maxPts;
+    const isDecided = s.id === poll.decided_slot_id;
+    const cls = isDecided ? 'decided' : (isBest ? 'best' : '');
+    html += '<th class="slot-h ' + cls + '">' + escapeHtml(fmtJa(s.starts_at)) + '<br><span class="tally">○' + score[s.id].yes + ' △' + score[s.id].maybe + ' ×' + score[s.id].no + '</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+  invitees.forEach(inv => {
+    html += '<tr><th>' + escapeHtml(inv.display_name || inv.user_id) + (inv.user_id === r.me ? '<span class="me-mark">YOU</span>' : '') + '</th>';
+    slots.forEach(s => {
+      const v = votes.find(x => x.user_id === inv.user_id && x.slot_id === s.id);
+      const sym = v ? (v.answer === 'yes' ? '○' : v.answer === 'maybe' ? '△' : '×') : '—';
+      const cls = v ? ('ans ' + v.answer) : 'ans none';
+      html += '<td class="' + cls + '">' + sym + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // 主催者向け確定UI
+  if (is_organizer && poll.status === 'open') {
+    html += '<div class="sec-title" style="margin-top:14px;">⚡ 開催日時を確定する (主催者)</div>';
+    html += '<div class="decide-row">';
+    slots.forEach(s => {
+      const best = score[s.id].pts === maxPts && maxPts > 0 ? ' ⭐' : '';
+      html += '<button class="pick" onclick="decide(' + poll.id + ',' + s.id + ',\'' + escapeHtml(fmtJa(s.starts_at)) + '\')">' + escapeHtml(fmtJa(s.starts_at)) + ' (○' + score[s.id].yes + '△' + score[s.id].maybe + ')' + best + '</button>';
+    });
+    html += '</div>';
+    html += '<div style="text-align:right;margin-top:14px;"><button class="btn danger" onclick="cancelPoll(' + poll.id + ')">この日程調整を中止</button></div>';
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+function markSel(input) {
+  const row = input.closest('.vote-row');
+  row.querySelectorAll('.opts label').forEach(l => l.classList.remove('sel'));
+  input.parentNode.classList.add('sel');
+}
+async function submitVote(id) {
+  const inputs = document.querySelectorAll('#view-detail input[type=radio]:checked');
+  const votes = {};
+  inputs.forEach(i => {
+    const slotId = i.name.replace('v_', '');
+    votes[slotId] = i.value;
+  });
+  if (Object.keys(votes).length === 0) { alert('1つ以上の候補に回答してください'); return; }
+  const btn = document.getElementById('btn-vote-submit');
+  btn.disabled = true;
+  const r = await api('/api/poll/' + id + '/vote', { method: 'POST', body: { votes } });
+  btn.disabled = false;
+  if (r && r.success) {
+    showDetail(id);
+  } else {
+    alert('送信失敗: ' + (r && r.msg || '通信エラー'));
+  }
+}
+async function decide(id, slotId, label) {
+  if (!confirm('この日時で確定しますか?\n\n' + label + '\n\n確定後は変更できません。招待者全員にDM通知が送られます。')) return;
+  const r = await api('/api/poll/' + id + '/decide', { method: 'POST', body: { slot_id: slotId } });
+  if (r && r.success) showDetail(id);
+  else alert('確定失敗: ' + (r && r.msg || '通信エラー'));
+}
+async function cancelPoll(id) {
+  if (!confirm('この日程調整を中止しますか? 招待者の回答も含めて停止状態になります (履歴は残ります)')) return;
+  const r = await api('/api/poll/' + id, { method: 'DELETE' });
+  if (r && r.success) showList();
+  else alert('中止失敗: ' + (r && r.msg || '通信エラー'));
+}
+
+init();
+</script>
+</body>
+</html>
