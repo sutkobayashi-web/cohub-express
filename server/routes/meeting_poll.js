@@ -87,18 +87,18 @@ router.get('/timetable', authUser, (req, res) => {
     LIMIT 30
   `).all(me, me);
 
-  // 参加者アバター (確定済みのみ、最大6名分)
-  const decidedIds = decided.map(d => d.id);
+  // 参加者アバター (確定済み・調整中の両方、最大6名分)
+  const allIds = [...decided.map(d => d.id), ...open.map(p => p.id)];
   const participantsByPoll = {};
-  if (decidedIds.length) {
-    const ph = decidedIds.map(() => '?').join(',');
+  if (allIds.length) {
+    const ph = allIds.map(() => '?').join(',');
     const rows = db.prepare(`
       SELECT i.poll_id, i.user_id, u.display_name, u.avatar_url
       FROM meeting_poll_invitees i
       LEFT JOIN users u ON u.id = i.user_id
       WHERE i.poll_id IN (${ph})
       ORDER BY i.poll_id, COALESCE(u.display_name, i.user_id)
-    `).all(...decidedIds);
+    `).all(...allIds);
     for (const r of rows) {
       if (!participantsByPoll[r.poll_id]) participantsByPoll[r.poll_id] = [];
       participantsByPoll[r.poll_id].push({ id: r.user_id, name: r.display_name, avatar: r.avatar_url });
@@ -109,7 +109,7 @@ router.get('/timetable', authUser, (req, res) => {
     success: true,
     server_now: new Date().toISOString(),
     decided: decided.map(d => Object.assign({}, d, { participants: participantsByPoll[d.id] || [] })),
-    open,
+    open: open.map(p => Object.assign({}, p, { participants: participantsByPoll[p.id] || [] })),
     me,
     current_room: getCurrentRoomParticipants(req),
   });
