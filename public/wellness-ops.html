@@ -94,6 +94,67 @@ tr:hover td { background: #fafbfd; }
 .pipe-num { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .pipe-arrow { display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 16px; padding: 0 2px; }
 
+/* スイムレーン (役割×段階マトリクス) */
+.swimlane-details { margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fafbfc; }
+.swimlane-details > summary {
+  cursor: pointer; padding: 10px 14px; font-size: 13px; font-weight: 800; color: #1f2937;
+  list-style: none; display: flex; align-items: center; gap: 8px;
+  border-radius: 10px; user-select: none;
+}
+.swimlane-details > summary::-webkit-details-marker { display: none; }
+.swimlane-details > summary::before { content: '▶'; font-size: 10px; color: #64748b; transition: transform 0.15s; }
+.swimlane-details[open] > summary::before { transform: rotate(90deg); }
+.swimlane-details > summary:hover { background: #f1f5f9; }
+.swimlane-details .sl-hint { font-size: 11px; color: #64748b; font-weight: 500; margin-left: auto; }
+.swimlane-wrap { overflow-x: auto; padding: 4px 12px 14px; -webkit-overflow-scrolling: touch; }
+.swimlane { border-collapse: separate; border-spacing: 0; min-width: 760px; width: 100%; font-size: 11px; }
+.swimlane th, .swimlane td {
+  border-bottom: 1px solid #e5e7eb; padding: 6px 4px; text-align: center;
+  background: #fff; transition: background 0.12s;
+}
+.swimlane thead th {
+  background: #f8fafc; font-weight: 800; color: #374151; font-size: 11px;
+  position: sticky; top: 0; padding: 8px 4px; border-bottom: 2px solid #cbd5e1;
+}
+.swimlane th.sl-role-head { text-align: left; padding-left: 10px; background: #f8fafc; }
+.swimlane tbody th {
+  text-align: left; padding: 8px 10px; font-weight: 700; color: #0f172a;
+  background: #f8fafc; min-width: 140px; white-space: nowrap;
+}
+.swimlane tbody th small { display: block; font-weight: 500; color: #64748b; font-size: 10px; margin-top: 2px; }
+.swimlane td.sl-mark { font-size: 16px; font-weight: 900; cursor: help; }
+.swimlane td.sl-primary { color: #1f2937; }
+.swimlane td.sl-support { color: #94a3b8; }
+.swimlane [data-stage].sl-current {
+  background: #fef3c7 !important;
+}
+.swimlane thead th[data-stage].sl-current {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important; color: #fff;
+}
+/* ステージ間の矢印 (横方向の流れ) */
+.swimlane thead th[data-stage] { position: relative; }
+.swimlane thead th[data-stage]:not(:last-child)::after {
+  content: '▶'; position: absolute; right: -5px; top: 50%;
+  transform: translateY(-50%); color: #94a3b8; font-size: 9px;
+  z-index: 2; pointer-events: none; line-height: 1;
+}
+/* 主担当セルの段階番号 (流れの順序) */
+.swimlane .sl-seq {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(135deg, #1f2937, #475569);
+  color: #fff; font-size: 12px; font-weight: 800;
+  box-shadow: 0 2px 4px rgba(15,23,42,0.22);
+  line-height: 1;
+}
+.swimlane [data-stage].sl-current .sl-seq {
+  background: linear-gradient(135deg, #dc2626, #f59e0b);
+  box-shadow: 0 2px 8px rgba(220,38,38,0.40);
+  transform: scale(1.15);
+}
+.swimlane-legend { font-size: 10px; color: #64748b; padding: 0 14px 10px; display: flex; gap: 14px; flex-wrap: wrap; }
+.swimlane-legend b { color: #1f2937; }
+
 /* AI凝縮ステップ */
 .condense-bar {
   background: linear-gradient(135deg, #faf5ff, #f5f3ff);
@@ -165,16 +226,6 @@ tr:hover td { background: #fafbfd; }
 .wo-tab-bar button.active .tb-badge { background: #fde68a; color: #92400e; }
 [data-pane] { transition: opacity 0.2s; }
 
-/* 今日のあなた (ボードタブ) - 視覚圧抑制 */
-#promoter-todo-card {
-  background: linear-gradient(135deg, rgba(254,249,195,0.55), rgba(254,240,138,0.55)) !important;
-  border: 1px solid rgba(234,179,8,0.30) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 2px 10px rgba(234,179,8,0.08) !important;
-}
-#promoter-todo-card h2 { font-size: 15px !important; }
-#promoter-todo-card > div > div > div { background: rgba(255,255,255,0.85); border-radius: 12px; }
-
 /* 共通カードホバー (テーブル含む大カードはホバーしない方が落ち着く) */
 .pipe-step, .pillar { will-change: transform; }
 @media (max-width: 720px) {
@@ -183,6 +234,8 @@ tr:hover td { background: #fafbfd; }
   .wo-tab-bar { top: 56px; }
 }
 </style>
+<script src="/global-notif.js?v=20260518b" defer></script>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 <header>
@@ -358,48 +411,6 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
     </div>
   </div>
 
-  <!-- ━━━ 今日のあなた (推進メンバーTodo) ━━━ -->
-  <div class="card" data-pane="board" id="promoter-todo-card" style="background:linear-gradient(135deg,#fef9c3,#fef08a);border:2px solid #facc15;margin-top:14px;display:none;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <div style="font-size:28px;">📍</div>
-      <div style="flex:1;">
-        <h2 style="margin:0;font-size:16px;font-weight:800;color:#854d0e;">今日のあなた</h2>
-        <div style="font-size:11px;color:#a16207;">未反応のPOST・議論待ちの施策・今月の貢献を1か所で確認</div>
-      </div>
-      <button onclick="reloadPromoterTodo()" style="background:rgba(255,255,255,0.6);border:1px solid #ca8a04;color:#854d0e;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">⟳ 更新</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <!-- 未反応POST -->
-      <div style="background:#fff;border-radius:10px;padding:10px 12px;">
-        <div style="font-size:12px;font-weight:800;color:#854d0e;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          🌸 未反応POST <span id="todo-posts-cnt" style="background:#dc2626;color:#fff;padding:1px 7px;border-radius:8px;font-size:11px;">0</span>
-        </div>
-        <div id="todo-posts-list" style="font-size:11px;line-height:1.7;color:#374151;max-height:160px;overflow-y:auto;">
-          <div style="color:#9ca3af;">読み込み中…</div>
-        </div>
-      </div>
-      <!-- 議論待ち施策 -->
-      <div style="background:#fff;border-radius:10px;padding:10px 12px;">
-        <div style="font-size:12px;font-weight:800;color:#854d0e;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          🎯 議論待ち施策 <span id="todo-actions-cnt" style="background:#dc2626;color:#fff;padding:1px 7px;border-radius:8px;font-size:11px;">0</span>
-        </div>
-        <div id="todo-actions-list" style="font-size:11px;line-height:1.7;color:#374151;max-height:160px;overflow-y:auto;">
-          <div style="color:#9ca3af;">読み込み中…</div>
-        </div>
-      </div>
-    </div>
-    <!-- 今月の貢献 -->
-    <div style="margin-top:10px;background:#fff;border-radius:10px;padding:10px 12px;">
-      <div style="font-size:12px;font-weight:800;color:#854d0e;margin-bottom:6px;">📊 今月のあなたの貢献</div>
-      <div id="todo-mystats" style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#374151;">
-        <div>📝 POST <b id="ts-posts" style="color:#0f172a;">-</b></div>
-        <div>💬 コメント <b id="ts-comments" style="color:#0f172a;">-</b></div>
-        <div>👍 共感 <b id="ts-reactions" style="color:#0f172a;">-</b></div>
-        <div style="margin-left:auto;">スコア <b id="ts-score" style="color:#dc2626;font-size:15px;">-</b></div>
-      </div>
-    </div>
-  </div>
-
   <!-- ━━━ STEP 1 ━━━ 3つの柱 (実POST埋込) -->
   <div data-pane="board" style="margin-top:18px;">
     <span class="step-label">STEP 1</span>
@@ -468,6 +479,109 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
     <span class="step-label">STEP 3</span>
     <h2 class="step-title">🎯 施策ボード <span style="color:#71717a;font-weight:400;font-size:12px;margin-left:8px;">9段階で会社の施策に</span></h2>
     <div class="step-sub">下のパイプラインの段階をタップすると、その段階の施策一覧が表示されます。</div>
+
+    <!-- スキーム全体像 (役割×段階) -->
+    <details class="swimlane-details" id="swimlane-details">
+      <summary>📖 スキームの全体像 — 誰がどこで動くか<span class="sl-hint">タップで開閉</span></summary>
+      <div class="swimlane-wrap">
+        <table class="swimlane">
+          <thead>
+            <tr>
+              <th class="sl-role-head">役割 ＼ 段階</th>
+              <th data-stage="候補">🌱<br>候補</th>
+              <th data-stage="評議中">💬<br>評議</th>
+              <th data-stage="推進確定">✅<br>確定</th>
+              <th data-stage="保健師中間">🩺<br>中間</th>
+              <th data-stage="役員決済">👔<br>役員</th>
+              <th data-stage="投票中">🗳<br>投票</th>
+              <th data-stage="保健師最終">🩺<br>最終</th>
+              <th data-stage="実行中">▶<br>実行</th>
+              <th data-stage="完了">🎉<br>完了</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>🩺 運管/現場<small>声を上げる</small></th>
+              <td data-stage="候補" class="sl-mark sl-primary" title="現場POSTが候補の元データ"><span class="sl-seq">1</span></td>
+              <td data-stage="評議中"></td>
+              <td data-stage="推進確定"></td>
+              <td data-stage="保健師中間"></td>
+              <td data-stage="役員決済"></td>
+              <td data-stage="投票中"></td>
+              <td data-stage="保健師最終"></td>
+              <td data-stage="実行中"></td>
+              <td data-stage="完了"></td>
+            </tr>
+            <tr>
+              <th>🎯 推進メンバー<small>議論・確定・伴走</small></th>
+              <td data-stage="候補" class="sl-mark sl-support" title="手動起票も可能">○</td>
+              <td data-stage="評議中" class="sl-mark sl-primary" title="実現性・効果・副作用をコメント"><span class="sl-seq">2</span></td>
+              <td data-stage="推進確定" class="sl-mark sl-primary" title="健康管理室会議で確定"><span class="sl-seq">3</span></td>
+              <td data-stage="保健師中間"></td>
+              <td data-stage="役員決済"></td>
+              <td data-stage="投票中"></td>
+              <td data-stage="保健師最終"></td>
+              <td data-stage="実行中" class="sl-mark sl-support" title="実行の伴走">○</td>
+              <td data-stage="完了" class="sl-mark sl-primary" title="振り返り・次の候補へ"><span class="sl-seq">9</span></td>
+            </tr>
+            <tr>
+              <th>🧠 AI<small>凝縮・候補化</small></th>
+              <td data-stage="候補" class="sl-mark sl-primary" title="3本柱の声を凝縮して候補を提案"><span class="sl-seq">1</span></td>
+              <td data-stage="評議中"></td>
+              <td data-stage="推進確定"></td>
+              <td data-stage="保健師中間"></td>
+              <td data-stage="役員決済"></td>
+              <td data-stage="投票中"></td>
+              <td data-stage="保健師最終"></td>
+              <td data-stage="実行中"></td>
+              <td data-stage="完了"></td>
+            </tr>
+            <tr>
+              <th>🩹 保健師<small>専門監修</small></th>
+              <td data-stage="候補"></td>
+              <td data-stage="評議中"></td>
+              <td data-stage="推進確定"></td>
+              <td data-stage="保健師中間" class="sl-mark sl-primary" title="エビデンスと安全性を監修"><span class="sl-seq">4</span></td>
+              <td data-stage="役員決済"></td>
+              <td data-stage="投票中"></td>
+              <td data-stage="保健師最終" class="sl-mark sl-primary" title="実行前の最終チェック"><span class="sl-seq">7</span></td>
+              <td data-stage="実行中"></td>
+              <td data-stage="完了"></td>
+            </tr>
+            <tr>
+              <th>👔 役員<small>決済</small></th>
+              <td data-stage="候補"></td>
+              <td data-stage="評議中"></td>
+              <td data-stage="推進確定"></td>
+              <td data-stage="保健師中間"></td>
+              <td data-stage="役員決済" class="sl-mark sl-primary" title="予算・工数を承認"><span class="sl-seq">5</span></td>
+              <td data-stage="投票中"></td>
+              <td data-stage="保健師最終"></td>
+              <td data-stage="実行中"></td>
+              <td data-stage="完了"></td>
+            </tr>
+            <tr>
+              <th>👥 全社員<small>投票・参加</small></th>
+              <td data-stage="候補"></td>
+              <td data-stage="評議中"></td>
+              <td data-stage="推進確定"></td>
+              <td data-stage="保健師中間"></td>
+              <td data-stage="役員決済"></td>
+              <td data-stage="投票中" class="sl-mark sl-primary" title="全社員が施策を選ぶ"><span class="sl-seq">6</span></td>
+              <td data-stage="保健師最終"></td>
+              <td data-stage="実行中" class="sl-mark sl-primary" title="日常業務として参加"><span class="sl-seq">8</span></td>
+              <td data-stage="完了"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="swimlane-legend">
+        <span><b style="background:#1f2937;color:#fff;padding:1px 7px;border-radius:50%;font-size:10px;">N</b> 主担当 (流れの順序 1→9)</span>
+        <span><b style="color:#94a3b8;">○</b> サポート</span>
+        <span><b style="color:#94a3b8;">▶</b> 段階の進行方向</span>
+        <span>下の9段階パイプを選ぶと、対応する列が赤くハイライトされます</span>
+      </div>
+    </details>
 
     <!-- パイプライン (タブ) -->
     <div class="pipe-wrap" style="margin-bottom:12px;">
@@ -709,7 +823,6 @@ function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','
       document.getElementById('btn-new').style.display = 'none';
     }
     loadFieldVoice(); loadActions(); loadPipeline(); loadPillarRecent(); loadPromoterBoard();
-    reloadPromoterTodo();
     if (m.is_guest_reviewer) loadNursePending();
   } catch (e) {
     document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
@@ -1635,6 +1748,9 @@ function filterActions(status) {
   // パイプ各ステップの選択状態を更新
   document.querySelectorAll('.pipe-step').forEach(el => el.classList.remove('selected'));
   document.querySelectorAll('.pipe-step[data-status="' + status + '"]').forEach(el => el.classList.add('selected'));
+  // スイムレーン列ハイライト連動
+  document.querySelectorAll('.swimlane [data-stage]').forEach(el => el.classList.remove('sl-current'));
+  if (status) document.querySelectorAll('.swimlane [data-stage="' + status + '"]').forEach(el => el.classList.add('sl-current'));
   loadActions();
   // テーブル内に既にいる場合のみスクロール
   const tb = document.getElementById('actions-tbody');
@@ -1670,73 +1786,6 @@ async function loadNursePending() {
 }
 
 // ===== STEP 4: 推進メンバー貢献ランキング =====
-// 推進メンバーTodo: 未反応POST + 議論待ち施策 + 今月貢献
-async function reloadPromoterTodo() {
-  try {
-    const r = await fetch('/api/wellness/promoter-todo', { headers: { Authorization: 'Bearer ' + token } });
-    const d = await r.json();
-    if (!d.success) return;
-    const card = document.getElementById('promoter-todo-card');
-    if (card) card.style.display = 'block';
-    // 未反応POST
-    const postsList = document.getElementById('todo-posts-list');
-    const postsCnt = document.getElementById('todo-posts-cnt');
-    const upo = d.unreacted_posts || [];
-    if (postsCnt) postsCnt.textContent = upo.length;
-    if (postsList) {
-      if (!upo.length) {
-        postsList.innerHTML = '<div style="color:#16a34a;font-weight:600;">✓ 全部反応済</div>';
-      } else {
-        postsList.innerHTML = upo.map(p => {
-          const memo = (p.memo || '(本文なし)').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c])).slice(0, 60);
-          const tag = p.source_type ? '[' + p.source_type + ']' : '';
-          const urg = p.urgency === '高' ? '<span style="color:#dc2626;font-weight:800;">⚠</span> ' : '';
-          return '<div style="padding:5px 0;border-bottom:1px dashed #fde68a;cursor:pointer;" onclick="document.querySelector(\'.tab[data-pane=board]\').click();window.scrollTo({top:document.getElementById(\'pillar-grid\').offsetTop,behavior:\'smooth\'});">' +
-                 urg + '<span style="color:#854d0e;font-weight:700;font-size:10px;">' + tag + '</span> ' + memo + '</div>';
-        }).join('');
-      }
-    }
-    // 議論待ち施策
-    const actList = document.getElementById('todo-actions-list');
-    const actCnt = document.getElementById('todo-actions-cnt');
-    const pa = d.pending_actions || [];
-    if (actCnt) actCnt.textContent = pa.length;
-    if (actList) {
-      if (!pa.length) {
-        actList.innerHTML = '<div style="color:#16a34a;font-weight:600;">✓ 全部コメント済</div>';
-      } else {
-        actList.innerHTML = pa.map(a => {
-          const ttl = (a.title || '(無題)').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c])).slice(0, 50);
-          return '<div style="padding:5px 0;border-bottom:1px dashed #fde68a;cursor:pointer;" onclick="jumpToAction(' + a.id + ')">' +
-                 '<span style="color:#7c3aed;font-weight:700;font-size:10px;">[' + a.status + ']</span> ' + ttl + '</div>';
-        }).join('');
-      }
-    }
-    // 今月の貢献
-    const ms = d.my_stats || {};
-    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v != null ? v : '-'); };
-    setText('ts-posts', ms.posts);
-    setText('ts-comments', ms.comments);
-    setText('ts-reactions', ms.reactions);
-    setText('ts-score', ms.score);
-  } catch (e) { console.warn('reloadPromoterTodo', e); }
-}
-
-function jumpToAction(id) {
-  const tbody = document.getElementById('actions-tbody');
-  if (tbody) tbody.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setTimeout(() => {
-    const row = document.querySelector('[data-action-id="' + id + '"]');
-    if (row) {
-      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      row.style.transition = 'background 0.4s';
-      const orig = row.style.background;
-      row.style.background = '#fef08a';
-      setTimeout(() => { row.style.background = orig; }, 1800);
-    }
-  }, 400);
-}
-
 async function loadPromoterBoard() {
   try {
     const r = await fetch('/api/wellness/promoter-board?days=30', { headers: { Authorization: 'Bearer ' + token } });
@@ -1751,22 +1800,24 @@ function renderPromoterRanking(promoters) {
   if (!el) return;
   if (!promoters.length) { el.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:6px;">推進メンバー未登録</div>'; return; }
   const scored = promoters.map(p => {
-    const score = (p.post_count || 0) * 3 + (p.post_disc_count || 0) * 2 + (p.action_disc_count || 0) * 2 + (p.react_count || 0);
+    const commentCnt = (p.post_disc_count || 0) + (p.action_disc_count || 0) + (p.plaza_comment_count || 0);
+    const reactCnt = (p.react_count || 0) + (p.plaza_react_count || 0);
+    const score = (p.post_count || 0) * 3 + commentCnt * 2 + reactCnt;
     return Object.assign({}, p, { score });
   });
   const max = Math.max(1, ...scored.map(p => p.score));
-  // 上位3名のみ表示。下位はスティグマ防止のため非表示+「他N名活動中」だけ示す
-  const top = scored.slice(0, 3);
-  const restActive = scored.slice(3).filter(p => p.score > 0).length;
-  let html = top.map((p, i) => {
-    const initial = (p.display_name || '?').slice(0, 1);
-    const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+  const html = scored.map((p, i) => {
+    const initial = escapeHtml((p.display_name || '?').slice(0, 1));
+    const avatar = p.avatar_url
+      ? `<img src="${escapeHtml(p.avatar_url)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #ede9fe;background:#fff;" onerror="this.replaceWith(Object.assign(document.createElement('div'),{style:'width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;',textContent:'${initial}'}))">`
+      : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">${initial}</div>`;
     const barW = Math.round((p.score / max) * 100);
+    const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
     return `<div style="background:#fff;border:1px solid #ddd6fe;border-radius:10px;padding:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">${escapeHtml(initial)}</div>
+        ${avatar}
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:12px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${rank} ${escapeHtml(p.display_name||'')}</div>
+          <div style="font-weight:700;font-size:12px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${medal}${escapeHtml(p.display_name||'')}</div>
           <div style="font-size:10px;color:#94a3b8;">${escapeHtml(p.company_code||'')}</div>
         </div>
         <div style="font-size:18px;font-weight:800;color:#7c3aed;">${p.score}</div>
@@ -1774,17 +1825,16 @@ function renderPromoterRanking(promoters) {
       <div style="background:#f1f5f9;height:4px;border-radius:2px;overflow:hidden;margin-bottom:6px;">
         <div style="background:linear-gradient(90deg,#7c3aed,#a78bfa);height:100%;width:${barW}%;"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;color:#64748b;">
-        <span title="POST">🩺${p.post_count||0}</span>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#64748b;gap:4px;flex-wrap:wrap;">
+        <span title="運管POST">🩺${p.post_count||0}</span>
         <span title="声議論">💬${p.post_disc_count||0}</span>
         <span title="施策議論">🎯${p.action_disc_count||0}</span>
-        <span title="共感">❤${p.react_count||0}</span>
+        <span title="ひろば推進コメント">🌳${p.plaza_comment_count||0}</span>
+        <span title="声共感">❤${p.react_count||0}</span>
+        <span title="ひろば共感">👍${p.plaza_react_count||0}</span>
       </div>
     </div>`;
   }).join('');
-  if (restActive > 0) {
-    html += `<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;text-align:center;">他に <b style="color:#475569;margin:0 4px;">${restActive}名</b> が活動中<br><span style="font-size:9px;color:#94a3b8;">(下位ランキングは非表示。比較ではなく合計の前進が目的)</span></div>`;
-  }
   el.innerHTML = html;
 }
 
@@ -1991,5 +2041,6 @@ async function loadFieldVoice() {
   }
 }
 </script>
+<script src="/overlay-history.js?v=3"></script>
 </body>
 </html>

@@ -469,52 +469,6 @@ router.post('/actions/:id/complete', authUser, express.json(), (req, res) => {
 // =============================================================
 const { generateText } = require('../services/ai');
 
-// 推進メンバー貢献度 + 直近ハイライト + フロー進捗 (1リクエストで全部返す)
-// 推進メンバー個人Todoダッシュボード:
-//  - 未反応の3つの柱POST (7日以内、自分以外、自分が共感も議論もしてない)
-//  - 議論段階(候補/評議中)の施策で自分が未コメント
-//  - 今月の自分の貢献カウント (POST/コメント/共感/score)
-router.get('/promoter-todo', authUser, (req, res) => {
-  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
-  const me = req.uid;
-  const db = getDb();
-  // 1. 未反応POST (最大10件)
-  const unreactedPosts = db.prepare(`
-    SELECT wp.id, wp.category, wp.source_type, wp.urgency, wp.memo, wp.created_at, wp.identity_mode
-    FROM wellness_posts wp
-    WHERE wp.created_at >= datetime('now', '-7 days')
-      AND wp.poster_id != ?
-      AND NOT EXISTS (SELECT 1 FROM wellness_post_reactions r WHERE r.post_id = wp.id AND r.user_id = ?)
-      AND NOT EXISTS (SELECT 1 FROM wellness_post_discussions d WHERE d.post_id = wp.id AND d.author_id = ? AND d.deleted_at IS NULL)
-    ORDER BY wp.created_at DESC LIMIT 10
-  `).all(me, me, me);
-  // 2. 議論待ち施策 (候補/評議中で自分未コメント、最大10件)
-  const pendingActions = db.prepare(`
-    SELECT a.id, a.title, a.status, a.category, a.created_at
-    FROM wellness_actions a
-    WHERE a.status IN ('候補', '評議中')
-      AND NOT EXISTS (SELECT 1 FROM wellness_action_discussions d WHERE d.action_id = a.id AND d.author_id = ? AND d.deleted_at IS NULL)
-    ORDER BY a.created_at DESC LIMIT 10
-  `).all(me);
-  // 3. 今月の自分の貢献
-  const monthStart = new Date();
-  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-  const sinceISO = monthStart.toISOString().slice(0, 19).replace('T', ' ');
-  const myPosts = db.prepare("SELECT COUNT(*) AS c FROM wellness_posts WHERE poster_id = ? AND created_at >= ?").get(me, sinceISO).c;
-  const myPostComments = db.prepare("SELECT COUNT(*) AS c FROM wellness_post_discussions WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?").get(me, sinceISO).c;
-  const myActionComments = db.prepare("SELECT COUNT(*) AS c FROM wellness_action_discussions WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?").get(me, sinceISO).c;
-  const myReactions = db.prepare("SELECT COUNT(*) AS c FROM wellness_post_reactions WHERE user_id = ? AND created_at >= ?").get(me, sinceISO).c;
-  const myComments = myPostComments + myActionComments;
-  const myScore = myPosts * 3 + myComments * 2 + myReactions;
-  res.json({
-    success: true,
-    unreacted_posts: unreactedPosts,
-    pending_actions: pendingActions,
-    my_stats: { posts: myPosts, comments: myComments, reactions: myReactions, score: myScore },
-    period: '今月',
-  });
-});
-
 router.get('/promoter-board', authUser, (req, res) => {
   if (!canManageActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
   const days = Math.min(parseInt(req.query.days) || 30, 90);
@@ -539,15 +493,17 @@ router.get('/promoter-board', authUser, (req, res) => {
   const ongoingActions = db.prepare(`SELECT id, title, status, category FROM wellness_actions
     WHERE status IN ('承認待ち','承認済','実行中') ORDER BY id DESC LIMIT 5`).all();
 
-  // 推進メンバー貢献ランキング (POST数+議論数+コメント数)
-  const promoters = db.prepare(`SELECT u.id, u.display_name, u.company_code,
+  // 推進メンバー貢献 (POST数+議論数+コメント数+ひろば貢献) — 全員返す
+  const promoters = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url,
     (SELECT COUNT(*) FROM wellness_posts WHERE poster_id = u.id AND created_at >= ?) AS post_count,
     (SELECT COUNT(*) FROM wellness_post_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS post_disc_count,
     (SELECT COUNT(*) FROM wellness_action_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS action_disc_count,
-    (SELECT COUNT(*) FROM wellness_post_reactions WHERE user_id = u.id AND created_at >= ?) AS react_count
+    (SELECT COUNT(*) FROM wellness_post_reactions WHERE user_id = u.id AND created_at >= ?) AS react_count,
+    (SELECT COUNT(*) FROM plaza_post_promoter_comments WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS plaza_comment_count,
+    (SELECT COUNT(*) FROM plaza_reactions WHERE user_id = u.id AND created_at >= ?) AS plaza_react_count
     FROM users u WHERE u.is_field_promoter = 1 AND u.role != 'bot'
-    ORDER BY (post_count*3 + post_disc_count*2 + action_disc_count*2 + react_count) DESC LIMIT 12`)
-    .all(sinceISO, sinceISO, sinceISO, sinceISO);
+    ORDER BY (post_count*3 + (post_disc_count + action_disc_count + plaza_comment_count)*2 + react_count + plaza_react_count) DESC, u.display_name ASC`)
+    .all(sinceISO, sinceISO, sinceISO, sinceISO, sinceISO, sinceISO);
 
   // 最近完了した施策 (成果として見せる)
   const recentCompleted = db.prepare(`SELECT id, title, completed_at, announce_message FROM wellness_actions
@@ -652,13 +608,37 @@ router.post('/insights', authUser, express.json(), async (req, res) => {
     return res.json({ success: true, insights: null, msg: 'データが不足しています' });
   }
 
+  // 反応集計 (plaza_reactions) — POST別 絵文字別カウントを取得
+  // ラベル付き8種: 👍いいね/❤️推し/😊共感/💪応援/👏すごい/💡参考/🙏ありがとう/😢心配
+  const REACTION_LABEL = { '👍':'いいね', '❤️':'推し', '😊':'共感', '💪':'応援', '👏':'すごい', '💡':'参考', '🙏':'ありがとう', '😢':'心配', '🎉':'お祝い' };
+  const reactionMap = {}; // {post_id: {emoji: count}}
+  try {
+    const allPlazaIds = [...plazaPosts.map(p => p.id), ...foodPosts.map(p => p.id)];
+    if (allPlazaIds.length) {
+      const ph = allPlazaIds.map(() => '?').join(',');
+      const rows = db.prepare(`SELECT post_id, emoji, COUNT(*) as ct FROM plaza_reactions WHERE post_id IN (${ph}) GROUP BY post_id, emoji`).all(...allPlazaIds);
+      for (const r of rows) {
+        if (!reactionMap[r.post_id]) reactionMap[r.post_id] = {};
+        reactionMap[r.post_id][r.emoji] = r.ct;
+      }
+    }
+  } catch (e) { console.warn('[insights] reaction aggregate failed', e.message); }
+  const reactionSummary = (postId) => {
+    const m = reactionMap[postId];
+    if (!m) return '';
+    const parts = Object.entries(m)
+      .sort((a, b) => b[1] - a[1])
+      .map(([e, c]) => `${REACTION_LABEL[e] || e}${c}`);
+    return parts.length ? ' 反応{' + parts.join('・') + '}' : '';
+  };
+
   // 各系統 上限80件、メモは200字まで (プロンプト肥大化防止)
   const cap = (arr, n) => arr.length > n ? arr.slice(0, n) : arr;
   const unkanLines = cap(unkanPosts, 80).map(p =>
     `[#${p.id}|${p.category}|緊急度${p.urgency}|${p.company_code || '-'}|by ${p.poster_name || '不明'}] ${(p.memo || '').slice(0, 200) || '(メモなし)'}`
   ).join('\n');
   const plazaLines = cap(plazaPosts, 80).map(p =>
-    `[#${p.id}|${p.category}|${p.company_code || '-'}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0, 150)}`
+    `[#${p.id}|${p.category}|${p.company_code || '-'}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0, 150)}${reactionSummary(p.id)}`
   ).join('\n');
   const foodLines = cap(foodPosts, 80).map(p => {
     let nutri = '';
@@ -669,31 +649,43 @@ router.post('/insights', authUser, express.json(), async (req, res) => {
       const veg = ns.vitamin && ns.vitamin.value;
       nutri = `(cal:${cal||'-'}kcal塩:${salt||'-'}g野菜:${veg||'-'}g)`;
     } catch (e) {}
-    return `[#${p.id}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0,80)} ${nutri}`;
+    return `[#${p.id}|by ${p.is_anonymous ? '匿名' : (p.author_name || '不明')}] ${(p.content || '').slice(0,80)} ${nutri}${reactionSummary(p.id)}`;
   }).join('\n');
   const discLines = cap(discMsgs, 80).map(m =>
     `[${m.sender_name || '不明'}] ${(m.content || '').slice(0, 150)}`
   ).join('\n');
 
-  const prompt = `あなたは中小運送業の健康管理室の補助役です。3系統の異なるソースから集まったテキストを分析し、健康管理室会議で議論する材料として整理してください。
+  const prompt = `あなたは中小運送業の健康管理室の補助役です。3系統の異なるソースから集まったテキストと、社員が押した反応ボタン(8種ラベル付き)を分析し、健康管理室会議で議論する材料として整理してください。
 
 【系統A: 運管・現場責任者の "現場の声" POST (構造化)】
 ${unkanLines || '(なし)'}
 
 【系統B: 社員の自発的な声 (ひろば: 相談/雑談/Tips)】
+※ 各行末の 反応{...} は社員が押した反応ボタン集計。ラベル別カウント。
 ${plazaLines || '(なし)'}
 
 【系統C: 食事分析 (ひろば食事投稿+AI栄養データ)】
+※ 食事投稿は👍いいねのみ可（マウント防止ルール）。反応数=共感した社員数。
 ${foodLines || '(なし)'}
 
 【系統D: 健康管理室ディスカッション(事務側議論)】
 ${discLines || '(なし)'}
 
+【反応ボタンの意味】
+- いいね: 軽い同意。多いほど"あるある"度が高い
+- 推し: 強い共感・賛成。重要シグナル
+- 共感: わかる/同じ気持ち。情緒的に響いた
+- 応援: がんばれ。本人を励ましたい
+- すごい: 称賛。模範事例として広めたい
+- 参考: 学び/チップとして使える。横展開候補
+- ありがとう: 感謝。誰かを助けた価値ある投稿
+- 心配: 気になる/それ辛い。早めの介入候補 ★最重要シグナル
+
 以下の形式の純粋なJSONで回答してください (Markdownや前置きは不要):
 {
   "summary": "全体の特徴を3〜5行で",
   "themes": [
-    {"name": "テーマ名", "post_ids": [整数配列], "count": 件数, "urgency_max": "高|中|低", "note": "1〜2行の所見"}
+    {"name": "テーマ名", "post_ids": [整数配列], "count": 件数, "urgency_max": "高|中|低", "note": "1〜2行の所見", "resonance": "反応傾向(例: 共感が突出/心配多い/参考多い 等)"}
   ],
   "company_distribution": [{"company": "コード", "count": 件数}],
   "actions": [
@@ -705,7 +697,10 @@ ${discLines || '(なし)'}
 - 個人を特定しない (匿名/集計のみのPOSTは個人名を出さない)
 - 緊急度高のテーマがあれば actions の優先順位を上げる
 - データが薄い場合は無理に作らず空配列で良い
-- 3系統 (運管POST/社員の声/食事分析) を横断的に見て、複数ソースで裏付けが取れるテーマを優先`;
+- 3系統 (運管POST/社員の声/食事分析) を横断的に見て、複数ソースで裏付けが取れるテーマを優先
+- 反応ボタンの分布を強力なシグナルとして使う。特に「心配」「推し」「共感」の集中は職場の温度を示す
+- 「心配」が多いPOSTは緊急度を1段上げて評価する
+- 「推し」「参考」が多いPOSTは横展開・全社施策化の候補`;
 
   try {
     // thinkingBudget=0 で thinking を切り、出力枠をフルに確保
