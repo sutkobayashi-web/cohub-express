@@ -2,6 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<script>
+// 旧 health.biz domain で読み込まれた場合は即 cohub.biz へ強制遷移
+(function () {
+  try {
+    if (location.hostname.indexOf('health.biz-terrace.org') !== -1) {
+      location.replace('https://cohub.biz-terrace.org' + location.pathname + location.search);
+    }
+  } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#f3f4f6">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -354,6 +364,8 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   #m-float-help .mfh-help { background: linear-gradient(135deg,#10b981,#059669); }
   #m-float-help .mfh-sos { background: linear-gradient(135deg,#f97316,#ea580c); }
 </style>
+<script src="/version-check.js" defer></script>
+<script src="/global-notif.js" defer></script>
 </head>
 <body>
 
@@ -428,6 +440,15 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
 
       <div class="section">
         <div class="section-ttl">クイックアクセス</div>
+        <!-- ⭐ 主役バナー: 今日の一歩、明日の自分 -->
+        <a href="/myplan.html" id="m-myplan-banner" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:10px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:14px;text-decoration:none;color:#78350f;box-shadow:0 3px 10px rgba(245,158,11,0.18);">
+          <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 2px 5px rgba(180,83,9,0.30);">🩺</div>
+          <div style="flex:1;min-width:0;line-height:1.35;">
+            <div style="font-size:14px;font-weight:800;color:#78350f;">今日の一歩、明日の自分</div>
+            <div style="font-size:11.5px;font-weight:700;color:#92400e;opacity:0.9;margin-top:2px;">3日間からはじめる、自分だけのアクションプラン</div>
+          </div>
+          <div style="font-size:20px;color:#b45309;flex-shrink:0;">→</div>
+        </a>
         <div class="qa-grid">
           <div class="qa-item aoi" onclick="openBotChat()">
             <img class="i" src="/assets/concierge_aoi.png" alt="" style="height:48px;width:auto;object-fit:contain;display:block;mix-blend-mode:multiply;">
@@ -461,10 +482,6 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
             <div>業務連絡</div>
             <span id="qa-ops-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#7c3aed;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
-          <div class="qa-item" onclick="location.href='/myplan.html'" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#047857;">
-            <div class="i">🩺</div>
-            <div>今日の一歩</div>
-          </div>
           <div class="qa-item" onclick="location.href='/wellness.html'" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af;">
             <div class="i">📋</div>
             <div>健康記録</div>
@@ -492,13 +509,13 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
             <div class="i">🎬</div>
             <div>eラーニング</div>
           </div>
-          <div class="qa-item" onclick="location.href='/wellness-archive.html'" style="background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490;">
-            <div class="i">📦</div>
-            <div>CoWell Classic履歴</div>
-          </div>
           <div class="qa-item" onclick="switchTab('members')">
             <div class="i">👥</div>
             <div>メンバー</div>
+          </div>
+          <div class="qa-item" onclick="location.href='/circles.html'" style="background:linear-gradient(135deg,#ccfbf1,#5eead4);color:#0f766e;">
+            <div class="i">🎯</div>
+            <div>サークル活動</div>
           </div>
         </div>
       </div>
@@ -863,12 +880,75 @@ let _mAudioCtx = null;
 const _mEnterLeaveThrottle = new Map();
 const _M_ENTER_LEAVE_COOLDOWN_MS = 8000;
 const CHIME_DURATION_MS = 1000;
-function playEnterLeaveChime(isEnter) {
+// iOS Safari の autoplay 制約対策: 初回ユーザー操作で audio をアンロック
+// MP3 を AudioContext で decodeAudioData し BufferSource で再生 (Audio要素より iOS で安定)
+const M_NOTIF_MP3_URL = '/assets/notif-mention.mp3?v=1';
+let _mNotifBuf = null;        // AudioBuffer (decode済)
+let _mAudioUnlocked = false;
+async function _loadMNotifBuffer() {
+  if (_mNotifBuf) return _mNotifBuf;
+  try {
+    if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const r = await fetch(M_NOTIF_MP3_URL);
+    const ab = await r.arrayBuffer();
+    _mNotifBuf = await new Promise((resolve, reject) => {
+      _mAudioCtx.decodeAudioData(ab, resolve, reject);
+    });
+    console.log('[cohub-m] notif buffer loaded', _mNotifBuf.duration, 's');
+    return _mNotifBuf;
+  } catch (e) { console.warn('[cohub-m] notif buffer load fail', e); return null; }
+}
+function unlockMAudio() {
+  if (_mAudioUnlocked) return;
+  try {
+    if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_mAudioCtx.state === 'suspended') _mAudioCtx.resume();
+    // 無音バッファを再生して iOS の sandbox を解除
+    const buf = _mAudioCtx.createBuffer(1, 1, 22050);
+    const src = _mAudioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_mAudioCtx.destination);
+    src.start(0);
+    _mAudioUnlocked = true;
+    // 通知音バッファのプリロード開始
+    _loadMNotifBuffer();
+    console.log('[cohub-m] audio unlocked');
+  } catch (e) { console.warn('[cohub-m] audio unlock fail', e); }
+}
+// 最初のユーザー操作 (タップ/クリック/キー) で1回だけアンロック
+(function setupMAudioUnlock() {
+  const once = () => {
+    unlockMAudio();
+    document.removeEventListener('click', once);
+    document.removeEventListener('touchstart', once);
+    document.removeEventListener('keydown', once);
+  };
+  document.addEventListener('click', once, { passive: true });
+  document.addEventListener('touchstart', once, { passive: true });
+  document.addEventListener('keydown', once);
+})();
+// タブ復帰時に AudioContext を毎回再開
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _mAudioCtx && _mAudioCtx.state === 'suspended') {
+    _mAudioCtx.resume().catch(() => {});
+  }
+});
+
+async function playEnterLeaveChime(isEnter) {
   if (!chimeOn) return;
   try {
     if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _mAudioCtx;
-    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    if (ctx.state !== 'running') {
+      try { await ctx.resume(); } catch (e) {}
+    }
+    if (ctx.state !== 'running') {
+      // AudioContext がまだ suspended → MP3 フォールバック (iOS Safari でほぼ確実に鳴る)
+      console.warn('[cohub-m] audio ctx suspended, fallback to MP3');
+      // 入退室の WebAudio がだめなら playDmChime 経由でフォールバック (MP3 buffer)
+      playDmChime();
+      return;
+    }
     const tone = (freq, startOffset, dur, vol) => {
       const t0 = ctx.currentTime + startOffset;
       const osc = ctx.createOscillator();
@@ -890,7 +970,9 @@ function playEnterLeaveChime(isEnter) {
       tone(987.77, 0.00, 0.35, 0.10);
       tone(659.25, 0.12, 0.45, 0.10);
     }
-  } catch (e) {}
+  } catch (e) {
+    try { playDmChime(); } catch (e2) {}
+  }
 }
 // 読み仮名マップ (SpeechSynthesisが漢字を読み違える人名を登録)
 const NAME_READINGS = {
@@ -963,14 +1045,58 @@ function speakDmSender(name) {
   const text = (reading || 'どなたか') + 'さんからメッセージです';
   speakViaTTS(text, { speed: 1.15 });
 }
+// チャット着信専用音 (WebAudio のみ — iOS Safari でも playEnterLeaveChime と同じ経路で確実に鳴る)
+// 「ピンポーン↑×2」パターンで入退室 (ピンポンパーン) と明確に区別する
+async function playDmChime() {
+  if (!chimeOn) return;
+  try {
+    if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _mAudioCtx;
+    if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 1.0;
+    master.connect(ctx.destination);
+    const note = (freq, off, dur, vol) => {
+      const t0 = now + off;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      env.connect(master);
+      // 主音 (sine: 太く柔らかい)
+      const o1 = ctx.createOscillator();
+      o1.type = 'sine'; o1.frequency.value = freq;
+      o1.connect(env);
+      o1.start(t0); o1.stop(t0 + dur + 0.02);
+      // 倍音 (triangle: 派手さ)
+      const o2 = ctx.createOscillator();
+      o2.type = 'triangle'; o2.frequency.value = freq * 2;
+      const o2g = ctx.createGain(); o2g.gain.value = 0.18;
+      o2.connect(o2g); o2g.connect(env);
+      o2.start(t0); o2.stop(t0 + dur + 0.02);
+    };
+    // ピン (C6) → ポーン↑ (E6) を 2 回連続
+    note(1047, 0.00, 0.12, 0.40);
+    note(1319, 0.13, 0.42, 0.50);
+    note(1047, 0.65, 0.12, 0.40);
+    note(1319, 0.78, 0.42, 0.50);
+    console.log('[cohub-m] DM chime played');
+  } catch (e) { console.warn('[cohub-m] DM chime failed', e); }
+}
+
 function announceDmSender(senderUid, name) {
   if (!senderUid) return;
   const now = Date.now();
   const last = _dmSenderThrottle.get(senderUid) || 0;
-  if (now - last < _DM_SENDER_COOLDOWN_MS) return;
+  // クールダウン中: チャイムだけは常に鳴らす (TTSアナウンスはスキップ)
+  if (now - last < _DM_SENDER_COOLDOWN_MS) {
+    playDmChime();
+    return;
+  }
   _dmSenderThrottle.set(senderUid, now);
-  playEnterLeaveChime(true);
-  setTimeout(() => speakDmSender(name), CHIME_DURATION_MS + 200);
+  playDmChime();
+  setTimeout(() => speakDmSender(name), 700);
 }
 
 function speakEnterLeave(name, isEnter) {
@@ -1155,6 +1281,17 @@ function openConsentModal() {
             <span>③ プライバシーポリシーに同意します</span>
           </label>
         </div>
+        <!-- 任意項目: 帝京大学公衆衛生学研究科との共同研究 -->
+        <div style="margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:8px;border-left:3px solid #7c3aed;">
+          <div style="font-weight:700;color:#5b21b6;margin-bottom:4px;font-size:12px;display:flex;align-items:center;gap:6px;">🎓 任意: 学術研究への協力 <span style="background:#fff;color:#7c3aed;font-size:9px;padding:2px 7px;border-radius:8px;border:1px solid #c4b5fd;">opt-in</span></div>
+          <div style="font-size:10.5px;color:#475569;line-height:1.65;margin-bottom:6px;">
+            帝京大学公衆衛生学研究科 (福田研究室) との共同研究において、<b>個人を特定できない匿名集計データ</b> (反応分布・ヘルスリテラシー集計・施策反応など) の利用に協力します。論文・学会発表前に当社が確認。<b>いつでも撤回できます</b> (マイページ → 同意設定)。
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:11.5px;line-height:1.5;">
+            <input type="checkbox" id="m-consent-c4" style="margin-top:2px;width:20px;height:20px;flex-shrink:0;">
+            <span><b style="color:#5b21b6;">④</b> 匿名集計データの学術研究利用に協力します (任意)</span>
+          </label>
+        </div>
 
         <div id="m-consent-err" style="color:#dc2626;font-size:11px;min-height:14px;text-align:center;margin:6px 0;"></div>
       </div>
@@ -1194,6 +1331,7 @@ async function submitConsentM() {
         accepted_log: true,
         accepted_privacy: true,
         accepted_policy: true,
+        accepted_research: !!document.getElementById('m-consent-c4')?.checked,
         version: user && user.current_consent_version,
       }),
     });
@@ -1534,7 +1672,18 @@ function switchTab(tab) {
 function connectSocket() {
   if (socket) { try { socket.disconnect(); } catch (e) {} }
   socket = io({ auth: { token, isMobile: true } });
+  socket.on('session:kicked', () => {
+    try { localStorage.removeItem('cohub_token'); } catch (e) {}
+    alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
+    location.replace('/');
+  });
   socket.on('connect_error', (e) => {
+    if (e.message === 'session_kicked') {
+      try { localStorage.removeItem('cohub_token'); } catch (er) {}
+      alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
+      location.replace('/');
+      return;
+    }
     if (e.message === 'unauth' || e.message === 'Authentication error') {
       localStorage.removeItem('cohub_token');
       token = ''; user = null;
@@ -1574,6 +1723,22 @@ function connectSocket() {
     Object.assign(u, d);
     users[d.uid] = u;
     if (d.uid === user.uid && d.status) applyMyStatusUI(d.status);
+    renderMembers();
+    renderHomeOnline();
+  });
+  // フロア跨ぎオンライン/オフライン (別フロアにいるメンバーの presence 変化を捕捉)
+  socket.on('user:floor', (d) => {
+    if (!d || !d.uid) return;
+    const u = users[d.uid] || { uid: d.uid };
+    if (d.offline) {
+      u.status = 'offline';
+      u.floor = null;
+    } else {
+      u.floor = d.floor || null;
+      // status が offline のままなら online に戻す
+      if (u.status === 'offline' || !u.status) u.status = 'online';
+    }
+    users[d.uid] = u;
     renderMembers();
     renderHomeOnline();
   });
@@ -1649,14 +1814,22 @@ function connectSocket() {
       try { speakViaTTS(String(m.content).replace(/[*_`#>~]/g, '').slice(0, 500), Object.assign({ force: true }, opts)); } catch (e) {}
     }
     if (m.voice && m.content) rememberVoiceDm(m);
-    if (openPeerUid === peerUid) {
+    const isVisible = document.visibilityState === 'visible' && document.hasFocus();
+    if (openPeerUid === peerUid && isVisible) {
+      // 画面表示中で該当DMを開いている: 即追加のみ (音/トーストなし)
       appendMessage(m, isSelf);
     } else if (!isSelf) {
-      dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
-      updateChatBadge();
-      loadChatLists();
+      // 別DMを開いている / 背面 / 別アプリ中
+      if (openPeerUid !== peerUid) {
+        dmUnread[peerUid] = (dmUnread[peerUid] || 0) + 1;
+        updateChatBadge();
+        loadChatLists();
+      } else {
+        // 該当DMだが画面非表示: メッセージは追加 (戻った時に表示されている)
+        appendMessage(m, isSelf);
+      }
       const sender = users[peerUid] || {};
-      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : (sender.name || '');
+      const name = peerUid === BOT_UID ? '総合案内' : peerUid === HEALTH_UID ? 'ヘルス' : peerUid === SAFETY_UID ? '安全太郎' : (sender.name || '送信者');
       showToast((m.voice ? '🔊 ' : '💬 ') + name + ': ' + (m.content || '').slice(0, 40));
       // 送付元名アナウンス (botおよび音声DMは除外、音声DMは既に本文読み上げ中)
       if (!isBotUid(m.from) && !m.voice) announceDmSender(m.from, sender.name || '');
@@ -1672,6 +1845,11 @@ function connectSocket() {
       groupUnread[m.gid] = (groupUnread[m.gid] || 0) + 1;
       updateChatBadge();
       loadChatLists();
+      // グループメッセージ到着: MP3 チャイム + トースト
+      try { if (chimeOn) playDmChime(); } catch (e) {}
+      const senderName = (users[m.uid] || {}).name || '誰か';
+      const gName = (groupsList.find(g => g.id === m.gid) || {}).name || 'グループ';
+      try { showToast('💬 ' + gName + ': ' + senderName); } catch (e) {}
     }
   });
 }
@@ -1862,6 +2040,7 @@ async function openDM(peerId, name, avatar, isBot) {
   updateChatBadge();
   loadChatLists();
   document.getElementById('chat-modal').classList.add('show');
+  if (window.Overlay) Overlay.open('chat-modal', closeChatModal);
   document.getElementById('chat-h-name').textContent = name;
   const botSub = peerId === HEALTH_UID ? 'AI ヘルスアドバイザー' : peerId === SAFETY_UID ? 'AI 安全管理者' : 'AI 受付案内員';
   document.getElementById('chat-h-sub').textContent = isBot ? botSub : (users[peerId] ? (users[peerId].company || '') : '');
@@ -1898,6 +2077,7 @@ async function openGroup(gid, name, icon) {
   updateChatBadge();
   loadChatLists();
   document.getElementById('chat-modal').classList.add('show');
+  if (window.Overlay) Overlay.open('chat-modal', closeChatModal);
   document.getElementById('chat-h-name').textContent = name;
   document.getElementById('chat-h-sub').textContent = 'グループ';
   document.getElementById('chat-h-av').innerHTML = escapeHtml(icon || '💬');
@@ -1919,6 +2099,7 @@ function closeChatModal() {
   openGroupId = null;
   var sqa = document.getElementById('safety-quick-actions');
   if (sqa) sqa.style.display = 'none';
+  if (window.Overlay) Overlay.close('chat-modal');
 }
 function renderMessages(msgs, showSenderName) {
   const body = document.getElementById('chat-body');
@@ -2323,6 +2504,7 @@ function renderMembers() {
 let _calStatus = null;
 async function openCalModal() {
   document.getElementById('cal-modal').classList.add('show');
+  if (window.Overlay) Overlay.open('cal-modal', closeCalModal);
   document.getElementById('cal-err').textContent = '';
   document.getElementById('cal-setup-box').style.display = 'none';
   document.getElementById('cal-linked-box').style.display = 'none';
@@ -2357,7 +2539,7 @@ async function openCalModal() {
     document.getElementById('cal-status-box').textContent = '読み込みエラー';
   }
 }
-function closeCalModal() { document.getElementById('cal-modal').classList.remove('show'); }
+function closeCalModal() { document.getElementById('cal-modal').classList.remove('show'); if (window.Overlay) Overlay.close('cal-modal'); }
 function copyCalSa() {
   const t = document.getElementById('cal-sa-email').textContent;
   navigator.clipboard.writeText(t).then(() => showToast('📋 コピーしました')).catch(() => {});
@@ -2407,8 +2589,9 @@ function openPwModal() {
   document.getElementById('pw-confirm').value = '';
   document.getElementById('pw-err').textContent = '';
   document.getElementById('pw-modal').classList.add('show');
+  if (window.Overlay) Overlay.open('pw-modal', closePwModal);
 }
-function closePwModal() { document.getElementById('pw-modal').classList.remove('show'); }
+function closePwModal() { document.getElementById('pw-modal').classList.remove('show'); if (window.Overlay) Overlay.close('pw-modal'); }
 async function submitPw() {
   const cur = document.getElementById('pw-current').value;
   const ne = document.getElementById('pw-new').value;
@@ -2453,6 +2636,7 @@ function openAvatarModalM() {
   gen.style.display = 'inline-block'; gen.disabled = true; gen.textContent = '3パターン自動生成 (約40秒)';
   document.getElementById('av-err').textContent = '';
   document.getElementById('avatar-modal-m').classList.add('show');
+  if (window.Overlay) Overlay.open('avatar-modal-m', closeAvatarModalM);
 }
 
 async function closeAvatarModalM() {
@@ -2468,6 +2652,7 @@ async function closeAvatarModalM() {
   }
   avPhoto = null; avCandidates = []; avSelected = null;
   document.getElementById('avatar-modal-m').classList.remove('show');
+  if (window.Overlay) Overlay.close('avatar-modal-m');
 }
 
 function avOnPhotoPick(input) {
@@ -3025,6 +3210,7 @@ async function openFloor(code, name) {
     document.head.appendChild(s);
   }
   _floorModalState = { code, name, members: [], pollTimer: null };
+  if (window.Overlay) Overlay.open('floor-people-modal', closeFloorModal);
   await loadFloorMembers();
   // 3秒ポーリング (他フロア閲覧でもメンバー位置の追従)
   _floorModalState.pollTimer = setInterval(loadFloorMembers, 3000);
@@ -3035,6 +3221,7 @@ function closeFloorModal() {
   _floorModalState = null;
   const m = document.getElementById('floor-people-modal');
   if (m) m.remove();
+  if (window.Overlay) Overlay.close('floor-people-modal');
 }
 
 async function loadFloorMembers() {
@@ -3189,6 +3376,12 @@ function setChimeOn(on) {
   chimeOn = !!on;
   try { localStorage.setItem('m_chime_on', chimeOn ? '1' : '0'); } catch (e) {}
   applyPrefsToUI();
+  // ON にした瞬間に音声アンロック + テスト音再生 (iOS Safari 対策: 直接ユーザー操作内で発火させる)
+  if (chimeOn) {
+    try { unlockMAudio(); } catch (e) {}
+    setTimeout(() => playDmChime(), 80);
+    showToast('🔊 通知音テスト再生中…');
+  }
 }
 function setSpeechSpeed(v) {
   speechSpeed = v;
@@ -3207,9 +3400,11 @@ function openStatusSheet() {
     b.classList.toggle('active', match);
   });
   document.getElementById('status-sheet').classList.add('show');
+  if (window.Overlay) Overlay.open('status-sheet', closeStatusSheet);
 }
 function closeStatusSheet() {
   document.getElementById('status-sheet').classList.remove('show');
+  if (window.Overlay) Overlay.close('status-sheet');
 }
 function pickStatus(s) {
   setMyStatus(s);
@@ -3375,5 +3570,6 @@ function openMobileSOS() {
   <button class="mfh-sos" onclick="openMobileSOS()" title="操作で困ったらSOS">🆘 お助けを呼ぶ</button>
   <button class="mfh-help" onclick="openMobileHelp()" title="使い方ヘルプ">❓ ヘルプ</button>
 </div>
+<script src="/overlay-history.js?v=3"></script>
 </body>
 </html>

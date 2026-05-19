@@ -2,6 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<script>
+// 旧 health.biz domain で読み込まれた場合は即 cohub.biz へ強制遷移
+(function () {
+  try {
+    if (location.hostname.indexOf('health.biz-terrace.org') !== -1) {
+      location.replace('https://cohub.biz-terrace.org' + location.pathname + location.search);
+    }
+  } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -34,11 +44,11 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.18);
   }
   header .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  header .ttl-wrap { line-height: 1.2; flex: 1; min-width: 0; }
-  header .ttl { font-size: 18px; font-weight: 800; letter-spacing: 1.5px; }
+  header .ttl-wrap { flex: 1; min-width: 0; display: flex; align-items: center; }
+  header .ttl { display: none; }
   header .sub {
-    font-size: 9.5px; opacity: 0.65; letter-spacing: 0.6px; margin-top: 2px;
-    font-weight: 400; line-height: 1.25;
+    font-size: 13px; opacity: 0.95; letter-spacing: 0.5px;
+    font-weight: 600; line-height: 0.95; text-align: center;
   }
   header .right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
   header .name {
@@ -122,8 +132,22 @@
   }
   .hero .ic { font-size: 38px; line-height: 1; flex-shrink: 0; }
   .hero .body { flex: 1; line-height: 1.5; }
-  .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; }
+  .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; display: flex; align-items: flex-end; gap: 10px; }
   .hero .greet strong { color: #047857; }
+  .hero .greet-ava-link {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+    text-decoration: none; color: inherit; flex-shrink: 0;
+    transition: transform 0.1s;
+  }
+  .hero .greet-ava-link:hover { transform: translateY(-1px); }
+  .hero .greet-ava {
+    width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .hero .greet-ava-lbl {
+    font-size: 9px; font-weight: 700; color: #475569; letter-spacing: 0.3px;
+    line-height: 1; white-space: nowrap;
+  }
   .hero .note { font-size: 11px; color: #475569; margin-top: 4px; }
   .hero .me-avatar {
     width: 56px; height: 56px; border-radius: 50%;
@@ -151,6 +175,20 @@
   .hero .timecard-btn:active { transform: translateY(0); }
   .hero .timecard-btn .ic { font-size: 24px; line-height: 1; }
   .hero .timecard-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
+  .hero .punchout-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, #f472b6, #db2777);
+    color: #fff; border: none; border-radius: 16px;
+    cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(219,39,119,0.35);
+    text-decoration: none; gap: 1px;
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .hero .punchout-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(219,39,119,0.45); }
+  .hero .punchout-btn:active { transform: translateY(0); }
+  .hero .punchout-btn .ic { font-size: 22px; line-height: 1; }
+  .hero .punchout-btn .lbl { font-size: 16px; font-weight: 800; letter-spacing: 1px; text-align: center; line-height: 1.1; }
   .hero .mypage-btn {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     width: 64px; height: 64px;
@@ -164,13 +202,49 @@
   .hero .mypage-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(71,85,105,0.40); }
   .hero .mypage-btn:active { transform: translateY(0); }
   .hero .mypage-btn .ic { font-size: 22px; line-height: 1; }
-  .hero .mypage-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
+  .hero .mypage-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; line-height: 1.1; text-align: center; }
   .hero .mypage-btn .ava {
-    width: 36px; height: 36px; border-radius: 50%;
+    width: 60px; height: 60px; border-radius: 50%;
     object-fit: cover;
-    border: 2px solid rgba(255,255,255,0.85);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    border: none;
     flex-shrink: 0;
+  }
+  /* アバター画像が出ている時は、ボタン背景・ラベルを隠して写真のみ前面に */
+  .hero .mypage-btn.has-avatar {
+    background: transparent;
+    box-shadow: none;
+    width: auto; height: auto;
+    padding: 0;
+  }
+  .hero .mypage-btn.has-avatar .lbl { display: none; }
+
+  /* 今日のひとこと */
+  .daily-msg {
+    position: relative;
+    margin: 22px 4px 0; padding: 14px 14px 10px;
+    background: linear-gradient(135deg, #fef9c3, #fef3c7);
+    border: 1.5px solid #fcd34d; border-radius: 12px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(252,211,77,0.18);
+  }
+  /* ラベルは枠の上に飛び出す (fieldset legend 風) */
+  .daily-msg .dm-label {
+    position: absolute; top: -11px; left: 14px;
+    font-size: 11px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: 1.5px solid #fcd34d;
+    padding: 2px 10px; border-radius: 999px;
+    white-space: nowrap; letter-spacing: 0.4px;
+    box-shadow: 0 2px 5px rgba(217,119,6,0.30);
+  }
+  .daily-msg .dm-body {
+    flex: 1; min-width: 0;
+    font-size: 14px; font-weight: 700; color: #78350f; line-height: 1.5;
+  }
+  @media (max-width: 600px) {
+    .daily-msg { padding: 14px 12px 8px; gap: 8px; }
+    .daily-msg .dm-label { font-size: 10px; top: -10px; }
+    .daily-msg .dm-body { font-size: 13px; }
   }
 
   /* セクション見出し */
@@ -183,48 +257,62 @@
   .sec-title .desc { font-size: 11px; color: #94a3b8; }
 
   /* カードグリッド */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
-  /* リッチカード */
+  /* コンパクトカード (説明文なし・2-3列表示) */
   .card {
     --c1: #14b8a6; --c2: #0d9488;
     position: relative; overflow: hidden;
-    background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
-    border: 1px solid #e2e8f0; border-radius: 16px;
-    padding: 20px 18px 18px 18px;
-    cursor: pointer; text-decoration: none; color: inherit; display: block;
-    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    background:
+      linear-gradient(180deg,
+        color-mix(in srgb, var(--c1) 14%, #fff) 0%,
+        color-mix(in srgb, var(--c2) 8%, #fff) 100%);
+    border: 1px solid color-mix(in srgb, var(--c2) 22%, #fff);
+    border-radius: 12px;
+    padding: 12px 8px 10px;
+    cursor: pointer; text-decoration: none; color: inherit;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    min-height: 92px;
   }
   .card:before {
-    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
     background: linear-gradient(90deg, var(--c1), var(--c2));
   }
-  .card:after {
-    content: ''; position: absolute; right: -30px; top: -30px;
-    width: 120px; height: 120px; border-radius: 50%;
-    background: radial-gradient(circle, var(--c1) 0%, transparent 60%);
-    opacity: 0.08; pointer-events: none; transition: opacity 0.2s;
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(15,23,42,0.10);
+    border-color: color-mix(in srgb, var(--c2) 45%, #fff);
+    background:
+      linear-gradient(180deg,
+        color-mix(in srgb, var(--c1) 20%, #fff) 0%,
+        color-mix(in srgb, var(--c2) 12%, #fff) 100%);
   }
-  .card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15,23,42,0.10); border-color: rgba(13,148,136,0.30); }
-  .card:hover:after { opacity: 0.15; }
   .card .icon-pill {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 52px; height: 52px; border-radius: 14px;
-    font-size: 28px; line-height: 1;
+    width: 38px; height: 38px; border-radius: 10px;
+    font-size: 20px; line-height: 1;
     background: linear-gradient(135deg, var(--c1), var(--c2));
     color: #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
-    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    margin-bottom: 6px;
   }
-  .card .label { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; letter-spacing: 0.3px; }
-  .card .desc { font-size: 12px; color: #64748b; line-height: 1.55; }
+  .card .label { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: 0.2px; line-height: 1.25; }
+  .card .desc { display: none; }
   .card .badge {
-    position: absolute; top: 12px; right: 14px;
+    position: absolute; top: 10px; right: 10px;
     background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: #fff; font-size: 10px; font-weight: 800;
-    padding: 3px 9px; border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(220,38,38,0.30); z-index: 2;
+    color: #fff; font-size: 13px; font-weight: 800;
+    padding: 4px 12px; border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(220,38,38,0.40);
+    z-index: 2;
+    min-width: 24px; text-align: center;
+    animation: badgePulse 2.2s ease-in-out infinite;
+  }
+  @keyframes badgePulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(220,38,38,0.40); }
+    50% { box-shadow: 0 4px 12px rgba(220,38,38,0.55), 0 0 0 4px rgba(220,38,38,0.15); }
   }
 
   /* 準備中バッジ (カード中央に重ねて表示) */
@@ -257,32 +345,58 @@
     50% { transform: translate(-50%, -50%) rotate(-6deg) scale(1.06); }
   }
 
-  /* カードのカラーパレット */
-  .card.chat       { --c1: #38bdf8; --c2: #0ea5e9; }
+  /* カードのカラーパレット (機能グループ別配色) */
+  /* コミュ系 = 青 */
+  .card.chat       { --c1: #7dd3fc; --c2: #0284c7; }  /* 営業所チャット: sky明るめ */
+  .card.board      { --c1: #60a5fa; --c2: #1d4ed8; }  /* 掲示板: blue中間 */
+  .card.ops        { --c1: #38bdf8; --c2: #075985; }  /* 業務連絡: 深い青 */
+  /* 健康・食事 = 緑 */
+  .card.plaza      { --c1: #6ee7b7; --c2: #047857; }  /* 食事投稿: emerald */
+  .card.wellness   { --c1: #86efac; --c2: #15803d; }  /* 健康管理室: deep green */
+  .card.challenges { --c1: #bef264; --c2: #4d7c0f; }  /* チャレンジ: lime */
+  /* 「今日の一歩、明日の自分」 — メニュー最上段の主役カード */
+  .card.myplan     { --c1: #fde68a; --c2: #d97706; }  /* 個人プラン: 暖かい山吹色 (注意を惹く) */
+  .card.myplan { grid-column: span 3; min-height: 78px; padding: 14px 16px; }
+  .card.myplan .icon-pill { margin-bottom: 0; margin-right: 10px; width: 44px; height: 44px; font-size: 24px; }
+  .card.myplan .label { font-size: 14.5px; }
+  .card.myplan .sub { font-size: 11.5px; color: #78350f; font-weight: 700; margin-top: 3px; opacity: 0.85; }
+  .card.myplan .inner { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+  .card.myplan .inner > .txt { flex: 1; min-width: 0; }
+  .card.myplan .arrow { font-size: 20px; color: #b45309; flex-shrink: 0; }
+  @media (max-width: 600px) {
+    .card.myplan { padding: 12px 14px; min-height: 70px; }
+    .card.myplan .icon-pill { width: 40px; height: 40px; font-size: 22px; }
+    .card.myplan .label { font-size: 13.5px; }
+    .card.myplan .sub { font-size: 11px; }
+  }
+  /* 予定・会議 = 紫 */
+  .card.meeting    { --c1: #a78bfa; --c2: #6d28d9; }  /* ミーティング: violet深め */
+  .card.poll       { --c1: #c4b5fd; --c2: #7c3aed; }  /* 日程調整: violet明るめ */
+  /* 警告・報告 = 赤 */
+  .card.accident   { --c1: #fca5a5; --c2: #dc2626; }  /* 事故報告 */
+  /* ソーシャル = 桃〜橙 */
+  .card.members    { --c1: #fda4af; --c2: #be123c; }  /* メンバー一覧: rose */
+  .card.circles    { --c1: #fdba74; --c2: #c2410c; }  /* サークル: orange */
+  /* 物流 = ティール */
+  .card.logihub-entry { --c1: #5eead4; --c2: #0d9488; }  /* LogiHub */
+  .card.kbc-entry     { --c1: #2dd4bf; --c2: #115e59; }  /* 関東BC: 深ティール */
+  /* ヘルプ = 黄系 (情報・案内) */
+  .card.help          { --c1: #fde68a; --c2: #ca8a04; }
+  /* 旧定義 (互換維持) */
   .card.timecard   { --c1: #fbbf24; --c2: #f59e0b; }
-  .card.plaza      { --c1: #34d399; --c2: #10b981; }
-  .card.wellness   { --c1: #6ee7b7; --c2: #059669; }
-  .card.board      { --c1: #22d3ee; --c2: #0891b2; }
-  .card.ops        { --c1: #a78bfa; --c2: #7c3aed; }
-  .card.accident   { --c1: #f87171; --c2: #dc2626; }
-  .card.challenges { --c1: #fb923c; --c2: #f97316; }
-  .card.meeting    { --c1: #818cf8; --c2: #4338ca; }
   .card.literacy   { --c1: #2dd4bf; --c2: #0d9488; }
-  .card.members    { --c1: #fda4af; --c2: #e11d48; }
   .card.takara     { --c1: #f87171; --c2: #1e40af; }
 
-  /* 推進メンバー専用 (色味を統一) */
+  /* 推進メンバー専用 */
   #promoter-section .grid { gap: 12px; }
-  #promoter-section .card {
-    background: linear-gradient(180deg, rgba(250,245,255,0.9), rgba(255,255,255,1));
-    border-color: #e9d5ff;
-  }
-  .card.p-strategy   { --c1: #c084fc; --c2: #7c3aed; }
-  .card.p-myplanops  { --c1: #60a5fa; --c2: #2563eb; }
-  .card.p-orientation{ --c1: #2dd4bf; --c2: #0f766e; }
-  .card.p-rollcall   { --c1: #6ee7b7; --c2: #059669; }
+  /* 推進メンバー専用 = 深紫系で統一 (機能カードと識別) */
+  .card.p-guide      { --c1: #a78bfa; --c2: #5b21b6; }  /* ガイド: violet深 */
+  .card.p-rollcall   { --c1: #c084fc; --c2: #7e22ce; }  /* 聞き取り: purple */
+  .card.p-enroll     { --c1: #a5b4fc; --c2: #4338ca; }  /* 社員登録: indigo */
+  .card.p-strategy   { --c1: #d8b4fe; --c2: #6b21a8; }  /* 健康戦略: 薄紫 */
+  .card.p-myplanops  { --c1: #c4b5fd; --c2: #6d28d9; }  /* 個人プラン: 中紫 */
+  .card.p-orientation{ --c1: #ddd6fe; --c2: #7c3aed; }  /* オリエン: 淡紫 */
   .card.p-warehouse  { --c1: #93c5fd; --c2: #1d4ed8; }
-  .card.p-enroll     { --c1: #a5b4fc; --c2: #4338ca; }
 
   /* notice 帯 */
   .notice {
@@ -312,8 +426,7 @@
   @media (max-width: 600px) {
     header { padding: 12px 12px; gap: 8px; }
     header .logo { width: 36px; height: 36px; border-radius: 8px; }
-    header .ttl { font-size: 15px; }
-    header .sub { font-size: 8.5px; letter-spacing: 0.4px; }
+    header .sub { font-size: 11px; letter-spacing: 0.3px; }
     header .name { display: none; }
     header button { font-size: 11px; padding: 4px 9px; border-radius: 4px; }
     header .right { gap: 6px; }
@@ -326,20 +439,48 @@
     .hero .timecard-btn { width: 54px; height: 54px; border-radius: 14px; }
     .hero .timecard-btn .ic { font-size: 20px; }
     .hero .timecard-btn .lbl { font-size: 10px; }
+    .hero .punchout-btn { width: 54px; height: 54px; border-radius: 14px; }
+    .hero .punchout-btn .ic { font-size: 18px; }
+    .hero .punchout-btn .lbl { font-size: 14px; }
     .hero .mypage-btn { width: 54px; height: 54px; border-radius: 14px; }
     .hero .mypage-btn .ic { font-size: 18px; }
     .hero .mypage-btn .lbl { font-size: 10px; }
-    .hero .mypage-btn .ava { width: 28px; height: 28px; border-width: 1.5px; }
+    .hero .mypage-btn .ava { width: 50px; height: 50px; }
     /* スマホはQR非表示 (既にスマホで開いているため不要) */
     #qr-mobile { display: none !important; }
-    .grid { grid-template-columns: 1fr; gap: 12px; }
-    .card { padding: 16px 16px 14px 16px; }
-    .card .icon-pill { width: 44px; height: 44px; font-size: 24px; border-radius: 12px; margin-bottom: 10px; }
-    .card .label { font-size: 15px; }
-    .card .desc { font-size: 12px; }
+    /* スマホはタブレット版ボタンも非表示 (タブレットは事務所設置用) */
+    .hero .tablet-btn { display: none !important; }
+    /* スマホは 2 列、コンパクト */
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .card { padding: 10px 6px 8px; min-height: 86px; border-radius: 10px; }
+    .card .icon-pill { width: 34px; height: 34px; font-size: 18px; border-radius: 9px; margin-bottom: 5px; }
+    .card .label { font-size: 12px; }
+    .card .desc { display: none; }
     .sec-title { margin-top: 24px; }
   }
+  /* iPhone SE 等の狭いスマホ向け詰め (3ボタンが横並びで窮屈になるのを防ぐ) */
+  @media (max-width: 400px) {
+    .hero { padding: 12px 12px; gap: 6px; }
+    .hero .ic { font-size: 26px; }
+    .hero .greet { font-size: 13px; }
+    .hero .note { font-size: 10px; margin-top: 2px; }
+    .hero .timecard-btn { width: 44px; height: 46px; border-radius: 12px; padding: 4px 0; }
+    .hero .timecard-btn .ic { font-size: 18px; }
+    .hero .timecard-btn .lbl { font-size: 9px; letter-spacing: 0; }
+    .hero .punchout-btn { width: 44px; height: 46px; border-radius: 12px; padding: 4px 0; }
+    .hero .punchout-btn .ic { font-size: 16px; }
+    .hero .punchout-btn .lbl { font-size: 13px; letter-spacing: 0; }
+    .hero .mypage-btn { width: 44px; height: 46px; border-radius: 12px; padding: 4px 0; }
+    .hero .mypage-btn .ic { font-size: 16px; }
+    .hero .mypage-btn .lbl { font-size: 9px; letter-spacing: 0; }
+    .hero .mypage-btn .ava { width: 44px; height: 44px; }
+    .hero .tablet-btn { width: 44px; height: 46px; padding: 4px 2px !important; border-radius: 12px !important; gap: 0 !important; }
+    .hero .tablet-btn span:first-child { font-size: 18px !important; }
+    .hero .tablet-btn span:last-child { font-size: 9px !important; letter-spacing: 0 !important; }
+  }
 </style>
+<script src="/version-check.js" defer></script>
+<script src="/global-notif.js" defer></script>
 </head>
 <body>
 
@@ -355,6 +496,10 @@
     <input type="text" id="lid" autocomplete="username" autocapitalize="off">
     <label for="lpw">パスワード</label>
     <input type="password" id="lpw" autocomplete="current-password">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;margin:8px 0 4px;cursor:pointer;font-weight:600;">
+      <input type="checkbox" id="lremember" style="width:16px;height:16px;cursor:pointer;"> このPCにID・パスワードを保存する
+    </label>
+    <div style="font-size:10px;color:#94a3b8;line-height:1.5;margin-bottom:8px;">※ 共用PCではチェックしないでください</div>
     <button type="button" class="btn" id="login-btn">ログイン</button>
     <div class="err" id="login-err"></div>
     <a class="full-link" href="/admin">管理画面はこちら</a>
@@ -367,8 +512,7 @@
     <img src="/img/icon-192.png" alt="CoWell">
   </div>
   <div class="ttl-wrap">
-    <div class="ttl">CoWell</div>
-    <div class="sub">Communication &amp;<br>Wellness</div>
+    <div class="sub">Communication<br>×<br>Wellness</div>
   </div>
   <div class="right">
     <span class="name" id="hd-name"></span>
@@ -376,37 +520,40 @@
       <span style="font-size:10px;">A</span><span style="font-size:14px;margin-left:1px;">A</span><span id="hd-fz-lvl">M</span>
     </button>
     <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" style="display:none;">⚙️ 管理画面</button>
-    <button id="hd-logout-btn" onclick="logout()" title="ログアウト" aria-label="ログアウト">⎋</button>
+    <button id="hd-logout-btn" onclick="logout()" title="ログアウト" aria-label="ログアウト"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
   </div>
 </header>
 
 <div id="app">
   <!-- ヒーロー -->
   <div class="hero">
-    <div class="ic" id="hero-ic">☀️</div>
     <div class="body">
       <div class="greet" id="greet">CoWellへようこそ</div>
-      <div class="note">今日も健康と安全のためにご活用ください。</div>
     </div>
-    <a href="/timecard" id="hero-timecard-btn" class="timecard-btn" title="打刻" aria-label="打刻" style="display:none;">
-      <span class="ic">⏰</span>
-      <span class="lbl">打刻</span>
-    </a>
-    <a href="/mypage.html" id="hero-mypage-btn" class="mypage-btn" title="マイページ" aria-label="マイページ">
-      <img id="mypage-btn-avatar" class="ava" alt="" style="display:none;">
-      <span class="ic" id="mypage-btn-icon">👤</span>
-      <span class="lbl">マイページ</span>
-    </a>
+    <div class="punch-info" id="punch-info" style="display:none;font-size:12px;color:#475569;line-height:1.5;flex-shrink:0;text-align:center;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
+      <div id="pi-today" style="display:none;"><span style="color:#059669;font-weight:700;">本日出勤</span> <span id="pi-today-time" style="font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;">--:--</span><span id="pi-today-src" style="font-size:10px;color:#94a3b8;margin-left:4px;"></span></div>
+      <div id="pi-yest" style="display:none;"><span id="pi-yest-lbl" style="color:#db2777;font-weight:700;">前回退勤</span> <span id="pi-yest-time" style="font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;">--:--</span></div>
+      <span id="pi-sep" style="display:none;"></span>
+    </div>
+    <button type="button" id="hero-punchout-btn" class="punchout-btn" title="退勤" aria-label="退勤" style="display:none;" onclick="punchOutAndClose()">
+      <span class="lbl">退勤</span>
+    </button>
     <!-- スマホ用QRコード (PC画面のみ表示) -->
     <div id="qr-mobile" style="display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px 4px;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;">
       <img src="/img/qr-mobile.png?v=20260511c" alt="モバイル版QR" style="width:64px;height:64px;display:block;image-rendering:pixelated;">
       <div style="font-size:10px;color:#0f766e;font-weight:700;letter-spacing:0.3px;margin-top:2px;">📱 スマホ版</div>
     </div>
     <!-- タブレットキオスク (事務所設置タブレット用) -->
-    <a href="/tablet?demo=1" class="tablet-btn" title="タブレット版を開く" aria-label="タブレット版を開く" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;text-decoration:none;color:#0f766e;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;cursor:pointer;">
+    <a href="https://cohub.biz-terrace.org/tablet?demo=1" class="tablet-btn" title="タブレット版を開く" aria-label="タブレット版を開く" onclick="this.href='https://cohub.biz-terrace.org/tablet?demo=1&t='+Date.now()" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;text-decoration:none;color:#0f766e;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;cursor:pointer;">
       <span style="font-size:24px;line-height:1;">🖥️</span>
       <span style="font-size:10px;font-weight:700;letter-spacing:0.3px;">タブレット版</span>
     </a>
+  </div>
+
+  <!-- ━━━ 今日のひとこと ━━━ -->
+  <div id="daily-msg" class="daily-msg" style="display:none;">
+    <span class="dm-label">🌟 今日のひとこと</span>
+    <span class="dm-body" id="dm-body"></span>
   </div>
 
   <!-- 主要メニュー -->
@@ -415,26 +562,23 @@
     <span class="desc">日々の業務に使う基本機能</span>
   </div>
   <div class="grid">
+    <!-- ⭐ 主役カード: 今日の一歩、明日の自分 (3列ぶち抜き、最上段) -->
+    <a class="card myplan" href="/myplan.html" id="card-myplan">
+      <div class="inner">
+        <div class="icon-pill">🩺</div>
+        <div class="txt">
+          <div class="label">今日の一歩、明日の自分</div>
+          <div class="sub">3日間からはじめる、自分だけのアクションプラン</div>
+        </div>
+        <div class="arrow">→</div>
+      </div>
+    </a>
+    <!-- 🔵 コミュニケーション系 -->
     <a class="card chat" href="/chat" id="card-chat">
       <span class="badge" id="b-chat" style="display:none;">0</span>
       <div class="icon-pill">💬</div>
       <div class="label">営業所チャット</div>
       <div class="desc">所属営業所のグループでメッセージ。管理者は全グループ閲覧可。</div>
-    </a>
-    <a class="card plaza" href="/plaza.html">
-      <div class="icon-pill">🍱</div>
-      <div class="label">食事・投稿</div>
-      <div class="desc">食事の写真をAIが栄養分析。血圧・雑談もまとめて。</div>
-    </a>
-    <a class="card wellness" href="/wellness.html">
-      <div class="icon-pill">🏥</div>
-      <div class="label">健康管理室</div>
-      <div class="desc">アクションプラン、ヘルスアドバイザー、施策ボード。</div>
-    </a>
-    <a class="card meeting" href="/meeting">
-      <div class="icon-pill">🎙</div>
-      <div class="label">ミーティング</div>
-      <div class="desc">3部屋から選んでビデオ会議。退室時にAIが議事録を自動生成。</div>
     </a>
     <a class="card board" href="/board.html">
       <span class="badge" id="b-board" style="display:none;">0</span>
@@ -448,10 +592,17 @@
       <div class="label">業務連絡 / 運管ポスト</div>
       <div class="desc">車両不具合、現場の声、ヒヤリハット報告。</div>
     </a>
-    <a class="card accident" href="/accident.html">
-      <div class="icon-pill">🚨</div>
-      <div class="label">事故報告</div>
-      <div class="desc">製品事故・車両事故の報告書を作成・管理。</div>
+    <!-- 🟢 健康・食事系 -->
+    <a class="card plaza" href="/plaza.html">
+      <span class="badge" id="b-plaza" style="display:none;">0</span>
+      <div class="icon-pill">🍱</div>
+      <div class="label">食事・投稿</div>
+      <div class="desc">食事の写真をAIが栄養分析。血圧・雑談もまとめて。</div>
+    </a>
+    <a class="card wellness" href="/wellness.html">
+      <div class="icon-pill">🏥</div>
+      <div class="label">健康管理室</div>
+      <div class="desc">アクションプラン、ヘルスアドバイザー、施策ボード。</div>
     </a>
     <a class="card challenges card-prep" href="/challenges.html">
       <span class="badge-prep">準備中</span>
@@ -459,10 +610,39 @@
       <div class="label">チャレンジ</div>
       <div class="desc">健康チャレンジへの参加とKPI記録。</div>
     </a>
+    <!-- 🟣 予定・会議系 -->
+    <a class="card meeting" href="/meeting">
+      <div class="icon-pill">🎙</div>
+      <div class="label">ミーティング</div>
+      <div class="desc">3部屋から選んでビデオ会議。退室時にAIが議事録を自動生成。</div>
+    </a>
+    <a class="card poll" href="/poll.html">
+      <span class="badge" id="b-poll" style="display:none;">0</span>
+      <div class="icon-pill">📅</div>
+      <div class="label">日程調整</div>
+      <div class="desc">候補日時を出して、出席者が ○△× で回答。最適日が一目で分かる。</div>
+    </a>
+    <!-- 🔴 警告 -->
+    <a class="card accident" href="/accident.html">
+      <div class="icon-pill">🚨</div>
+      <div class="label">事故報告</div>
+      <div class="desc">製品事故・車両事故の報告書を作成・管理。</div>
+    </a>
+    <!-- 🌸 ソーシャル系 -->
     <a class="card members" href="/members.html">
       <div class="icon-pill">👥</div>
       <div class="label">メンバー一覧</div>
       <div class="desc">全社員をアバター付きで一覧表示。拠点別に絞り込み・名前で検索可能。</div>
+    </a>
+    <a class="card circles" href="/circles.html">
+      <div class="icon-pill">🎯</div>
+      <div class="label">サークル活動</div>
+      <div class="desc">有志のサークル。趣味やスポーツを通じて部署を越えたつながりを作る。</div>
+    </a>
+    <a class="card help" href="/help.html">
+      <div class="icon-pill">❓</div>
+      <div class="label">ヘルプ</div>
+      <div class="desc">CoWellの使い方ガイド・FAQ・サポート連絡先。</div>
     </a>
   </div>
 
@@ -473,6 +653,11 @@
       <span class="desc">推進メンバー・管理職のみに表示</span>
     </div>
     <div class="grid">
+      <a class="card p-guide" href="/promoter-guide.html">
+        <div class="icon-pill">📘</div>
+        <div class="label">推進メンバーガイド</div>
+        <div class="desc">推進メンバーが「何をすべきか」「やってはいけないこと」「施策化フロー」をまとめた専用ガイド。まず読んでください。</div>
+      </a>
       <a id="p-card-listening" class="card p-rollcall" href="/ops-listening.html" style="display:none;">
         <div class="icon-pill">🩺</div>
         <div class="label">聞き取りカードPOST</div>
@@ -501,42 +686,24 @@
     </div>
   </section>
 
-  <!-- 配送オペレーション (LogiHub) -->
+  <!-- LogiHub 入口 (詳細は /logihub.html に集約) -->
   <section id="logistics-section" style="display:none;">
     <div class="sec-title" style="border-left-color:#0d9488;">
-      <span class="lbl" style="color:#0f766e;">🚛 配送オペレーション</span>
-      <span class="desc">配車組成・地図・ガント編集・荷主追跡 (LogiHub)</span>
+      <span class="lbl" style="color:#0f766e;">🚛 LogiHub</span>
+      <span class="desc">物流オペレーションは別ハブに集約</span>
     </div>
     <div class="grid">
-      <a id="p-card-logihub" class="card takara card-prep" href="/takara/admin.html">
-        <span class="badge-prep">準備中</span>
-        <div class="icon-pill">🚛</div>
-        <div class="label">LogiHub</div>
-        <div class="desc">WMS取込 → OR-Tools骨組み + AI補完 → ガント編集 → 地図可視化 → QR配信 → 荷主追跡。</div>
+      <a id="p-card-logihub-entry" class="card logihub-entry" href="/logihub.html">
+        <div class="icon-pill" style="background:#fff;padding:0;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 12px rgba(13,148,136,0.18);">
+          <img src="/img/logihub-icon-192.png?v=1" alt="LogiHub" style="width:100%;height:100%;object-fit:cover;display:block;">
+        </div>
+        <div class="label">LogiHub を開く</div>
+        <div class="desc">配車 (WMS取込→AI骨組み→ガント→地図) と 現場端末 (bc-scan 倉庫モニター / 商品マスタ登録) を束ねた物流現場の本拠地。</div>
       </a>
-      <a id="p-card-logihub-gantt" class="card takara card-prep" href="/takara/gantt.html">
-        <span class="badge-prep">準備中</span>
-        <div class="icon-pill">📅</div>
-        <div class="label">ガント編集</div>
-        <div class="desc">号車×時間軸でストップをドラッグ＆ドロップ。自社・他社貨物の入れ替えに。</div>
-      </a>
-      <a id="p-card-logihub-map" class="card takara card-prep" href="/takara/route-map.html">
-        <span class="badge-prep">準備中</span>
-        <div class="icon-pill">🗺️</div>
-        <div class="label">ルート地図</div>
-        <div class="desc">座間拠点起点の号車別ルートを地図で可視化。業者・配送日フィルタ。</div>
-      </a>
-      <a id="p-card-bcscan" class="card takara" href="https://stdun.biz-terrace.org/bcscan/home.html" target="_blank" style="position:relative;">
-        <span class="badge-test">読取テスト運用中</span>
+      <a class="card kbc-entry" href="/kbc.html">
         <div class="icon-pill">📦</div>
-        <div class="label">bc-scan 倉庫モニター</div>
-        <div class="desc">バーコード読取で出庫管理・ピッキング・ダメージ報告。座間で1週間徹底テスト中(5/11〜)。</div>
-      </a>
-      <a id="p-card-bcscan-register" class="card takara" href="https://stdun.biz-terrace.org/bcscan/register.html" target="_blank" style="position:relative;">
-        <span class="badge-test">マスタ充実中</span>
-        <div class="icon-pill">📝</div>
-        <div class="label">商品マスタ登録</div>
-        <div class="desc">バーコード読取→商品名入力→写真撮影。マスタ充実でピッキング時に写真が出て、慣れない作業員の視覚的助けに。</div>
+        <div class="label">関東BC管理</div>
+        <div class="desc">日報・事故報告・クレーム・改善施策。旧 Safety Navi (CoLink) から統合移行済み。</div>
       </a>
     </div>
   </section>
@@ -544,7 +711,6 @@
   <div class="footer">
     <a href="/announcements.html" style="position:relative;">📢 告知一覧<span id="b-announce" style="display:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;box-shadow:0 2px 6px rgba(220,38,38,0.30);">0</span></a>
     <a href="/mylog">📜 自分のログ</a>
-    <a href="/help.html">❓ ヘルプ</a>
     <a href="/security.html">🔒 セキュリティ</a>
     <a href="/about-cowell.html">ℹ️ CoWellについて</a>
   </div>
@@ -596,6 +762,114 @@ async function api(path, opts = {}) {
   return r.json();
 }
 
+// 今日の出勤時刻 + 昨日の退勤時刻をヒーローに表示
+async function fetchPunchInfo() {
+  try {
+    const r = await api('/api/timecard/history?days=14');
+    if (!r || !r.success) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yestStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const punches = r.punches || [];
+    const startups = r.startups || [];
+    // 今日の最初の出勤 (なければPC起動時刻)
+    const todayIns = punches.filter(p => p.punch_type === 'in' && (p.punched_at || '').slice(0, 10) === todayStr);
+    let todayTime = null, todaySrc = '';
+    if (todayIns.length > 0) {
+      const first = todayIns[todayIns.length - 1];
+      todayTime = first.punched_at;
+      todaySrc = first.source === 'pc_startup' ? '(PC起動)' : '';
+    } else {
+      const todayStartups = startups.filter(s => (s.started_at || '').slice(0, 10) === todayStr);
+      if (todayStartups.length > 0) {
+        const first = todayStartups[todayStartups.length - 1];
+        todayTime = first.started_at;
+        todaySrc = '(PC起動)';
+      }
+    }
+    // 直近営業日 = 今日以外でOUT打刻があった一番新しい日の最後のOUT
+    const prevOut = punches.find(p => p.punch_type === 'out' && (p.punched_at || '').slice(0, 10) !== todayStr);
+    let prevTime = null, prevLabel = '前回退勤';
+    if (prevOut) {
+      prevTime = prevOut.punched_at;
+      const d = prevTime.slice(0, 10);
+      if (d === yestStr) {
+        prevLabel = '昨日退勤';
+      } else {
+        const m = d.match(/-(\d{2})-(\d{2})/);
+        prevLabel = m ? ('前回退勤 ' + parseInt(m[1]) + '/' + parseInt(m[2])) : '前回退勤';
+      }
+    }
+    const box = $('punch-info');
+    if (!box) return;
+    if (todayTime) {
+      $('pi-today').style.display = '';
+      $('pi-today-time').textContent = fmtHM(todayTime);
+      $('pi-today-src').textContent = todaySrc;
+    }
+    if (prevTime) {
+      $('pi-yest').style.display = '';
+      $('pi-yest-lbl').textContent = prevLabel;
+      $('pi-yest-time').textContent = fmtHM(prevTime);
+    }
+    if (todayTime || prevTime) {
+      box.style.display = 'block';
+      if (todayTime && prevTime) $('pi-sep').style.display = '';
+    }
+  } catch (e) { /* silent */ }
+}
+function fmtHM(s) {
+  if (!s) return '--:--';
+  const m = s.match(/(\d{2}):(\d{2})/);
+  return m ? (m[1] + ':' + m[2]) : s;
+}
+
+// 退勤打刻 → CoHubを閉じる
+async function punchOutAndClose() {
+  if (!confirm('退勤打刻してCoHubを閉じますか？\n（閉じた時刻が退勤時刻として記録されます）')) return;
+  const btn = document.getElementById('hero-punchout-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  try {
+    const r = await api('/api/timecard/punch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'out', source: 'home_close' })
+    });
+    if (!r || !r.success) {
+      alert('退勤打刻に失敗しました: ' + (r && (r.msg || r.error) || '通信エラー'));
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      return;
+    }
+    // 完了画面に差し替え (window.close() がブロックされた場合のフォールバック)
+    // overlay-history.js の pageshow reload 抑止フラグ。閉じてもトップに戻らない
+    window._farewellMode = true;
+    // 閉じる関数: window.close() 試行 → ダメならログアウト状態でログイン画面へ遷移
+    window._farewellClose = function() {
+      try { window.close(); } catch(e) {}
+      setTimeout(function() {
+        try { localStorage.removeItem('cohub_token'); } catch(e) {}
+        try { localStorage.removeItem('cohub_user'); } catch(e) {}
+        try { window.location.replace('/'); } catch(e) {
+          try { window.location.href = '/'; } catch(e2) {}
+        }
+      }, 200);
+    };
+    document.body.innerHTML =
+      '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#fdf2f8,#fce7f3);padding:40px 20px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">' +
+        '<div style="font-size:80px;margin-bottom:20px;">👋</div>' +
+        '<div style="font-size:24px;font-weight:800;color:#831843;margin-bottom:10px;">退勤打刻しました</div>' +
+        '<div style="font-size:14px;color:#9d174d;margin-bottom:24px;">' + (r.punch && r.punch.punched_at ? r.punch.punched_at.replace('T', ' ') : '') + '</div>' +
+        '<div style="font-size:13px;color:#64748b;margin-bottom:30px;line-height:1.7;">お疲れさまでした。<br>このタブを閉じてPCをシャットダウンしてください。</div>' +
+        '<button onclick="window._farewellClose()" style="padding:12px 28px;background:linear-gradient(135deg,#db2777,#9d174d);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(219,39,119,0.35);">タブを閉じる</button>' +
+        '<div style="font-size:11px;color:#9ca3af;margin-top:18px;line-height:1.6;">ログイン画面に戻ったら<br>ブラウザの×でタブを閉じてください</div>' +
+      '</div>';
+    // window.close() を best-effort で試す (script-opened window/PWAでのみ動作)
+    setTimeout(() => { try { window.close(); } catch(e) {} }, 800);
+  } catch (e) {
+    alert('退勤打刻に失敗しました: ' + e.message);
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
+}
+
 function showLogin() {
   $('login-screen').classList.add('show');
   $('app').classList.remove('show');
@@ -610,10 +884,22 @@ function showApp() {
 
 function greetInfo() {
   const h = new Date().getHours();
-  if (h < 5)  return { word: 'こんばんは', ic: '🌙' };
-  if (h < 11) return { word: 'おはようございます', ic: '🌅' };
-  if (h < 18) return { word: 'こんにちは', ic: '☀️' };
-  return { word: 'お疲れさまです', ic: '🌇' };
+  if (h < 5)  return { word: 'こんばんは', ic: '🌙', tod: 'night' };
+  if (h < 11) return { word: 'おはようございます', ic: '🌅', tod: 'morning' };
+  if (h < 18) return { word: 'こんにちは', ic: '☀️', tod: 'day' };
+  return { word: 'お疲れさまです', ic: '🌇', tod: 'evening' };
+}
+
+async function loadDailyMessage() {
+  try {
+    const r = await api('/api/daily-message');
+    if (r && r.success && r.message) {
+      const box = document.getElementById('daily-msg');
+      const body = document.getElementById('dm-body');
+      if (body) body.textContent = r.message;
+      if (box) box.style.display = '';
+    }
+  } catch (e) { /* ひとことの取得失敗は黙って無視 */ }
 }
 
 async function init() {
@@ -624,30 +910,31 @@ async function init() {
   showApp();
   $('hd-name').textContent = me.display_name + 'さん';
   const g = greetInfo();
-  $('hero-ic').textContent = g.ic;
   // 現場系職種(ドライバー/倉庫/施工/製造)は別途打刻記録があるため対象外
   const FIELD_JOBS = ['driver', 'warehouse', 'construction', 'manufacturing'];
   const isFieldJob = me.job_role && FIELD_JOBS.indexOf(me.job_role) >= 0;
   const isLegacyField = !me.job_role && me.employee_type === 'field';
   const isFieldStaff = isFieldJob || isLegacyField;
 
-  let greetHtml = g.word + '、<br><strong>' + escapeHtml(me.display_name) + '</strong>&nbsp;さん';
-  const tcBtn = $('hero-timecard-btn');
+  const avaBlock = me.avatar_url
+    ? '<a href="/mypage.html" class="greet-ava-link" title="マイページ" aria-label="マイページ">'
+        + '<img src="' + escapeHtml(me.avatar_url) + '" class="greet-ava" alt="">'
+        + '<span class="greet-ava-lbl">マイページ</span>'
+      + '</a>'
+    : '';
+  let greetHtml = avaBlock + '<span><strong>' + escapeHtml(me.display_name) + '</strong>&nbsp;さん</span>';
 
   if (!isFieldStaff) {
-    // 事務/管理職: 打刻ボタンを表示 (現場系は別途打刻があるため非表示のまま)
-    tcBtn.style.display = '';
+    // 事務/管理職: 退勤ボタン + 出退勤時刻表示 (現場系は別途打刻があるため非表示)
+    const poBtn = $('hero-punchout-btn');
+    if (poBtn) poBtn.style.display = '';
+    fetchPunchInfo();
   }
   $('greet').innerHTML = greetHtml;
 
-  // マイページボタンに本人アバターを埋め込み (絵文字👤を置換)
-  if (me.avatar_url) {
-    const ava = $('mypage-btn-avatar');
-    const ico = $('mypage-btn-icon');
-    ava.src = me.avatar_url;
-    ava.style.display = '';
-    if (ico) ico.style.display = 'none';
-  }
+
+  // 今日のひとこと (AIメッセージ)
+  loadDailyMessage();
 
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;
@@ -676,7 +963,7 @@ async function init() {
       const c = $('p-card-enroll');
       if (c) c.style.display = '';
     }
-    // LogiHub (配送オペレーション): システムadminのみ
+    // LogiHub: システムadminのみ
     if (isAdmin) {
       const sec = $('logistics-section');
       if (sec) sec.style.display = '';
@@ -726,6 +1013,26 @@ async function fetchBadges() {
       $('b-ops').style.display = 'none';
     }
   } catch(e) {}
+  // 日程調整 (未回答ポール数)
+  try {
+    const p = await api('/api/poll/unread-count');
+    if (p && p.success && p.count > 0) {
+      $('b-poll').textContent = p.count;
+      $('b-poll').style.display = '';
+    } else if ($('b-poll')) {
+      $('b-poll').style.display = 'none';
+    }
+  } catch(e) {}
+  // 食事・投稿 (plaza): 新着投稿数
+  try {
+    const pl = await api('/api/plaza/unread-count');
+    if (pl && pl.success && pl.count > 0) {
+      $('b-plaza').textContent = pl.count;
+      $('b-plaza').style.display = '';
+    } else if ($('b-plaza')) {
+      $('b-plaza').style.display = 'none';
+    }
+  } catch(e) {}
 }
 // 30秒ごとにバッジ更新 (画面表示中のリアルタイム性)
 setInterval(() => { if (token) fetchBadges(); }, 30000);
@@ -743,6 +1050,18 @@ async function login() {
   if (!d.success) { $('login-err').textContent = d.msg || 'ログイン失敗'; return; }
   token = d.token;
   localStorage.setItem('cohub_token', token);
+  // ID/パスワードを保存 (チェックON時のみ)。OFF時は明示的にクリア。
+  try {
+    if ($('lremember').checked) {
+      localStorage.setItem('cohub_remember_id', id);
+      localStorage.setItem('cohub_remember_pw', pw);
+      localStorage.setItem('cohub_remember_on', '1');
+    } else {
+      localStorage.removeItem('cohub_remember_id');
+      localStorage.removeItem('cohub_remember_pw');
+      localStorage.removeItem('cohub_remember_on');
+    }
+  } catch (e) {}
   init();
 }
 
@@ -751,7 +1070,22 @@ function logout() {
   localStorage.removeItem('cohub_token');
   token = '';
   showLogin();
+  prefillLogin();
 }
+
+// 保存済みID/パスワードを復元
+function prefillLogin() {
+  try {
+    if (localStorage.getItem('cohub_remember_on') === '1') {
+      const id = localStorage.getItem('cohub_remember_id') || '';
+      const pw = localStorage.getItem('cohub_remember_pw') || '';
+      if ($('lid')) $('lid').value = id;
+      if ($('lpw')) $('lpw').value = pw;
+      if ($('lremember')) $('lremember').checked = true;
+    }
+  } catch (e) {}
+}
+prefillLogin();
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
@@ -775,6 +1109,148 @@ if ('serviceWorker' in navigator) {
     }
   });
 })();
+
+// ============================================================
+// 着信音 + トースト + ソケット接続 (トップ画面でも DM 通知を受け取れるように)
+// ============================================================
+let _hAudioCtx = null;
+let _hChimeOn = true;
+try { if (localStorage.getItem('cohub_chat_notif_on') === '0') _hChimeOn = false; } catch (e) {}
+
+async function hPlayDmChime() {
+  if (!_hChimeOn) return;
+  try {
+    if (!_hAudioCtx) _hAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _hAudioCtx;
+    if (ctx.state !== 'running') {
+      try { await ctx.resume(); } catch (e) {}
+    }
+    if (ctx.state !== 'running') {
+      console.warn('[home] audioCtx still suspended after resume, state=', ctx.state);
+      return;
+    }
+    const now = ctx.currentTime;
+    const master = ctx.createGain(); master.gain.value = 1.0; master.connect(ctx.destination);
+    const note = (freq, off, dur, vol) => {
+      const t0 = now + off;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      env.connect(master);
+      const o1 = ctx.createOscillator();
+      o1.type = 'sine'; o1.frequency.value = freq;
+      o1.connect(env); o1.start(t0); o1.stop(t0 + dur + 0.02);
+      const o2 = ctx.createOscillator();
+      o2.type = 'triangle'; o2.frequency.value = freq * 2;
+      const o2g = ctx.createGain(); o2g.gain.value = 0.18;
+      o2.connect(o2g); o2g.connect(env);
+      o2.start(t0); o2.stop(t0 + dur + 0.02);
+    };
+    note(1047, 0.00, 0.12, 0.40);
+    note(1319, 0.13, 0.42, 0.50);
+    note(1047, 0.65, 0.12, 0.40);
+    note(1319, 0.78, 0.42, 0.50);
+  } catch (e) {}
+}
+
+// ユーザー操作毎に AudioContext を保温 (iOS Safari の suspended 対策)
+(function setupHAudioUnlock() {
+  const tick = () => {
+    try {
+      if (!_hAudioCtx) _hAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_hAudioCtx.state === 'suspended') _hAudioCtx.resume();
+      // 無音バッファを毎回流して running 状態を維持
+      const b = _hAudioCtx.createBuffer(1, 1, 22050);
+      const s = _hAudioCtx.createBufferSource(); s.buffer = b;
+      s.connect(_hAudioCtx.destination); s.start(0);
+    } catch (e) {}
+  };
+  document.addEventListener('click', tick, { passive: true });
+  document.addEventListener('touchstart', tick, { passive: true });
+})();
+
+
+// チャットバッジを1増やす (socket dm/group 受信時)
+function hBumpChatBadge() {
+  const el = document.getElementById('b-chat');
+  if (!el) return;
+  const cur = parseInt(el.textContent || '0') || 0;
+  el.textContent = String(cur + 1);
+  el.style.display = '';
+}
+
+// トースト表示 (タップでチャットへ遷移、長め7秒表示)
+function hShowToast(msg) {
+  let t = document.getElementById('h-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'h-toast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;padding:14px 24px;border-radius:14px;font-size:14px;font-weight:700;z-index:9999;max-width:90vw;text-align:center;opacity:0;transition:opacity 0.25s,transform 0.25s;pointer-events:auto;box-shadow:0 8px 24px rgba(2,132,199,0.40);cursor:pointer;display:flex;align-items:center;gap:8px;border:2px solid rgba(255,255,255,0.3);';
+    t.onclick = () => { location.href = '/chat-simple.html'; };
+    document.body.appendChild(t);
+  }
+  t.innerHTML = '<span>' + msg + '</span><span style="font-size:11px;opacity:0.85;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:8px;">タップで開く</span>';
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.opacity = '0'; }, 7000);
+}
+
+// Socket.IO 接続 (チャットへの遷移をしなくても DM 通知を受け取れるように)
+(function setupHSocket() {
+  const token = localStorage.getItem('cohub_token') || '';
+  if (!token) return;
+  // Socket.IO クライアントが globally 利用可能か確認 — なければ動的ロード
+  function connect() {
+    try {
+      const socket = io({ auth: { token } });
+      socket.on('connect', () => console.log('[home] socket connected'));
+      socket.on('session:kicked', () => {
+        try { localStorage.removeItem('cohub_token'); } catch (e) {}
+        alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
+        location.replace('/');
+      });
+      socket.on('connect_error', (err) => {
+        if (err && (err.message === 'session_kicked' || err.message === 'unauth')) {
+          try { localStorage.removeItem('cohub_token'); } catch (e) {}
+          if (err.message === 'session_kicked') alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
+          location.replace('/');
+        }
+      });
+      socket.on('dm:msg', (p) => {
+        // 自分発の echo は無視
+        const meRaw = localStorage.getItem('cohub_user');
+        let myUid = null;
+        try { myUid = JSON.parse(meRaw).uid; } catch (e) {}
+        if (p.from === myUid) return;
+        // チャイム + トースト + バッジ増分
+        hPlayDmChime();
+        hShowToast('💬 メッセージ: ' + (p.content || '').slice(0, 40));
+        hBumpChatBadge();
+      });
+      socket.on('group:msg', (p) => {
+        const meRaw = localStorage.getItem('cohub_user');
+        let myUid = null;
+        try { myUid = JSON.parse(meRaw).uid; } catch (e) {}
+        if (p.from === myUid) return;
+        hPlayDmChime();
+        hShowToast('💬 グループ: ' + (p.content || '').slice(0, 40));
+        hBumpChatBadge();
+      });
+    } catch (e) { console.warn('[home] socket setup failed', e); }
+  }
+  if (typeof io === 'function') {
+    connect();
+  } else {
+    const s = document.createElement('script');
+    s.src = '/socket.io/socket.io.js';
+    s.onload = connect;
+    s.onerror = () => console.warn('[home] socket.io client load failed');
+    document.head.appendChild(s);
+  }
+})();
 </script>
+<script src="/overlay-history.js?v=2"></script>
 </body>
 </html>
