@@ -11,253 +11,86 @@
   --card: #ffffff; --border: #e2e8f0;
   --accent: #4f46e5; --accent-d: #3730a3;
   --danger: #ef4444; --warn: #f59e0b; --ok: #10b981;
-  --zoom-bg: #1c1c1e; --zoom-tile: #2c2c2e;
+  --zoom: #2D8CFF; --zoom-d: #1f6fcc;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; }
 
-/* === ロビー === */
+/* === ヘッダー === */
 .hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
 .hd a.back { color: #fff; text-decoration: none; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.16); }
 .hd .title { flex: 1; font-weight: 700; font-size: 16px; }
-.hd .archive-btn { background: rgba(255,255,255,0.16); color: #fff; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; }
 
 .body { padding: 18px; max-width: 760px; margin: 0 auto; }
 .intro { color: var(--mute); font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+
+/* === Zoom メイン会議カード === */
 .room-card {
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-  border: 1px solid #c7d2fe; border-radius: 16px; padding: 24px;
-  text-align: center;
+  background: linear-gradient(160deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe; border-radius: 18px;
+  padding: 28px 22px; text-align: center;
+  box-shadow: 0 6px 20px rgba(45,140,255,0.10);
 }
-.room-card .ic { font-size: 48px; margin-bottom: 8px; }
-.room-card .name { font-size: 20px; font-weight: 800; color: var(--accent-d); margin-bottom: 6px; }
-.room-card .count { color: var(--mute); font-size: 14px; margin-bottom: 16px; }
-.room-card .count b { color: var(--accent-d); font-size: 18px; }
+.zoom-logo { font-size: 50px; margin-bottom: 4px; }
+.room-card .name { font-size: 22px; font-weight: 800; color: #1e3a8a; margin-bottom: 2px; }
+.room-card .sub { color: var(--mute); font-size: 12px; margin-bottom: 18px; }
+.room-card .count {
+  color: #1e3a8a; font-size: 13px; margin-bottom: 14px;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.6); padding: 4px 12px; border-radius: 999px;
+  border: 1px solid #bfdbfe;
+}
+.room-card .count b { color: var(--zoom); font-size: 16px; }
+.room-card .count.empty { color: var(--mute); }
 .room-card .members {
   display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
-  margin-bottom: 16px; min-height: 44px;
+  margin-bottom: 22px; min-height: 0;
 }
 .room-card .members .ava {
-  width: 36px; height: 36px; border-radius: 50%; background: #fff;
-  border: 2px solid #c7d2fe; overflow: hidden;
+  width: 40px; height: 40px; border-radius: 50%; background: #fff;
+  border: 2px solid var(--zoom); overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
+  font-size: 16px; font-weight: 700; color: var(--zoom);
 }
 .room-card .members .ava img { width: 100%; height: 100%; object-fit: cover; }
-.room-card .members .empty { color: var(--mute); font-size: 12px; padding: 12px; }
-.room-card .enter-btn {
-  background: var(--accent); color: #fff; border: none;
-  padding: 14px 36px; border-radius: 10px; font-size: 16px; font-weight: 800;
-  cursor: pointer; box-shadow: 0 4px 12px rgba(79,70,229,0.35);
-}
-.room-card .enter-btn:hover { background: var(--accent-d); }
+.room-card .members .ava.me { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.30); }
 
-/* === 全画面ミーティングオーバーレイ === */
-.fs-overlay {
-  display: none; position: fixed; inset: 0; z-index: 9000;
-  background: var(--zoom-bg); color: #fff;
-  flex-direction: column;
+/* メイン Zoom入室ボタン */
+.zoom-btn {
+  background: var(--zoom); color: #fff; border: none;
+  padding: 16px 40px; border-radius: 12px;
+  font-size: 17px; font-weight: 800; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px;
+  box-shadow: 0 6px 18px rgba(45,140,255,0.45);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
 }
-.fs-overlay.show { display: flex; }
-.fs-hd {
-  background: rgba(0,0,0,0.4); padding: 8px 14px;
-  display: flex; align-items: center; gap: 10px;
-  font-size: 13px;
-}
-.fs-hd .room-name { flex: 1; font-weight: 700; }
-.fs-hd .timer { font-family: ui-monospace, monospace; font-weight: 600; color: #cbd5e1; }
-.fs-hd .stage-label { background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.zoom-btn:hover { background: var(--zoom-d); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(45,140,255,0.55); }
+.zoom-btn .ic { font-size: 22px; }
+.zoom-btn.leave { background: var(--danger); box-shadow: 0 6px 18px rgba(239,68,68,0.40); }
+.zoom-btn.leave:hover { background: #b91c1c; box-shadow: 0 8px 22px rgba(239,68,68,0.50); }
+.zoom-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
-.stage {
-  flex: 1; overflow: hidden; padding: 10px;
-  background: var(--zoom-bg);
+.hint {
+  margin-top: 14px; font-size: 11px; color: var(--mute); line-height: 1.6;
 }
-/* グリッド（通常モード） */
-.grid {
-  height: 100%; display: grid; gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  grid-auto-rows: minmax(160px, 1fr);
-  align-content: center; justify-content: center;
-}
-/* 画面共有モード: メイン画面1枚 + サムネ列 */
-.stage.screen-mode { display: flex; gap: 8px; }
-.stage.screen-mode .main-area { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 10px; overflow: hidden; }
-.stage.screen-mode .main-area video { width: 100%; height: 100%; object-fit: contain; }
-.stage.screen-mode .thumbs { width: 180px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
-.stage.screen-mode .thumbs .tile { aspect-ratio: 4/3; min-height: 0; }
+.hint .ok { color: var(--ok); font-weight: 700; }
 
-.tile {
-  background: var(--zoom-tile); border-radius: 10px;
-  position: relative; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-}
-.tile .placeholder {
-  display: flex; align-items: center; justify-content: center;
-  width: 100%; height: 100%;
-  background: linear-gradient(135deg, #2c2c2e, #3c3c3e);
-  position: relative;
-}
-.tile .placeholder .ava-big {
-  width: min(45%, 160px); aspect-ratio: 1 / 1; border-radius: 50%; background: #475569;
-  position: relative;
-  border: 3px solid rgba(255,255,255,0.25);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-}
-.tile .placeholder .ava-big .ava-clip {
-  width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  background: #475569; color: #cbd5e1; font-size: 36px;
-}
-.tile .placeholder .ava-big .ava-clip img,
-.tile .placeholder .ava-big .ava-clip video {
-  width: 100%; height: 100%; object-fit: cover; display: block; background: #000;
-}
-.stage.screen-mode .thumbs .tile .placeholder .ava-big { width: 70%; }
-/* カメラON時もアバター円の中に映像をクリップ表示 (会議で顔の主張を抑える) */
-.tile .name {
-  position: absolute; bottom: 6px; left: 8px; right: 8px;
-  background: rgba(0,0,0,0.55); color: #fff; padding: 3px 8px;
-  border-radius: 6px; font-size: 12px; font-weight: 600;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  display: flex; align-items: center; gap: 4px;
-}
-.tile .name .icons { color: #fbbf24; }
-.tile .badge-host { position: absolute; top: 6px; left: 8px; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
-/* 喋っている演出: アバターが弾むようにバウンス */
-.tile.speaking .placeholder .ava-big {
-  border-color: rgba(34,197,94,0.95);
-  box-shadow:
-    0 0 0 5px rgba(34,197,94,0.55),
-    0 0 36px 12px rgba(34,197,94,0.65),
-    0 10px 28px rgba(0,0,0,0.40);
-  animation: ava-bounce 0.55s ease-in-out infinite;
-}
-@keyframes ava-bounce {
-  0%   { transform: translateY(0) scale(1) rotate(0deg); }
-  20%  { transform: translateY(-8px) scale(1.08) rotate(-2deg); }
-  40%  { transform: translateY(0) scale(1.04) rotate(2deg); }
-  60%  { transform: translateY(-4px) scale(1.06) rotate(-1deg); }
-  80%  { transform: translateY(0) scale(1.02) rotate(1deg); }
-  100% { transform: translateY(0) scale(1) rotate(0deg); }
-}
-/* 吹き出し: アバター円の真上中央に固定 (ava-big内に配置) */
-.tile .speak-bubble {
-  position: absolute;
-  left: 50%; top: -10px;
-  transform: translate(-50%, -100%) scale(0);
-  transform-origin: bottom center;
-  background: linear-gradient(135deg, #22c55e, #15803d); color: #fff;
-  padding: 6px 14px; border-radius: 18px;
-  font-size: 14px; font-weight: 900;
-  display: flex; align-items: center; gap: 6px;
-  opacity: 0;
-  transition: opacity 0.14s ease;
-  pointer-events: none;
-  box-shadow: 0 6px 16px rgba(34,197,94,0.45), 0 2px 4px rgba(0,0,0,0.25);
-  white-space: nowrap;
-  z-index: 3;
-}
-.tile .speak-bubble::after {
-  content: ''; position: absolute;
-  bottom: -7px; left: 50%; transform: translateX(-50%);
-  width: 0; height: 0;
-  border-left: 7px solid transparent; border-right: 7px solid transparent;
-  border-top: 8px solid #15803d;
-  filter: drop-shadow(0 2px 1px rgba(0,0,0,0.18));
-}
-.tile.speaking .speak-bubble {
-  opacity: 1;
-  animation: bubble-pop 0.32s cubic-bezier(0.34, 1.65, 0.64, 1) forwards, bubble-wobble 1.2s ease-in-out 0.32s infinite;
-}
-@keyframes bubble-pop {
-  0%   { transform: translate(-50%, -100%) scale(0) rotate(-10deg); }
-  60%  { transform: translate(-50%, -100%) scale(1.18) rotate(4deg); }
-  100% { transform: translate(-50%, -100%) scale(1) rotate(0deg); }
-}
-@keyframes bubble-wobble {
-  0%, 100% { transform: translate(-50%, -100%) scale(1) rotate(0deg); }
-  25% { transform: translate(-50%, -103%) scale(1.05) rotate(-2deg); }
-  75% { transform: translate(-50%, -103%) scale(1.05) rotate(2deg); }
-}
-.tile .speak-bubble .dots b {
-  width: 5px; height: 5px;
-}
-.tile.speaking .speak-bubble .dots b {
-  animation: dot-bounce 0.6s ease-in-out infinite;
-}
-.tile.speaking .speak-bubble .dots b:nth-child(2) { animation-delay: 0.15s; }
-.tile.speaking .speak-bubble .dots b:nth-child(3) { animation-delay: 0.30s; }
-@keyframes dot-bounce {
-  0%, 100% { transform: translateY(0); opacity: 0.5; }
-  50% { transform: translateY(-5px); opacity: 1; }
-}
-.tile .speak-bubble .dots b {
-  display: inline-block; width: 4px; height: 4px; border-radius: 50%;
-  background: #fff; margin: 0 1px;
-  animation: dot-pulse 1s ease-in-out infinite;
-}
-.tile .speak-bubble .dots b:nth-child(2) { animation-delay: 0.18s; }
-.tile .speak-bubble .dots b:nth-child(3) { animation-delay: 0.36s; }
-@keyframes dot-pulse {
-  0%, 100% { opacity: 0.35; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-3px); }
+.no-zoom {
+  margin-top: 14px; font-size: 13px; color: #92400e;
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 10px; padding: 12px;
 }
 
-.fs-controls {
-  background: rgba(0,0,0,0.6); padding: 10px 14px;
-  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
-  align-items: center;
+/* === Toast === */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px;
+  border-radius: 8px; font-size: 13px; font-weight: 600;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  z-index: 20000; max-width: 90vw; text-align: center;
 }
-.ctrl-btn {
-  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
-  background: #334155; color: #fff; border: none; padding: 8px 14px;
-  border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;
-  min-width: 64px;
-}
-.ctrl-btn .ico { font-size: 18px; }
-.ctrl-btn.on { background: #4338ca; }
-.ctrl-btn.off { background: #7f1d1d; }
-.ctrl-btn.start { background: var(--ok); padding: 10px 22px; min-width: 140px; }
-.ctrl-btn.start:hover { background: #059669; }
-.ctrl-btn.danger { background: #dc2626; }
-.ctrl-btn:hover { filter: brightness(1.15); }
-.ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* 議事録パネル (折り畳み) */
-.transcript-panel {
-  background: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.1);
-  padding: 10px 14px; max-height: 30vh; overflow-y: auto;
-  display: none;
-}
-.transcript-panel.show { display: block; }
-.transcript-panel .turn { font-size: 12px; line-height: 1.6; padding: 4px 0; color: #e5e7eb; }
-.transcript-panel .turn .who { color: #a5b4fc; font-weight: 700; margin-right: 4px; }
-.transcript-panel .empty { color: #94a3b8; font-size: 12px; text-align: center; padding: 20px; }
-
-.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 9500; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
-.toast.show { opacity: 1; }
-.toast.err { background: var(--danger); }
-.lock-state { background: rgba(220,38,38,0.18); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #fca5a5; }
-.lock-state.unlocked { background: rgba(16,185,129,0.18); color: #86efac; }
-.dlg-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 9800; padding: 20px; }
-.dlg-bg.show { display: flex; }
-.dlg { background: #fff; color: var(--fg); border-radius: 12px; padding: 18px; width: 100%; max-width: 360px; }
-.dlg h3 { margin: 0 0 8px 0; font-size: 16px; }
-.dlg .desc { color: var(--mute); font-size: 12px; line-height: 1.6; margin-bottom: 12px; }
-.dlg input { width: 100%; padding: 10px 12px; font-size: 18px; border: 1px solid var(--border); border-radius: 8px; font-family: ui-monospace, monospace; letter-spacing: 4px; text-align: center; }
-.dlg .row { display: flex; gap: 8px; margin-top: 12px; }
-.dlg button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
-.dlg .btn-cancel { background: #e2e8f0; color: var(--fg); }
-.dlg .btn-ok { background: var(--accent); color: #fff; }
-.dlg .err-msg { color: var(--danger); font-size: 12px; margin-top: 6px; min-height: 14px; }
-.passcode-display {
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  border: 2px solid #f59e0b; border-radius: 10px;
-  padding: 14px; text-align: center;
-  font-family: ui-monospace, monospace; font-size: 28px; font-weight: 800;
-  letter-spacing: 6px; color: #92400e;
-  margin: 10px 0;
-}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.toast.err { background: #b91c1c; }
 
 /* ============ 時刻表（かいぎ出太郎） ============ */
 .kaigi-section {
@@ -272,9 +105,7 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   border-bottom: 1.5px solid #fbbf24;
   letter-spacing: 0.5px;
 }
-.tt-group {
-  margin-bottom: 14px;
-}
+.tt-group { margin-bottom: 14px; }
 .tt-group:last-child { margin-bottom: 0; }
 .tt-group-title {
   font-size: 12px; font-weight: 800; color: #92400e;
@@ -299,19 +130,9 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   color: #1f2937; line-height: 1.2;
 }
 .tt-when .date { font-size: 10px; color: #64748b; font-weight: 600; }
-.tt-when .live-badge {
-  display: inline-block; background: #dc2626; color: #fff;
-  font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
-  animation: live-blink 1.2s ease-in-out infinite;
-}
-.tt-when .soon-badge {
-  display: inline-block; background: #f59e0b; color: #fff;
-  font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
-}
-.tt-when .open-badge {
-  display: inline-block; background: #64748b; color: #fff;
-  font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
-}
+.tt-when .live-badge { display: inline-block; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; animation: live-blink 1.2s ease-in-out infinite; }
+.tt-when .soon-badge { display: inline-block; background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
+.tt-when .open-badge { display: inline-block; background: #64748b; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 @keyframes live-blink {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
   50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(220,38,38,0); }
@@ -333,21 +154,10 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   padding: 4px 8px; background: rgba(34,197,94,0.10);
   border-radius: 6px; border: 1px solid rgba(34,197,94,0.30);
 }
-.tt-room-now .rn-label {
-  font-size: 10px; font-weight: 800; color: #15803d;
-  white-space: nowrap;
-}
-.tt-room-now .tt-avatars img, .tt-room-now .tt-avatars .ph {
-  width: 22px; height: 22px;
-}
-.tt-empty {
-  background: #fff; border: 1px dashed #fde68a; border-radius: 10px;
-  padding: 14px; text-align: center; color: #92400e;
-  font-size: 12px; font-weight: 600;
-}
-.tt-cta {
-  text-align: right; margin-top: 10px;
-}
+.tt-room-now .rn-label { font-size: 10px; font-weight: 800; color: #15803d; white-space: nowrap; }
+.tt-room-now .tt-avatars img, .tt-room-now .tt-avatars .ph { width: 22px; height: 22px; }
+.tt-empty { background: #fff; border: 1px dashed #fde68a; border-radius: 10px; padding: 14px; text-align: center; color: #92400e; font-size: 12px; font-weight: 600; }
+.tt-cta { text-align: right; margin-top: 10px; }
 .tt-cta a {
   display: inline-block; background: #f59e0b; color: #fff;
   padding: 6px 14px; border-radius: 8px;
@@ -358,12 +168,8 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 
 @media (max-width: 600px) {
   .body { padding: 14px; }
-  .room-card { padding: 18px; }
-  .stage.screen-mode { flex-direction: column; }
-  .stage.screen-mode .thumbs { flex-direction: row; width: auto; height: 80px; overflow-x: auto; }
-  .stage.screen-mode .thumbs .tile { flex: 0 0 auto; width: 100px; }
-  .ctrl-btn { padding: 6px 10px; min-width: 54px; font-size: 10px; }
-  .ctrl-btn .ico { font-size: 16px; }
+  .room-card { padding: 22px 16px; }
+  .zoom-btn { padding: 14px 28px; font-size: 16px; }
   .tt-when { min-width: 64px; font-size: 12px; }
   .tt-card { padding: 8px 10px; gap: 8px; }
   .tt-avatars img, .tt-avatars .ph { width: 22px; height: 22px; }
@@ -372,80 +178,40 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 <script src="/version-check.js" defer></script>
 </head>
 <body>
-<!-- ロビー -->
-<div id="lobby">
-  <div class="hd">
-    <a href="/home" class="back">←</a>
-    <div class="title">🎙 ミーティング</div>
-    <a href="/meeting-archive" class="archive-btn">📚 議事録</a>
-  </div>
-  <div class="body">
-    <div class="intro">
-      会議室に入室すると、まずアバターで参加します。会議開始時に「アバターモード（音声のみ）」または「カメラモード（音声＋映像）」を選べます。画面共有・議事録はどちらのモードでも利用可能です。
-    </div>
-    <div class="room-card" id="room-card">
-      <div class="ic">🎙</div>
-      <div class="name" id="room-name">会議室</div>
-      <div class="count">参加中: <b id="room-count">0</b>名</div>
-      <div class="members" id="room-members"></div>
-      <button class="enter-btn" onclick="enterRoom()">▶ 入室する</button>
-    </div>
-
-    <!-- ━━━ ミーティング時刻表 ━━━ -->
-    <div class="kaigi-section">
-      <div class="tt-title-bar">🎬 ミーティング予定</div>
-      <div id="timetable">
-        <div class="tt-empty">読み込み中…</div>
-      </div>
-      <div class="tt-cta">
-        <a href="/poll.html">📅 日程調整一覧 / 新規予約</a>
-      </div>
-    </div>
-  </div>
+<div class="hd">
+  <a href="/home" class="back">←</a>
+  <div class="title">🎙 ミーティング</div>
 </div>
-
-<!-- 全画面ミーティング画面 -->
-<div class="fs-overlay" id="fs">
-  <div class="fs-hd">
-    <span class="stage-label" id="stage-label">待機中</span>
-    <div class="room-name" id="fs-name">🎙 会議室</div>
-    <span class="lock-state unlocked" id="lock-state">🔓 未ロック</span>
-    <div class="timer" id="fs-timer">00:00</div>
+<div class="body">
+  <div class="intro">
+    Zoom で会議に参加します。入室するとアバターで「集合中」が CoHub にも表示され、他のメンバーに見えるようになります。
   </div>
-  <div class="stage" id="stage">
-    <div class="main-area" id="main-area" style="display:none;"><video id="main-screen-video" autoplay playsinline></video></div>
-    <div class="grid" id="tile-container"></div>
-  </div>
-  <div class="transcript-panel" id="ts-panel"></div>
-  <div class="fs-controls" id="ctrls">
-    <!-- 待機中: ビデオ開始ボタン中央 / 会議中: マイク・カメラ・共有・議事録・退室 -->
-  </div>
-</div>
-
-<!-- パスコード入力ダイアログ (入室時) -->
-<div class="dlg-bg" id="dlg-enter">
-  <div class="dlg">
-    <h3>🔒 鍵がかかっています</h3>
-    <div class="desc">主催者から教えてもらった入室パスコードを入力してください。</div>
-    <input id="enter-pass" type="text" inputmode="numeric" maxlength="20" placeholder="0000">
-    <div class="err-msg" id="enter-err"></div>
-    <div class="row">
-      <button class="btn-cancel" onclick="closeEnterDlg()">キャンセル</button>
-      <button class="btn-ok" onclick="submitEnterPass()">入室</button>
+  <div class="room-card">
+    <div class="zoom-logo">📹</div>
+    <div class="name" id="room-name">Zoom 会議室</div>
+    <div class="sub">CoHub 共通ミーティングルーム</div>
+    <div id="count-pill" class="count empty"><span id="count-text">まだ誰もいません</span></div>
+    <div class="members" id="room-members"></div>
+    <button id="zoom-btn" class="zoom-btn" onclick="onZoomBtn()">
+      <span class="ic">📹</span><span id="zoom-btn-label">Zoom で入室する</span>
+    </button>
+    <div id="zoom-hint" class="hint" style="display:none;">
+      ボタンを押すと Zoom が新しいタブで開きます。<br>
+      CoHub の「退室」を押すと Zoom タブも自動で閉じます。
+    </div>
+    <div id="no-zoom" class="no-zoom" style="display:none;">
+      ⚠️ Zoom 会議室が未設定です。管理者にお問い合わせください。
     </div>
   </div>
-</div>
 
-<!-- ロック設定ダイアログ (主催者) -->
-<div class="dlg-bg" id="dlg-lock">
-  <div class="dlg">
-    <h3>🔒 入室パスコードを設定</h3>
-    <div class="desc">参加者にこのパスコードを伝えてください。設定後の新規入室にロックがかかります。</div>
-    <div class="passcode-display" id="lock-pass-disp">0000</div>
-    <input id="lock-pass" type="text" inputmode="numeric" maxlength="20" placeholder="自動生成 (編集可)">
-    <div class="row">
-      <button class="btn-cancel" onclick="closeLockDlg()">キャンセル</button>
-      <button class="btn-ok" onclick="confirmLock()">🔒 ロック</button>
+  <!-- ━━━ ミーティング時刻表 ━━━ -->
+  <div class="kaigi-section">
+    <div class="tt-title-bar">🎬 ミーティング予定</div>
+    <div id="timetable">
+      <div class="tt-empty">読み込み中…</div>
+    </div>
+    <div class="tt-cta">
+      <a href="/poll.html">📅 日程調整一覧 / 新規予約</a>
     </div>
   </div>
 </div>
@@ -458,27 +224,13 @@ const ROOM_ID = 'main';
 const token = localStorage.getItem('cohub_token') || '';
 let me = null;
 let socket = null;
-let stage = 'lobby';        // 'lobby' | 'waiting' | 'live'
 let inRoom = false;
-let localStream = null;
-let screenStream = null;     // 画面共有時の MediaStream
-let micOn = false, camOn = false, screenOn = false, recOn = false;
-let meetingMode = null;     // 'avatar' | 'camera' (live段階で確定)
-let peerConnections = new Map();   // uid → {pc, profile, stream, screenStream, hasScreen}
-let peerProfiles = new Map();      // uid → profile (uid/display_name/avatar_url)
-let peerStates = new Map();        // uid → {video_on, mic_on, screen_on}
-let recognition = null;
-let transcript = [];
-let interimText = '';
-let startedAt = null;
-let timerHandle = null;
-let mainScreenUid = null;    // 現在「メイン画面」に表示している画面共有のuid
-let hostUid = null;           // 現在の主催者uid
-let roomLocked = false;       // 部屋ロック状態
-let pendingPasscode = '';     // 鍵をかけた状態で入室拒否されたとき再入力
+let zoomUrl = '';
+let zoomWindow = null;
+const participants = new Map(); // uid -> {uid, display_name, avatar_url}
 
-const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
-
+function $(id) { return document.getElementById(id); }
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 async function api(path, opts = {}) {
   opts.headers = opts.headers || {};
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
@@ -486,25 +238,161 @@ async function api(path, opts = {}) {
   if (r.status === 401) { location.replace('/'); return null; }
   return r.json();
 }
-function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function showToast(msg, ms, isErr) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast show' + (isErr ? ' err' : '');
-  setTimeout(() => t.classList.remove('show'), ms || 2200);
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => { t.className = 'toast'; }, ms || 2000);
 }
-function $(id) { return document.getElementById(id); }
+
+function renderMembers() {
+  const root = $('room-members');
+  const list = Array.from(participants.values());
+  $('count-text').textContent = list.length > 0 ? list.length + ' 名が集合中' : 'まだ誰もいません';
+  $('count-pill').classList.toggle('empty', list.length === 0);
+  if (!list.length) { root.innerHTML = ''; return; }
+  root.innerHTML = list.map(p => {
+    const isMe = me && p.uid === me.id;
+    const initial = escapeHtml((p.display_name || '?').slice(0, 1));
+    const avatar = p.avatar_url
+      ? `<img src="${escapeHtml(p.avatar_url)}" alt="${escapeHtml(p.display_name||'')}" title="${escapeHtml(p.display_name||'')}">`
+      : initial;
+    return `<div class="ava${isMe ? ' me' : ''}" title="${escapeHtml(p.display_name||'')}">${avatar}</div>`;
+  }).join('');
+}
+
+function setBtnState(state) {
+  const btn = $('zoom-btn');
+  const lbl = $('zoom-btn-label');
+  btn.disabled = false;
+  if (state === 'in') {
+    btn.classList.add('leave');
+    lbl.textContent = '退室する';
+  } else if (state === 'disabled') {
+    btn.disabled = true;
+    btn.classList.remove('leave');
+    lbl.textContent = 'Zoom 未設定';
+  } else {
+    btn.classList.remove('leave');
+    lbl.textContent = 'Zoom で入室する';
+  }
+}
+
+async function refreshRoomStatus() {
+  const r = await api('/api/meeting/rooms/status');
+  if (!r || !r.success) return;
+  if (typeof r.zoomUrl === 'string') zoomUrl = r.zoomUrl;
+  const rm = (r.rooms || [])[0];
+  if (!rm) return;
+  $('room-name').textContent = rm.name + ' (Zoom 会議室)';
+  // 参加者初期スナップショット (自分が在室の場合はサーバ側にもう載っている)
+  participants.clear();
+  for (const p of (rm.participants || [])) {
+    participants.set(p.uid, { uid: p.uid, display_name: p.display_name, avatar_url: p.avatar_url });
+  }
+  renderMembers();
+  if (!zoomUrl) {
+    $('no-zoom').style.display = '';
+    $('zoom-hint').style.display = 'none';
+    setBtnState('disabled');
+  } else {
+    $('no-zoom').style.display = 'none';
+    $('zoom-hint').style.display = '';
+  }
+}
+
+function setupSocket() {
+  socket = io({ auth: { token } });
+  socket.on('connect', () => {
+    if (inRoom) {
+      // 再接続時: 自動で部屋に戻る
+      socket.emit('meeting:join', { roomId: ROOM_ID });
+    }
+  });
+  socket.on('meeting:peers', () => {
+    // server側からのpeers配列はuidのみ。プロファイル付き一覧はAPIから取得
+    refreshRoomStatus();
+  });
+  socket.on('meeting:peer-joined', (data) => {
+    if (!data || !data.uid) return;
+    participants.set(data.uid, { uid: data.uid, display_name: data.display_name, avatar_url: data.avatar_url });
+    renderMembers();
+  });
+  socket.on('meeting:peer-left', (data) => {
+    if (!data || !data.uid) return;
+    participants.delete(data.uid);
+    renderMembers();
+  });
+  socket.on('meeting:join-denied', (data) => {
+    inRoom = false;
+    setBtnState('out');
+    showToast('入室できませんでした: ' + (data && data.reason || '不明'), 3000, true);
+  });
+}
+
+function openZoom() {
+  if (!zoomUrl) return false;
+  try {
+    if (zoomWindow && !zoomWindow.closed) { zoomWindow.focus(); return true; }
+    zoomWindow = window.open(zoomUrl, 'cohub_zoom_tab');
+    if (!zoomWindow) {
+      showToast('ポップアップがブロックされました。ブラウザ設定を確認してください', 3500, true);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    showToast('Zoom 起動失敗: ' + e.message, 3000, true);
+    return false;
+  }
+}
+
+function closeZoomTab() {
+  try { if (zoomWindow && !zoomWindow.closed) zoomWindow.close(); } catch (e) {}
+  zoomWindow = null;
+}
+
+function enterRoom() {
+  if (!zoomUrl) { showToast('Zoom URL が設定されていません', 2500, true); return; }
+  if (!openZoom()) return;
+  inRoom = true;
+  setBtnState('in');
+  // 自分を即時にメンバー表示
+  if (me) participants.set(me.id, { uid: me.id, display_name: me.display_name, avatar_url: me.avatar_url });
+  renderMembers();
+  if (socket && socket.connected) socket.emit('meeting:join', { roomId: ROOM_ID });
+  showToast('📹 Zoom を開きました');
+}
+
+function leaveRoom() {
+  inRoom = false;
+  setBtnState('out');
+  if (me) participants.delete(me.id);
+  renderMembers();
+  if (socket && socket.connected) socket.emit('meeting:leave');
+  closeZoomTab();
+  showToast('退室しました');
+}
+
+function onZoomBtn() {
+  if (inRoom) leaveRoom();
+  else enterRoom();
+}
+
+window.addEventListener('beforeunload', () => {
+  if (inRoom && socket && socket.connected) socket.emit('meeting:leave');
+});
 
 async function init() {
-  if (!token) { location.replace('/'); return; }
   const r = await api('/api/auth/me');
   if (!r || !r.success) { location.replace('/'); return; }
   me = r.user;
   await refreshRoomStatus();
-  loadTimetable();
   setupSocket();
-  // ロビー状態は10秒ごとに更新、時刻表は30秒ごと
-  setInterval(() => { if (stage === 'lobby') refreshRoomStatus(); }, 10000);
-  setInterval(() => { if (stage === 'lobby') loadTimetable(); }, 30000);
+  loadTimetable();
+  setInterval(loadTimetable, 30000);
+  setInterval(refreshRoomStatus, 60000);
 }
 
 // ============ 時刻表 ============
@@ -514,9 +402,7 @@ function _ttFmtTime(iso) {
   const s = String(iso).length === 16 ? iso + ':00' : iso;
   const d = new Date(s);
   if (isNaN(d.getTime())) return iso;
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return hh + ':' + mm;
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 function _ttFmtDate(iso) {
   if (!iso) return '';
@@ -569,11 +455,9 @@ function _ttDecidedCard(d, serverNow, currentRoom) {
   if (now >= start && now < end) {
     klass = 'live';
     badge = '<div class="live-badge">🔴 会議中</div>';
-    const remain = Math.max(0, Math.round((end - now) / 60000));
-    metaExtra = '残り' + remain + '分';
+    metaExtra = '残り' + Math.max(0, Math.round((end - now) / 60000)) + '分';
   } else if (minsUntil <= 30 && minsUntil > 0) {
-    klass = 'soon';
-    badge = '<div class="soon-badge">⏰ もうすぐ</div>';
+    klass = 'soon'; badge = '<div class="soon-badge">⏰ もうすぐ</div>';
     metaExtra = 'あと' + minsUntil + '分';
   } else if (minsUntil > 0) {
     metaExtra = (minsUntil < 60*24 ? Math.round(minsUntil/60) + '時間後' : Math.round(minsUntil/60/24) + '日後');
@@ -621,7 +505,7 @@ function _ttOpenCard(p) {
   </div>`;
 }
 async function loadTimetable() {
-  const root = document.getElementById('timetable');
+  const root = $('timetable');
   if (!root) return;
   try {
     const r = await api('/api/poll/timetable');
@@ -630,7 +514,6 @@ async function loadTimetable() {
     const open = r.open || [];
     const serverNow = r.server_now;
     const now = serverNow ? new Date(serverNow) : new Date();
-    // 分類
     const live = [], soon = [], today = [], later = [];
     const todayKey = (() => { const x = new Date(now); x.setHours(0,0,0,0); return x.getTime(); })();
     for (const d of decided) {
@@ -646,799 +529,17 @@ async function loadTimetable() {
     }
     let html = '';
     const currentRoom = r.current_room || [];
-    if (live.length) {
-      html += '<div class="tt-group"><div class="tt-group-title">🔴 会議中</div>' + live.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
-    }
-    if (soon.length) {
-      html += '<div class="tt-group"><div class="tt-group-title">⏰ もうすぐ (30分以内)</div>' + soon.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
-    }
-    if (today.length) {
-      html += '<div class="tt-group"><div class="tt-group-title">📅 本日この後</div>' + today.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
-    }
-    if (later.length) {
-      html += '<div class="tt-group"><div class="tt-group-title">📆 今後の予定</div>' + later.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
-    }
-    if (open.length) {
-      html += '<div class="tt-group"><div class="tt-group-title">📋 日程調整中</div>' + open.map(p => _ttOpenCard(p)).join('') + '</div>';
-    }
-    if (!html) html = '<div class="tt-empty">予定はまだありません。「+ 日程調整一覧」から予約をどうぞ。</div>';
+    if (live.length) html += '<div class="tt-group"><div class="tt-group-title">🔴 会議中</div>' + live.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    if (soon.length) html += '<div class="tt-group"><div class="tt-group-title">⏰ もうすぐ (30分以内)</div>' + soon.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    if (today.length) html += '<div class="tt-group"><div class="tt-group-title">📅 本日この後</div>' + today.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    if (later.length) html += '<div class="tt-group"><div class="tt-group-title">📆 今後の予定</div>' + later.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
+    if (open.length) html += '<div class="tt-group"><div class="tt-group-title">📋 日程調整中</div>' + open.map(p => _ttOpenCard(p)).join('') + '</div>';
+    if (!html) html = '<div class="tt-empty">予定はまだありません。「+ 日程調整一覧 / 新規予約」から作成できます。</div>';
     root.innerHTML = html;
   } catch (e) {
     root.innerHTML = '<div class="tt-empty">読み込みエラー</div>';
   }
 }
-
-async function refreshRoomStatus() {
-  const r = await api('/api/meeting/rooms/status');
-  if (!r || !r.success) return;
-  const rm = r.rooms[0];
-  if (!rm) return;
-  $('room-name').textContent = rm.name;
-  $('room-count').textContent = rm.count || 0;
-  // 既存メンバーのアバター取得は API では返していないので、省略 (入室後にリアルタイムで見える)
-  $('room-members').innerHTML = rm.count > 0
-    ? '<div class="empty">' + rm.count + '名が参加中</div>'
-    : '<div class="empty">まだ誰もいません</div>';
-}
-
-function setupSocket() {
-  socket = io({ auth: { token } });
-  socket.on('meeting:peers', async (data) => {
-    // 既存メンバーのprofileは初期では空。peer-joined で来るのを待つ。
-    for (const peerUid of data.peers) {
-      if (!peerProfiles.has(peerUid)) peerProfiles.set(peerUid, { uid: peerUid, display_name: '...', avatar_url: '' });
-    }
-    hostUid = data.host_uid || null;
-    roomLocked = !!data.locked;
-    updateLockUI();
-    renderTiles();
-    renderControls();
-  });
-  socket.on('meeting:join-denied', (data) => {
-    if (data.reason === 'passcode') {
-      // 入室処理途中でロビーに戻す
-      inRoom = false;
-      stage = 'lobby';
-      $('fs').classList.remove('show');
-      $('lobby').style.display = '';
-      if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
-      $('enter-err').textContent = 'パスコードが違います';
-      $('enter-pass').value = '';
-      $('dlg-enter').classList.add('show');
-      setTimeout(() => $('enter-pass').focus(), 100);
-    }
-  });
-  socket.on('meeting:lock-state', (data) => {
-    roomLocked = !!data.locked;
-    updateLockUI();
-    renderControls();
-    showToast(roomLocked ? '🔒 部屋がロックされました' : '🔓 ロックが解除されました', 1800);
-  });
-  socket.on('meeting:host-change', (data) => {
-    hostUid = data.host_uid || null;
-    const myUid = me.uid || me.id;
-    if (hostUid === myUid) showToast('🎤 あなたが主催者になりました', 2000);
-    renderControls();
-    renderTiles();
-  });
-  socket.on('meeting:peer-joined', (profile) => {
-    peerProfiles.set(profile.uid, profile);
-    renderTiles();
-    showToast('👤 ' + profile.display_name + ' が入室しました', 1500);
-    // 自分が会議中(live)なら、新参加者にもカメラ/画面共有のstateを通知する。
-    // (meeting:peers スナップショットはuidのみで state を含まないため、再emitしないと
-    //  新参加者の updateScreenMode が既存の画面共有者を取りこぼす)
-    if (stage === 'live') {
-      socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: screenOn });
-    }
-  });
-  socket.on('meeting:peer-left', (data) => {
-    const pc = peerConnections.get(data.uid);
-    if (pc) { try { pc.pc.close(); } catch (e) {} peerConnections.delete(data.uid); }
-    const name = (peerProfiles.get(data.uid) || {}).display_name || '';
-    peerProfiles.delete(data.uid);
-    peerStates.delete(data.uid);
-    detachSpeakingMonitor(data.uid);
-    if (mainScreenUid === data.uid) mainScreenUid = null;
-    renderTiles();
-    if (name) showToast('👋 ' + name + ' が退室しました', 1500);
-  });
-  socket.on('meeting:state', (data) => {
-    const prev = peerStates.get(data.uid) || {};
-    peerStates.set(data.uid, { video_on: data.video_on, mic_on: data.mic_on, screen_on: data.screen_on });
-    // 自分がビデオONなら、ビデオONした相手とpeer接続を確立 (offerを送る)
-    if (data.video_on && (camOn || micOn) && !peerConnections.has(data.uid)) {
-      callPeer(data.uid, true);
-    }
-    // 画面共有OFF遷移時: 受信側に残る古いscreenStream参照を切り、再共有のontrackを受け入れられるようにする
-    if (prev.screen_on && !data.screen_on) {
-      const entry = peerConnections.get(data.uid);
-      if (entry) entry.screenStream = null;
-    }
-    // 画面共有モード判定
-    updateScreenMode();
-    renderTiles();
-  });
-  socket.on('meeting:signal', async (data) => {
-    const peerUid = data.from;
-    let entry = peerConnections.get(peerUid);
-    if (!entry) entry = await callPeer(peerUid, false);
-    if (!entry) return;
-    const pc = entry.pc;
-    try {
-      if (data.type === 'offer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.payload));
-        const ans = await pc.createAnswer();
-        await pc.setLocalDescription(ans);
-        socket.emit('meeting:signal', { to: peerUid, type: 'answer', payload: ans });
-      } else if (data.type === 'answer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.payload));
-      } else if (data.type === 'ice') {
-        await pc.addIceCandidate(new RTCIceCandidate(data.payload));
-      }
-    } catch (e) { console.error('signal error', e); }
-  });
-}
-
-async function callPeer(peerUid, isOfferer) {
-  if (peerConnections.has(peerUid)) return peerConnections.get(peerUid);
-  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  // 自分が持っているトラックを追加
-  const senderTracks = [];
-  let screenSender = null;
-  if (localStream) for (const t of localStream.getTracks()) senderTracks.push(pc.addTrack(t, localStream));
-  if (screenStream) {
-    for (const t of screenStream.getTracks()) {
-      const s = pc.addTrack(t, screenStream);
-      senderTracks.push(s);
-      if (!screenSender) screenSender = s;  // 後で removeTrack できるよう video sender を保持
-    }
-    if (screenSender) _applyScreenSenderParams(screenSender);
-  }
-  pc.onicecandidate = (e) => {
-    if (e.candidate) socket.emit('meeting:signal', { to: peerUid, type: 'ice', payload: e.candidate });
-  };
-  pc.ontrack = (e) => {
-    let entry = peerConnections.get(peerUid);
-    if (!entry) return;
-    // ストリーム識別はpeerStatesに依存せず、MediaStream IDで行う。
-    // (state イベントと再ネゴオファーの到着順は保証されないため、
-    //  peerStates.screen_on を見ると camera と screen を取り違える事故が起きる)
-    // 仕様: addTrack 順は (1) localStream(audio+video) (2) screenStream(video)。
-    // 受信側もこの順でストリームが届くので、1本目=stream, 2本目=screenStream。
-    const stream = e.streams[0];
-    if (!entry.stream) {
-      entry.stream = stream;
-    } else if (stream !== entry.stream && !entry.screenStream) {
-      entry.screenStream = stream;
-    }
-    // 相手の喋り検出を開始 (音声トラックを含むstreamのみ)
-    if (entry.stream && entry.stream.getAudioTracks().length) {
-      attachSpeakingMonitor(peerUid, entry.stream);
-    }
-    updateScreenMode();
-    renderTiles();
-  };
-  pc.onconnectionstatechange = () => {
-    if (['failed', 'closed'].includes(pc.connectionState)) {
-      peerConnections.delete(peerUid);
-      renderTiles();
-    }
-  };
-  const entry = { pc, profile: peerProfiles.get(peerUid) || { uid: peerUid, display_name: '...', avatar_url: '' }, stream: null, screenStream: null, screenSender, senderTracks };
-  peerConnections.set(peerUid, entry);
-  if (isOfferer) {
-    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await pc.setLocalDescription(offer);
-    socket.emit('meeting:signal', { to: peerUid, type: 'offer', payload: offer });
-  }
-  return entry;
-}
-
-// ロビー → 入室 (アバター待機)
-async function enterRoom() {
-  // 部屋のロック状態を事前に問い合わせ
-  socket.emit('meeting:peek', { roomId: ROOM_ID });
-  const peek = await new Promise((resolve) => {
-    const handler = (data) => { resolve(data); };
-    socket.once('meeting:peek', handler);
-    setTimeout(() => resolve(null), 1500);
-  });
-  if (peek && peek.locked && peek.count > 0) {
-    pendingPasscode = '';
-    $('enter-err').textContent = '';
-    $('enter-pass').value = '';
-    $('dlg-enter').classList.add('show');
-    setTimeout(() => $('enter-pass').focus(), 100);
-    return;
-  }
-  doJoin('');
-}
-
-function doJoin(passcode) {
-  inRoom = true;
-  stage = 'waiting';
-  socket.emit('meeting:join', { roomId: ROOM_ID, passcode });
-  $('lobby').style.display = 'none';
-  $('fs').classList.add('show');
-  $('stage-label').textContent = '⌛ 待機中 (ビデオOFF)';
-  startedAt = Date.now();
-  startTimer();
-  renderTiles();
-  renderControls();
-}
-
-function submitEnterPass() {
-  const pass = $('enter-pass').value.trim();
-  if (!pass) { $('enter-err').textContent = 'パスコードを入力してください'; return; }
-  pendingPasscode = pass;
-  $('dlg-enter').classList.remove('show');
-  doJoin(pass);
-}
-function closeEnterDlg() {
-  $('dlg-enter').classList.remove('show');
-}
-
-function updateLockUI() {
-  const el = $('lock-state');
-  if (!el) return;
-  if (roomLocked) {
-    el.textContent = '🔒 ロック中';
-    el.className = 'lock-state';
-  } else {
-    el.textContent = '🔓 未ロック';
-    el.className = 'lock-state unlocked';
-  }
-}
-
-function isHost() { return hostUid === (me.uid || me.id); }
-
-function openLockDlg() {
-  // 自動生成パスコード (4桁)
-  const auto = String(Math.floor(1000 + Math.random() * 9000));
-  $('lock-pass').value = auto;
-  $('lock-pass-disp').textContent = auto;
-  $('lock-pass').oninput = () => { $('lock-pass-disp').textContent = $('lock-pass').value || '0000'; };
-  $('dlg-lock').classList.add('show');
-}
-function closeLockDlg() { $('dlg-lock').classList.remove('show'); }
-function confirmLock() {
-  const pass = $('lock-pass').value.trim();
-  if (!pass) { showToast('パスコードを入力してください', 1500, true); return; }
-  socket.emit('meeting:lock', { locked: true, passcode: pass });
-  $('dlg-lock').classList.remove('show');
-  // 主催者本人にもパスコードを表示しておく
-  showToast('🔒 パスコード: ' + pass, 4500);
-}
-function unlockRoom() {
-  socket.emit('meeting:lock', { locked: false });
-}
-
-// アバター待機 → 会議開始 (mode: 'avatar' | 'camera')
-async function startMeeting(mode) {
-  meetingMode = (mode === 'camera') ? 'camera' : 'avatar';
-  const constraints = (meetingMode === 'camera')
-    ? { audio: true, video: { width: 640, height: 480 } }
-    : { audio: true, video: false };
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia(constraints);
-  } catch (e) {
-    // エラー種別ごとに分かりやすいメッセージ
-    let msg = '';
-    const errName = (e && e.name) || '';
-    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-      msg = 'ブラウザのカメラ/マイク権限が拒否されています。アドレス欄左の🔒からカメラ・マイクを「許可」に変更してください';
-    } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-      msg = 'カメラ/マイクが他のアプリ(Zoom/Teams等)に使用中です。他アプリを閉じて再試行してください';
-    } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-      msg = 'カメラ/マイクが検出できませんでした。デバイスの接続を確認してください';
-    } else if (errName === 'OverconstrainedError') {
-      msg = 'カメラがこの解像度に対応していません (' + (e.message || '') + ')';
-    } else {
-      msg = (meetingMode === 'camera' ? 'マイク/カメラ' : 'マイク') + 'の取得失敗: ' + (e.message || errName || 'unknown');
-    }
-    showToast(msg, 6000, true);
-    console.warn('[meeting] getUserMedia failed:', errName, e);
-    meetingMode = null;
-    return;
-  }
-  micOn = true;
-  camOn = (meetingMode === 'camera');
-  stage = 'live';
-  $('stage-label').textContent = (meetingMode === 'camera' ? '🔴 会議中 (カメラ)' : '🔴 会議中 (アバター)');
-  // 既存メンバー全員と接続 (自分がofferer)
-  for (const [uid] of peerProfiles) {
-    if (!peerConnections.has(uid)) await callPeer(uid, true);
-  }
-  // 状態通知
-  socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: false });
-  renderTiles();
-  renderControls();
-  // 自分の喋り検出を開始
-  attachSpeakingMonitor('self', localStream);
-}
-// 後方互換用エイリアス
-async function startVideoMeeting() { return startMeeting('camera'); }
-
-function startTimer() {
-  if (timerHandle) clearInterval(timerHandle);
-  timerHandle = setInterval(() => {
-    if (!startedAt) return;
-    const sec = Math.floor((Date.now() - startedAt) / 1000);
-    const mm = String(Math.floor(sec / 60)).padStart(2, '0');
-    const ss = String(sec % 60).padStart(2, '0');
-    $('fs-timer').textContent = mm + ':' + ss;
-  }, 1000);
-}
-
-function renderControls() {
-  const c = $('ctrls');
-  const lockBtn = isHost()
-    ? (roomLocked
-        ? `<button class="ctrl-btn on" onclick="unlockRoom()"><span class="ico">🔓</span><span>ロック解除</span></button>`
-        : `<button class="ctrl-btn" onclick="openLockDlg()"><span class="ico">🔒</span><span>鍵をかける</span></button>`)
-    : '';
-  if (stage === 'waiting') {
-    c.innerHTML = `
-      <button class="ctrl-btn start" onclick="startMeeting('avatar')"><span class="ico">🎭</span><span>アバターモードで開始<br><small style="font-size:10px;opacity:0.85;">音声のみ・顔出しなし</small></span></button>
-      <button class="ctrl-btn start" onclick="startMeeting('camera')"><span class="ico">🎥</span><span>カメラモードで開始<br><small style="font-size:10px;opacity:0.85;">音声＋映像</small></span></button>
-      ${lockBtn}
-      <button class="ctrl-btn danger" onclick="leaveRoom()"><span class="ico">⏏</span><span>退室</span></button>`;
-  } else if (stage === 'live') {
-    const camBtn = (meetingMode === 'camera')
-      ? `<button class="ctrl-btn ${camOn ? 'on' : 'off'}" onclick="toggleCam()"><span class="ico">${camOn ? '🎥' : '📷'}</span><span>${camOn ? 'カメラ' : 'カメラOFF'}</span></button>`
-      : `<button class="ctrl-btn on" disabled style="opacity:0.7;cursor:default;"><span class="ico">🎭</span><span>アバターモード</span></button>`;
-    c.innerHTML = `
-      <button class="ctrl-btn ${micOn ? 'on' : 'off'}" onclick="toggleMic()"><span class="ico">${micOn ? '🎤' : '🔇'}</span><span>${micOn ? 'マイク' : 'マイクOFF'}</span></button>
-      ${camBtn}
-      <button class="ctrl-btn ${screenOn ? 'on' : ''}" onclick="toggleScreenShare()"><span class="ico">🖥️</span><span>${screenOn ? '共有中' : '画面共有'}</span></button>
-      <button class="ctrl-btn ${recOn ? 'on' : ''}" onclick="toggleRec()"><span class="ico">📝</span><span>${recOn ? '議事録ON' : '議事録'}</span></button>
-      ${lockBtn}
-      <button class="ctrl-btn danger" onclick="leaveRoom()"><span class="ico">⏏</span><span>退室</span></button>`;
-  }
-}
-
-// ===== 喋っている検出 (音声レベル監視) =====
-const SPEAK_THRESHOLD = 0.025;   // RMS閾値
-const SPEAK_HOLD_MS = 700;       // 静音化を遅延させる時間 (チラつき防止)
-let _audioCtx = null;
-const speakingMonitors = new Map(); // key('self' or uid) → { source, analyser, buf, raf, lastSpokeAt, isSpeaking }
-
-function _ensureAudioCtx() {
-  if (!_audioCtx) {
-    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    catch (e) { console.warn('AudioContext unavailable', e); return null; }
-  }
-  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
-  return _audioCtx;
-}
-
-function attachSpeakingMonitor(key, stream) {
-  if (!stream || !stream.getAudioTracks().length) return;
-  detachSpeakingMonitor(key);
-  const ctx = _ensureAudioCtx();
-  if (!ctx) return;
-  let source;
-  try { source = ctx.createMediaStreamSource(stream); }
-  catch (e) { console.warn('createMediaStreamSource failed', key, e); return; }
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 512;
-  analyser.smoothingTimeConstant = 0.5;
-  source.connect(analyser);
-  const buf = new Float32Array(analyser.fftSize);
-  const monitor = { source, analyser, buf, raf: null, lastSpokeAt: 0, isSpeaking: false };
-  speakingMonitors.set(key, monitor);
-
-  const loop = () => {
-    if (!speakingMonitors.has(key)) return;
-    analyser.getFloatTimeDomainData(buf);
-    let sum = 0;
-    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-    const rms = Math.sqrt(sum / buf.length);
-    const now = Date.now();
-    // 自分がマイクOFFのときは無効化
-    const effectiveOn = (key === 'self') ? micOn : true;
-    if (effectiveOn && rms > SPEAK_THRESHOLD) monitor.lastSpokeAt = now;
-    const speaking = effectiveOn && (now - monitor.lastSpokeAt < SPEAK_HOLD_MS);
-    if (speaking !== monitor.isSpeaking) {
-      monitor.isSpeaking = speaking;
-      _updateTileSpeaking(key, speaking);
-    }
-    monitor.raf = requestAnimationFrame(loop);
-  };
-  monitor.raf = requestAnimationFrame(loop);
-}
-
-function detachSpeakingMonitor(key) {
-  const m = speakingMonitors.get(key);
-  if (!m) return;
-  if (m.raf) cancelAnimationFrame(m.raf);
-  try { m.source.disconnect(); } catch (e) {}
-  speakingMonitors.delete(key);
-  _updateTileSpeaking(key, false);
-}
-
-function _updateTileSpeaking(key, speaking) {
-  const el = document.querySelector('.tile[data-uid="' + CSS.escape(key) + '"]');
-  if (el) el.classList.toggle('speaking', speaking);
-}
-
-function reattachAllSpeakingMonitors() {
-  // 再レンダリング後の状態を即反映
-  for (const [key, m] of speakingMonitors) _updateTileSpeaking(key, m.isSpeaking);
-}
-
-function avatarPlaceholder(profile) {
-  if (profile.avatar_url) return `<img src="${escapeHtml(profile.avatar_url)}" alt="">`;
-  return '👤';
-}
-
-// タイル内側HTML (data-uid付きの外側 .tile はDOM側で持続管理)
-// 映像/アバターどちらもアバター円(ava-clip)の中に収める。会議で顔タイルが大きく主張しないようにするため。
-function buildTileInner(key, profile, showVideo, isHost, micFlag, isSelf) {
-  const idAttr = isSelf ? 'vid-self' : 'vid-' + key;
-  const icons = (!micFlag ? '🔇' : '');
-  const hostBadge = isHost ? '<span class="badge-host">主催</span>' : '';
-  const nameRow = `<div class="name">${escapeHtml(profile.display_name || '...')}${isSelf ? ' (自分)' : ''} <span class="icons">${icons}</span></div>`;
-  const inner = showVideo
-    ? `<video id="${idAttr}" autoplay playsinline${isSelf ? ' muted' : ''}></video>`
-    : avatarPlaceholder(profile);
-  return `${hostBadge}<div class="placeholder"><div class="ava-big"><div class="speak-bubble">💬<span class="dots"><b></b><b></b><b></b></span></div><div class="ava-clip">${inner}</div></div></div>${nameRow}`;
-}
-
-// 既存タイルの属性のみ差分更新 (構造は維持)
-function updateTileAttrs(el, profile, isHost, micFlag, isSelf, showVideo) {
-  // 主催バッジ
-  const firstChild = el.firstElementChild;
-  const hasHost = firstChild && firstChild.classList && firstChild.classList.contains('badge-host');
-  if (isHost && !hasHost) {
-    const span = document.createElement('span');
-    span.className = 'badge-host';
-    span.textContent = '主催';
-    el.insertBefore(span, el.firstChild);
-  } else if (!isHost && hasHost) {
-    firstChild.remove();
-  }
-  // 名前行
-  const nameEl = el.querySelector(':scope > .name');
-  if (nameEl) {
-    const displayName = escapeHtml(profile.display_name || '...');
-    const suffix = isSelf ? ' (自分)' : '';
-    const icons = !micFlag ? '🔇' : '';
-    const wantHtml = `${displayName}${suffix} <span class="icons">${icons}</span>`;
-    if (nameEl.innerHTML !== wantHtml) nameEl.innerHTML = wantHtml;
-  }
-  // アバター画像 (カメラOFF時のみ存在)
-  if (!showVideo) {
-    const avaClip = el.querySelector('.ava-clip');
-    if (avaClip) {
-      const wantInner = profile.avatar_url
-        ? `<img src="${escapeHtml(profile.avatar_url)}" alt="">`
-        : '👤';
-      if (avaClip.innerHTML !== wantInner) avaClip.innerHTML = wantInner;
-    }
-  }
-}
-
-function updateScreenMode() {
-  // 誰かがscreen_on=true なら画面共有モード
-  let screenUid = null;
-  if (screenOn) screenUid = me.uid || me.id;
-  else for (const [uid, st] of peerStates) if (st.screen_on) { screenUid = uid; break; }
-  mainScreenUid = screenUid;
-  if (screenUid) {
-    $('stage').classList.add('screen-mode');
-  } else {
-    $('stage').classList.remove('screen-mode');
-  }
-}
-
-// renderTiles: RAFで集約。連続呼び出しは1フレームに1回だけ実行。
-let _renderTilesScheduled = false;
-function renderTiles() {
-  if (_renderTilesScheduled) return;
-  _renderTilesScheduled = true;
-  requestAnimationFrame(() => {
-    _renderTilesScheduled = false;
-    _renderTilesNow();
-  });
-}
-
-// 実際の差分レンダリング: <video> 要素や DOM ノードを破棄せず、属性のみ更新する
-function _renderTilesNow() {
-  if (stage === 'lobby') return;
-  const stageEl = $('stage');
-  const tileContainer = $('tile-container');
-  const mainArea = $('main-area');
-  if (!tileContainer || !stageEl) return;
-  const myUid = me.uid || me.id;
-  const myProf = { uid: myUid, display_name: me.display_name, avatar_url: me.avatar_url };
-
-  // モード切替 (構造は保持してクラスのみトグル)
-  if (mainScreenUid) {
-    stageEl.classList.add('screen-mode');
-    tileContainer.classList.remove('grid');
-    tileContainer.classList.add('thumbs');
-    mainArea.style.display = '';
-    let mainStream = null;
-    if (mainScreenUid === myUid) mainStream = screenStream;
-    else {
-      const entry = peerConnections.get(mainScreenUid);
-      if (entry) mainStream = entry.screenStream || entry.stream;
-    }
-    const v = $('main-screen-video');
-    if (v && v.srcObject !== (mainStream || null)) v.srcObject = mainStream || null;
-  } else {
-    stageEl.classList.remove('screen-mode');
-    tileContainer.classList.remove('thumbs');
-    tileContainer.classList.add('grid');
-    mainArea.style.display = 'none';
-    const v = $('main-screen-video');
-    if (v && v.srcObject) v.srcObject = null;
-  }
-
-  // 望ましいタイル列
-  const wanted = [{ key: 'self', uid: myUid, profile: myProf, stream: localStream, isSelf: true }];
-  for (const [uid, prof] of peerProfiles) {
-    const entry = peerConnections.get(uid);
-    wanted.push({ key: uid, uid, profile: prof, stream: entry ? entry.stream : null, isSelf: false });
-  }
-
-  // 既存タイルを uid→element でマップ化
-  const existing = new Map();
-  for (const el of Array.from(tileContainer.children)) {
-    const k = el.getAttribute('data-uid');
-    if (k) existing.set(k, el);
-  }
-
-  for (let i = 0; i < wanted.length; i++) {
-    const t = wanted[i];
-    const isHostNow = !!(hostUid && hostUid === t.uid);
-    const peerState = peerStates.get(t.uid) || {};
-    const camFlag = t.isSelf ? camOn : peerState.video_on;
-    const micFlag = t.isSelf ? micOn : peerState.mic_on;
-    const showVideo = !!t.stream && camFlag;
-
-    let el = existing.get(t.key);
-    // タイル構造(video⇔avatar)が変わるとき、または新規のときだけinnerHTML書き換え
-    const structureChanged = !el || el.classList.contains('has-video') !== showVideo;
-
-    if (structureChanged) {
-      if (!el) el = document.createElement('div');
-      el.setAttribute('data-uid', t.key);
-      const speaking = el.classList.contains('speaking');
-      el.className = 'tile' + (showVideo ? ' has-video' : '') + (speaking ? ' speaking' : '');
-      el.innerHTML = buildTileInner(t.key, t.profile, showVideo, isHostNow, micFlag, t.isSelf);
-    } else {
-      updateTileAttrs(el, t.profile, isHostNow, micFlag, t.isSelf, showVideo);
-    }
-
-    // srcObject はストリーム参照が変わったときのみ差し替え (映像中断の主因)
-    if (showVideo) {
-      const v = el.querySelector('video');
-      if (v) {
-        if (v.srcObject !== t.stream) v.srcObject = t.stream;
-        if (t.isSelf) v.muted = true;
-      }
-    }
-
-    // 位置合わせ
-    if (tileContainer.children[i] !== el) {
-      tileContainer.insertBefore(el, tileContainer.children[i] || null);
-    }
-    existing.delete(t.key);
-  }
-
-  // 余った既存タイルを削除
-  for (const [, el] of existing) el.remove();
-
-  // speaking クラスをモニタの最新状態で復元 (構造再構築されたタイル向け)
-  reattachAllSpeakingMonitors();
-}
-
-function toggleMic() {
-  micOn = !micOn;
-  if (localStream) for (const t of localStream.getAudioTracks()) t.enabled = micOn;
-  socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: screenOn });
-  renderControls();
-  renderTiles();
-}
-
-function toggleCam() {
-  camOn = !camOn;
-  if (localStream) for (const t of localStream.getVideoTracks()) t.enabled = camOn;
-  socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: screenOn });
-  renderControls();
-  renderTiles();
-}
-
-// 画面共有sender に上限ビットレート/FPSを適用 (会議資料の共有用に絞る)
-async function _applyScreenSenderParams(sender) {
-  if (!sender) return;
-  try {
-    const params = sender.getParameters();
-    if (!params.encodings || !params.encodings.length) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 800000;   // 800kbps
-    params.encodings[0].maxFramerate = 10;
-    await sender.setParameters(params);
-  } catch (e) { console.warn('screen setParameters failed', e); }
-}
-
-async function toggleScreenShare() {
-  if (!screenOn) {
-    try {
-      // 解像度・FPSを絞ってから取得 (ディスプレイ原寸×30fpsで上り回線を食い尽くすのを防ぐ)
-      screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 8, max: 12 }, width: { max: 1920 }, height: { max: 1080 } },
-        audio: false
-      });
-    } catch (e) {
-      showToast('画面共有がキャンセルされました', 2000);
-      return;
-    }
-    // エンコーダに「資料/文字」のヒント (静止画優先で文字が滲まない)
-    const vTrack = screenStream.getVideoTracks()[0];
-    if (vTrack) {
-      try { vTrack.contentHint = 'detail'; } catch (e) {}
-      try { await vTrack.applyConstraints({ frameRate: { max: 10 } }); } catch (e) {}
-    }
-    screenOn = true;
-    // 既存ピアに画面共有trackを追加 (または既存senderにreplaceTrack) して再ネゴ。
-    // 再共有時にaddTrackが重複senderを作るのを避けるため、entry.screenSenderを使い回す。
-    for (const [, entry] of peerConnections) {
-      for (const t of screenStream.getTracks()) {
-        if (entry.screenSender) {
-          try { await entry.screenSender.replaceTrack(t); } catch (e) { console.warn('replaceTrack failed', e); }
-        } else {
-          entry.screenSender = entry.pc.addTrack(t, screenStream);
-        }
-      }
-      await _applyScreenSenderParams(entry.screenSender);
-      try {
-        const offer = await entry.pc.createOffer();
-        await entry.pc.setLocalDescription(offer);
-        socket.emit('meeting:signal', { to: entry.profile.uid, type: 'offer', payload: offer });
-      } catch (e) {}
-    }
-    // 共有停止イベント (ブラウザ標準の「共有を停止」ボタン)
-    screenStream.getVideoTracks()[0].onended = () => stopScreenShare();
-    socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: true });
-    updateScreenMode();
-    renderControls();
-    renderTiles();
-  } else {
-    await stopScreenShare();
-  }
-}
-
-async function stopScreenShare() {
-  if (screenStream) {
-    for (const t of screenStream.getTracks()) t.stop();
-    screenStream = null;
-  }
-  screenOn = false;
-  // 各ピアからsenderを取り外し再ネゴ (これをやらないと受信側に古いtrackが残り再共有不可)
-  for (const [, entry] of peerConnections) {
-    if (entry.screenSender) {
-      try { entry.pc.removeTrack(entry.screenSender); } catch (e) {}
-      entry.screenSender = null;
-      try {
-        const offer = await entry.pc.createOffer();
-        await entry.pc.setLocalDescription(offer);
-        socket.emit('meeting:signal', { to: entry.profile.uid, type: 'offer', payload: offer });
-      } catch (e) {}
-    }
-  }
-  socket.emit('meeting:state', { video_on: camOn, mic_on: micOn, screen_on: false });
-  updateScreenMode();
-  renderControls();
-  renderTiles();
-}
-
-function toggleRec() {
-  recOn = !recOn;
-  if (recOn) startRecognition(); else stopRecognition();
-  $('ts-panel').classList.toggle('show', recOn);
-  renderControls();
-}
-
-function startRecognition() {
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRec) {
-    showToast('このブラウザは文字起こし非対応 (Chrome推奨)', 3000, true);
-    recOn = false;
-    return;
-  }
-  recognition = new SpeechRec();
-  recognition.lang = 'ja-JP';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const r = e.results[i];
-      if (r.isFinal) {
-        const txt = r[0].transcript.trim();
-        if (txt) {
-          transcript.push({ at: new Date().toISOString(), who: me.display_name, text: txt });
-          renderTranscript();
-        }
-      } else interim += r[0].transcript;
-    }
-    interimText = interim;
-    renderTranscript();
-  };
-  recognition.onerror = (e) => {
-    if (['no-speech','aborted'].includes(e.error)) return;
-    console.warn('SpeechRecognition error:', e.error);
-  };
-  recognition.onend = () => { if (recOn) try { recognition.start(); } catch (e) {} };
-  try { recognition.start(); } catch (e) {}
-}
-
-function stopRecognition() {
-  if (recognition) { try { recognition.stop(); } catch (e) {} recognition = null; }
-  interimText = '';
-}
-
-function renderTranscript() {
-  const el = $('ts-panel');
-  if (!transcript.length && !interimText) { el.innerHTML = '<div class="empty">議事録ON: 自分の発話が記録されます</div>'; return; }
-  let html = transcript.map(t => `<div class="turn"><span class="who">${escapeHtml(t.who)}</span>${escapeHtml(t.text)}</div>`).join('');
-  if (interimText) html += `<div class="turn" style="opacity:0.5;font-style:italic;"><span class="who">${escapeHtml(me.display_name)}</span>${escapeHtml(interimText)}…</div>`;
-  el.innerHTML = html;
-  el.scrollTop = el.scrollHeight;
-}
-
-async function leaveRoom() {
-  const endedAt = new Date().toISOString();
-  const startedAtIso = startedAt ? new Date(startedAt).toISOString() : null;
-  const myUid = me.uid || me.id;
-  const participants = [myUid, ...peerProfiles.keys()];
-  const fullText = transcript.map(t => `[${new Date(t.at).toLocaleTimeString('ja-JP')}] ${t.who}: ${t.text}`).join('\n');
-
-  // クリーンアップ
-  if (socket) socket.emit('meeting:leave');
-  for (const [, entry] of peerConnections) try { entry.pc.close(); } catch (e) {}
-  peerConnections.clear();
-  peerProfiles.clear();
-  peerStates.clear();
-  for (const key of Array.from(speakingMonitors.keys())) detachSpeakingMonitor(key);
-  if (localStream) for (const t of localStream.getTracks()) t.stop();
-  if (screenStream) for (const t of screenStream.getTracks()) t.stop();
-  localStream = null; screenStream = null;
-  micOn = false; camOn = false; screenOn = false;
-  meetingMode = null;
-  stopRecognition();
-  recOn = false;
-  if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
-
-  // 議事録保存
-  if (fullText.length > 0) {
-    showToast('議事録を保存中…', 2000);
-    try {
-      const r = await api('/api/meeting/save', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room_id: ROOM_ID, started_at: startedAtIso, ended_at: endedAt, participants, transcript: fullText }),
-      });
-      if (r && r.success) showToast('✅ 議事録を保存しました');
-    } catch (e) { showToast('保存エラー: ' + e.message, 3000, true); }
-  }
-
-  inRoom = false; stage = 'lobby';
-  transcript = []; interimText = ''; mainScreenUid = null;
-  hostUid = null; roomLocked = false;
-  updateLockUI();
-  $('fs').classList.remove('show');
-  $('lobby').style.display = '';
-  $('fs-timer').textContent = '00:00';
-  $('ts-panel').classList.remove('show');
-  await refreshRoomStatus();
-}
-
-window.addEventListener('beforeunload', () => {
-  if (inRoom && socket) socket.emit('meeting:leave');
-});
 
 init();
 </script>

@@ -20,7 +20,7 @@ const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
-  { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'lobby', x: 744, y: 405 },
+  { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'home', x: 744, y: 405 },
   { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=8', floor: 'wellness_room', x: 744, y: 519 },
   { id: 'bot_safety', login_id: 'bot_safety', name: '安全太郎', avatar: '/assets/concierge_safety_avatar.png?v=4', floor: 'field_accident', x: 1080, y: 500 },
 ];
@@ -295,7 +295,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = '2026-05-15-1';
+const APP_VERSION = "2026-05-19-zoom-pivot";
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -576,10 +576,13 @@ app.get('/mylog', (req, res) => sendHtmlNoCache(res, 'mylog.html'));
 app.get('/m', (req, res) => sendHtmlNoCache(res, 'm.html'));
 app.get('/overview', (req, res) => sendHtmlNoCache(res, 'overview.html'));
 app.get('/report', (req, res) => sendHtmlNoCache(res, 'report.html'));
-app.get('/full', (req, res) => sendHtmlNoCache(res, 'index.html'));
+// /full は廃止 (2026-05-18: 葵/3Dロビー全廃止方針)。完全に /home へ302固定
+app.get('/full', (req, res) => res.redirect(302, '/home'));
+app.get('/index.html', (req, res) => res.redirect(302, '/home'));
 app.get('/home', (req, res) => sendHtmlNoCache(res, 'home.html'));
 app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
-app.get('/meeting-archive', (req, res) => sendHtmlNoCache(res, 'meeting-archive.html'));
+// /meeting-archive は2026-05-19にZoom主導化で廃止 → /meetingへ
+app.get('/meeting-archive', (req, res) => res.redirect(302, '/meeting'));
 app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.html'));
 app.get('/tablet', (req, res) => sendHtmlNoCache(res, 'tablet.html'));
 app.get('/ops-literacy', (req, res) => sendHtmlNoCache(res, 'ops-literacy.html'));
@@ -601,9 +604,9 @@ app.get('/setup/install-startup.ps1', (req, res) => {
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   if (req.path.startsWith('/uploads/')) return res.status(404).end();
-  // MINIMAL_MODE: ルート / は home.html (8カードシンプル玄関)。/full で従来index.html
-  if (MINIMAL_MODE && req.path === '/') return sendHtmlNoCache(res, 'home.html');
-  sendHtmlNoCache(res, 'index.html');
+  // 旧 lobby/葵/3D は完全廃止 (2026-05-18)。未知パスは全部 home.html。MINIMAL_MODE分岐撤去。
+  if (req.path === '/' || req.path === '/home') return sendHtmlNoCache(res, 'home.html');
+  return res.redirect(302, '/home');
 });
 
 // ===== Socket.IO =====
@@ -737,31 +740,53 @@ function getVoiceGroup(p) {
 }
 
 // DM権限判定: true=許可 / false=拒否 (レポートライン保護)
-// - 管理者(role=admin)は常にOK
-// - 受信者がbotなら常にOK
-// - dm_group NULL は移行互換で無制限
-// - 同じdm_groupなら常にOK
-// - 別group: 送信者rank >= 受信者rank - 1 (即ち差が2以上の下から上はブロック)
-// 5/4以降: dm_rank 階層判定を撤廃。
-// 双方 dm_restricted=0 → 自由 (admin/推進/既存全員)
-// 片方でも dm_restricted=1 → 共通の chat_group_members 所属が必要
-// admin/bot は常に通す
+// 5/19以降: 役員(EXECUTIVE_GROUP_ID メンバー)宛DMは共通chat_group所属必須
+//          - 一般→部長/管理職 (役員以外の admin) は引き続き許可
+//          - 一般→役員 は同じchat_groupに居る場合のみ許可
 function canDm(sender, receiver) {
   if (!sender || !receiver) return false;
   if (sender.role === 'admin' || sender.role === 'bot') return true;
   if (receiver.role === 'bot') return true;
-  if (receiver.role === 'admin') return true; // ★5/14 B案: 一般→管理者は常に許可
+  // 推進メンバー(現場/倉庫)は横断的に全員へDM可 (5/19、役員宛も含む)
+  if (sender.is_field_promoter || sender.is_warehouse_promoter) return true;
+
+  const recvIsExec = isExecutive(receiver.id);
+  // 役員以外の管理者は引き続き自由に許可
+  if (receiver.role === 'admin' && !recvIsExec) return true;
+
+  // 役員宛のDMは職種で分岐 (5/19レポートライン保護 + 個別許可リスト)
+  if (recvIsExec) {
+    const allowed = getDb().prepare(
+      `SELECT 1 FROM dm_executive_allow WHERE executive_uid = ? AND user_uid = ? LIMIT 1`
+    ).get(receiver.id, sender.id);
+    if (allowed) return true;
+    // 現場職 (ドライバー/荷役) は許可リストなしならブロック
+    if (sender.job_role === 'driver' || sender.job_role === 'warehouse') return false;
+    // 事務職員・管理部門・未設定は役員宛もフリーDM
+    return true;
+  }
+
   const sr = sender.dm_restricted | 0;
   const rr = receiver.dm_restricted | 0;
-  if (!sr && !rr) return true; // 双方制限なし
-  // 制限あり: 共通グループ所属が必要 (admin/推進メンバーは sr/rr=0 なので 上で通る)
+  // 双方制限なし → OK
+  if (!sr && !rr) return true;
+
+  // 制限あり: 共通chat_group所属が必要
   const shared = getDb().prepare(`SELECT 1 FROM chat_group_members a
     JOIN chat_group_members b ON a.group_id = b.group_id
     WHERE a.user_id = ? AND b.user_id = ? LIMIT 1`).get(sender.id, receiver.id);
   return !!shared;
 }
+
+// 役員判定: users.job_role === 'executive' に統一 (5/19整理)
+// 旧来の chat_group "役員" メンバーシップは独立した存在 (チャットグループとして残置)
+function isExecutive(uid) {
+  if (!uid) return false;
+  const r = getDb().prepare(`SELECT job_role FROM users WHERE id = ?`).get(uid);
+  return !!(r && r.job_role === 'executive');
+}
 function loadUserForDm(uid) {
-  return getDb().prepare('SELECT id, role, dm_group, dm_rank, dm_restricted FROM users WHERE id = ?').get(uid);
+  return getDb().prepare('SELECT id, role, dm_group, dm_rank, dm_restricted, job_role, is_field_promoter, is_warehouse_promoter FROM users WHERE id = ?').get(uid);
 }
 
 // 録音同意ペンディング状態 (floor → state)
@@ -889,15 +914,17 @@ io.on('connection', (socket) => {
   const uid = socket.uid;
   const db = getDb();
   // 同一uid+同一デバイス種別の旧socketを即時切断 (デバイス種別単位の単一セッション維持)
+  // sid 比較は必須: 同じJWT (=同一ログインの別タブ/bfcache復元) は自分自身を kick しない。
+  // 別JWT (本当の別ログイン) の時だけキックする。2026-05-15 修正の再適用 (2026-05-18)。
   if (socket.dev) {
     try {
       const peers = Array.from(io.sockets.sockets.values());
       for (const p of peers) {
         if (p === socket) continue;
-        if (p.uid === uid && p.dev === socket.dev) {
+        if (p.uid === uid && p.dev === socket.dev && p.sid && socket.sid && p.sid !== socket.sid) {
           try { p.emit('session:kicked', { reason: 'same_device_login', dev: socket.dev }); } catch (e) {}
           try { p.disconnect(true); } catch (e) {}
-          console.log(`[session] kicked old socket uid=${uid} dev=${socket.dev}`);
+          console.log(`[session] kicked old socket uid=${uid} dev=${socket.dev} old_sid=${p.sid} new_sid=${socket.sid}`);
         }
       }
     } catch (e) {}
@@ -905,9 +932,9 @@ io.on('connection', (socket) => {
   const saved = db.prepare('SELECT x, y, floor_code, status_text FROM positions WHERE user_id = ?').get(uid);
   const userInfo = db.prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
   // 初回ログイン時のデフォルトフロア: 現場社員は乗務員詰所、その他はロビー
-  const defaultFloor = (userInfo && userInfo.employee_type === 'field') ? 'field_rest' : 'lobby';
+  const defaultFloor = (userInfo && userInfo.employee_type === 'field') ? 'field_rest' : 'home';
   const floorCode = (saved && saved.floor_code) || defaultFloor;
-  const floor = getFloor(floorCode) || getFloor(defaultFloor) || getFloor('lobby');
+  const floor = getFloor(floorCode) || getFloor(defaultFloor) || getFloor('home');
   const pos = clampForFloor(floor, saved && saved.x, saved && saved.y);
 
   // ナビゲーション再接続検出: 既存presenceあり or 直前まで離脱中だったら「再接続」扱い
@@ -1345,6 +1372,12 @@ io.on('connection', (socket) => {
     const attachSize = a ? (parseInt(a.size) || 0) : null;
     const attachType = a ? String(a.type || '').slice(0, 80) : null;
     const roomCode = 'grp_' + gid;
+    // 重複送信ガード: 直近3秒に同じ (sender, room_code, content) があればスキップ
+    const dupRow = db.prepare("SELECT id FROM messages WHERE sender_id=? AND room_code=? AND content=? AND created_at > datetime('now','-3 seconds') ORDER BY id DESC LIMIT 1").get(uid, roomCode, content);
+    if (dupRow) {
+      console.log('[group dedup] skip duplicate uid=', uid, 'gid=', gid, 'prev_id=', dupRow.id);
+      return;
+    }
     const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, NULL, ?, ?, ?, ?, ?, ?)")
       .run(uid, content, roomCode, attachUrl, attachName, attachSize, attachType);
     const senderRow = getDb().prepare(`SELECT u.display_name, u.avatar_url, u.company_code, c.ring_color
@@ -1442,6 +1475,15 @@ io.on('connection', (socket) => {
     const attachType = a ? String(a.type || '').slice(0, 80) : null;
     // 音声モード: 相手が取込中でも読み上げでメッセージを伝える (急ぎ連絡用)
     const voiceMode = !!(data && data.voice) && !!content;
+    // 重複送信ガード: 直近3秒に同じ (sender, receiver, content) があれば再送扱いとしてINSERTスキップ
+    // 原因: ダブルクリック / Enter+click / socket reconnect 時のリトライ
+    const dupRow = db.prepare("SELECT id, created_at, attach_url, attach_name, attach_size, attach_type FROM messages WHERE sender_id=? AND receiver_id=? AND content=? AND room_code='dm' AND created_at > datetime('now','-3 seconds') ORDER BY id DESC LIMIT 1").get(uid, to, content);
+    if (dupRow) {
+      console.log('[dm dedup] skip duplicate uid=', uid, 'to=', to, 'prev_id=', dupRow.id);
+      // 念のため送信者にだけ既存IDの dm:msg を返す (クライアント側の pending 解決用)
+      socket.emit('dm:msg', { id: dupRow.id, from: uid, to, content, at: dupRow.created_at, attach: dupRow.attach_url ? { url: dupRow.attach_url, name: dupRow.attach_name, size: dupRow.attach_size, type: dupRow.attach_type } : null, dedup: true });
+      return;
+    }
     const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, ?, ?, 'dm', ?, ?, ?, ?)")
       .run(uid, to, content, attachUrl, attachName, attachSize, attachType);
     const payload = {
@@ -1789,54 +1831,19 @@ ${latestReport.summary}
     }
   });
 
-  // ===== ミーティング (シンプルなZOOM風会議室) =====
-  // 部屋単位のメッシュWebRTC。voice:*とは別系統で、フロア概念に依存しない
-  // 部屋ステート: { hostUid, locked, passcode } — server起動中のみ保持
-  if (!app.locals.meetingRooms) app.locals.meetingRooms = new Map();
-  const meetingRooms = app.locals.meetingRooms;
-  const userMeetingRoom = (uid2) => {
-    const s = io.sockets.sockets.get((presence.get(uid2) || {}).socketId);
-    if (!s) return null;
-    for (const r of s.rooms) if (r.startsWith('mt:')) return r.slice(3);
-    return null;
-  };
-  function meetingMemberCount(roomId) {
-    const room = io.sockets.adapter.rooms.get('mt:' + roomId);
-    return room ? room.size : 0;
-  }
-  function pickNewHost(roomId) {
-    const room = io.sockets.adapter.rooms.get('mt:' + roomId);
-    if (!room) return null;
-    for (const sid of room) {
-      const s2 = io.sockets.sockets.get(sid);
-      if (s2 && s2.uid) return s2.uid;
-    }
-    return null;
-  }
+  // ===== ミーティング (Zoom主導+CoHub集合プレゼンス) =====
+  // 2026-05-19以降: 会議実体はZoom側、CoHubは「誰が入室中か」だけを配信する。
+  // WebRTC/議事録/録画/ロック/主催者譲渡 は撤去。
   socket.on('meeting:join', (data) => {
     const roomId = String((data && data.roomId) || '').trim();
     if (!/^[a-z0-9_-]{1,40}$/.test(roomId)) return;
-    // パスコード検証 (ロック中の場合)
-    const state = meetingRooms.get(roomId);
-    if (state && state.locked && meetingMemberCount(roomId) > 0) {
-      const passcode = String((data && data.passcode) || '').trim();
-      if (passcode !== state.passcode) {
-        socket.emit('meeting:join-denied', { roomId, reason: 'passcode' });
-        return;
-      }
-    }
     // 既存ミーティング部屋から退出
     for (const r of [...socket.rooms]) if (r.startsWith('mt:')) {
       socket.leave(r);
       io.to(r).emit('meeting:peer-left', { uid });
     }
     socket.join('mt:' + roomId);
-    // 主催者: 部屋に他に誰もいなければ自分が主催者
-    if (meetingMemberCount(roomId) === 1) {
-      meetingRooms.set(roomId, { hostUid: uid, locked: false, passcode: '' });
-    }
-    const curState = meetingRooms.get(roomId) || { hostUid: null, locked: false };
-    // 既存メンバーリスト (自分以外)
+    // 既存メンバー(uidのみ)を新参加者へ
     const room = io.sockets.adapter.rooms.get('mt:' + roomId) || new Set();
     const peers = [];
     for (const sid of room) {
@@ -1844,98 +1851,17 @@ ${latestReport.summary}
       const s2 = io.sockets.sockets.get(sid);
       if (s2 && s2.uid) peers.push(s2.uid);
     }
-    // 自分のプロファイル
     const u = getDb().prepare('SELECT display_name, avatar_url, company_code FROM users WHERE id = ?').get(uid) || {};
     const profile = { uid, display_name: u.display_name || '', avatar_url: u.avatar_url || '', company_code: u.company_code || '' };
-    socket.emit('meeting:peers', { peers, room_id: roomId, host_uid: curState.hostUid, locked: !!curState.locked });
+    socket.emit('meeting:peers', { peers, room_id: roomId });
     socket.to('mt:' + roomId).emit('meeting:peer-joined', profile);
-  });
-  // 部屋ロック (主催者のみ)
-  socket.on('meeting:lock', (data) => {
-    const roomId = userMeetingRoom(uid);
-    if (!roomId) return;
-    const state = meetingRooms.get(roomId);
-    if (!state || state.hostUid !== uid) {
-      socket.emit('meeting:lock-denied', { reason: 'not_host' });
-      return;
-    }
-    state.locked = !!(data && data.locked);
-    state.passcode = state.locked ? String((data && data.passcode) || '').trim().slice(0, 20) : '';
-    meetingRooms.set(roomId, state);
-    io.to('mt:' + roomId).emit('meeting:lock-state', { locked: state.locked });
-  });
-  // 部屋情報の事前確認 (ロビーから入室前に状態を見たい場合)
-  socket.on('meeting:peek', (data) => {
-    const roomId = String((data && data.roomId) || '').trim();
-    if (!/^[a-z0-9_-]{1,40}$/.test(roomId)) return;
-    const state = meetingRooms.get(roomId);
-    socket.emit('meeting:peek', {
-      roomId,
-      count: meetingMemberCount(roomId),
-      locked: !!(state && state.locked),
-      host_uid: state ? state.hostUid : null,
-    });
   });
   socket.on('meeting:leave', () => {
     for (const r of [...socket.rooms]) if (r.startsWith('mt:')) {
-      const roomId = r.slice(3);
       socket.leave(r);
       io.to(r).emit('meeting:peer-left', { uid });
-      // 主催者退出時: 後継者を選定または部屋ステート削除
-      const state = meetingRooms.get(roomId);
-      if (state && state.hostUid === uid) {
-        if (meetingMemberCount(roomId) === 0) {
-          meetingRooms.delete(roomId);
-        } else {
-          const newHost = pickNewHost(roomId);
-          if (newHost) {
-            state.hostUid = newHost;
-            meetingRooms.set(roomId, state);
-            io.to(r).emit('meeting:host-change', { host_uid: newHost });
-          }
-        }
-      } else if (meetingMemberCount(roomId) === 0) {
-        meetingRooms.delete(roomId);
-      }
     }
   });
-  socket.on('meeting:signal', (data) => {
-    if (!data || !data.to) return;
-    const target = presence.get(data.to);
-    if (!target) return;
-    const roomId = userMeetingRoom(uid);
-    if (!roomId) return;
-    const targetRoomId = userMeetingRoom(data.to);
-    if (roomId !== targetRoomId) return; // 異部屋は中継しない
-    const s = io.sockets.sockets.get(target.socketId);
-    if (s) s.emit('meeting:signal', { from: uid, type: data.type, payload: data.payload });
-  });
-  // ビデオON/OFF/画面共有開始のステート変更を同部屋にブロードキャスト
-  socket.on('meeting:state', (data) => {
-    const roomId = userMeetingRoom(uid);
-    if (!roomId) return;
-    socket.to('mt:' + roomId).emit('meeting:state', {
-      uid,
-      video_on: !!(data && data.video_on),
-      mic_on: !!(data && data.mic_on),
-      screen_on: !!(data && data.screen_on),
-      hand_raised: !!(data && data.hand_raised), // ★5/14 アバター会議: 挙手
-    });
-  });
-
-  // ★5/14 アバター会議: 音量(amp)をルーム内ブロードキャスト (リップシンク用)
-  // 高頻度 (~10fps) のため最小限の検証だけして即リレー
-  socket.on('meeting:amp', (data) => {
-    const roomId = userMeetingRoom(uid);
-    if (!roomId) return;
-    let amp = (data && typeof data.amp === 'number') ? data.amp : 0;
-    if (!isFinite(amp)) amp = 0;
-    if (amp < 0) amp = 0;
-    if (amp > 1) amp = 1;
-    socket.to('mt:' + roomId).emit('meeting:amp', { uid, amp });
-  });
-
-  // ★字幕ブロードキャストは2026-05-14に撤去 (議事録ボタンで個別保存のみ)
 
   // ===== 1:1 通話 (DMから音声/ビデオ通話を開始する) =====
   // 設計: chat-simple.html で使用。WebRTC signaling のリレーのみ。
@@ -2151,31 +2077,9 @@ ${latestReport.summary}
   });
 
   socket.on('disconnecting', () => {
-    // ミーティング部屋にいた場合、退室通知 + 主催権譲渡
+    // ミーティング部屋にいた場合、退室通知
     for (const r of socket.rooms) if (r.startsWith('mt:')) {
-      const roomId = r.slice(3);
       socket.to(r).emit('meeting:peer-left', { uid });
-      const state = app.locals.meetingRooms && app.locals.meetingRooms.get(roomId);
-      if (state && state.hostUid === uid) {
-        // disconnect直後はsocketがroomから外れるので、現時点でsizeを確認
-        const remaining = (io.sockets.adapter.rooms.get(r) || new Set()).size - 1;
-        if (remaining <= 0) {
-          app.locals.meetingRooms.delete(roomId);
-        } else {
-          // 自分以外の最初のメンバーを新主催者に
-          let newHost = null;
-          for (const sid of (io.sockets.adapter.rooms.get(r) || new Set())) {
-            if (sid === socket.id) continue;
-            const s2 = io.sockets.sockets.get(sid);
-            if (s2 && s2.uid) { newHost = s2.uid; break; }
-          }
-          if (newHost) {
-            state.hostUid = newHost;
-            app.locals.meetingRooms.set(roomId, state);
-            socket.to(r).emit('meeting:host-change', { host_uid: newHost });
-          }
-        }
-      }
     }
   });
   socket.on('disconnect', () => {
