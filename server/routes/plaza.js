@@ -8,7 +8,30 @@ const { authUser } = require('../middleware/auth');
 const { analyzeFoodImage } = require('../services/ai');
 
 const CATEGORIES = ['食事', '相談', '雑談', '健康Tips'];
-const ALLOWED_EMOJIS = ['❤️', '🎉', '👍', '😊', '👏'];
+
+// 起動時マイグレーション: 追加飲酒記録カラム (写真未反映分の自己申告)
+try {
+  const db = getDb();
+  const cols = new Set(db.prepare('PRAGMA table_info(plaza_posts)').all().map(c => c.name));
+  if (!cols.has('extra_alcohol_g')) {
+    db.prepare('ALTER TABLE plaza_posts ADD COLUMN extra_alcohol_g REAL DEFAULT 0').run();
+    console.log('[plaza] migrated: plaza_posts.extra_alcohol_g');
+  }
+} catch (e) { console.warn('[plaza] migration skipped:', e.message); }
+
+// 飲酒プリセット (純アルコール g)
+// ビール350=14, 中ジョッキ500=20, 日本酒1合=22, ワイン1杯=12, ハイボール=14, 焼酎水割り=20
+const ALCOHOL_PRESETS = {
+  beer_can_350:  { label: 'ビール缶 350ml',     g: 14 },
+  beer_mug_500:  { label: '中ジョッキ 500ml',   g: 20 },
+  sake_1go:      { label: '日本酒 1合',          g: 22 },
+  wine_glass:    { label: 'ワイン グラス',        g: 12 },
+  highball:      { label: 'ハイボール',           g: 14 },
+  shochu_mizu:   { label: '焼酎 水割り',         g: 20 },
+};
+// 反応セット (8種): 👍いいね/❤️推し/😊共感/💪応援/👏すごい/💡参考/🙏ありがとう/😢心配
+// 🎉は旧データ互換のため許容（UIには表示しない）
+const ALLOWED_EMOJIS = ['👍', '❤️', '😊', '💪', '👏', '💡', '🙏', '😢', '🎉'];
 const MAX_CONTENT = 500;
 
 const plazaDir = path.join(__dirname, '..', '..', 'uploads', 'plaza');
@@ -66,7 +89,7 @@ function collectRecentMeals(uid) {
   const rows = [];
   // 1) CoHub plaza_posts (本人の食事カテゴリ)
   try {
-    const r1 = db.prepare(`SELECT created_at AS ts, nutrition_scores AS ns FROM plaza_posts
+    const r1 = db.prepare(`SELECT created_at AS ts, nutrition_scores AS ns, COALESCE(extra_alcohol_g, 0) AS extra_alc FROM plaza_posts
       WHERE author_id=? AND category='食事' AND nutrition_scores IS NOT NULL AND deleted_at IS NULL
       AND created_at >= datetime('now','-7 days')
       ORDER BY created_at DESC LIMIT 7`).all(uid);
@@ -98,10 +121,34 @@ function collectRecentMeals(uid) {
   for (const r of rows) {
     const sm = summarize(r.ns);
     if (!sm) continue;
+    // 追加飲酒(写真未反映分の自己申告)をアルコール総量に加算
+    const extra = Number(r.extra_alc || 0);
+    if (extra > 0) sm.alc = Math.round((sm.alc + extra) * 10) / 10;
     result.push({ date: (r.ts || '').slice(0, 10), ...sm });
     if (result.length >= 7) break;
   }
   return result;
+}
+
+// nutrition_scores JSON に extra_alcohol_g を加算した表示用オブジェクトを返す
+function mergeExtraAlcohol(nutritionScoresJson, extraG) {
+  const extra = Number(extraG || 0);
+  if (!nutritionScoresJson) return nutritionScoresJson;
+  if (!extra) return nutritionScoresJson;
+  try {
+    const ns = typeof nutritionScoresJson === 'string' ? JSON.parse(nutritionScoresJson) : { ...nutritionScoresJson };
+    const cur = ns.alcohol;
+    let curV = 0;
+    if (cur && typeof cur === 'object') curV = Number(cur.value || 0);
+    else if (typeof cur === 'number') curV = cur;
+    const total = Math.round((curV + extra) * 10) / 10;
+    ns.alcohol = { value: total, unit: 'g' };
+    ns.has_alcohol = true;
+    ns.alcohol_breakdown = { ai_g: curV, extra_g: extra, total_g: total };
+    return JSON.stringify(ns);
+  } catch (e) {
+    return nutritionScoresJson;
+  }
 }
 
 // 一覧 (新着順、過去アーカイブと統合表示)
@@ -114,6 +161,7 @@ router.get('/posts', authUser, (req, res) => {
 
   let sql = `SELECT p.id, p.author_id, p.category, p.content, p.image_url, p.nutrition_scores,
                     p.ai_comment, p.is_anonymous, p.created_at,
+                    COALESCE(p.extra_alcohol_g, 0) AS extra_alcohol_g,
                     u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
                     u.nickname AS author_nickname
              FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id
@@ -152,6 +200,8 @@ router.get('/posts', authUser, (req, res) => {
       comment_count: cmtMap[p.id] || 0,
       can_delete: isAuthor,
       is_mine: isAuthor,
+      // 表示用: nutrition_scores に extra_alcohol_g を合算
+      nutrition_scores: mergeExtraAlcohol(p.nutrition_scores, p.extra_alcohol_g),
     };
     // 匿名投稿: 投稿者本人以外には author_id/name/avatar/company を隠す
     // ニックネームが設定されていれば表示 (本人のみ実名と紐付け可能)
@@ -281,6 +331,7 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   post.comment_count = 0;
   post.can_delete = true;
   post.is_mine = true;
+  post.extra_alcohol_g = 0;
 
   // 全員配信用の匿名化版 (本人以外向け、ニックネームがあれば表示)
   const anonymizedPost = isAnonymous ? {
@@ -295,6 +346,32 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   } : post;
   const io = req.app && req.app.locals && req.app.locals.io;
   if (io) io.emit('plaza:new', { post: anonymizedPost });
+
+  // OS push 配信 (食事/相談 のみ、投稿者本人は除外)。アプリ閉じてても気づける用。
+  try {
+    if (category === '食事' || category === '相談') {
+      const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
+      if (sendPush) {
+        const titlePrefix = category === '食事' ? '🍱 ひろば' : '💬 ひろば';
+        const who = (anonymizedPost.author_nickname || anonymizedPost.author_name || 'どなたか').replace(/^🎭\s*/, '');
+        const verbKansai = category === '食事' ? 'メシ載せてくれはったわ' : '相談あげてくれはったわ';
+        const body = who + 'さんが' + verbKansai;
+        const recipients = getDb().prepare('SELECT DISTINCT user_id FROM push_subscriptions WHERE user_id != ?').all(post.author_id);
+        for (const r of recipients) {
+          sendPush(r.user_id, {
+            title: titlePrefix,
+            body,
+            tag: 'plaza-new-' + ins.lastInsertRowid,
+            url: '/plaza.html',
+            alwaysShow: true,
+            requireInteraction: true,
+            vibrate: [220, 100, 220, 100, 320],
+          }).catch(() => {});
+        }
+      }
+    }
+  } catch (e) { console.warn('[plaza] push broadcast fail', e.message); }
+
   res.json({ success: true, post });
 });
 
@@ -385,6 +462,50 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
 // 未読件数 (新着バッジ用、軽量)
 // last_plaza_seen_at より新しい他人の投稿数。未設定時はゼロ扱い (初訪問でバッジ氾濫を避ける)
 // アーカイブ (cw_posts) は対象外 — 「新着」のみカウント
+// 追加飲酒記録 (写真に写っていない後続のドリンクを自己申告)
+// body: { delta_g: number } で加算、または { absolute_g: number } で絶対値設定、{ reset: true } でゼロリセット
+// プリセット指定: { preset: 'beer_can_350' | 'beer_mug_500' | ... } で対応する g を加算
+router.post('/posts/:id/alcohol', authUser, express.json({ limit: '4kb' }), (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, msg: 'id不正' });
+  const db = getDb();
+  const row = db.prepare('SELECT author_id, category, COALESCE(extra_alcohol_g, 0) AS extra, nutrition_scores FROM plaza_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  if (!row) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (row.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ編集可' });
+  if (row.category !== '食事') return res.status(400).json({ success: false, msg: '食事投稿のみ' });
+
+  const b = req.body || {};
+  let newExtra = Number(row.extra) || 0;
+  if (b.reset === true) {
+    newExtra = 0;
+  } else if (b.preset && ALCOHOL_PRESETS[b.preset]) {
+    newExtra += ALCOHOL_PRESETS[b.preset].g;
+  } else if (typeof b.delta_g === 'number' && isFinite(b.delta_g)) {
+    newExtra += b.delta_g;
+  } else if (typeof b.absolute_g === 'number' && isFinite(b.absolute_g)) {
+    newExtra = b.absolute_g;
+  } else {
+    return res.status(400).json({ success: false, msg: 'delta_g/absolute_g/preset/reset のいずれかが必要' });
+  }
+  // 上限/下限ガード (純アルコール 0〜500g)
+  if (newExtra < 0) newExtra = 0;
+  if (newExtra > 500) newExtra = 500;
+  newExtra = Math.round(newExtra * 10) / 10;
+
+  db.prepare('UPDATE plaza_posts SET extra_alcohol_g = ? WHERE id = ?').run(newExtra, id);
+
+  // 表示用合算値を計算して返却
+  const merged = mergeExtraAlcohol(row.nutrition_scores, newExtra);
+  let breakdown = null;
+  try { breakdown = (JSON.parse(merged || '{}')).alcohol_breakdown || null; } catch (e) {}
+  res.json({ success: true, extra_alcohol_g: newExtra, nutrition_scores: merged, breakdown });
+});
+
+// 飲酒プリセット一覧 (UI 用)
+router.get('/alcohol-presets', authUser, (req, res) => {
+  res.json({ success: true, presets: ALCOHOL_PRESETS });
+});
+
 router.get('/unread-count', authUser, (req, res) => {
   const db = getDb();
   const u = db.prepare('SELECT last_plaza_seen_at FROM users WHERE id = ?').get(req.uid) || {};
