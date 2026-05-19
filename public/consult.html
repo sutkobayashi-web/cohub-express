@@ -3,88 +3,92 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>今日の一歩、明日の自分 — 相談 — CoWell</title>
+<title>今日の一歩、明日の自分 — プランを選ぶ — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <meta name="theme-color" content="#3b82f6">
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; min-height: 100%; overscroll-behavior: contain; overflow-x: hidden; max-width: 100%; }
-body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg,#eff6ff,#f0f9ff); color: #0f172a; padding-bottom: 80px; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg,#eff6ff,#f0f9ff); color: #0f172a; padding-bottom: 24px; }
 header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg,#3b82f6,#1e3a8a); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 header h1 { margin: 0; font-size: 16px; font-weight: 800; }
 header .close { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
-main { max-width: 640px; margin: 0 auto; padding: 16px; }
+main { max-width: 720px; margin: 0 auto; padding: 14px; }
 
-/* アバターヘッダー */
+/* 挨拶 */
 .intro { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(59,130,246,0.08); }
-.intro-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: center top; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.18); flex-shrink: 0; background: #fff; }
+.intro img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: center top; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.18); flex-shrink: 0; background: #fff; }
 .intro-text { flex: 1; }
 .intro-name { font-weight: 800; font-size: 14px; color: #1e3a8a; }
-.intro-msg { font-size: 13px; color: #475569; margin-top: 4px; line-height: 1.55; }
+.intro-msg { font-size: 13px; color: #475569; margin-top: 4px; line-height: 1.6; }
 
-/* 進捗バー */
-.progress { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 0 4px; }
-.progress-bar { flex: 1; height: 6px; background: #e0e7ff; border-radius: 3px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg,#3b82f6,#1e3a8a); border-radius: 3px; transition: width 0.3s ease; }
-.progress-label { font-size: 11px; color: #64748b; font-weight: 700; min-width: 80px; text-align: right; }
+/* セクションタイトル */
+.sec-title { font-size: 13px; font-weight: 800; color: #1e3a8a; margin: 16px 4px 8px; display: flex; align-items: center; gap: 6px; }
+.sec-title .pill { font-size: 10px; background: #dbeafe; color: #1e3a8a; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
 
-/* 質問カード */
-.qcard { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.qtitle { font-size: 16px; font-weight: 800; color: #1e3a8a; margin-bottom: 4px; line-height: 1.5; }
-.qsub { font-size: 12px; color: #64748b; margin-bottom: 14px; }
+/* カテゴリフィルタ */
+.cat-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.cat-chip { padding: 6px 12px; border-radius: 18px; border: 1.5px solid #cbd5e1; background: #fff; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; transition: all 0.15s; }
+.cat-chip.active { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border-color: #1e40af; box-shadow: 0 2px 6px rgba(59,130,246,0.3); }
 
-/* 選択肢ボタン (Layer 1: グリッド) */
-.choices-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-@media (min-width: 480px) { .choices-grid { grid-template-columns: repeat(3, 1fr); } }
-.choice { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 8px; text-align: center; cursor: pointer; transition: all 0.15s; user-select: none; }
-.choice:hover { border-color: #3b82f6; background: #eff6ff; transform: translateY(-1px); }
-.choice:active { transform: translateY(0); }
-.choice.selected { border-color: #1e3a8a; background: linear-gradient(135deg,#dbeafe,#bfdbfe); box-shadow: 0 4px 12px rgba(59,130,246,0.2); }
-.choice-icon { font-size: 32px; line-height: 1; margin-bottom: 6px; }
-.choice-label { font-size: 13px; font-weight: 700; color: #334155; line-height: 1.35; }
+/* プランギャラリー */
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 560px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+.plan-card { background: #fff; border-radius: 14px; padding: 14px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; border: 2px solid transparent; transition: all 0.15s; display: flex; flex-direction: column; gap: 6px; min-height: 130px; text-align: left; }
+.plan-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.15); }
+.plan-card:active { transform: translateY(0); }
+.plan-card .icon { font-size: 30px; line-height: 1; }
+.plan-card .title { font-size: 13.5px; font-weight: 800; color: #1e3a8a; line-height: 1.35; }
+.plan-card .action { font-size: 11.5px; color: #64748b; line-height: 1.5; flex: 1; }
+.plan-card .cat-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; align-self: flex-start; }
+.cat-tag.move  { background: #dcfce7; color: #047857; }
+.cat-tag.meal  { background: #fef3c7; color: #92400e; }
+.cat-tag.sleep { background: #e0e7ff; color: #3730a3; }
+.cat-tag.rest  { background: #ede9fe; color: #6b21a8; }
+.cat-tag.drink { background: #fee2e2; color: #991b1b; }
+.cat-tag.mind  { background: #cffafe; color: #155e75; }
 
-/* 選択肢ボタン (Layer 2/3: 縦リスト) */
-.choices-list { display: flex; flex-direction: column; gap: 8px; }
-.choice-row { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
-.choice-row:hover { border-color: #3b82f6; background: #eff6ff; }
-.choice-row.selected { border-color: #1e3a8a; background: linear-gradient(135deg,#dbeafe,#bfdbfe); }
-.choice-row .ic { font-size: 22px; line-height: 1; flex-shrink: 0; }
-.choice-row .lbl { font-size: 14px; font-weight: 700; color: #334155; }
+/* モーダル */
+.modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.65); display: none; align-items: flex-end; justify-content: center; z-index: 100; padding: 0; }
+.modal-bg.show { display: flex; }
+@media (min-width: 560px) { .modal-bg { align-items: center; padding: 16px; } }
+.modal { background: #fff; border-radius: 18px 18px 0 0; max-width: 480px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 16px 18px 20px; }
+@media (min-width: 560px) { .modal { border-radius: 18px; } }
+.modal h2 { margin: 0 0 4px; font-size: 18px; color: #1e3a8a; display: flex; align-items: center; gap: 8px; }
+.modal .why { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 8px 10px; border-radius: 8px; margin: 8px 0 14px; line-height: 1.6; }
+.modal .action-line { background: linear-gradient(135deg,#dbeafe,#bfdbfe); border-left: 4px solid #3b82f6; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 700; color: #1e3a8a; margin-bottom: 14px; line-height: 1.6; }
+.modal .lbl { font-size: 12px; font-weight: 800; color: #1e3a8a; margin: 6px 0 8px; }
 
-/* 食事ログ表示 (Layer 2 食事偏り選択時) */
-.meal-strip { background: linear-gradient(180deg,#fffbeb,#fef3c7); border-left: 4px solid #f59e0b; border-radius: 10px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #78350f; line-height: 1.7; }
-.meal-strip h4 { margin: 0 0 8px; font-size: 13px; color: #92400e; font-weight: 800; }
-.meal-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #fde68a; }
-.meal-row:last-child { border-bottom: none; }
-.meal-date { font-weight: 700; min-width: 60px; }
-.meal-info { flex: 1; }
-.ai-hint { background: #fff7ed; border-radius: 6px; padding: 8px 10px; margin-top: 8px; font-size: 12px; color: #9a3412; line-height: 1.5; }
+/* 期間選択 */
+.periods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.period { padding: 12px 6px; border-radius: 10px; background: #f8fafc; border: 2px solid #e2e8f0; cursor: pointer; text-align: center; transition: all 0.15s; }
+.period.selected { background: linear-gradient(135deg,#dbeafe,#bfdbfe); border-color: #1e40af; box-shadow: 0 2px 6px rgba(59,130,246,0.2); }
+.period.locked { opacity: 0.45; cursor: not-allowed; background: #f8fafc; }
+.period .pd { font-size: 18px; font-weight: 800; color: #1e3a8a; }
+.period .ps { font-size: 10.5px; color: #64748b; margin-top: 2px; }
+.period.locked .ps { color: #94a3b8; }
+.period .lk { font-size: 14px; color: #94a3b8; }
+.lock-hint { font-size: 11px; color: #64748b; background: #fef3c7; padding: 8px 10px; border-radius: 6px; line-height: 1.5; margin-bottom: 12px; }
+.lock-hint.success { background: #dcfce7; color: #166534; }
 
-/* 自由記述 */
-.free-textarea { width: 100%; min-height: 100px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; }
-.free-textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.modal-btns { display: flex; gap: 8px; margin-top: 14px; }
+.modal-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; }
+.modal-btn.start { background: linear-gradient(135deg,#10b981,#059669); color: #fff; box-shadow: 0 2px 8px rgba(16,185,129,0.3); }
+.modal-btn.start:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+.modal-btn.cancel { background: #f1f5f9; color: #475569; flex: 0 0 100px; }
 
-/* アクションバー */
-.action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 12px 16px; display: flex; gap: 8px; z-index: 40; box-shadow: 0 -2px 8px rgba(0,0,0,0.04); }
-.action-bar .inner { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; width: 100%; }
-.btn-back { padding: 10px 14px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.btn-skip { padding: 10px 14px; background: transparent; color: #64748b; border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.btn-direct { padding: 10px 14px; background: transparent; color: #3b82f6; border: 1px dashed #93c5fd; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.btn-next { flex: 1; padding: 12px; background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
-.btn-next:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+/* 既存プランの警告 */
+.warn-existing { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 8px; font-size: 12px; color: #78350f; margin-bottom: 12px; line-height: 1.6; }
 
-/* ローディング */
-.loading { display: none; text-align: center; padding: 40px 20px; }
-.loading.show { display: block; }
-.loading .spin { width: 48px; height: 48px; border: 4px solid #dbeafe; border-top-color: #3b82f6; border-radius: 50%; margin: 0 auto 14px; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading p { font-size: 14px; color: #475569; margin: 0; line-height: 1.6; }
-
-/* エラー */
+/* エラー / ローディング */
 .err-msg { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
 .err-msg.show { display: block; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; align-items: center; justify-content: center; z-index: 200; flex-direction: column; gap: 12px; }
+.loading-overlay.show { display: flex; }
+.spin { width: 48px; height: 48px; border: 4px solid #dbeafe; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ログイン画面 */
+/* ログインオーバーレイ */
 .login-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
 .login-overlay.show { display: flex; }
 .login-card { background: #fff; border-radius: 14px; padding: 24px; max-width: 320px; width: 90%; }
@@ -94,54 +98,46 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 .login-err { color: #ef4444; font-size: 12px; margin-top: 8px; min-height: 16px; }
 </style>
 </head>
-<body>
+<body data-app-version="20260520-1">
 
 <header>
   <div style="flex:1;line-height:1.2;">
-    <h1 style="margin:0;font-size:16px;">🩺 今日の一歩、明日の自分</h1>
-    <div style="font-size:10px;font-weight:600;opacity:0.85;margin-top:2px;">健康管理室で相談</div>
+    <h1>🩺 今日の一歩、明日の自分</h1>
+    <div style="font-size:10px;font-weight:600;opacity:0.85;margin-top:2px;">プランを選ぶ</div>
   </div>
   <button class="close" onclick="closePage()">閉じる</button>
 </header>
 
 <main>
 
-  <!-- アバター挨拶 -->
+  <!-- 挨拶 -->
   <div class="intro">
-    <img class="intro-avatar" src="/assets/concierge_health_avatar.png" alt="ヘルスアドバイザー">
+    <img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルスアドバイザー">
     <div class="intro-text">
       <div class="intro-name">🩺 ヘルスアドバイザー</div>
-      <div class="intro-msg" id="intro-msg">「<b>今日の一歩、明日の自分</b>」へ。最近気になっていることはある? いくつかタップしてくれれば、あなたに合った一歩を一緒に考えるよ。</div>
+      <div class="intro-msg" id="intro-msg">15個のシンプルなプランから1つ選んで、3日間から始めよう。毎日「○△✕休」をタップするだけで、私が翌日まで一緒に走るよ。</div>
     </div>
-  </div>
-
-  <!-- 進捗 -->
-  <div class="progress">
-    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
-    <div class="progress-label" id="prog-label">あと数タップ</div>
   </div>
 
   <div class="err-msg" id="err"></div>
 
-  <!-- 質問エリア (動的描画) -->
-  <div id="qarea"></div>
+  <!-- カテゴリフィルタ -->
+  <div class="sec-title">📚 ジャンルで絞る <span class="pill" id="plan-count">15件</span></div>
+  <div class="cat-bar" id="cat-bar"></div>
 
-  <!-- ローディング -->
-  <div class="loading" id="loading">
-    <div class="spin"></div>
-    <p>あなたの食事ログや血圧記録も一緒に見て、<br>アクションプランを考えています…</p>
-  </div>
+  <!-- プランギャラリー -->
+  <div class="gallery" id="gallery"></div>
 
 </main>
 
-<!-- アクションバー -->
-<div class="action-bar" id="action-bar">
-  <div class="inner">
-    <button class="btn-back" id="btn-back" onclick="goBack()">← 戻る</button>
-    <button class="btn-skip" id="btn-skip" onclick="skipStep()" style="display:none;">スキップ</button>
-    <button class="btn-direct" id="btn-direct" onclick="goDirectInput()">💬 直接書く</button>
-    <button class="btn-next" id="btn-next" onclick="goNext()" disabled>次へ</button>
-  </div>
+<!-- プラン詳細モーダル -->
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spin"></div>
+  <p style="font-size:13px;color:#475569;">プランを開始しています…</p>
 </div>
 
 <!-- ログインオーバーレイ -->
@@ -156,91 +152,11 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 </div>
 
 <script>
-// ====== Layer 1 (9択 + 抜け道) ======
-const LAYER1 = [
-  { key: 'belly',  icon: '🫃', label: 'お腹が出てきた気がする' },
-  { key: 'sleepy', icon: '😴', label: '夕方になると眠くなる' },
-  { key: 'drink',  icon: '🍺', label: 'ちょっと飲みすぎ?と感じる' },
-  { key: 'stair',  icon: '🚶', label: '階段や坂がしんどくなった' },
-  { key: 'tired',  icon: '🛌', label: '寝ても疲れがとれない' },
-  { key: 'meal',   icon: '🍱', label: '食事が偏ってる気がする' },
-  { key: 'check',  icon: '🩺', label: '健診で言われたアレが気になる' },
-  { key: 'med',    icon: '💊', label: '薬やサプリ、これでいい?' },
-  { key: 'move',   icon: '🏃', label: 'ちょっと体を動かしたい' },
-];
-
-// ====== Layer 2 (各 Layer 1 選択肢ごとの深掘り) ======
-const LAYER2 = {
-  belly: { q: 'どうしたい?', opts: [
-    { key: 'b_intake',  icon: '🍚', label: '食べる量を見直したい' },
-    { key: 'b_move',    icon: '🚶', label: '動く機会を増やしたい' },
-    { key: 'b_measure', icon: '📏', label: 'まず数値で確認したい' },
-    { key: 'b_help',    icon: '🤔', label: 'どこから手をつければ?' },
-  ]},
-  sleepy: { q: 'どんなとき強い?', opts: [
-    { key: 's_lunch', icon: '🍱', label: '昼食後が特に強い' },
-    { key: 's_morn',  icon: '🌅', label: '朝からずっと眠い' },
-    { key: 's_night', icon: '🌃', label: '夜なかなか寝付けない' },
-    { key: 's_shift', icon: '📅', label: '不規則勤務だから?' },
-  ]},
-  drink: { q: 'どうしたい?', opts: [
-    { key: 'd_less',  icon: '📉', label: '量を減らしたい' },
-    { key: 'd_kind',  icon: '🍶', label: '種類を変えたい (ハイボール等)' },
-    { key: 'd_break', icon: '💪', label: '休肝日を作りたい' },
-    { key: 'd_value', icon: '🩺', label: 'まず数値だけ知りたい' },
-  ]},
-  stair: { q: 'どんなシーン?', opts: [
-    { key: 'st_station', icon: '🚉', label: '駅・通勤の階段' },
-    { key: 'st_work',    icon: '🏗', label: '倉庫・作業中' },
-    { key: 'st_morning', icon: '🌅', label: '朝起きた直後' },
-    { key: 'st_carry',   icon: '🎒', label: '重いもの持つとき' },
-  ]},
-  tired: { q: '最近こんなことある?', opts: [
-    { key: 't_snore',   icon: '😤', label: 'いびき指摘される' },
-    { key: 't_wake',    icon: '🌃', label: '夜中に何度も目覚める' },
-    { key: 't_irreg',   icon: '⏰', label: '寝る時間がバラバラ' },
-    { key: 't_phone',   icon: '📱', label: '寝る前スマホ長め' },
-  ]},
-  meal: { q: '何が一番気になる?', showMeals: true, opts: [
-    { key: 'm_salt',    icon: '🧂', label: '塩分多そう' },
-    { key: 'm_veg',     icon: '🥬', label: '野菜不足' },
-    { key: 'm_eatout',  icon: '🍣', label: '外食多い' },
-    { key: 'm_skip',    icon: '🚫', label: '朝食抜き' },
-    { key: 'm_late',    icon: '🌙', label: '夜遅い' },
-    { key: 'm_otsu',    icon: '🍺', label: 'おつまみ偏り' },
-  ]},
-  check: { q: 'どの項目が気になる?', opts: [
-    { key: 'c_bp',      icon: '🩸', label: '血圧' },
-    { key: 'c_bmi',     icon: '⚖️', label: 'BMI・体重' },
-    { key: 'c_lipid',   icon: '🥓', label: '脂質 (中性脂肪・LDL)' },
-    { key: 'c_glucose', icon: '🍬', label: '血糖・HbA1c' },
-    { key: 'c_liver',   icon: '🍷', label: '肝機能 (γGTP)' },
-    { key: 'c_all',     icon: '📚', label: '全部もう一度説明して' },
-  ]},
-  med: { q: '何について相談?', opts: [
-    { key: 'md_food',   icon: '💊', label: '飲んでる薬と食事の相性' },
-    { key: 'md_supp',   icon: '🛒', label: 'サプリ買おうか迷ってる' },
-    { key: 'md_forget', icon: '📅', label: '飲み忘れが多い' },
-  ]},
-  move: { q: 'どんな運動?', opts: [
-    { key: 'mv_walk',    icon: '🏃', label: 'ジョギング・ウォーキング始めたい' },
-    { key: 'mv_kintore', icon: '💪', label: '筋トレしたい (お腹/脚/全身)' },
-    { key: 'mv_commute', icon: '🚴', label: '通勤・移動を変えたい' },
-    { key: 'mv_stretch', icon: '🧘', label: '軽くストレッチや体操から' },
-    { key: 'mv_help',    icon: '🤔', label: '何が向いてるか相談したい' },
-  ]},
-};
-
-// ====== 状態管理 ======
 let token = localStorage.getItem('cohub_token') || '';
-let me = JSON.parse(localStorage.getItem('cohub_user') || 'null');
-let recentMeals = [];   // /api/myplan/preview-meals で取得
-let state = {
-  step: 1,        // 1=Layer1, 2=Layer2, 3=自由記述, 4=送信中
-  selections: [], // [{layer, key, label}, ...]
-  freeText: '',
-  sharePublicly: false,  // 段3 ニックネーム公開 opt-in (デフォルトOFF)
-};
+let me = null; try { me = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch {}
+let basicData = null;     // { plans, categories, periods, first_cycle_done, allowed_period_kinds }
+let activePlan = null;    // 現在進行中があれば
+let selectedCat = 'all';
 
 async function api(p, opts) {
   opts = opts || {}; opts.headers = opts.headers || {};
@@ -268,251 +184,161 @@ async function doLogin() {
     localStorage.setItem('cohub_user', JSON.stringify(d.user));
     me = d.user;
     document.getElementById('login-overlay').classList.remove('show');
-    initApp();
+    init();
   } catch (e) { err.textContent = '通信エラー'; }
 }
 
-function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
-
-// ====== UI 描画 ======
-function render() {
-  const qarea = document.getElementById('qarea');
-  const introMsg = document.getElementById('intro-msg');
-  const btnBack = document.getElementById('btn-back');
-  const btnSkip = document.getElementById('btn-skip');
-  const btnNext = document.getElementById('btn-next');
-  const btnDirect = document.getElementById('btn-direct');
-  document.getElementById('err').classList.remove('show');
-
-  // 進捗
-  const totalSteps = 3; // Layer1 + Layer2 + 自由記述
-  const stepNum = Math.min(state.step, totalSteps);
-  document.getElementById('prog-fill').style.width = (stepNum / totalSteps * 100) + '%';
-  document.getElementById('prog-label').textContent = stepNum + ' / ' + totalSteps;
-
-  if (state.step === 1) {
-    // Layer 1: グリッド
-    introMsg.textContent = 'こんにちは。最近気になっていることはある? まずは1つ選んでみて。';
-    qarea.innerHTML =
-      '<div class="qcard"><div class="qtitle">最近こんなこと感じてる?</div>' +
-      '<div class="qsub">気になるものを1つタップ</div>' +
-      '<div class="choices-grid">' +
-      LAYER1.map(c =>
-        `<div class="choice ${isSelected(1, c.key) ? 'selected' : ''}" data-key="${c.key}" onclick="pickLayer1('${c.key}')">
-          <div class="choice-icon">${c.icon}</div>
-          <div class="choice-label">${escapeHtml(c.label)}</div>
-        </div>`
-      ).join('') +
-      '</div></div>';
-    btnBack.style.display = 'none';
-    btnSkip.style.display = 'none';
-    btnDirect.style.display = '';
-    btnNext.style.display = 'none';
-  } else if (state.step === 2) {
-    // Layer 2: 縦リスト
-    const l1 = state.selections.find(s => s.layer === 1);
-    const cfg = l1 && LAYER2[l1.key];
-    if (!cfg) { state.step = 1; render(); return; }
-    introMsg.textContent = 'なるほど、もう少し聞かせて。';
-    let html = '<div class="qcard">';
-    if (cfg.showMeals) html += renderMealStrip();
-    html += '<div class="qtitle">' + escapeHtml(cfg.q) + '</div><div class="qsub">当てはまるものをタップ</div><div class="choices-list">';
-    for (const o of cfg.opts) {
-      html += `<div class="choice-row ${isSelected(2, o.key) ? 'selected' : ''}" data-key="${o.key}" onclick="pickLayer2('${o.key}')">
-        <span class="ic">${o.icon}</span><span class="lbl">${escapeHtml(o.label)}</span></div>`;
-    }
-    html += '</div></div>';
-    qarea.innerHTML = html;
-    btnBack.style.display = '';
-    btnSkip.style.display = '';
-    btnSkip.textContent = 'スキップして次へ';
-    btnDirect.style.display = '';
-    btnNext.style.display = '';
-    btnNext.disabled = !state.selections.some(s => s.layer === 2);
-    btnNext.textContent = '次へ';
-  } else if (state.step === 3) {
-    // 自由記述 + 共有opt-in
-    introMsg.textContent = '他に伝えたいことある? なくても全然OK。';
-    qarea.innerHTML =
-      '<div class="qcard"><div class="qtitle">他に伝えたいことある?</div>' +
-      '<div class="qsub">なくてもOK。あれば書くと、よりあなたに合ったプランになるよ</div>' +
-      `<textarea class="free-textarea" id="free-text" placeholder="例: 夕食が遅くなりがちで…" maxlength="1000">${escapeHtml(state.freeText)}</textarea>` +
-      '</div>' +
-      '<div class="qcard" style="margin-top:10px;">' +
-      '<div class="qtitle" style="font-size:14px;">仲間に共有する? (任意)</div>' +
-      '<div class="qsub">公開すると「✨先駆者」として ニックネームで全員に表示。一緒に始める仲間の背中を押せるよ。実名は出さないし、いつでも取り下げ可能。</div>' +
-      '<label style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:#f0fdf4;border:2px solid ' + (state.sharePublicly ? '#10b981' : '#bbf7d0') + ';border-radius:10px;cursor:pointer;">' +
-      `<input type="checkbox" id="share-toggle" ${state.sharePublicly ? 'checked' : ''} onchange="toggleShare()" style="width:20px;height:20px;margin-top:2px;cursor:pointer;">` +
-      '<div style="flex:1;font-size:13px;color:#065f46;line-height:1.6;">' +
-      `<div style="font-weight:800;margin-bottom:2px;">✨ ニックネーム「${escapeHtml((me && me.nickname) || '匿名')}」で仲間に共有する</div>` +
-      '<div style="font-size:11px;color:#047857;">「○○さんが運動を始めました」と表示されます</div>' +
-      '</div></label>' +
-      '<div style="font-size:11px;color:#94a3b8;margin-top:6px;">※ チェックしなければ完全プライベート。プラン後からでも変更OK。</div>' +
-      '</div>';
-    btnBack.style.display = '';
-    btnSkip.style.display = '';
-    btnSkip.textContent = '書かずに送る';
-    btnDirect.style.display = 'none';
-    btnNext.style.display = '';
-    btnNext.disabled = false;
-    btnNext.textContent = '✅ プランを作ってもらう';
-  }
-}
-
-function toggleShare() {
-  const cb = document.getElementById('share-toggle');
-  state.sharePublicly = !!(cb && cb.checked);
-  // 視覚フィードバックのため再描画
-  const ta = document.getElementById('free-text');
-  if (ta) state.freeText = ta.value || '';
-  render();
-}
-
-function isSelected(layer, key) {
-  return state.selections.some(s => s.layer === layer && s.key === key);
-}
-function pickLayer1(key) {
-  // 抜け道: 直接記述を分けたい場合 (現状は無し、必要なら追加)
-  state.selections = [{ layer: 1, key, label: LAYER1.find(c => c.key === key).label }];
-  state.step = 2;
-  render();
-}
-function pickLayer2(key) {
-  const l1 = state.selections.find(s => s.layer === 1);
-  const cfg = LAYER2[l1.key];
-  const opt = cfg.opts.find(o => o.key === key);
-  // 単一選択
-  state.selections = state.selections.filter(s => s.layer !== 2);
-  state.selections.push({ layer: 2, key, label: opt.label });
-  // 即時反映＋自動次へ (タップ誘導: クリックで次に進む心地よさ)
-  setTimeout(() => { state.step = 3; render(); }, 220);
-  render();
-}
-function goBack() {
-  if (state.step > 1) {
-    if (state.step === 3) {
-      // 自由記述から戻る前にテキスト保存
-      const ta = document.getElementById('free-text');
-      if (ta) state.freeText = ta.value || '';
-    }
-    state.step--;
-    render();
-  }
-}
-function skipStep() {
-  if (state.step === 2) { state.step = 3; render(); }
-  else if (state.step === 3) { submit(); }
-}
-function goNext() {
-  if (state.step === 2) { state.step = 3; render(); }
-  else if (state.step === 3) {
-    const ta = document.getElementById('free-text');
-    if (ta) state.freeText = ta.value || '';
-    submit();
-  }
-}
-function goDirectInput() {
-  // 選択肢スキップして自由記述へ
-  if (!state.selections.some(s => s.layer === 1)) {
-    state.selections = [{ layer: 1, key: 'free', label: 'まず話を聞いてほしい' }];
-  }
-  state.step = 3;
-  render();
-}
-
-function renderMealStrip() {
-  if (!recentMeals.length) {
-    return '<div class="meal-strip"><h4>📊 過去7日の食事ログ</h4><div style="color:#9a3412;font-size:12px;">記録がまだ少ないよ。これから一緒に貯めていこう。</div></div>';
-  }
-  let html = '<div class="meal-strip"><h4>📊 過去7日の食事ログ</h4>';
-  for (const m of recentMeals.slice(0, 7)) {
-    html += `<div class="meal-row"><div class="meal-date">${escapeHtml(m.date)}</div>` +
-      `<div class="meal-info">${m.kcal||0}kcal · 野菜${m.veg||0}g · 塩${m.salt||0}g · 酒${m.alc||0}g</div></div>`;
-  }
-  // 簡易所見
-  const avgSalt = recentMeals.reduce((s,m)=>s+(m.salt||0),0) / recentMeals.length;
-  const avgVeg = recentMeals.reduce((s,m)=>s+(m.veg||0),0) / recentMeals.length;
-  const drinkDays = recentMeals.filter(m => (m.alc||0) > 0).length;
-  const hints = [];
-  if (avgSalt > 3.5) hints.push(`塩分が平均${avgSalt.toFixed(1)}gと目標より高めだね`);
-  if (avgVeg < 100) hints.push(`野菜が平均${Math.round(avgVeg)}gで少し物足りないかも`);
-  if (drinkDays >= 3) hints.push(`お酒の日が ${drinkDays}/${recentMeals.length}日だね`);
-  if (hints.length) html += `<div class="ai-hint">💡 ${hints.join(' / ')}</div>`;
-  html += '</div>';
-  return html;
-}
-
-async function submit() {
-  document.getElementById('qarea').innerHTML = '';
-  document.getElementById('action-bar').style.display = 'none';
-  document.getElementById('loading').classList.add('show');
-  try {
-    const d = await api('/api/myplan/consult', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selections: state.selections, free_text: state.freeText || '', share_publicly: state.sharePublicly }),
-    });
-    if (!d.success) {
-      document.getElementById('loading').classList.remove('show');
-      document.getElementById('action-bar').style.display = '';
-      const err = document.getElementById('err');
-      err.textContent = d.msg || 'プラン生成に失敗しました';
-      err.classList.add('show');
-      render();
-      return;
-    }
-    // 成功 → /myplan.html に遷移
-    location.href = '/myplan.html?id=' + d.plan.id;
-  } catch (e) {
-    document.getElementById('loading').classList.remove('show');
-    document.getElementById('action-bar').style.display = '';
-    const err = document.getElementById('err');
-    err.textContent = '通信エラー: ' + (e.message || e);
-    err.classList.add('show');
-    render();
-  }
-}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
 
 function closePage() {
-  if (history.length > 1) history.back(); else location.href = '/';
+  if (window.history.length > 1) window.history.back();
+  else location.replace('/');
 }
 
-async function initApp() {
-  // 過去食事ログを先読み (Layer 2 で食事偏りを選んだ時用)
+async function init() {
   try {
-    const d = await api('/api/myplan/latest');
-    // (latest の context には meals を入れていないので別 endpoint 必要)
-  } catch (e) {}
-  // 過去食事ログを軽量に取得 (preview)
-  try {
-    // plaza/posts は重いので、myhealth から自前で取りに行く方式は将来。
-    // 今は consult API を呼ぶ前に 7日分を取得する preview エンドポイントが無いため
-    // クライアント側で簡易計算は AI 任せとし、画面表示用だけ別途取得を試みる
-    const dr = await fetch('/api/plaza/posts?category=' + encodeURIComponent('食事') + '&limit=20', { headers: { 'Authorization': 'Bearer ' + token } });
-    if (dr.ok) {
-      const dd = await dr.json();
-      if (dd.success && Array.isArray(dd.posts)) {
-        // 自分の投稿 + 7日以内 + nutrition_scoresあり
-        const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
-        recentMeals = dd.posts.filter(p => p.author_id === me.uid && p.nutrition_scores)
-          .map(p => {
-            let s; try { s = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores; } catch { return null; }
-            if (!s) return null;
-            const v = (k) => { const x = s[k]; return (x && typeof x === 'object') ? Number(x.value) : (typeof x === 'number' ? x : 0); };
-            return { date: (p.created_at || '').slice(0, 10), kcal: v('calories'), veg: v('vitamin'), salt: v('salt'), alc: v('alcohol') };
-          })
-          .filter(m => m && m.date >= cutoff.toISOString().slice(0, 10))
-          .slice(0, 7);
-      }
+    const [bd, ap] = await Promise.all([
+      api('/api/myplan/basic_plans'),
+      api('/api/myplan/active'),
+    ]);
+    if (!bd.success) throw new Error(bd.msg || 'プラン取得失敗');
+    basicData = bd;
+    activePlan = ap && ap.plan;
+    renderCategories();
+    renderGallery();
+  } catch (e) {
+    if (String(e.message) !== '401') {
+      document.getElementById('err').textContent = '通信エラー: ' + e.message;
+      document.getElementById('err').classList.add('show');
     }
-  } catch (e) {}
-  render();
+  }
+}
+
+function renderCategories() {
+  const bar = document.getElementById('cat-bar');
+  const cats = basicData.categories || {};
+  const counts = { all: basicData.plans.length };
+  for (const p of basicData.plans) counts[p.cat] = (counts[p.cat] || 0) + 1;
+  let html = `<button class="cat-chip ${selectedCat==='all'?'active':''}" data-cat="all">すべて (${counts.all})</button>`;
+  for (const key of Object.keys(cats)) {
+    if (!counts[key]) continue;
+    html += `<button class="cat-chip ${selectedCat===key?'active':''}" data-cat="${key}">${esc(cats[key].label)} (${counts[key]})</button>`;
+  }
+  bar.innerHTML = html;
+  bar.querySelectorAll('.cat-chip').forEach(b => {
+    b.addEventListener('click', () => {
+      selectedCat = b.getAttribute('data-cat');
+      renderCategories();
+      renderGallery();
+    });
+  });
+}
+
+function renderGallery() {
+  const gallery = document.getElementById('gallery');
+  const filt = (selectedCat === 'all') ? basicData.plans : basicData.plans.filter(p => p.cat === selectedCat);
+  document.getElementById('plan-count').textContent = filt.length + '件';
+  let html = '';
+  for (const p of filt) {
+    const cm = (basicData.categories && basicData.categories[p.cat]) || { label: p.cat };
+    html += `<button class="plan-card" data-id="${p.id}">
+      <div class="icon">${esc(p.icon || '🌱')}</div>
+      <div class="title">${esc(p.title)}</div>
+      <div class="action">${esc(p.action)}</div>
+      <span class="cat-tag ${esc(p.cat)}">${esc(cm.label)}</span>
+    </button>`;
+  }
+  gallery.innerHTML = html;
+  gallery.querySelectorAll('.plan-card').forEach(b => {
+    b.addEventListener('click', () => openDetail(b.getAttribute('data-id')));
+  });
+}
+
+function openDetail(planId) {
+  const plan = basicData.plans.find(p => p.id === planId);
+  if (!plan) return;
+  const cm = (basicData.categories && basicData.categories[plan.cat]) || { label: plan.cat };
+  const allowed = basicData.allowed_period_kinds || ['starter'];
+  const firstDone = basicData.first_cycle_done;
+  const periods = basicData.periods || [];
+  // 選択中の期間 (デフォルトは starter)
+  let selectedDays = 3;
+  const periodsHtml = periods.map(p => {
+    const locked = !allowed.includes(p.kind);
+    return `<button class="period ${locked?'locked':''} ${p.days===selectedDays?'selected':''}"
+      data-days="${p.days}" data-locked="${locked?1:0}">
+      <div class="pd">${p.days}日</div>
+      <div class="ps">${esc(p.short)}</div>
+      ${locked ? '<div class="lk">🔒</div>' : ''}
+    </button>`;
+  }).join('');
+
+  const existingWarn = (activePlan && activePlan.status === 'active') ? `
+    <div class="warn-existing">
+      ⚠️ 現在「<b>${esc(activePlan.title)}</b>」(${activePlan.period_days}日プラン, ${activePlan.day_index}日目) が進行中です。<br>
+      新しいプランを始めると、現在のプランは <b>中止</b> されカレンダーから外れます。完走履歴は残ります。
+    </div>` : '';
+
+  const lockHint = firstDone
+    ? `<div class="lock-hint success">✅ 初回プラン完走済み。すべての期間が選べます。</div>`
+    : `<div class="lock-hint">🔒 まず <b>3日プラン</b> から始めましょう。完走すると 1週間〜3ヶ月のプランが解放されます。</div>`;
+
+  document.getElementById('modal-body').innerHTML = `
+    <h2><span style="font-size:28px;">${esc(plan.icon)}</span> ${esc(plan.title)}</h2>
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${esc(cm.label)}</div>
+    <div class="action-line">→ ${esc(plan.action)}</div>
+    <div class="why">💡 <b>なぜこれが効くか</b>: ${esc(plan.why)}</div>
+    ${existingWarn}
+    <div class="lbl">📅 期間を選ぶ</div>
+    ${lockHint}
+    <div class="periods" id="period-grid">${periodsHtml}</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal()">戻る</button>
+      <button class="modal-btn start" id="btn-start">このプランを始める</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('show');
+
+  const grid = document.getElementById('period-grid');
+  grid.querySelectorAll('.period').forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.getAttribute('data-locked') === '1') return;
+      selectedDays = parseInt(b.getAttribute('data-days'));
+      grid.querySelectorAll('.period').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+    });
+  });
+  document.getElementById('btn-start').addEventListener('click', () => startPlan(plan.id, selectedDays));
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+async function startPlan(planId, days) {
+  if (activePlan && activePlan.status === 'active') {
+    if (!confirm('現在のプランを中止して、新しいプランを始めますか?')) return;
+  }
+  document.getElementById('loading-overlay').classList.add('show');
+  try {
+    const r = await api('/api/myplan/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ basic_plan_id: planId, period_days: days }),
+    });
+    if (!r.success) {
+      document.getElementById('loading-overlay').classList.remove('show');
+      alert(r.msg || '開始失敗');
+      return;
+    }
+    location.replace('/myplan.html');
+  } catch (e) {
+    document.getElementById('loading-overlay').classList.remove('show');
+    if (String(e.message) !== '401') alert('通信エラー');
+  }
 }
 
 // 起動
-if (!token) { showLogin(); }
-else { initApp(); }
+if (!token) showLogin();
+else init();
 </script>
-
 </body>
 </html>

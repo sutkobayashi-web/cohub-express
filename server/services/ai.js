@@ -932,4 +932,101 @@ ${histBlock}
   return parsed;
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, generateActionPlan, generateDialogStep };
+// ===== 個人プラン v2 — 日次返答 (2026-05-20) =====
+// 毎日の ○/△/✕/休 + 1行コメントに対する3行のAI返答。
+// 連続✕3日以上で axis_change=true (軸変更提案)。失敗してもフォールバック文を返す。
+async function generateDailyReply({ plan, recent_logs, today }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  // ストリーク/連続✕計算 (フォールバックでも使う)
+  const ordered = (recent_logs || []).slice().sort((a, b) => (a.log_date || '').localeCompare(b.log_date || ''));
+  let consecutiveMiss = 0;
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    if (ordered[i].status === 'miss') consecutiveMiss++;
+    else break;
+  }
+  // 今日の入力が miss なら +1 (まだ recent_logs に含まれていないケース対策)
+  let todayConsecutiveMiss = consecutiveMiss;
+  if (today && today.status === 'miss' &&
+      !(ordered.length && ordered[ordered.length - 1].log_date === today.log_date)) {
+    todayConsecutiveMiss = consecutiveMiss + 1;
+  }
+  const axisChange = todayConsecutiveMiss >= 3;
+  const dayIndex = ordered.length + (today ? 1 : 0); // 何日目か
+
+  // フォールバック (AIキー無 or 失敗時)
+  const fallback = (() => {
+    const s = (today && today.status) || 'done';
+    if (axisChange) {
+      return {
+        reply: `${todayConsecutiveMiss}日連続でできない日が続いてるね。\n\nプランが今のあなたに合っていないのかも。違う一歩に変えてみる?\n\n下の「プランを変える」から3日プランで仕切り直しもアリだよ。`,
+        axis_change: true,
+      };
+    }
+    const msgs = {
+      done:    [`今日もできたね、${dayIndex}日目!`, `小さな一歩がいちばん効くよ。`, `明日も無理せずいこう。`],
+      partial: [`半分でもやったの偉い、${dayIndex}日目。`, `0より△は確実な前進。`, `明日もまずは始めるところから。`],
+      miss:    [`今日はできなかったけど、記録したことが一歩。`, `1日休んでもプランは終わらない。`, `明日はハードル下げてやってみよう。`],
+      rest:    [`休むのも立派な選択、${dayIndex}日目。`, `回復してからの方が続くよ。`, `明日また会おう。`],
+    };
+    return { reply: (msgs[s] || msgs.done).join('\n'), axis_change: false };
+  })();
+
+  if (!apiKey) return fallback;
+
+  const histLines = ordered.slice(-7).map(l =>
+    `  ${l.log_date} ${({done:'○',partial:'△',miss:'✕',rest:'休'})[l.status] || '?'}${l.comment ? ' '+l.comment.slice(0,40) : ''}`
+  ).join('\n') || '  (初日)';
+  const todayLine = today ? `  ${today.log_date} ${({done:'○',partial:'△',miss:'✕',rest:'休'})[today.status]}${today.comment ? ' '+today.comment.slice(0,80) : ''}` : '';
+  const prompt = `あなたは健康管理室のヘルスアドバイザーです。社員が選んだ個人プランの毎日の記録に短い返答をします。
+親しみある専門家の口調 (「〜だね」「〜してみよう」)、押し付けず背中を押す、3行構成。
+
+## 社員のプラン
+- 内容: ${plan.title} (${plan.action})
+- カテゴリ: ${plan.category}
+- 期間: ${plan.period_days}日 (今 ${dayIndex} / ${plan.period_days} 日目)
+
+## 直近の記録 (古い順、○=やった △=半分 ✕=できず 休=休む)
+${histLines}
+
+## 今日の記録
+${todayLine}
+
+## 連続できなかった日数
+${todayConsecutiveMiss}日連続
+
+## ルール
+- 3行で返答。1行目=今日への共感や認知、2行目=価値づけ or 軽いヒント、3行目=明日への一言
+- 同じ褒め言葉を繰り返さない (履歴を見て言い回しを変える)
+- ✕でも責めない、休も尊重する
+- 連続✕3日以上なら "プランを変える選択肢もあるよ" を3行目で示唆 (押し付けない)
+- 「医師に」「健診を」など責任回避フレーズ禁止
+- 絵文字は1個まで、無くてもよい
+
+★出力形式: 純粋なJSONのみ。コードフェンス・前置き禁止。
+{"reply":"3行の返答 (改行は \\n)","axis_change":${axisChange ? 'true' : 'false'}}`;
+
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 500, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  try {
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+    let text = '';
+    if (parts) for (const p of parts) if (p.text) text += p.text;
+    text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) text = m[0];
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed.reply !== 'string') throw new Error('bad shape');
+    return { reply: String(parsed.reply).slice(0, 400), axis_change: !!parsed.axis_change || axisChange };
+  } catch (e) {
+    console.warn('[generateDailyReply] fail:', e.message);
+    return fallback;
+  }
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, generateActionPlan, generateDialogStep, generateDailyReply };

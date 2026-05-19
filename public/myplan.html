@@ -13,131 +13,120 @@ body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; 
 header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg,#3b82f6,#1e3a8a); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 header h1 { margin: 0; font-size: 16px; font-weight: 800; }
 header .close { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
-main { max-width: 640px; margin: 0 auto; padding: 16px; }
+main { max-width: 720px; margin: 0 auto; padding: 14px; }
 
-/* アバターヘッダー */
+/* 挨拶 */
 .advisor { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(59,130,246,0.08); }
-.advisor-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: center top; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.18); flex-shrink: 0; background: #fff; }
+.advisor img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: center top; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.18); flex-shrink: 0; background: #fff; }
 .advisor-text { flex: 1; }
 .advisor-name { font-weight: 800; font-size: 14px; color: #1e3a8a; }
-.advisor-msg { font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.55; }
-.advisor .updated { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.advisor-msg { font-size: 12.5px; color: #475569; margin-top: 4px; line-height: 1.6; }
 
-/* メインプランカード */
-.plan-card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.plan-section { margin-bottom: 12px; padding: 12px 14px; border-radius: 10px; border-left: 4px solid #94a3b8; background: #f8fafc; }
-.plan-section:last-child { margin-bottom: 0; }
-.plan-section.now    { border-left-color: #8b5cf6; background: linear-gradient(135deg,#faf5ff,#f3e8ff); }
-.plan-section.today  { border-left-color: #10b981; background: linear-gradient(135deg,#f0fdf4,#dcfce7); }
-.plan-section.week   { border-left-color: #3b82f6; background: linear-gradient(135deg,#eff6ff,#dbeafe); }
-.plan-section.month  { border-left-color: #f59e0b; background: linear-gradient(135deg,#fffbeb,#fef3c7); }
-.plan-section.kpi    { border-left-color: #ef4444; background: linear-gradient(135deg,#fef2f2,#fee2e2); }
-.plan-hdr { font-weight: 800; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.3px; }
-.plan-section.now    .plan-hdr { color: #6b21a8; }
-.plan-section.today  .plan-hdr { color: #047857; }
-.plan-section.week   .plan-hdr { color: #1e40af; }
-.plan-section.month  .plan-hdr { color: #b45309; }
-.plan-section.kpi    .plan-hdr { color: #b91c1c; }
-.plan-body { font-size: 13.5px; line-height: 1.75; color: #1f2937; white-space: pre-wrap; word-wrap: break-word; }
+/* 現在のプラン */
+.cur-plan { background: linear-gradient(135deg,#fef3c7,#fde68a); border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 3px 12px rgba(245,158,11,0.15); }
+.cur-head { display: flex; align-items: flex-start; gap: 12px; }
+.cur-icon { font-size: 36px; line-height: 1; flex-shrink: 0; }
+.cur-title { font-size: 17px; font-weight: 800; color: #78350f; line-height: 1.3; }
+.cur-cat { font-size: 11px; color: #92400e; margin-top: 2px; font-weight: 700; }
+.cur-action { background: #fff; border-radius: 10px; padding: 10px 12px; margin-top: 10px; font-size: 13.5px; color: #78350f; line-height: 1.6; font-weight: 600; }
 
-/* 今日のアクション完了ボタン */
-.done-btn { margin-top: 10px; padding: 10px 14px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3); }
-.done-btn.done { background: #94a3b8; box-shadow: none; }
-.done-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.cur-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.cur-stat { background: rgba(255,255,255,0.7); border-radius: 10px; padding: 8px 6px; text-align: center; }
+.cur-stat .v { font-size: 22px; font-weight: 900; color: #78350f; line-height: 1; }
+.cur-stat .l { font-size: 10px; color: #92400e; margin-top: 4px; font-weight: 700; }
 
-/* KPI 表 */
-.kpi-table { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; margin-top: 6px; font-size: 12.5px; }
-.kpi-table .h { font-weight: 800; color: #b91c1c; padding-bottom: 4px; border-bottom: 1px solid #fecaca; }
-.kpi-table .c { padding: 6px 4px; border-bottom: 1px dashed #fecaca; color: #1f2937; }
-.kpi-table .c.tar { font-weight: 700; color: #b91c1c; }
+/* 進捗バー */
+.cur-progress { margin-top: 12px; }
+.cur-progress .bar { height: 8px; background: rgba(255,255,255,0.6); border-radius: 4px; overflow: hidden; }
+.cur-progress .fill { height: 100%; background: linear-gradient(90deg,#f59e0b,#d97706); border-radius: 4px; transition: width 0.4s ease; }
+.cur-progress .lbl { font-size: 11px; color: #78350f; margin-top: 4px; text-align: right; font-weight: 700; }
 
-/* バッジ */
-.badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.badge { font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; }
-.badge.move { background: #dcfce7; color: #047857; }
-.badge.sel  { background: #e0e7ff; color: #1e3a8a; }
-.badge.pioneer { background: linear-gradient(135deg,#fde68a,#fbbf24); color: #78350f; }
+/* 今日の記録 */
+.today-card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.today-head { font-size: 14px; font-weight: 800; color: #1e3a8a; margin-bottom: 10px; }
+.today-head .today-date { font-size: 11px; color: #64748b; font-weight: 600; margin-left: 8px; }
+.status-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.status-btn { padding: 14px 4px; border-radius: 10px; border: 2px solid #e2e8f0; background: #f8fafc; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.status-btn .ic { font-size: 24px; line-height: 1; }
+.status-btn .lb { font-size: 11px; font-weight: 700; color: #475569; }
+.status-btn.sel { background: linear-gradient(135deg,#dbeafe,#bfdbfe); border-color: #1e40af; box-shadow: 0 2px 6px rgba(59,130,246,0.25); }
+.status-btn.sel .lb { color: #1e3a8a; }
+.status-btn[data-key="done"].sel { background: linear-gradient(135deg,#dcfce7,#bbf7d0); border-color: #15803d; }
+.status-btn[data-key="done"].sel .lb { color: #166534; }
+.status-btn[data-key="partial"].sel { background: linear-gradient(135deg,#fef3c7,#fde68a); border-color: #b45309; }
+.status-btn[data-key="partial"].sel .lb { color: #78350f; }
+.status-btn[data-key="miss"].sel { background: linear-gradient(135deg,#fee2e2,#fecaca); border-color: #b91c1c; }
+.status-btn[data-key="miss"].sel .lb { color: #991b1b; }
+.status-btn[data-key="rest"].sel { background: linear-gradient(135deg,#ede9fe,#ddd6fe); border-color: #6d28d9; }
+.status-btn[data-key="rest"].sel .lb { color: #5b21b6; }
+.cmt-row { display: flex; gap: 6px; }
+.cmt-row input { flex: 1; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13.5px; outline: none; }
+.cmt-row input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+.btn-record { padding: 11px 18px; background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border: none; border-radius: 10px; font-size: 13.5px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 6px rgba(59,130,246,0.3); }
+.btn-record:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
-/* 共有トグルカード */
-.share-card { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-.share-toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
-.share-toggle input { width: 22px; height: 22px; flex-shrink: 0; cursor: pointer; margin-top: 1px; }
-.share-text { flex: 1; }
-.share-title { font-weight: 800; font-size: 13.5px; color: #1e3a8a; }
-.share-sub { font-size: 11px; color: #64748b; margin-top: 3px; line-height: 1.5; }
+/* AI返答 */
+.ai-reply { background: linear-gradient(135deg,#eff6ff,#dbeafe); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 12px 14px; margin-top: 12px; font-size: 13px; line-height: 1.7; color: #1e3a8a; white-space: pre-wrap; word-wrap: break-word; display: none; }
+.ai-reply.show { display: block; animation: slidein 0.3s ease; }
+.ai-reply.axis-change { background: linear-gradient(135deg,#fef3c7,#fde68a); border-color: #f59e0b; color: #78350f; }
+.ai-reply-head { font-size: 11px; font-weight: 800; margin-bottom: 4px; opacity: 0.85; }
+.ai-reply .axis-action { margin-top: 10px; }
+.ai-reply .axis-action button { padding: 8px 14px; background: linear-gradient(135deg,#f59e0b,#d97706); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+@keyframes slidein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
-/* 操作ボタン群 */
-.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-.actions .btn { flex: 1; min-width: 140px; padding: 12px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.btn-primary { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
-.btn-secondary { background: #fff; color: #475569; border: 1px solid #cbd5e1 !important; }
+/* カレンダー */
+.cal-card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.cal-head .ti { font-size: 14px; font-weight: 800; color: #1e3a8a; }
+.cal-grid { display: grid; gap: 4px; }
+.cal-row { display: grid; gap: 4px; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr; }
+.cal-cell { aspect-ratio: 1; border-radius: 8px; background: #f1f5f9; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; color: #94a3b8; cursor: pointer; position: relative; min-height: 40px; }
+.cal-cell.today { box-shadow: 0 0 0 2px #3b82f6; }
+.cal-cell.future { background: #fafafa; }
+.cal-cell .dn { font-size: 10px; opacity: 0.6; }
+.cal-cell .st { font-size: 18px; line-height: 1; }
+.cal-cell.s-done { background: linear-gradient(135deg,#dcfce7,#bbf7d0); color: #166534; }
+.cal-cell.s-partial { background: linear-gradient(135deg,#fef3c7,#fde68a); color: #78350f; }
+.cal-cell.s-miss { background: linear-gradient(135deg,#fee2e2,#fecaca); color: #991b1b; }
+.cal-cell.s-rest { background: linear-gradient(135deg,#ede9fe,#ddd6fe); color: #5b21b6; }
+.cal-cell.has-comment::after { content: '💬'; position: absolute; bottom: 2px; right: 3px; font-size: 9px; }
+.cal-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 10.5px; color: #64748b; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 3px; }
 
-/* 仲間フィード */
-.feed-card { background: linear-gradient(135deg,#fef3c7,#fde68a); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(245,158,11,0.15); }
-.feed-hdr { font-weight: 800; font-size: 12px; color: #78350f; margin-bottom: 8px; }
-.feed-line { font-size: 12.5px; color: #92400e; padding: 4px 0; line-height: 1.5; }
-.feed-pioneers { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.feed-pioneer { background: rgba(255,255,255,0.6); padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #78350f; display: flex; align-items: center; gap: 6px; }
-.feed-pioneer .ico { font-size: 14px; }
+/* 履歴コメントモーダル */
+.day-modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+.day-modal-bg.show { display: flex; }
+@media (min-width: 560px) { .day-modal-bg { align-items: center; padding: 16px; } }
+.day-modal { background: #fff; border-radius: 16px 16px 0 0; max-width: 480px; width: 100%; padding: 18px; max-height: 70vh; overflow-y: auto; }
+@media (min-width: 560px) { .day-modal { border-radius: 16px; } }
+.day-modal h3 { margin: 0 0 10px; font-size: 16px; color: #1e3a8a; }
+.day-modal .item { padding: 10px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px; line-height: 1.6; }
+.day-modal .item:last-child { border-bottom: none; }
+.day-modal .it-cmt { color: #1f2937; }
+.day-modal .it-ai { color: #1e40af; background: #eff6ff; padding: 8px 10px; border-radius: 6px; margin-top: 6px; font-size: 12.5px; }
 
-/* 履歴 */
-.history { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.history h3 { margin: 0 0 10px; font-size: 13px; color: #475569; font-weight: 800; }
-.hist-item { padding: 10px; border-left: 3px solid #cbd5e1; background: #f8fafc; border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: background 0.15s; }
-.hist-item:hover { background: #f1f5f9; }
-.hist-date { font-size: 11px; color: #64748b; }
-.hist-summary { font-size: 12.5px; color: #334155; margin-top: 4px; line-height: 1.5; }
+/* 操作ボタン */
+.actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.act-btn { flex: 1; min-width: 130px; padding: 11px; border: none; border-radius: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.act-btn.primary { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; }
+.act-btn.secondary { background: #fff; color: #475569; border: 1px solid #cbd5e1 !important; }
+.act-btn.danger { background: #fff; color: #b91c1c; border: 1px solid #fecaca !important; }
+
+/* 完走バッジ */
+.completed-card { background: linear-gradient(135deg,#fef9c3,#fde68a); border: 3px solid #f59e0b; border-radius: 16px; padding: 18px; margin-bottom: 14px; text-align: center; }
+.completed-card .badge { font-size: 56px; margin-bottom: 6px; }
+.completed-card .title { font-size: 18px; font-weight: 900; color: #78350f; margin-bottom: 4px; }
+.completed-card .sub { font-size: 12.5px; color: #92400e; line-height: 1.6; }
 
 /* 空状態 */
-.empty-state { text-align: center; padding: 40px 20px; color: #64748b; }
-.empty-state .ico { font-size: 48px; margin-bottom: 12px; }
-.empty-state .msg { font-size: 14px; line-height: 1.7; margin-bottom: 16px; }
-.empty-state .btn { padding: 14px 24px; background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border: none; border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+.empty-state { background: #fff; border-radius: 14px; padding: 40px 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.empty-state .ico { font-size: 56px; margin-bottom: 12px; }
+.empty-state .msg { font-size: 14px; color: #475569; line-height: 1.7; margin-bottom: 16px; }
+.empty-state .start-btn { padding: 14px 28px; background: linear-gradient(135deg,#10b981,#059669); color: #fff; border: none; border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
 
-/* ローディング/エラー */
-.loading { text-align: center; padding: 40px; color: #64748b; }
-.err-msg { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 10px 0; display: none; }
+.err-msg { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
 .err-msg.show { display: block; }
-
-/* 対話型アクションプラン (Phase 1) */
-.dlg-cta { background: linear-gradient(135deg,#10b981,#059669); color: #fff; border: none; border-radius: 14px; padding: 16px 18px; width: 100%; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(16,185,129,0.30); margin-bottom: 14px; display: flex; align-items: center; gap: 12px; text-align: left; }
-.dlg-cta .dlg-cta-ico { font-size: 28px; }
-.dlg-cta .dlg-cta-text { flex: 1; line-height: 1.35; }
-.dlg-cta .dlg-cta-sub { font-size: 11px; font-weight: 600; opacity: 0.9; margin-top: 3px; }
-
-.dlg-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: none; align-items: flex-end; justify-content: center; z-index: 200; }
-.dlg-overlay.show { display: flex; }
-.dlg-modal { width: 100%; max-width: 640px; max-height: 90vh; background: #f0f9ff; border-top-left-radius: 18px; border-top-right-radius: 18px; display: flex; flex-direction: column; box-shadow: 0 -4px 20px rgba(0,0,0,0.18); }
-.dlg-head { background: linear-gradient(135deg,#10b981,#059669); color: #fff; padding: 12px 16px; border-top-left-radius: 18px; border-top-right-radius: 18px; display: flex; align-items: center; gap: 10px; }
-.dlg-head .dlg-title { flex: 1; font-weight: 800; font-size: 14px; }
-.dlg-head .dlg-close { background: rgba(255,255,255,0.22); border: none; color: #fff; padding: 6px 12px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
-.dlg-body { flex: 1; overflow-y: auto; padding: 14px; -webkit-overflow-scrolling: touch; }
-.dlg-msg { margin-bottom: 12px; display: flex; gap: 8px; align-items: flex-start; }
-.dlg-msg.ai .dlg-bubble { background: #fff; color: #1f2937; border-bottom-left-radius: 4px; border: 1px solid #d1fae5; }
-.dlg-msg.user { flex-direction: row-reverse; }
-.dlg-msg.user .dlg-bubble { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; border-bottom-right-radius: 4px; }
-.dlg-bubble { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.dlg-msg .dlg-avatar { width: 36px; height: 36px; border-radius: 50%; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.10); overflow: hidden; }
-.dlg-msg .dlg-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-.dlg-msg.user .dlg-avatar { background: #3b82f6; color: #fff; font-weight: 700; }
-.dlg-choices { padding: 10px 14px 6px; display: flex; flex-direction: column; gap: 8px; background: #fff; border-top: 1px solid #d1fae5; }
-.dlg-choice-btn { padding: 11px 14px; background: linear-gradient(135deg,#ecfdf5,#d1fae5); color: #065f46; border: 1.5px solid #6ee7b7; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; text-align: left; transition: transform 0.05s; }
-.dlg-choice-btn:hover { background: linear-gradient(135deg,#d1fae5,#a7f3d0); }
-.dlg-choice-btn:active { transform: scale(0.98); }
-.dlg-free-row { display: flex; gap: 6px; margin-top: 4px; }
-.dlg-free-row input { flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13.5px; outline: none; }
-.dlg-free-row button { padding: 10px 14px; background: #0d9488; color: #fff; border: none; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; }
-.dlg-loading { padding: 14px; text-align: center; color: #64748b; font-size: 12px; }
-.dlg-disclaimer { padding: 8px 14px; font-size: 10px; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0; line-height: 1.6; }
-
-/* 確定パネル (finalize_ready=true で表示) */
-.dlg-finalize { padding: 14px; background: linear-gradient(135deg,#fffbeb,#fef3c7); border-top: 2px solid #f59e0b; }
-.dlg-final-action { font-size: 14.5px; font-weight: 800; color: #78350f; margin-bottom: 8px; padding: 10px 12px; background: #fff; border-radius: 8px; border-left: 4px solid #f59e0b; line-height: 1.6; }
-.dlg-final-evidence { font-size: 11px; color: #92400e; margin-bottom: 10px; padding: 6px 10px; background: rgba(255,255,255,0.6); border-radius: 6px; line-height: 1.5; }
-.dlg-when-row, .dlg-conf-row { margin-bottom: 8px; }
-.dlg-when-row label, .dlg-conf-row label { font-size: 11px; font-weight: 700; color: #78350f; display: block; margin-bottom: 4px; }
-.dlg-when-row select, .dlg-conf-row input { width: 100%; padding: 8px 10px; border: 1px solid #fbbf24; border-radius: 8px; font-size: 13px; background: #fff; }
-.dlg-confirm-btn { width: 100%; padding: 12px; background: linear-gradient(135deg,#10b981,#059669); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 8px rgba(16,185,129,0.3); margin-top: 6px; }
+.loading { padding: 40px; text-align: center; color: #64748b; font-size: 13px; }
 
 /* ログイン */
 .login-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
@@ -148,42 +137,42 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 .login-card .btn { width: 100%; padding: 11px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .login-err { color: #ef4444; font-size: 12px; margin-top: 8px; min-height: 16px; }
 </style>
-<script src="/font-zoom.js" defer></script>
 </head>
-<body>
+<body data-app-version="20260520-1">
 
 <header>
   <div style="flex:1;line-height:1.2;">
-    <h1 style="margin:0;font-size:16px;">📋 今日の一歩、明日の自分</h1>
-    <div style="font-size:10px;font-weight:600;opacity:0.85;margin-top:2px;">あなたのアクションプラン</div>
+    <h1>🩺 今日の一歩、明日の自分</h1>
+    <div style="font-size:10px;font-weight:600;opacity:0.85;margin-top:2px;">マイカレンダー</div>
   </div>
   <button class="close" onclick="closePage()">閉じる</button>
 </header>
 
 <main>
-  <div class="err-msg" id="err"></div>
-  <div id="content">
-    <div class="loading">読み込み中…</div>
+
+  <!-- 挨拶 -->
+  <div class="advisor">
+    <img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルスアドバイザー">
+    <div class="advisor-text">
+      <div class="advisor-name">🩺 ヘルスアドバイザー</div>
+      <div class="advisor-msg" id="advisor-msg">読み込み中…</div>
+    </div>
   </div>
+
+  <div class="err-msg" id="err"></div>
+  <div id="content" class="loading">読み込み中…</div>
+
 </main>
 
-<!-- 対話型アクションプラン モーダル (Phase 1) -->
-<div class="dlg-overlay" id="dlg-overlay" onclick="if(event.target===this)closeDialog()">
-  <div class="dlg-modal">
-    <div class="dlg-head">
-      <img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス" style="width:36px;height:36px;border-radius:50%;object-fit:cover;object-position:center top;border:2px solid rgba(255,255,255,0.6);background:#fff;flex-shrink:0;">
-      <div class="dlg-title">AIヘルスアドバイザーと相談</div>
-      <button class="dlg-close" onclick="closeDialog()">閉じる</button>
-    </div>
-    <div class="dlg-body" id="dlg-body"></div>
-    <div id="dlg-bottom"></div>
-    <div class="dlg-disclaimer">※ 健康増進アドバイスです。診断・治療ではありません。医療判断は主治医にご相談ください。</div>
-  </div>
+<!-- 日付詳細モーダル -->
+<div class="day-modal-bg" id="day-modal-bg" onclick="if(event.target===this)closeDayModal()">
+  <div class="day-modal" id="day-modal"></div>
 </div>
 
+<!-- ログイン -->
 <div class="login-overlay" id="login-overlay">
   <div class="login-card">
-    <h2>📋 アクションプラン</h2>
+    <h2>🩺 健康管理室にログイン</h2>
     <input type="text" id="li-id" placeholder="社員ID">
     <input type="password" id="li-pw" placeholder="パスワード">
     <button class="btn" onclick="doLogin()">ログイン</button>
@@ -193,9 +182,10 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 
 <script>
 let token = localStorage.getItem('cohub_token') || '';
-let me = JSON.parse(localStorage.getItem('cohub_user') || 'null');
-let plans = [];
-let currentPlan = null;
+let me = null; try { me = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch {}
+let activePlan = null;
+let logs = [];
+let selectedStatus = null;
 
 async function api(p, opts) {
   opts = opts || {}; opts.headers = opts.headers || {};
@@ -204,8 +194,6 @@ async function api(p, opts) {
   if (r.status === 401) { showLogin(); throw new Error('401'); }
   return r.json();
 }
-
-function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
 
 function showLogin(err) {
   document.getElementById('login-overlay').classList.add('show');
@@ -229,358 +217,247 @@ async function doLogin() {
   } catch (e) { err.textContent = '通信エラー'; }
 }
 
-function closePage() {
-  var m = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent || '');
-  if (history.length > 1) history.back(); else location.href = m ? '/m' : '/';
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+function closePage() { if (history.length > 1) history.back(); else location.replace('/'); }
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-function relTime(iso) {
-  const t = new Date((iso || '').replace(' ', 'T') + 'Z').getTime();
-  if (!t) return '';
-  const diff = (Date.now() - t) / 1000;
-  if (diff < 60) return 'たった今';
-  if (diff < 3600) return Math.floor(diff / 60) + '分前';
-  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
-  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '日前';
-  const d = new Date(t);
-  return (d.getMonth() + 1) + '/' + d.getDate();
+const CAT_ICON = { move: '🏃', meal: '🍱', sleep: '😴', rest: '💤', drink: '🍺', mind: '🧠' };
+
+async function init() {
+  try {
+    const r = await api('/api/myplan/active');
+    if (!r.success) throw new Error(r.msg || '失敗');
+    activePlan = r.plan;
+    logs = r.logs || [];
+    render();
+  } catch (e) {
+    if (String(e.message) !== '401') {
+      document.getElementById('err').textContent = '通信エラー: ' + e.message;
+      document.getElementById('err').classList.add('show');
+      document.getElementById('content').innerHTML = '';
+    }
+  }
 }
 
-function dialogCtaHtml() {
-  return '<button class="dlg-cta" onclick="openDialog()">' +
-    '<span class="dlg-cta-ico">💬</span>' +
-    '<span class="dlg-cta-text">AIと対話して今日の一歩を決める' +
-    '<span class="dlg-cta-sub">あなたの食事ログを見ながら4〜5往復で実行できる行動を一緒に決めます</span>' +
-    '</span></button>';
+function render() {
+  const msg = document.getElementById('advisor-msg');
+  const cont = document.getElementById('content');
+  cont.classList.remove('loading');
+
+  if (!activePlan) {
+    msg.textContent = '進行中のプランがありません。1つ選んで始めてみよう。';
+    cont.innerHTML = `
+      <div class="empty-state">
+        <div class="ico">🌱</div>
+        <div class="msg">まだプランがありません。<br>15個の基本プランから1つ選ぼう。<br>3日間からでOK。</div>
+        <button class="start-btn" onclick="location.href='/consult.html'">プランを選ぶ →</button>
+      </div>`;
+    return;
+  }
+
+  const p = activePlan;
+  const isCompleted = p.status === 'completed';
+  const today = todayStr();
+  const todayLog = logs.find(l => l.log_date === today);
+
+  msg.textContent = isCompleted
+    ? `${p.period_days}日プランを完走したね、おめでとう! 次のプランも選べるよ。`
+    : `${p.title} の ${p.day_index}日目 (残り ${p.remaining}日)。今日もお疲れさま。`;
+
+  const completedBlock = isCompleted ? `
+    <div class="completed-card">
+      <div class="badge">🎊</div>
+      <div class="title">${esc(p.period_days)}日プラン完走!</div>
+      <div class="sub">「${esc(p.title)}」を ${p.positive}日達成。<br>次は1週間〜3ヶ月の長期プランも選べます。</div>
+    </div>` : '';
+
+  const progressPct = Math.round(p.day_index / p.period_days * 100);
+  const headBlock = `
+    <div class="cur-plan">
+      <div class="cur-head">
+        <div class="cur-icon">${esc(CAT_ICON[p.category] || '🌱')}</div>
+        <div style="flex:1;">
+          <div class="cur-title">${esc(p.title)}</div>
+          <div class="cur-cat">${esc(p.category_label || '')} ・ ${esc(p.period_days)}日プラン</div>
+        </div>
+      </div>
+      <div class="cur-action">→ ${esc(p.action)}</div>
+      <div class="cur-stats">
+        <div class="cur-stat"><div class="v">${p.day_index}/${p.period_days}</div><div class="l">日目</div></div>
+        <div class="cur-stat"><div class="v">${p.positive}</div><div class="l">達成 ○△</div></div>
+        <div class="cur-stat"><div class="v">${p.streak}</div><div class="l">連続</div></div>
+      </div>
+      <div class="cur-progress">
+        <div class="bar"><div class="fill" style="width:${progressPct}%"></div></div>
+        <div class="lbl">${progressPct}%</div>
+      </div>
+    </div>`;
+
+  // 今日の記録 (完走済みでも表示しない/最終日後の入力は除外)
+  const todayBlock = isCompleted ? '' : `
+    <div class="today-card">
+      <div class="today-head">📝 今日の記録 <span class="today-date">${today}</span></div>
+      <div class="status-btns">
+        <button class="status-btn ${todayLog && todayLog.status==='done' ? 'sel' : ''}" data-key="done">
+          <div class="ic">○</div><div class="lb">できた</div>
+        </button>
+        <button class="status-btn ${todayLog && todayLog.status==='partial' ? 'sel' : ''}" data-key="partial">
+          <div class="ic">△</div><div class="lb">半分</div>
+        </button>
+        <button class="status-btn ${todayLog && todayLog.status==='miss' ? 'sel' : ''}" data-key="miss">
+          <div class="ic">✕</div><div class="lb">できず</div>
+        </button>
+        <button class="status-btn ${todayLog && todayLog.status==='rest' ? 'sel' : ''}" data-key="rest">
+          <div class="ic">休</div><div class="lb">あえて休</div>
+        </button>
+      </div>
+      <div class="cmt-row">
+        <input type="text" id="cmt" maxlength="200" placeholder="一言コメント (任意)" value="${esc(todayLog && todayLog.comment || '')}">
+        <button class="btn-record" id="btn-record" disabled>記録</button>
+      </div>
+      <div class="ai-reply ${todayLog && todayLog.ai_axis_change ? 'axis-change' : ''} ${todayLog && todayLog.ai_reply ? 'show' : ''}" id="ai-reply">
+        <div class="ai-reply-head">🩺 ヘルスアドバイザーから</div>
+        ${todayLog && todayLog.ai_reply ? esc(todayLog.ai_reply).replace(/\n/g, '<br>') : ''}
+        ${todayLog && todayLog.ai_axis_change ? `<div class="axis-action"><button onclick="abandonPlan()">プランを変える</button></div>` : ''}
+      </div>
+    </div>`;
+
+  // カレンダー
+  const calBlock = `
+    <div class="cal-card">
+      <div class="cal-head">
+        <div class="ti">📅 ${p.period_days}日カレンダー</div>
+        <div style="font-size:11px;color:#64748b;">開始: ${(p.started_at || '').slice(5, 10)}</div>
+      </div>
+      ${buildCalendar(p, logs)}
+      <div class="cal-legend">
+        <span>○ できた</span><span>△ 半分</span><span>✕ できず</span><span>休 休む</span><span>💬 コメントあり</span>
+      </div>
+    </div>`;
+
+  // アクション
+  const actionBlock = `
+    <div class="actions">
+      <button class="act-btn primary" onclick="location.href='/consult.html'">📋 ${isCompleted ? '次のプランを選ぶ' : '別のプランに変える'}</button>
+      ${isCompleted ? '' : `<button class="act-btn danger" onclick="abandonPlan()">プランを中止</button>`}
+    </div>`;
+
+  cont.innerHTML = completedBlock + headBlock + todayBlock + calBlock + actionBlock;
+
+  if (!isCompleted) bindTodayButtons(todayLog);
 }
 
-function renderEmpty() {
-  let feedHtml = '';
-  if (window._feed) {
-    const fd = window._feed;
-    feedHtml = '<div class="feed-card" style="margin:0 0 18px;"><div class="feed-hdr">🌊 みんなの一歩 (今週)</div>';
-    if (fd.by_category && fd.by_category.length) {
-      const top3 = fd.by_category.slice(0, 3);
-      feedHtml += '<div class="feed-line">' +
-        top3.map(c => `${escapeHtml(c.label)} <b>${c.count}名</b>`).join(' / ') + ' が始めたよ</div>';
-    }
-    if (fd.pioneers && fd.pioneers.length) {
-      feedHtml += '<div class="feed-pioneers">';
-      for (const p of fd.pioneers.slice(0, 3)) {
-        feedHtml += `<div class="feed-pioneer"><span class="ico">✨</span>` +
-          `<span>先駆者 <b>${escapeHtml(p.name)}</b> が ${escapeHtml(p.category_label)} を始めたよ</span></div>`;
-      }
-      feedHtml += '</div>';
-    }
-    feedHtml += '</div>';
-  }
-  document.getElementById('content').innerHTML =
-    feedHtml +
-    dialogCtaHtml() +
-    '<div class="empty-state">' +
-    '<div class="ico">📋</div>' +
-    '<div class="msg">まだあなたのプランはありません。<br>上の <b>💬 AIと対話</b> ボタンから始めてみましょう。</div>' +
-    '</div>';
-}
-
-function renderPlan(plan) {
-  if (!plan) { renderEmpty(); return; }
-  const moveBadge = plan.movement_priority ? '<span class="badge move">🏃 運動優先</span>' : '';
-  const selBadges = (plan.selections || []).map(s => `<span class="badge sel">${escapeHtml(s.label)}</span>`).join('');
-  const shareBadge = plan.share_publicly ? '<span class="badge pioneer">✨ 先駆者として公開中</span>' : '';
-  const isDone = !!plan.today_done_at;
-  const kpiHtml = (plan.plan_kpi && plan.plan_kpi.length) ?
-    '<div class="kpi-table">' +
-    '<div class="h">指標</div><div class="h">現状</div><div class="h">1ヶ月後</div>' +
-    plan.plan_kpi.map(k =>
-      `<div class="c">${escapeHtml(k.label || '')}</div>` +
-      `<div class="c">${escapeHtml(k.current || '-')}</div>` +
-      `<div class="c tar">${escapeHtml(k.target || '-')}</div>`
-    ).join('') +
-    '</div>' : '';
-
-  let html = '';
-  html += dialogCtaHtml();
-  html += '<div class="advisor">' +
-    '<img class="advisor-avatar" src="/assets/concierge_health_avatar.png?v=8" alt="ヘルスアドバイザー">' +
-    '<div class="advisor-text">' +
-    '<div class="advisor-name">🩺 ヘルスアドバイザーから</div>' +
-    '<div class="advisor-msg">あなたの相談内容と食事ログ・血圧記録から、無理なく続けられそうなプランを作ったよ。</div>' +
-    `<div class="updated">更新: ${escapeHtml((plan.created_at || '').replace('T', ' ').slice(0, 16))}</div>` +
-    '</div></div>';
-
-  if (selBadges || moveBadge || shareBadge) {
-    html += `<div class="badge-row">${moveBadge}${shareBadge}${selBadges}</div>`;
-  }
-
-  // 共有トグル (後付けopt-in/opt-out)
-  html += `<div class="share-card">` +
-    `<label class="share-toggle">` +
-    `<input type="checkbox" id="share-cb" ${plan.share_publicly ? 'checked' : ''} onchange="toggleShare(${plan.id})">` +
-    `<div class="share-text">` +
-    `<div class="share-title">${plan.share_publicly ? '✨ 仲間に共有中' : '🤫 自分だけで進めている'}</div>` +
-    `<div class="share-sub">${plan.share_publicly ? 'ニックネームで全員フィードに表示中。タップで取り下げ可' : 'タップでニックネーム公開し、仲間の背中を押す側になる'}</div>` +
-    `</div></label></div>`;
-
-  // 仲間フィード (匿名集計+先駆者)
-  if (window._feed) {
-    const fd = window._feed;
-    let feedHtml = '<div class="feed-card"><div class="feed-hdr">🌊 みんなの一歩 (今週)</div>';
-    if (fd.by_category && fd.by_category.length) {
-      const top3 = fd.by_category.slice(0, 3);
-      feedHtml += '<div class="feed-line">' +
-        top3.map(c => `${escapeHtml(c.label)} <b>${c.count}名</b>`).join(' / ') +
-        ` が始めたよ` + (fd.today_done ? ` ・ 今日は ${fd.today_done}名 が完了!` : '') + '</div>';
-    }
-    if (fd.pioneers && fd.pioneers.length) {
-      feedHtml += '<div class="feed-pioneers">';
-      for (const p of fd.pioneers.slice(0, 5)) {
-        feedHtml += `<div class="feed-pioneer"><span class="ico">✨</span>` +
-          `<span>先駆者 <b>${escapeHtml(p.name)}</b>${p.pioneer_count > 1 ? ` (${p.pioneer_count}回目)` : ''} が ${escapeHtml(p.category_label)} を始めたよ</span></div>`;
-      }
-      feedHtml += '</div>';
-    }
-    feedHtml += '</div>';
-    html += feedHtml;
-  }
-
-  html += '<div class="plan-card">';
-  if (plan.plan_now)   html += `<div class="plan-section now"><div class="plan-hdr">📍 今のあなた</div><div class="plan-body">${escapeHtml(plan.plan_now)}</div></div>`;
-  if (plan.plan_today) {
-    html += `<div class="plan-section today"><div class="plan-hdr">✅ 今日からできる1つ</div><div class="plan-body">${escapeHtml(plan.plan_today)}</div>` +
-      `<button class="done-btn ${isDone ? 'done' : ''}" onclick="toggleDone(${plan.id})">${isDone ? '✓ 完了済み (取消)' : '今日のアクション完了'}</button></div>`;
-  }
-  if (plan.plan_week)  html += `<div class="plan-section week"><div class="plan-hdr">🎯 1週間チャレンジ</div><div class="plan-body">${escapeHtml(plan.plan_week)}</div></div>`;
-  if (plan.plan_month) html += `<div class="plan-section month"><div class="plan-hdr">📅 1ヶ月の目標</div><div class="plan-body">${escapeHtml(plan.plan_month)}</div></div>`;
-  if (kpiHtml)         html += `<div class="plan-section kpi"><div class="plan-hdr">📊 数値で見える化</div>${kpiHtml}</div>`;
-  html += '</div>';
-
-  html += '<div class="actions">' +
-    '<button class="btn btn-primary" onclick="goConsult()">🔄 もう一度相談する</button>' +
-    '<button class="btn btn-secondary" onclick="goRecords()">📋 健康記録 (血圧・健診)</button>' +
-    '<button class="btn btn-secondary" onclick="goPlaza()">🌳 みんなの投稿</button>' +
-    '</div>';
-
-  // 履歴
-  if (plans.length > 1) {
-    html += '<div class="history"><h3>📜 過去のプラン</h3>';
-    for (const p of plans.slice(1, 6)) {
-      const sel = (p.selections && p.selections[0] && p.selections[0].label) || '相談';
-      html += `<div class="hist-item" onclick="showPast(${p.id})">` +
-        `<div class="hist-date">${relTime(p.created_at)} (${escapeHtml((p.created_at||'').slice(0,10))})</div>` +
-        `<div class="hist-summary">${escapeHtml(sel)} → ${escapeHtml((p.plan_today||'').slice(0,40))}…</div>` +
-        '</div>';
+function buildCalendar(plan, logs) {
+  const start = new Date((plan.started_at || todayStr()).slice(0, 10) + 'T00:00:00');
+  const period = plan.period_days;
+  const today = todayStr();
+  const logMap = {}; for (const l of logs) logMap[l.log_date] = l;
+  let html = '<div class="cal-grid">';
+  for (let i = 0; i < period; i += 7) {
+    html += '<div class="cal-row">';
+    for (let j = 0; j < 7; j++) {
+      const idx = i + j;
+      if (idx >= period) { html += '<div></div>'; continue; }
+      const d = new Date(start.getTime() + idx * 86400000);
+      const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const log = logMap[dateStr];
+      const isToday = dateStr === today;
+      const isFuture = dateStr > today;
+      const stClass = log ? 's-' + log.status : '';
+      const stMark = log ? ({done:'○',partial:'△',miss:'✕',rest:'休'})[log.status] : (isFuture ? '·' : '');
+      const cmtClass = (log && log.comment) ? 'has-comment' : '';
+      const cellClass = ['cal-cell', stClass, isToday?'today':'', isFuture?'future':'', cmtClass].filter(x=>x).join(' ');
+      html += `<div class="${cellClass}" data-date="${dateStr}">
+        <div class="dn">${idx + 1}日</div>
+        <div class="st">${stMark}</div>
+      </div>`;
     }
     html += '</div>';
   }
-
-  document.getElementById('content').innerHTML = html;
+  html += '</div>';
+  setTimeout(() => {
+    document.querySelectorAll('.cal-cell[data-date]').forEach(c => {
+      c.addEventListener('click', () => openDayDetail(c.getAttribute('data-date')));
+    });
+  }, 50);
+  return html;
 }
 
-function showPast(id) {
-  const p = plans.find(x => x.id === id);
-  if (p) { currentPlan = p; renderPlan(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-}
-
-async function toggleDone(id) {
-  try {
-    const d = await api('/api/myplan/done/' + id, { method: 'POST' });
-    if (d.success) {
-      const p = plans.find(x => x.id === id);
-      if (p) p.today_done_at = d.today_done_at;
-      if (currentPlan && currentPlan.id === id) currentPlan.today_done_at = d.today_done_at;
-      renderPlan(currentPlan);
-    }
-  } catch (e) {}
-}
-
-async function toggleShare(id) {
-  try {
-    const d = await api('/api/myplan/share/' + id, { method: 'POST' });
-    if (d.success) {
-      const p = plans.find(x => x.id === id);
-      if (p) p.share_publicly = d.share_publicly;
-      if (currentPlan && currentPlan.id === id) currentPlan.share_publicly = d.share_publicly;
-      renderPlan(currentPlan);
-    }
-  } catch (e) {}
-}
-
-function goConsult() { location.href = '/consult.html'; }
-function goPlaza()   { location.href = '/plaza.html'; }
-function goRecords() { location.href = '/wellness.html'; }
-
-async function init() {
-  const url = new URL(location.href);
-  const targetId = parseInt(url.searchParams.get('id') || '0');
-  try {
-    // フィードと履歴を並列取得
-    const [d, fd] = await Promise.all([
-      api('/api/myplan/list'),
-      api('/api/myplan/feed').catch(() => null),
-    ]);
-    if (fd && fd.success) window._feed = fd;
-    if (!d.success) {
-      document.getElementById('content').innerHTML = '<div class="loading">読み込み失敗</div>';
-      return;
-    }
-    plans = d.plans || [];
-    if (!plans.length) { renderEmpty(); return; }
-    currentPlan = (targetId && plans.find(p => p.id === targetId)) || plans[0];
-    renderPlan(currentPlan);
-  } catch (e) {
-    document.getElementById('content').innerHTML = '<div class="loading">通信エラー</div>';
-  }
-}
-
-// ============================================================
-// 対話型アクションプラン (Phase 1) — フロント
-// ============================================================
-let _dlgId = null;
-let _dlgHistory = [];
-let _dlgPending = false;
-
-function openDialog() {
-  document.getElementById('dlg-overlay').classList.add('show');
-  _dlgId = null; _dlgHistory = [];
-  document.getElementById('dlg-body').innerHTML = '';
-  document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading"><img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス" style="width:20px;height:20px;border-radius:50%;object-fit:cover;object-position:center top;vertical-align:middle;margin-right:6px;background:#fff;"> ヘルスアドバイザーが現状を確認中…</div>';
-  // 1往復目: AIに最初の質問を投げてもらう
-  postDialog({ seed_category: 'meal' });
-}
-
-function closeDialog() {
-  document.getElementById('dlg-overlay').classList.remove('show');
-}
-
-function appendMsgToBody(msg) {
-  const body = document.getElementById('dlg-body');
-  const isAi = msg.role === 'ai';
-  const div = document.createElement('div');
-  div.className = 'dlg-msg ' + (isAi ? 'ai' : 'user');
-  const avatarHtml = isAi
-    ? '<img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス">'
-    : '🙋';
-  div.innerHTML =
-    `<div class="dlg-avatar">${avatarHtml}</div>` +
-    `<div class="dlg-bubble">${escapeHtml(msg.text || '')}</div>`;
-  body.appendChild(div);
-  body.scrollTop = body.scrollHeight;
-}
-
-function renderChoicesAndInput(step) {
-  const bottom = document.getElementById('dlg-bottom');
-  if (step.finalize_ready && step.finalize) {
-    // 確定パネル
-    const f = step.finalize;
-    const whenOpts = (Array.isArray(f.when_options) && f.when_options.length) ? f.when_options : ['今日から', '明日', '週末'];
-    bottom.innerHTML =
-      '<div class="dlg-finalize">' +
-        `<div class="dlg-final-action">${escapeHtml(f.action || '')}</div>` +
-        (f.evidence ? `<div class="dlg-final-evidence">📚 根拠: ${escapeHtml(f.evidence)}</div>` : '') +
-        '<div class="dlg-when-row"><label>📅 いつから?</label>' +
-          '<select id="dlg-when">' + whenOpts.map(w => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join('') + '</select>' +
-        '</div>' +
-        '<div class="dlg-conf-row"><label>💪 自信度 (1〜10)</label>' +
-          '<input type="number" id="dlg-conf" min="1" max="10" value="7">' +
-        '</div>' +
-        `<button class="dlg-confirm-btn" onclick="finalizeDialog(${JSON.stringify(f).replace(/"/g, '&quot;')})">✅ このアクションで確定</button>` +
-      '</div>';
-    return;
-  }
-  const choices = (step.choices || []).map((c, i) =>
-    `<button class="dlg-choice-btn" data-idx="${i}">${escapeHtml(c.label)}</button>`
-  ).join('');
-  bottom.innerHTML =
-    '<div class="dlg-choices">' +
-      choices +
-      (step.allow_free !== false ?
-        '<div class="dlg-free-row">' +
-          '<input type="text" id="dlg-free" placeholder="✏️ 自由に入力 (任意)" maxlength="500">' +
-          '<button onclick="submitFree()">送信</button>' +
-        '</div>' : '') +
-    '</div>';
-  // ボタンクリックハンドラ
-  bottom.querySelectorAll('.dlg-choice-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.idx);
-      const c = (step.choices || [])[idx];
-      if (!c) return;
-      submitReply(c.label, c.value);
+function bindTodayButtons(todayLog) {
+  selectedStatus = todayLog ? todayLog.status : null;
+  document.querySelectorAll('.status-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.status-btn').forEach(x => x.classList.remove('sel'));
+      b.classList.add('sel');
+      selectedStatus = b.getAttribute('data-key');
+      document.getElementById('btn-record').disabled = false;
     });
   });
-  const freeInput = document.getElementById('dlg-free');
-  if (freeInput) {
-    freeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitFree(); });
-  }
+  const btn = document.getElementById('btn-record');
+  if (todayLog) btn.disabled = false;
+  btn.addEventListener('click', recordToday);
+  const cmt = document.getElementById('cmt');
+  cmt.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !btn.disabled) recordToday();
+  });
 }
 
-function submitFree() {
-  const inp = document.getElementById('dlg-free');
-  const v = inp ? inp.value.trim() : '';
-  if (!v) return;
-  submitReply(v, null);
-}
-
-async function submitReply(text, value) {
-  if (_dlgPending) return;
-  appendMsgToBody({ role: 'user', text });
-  document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading"><img src="/assets/concierge_health_avatar.png?v=8" alt="ヘルス" style="width:20px;height:20px;border-radius:50%;object-fit:cover;object-position:center top;vertical-align:middle;margin-right:6px;background:#fff;"> ヘルスアドバイザーが考え中…</div>';
-  await postDialog({ dialog_id: _dlgId, user_reply: text, user_value: value });
-}
-
-async function postDialog(payload) {
-  _dlgPending = true;
+async function recordToday() {
+  if (!selectedStatus) return;
+  const cmt = document.getElementById('cmt').value.trim();
+  const btn = document.getElementById('btn-record');
+  btn.disabled = true; btn.textContent = '送信中…';
   try {
-    const r = await fetch('/api/myplan/dialog', {
+    const r = await api('/api/myplan/log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ log_date: todayStr(), status: selectedStatus, comment: cmt }),
     });
-    const d = await r.json();
-    if (!d.success) {
-      document.getElementById('dlg-bottom').innerHTML = `<div class="dlg-loading" style="color:#dc2626;">⚠️ ${escapeHtml(d.msg || 'エラー')}</div>`;
-      return;
-    }
-    _dlgId = d.dialog_id;
-    const step = d.step;
-    appendMsgToBody({ role: 'ai', text: step.ai_message || '' });
-    renderChoicesAndInput(step);
+    if (!r.success) { alert(r.msg || '記録失敗'); btn.disabled = false; btn.textContent = '記録'; return; }
+    // AI返答を即表示
+    const replyEl = document.getElementById('ai-reply');
+    replyEl.classList.add('show');
+    if (r.axis_change) replyEl.classList.add('axis-change');
+    else replyEl.classList.remove('axis-change');
+    replyEl.innerHTML = `<div class="ai-reply-head">🩺 ヘルスアドバイザーから</div>${esc(r.ai_reply || '').replace(/\n/g,'<br>')}${r.axis_change ? '<div class="axis-action"><button onclick="abandonPlan()">プランを変える</button></div>' : ''}`;
+    btn.textContent = '記録';
+    btn.disabled = false;
+    // ログ更新で再描画
+    setTimeout(init, 400);
   } catch (e) {
-    document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading" style="color:#dc2626;">⚠️ 通信エラー</div>';
-  } finally {
-    _dlgPending = false;
+    if (String(e.message) !== '401') alert('通信エラー');
+    btn.disabled = false; btn.textContent = '記録';
   }
 }
 
-async function finalizeDialog(finalize) {
-  if (!_dlgId) return;
-  const whenSel = document.getElementById('dlg-when');
-  const confInp = document.getElementById('dlg-conf');
-  const when = whenSel ? whenSel.value : '今日から';
-  const confidence = confInp ? parseInt(confInp.value) || 7 : 7;
-  document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading">💾 保存中…</div>';
+function openDayDetail(dateStr) {
+  const log = logs.find(l => l.log_date === dateStr);
+  if (!log) return;
+  const map = { done: '○ できた', partial: '△ 半分', miss: '✕ できず', rest: '休 あえて休む' };
+  let html = `<h3>${dateStr} の記録</h3>`;
+  html += `<div class="item"><b>${esc(map[log.status] || log.status)}</b></div>`;
+  if (log.comment) html += `<div class="item"><div class="it-cmt">💬 ${esc(log.comment)}</div></div>`;
+  if (log.ai_reply) html += `<div class="item"><div class="it-ai">🩺 ${esc(log.ai_reply).replace(/\n/g,'<br>')}</div></div>`;
+  html += `<div style="text-align:center;margin-top:14px;"><button class="act-btn secondary" onclick="closeDayModal()">閉じる</button></div>`;
+  document.getElementById('day-modal').innerHTML = html;
+  document.getElementById('day-modal-bg').classList.add('show');
+}
+function closeDayModal() { document.getElementById('day-modal-bg').classList.remove('show'); }
+
+async function abandonPlan() {
+  if (!confirm('現在のプランを中止して、新しいプランを選びますか?')) return;
   try {
-    const r = await fetch('/api/myplan/dialog/' + _dlgId + '/finalize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ action: finalize.action, pattern: finalize.pattern, evidence: finalize.evidence, when, confidence }),
-    });
-    const d = await r.json();
-    if (!d.success) {
-      document.getElementById('dlg-bottom').innerHTML = `<div class="dlg-loading" style="color:#dc2626;">⚠️ ${escapeHtml(d.msg || 'エラー')}</div>`;
-      return;
-    }
-    document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading" style="color:#10b981;font-weight:700;">✅ 確定しました!</div>';
-    setTimeout(() => { closeDialog(); init(); }, 1500);
-  } catch (e) {
-    document.getElementById('dlg-bottom').innerHTML = '<div class="dlg-loading" style="color:#dc2626;">⚠️ 通信エラー</div>';
-  }
+    await api('/api/myplan/abandon', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    location.replace('/consult.html');
+  } catch (e) { alert('通信エラー'); }
 }
 
-if (!token) { showLogin(); }
-else { init(); }
+// 起動
+if (!token) showLogin();
+else init();
 </script>
-
 </body>
 </html>

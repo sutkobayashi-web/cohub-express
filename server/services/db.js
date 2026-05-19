@@ -233,6 +233,9 @@ function getDb() {
   // 利用規約・プライバシーポリシー同意 (バージョン文字列で管理 / 改定時に再同意要求)
   ensureColumn(_db, 'users', 'consent_version', 'consent_version TEXT');
   ensureColumn(_db, 'users', 'consent_accepted_at', 'consent_accepted_at TEXT');
+  // 帝京大学公衆衛生学研究室との共同研究: 匿名集計データの利用同意 (任意・opt-in)
+  ensureColumn(_db, 'users', 'research_consent', 'research_consent INTEGER DEFAULT 0');
+  ensureColumn(_db, 'users', 'research_consent_at', 'research_consent_at TEXT');
   // 同意履歴 (監査・法的証跡用) — IP/UA を記録、削除しない
   _db.exec(`CREATE TABLE IF NOT EXISTS consent_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -246,6 +249,13 @@ function getDb() {
     accepted_at TEXT DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_cl_user ON consent_logs(user_id, accepted_at DESC);`);
+  // 既存テーブルに研究同意カラム追加 (idempotent)
+  try {
+    const clCols = _db.prepare('PRAGMA table_info(consent_logs)').all().map(c => c.name);
+    if (!clCols.includes('accepted_research')) {
+      _db.prepare('ALTER TABLE consent_logs ADD COLUMN accepted_research INTEGER DEFAULT 0').run();
+    }
+  } catch (e) { console.warn('[consent_logs accepted_research migration]', e.message); }
   // ゲスト (大学・NPO等の外部レビュアー) フラグ — 施策ボードレビュー権限
   ensureColumn(_db, 'users', 'is_guest_reviewer', 'is_guest_reviewer INTEGER DEFAULT 0');
   ensureColumn(_db, 'users', 'guest_org', 'guest_org TEXT');
@@ -794,13 +804,51 @@ function getDb() {
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用
   _db.prepare("UPDATE users SET is_field_promoter = 1 WHERE login_id IN ('y_yoshizawa','a_yamada','e_sugai','taketake')").run();
-  // [migration] chat_groups に sort_order カラム追加 (idempotent)
+  // [migration] chat_groups に sort_order + サークル列 追加 (idempotent)
   try {
     const cgCols = _db.prepare('PRAGMA table_info(chat_groups)').all().map(c => c.name);
     if (!cgCols.includes('sort_order')) {
       _db.prepare('ALTER TABLE chat_groups ADD COLUMN sort_order INTEGER DEFAULT 100').run();
     }
-  } catch (e) { console.warn('[chat_groups sort_order migration]', e.message); }
+    if (!cgCols.includes('is_circle')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN is_circle INTEGER DEFAULT 0').run();
+    if (!cgCols.includes('description')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN description TEXT').run();
+    if (!cgCols.includes('lead_uid')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN lead_uid TEXT').run();
+    if (!cgCols.includes('recruiting')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN recruiting INTEGER DEFAULT 1').run();
+    if (!cgCols.includes('join_mode')) _db.prepare("ALTER TABLE chat_groups ADD COLUMN join_mode TEXT DEFAULT 'approve'").run();
+    if (!cgCols.includes('cover_image')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN cover_image TEXT').run();
+    if (!cgCols.includes('color_theme')) _db.prepare("ALTER TABLE chat_groups ADD COLUMN color_theme TEXT DEFAULT 'teal'").run();
+  } catch (e) { console.warn('[chat_groups migration]', e.message); }
+  // サークル参加申請テーブル (idempotent)
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS circle_join_requests (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      message TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      decided_at TEXT,
+      decided_by TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_cjr_group ON circle_join_requests(group_id);
+    CREATE INDEX IF NOT EXISTS idx_cjr_user ON circle_join_requests(user_id);
+    CREATE INDEX IF NOT EXISTS idx_cjr_status ON circle_join_requests(status);
+  `);
+  // サークル予定 (簡易カレンダー)
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS circle_events (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      event_date TEXT NOT NULL,
+      event_time TEXT,
+      location TEXT,
+      memo TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_ce_group_date ON circle_events(group_id, event_date);
+  `);
   // 現場の声 専用グループチャット作成 (idempotent)
   const PROMOTER_GROUP_ID = 'g_field_voice';
   const grpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(PROMOTER_GROUP_ID);
@@ -1133,6 +1181,40 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_mpdialog_user ON myplan_dialogs(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_mpdialog_active ON myplan_dialogs(user_id, status);`);
+
+  // ===== 個人プラン v2 (2026-05-20) =====
+  // 15基本プランから1つを選び、期間 (3/7/14/30/90日) を決めて毎日 ○/△/✕/休 + 1行コメントで実行管理。
+  // AI が日次返答+連続✕で軸変更提案。データなしで新規社員も初日から開始可能。
+  _db.exec(`CREATE TABLE IF NOT EXISTS myplan_active_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    basic_plan_id TEXT NOT NULL,            -- 'p01' .. 'p15'
+    plan_title TEXT NOT NULL,                -- スナップショット (将来の基本プラン更新に強い)
+    plan_action TEXT NOT NULL,
+    plan_category TEXT NOT NULL,             -- 'move' / 'meal' / 'sleep' / 'rest' / 'drink' / 'mind'
+    period_days INTEGER NOT NULL,            -- 3 / 7 / 14 / 30 / 90
+    started_at TEXT DEFAULT (datetime('now','localtime')),
+    completed_at TEXT,                       -- 全期間達成 (○/△ 合計 >= period_days * 0.7 とか)
+    abandoned_at TEXT,                       -- 軸変更で中止
+    status TEXT DEFAULT 'active'             -- 'active' / 'completed' / 'abandoned'
+  );
+  CREATE INDEX IF NOT EXISTS idx_mpap_user_status ON myplan_active_plans(user_id, status);
+  CREATE INDEX IF NOT EXISTS idx_mpap_active ON myplan_active_plans(status, started_at DESC);`);
+
+  _db.exec(`CREATE TABLE IF NOT EXISTS myplan_calendar_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    active_plan_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    log_date TEXT NOT NULL,                  -- 'YYYY-MM-DD' (localtime)
+    status TEXT NOT NULL,                    -- 'done' / 'partial' / 'miss' / 'rest'
+    comment TEXT,                            -- ユーザー1行コメント (任意)
+    ai_reply TEXT,                           -- AI返答 (3行程度)
+    ai_axis_change INTEGER DEFAULT 0,        -- 軸変更提案フラグ (連続✕3+で1)
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(active_plan_id, log_date)
+  );
+  CREATE INDEX IF NOT EXISTS idx_mpcl_plan_date ON myplan_calendar_logs(active_plan_id, log_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_mpcl_user ON myplan_calendar_logs(user_id, log_date DESC);`);
 
   // ===== Connect 230 (歩く×Standard運輸グループ) =====
   // 東京日本橋 ⇔ 磐田スズエ電機 双方向ウォーキングイベント (約230km)

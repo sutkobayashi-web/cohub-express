@@ -4,7 +4,8 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
-const { generateActionPlan } = require('../services/ai');
+const { generateActionPlan, generateDialogStep, generateDailyReply } = require('../services/ai');
+const { BASIC_PLANS, CATEGORY_META, PERIOD_OPTIONS, findById: findBasicPlan } = require('../data/basic_plans');
 
 router.use(express.json());
 
@@ -252,10 +253,11 @@ router.post('/share/:id', authUser, (req, res) => {
 router.get('/feed', authUser, (req, res) => {
   const db = getDb();
   // 集計 (過去7日、本人以外も含む全社)
-  const stats = db.prepare(`SELECT category_top AS cat, COUNT(*) AS n FROM myplan_consultations
+  // ホワイトボード掲示は "人数" (DISTINCT user_id) で集計。同一人物の複数回相談を1名としてカウント。
+  const stats = db.prepare(`SELECT category_top AS cat, COUNT(DISTINCT user_id) AS n FROM myplan_consultations
     WHERE created_at >= datetime('now','-7 days') AND category_top IS NOT NULL
     GROUP BY category_top ORDER BY n DESC`).all();
-  const todayDone = db.prepare(`SELECT COUNT(*) AS n FROM myplan_consultations
+  const todayDone = db.prepare(`SELECT COUNT(DISTINCT user_id) AS n FROM myplan_consultations
     WHERE today_done_at IS NOT NULL AND date(today_done_at) = date('now','localtime')`).get().n || 0;
   const totalThisWeek = stats.reduce((s, r) => s + r.n, 0);
   // 先駆者 (公開設定済み、本人以外、直近10件)
@@ -372,6 +374,423 @@ function hydrate(row) {
     today_done_at: row.today_done_at || null,
     created_at: row.created_at,
   };
+}
+
+// ===== 対話型アクションプラン (Phase 1 — 2026-05-05) =====
+// AIと数往復のやり取りで実行可能なアクションを共同決定。
+// POST /api/myplan/dialog: { dialog_id?, seed_category?, user_reply? }
+//   → AI次の応答 (質問+選択肢 or 最終提案)
+// GET  /api/myplan/dialog/:id: 履歴取得
+// POST /api/myplan/dialog/:id/finalize: 確定 → myplan_consultations 昇格
+
+router.post('/dialog', authUser, async (req, res) => {
+  const db = getDb();
+  const body = req.body || {};
+  const seed = String(body.seed_category || '').slice(0, 20) || null;
+  const reply = body.user_reply ? String(body.user_reply).slice(0, 500) : null;
+  const replyValue = body.user_value ? String(body.user_value).slice(0, 50) : null;
+  let dialog = null;
+  let history = [];
+  if (body.dialog_id) {
+    dialog = db.prepare('SELECT * FROM myplan_dialogs WHERE id=?').get(body.dialog_id);
+    if (!dialog) return res.status(404).json({ success: false, msg: '対話セッションが見つかりません' });
+    if (dialog.user_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ操作可' });
+    if (dialog.status === 'finalized') return res.status(400).json({ success: false, msg: 'この対話は確定済みです' });
+    try { history = JSON.parse(dialog.history_json || '[]'); } catch { history = []; }
+  } else {
+    const ins = db.prepare('INSERT INTO myplan_dialogs (user_id, seed_category, history_json) VALUES (?, ?, ?)').run(req.uid, seed, '[]');
+    dialog = db.prepare('SELECT * FROM myplan_dialogs WHERE id=?').get(ins.lastInsertRowid);
+  }
+  // ユーザー回答を履歴に追加
+  if (reply || replyValue) {
+    history.push({ role: 'user', text: reply || replyValue, value: replyValue || null, ts: new Date().toISOString() });
+  }
+  // コンテキスト収集 (本人の食事/血圧+属性)
+  const userRow = db.prepare('SELECT display_name, birth_date, employee_type FROM users WHERE id=?').get(req.uid) || {};
+  let age = null;
+  if (userRow.birth_date) {
+    const by = parseInt((userRow.birth_date || '').slice(0, 4));
+    if (by) age = new Date().getFullYear() - by;
+  }
+  const context = {
+    recent_meals_7d: collectRecentMeals(req.uid),
+    bp_recent: collectRecentBP(req.uid),
+    user_attrs: { age, employee_type: userRow.employee_type || null },
+    seed_category: dialog.seed_category,
+  };
+  let step;
+  try {
+    step = await generateDialogStep(history, context, {});
+  } catch (e) {
+    console.warn('[myplan/dialog] AI fail:', e.message);
+    return res.status(502).json({ success: false, msg: 'AIとの対話に失敗しました。少し時間を置いて再試行を' });
+  }
+  // AI応答を履歴に追加
+  history.push({ role: 'ai', text: step.ai_message || '', choices: step.choices || [], phase: step.phase, ts: new Date().toISOString() });
+  // DB更新
+  db.prepare('UPDATE myplan_dialogs SET history_json=? WHERE id=?').run(JSON.stringify(history), dialog.id);
+  res.json({
+    success: true,
+    dialog_id: dialog.id,
+    step,
+    history_length: history.length,
+  });
+});
+
+router.get('/dialog/:id', authUser, (req, res) => {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM myplan_dialogs WHERE id=?').get(parseInt(req.params.id));
+  if (!row) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (row.user_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ閲覧可' });
+  let history = []; try { history = JSON.parse(row.history_json || '[]'); } catch {}
+  res.json({ success: true, dialog: {
+    id: row.id, status: row.status, seed_category: row.seed_category,
+    history, final_action: row.final_action, final_pattern: row.final_pattern,
+    final_evidence: row.final_evidence, final_confidence: row.final_confidence,
+    final_when: row.final_when, created_at: row.created_at, finalized_at: row.finalized_at,
+  } });
+});
+
+// 確定: 対話の finalize 内容+ユーザー選択 (when, confidence) を保存し、myplan_consultations へ昇格
+router.post('/dialog/:id/finalize', authUser, (req, res) => {
+  const db = getDb();
+  const id = parseInt(req.params.id);
+  const row = db.prepare('SELECT * FROM myplan_dialogs WHERE id=?').get(id);
+  if (!row) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (row.user_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ操作可' });
+  if (row.status === 'finalized') return res.status(400).json({ success: false, msg: '確定済み' });
+  const body = req.body || {};
+  const action = String(body.action || '').slice(0, 800).trim();
+  const pattern = String(body.pattern || '').slice(0, 20);
+  const evidence = String(body.evidence || '').slice(0, 600);
+  const confidence = parseInt(body.confidence) || null;
+  const whenStr = String(body.when || '').slice(0, 50);
+  if (!action) return res.status(400).json({ success: false, msg: 'アクション本文が必要です' });
+  // myplan_consultations に昇格
+  const consIns = db.prepare(`INSERT INTO myplan_consultations
+    (user_id, selections_json, free_text, movement_priority, category_top, plan_now, plan_today, plan_week, plan_month, plan_kpi)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    req.uid,
+    JSON.stringify([{ layer: 1, key: row.seed_category || 'other', label: '対話確定' }]),
+    null, 0, row.seed_category || 'other',
+    `📍 ${pattern === 'reduce' ? '⬇️減らす' : pattern === 'stop' ? '🚫やめる' : pattern === 'swap' ? '🔄置換' : pattern === 'add' ? '➕加える' : '⏰タイミング'} の方針で確定 (自信度 ${confidence || '?'}/10)`,
+    action,
+    `継続: ${whenStr || '今日から'}・週次で振り返り`,
+    `1ヶ月後にこの行動が習慣化しているか確認`,
+    JSON.stringify([{ label: pattern, value: action }])
+  );
+  db.prepare(`UPDATE myplan_dialogs SET status='finalized', final_action=?, final_pattern=?, final_evidence=?, final_confidence=?, final_when=?, finalized_consultation_id=?, finalized_at=? WHERE id=?`)
+    .run(action, pattern, evidence, confidence, whenStr, consIns.lastInsertRowid, new Date().toISOString(), id);
+  // ヘルスアドバイザーから DM 励まし
+  setTimeout(() => {
+    try {
+      const u = db.prepare("SELECT display_name, nickname FROM users WHERE id=?").get(req.uid);
+      const name = (u && (u.nickname || u.display_name)) || 'あなた';
+      const msg = `🩺 ${name}さん、今日のアクションが決まったね。\n\n「${action.slice(0, 80)}」\n\n${whenStr || '今日'} から少しずつ。途中で迷ったらいつでも私のところへ。`;
+      sendHealthAdvisorDm(req, req.uid, msg);
+    } catch (e) {}
+  }, 300);
+  res.json({ success: true, dialog_id: id, consultation_id: consIns.lastInsertRowid });
+});
+
+// ============================================================
+// 個人プラン v2 (2026-05-20) — 15基本プラン × 期間選択 × カレンダー
+// ============================================================
+
+// 15基本プラン一覧 + ユーザーの初回完走状態 (期間ロック判定)
+router.get('/basic_plans', authUser, (req, res) => {
+  const db = getDb();
+  const completedRow = db.prepare(
+    `SELECT COUNT(*) AS n FROM myplan_active_plans WHERE user_id=? AND status='completed'`
+  ).get(req.uid);
+  const firstCycleDone = (completedRow.n || 0) > 0;
+  res.json({
+    success: true,
+    plans: BASIC_PLANS,
+    categories: CATEGORY_META,
+    periods: PERIOD_OPTIONS,
+    first_cycle_done: firstCycleDone,
+    allowed_period_kinds: firstCycleDone ? ['starter', 'standard', 'long'] : ['starter'],
+  });
+});
+
+// 現在のアクティブプラン + 全カレンダーログ + ストリーク + 残日数
+router.get('/active', authUser, (req, res) => {
+  const db = getDb();
+  const plan = db.prepare(
+    `SELECT * FROM myplan_active_plans WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1`
+  ).get(req.uid);
+  if (!plan) return res.json({ success: true, plan: null });
+  const logs = db.prepare(
+    `SELECT log_date, status, comment, ai_reply, ai_axis_change FROM myplan_calendar_logs
+     WHERE active_plan_id=? ORDER BY log_date ASC`
+  ).all(plan.id);
+  const stats = computeStats(plan, logs);
+  res.json({ success: true, plan: hydrateActivePlan(plan, stats), logs });
+});
+
+// プラン開始 — active が既にあれば 409
+router.post('/start', authUser, (req, res) => {
+  const db = getDb();
+  const basicId = String((req.body && req.body.basic_plan_id) || '');
+  const periodDays = parseInt((req.body && req.body.period_days) || 0);
+  const basic = findBasicPlan(basicId);
+  if (!basic) return res.status(400).json({ success: false, msg: 'プランIDが不正です' });
+  const periodOpt = PERIOD_OPTIONS.find(p => p.days === periodDays);
+  if (!periodOpt) return res.status(400).json({ success: false, msg: '期間が不正です (3/7/14/30/90)' });
+  // 初回完走前は starter(3日) 以外を拒否
+  const completedN = db.prepare(
+    `SELECT COUNT(*) AS n FROM myplan_active_plans WHERE user_id=? AND status='completed'`
+  ).get(req.uid).n;
+  if (!completedN && periodOpt.kind !== 'starter') {
+    return res.status(400).json({ success: false, msg: 'まず3日プランから始めましょう (完走すると長期プランが開放されます)' });
+  }
+  // 既存activeあれば中止 → 新規開始 (軸変更運用)
+  const existing = db.prepare(`SELECT id FROM myplan_active_plans WHERE user_id=? AND status='active'`).get(req.uid);
+  if (existing) {
+    db.prepare(`UPDATE myplan_active_plans SET status='abandoned', abandoned_at=? WHERE id=?`)
+      .run(new Date().toISOString(), existing.id);
+  }
+  const ins = db.prepare(`INSERT INTO myplan_active_plans
+    (user_id, basic_plan_id, plan_title, plan_action, plan_category, period_days)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    req.uid, basic.id, basic.title, basic.action, basic.cat, periodDays
+  );
+  const planRow = db.prepare(`SELECT * FROM myplan_active_plans WHERE id=?`).get(ins.lastInsertRowid);
+  // 健康アドバイザーから開始DM
+  setTimeout(() => {
+    try {
+      const u = db.prepare("SELECT display_name, nickname FROM users WHERE id=?").get(req.uid);
+      const name = (u && (u.nickname || u.display_name)) || 'あなた';
+      const msg = `🩺 ${name}さん、新しいプランがスタートしました!\n\n${basic.icon} ${basic.title} (${periodOpt.label})\n→ ${basic.action}\n\n毎日カレンダーに○△✕休を残してね。私がお返事するよ。`;
+      sendHealthAdvisorDm(req, req.uid, msg);
+    } catch (e) {}
+  }, 300);
+  res.json({ success: true, plan: hydrateActivePlan(planRow, computeStats(planRow, [])) });
+});
+
+// 日次ログ記録 + AI返答生成 (同日2回目はUPDATE)
+router.post('/log', authUser, async (req, res) => {
+  const db = getDb();
+  const body = req.body || {};
+  const rawDate = String(body.log_date || '').slice(0, 10);
+  const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : todayLocal();
+  const status = String(body.status || '');
+  const comment = String(body.comment || '').slice(0, 200).trim() || null;
+  if (!['done', 'partial', 'miss', 'rest'].includes(status)) {
+    return res.status(400).json({ success: false, msg: 'statusは done/partial/miss/rest のいずれか' });
+  }
+  const plan = db.prepare(
+    `SELECT * FROM myplan_active_plans WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1`
+  ).get(req.uid);
+  if (!plan) return res.status(400).json({ success: false, msg: 'アクティブなプランがありません' });
+  // 過去ログ (今日より前)
+  const prevLogs = db.prepare(
+    `SELECT log_date, status, comment FROM myplan_calendar_logs
+     WHERE active_plan_id=? AND log_date < ? ORDER BY log_date ASC`
+  ).all(plan.id, dateStr);
+  // AI返答生成
+  let aiResult = { reply: '', axis_change: false };
+  try {
+    aiResult = await generateDailyReply({
+      plan: { title: plan.plan_title, action: plan.plan_action, category: plan.plan_category, period_days: plan.period_days },
+      recent_logs: prevLogs,
+      today: { log_date: dateStr, status, comment },
+    });
+  } catch (e) {
+    console.warn('[myplan/log] AI fail:', e.message);
+  }
+  // upsert
+  const existing = db.prepare(
+    `SELECT id FROM myplan_calendar_logs WHERE active_plan_id=? AND log_date=?`
+  ).get(plan.id, dateStr);
+  if (existing) {
+    db.prepare(
+      `UPDATE myplan_calendar_logs SET status=?, comment=?, ai_reply=?, ai_axis_change=? WHERE id=?`
+    ).run(status, comment, aiResult.reply, aiResult.axis_change ? 1 : 0, existing.id);
+  } else {
+    db.prepare(
+      `INSERT INTO myplan_calendar_logs (active_plan_id, user_id, log_date, status, comment, ai_reply, ai_axis_change)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(plan.id, req.uid, dateStr, status, comment, aiResult.reply, aiResult.axis_change ? 1 : 0);
+  }
+  // 完走判定: 期間日数到達 + ○/△の合計が period の70%以上
+  const allLogs = db.prepare(
+    `SELECT log_date, status FROM myplan_calendar_logs WHERE active_plan_id=? ORDER BY log_date ASC`
+  ).all(plan.id);
+  const startDay = (plan.started_at || '').slice(0, 10);
+  const daysSinceStart = startDay ? daysBetween(startDay, dateStr) + 1 : allLogs.length;
+  const positiveCount = allLogs.filter(l => l.status === 'done' || l.status === 'partial').length;
+  const completedThresh = Math.ceil(plan.period_days * 0.7);
+  let completedNow = false;
+  if (plan.status === 'active' && daysSinceStart >= plan.period_days && positiveCount >= completedThresh) {
+    db.prepare(`UPDATE myplan_active_plans SET status='completed', completed_at=? WHERE id=?`)
+      .run(new Date().toISOString(), plan.id);
+    completedNow = true;
+    setTimeout(() => {
+      try {
+        const u = db.prepare("SELECT display_name, nickname FROM users WHERE id=?").get(req.uid);
+        const name = (u && (u.nickname || u.display_name)) || 'あなた';
+        const msg = `🎊 ${name}さん、${plan.period_days}日プラン完走おめでとう!\n\n「${plan.plan_title}」を ${positiveCount}日達成。\n\n次は1週間/2週間の長期プランも選べるようになったよ。引き続き、または別のテーマもどうぞ。`;
+        sendHealthAdvisorDm(req, req.uid, msg);
+      } catch (e) {}
+    }, 300);
+  }
+  res.json({
+    success: true,
+    ai_reply: aiResult.reply,
+    axis_change: aiResult.axis_change,
+    completed: completedNow,
+  });
+});
+
+// プラン中止 (軸変更)
+router.post('/abandon', authUser, (req, res) => {
+  const db = getDb();
+  const row = db.prepare(`SELECT id FROM myplan_active_plans WHERE user_id=? AND status='active'`).get(req.uid);
+  if (!row) return res.status(404).json({ success: false, msg: 'アクティブなプランがありません' });
+  db.prepare(`UPDATE myplan_active_plans SET status='abandoned', abandoned_at=? WHERE id=?`)
+    .run(new Date().toISOString(), row.id);
+  res.json({ success: true });
+});
+
+// 個人履歴 (完走/中止含む)
+router.get('/history', authUser, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(
+    `SELECT id, basic_plan_id, plan_title, plan_action, plan_category, period_days, started_at, completed_at, abandoned_at, status
+     FROM myplan_active_plans WHERE user_id=? ORDER BY id DESC LIMIT 20`
+  ).all(req.uid);
+  res.json({ success: true, history: rows });
+});
+
+// 推進メンバー Dashboard データ (v2)
+router.get('/admin/dashboard', authPromoter, (req, res) => {
+  const db = getDb();
+  // KPI
+  const activeCount = db.prepare(`SELECT COUNT(*) AS n FROM myplan_active_plans WHERE status='active'`).get().n || 0;
+  const completedCount = db.prepare(`SELECT COUNT(*) AS n FROM myplan_active_plans WHERE status='completed'`).get().n || 0;
+  const abandonedCount = db.prepare(`SELECT COUNT(*) AS n FROM myplan_active_plans WHERE status='abandoned'`).get().n || 0;
+  const totalStarted = activeCount + completedCount + abandonedCount;
+  const completionRate = totalStarted ? Math.round(completedCount / totalStarted * 100) : 0;
+  // 過去7日の日次ログ数+ポジティブ率
+  const last7 = db.prepare(
+    `SELECT COUNT(*) AS total,
+       SUM(CASE WHEN status IN ('done','partial') THEN 1 ELSE 0 END) AS positive
+     FROM myplan_calendar_logs WHERE log_date >= date('now','-7 days','localtime')`
+  ).get() || { total: 0, positive: 0 };
+  const positiveRate7d = last7.total ? Math.round((last7.positive || 0) / last7.total * 100) : 0;
+  // プラン人気ランキング
+  const popularity = db.prepare(
+    `SELECT basic_plan_id, plan_title, plan_category, COUNT(*) AS n
+     FROM myplan_active_plans GROUP BY basic_plan_id ORDER BY n DESC`
+  ).all();
+  // カテゴリ別人気
+  const byCategory = db.prepare(
+    `SELECT plan_category AS cat, COUNT(*) AS n FROM myplan_active_plans GROUP BY plan_category ORDER BY n DESC`
+  ).all();
+  // 離脱日分布 (abandonedプラン: started_at と abandoned_at の差)
+  const abandonRows = db.prepare(
+    `SELECT started_at, abandoned_at FROM myplan_active_plans WHERE status='abandoned' AND abandoned_at IS NOT NULL`
+  ).all();
+  const abandonDayHist = {};
+  for (const a of abandonRows) {
+    const d = Math.max(0, daysBetween((a.started_at || '').slice(0, 10), (a.abandoned_at || '').slice(0, 10)));
+    const bucket = d <= 2 ? '0-2日' : d <= 6 ? '3-6日' : d <= 13 ? '7-13日' : d <= 29 ? '14-29日' : '30日+';
+    abandonDayHist[bucket] = (abandonDayHist[bucket] || 0) + 1;
+  }
+  // アクティブユーザー一覧 (現在進行中)
+  const activeUsers = db.prepare(
+    `SELECT m.id AS plan_id, m.user_id, m.plan_title, m.plan_category, m.period_days, m.started_at,
+       u.display_name, u.nickname, u.company_code,
+       (SELECT status FROM myplan_calendar_logs WHERE active_plan_id=m.id ORDER BY log_date DESC LIMIT 1) AS last_status,
+       (SELECT log_date FROM myplan_calendar_logs WHERE active_plan_id=m.id ORDER BY log_date DESC LIMIT 1) AS last_log_date,
+       (SELECT COUNT(*) FROM myplan_calendar_logs WHERE active_plan_id=m.id AND status IN ('done','partial')) AS positive_n
+     FROM myplan_active_plans m JOIN users u ON u.id=m.user_id
+     WHERE m.status='active' ORDER BY m.started_at DESC LIMIT 100`
+  ).all();
+  // 完走者リスト
+  const completers = db.prepare(
+    `SELECT m.user_id, m.plan_title, m.period_days, m.completed_at,
+       u.display_name, u.nickname, u.company_code
+     FROM myplan_active_plans m JOIN users u ON u.id=m.user_id
+     WHERE m.status='completed' ORDER BY m.completed_at DESC LIMIT 30`
+  ).all();
+  // コメントピックアップ (直近30件、空でないもの)
+  const recentComments = db.prepare(
+    `SELECT m.log_date, m.status, m.comment, u.display_name, u.nickname, ap.plan_title
+     FROM myplan_calendar_logs m
+     JOIN myplan_active_plans ap ON ap.id=m.active_plan_id
+     JOIN users u ON u.id=m.user_id
+     WHERE m.comment IS NOT NULL AND m.comment != '' ORDER BY m.id DESC LIMIT 30`
+  ).all();
+  res.json({
+    success: true,
+    kpi: {
+      active: activeCount,
+      completed: completedCount,
+      abandoned: abandonedCount,
+      total_started: totalStarted,
+      completion_rate: completionRate,
+      positive_rate_7d: positiveRate7d,
+      logs_7d: last7.total || 0,
+    },
+    popularity: popularity.map(p => ({ ...p, category_label: (CATEGORY_META[p.plan_category] || {}).label || p.plan_category })),
+    by_category: byCategory.map(c => ({ key: c.cat, label: (CATEGORY_META[c.cat] || {}).label || c.cat, count: c.n })),
+    abandon_day_hist: ['0-2日', '3-6日', '7-13日', '14-29日', '30日+'].map(k => ({ bucket: k, count: abandonDayHist[k] || 0 })),
+    active_users: activeUsers.map(u => ({
+      ...u,
+      day_index: Math.min(u.period_days, daysBetween((u.started_at || '').slice(0, 10), todayLocal()) + 1),
+    })),
+    completers,
+    recent_comments: recentComments,
+  });
+});
+
+function computeStats(plan, logs) {
+  const startDay = (plan.started_at || '').slice(0, 10);
+  const dayIndex = startDay ? Math.min(plan.period_days, daysBetween(startDay, todayLocal()) + 1) : 1;
+  const remaining = Math.max(0, plan.period_days - dayIndex);
+  let streak = 0;
+  for (let i = logs.length - 1; i >= 0; i--) {
+    if (logs[i].status === 'done' || logs[i].status === 'partial') streak++; else break;
+  }
+  const positive = logs.filter(l => l.status === 'done' || l.status === 'partial').length;
+  let miss = 0;
+  for (let i = logs.length - 1; i >= 0; i--) {
+    if (logs[i].status === 'miss') miss++; else break;
+  }
+  return { day_index: dayIndex, remaining, streak, positive, consecutive_miss: miss };
+}
+
+function hydrateActivePlan(row, stats) {
+  return {
+    id: row.id,
+    basic_plan_id: row.basic_plan_id,
+    title: row.plan_title,
+    action: row.plan_action,
+    category: row.plan_category,
+    category_label: (CATEGORY_META[row.plan_category] || {}).label || row.plan_category,
+    period_days: row.period_days,
+    started_at: row.started_at,
+    status: row.status,
+    completed_at: row.completed_at,
+    ...stats,
+  };
+}
+
+function todayLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function daysBetween(a, b) {
+  if (!a || !b) return 0;
+  const da = new Date(a + 'T00:00:00');
+  const db = new Date(b + 'T00:00:00');
+  return Math.round((db - da) / 86400000);
 }
 
 module.exports = router;
