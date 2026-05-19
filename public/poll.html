@@ -54,8 +54,10 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .poll-list { display: grid; gap: 10px; }
-.poll-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; text-decoration: none; color: inherit; display: block; }
+.poll-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; text-decoration: none; color: inherit; display: block; border-left-width: 5px; }
 .poll-card:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); transform: translateY(-1px); }
+.poll-card.f-online   { background: linear-gradient(135deg, #eff6ff 0%, #fff 60%); border-left-color: #3b82f6; }
+.poll-card.f-inperson { background: linear-gradient(135deg, #fffbeb 0%, #fff 60%); border-left-color: #d97706; }
 .poll-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .poll-card .title { font-size: 16px; font-weight: 800; flex: 1; }
 .poll-card .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
@@ -342,7 +344,8 @@ async function showList() {
                 : '<span class="badge cancelled">中止</span>';
     const decidedInfo = p.status === 'decided' && p.decided_at_slot ? '<span>🎯 ' + escapeHtml(fmtJa(p.decided_at_slot)) + '</span>' : '';
     const fmtChip = formatChip(p);
-    return '<a class="poll-card" href="/poll.html?id=' + p.id + '">'
+    const fClass = (p.format === 'inperson') ? 'f-inperson' : 'f-online';
+    return '<a class="poll-card ' + fClass + '" href="/poll.html?id=' + p.id + '">'
       + '<div class="head"><div class="title">' + escapeHtml(p.title) + '</div>' + badge + role + '</div>'
       + '<div class="meta">'
       + '<span>主催: ' + escapeHtml(p.organizer_name || '') + '</span>'

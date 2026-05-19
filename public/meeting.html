@@ -118,12 +118,17 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   display: flex; align-items: center; gap: 10px;
   transition: transform 0.12s, box-shadow 0.12s;
   cursor: pointer;
+  border-left-width: 5px;
 }
 .tt-card:last-child { margin-bottom: 0; }
 .tt-card:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.10); }
-.tt-card.live { border-color: #dc2626; background: linear-gradient(135deg, #fef2f2, #fff); }
-.tt-card.soon { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb, #fff); }
-.tt-card.open { border-color: #94a3b8; background: linear-gradient(135deg, #f8fafc, #fff); border-style: dashed; }
+/* 開催形式で全体の背景を差別化 */
+.tt-card.f-online   { background: linear-gradient(135deg, #eff6ff 0%, #fff 65%); border-left-color: #3b82f6; }
+.tt-card.f-inperson { background: linear-gradient(135deg, #fffbeb 0%, #fff 65%); border-left-color: #d97706; }
+/* status (live/soon/open) で上ボーダー強調 + 状態バッジ。背景はformatに譲る */
+.tt-card.live { border-top-color: #dc2626; border-right-color: #dc2626; border-bottom-color: #dc2626; }
+.tt-card.soon { border-top-color: #f59e0b; border-right-color: #f59e0b; border-bottom-color: #f59e0b; }
+.tt-card.open { border-top-color: #94a3b8; border-right-color: #94a3b8; border-bottom-color: #94a3b8; border-top-style: dashed; border-right-style: dashed; border-bottom-style: dashed; }
 .tt-when {
   flex-shrink: 0; min-width: 80px; text-align: center;
   font-family: ui-monospace, monospace; font-size: 13px; font-weight: 800;
@@ -475,7 +480,8 @@ function _ttDecidedCard(d, serverNow, currentRoom) {
   const dateLbl = _ttFmtDate(d.starts_at);
   const timeLbl = _ttFmtTime(d.starts_at);
   const roomBadge = (klass === 'live' && d.format !== 'inperson') ? _ttRoomBadge(currentRoom) : '';
-  return `<div class="tt-card ${klass}" onclick="location.href='/poll.html?id=${d.id}'">
+  const fClass = (d.format === 'inperson') ? 'f-inperson' : 'f-online';
+  return `<div class="tt-card ${klass} ${fClass}" onclick="location.href='/poll.html?id=${d.id}'">
     <div class="tt-when">
       <div class="date">${escapeHtml(dateLbl)}</div>
       <div>${timeLbl}</div>
@@ -499,7 +505,8 @@ function _ttOpenCard(p) {
   const timeLbl = p.earliest_candidate ? _ttFmtTime(p.earliest_candidate) : '';
   const voted = p.voted_count || 0;
   const total = p.invitee_count || 0;
-  return `<div class="tt-card open" onclick="location.href='/poll.html?id=${p.id}'">
+  const fClass = (p.format === 'inperson') ? 'f-inperson' : 'f-online';
+  return `<div class="tt-card open ${fClass}" onclick="location.href='/poll.html?id=${p.id}'">
     <div class="tt-when">
       <div class="date">${escapeHtml(dateLbl || '日程未定')}</div>
       <div style="color:#64748b;">${timeLbl ? '〜' + timeLbl : ''}</div>
