@@ -17,74 +17,81 @@
   try { token = localStorage.getItem('cohub_token') || ''; } catch (e) {}
   if (!token) return;
 
-  // ===== AudioContext (iOS Safari 対策で都度タッチ保温) =====
-  var _ctx = null;
+  // ===== 着信音: MP3 ファイル再生 (iOS Safari で WebAudio oscillator が
+  // 無音化される事例があったため 2026-05-20 に MP3 へ移行) =====
   var _chimeOn = true;
   try { if (localStorage.getItem('cohub_chat_notif_on') === '0') _chimeOn = false; } catch (e) {}
+  var _audio = null;
+  var _audioUnlocked = false;
+  var CHIME_MP3 = '/assets/notif-mention.mp3?v=1';
+
+  function ensureAudio() {
+    if (_audio) return _audio;
+    try {
+      _audio = new Audio(CHIME_MP3);
+      _audio.preload = 'auto';
+      _audio.volume = 0.85;
+    } catch (e) { console.warn('[chime] init fail', e); return null; }
+    return _audio;
+  }
+
+  // iOS Safari は最初に「ユーザーのタップ内で play()」をしないとロックされたまま。
+  // ボリューム0で1回再生→止める→以降は通常再生できる。
+  function unlockAudio() {
+    if (_audioUnlocked) return;
+    var a = ensureAudio();
+    if (!a) return;
+    try {
+      a.muted = true;
+      var p = a.play();
+      var done = function () {
+        try { a.pause(); a.currentTime = 0; a.muted = false; } catch (e) {}
+        _audioUnlocked = true;
+      };
+      if (p && typeof p.then === 'function') {
+        p.then(done).catch(function (e) { console.warn('[chime] unlock fail', e); });
+      } else { done(); }
+    } catch (e) { console.warn('[chime] unlock exception', e); }
+  }
+
+  document.addEventListener('click', unlockAudio, { passive: true });
+  document.addEventListener('touchstart', unlockAudio, { passive: true });
+  document.addEventListener('keydown', unlockAudio);
+
+  function playChime() {
+    if (!_chimeOn) return;
+    var a = ensureAudio();
+    if (!a) return;
+    try {
+      a.currentTime = 0;
+      a.muted = false;
+      a.volume = 0.85;
+      var p = a.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(function (e) { console.warn('[chime] play blocked', e.name || e); });
+      }
+    } catch (e) { console.warn('[chime] play exception', e); }
+  }
 
   // 外部からON/OFF切替できるよう公開 (home.html のヘッダー🔔ボタン用)
   window.cohubGetChimeOn = function () { return _chimeOn; };
   window.cohubSetChimeOn = function (on) {
     _chimeOn = !!on;
     try { localStorage.setItem('cohub_chat_notif_on', _chimeOn ? '1' : '0'); } catch (e) {}
-    if (_chimeOn) { try { warmCtx(); playChime(); } catch (e) {} }
+    if (_chimeOn) {
+      unlockAudio();
+      // ユーザー操作のタイミング内で同期的に再生
+      var a = ensureAudio();
+      if (a) {
+        try {
+          a.currentTime = 0; a.muted = false; a.volume = 0.85;
+          var p = a.play();
+          if (p && typeof p.catch === 'function') p.catch(function (e) { console.warn('[chime] test play fail', e.name || e); });
+        } catch (e) { console.warn('[chime] test exception', e); }
+      }
+    }
     return _chimeOn;
   };
-
-  function ensureCtx() {
-    if (!_ctx) {
-      try { _ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
-    }
-    return _ctx;
-  }
-
-  document.addEventListener('click', warmCtx, { passive: true });
-  document.addEventListener('touchstart', warmCtx, { passive: true });
-  function warmCtx() {
-    var ctx = ensureCtx();
-    if (!ctx) return;
-    try {
-      if (ctx.state === 'suspended') ctx.resume();
-      var b = ctx.createBuffer(1, 1, 22050);
-      var s = ctx.createBufferSource(); s.buffer = b;
-      s.connect(ctx.destination); s.start(0);
-    } catch (e) {}
-  }
-
-  async function playChime() {
-    if (!_chimeOn) return;
-    var ctx = ensureCtx();
-    if (!ctx) return;
-    try {
-      if (ctx.state !== 'running') {
-        try { await ctx.resume(); } catch (e) {}
-      }
-      if (ctx.state !== 'running') return;
-      var now = ctx.currentTime;
-      var master = ctx.createGain(); master.gain.value = 1.0; master.connect(ctx.destination);
-      function note(freq, off, dur, vol) {
-        var t0 = now + off;
-        var env = ctx.createGain();
-        env.gain.setValueAtTime(0.0001, t0);
-        env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
-        env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-        env.connect(master);
-        var o1 = ctx.createOscillator();
-        o1.type = 'sine'; o1.frequency.value = freq;
-        o1.connect(env); o1.start(t0); o1.stop(t0 + dur + 0.02);
-        var o2 = ctx.createOscillator();
-        o2.type = 'triangle'; o2.frequency.value = freq * 2;
-        var o2g = ctx.createGain(); o2g.gain.value = 0.18;
-        o2.connect(o2g); o2g.connect(env);
-        o2.start(t0); o2.stop(t0 + dur + 0.02);
-      }
-      // ピン↑ポーン↑×2
-      note(1047, 0.00, 0.12, 0.40);
-      note(1319, 0.13, 0.42, 0.50);
-      note(1047, 0.65, 0.12, 0.40);
-      note(1319, 0.78, 0.42, 0.50);
-    } catch (e) {}
-  }
 
   // ===== トースト (タップで /chat-simple へ) =====
   function showToast(msg) {
