@@ -141,18 +141,8 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
     .wn-body { line-height: 1.35; min-width: 0; }
     .wn-ttl { font-size: 14px; font-weight: 800; color: #0f172a; display: block; }
     .wn-desc { font-size: 11px; color: #64748b; display: block; margin-top: 2px; }
-    .wn-card.wn-archive { --c1: #cbd5e1; --c2: #475569; }
   </style>
-  <div class="wn-grid">
-    <!-- 「今日の一歩」「食事・投稿」はメインメニューと重複のため削除 (2026-05-20) -->
-    <a class="wn-card wn-archive" href="/wellness-archive.html">
-      <span class="wn-pill">📦</span>
-      <span class="wn-body">
-        <span class="wn-ttl">Classic履歴</span>
-        <span class="wn-desc">2026年4月までの個人履歴</span>
-      </span>
-    </a>
-  </div>
+  <!-- カードグリッド全削除 (2026-05-20): 今日の一歩・食事投稿はメインメニュー重複、Classic履歴は全データ削除済み -->
 
   <!-- 🗳 社員投票カード (投票中の施策があれば表示) -->
   <div id="voting-card" class="card" style="display:none;background:linear-gradient(135deg,#dbeafe,#e0e7ff);border-left:4px solid #3b82f6;">
@@ -234,9 +224,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
       <button class="btn" style="background:#7c3aed;" onclick="fetchBoxCheckup()">📥 Boxから取得</button>
       <div id="box-result" style="margin-top:14px;"></div>
     </div>
-    <div style="margin-top:14px;padding:10px;background:#ecfeff;border-radius:8px;font-size:12px;color:#0e7490;">
-      💡 過去の健診食事レポート (CoWell Classic由来) は <a href="/wellness-archive.html" style="color:#0891b2;font-weight:700;">📦 CoWell Classic履歴アーカイブ</a> から閲覧できます。
-    </div>
   </div>
 
   <!-- ❓ ヘルプ -->
@@ -252,7 +239,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           <li>収縮期(上) / 拡張期(下) / 脈拍 を手入力も可</li>
           <li>判定6段階: 至適 / 正常 / 正常高値 / I度高血圧 / II度 / III度</li>
           <li>7日平均カードで推移を可視化</li>
-          <li>過去のCoWell Classic由来 (cw_blood_pressure) も統合表示</li>
           <li><b>本人のみ閲覧可</b>。管理者にも見えません</li>
         </ul>
       </div>
@@ -274,7 +260,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           <li><b>📥 Boxから取得</b>: 会社のBox上の判定結果xlsmから、氏名+生年月日でご自身のデータを表示 (DB保存なし)</li>
           <li><b>📋 ファイルアップロード</b>: 過去PDF/画像を年度別に保管 (最大20MB、本人のみ)</li>
           <li><b>🧠 AI分析</b>: 各ファイルの「AI分析」ボタンで Gemini が総合所見+主要数値+ハイライト+行動アドバイスを生成</li>
-          <li>過去のCoWell食事週次レポートは「📦 CoWell Classic履歴アーカイブ」から</li>
         </ul>
         <p style="font-size:11px;color:#94a3b8;">※ Box連携には事前に<b>生年月日</b>の登録が必要 (admin画面で管理者が設定)</p>
       </div>
@@ -286,7 +271,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           <li>カテゴリタブ: 食事 / 相談 / 雑談 / 健康Tips</li>
           <li>食事+写真 → AI が9項目で栄養スコア化 (CoWell準拠の見やすいバーチャート)</li>
           <li>🎭 匿名投稿トグルで本音を出しやすく</li>
-          <li>過去のCoWell投稿(227件) も時系列マージ表示</li>
         </ul>
         <p><a href="/plaza.html" style="color:#10b981;font-weight:700;">→ みんなの投稿を開く</a></p>
       </div>
@@ -313,16 +297,6 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
           <li>🩺 現場の声 (運管POST) 一覧</li>
         </ul>
         <p style="font-size:11px;color:#94a3b8;">権限: 管理職=全権 / 推進メンバー=起票編集 / 🎓ゲスト(NPO・大学)=閲覧+精査コメントのみ</p>
-      </div>
-
-      <div class="help-section">
-        <h3>📦 CoWell Classic履歴アーカイブ</h3>
-        <p>2026年4月までのCoWell時代の個人データ:</p>
-        <ul>
-          <li>食事投稿+栄養分析 / バディー会話 / 歩数 / 食事週次レポート / 血圧</li>
-          <li>本人のみ閲覧可。マッピング済ユーザー (8名+移行ゲスト14名) のみ</li>
-        </ul>
-        <p><a href="/wellness-archive.html" style="color:#0891b2;font-weight:700;">→ アーカイブを開く</a></p>
       </div>
 
       <div class="help-section">
