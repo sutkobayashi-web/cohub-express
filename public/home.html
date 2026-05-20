@@ -25,9 +25,10 @@
   html, body {
     margin: 0; padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
-    background: linear-gradient(180deg, #f0fdfa 0%, #f0f9ff 35%, #fef3c7 100%);
+    /* ボティケホテル風 アイボリー (2026-05-20) */
+    background: linear-gradient(180deg, #f5efe6 0%, #f0e7d6 100%);
     background-attachment: fixed;
-    min-height: 100vh; color: #0f172a;
+    min-height: 100vh; color: #2d2520;
   }
 
   /* === ヘッダー === */
@@ -218,28 +219,34 @@
   }
   .hero .mypage-btn.has-avatar .lbl { display: none; }
 
-  /* 今日のひとこと */
+  /* 今日のひとこと (ボティケ風 warm cream) */
   .daily-msg {
     position: relative;
-    margin: 22px 4px 0; padding: 14px 14px 10px;
-    background: linear-gradient(135deg, #fef9c3, #fef3c7);
-    border: 1.5px solid #fcd34d; border-radius: 12px;
+    margin: 22px 4px 0; padding: 14px 16px 12px;
+    background: linear-gradient(180deg, #fffef9, #f8eed5);
+    border: 1px solid rgba(196, 168, 120, 0.45);
+    border-radius: 6px;
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    box-shadow: 0 2px 8px rgba(252,211,77,0.18);
+    box-shadow:
+      inset 0 0 0 2px #fffef9,
+      inset 0 0 0 3px rgba(196, 168, 120, 0.30),
+      0 2px 8px rgba(139, 109, 71, 0.10);
   }
   /* ラベルは枠の上に飛び出す (fieldset legend 風) */
   .daily-msg .dm-label {
-    position: absolute; top: -11px; left: 14px;
-    font-size: 11px; font-weight: 800; color: #fff;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: 1.5px solid #fcd34d;
-    padding: 2px 10px; border-radius: 999px;
-    white-space: nowrap; letter-spacing: 0.4px;
-    box-shadow: 0 2px 5px rgba(217,119,6,0.30);
+    position: absolute; top: -11px; left: 16px;
+    font-size: 10.5px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, #b89968, #8b6d3d);
+    border: 1.5px solid #d4b978;
+    padding: 3px 12px; border-radius: 999px;
+    white-space: nowrap; letter-spacing: 1.2px;
+    box-shadow: 0 2px 5px rgba(139, 109, 71, 0.25);
   }
   .daily-msg .dm-body {
     flex: 1; min-width: 0;
-    font-size: 14px; font-weight: 700; color: #78350f; line-height: 1.5;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    font-size: 14px; font-weight: 500; color: #5a3f1c; line-height: 1.7;
+    letter-spacing: 0.5px;
   }
   @media (max-width: 600px) {
     .daily-msg { padding: 14px 12px 8px; gap: 8px; }
@@ -247,58 +254,62 @@
     .daily-msg .dm-body { font-size: 13px; }
   }
 
-  /* セクション見出し */
+  /* セクション見出し (ボティケ風: muted gold) */
   .sec-title {
     display: flex; align-items: center; gap: 10px;
-    margin: 28px 4px 14px; padding-left: 12px;
-    border-left: 4px solid #0d9488;
+    margin: 32px 4px 16px; padding-left: 14px;
+    border-left: 3px solid #b8985d;
   }
-  .sec-title .lbl { font-size: 14px; font-weight: 800; color: #0f766e; letter-spacing: 1px; }
-  .sec-title .desc { font-size: 11px; color: #94a3b8; }
+  .sec-title .lbl { font-size: 13.5px; font-weight: 700; color: #6b5e3c; letter-spacing: 1.8px; }
+  .sec-title .desc { font-size: 11px; color: #9d8f7b; letter-spacing: 0.5px; }
 
   /* カードグリッド */
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 
-  /* コンパクトカード (説明文なし・2-3列表示) */
+  /* コンパクトカード = 銘板風 (二重枠 + 暖かい弱影) */
   .card {
-    --c1: #14b8a6; --c2: #0d9488;
+    --c1: #b8a684; --c2: #8b7a52;
     position: relative; overflow: hidden;
-    background:
-      linear-gradient(180deg,
-        color-mix(in srgb, var(--c1) 14%, #fff) 0%,
-        color-mix(in srgb, var(--c2) 8%, #fff) 100%);
-    border: 1px solid color-mix(in srgb, var(--c2) 22%, #fff);
-    border-radius: 12px;
-    padding: 12px 8px 10px;
-    cursor: pointer; text-decoration: none; color: inherit;
+    background: #fdfbf6;
+    border: 1px solid rgba(168, 137, 95, 0.32);
+    border-radius: 6px;
+    padding: 14px 8px 12px;
+    cursor: pointer; text-decoration: none; color: #2d2520;
     display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-    box-shadow: 0 2px 6px rgba(15,23,42,0.04);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    min-height: 92px;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 253, 245, 0.95),
+      0 1px 3px rgba(139, 109, 71, 0.06),
+      0 2px 8px rgba(139, 109, 71, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    min-height: 100px;
   }
+  /* 上端の細いアクセント帯 (カテゴリ色を控えめに) */
   .card:before {
-    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 2px;
     background: linear-gradient(90deg, var(--c1), var(--c2));
+    opacity: 0.75;
   }
   .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 18px rgba(15,23,42,0.10);
-    border-color: color-mix(in srgb, var(--c2) 45%, #fff);
-    background:
-      linear-gradient(180deg,
-        color-mix(in srgb, var(--c1) 20%, #fff) 0%,
-        color-mix(in srgb, var(--c2) 12%, #fff) 100%);
+    transform: translateY(-1.5px);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 253, 245, 0.95),
+      0 4px 14px rgba(139, 109, 71, 0.18);
+    border-color: rgba(168, 137, 95, 0.55);
+    background: #fffefa;
   }
   .card .icon-pill {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 38px; height: 38px; border-radius: 10px;
-    font-size: 20px; line-height: 1;
+    width: 40px; height: 40px; border-radius: 8px;
+    font-size: 22px; line-height: 1;
     background: linear-gradient(135deg, var(--c1), var(--c2));
     color: #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
-    margin-bottom: 6px;
+    box-shadow:
+      0 1px 3px rgba(0,0,0,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.30),
+      inset 0 0 0 1px rgba(168, 137, 95, 0.30);
+    margin-bottom: 8px;
   }
-  .card .label { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: 0.2px; line-height: 1.25; }
+  .card .label { font-size: 13px; font-weight: 700; color: #2d2520; letter-spacing: 0.8px; line-height: 1.3; }
   .card .desc { display: none; }
   .card .badge {
     position: absolute; top: 10px; right: 10px;
@@ -345,45 +356,82 @@
     50% { transform: translate(-50%, -50%) rotate(-6deg) scale(1.06); }
   }
 
-  /* カードのカラーパレット (機能グループ別配色) */
-  /* コミュ系 = 青 */
-  .card.chat       { --c1: #7dd3fc; --c2: #0284c7; }  /* 営業所チャット: sky明るめ */
-  .card.board      { --c1: #60a5fa; --c2: #1d4ed8; }  /* 掲示板: blue中間 */
-  .card.ops        { --c1: #38bdf8; --c2: #075985; }  /* 業務連絡: 深い青 */
-  /* 健康・食事 = 緑 */
-  .card.plaza      { --c1: #6ee7b7; --c2: #047857; }  /* 食事投稿: emerald */
-  .card.wellness   { --c1: #86efac; --c2: #15803d; }  /* 健康管理室: deep green */
-  .card.challenges { --c1: #bef264; --c2: #4d7c0f; }  /* チャレンジ: lime */
-  /* 「今日の一歩、明日の自分」 — メニュー最上段の主役カード */
-  .card.myplan     { --c1: #fde68a; --c2: #d97706; }  /* 個人プラン: 暖かい山吹色 (注意を惹く) */
-  .card.myplan { grid-column: span 3; min-height: 78px; padding: 14px 16px; }
-  .card.myplan .icon-pill { margin-bottom: 0; margin-right: 10px; width: 44px; height: 44px; font-size: 24px; }
-  .card.myplan .label { font-size: 14.5px; }
-  .card.myplan .sub { font-size: 11.5px; color: #78350f; font-weight: 700; margin-top: 3px; opacity: 0.85; }
-  .card.myplan .inner { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+  /* カードのカラーパレット (ボティケホテル風 muted トーン) */
+  /* コミュ系 = 落ち着いた藍 */
+  .card.chat       { --c1: #7a96a8; --c2: #4a6e84; }
+  .card.board      { --c1: #7a8aa3; --c2: #455875; }
+  .card.ops        { --c1: #6f8298; --c2: #3d5170; }
+  /* 健康・食事 = モスグリーン */
+  .card.plaza      { --c1: #8aa28a; --c2: #5b7a5c; }
+  .card.wellness   { --c1: #7a9078; --c2: #4f6b50; }
+  .card.challenges { --c1: #9aa478; --c2: #6c7548; }
+  /* 「今日の一歩、明日の自分」 — 銘板看板 */
+  .card.myplan     { --c1: #d4b078; --c2: #a17e3d; }
+  /* 主役カード「今日の一歩」: 銘板看板 (二重ゴールド枠 + クリーム背景 + 明朝タイトル) */
+  .card.myplan {
+    grid-column: span 3; min-height: 92px; padding: 20px 24px;
+    background: linear-gradient(180deg, #fffef9 0%, #f8eed5 100%);
+    border: 1.5px solid #c4a878;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 0 0 3px #fdfbf6,
+      inset 0 0 0 4px rgba(196, 168, 120, 0.55),
+      0 3px 12px rgba(139, 109, 71, 0.18);
+  }
+  .card.myplan:before { display: none; }
+  .card.myplan:hover {
+    transform: translateY(-1.5px);
+    box-shadow:
+      inset 0 0 0 3px #fdfbf6,
+      inset 0 0 0 4px rgba(196, 168, 120, 0.80),
+      0 6px 18px rgba(139, 109, 71, 0.25);
+    border-color: #b08f4f;
+    background: linear-gradient(180deg, #fffef9 0%, #f4e6c5 100%);
+  }
+  .card.myplan .icon-pill {
+    margin-bottom: 0; margin-right: 14px; width: 48px; height: 48px; font-size: 24px;
+    background: linear-gradient(135deg, #d4b078, #a17e3d);
+    box-shadow:
+      0 2px 6px rgba(139, 109, 71, 0.20),
+      inset 0 1px 0 rgba(255,255,255,0.30),
+      inset 0 0 0 1px rgba(255, 245, 215, 0.40);
+    border-radius: 50%;
+  }
+  .card.myplan .label {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', 'Times New Roman', serif;
+    font-size: 17px; font-weight: 600;
+    color: #5a3f1c; letter-spacing: 2.5px;
+  }
+  .card.myplan .sub {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    font-style: italic;
+    font-size: 12px; color: #826340; font-weight: 500;
+    margin-top: 5px; letter-spacing: 0.5px; opacity: 0.95;
+  }
+  .card.myplan .inner { display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; }
   .card.myplan .inner > .txt { flex: 1; min-width: 0; }
-  .card.myplan .arrow { font-size: 20px; color: #b45309; flex-shrink: 0; }
+  .card.myplan .arrow { font-size: 22px; color: #a17e3d; flex-shrink: 0; }
   @media (max-width: 600px) {
-    .card.myplan { padding: 12px 14px; min-height: 70px; }
-    .card.myplan .icon-pill { width: 40px; height: 40px; font-size: 22px; }
-    .card.myplan .label { font-size: 13.5px; }
+    .card.myplan { padding: 16px 18px; min-height: 78px; }
+    .card.myplan .icon-pill { width: 42px; height: 42px; font-size: 22px; }
+    .card.myplan .label { font-size: 15px; letter-spacing: 2px; }
     .card.myplan .sub { font-size: 11px; }
   }
-  /* 予定・会議 = 紫 */
-  .card.meeting    { --c1: #a78bfa; --c2: #6d28d9; }  /* ミーティング: violet深め */
-  .card.poll       { --c1: #c4b5fd; --c2: #7c3aed; }  /* 日程調整: violet明るめ */
-  /* 警告・報告 = 赤 */
-  .card.accident   { --c1: #fca5a5; --c2: #dc2626; }  /* 事故報告 */
-  /* ソーシャル = 桃〜橙 */
-  .card.members    { --c1: #fda4af; --c2: #be123c; }  /* メンバー一覧: rose */
-  .card.circles    { --c1: #fdba74; --c2: #c2410c; }  /* サークル: orange */
-  /* 福利厚生 = 金色 (横浜信金YBA) */
-  .card.yba        { --c1: #fcd34d; --c2: #b45309; }  /* YBA: amber/gold */
-  /* 物流 = ティール */
-  .card.logihub-entry { --c1: #5eead4; --c2: #0d9488; }  /* LogiHub */
-  .card.kbc-entry     { --c1: #2dd4bf; --c2: #115e59; }  /* 関東BC: 深ティール */
-  /* ヘルプ = 黄系 (情報・案内) */
-  .card.help          { --c1: #fde68a; --c2: #ca8a04; }
+  /* 予定・会議 = 落ち着いた葡萄色 */
+  .card.meeting    { --c1: #8e7a98; --c2: #5e4670; }
+  .card.poll       { --c1: #a08eaa; --c2: #6e547d; }
+  /* 警告・報告 = テラコッタ */
+  .card.accident   { --c1: #b88378; --c2: #8a4a3d; }
+  /* ソーシャル = 古い薔薇〜山吹 */
+  .card.members    { --c1: #c0939a; --c2: #8e545a; }
+  .card.circles    { --c1: #d4a47a; --c2: #946a3d; }
+  /* 福利厚生 = 古金色 (横浜信金YBA) */
+  .card.yba        { --c1: #d4b878; --c2: #a17e3d; }
+  /* 物流 = 古銅 */
+  .card.logihub-entry { --c1: #7aa39d; --c2: #4d7e78; }
+  .card.kbc-entry     { --c1: #6e9e98; --c2: #3a6e68; }
+  /* ヘルプ = muted gold */
+  .card.help          { --c1: #d4ba78; --c2: #9d7f3d; }
   /* 旧定義 (互換維持) */
   .card.timecard   { --c1: #fbbf24; --c2: #f59e0b; }
   .card.literacy   { --c1: #2dd4bf; --c2: #0d9488; }
