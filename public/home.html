@@ -990,8 +990,8 @@ async function init() {
   const isWarehousePromoter = !!me.is_warehouse_promoter;
   const isAdmin = me.role === 'admin';
   const isGuest = !!me.is_guest_reviewer;
-  // 管理者のみヘッダーに「管理画面」ボタン表示
-  if (isAdmin) $('hd-admin-btn').style.display = '';
+  // 管理者のみヘッダーに「管理画面」ボタン表示 (inline-flex でアイコン中央寄せ)
+  if (isAdmin) $('hd-admin-btn').style.display = 'inline-flex';
   if (isPromoter || isWarehousePromoter || isAdmin || isGuest) {
     $('promoter-section').style.display = 'block';
     if (isAdmin) {
