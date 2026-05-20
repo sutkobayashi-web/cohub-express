@@ -53,11 +53,16 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .btn.danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.poll-list { display: grid; gap: 10px; }
+.poll-list { display: grid; gap: 18px; }
+.poll-section { display: grid; gap: 8px; }
+.poll-section .sec-hd { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px 10px 0 0; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }
+.poll-section.sec-online .sec-hd { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; }
+.poll-section.sec-inperson .sec-hd { background: linear-gradient(135deg, #f59e0b, #b45309); color: #fff; }
+.poll-section .sec-hd .cnt { background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 .poll-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; text-decoration: none; color: inherit; display: block; border-left-width: 5px; }
 .poll-card:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); transform: translateY(-1px); }
-.poll-card.f-online   { background: linear-gradient(135deg, #eff6ff 0%, #fff 60%); border-left-color: #3b82f6; }
-.poll-card.f-inperson { background: linear-gradient(135deg, #fffbeb 0%, #fff 60%); border-left-color: #d97706; }
+.poll-card.f-online   { background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%); border: 1px solid #93c5fd; border-left: 5px solid #1d4ed8; }
+.poll-card.f-inperson { background: linear-gradient(180deg, #fef3c7 0%, #fffbeb 100%); border: 1px solid #fcd34d; border-left: 5px solid #b45309; }
 .poll-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .poll-card .title { font-size: 16px; font-weight: 800; flex: 1; }
 .poll-card .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
@@ -336,25 +341,38 @@ async function showList() {
     document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">📅</div>まだ日程調整はありません<br><span style="font-size:11px;">「＋ 新規作成」から始められます</span></div>';
     return;
   }
-  document.getElementById('poll-list').innerHTML = r.polls.map(p => {
+  const renderCard = (p) => {
     const isOrg = p.organizer_id === r.me;
     const role = isOrg ? '<span class="role org">主催</span>' : '<span class="role invited">招待</span>';
     const badge = p.status === 'open' ? '<span class="badge open">投票中</span>'
                 : p.status === 'decided' ? '<span class="badge decided">確定</span>'
                 : '<span class="badge cancelled">中止</span>';
     const decidedInfo = p.status === 'decided' && p.decided_at_slot ? '<span>🎯 ' + escapeHtml(fmtJa(p.decided_at_slot)) + '</span>' : '';
-    const fmtChip = formatChip(p);
     const fClass = (p.format === 'inperson') ? 'f-inperson' : 'f-online';
     return '<a class="poll-card ' + fClass + '" href="/poll.html?id=' + p.id + '">'
       + '<div class="head"><div class="title">' + escapeHtml(p.title) + '</div>' + badge + role + '</div>'
       + '<div class="meta">'
       + '<span>主催: ' + escapeHtml(p.organizer_name || '') + '</span>'
-      + fmtChip
       + '<span>📅 候補 ' + p.slot_count + '件</span>'
       + '<span>👥 ' + p.voted_count + '/' + p.invitee_count + '名 回答済</span>'
       + decidedInfo
       + '</div></a>';
-  }).join('');
+  };
+  // 形式別にセクション分け (オンライン → 対面 の順)
+  const online = r.polls.filter(p => p.format !== 'inperson');
+  const inperson = r.polls.filter(p => p.format === 'inperson');
+  let html = '';
+  if (online.length) {
+    html += '<div class="poll-section sec-online">'
+      + '<div class="sec-hd">📹 オンライン会議 <span class="cnt">' + online.length + '</span></div>'
+      + online.map(renderCard).join('') + '</div>';
+  }
+  if (inperson.length) {
+    html += '<div class="poll-section sec-inperson">'
+      + '<div class="sec-hd">📍 対面会議 <span class="cnt">' + inperson.length + '</span></div>'
+      + inperson.map(renderCard).join('') + '</div>';
+  }
+  document.getElementById('poll-list').innerHTML = html;
 }
 
 async function showCreate() {
