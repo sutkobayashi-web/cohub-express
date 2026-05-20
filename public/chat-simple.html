@@ -8,10 +8,12 @@
 <link rel="manifest" href="/manifest.json?v=4">
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: #f1f5f9; color: #0f172a; }
-  body { display: flex; flex-direction: column; height: 100dvh; }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: #f1f5f9; color: #0f172a; overscroll-behavior-x: none; overflow-x: hidden; }
+  body { display: flex; flex-direction: column; height: 100dvh; touch-action: pan-y; }
+  /* iOS edge-swipe 戻る防止は CSS + font-zoom.js の JS handler で対応 (オーバーレイは送信ボタンを覆うため撤去) */
   header { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header #me-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 8em; flex-shrink: 1; }
   header a, header button { color: #fff; text-decoration: none; font-size: 12px; padding: 6px 10px; background: rgba(255,255,255,0.2); border-radius: 6px; border: none; cursor: pointer; }
   header a:hover, header button:hover { background: rgba(255,255,255,0.3); }
   #me-name { font-size: 11px; opacity: 0.9; }
@@ -217,13 +219,18 @@
     padding: 1px 7px; border-radius: 999px;
   }
 
-  /* セクションラベル (グループ/DMの区切り) */
+  /* セクションラベル (グループ/サークル/DMの区切り) */
   .list-sec-label {
     padding: 10px 16px 6px; font-size: 10px; font-weight: 800;
     letter-spacing: 1.5px; text-transform: uppercase;
     position: sticky; top: 0; z-index: 1;
+    cursor: pointer; user-select: none;
   }
-  /* セクション別背景色 (グループ=青系 / 個人=緑系) */
+  .list-sec-label:hover { filter: brightness(0.96); }
+  .sec-caret { display: inline-block; font-size: 9px; transition: transform 0.15s; margin-right: 2px; }
+  /* セクションラベル横の未読バッジ (個人チャット行のバッジと完全同一デザイン) */
+  .sec-unread-badge { margin-left: 8px; vertical-align: middle; }
+  /* セクション別背景色 (グループ=青 / サークル=橙 / 個人=緑) */
   .section-group { background: linear-gradient(180deg, #eff6ff 0%, #f0f9ff 100%); border-left: 3px solid #3b82f6; }
   .section-group .list-sec-label {
     background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
@@ -234,6 +241,16 @@
   .section-group .chat-row:hover { background: rgba(59,130,246,0.10); }
   .section-group .chat-row.active { background: rgba(59,130,246,0.18); }
 
+  .section-circle { background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%); border-left: 3px solid #f97316; }
+  .section-circle .list-sec-label {
+    background: linear-gradient(180deg, #fed7aa 0%, #fff7ed 100%);
+    color: #9a3412;
+    border-bottom: 1px solid #fdba74;
+  }
+  .section-circle .chat-row { background: transparent; }
+  .section-circle .chat-row:hover { background: rgba(249,115,22,0.10); }
+  .section-circle .chat-row.active { background: rgba(249,115,22,0.18); }
+
   .section-dm { background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%); border-left: 3px solid #10b981; }
   .section-dm .list-sec-label {
     background: linear-gradient(180deg, #d1fae5 0%, #f0fdf4 100%);
@@ -243,6 +260,26 @@
   .section-dm .chat-row { background: transparent; }
   .section-dm .chat-row:hover { background: rgba(16,185,129,0.10); }
   .section-dm .chat-row.active { background: rgba(16,185,129,0.18); }
+  /* DM内オンライン/オフライン サブヘッダー */
+  .dm-substatus {
+    padding: 6px 14px 4px;
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  .dm-sub-online  { color: #047857; background: rgba(16,185,129,0.10); border-top: 1px solid rgba(16,185,129,0.18); border-bottom: 1px solid rgba(16,185,129,0.18); }
+  .dm-sub-offline { color: #64748b; background: rgba(148,163,184,0.10); border-top: 1px solid rgba(148,163,184,0.20); border-bottom: 1px solid rgba(148,163,184,0.20); }
+  .dm-substatus .ss-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dm-substatus .ss-dot-on  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.20); }
+  .dm-substatus .ss-dot-off { background: #cbd5e1; }
+  .dm-substatus .ss-cnt { margin-left: auto; font-weight: 700; font-size: 10px; color: inherit; opacity: 0.75; }
+  /* オフライン側の行はうっすら透過 */
+  .section-dm .dm-sub-offline ~ .chat-row { opacity: 0.78; }
   .list-empty {
     padding: 18px 16px; font-size: 12px; color: #94a3b8; text-align: center;
     font-style: italic;
@@ -965,7 +1002,7 @@
     height: 40px; min-height: 40px; max-height: 120px;
     padding: 9px 14px; line-height: 1.5;
     border: 1px solid #cbd5e1; border-radius: 20px;
-    font-size: 14px; font-family: inherit; resize: none; outline: none;
+    font-size: 16px; font-family: inherit; resize: none; outline: none;
     background: #f8fafc; box-sizing: border-box;
   }
   #input textarea:focus {
@@ -1025,6 +1062,9 @@
   #login-screen.show { display: flex; }
   .login-card { background: #fff; padding: 24px; border-radius: 14px; text-align: center; max-width: 320px; }
 </style>
+<script src="/font-zoom.js" defer></script>
+<script src="/version-check.js" defer></script>
+<script src="/unify-header.js" defer></script>
 </head>
 <body>
 
@@ -1040,7 +1080,7 @@
   <a href="/" title="ホーム">←</a>
   <h1>💬 営業所チャット</h1>
   <span id="me-name"></span>
-  <button id="notif-toggle-btn" type="button" onclick="toggleChatNotif()" title="着信通知ON" style="font-size:16px;padding:6px 8px;">🔔</button>
+  <span id="fz-slot"></span><button id="notif-toggle-btn" type="button" onclick="toggleChatNotif()" title="着信通知ON" style="font-size:16px;padding:6px 8px;">🔔</button>
 </header>
 
 <main>
@@ -1119,6 +1159,19 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- 送信前 安全警告モーダル (sender本人のみ表示) -->
+<div id="safety-warn" style="position:fixed;inset:0;background:rgba(15,23,42,0.55);display:none;align-items:center;justify-content:center;z-index:9000;padding:16px;">
+  <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div id="sw-icon" style="font-size:32px;margin-bottom:8px;">⚠️</div>
+    <div id="sw-title" style="font-size:17px;font-weight:700;color:#0f172a;margin-bottom:10px;">内容を確認してください</div>
+    <div id="sw-body" style="font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;margin-bottom:18px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="sw-cancel" type="button" style="padding:9px 16px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">書き直す</button>
+      <button id="sw-ok" type="button" style="padding:9px 16px;border:0;background:#dc2626;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">このまま送信</button>
+    </div>
+  </div>
+</div>
 
 <!-- 着信モーダル -->
 <div id="incoming-call">
@@ -1282,17 +1335,23 @@ function ensureNotifAudio() {
 }
 
 // 初回ユーザー操作で音声をアンロック (Chrome/Safariのautoplay制約対策)
+// 2026-05-20: 旧実装は muted MP3 で iOS Safari に先頭音漏れ事故。
+// AudioContext の 1サンプル空バッファで完全無音アンロックに変更。
 function unlockAudio() {
   if (_audioUnlocked) return;
   try {
     if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (_chatAudioCtx.state === 'suspended') _chatAudioCtx.resume();
-    const a = ensureNotifAudio();
-    // 0.001 秒だけ無音再生してロックを解除 (mute→play→pause→unmute)
-    a.muted = true;
-    a.play().then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
+    // 完全無音バッファでロック解除 (m.html と同じ実績ある方式)
+    const buf = _chatAudioCtx.createBuffer(1, 1, 22050);
+    const src = _chatAudioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_chatAudioCtx.destination);
+    src.start(0);
+    // MP3 はプリロードだけしておく (decode は最初の chime で実行)
+    ensureNotifAudio();
     _audioUnlocked = true;
-    console.log('[chat] audio unlocked');
+    console.log('[chat] audio unlocked (silent buffer)');
   } catch (e) { console.warn('[chat] audio unlock fail', e); }
 }
 
@@ -1594,15 +1653,11 @@ async function init() {
   await Promise.all([loadGroups(), loadDmPeers(), loadUnread(), loadOnlineUsers()]);
   renderGroupList(); // DM最新メッセージが入ったので再描画
   setupSocket();
-  // URLパラメータでグループ指定があればそれを開く (モバイルは自動選択しない)
+  // URLパラメータでグループ指定があればそれを開く (PCも自動選択しない: 業務報告などが勝手に開く問題回避)
   const params = new URLSearchParams(location.search);
   const gid = params.get('g');
-  const isMobile = window.innerWidth <= 720;
   if (gid && groups.find(g => g.id === gid)) {
     selectGroup(gid);
-  } else if (!isMobile && groups.length) {
-    // PCだけ先頭グループを開く (2分割レイアウトで右側が空にならないように)
-    selectGroup(groups[0].id);
   }
 }
 
@@ -1646,64 +1701,166 @@ function themeKey(gid) {
 // Teams風フラット チャット一覧 (グループ + 最近のDM相手を統合)
 function renderGroupList() {
   const list = $('group-list');
-  // グループと個人(DM)を別配列で構築
+  // グループ・サークル・個人(DM)を別配列で構築
   const groupRows = [];
+  const circleRows = [];
   const dmRows = [];
   for (const g of groups) {
-    groupRows.push({
+    const row = {
       type: 'group', id: g.id,
       name: g.name, icon: g.icon || '💬',
       last_content: g.last_content,
       last_at: g.last_at,
       member_count: g.member_count,
       is_member: g.is_member !== 0,
-    });
+      is_circle: !!g.is_circle,
+    };
+    if (row.is_circle) circleRows.push(row);
+    else groupRows.push(row);
   }
-  for (const [peerId, info] of dmPeerInfo.entries()) {
-    if (peerId === me.uid) continue;
-    if (isBot(peerId)) continue; // AIボットはチャット一覧に出さない
-    let peer = null;
-    for (const arr of groupMembers.values()) {
-      peer = arr.find(m => m.id === peerId);
-      if (peer) break;
+  // DM一覧: グループメンバー全員 (=DM可能な登録アバター全員) を表示
+  // 過去DM履歴あれば last_at で先頭、なければ五十音で後段
+  const seenPeers = new Set();
+  for (const arr of groupMembers.values()) {
+    for (const peer of arr) {
+      if (!peer || !peer.id) continue;
+      if (peer.id === me.uid) continue;
+      if (isBot(peer.id)) continue;
+      if (seenPeers.has(peer.id)) continue;
+      seenPeers.add(peer.id);
+      const info = dmPeerInfo.get(peer.id) || {};
+      dmRows.push({
+        type: 'dm', id: peer.id,
+        name: peer.display_name || '...',
+        avatar_url: peer.avatar_url || '',
+        company_code: peer.company_code || '',
+        ring_color: peer.ring_color || '',
+        last_content: info.last_content || '',
+        last_at: info.last_at || '',
+        last_sender_id: info.last_sender_id || '',
+      });
     }
-    dmRows.push({
-      type: 'dm', id: peerId,
-      name: peer ? peer.display_name : '...',
-      avatar_url: peer ? peer.avatar_url : '',
-      company_code: peer ? peer.company_code : '',
-      ring_color: peer ? peer.ring_color : '',
-      last_content: info.last_content,
-      last_at: info.last_at,
-      last_sender_id: info.last_sender_id,
-    });
   }
-  // それぞれ最終アクティビティ降順
+  // グループ・サークルは最終アクティビティ降順
   const byActivity = (a, b) => (b.last_at || '0').localeCompare(a.last_at || '0');
   groupRows.sort(byActivity);
-  dmRows.sort(byActivity);
-  // 描画 (セクションラベル付き)
-  if (groupRows.length === 0 && dmRows.length === 0) {
+  circleRows.sort(byActivity);
+  // DM: 履歴ありを上 (last_at 降順) → 履歴なしを下 (display_name 昇順 五十音)
+  dmRows.sort((a, b) => {
+    const aHas = !!a.last_at, bHas = !!b.last_at;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    if (aHas && bHas) return (b.last_at || '').localeCompare(a.last_at || '');
+    return (a.name || '').localeCompare(b.name || '', 'ja');
+  });
+  // 描画 (セクションラベル付き、各セクション折りたたみ可)
+  if (groupRows.length === 0 && circleRows.length === 0 && dmRows.length === 0) {
     list.innerHTML = '<div class="list-empty">チャットがありません</div>';
     return;
   }
   const html = [];
-  // グループ未読合計
   const grpUnread = groupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const cirUnread = circleRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const dmUnread = dmRows.reduce((a, r) => a + (unreadDms.get(r.id) || 0), 0);
-  if (groupRows.length > 0) {
-    html.push('<div class="section-group">');
-    html.push(`<div class="list-sec-label">👥 グループ${grpUnread > 0 ? ` <span style="color:#dc2626;">(${grpUnread})</span>` : ''}</div>`);
-    html.push(groupRows.map(r => chatRowHtml(r)).join(''));
-    html.push('</div>');
+
+  // セクションの折りたたみ状態を localStorage に保存・復元
+  function isCollapsed(key) {
+    try { return localStorage.getItem('chat_sec_' + key) === '1'; } catch (e) { return false; }
   }
-  if (dmRows.length > 0) {
-    html.push('<div class="section-dm">');
-    html.push(`<div class="list-sec-label">👤 個人 (DM)${dmUnread > 0 ? ` <span style="color:#dc2626;">(${dmUnread})</span>` : ''}</div>`);
-    html.push(dmRows.map(r => chatRowHtml(r)).join(''));
-    html.push('</div>');
+  function rowUnread(r) {
+    return (r.type === 'group' ? unreadGroups.get(r.id) : unreadDms.get(r.id)) || 0;
   }
+  function renderSection(key, label, unread, rows) {
+    if (rows.length === 0) return;
+    const collapsed = isCollapsed(key);
+    // 折りたたみ中でも未読のある行だけは表示し続ける
+    const unreadRows = rows.filter(r => rowUnread(r) > 0);
+    const readRows = rows.filter(r => rowUnread(r) === 0);
+    html.push(`<div class="section-${key}${collapsed ? ' collapsed' : ''}" data-sec="${key}">`);
+    html.push(`<div class="list-sec-label" onclick="toggleChatSection('${key}')">`
+      + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
+      + `${label}`
+      + `<span style="color:#94a3b8;font-weight:500;margin-left:6px;font-size:11px;">(${rows.length})</span>`
+      + (unread > 0 ? `<span class="unread-badge sec-unread-badge">${unread > 99 ? '99+' : unread}</span>` : '')
+      + `</div>`);
+    // 未読行: 常に表示 (折りたたみ中も見える)
+    html.push(`<div class="sec-unread-rows">`);
+    html.push(unreadRows.map(r => chatRowHtml(r)).join(''));
+    html.push(`</div>`);
+    // 既読行: 折りたたみ時は非表示
+    html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
+    html.push(readRows.map(r => chatRowHtml(r)).join(''));
+    html.push(`</div>`);
+    html.push(`</div>`);
+  }
+  // 個人(DM)はオンライン/オフラインで二分割
+  function renderDmSplitSection(unread, rows) {
+    if (rows.length === 0) return;
+    const collapsed = isCollapsed('dm');
+    // ボット除外は既に dmRows 構築時に済んでいる前提
+    const isOn = (uid) => onlineUids.has(uid);
+    const onlineRows  = rows.filter(r => isOn(r.id));
+    const offlineRows = rows.filter(r => !isOn(r.id));
+    // ソート (履歴あり優先→last_at降順→五十音)
+    const dmSort = (a, b) => {
+      const aHas = !!a.last_at, bHas = !!b.last_at;
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      if (aHas && bHas) return (b.last_at || '').localeCompare(a.last_at || '');
+      return (a.name || '').localeCompare(b.name || '', 'ja');
+    };
+    onlineRows.sort(dmSort);
+    offlineRows.sort(dmSort);
+
+    html.push(`<div class="section-dm${collapsed ? ' collapsed' : ''}" data-sec="dm">`);
+    html.push(`<div class="list-sec-label" onclick="toggleChatSection('dm')">`
+      + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
+      + `👤 個人 (DM)`
+      + `<span style="color:#94a3b8;font-weight:500;margin-left:6px;font-size:11px;">(${rows.length})</span>`
+      + (unread > 0 ? `<span class="unread-badge sec-unread-badge">${unread > 99 ? '99+' : unread}</span>` : '')
+      + `</div>`);
+    // 未読行: 折りたたみ中も表示 (オンライン/オフライン区別せず)
+    const unreadRows = rows.filter(r => rowUnread(r) > 0);
+    html.push(`<div class="sec-unread-rows">`);
+    html.push(unreadRows.map(r => chatRowHtml(r)).join(''));
+    html.push(`</div>`);
+    // 既読行を二分割表示
+    html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
+    const onlineUnread  = onlineRows.filter(r => rowUnread(r) === 0);
+    const offlineUnread = offlineRows.filter(r => rowUnread(r) === 0);
+    if (onlineUnread.length > 0) {
+      html.push(`<div class="dm-substatus dm-sub-online"><span class="ss-dot ss-dot-on"></span> オンライン <span class="ss-cnt">${onlineUnread.length}</span></div>`);
+      html.push(onlineUnread.map(r => chatRowHtml(r)).join(''));
+    }
+    if (offlineUnread.length > 0) {
+      html.push(`<div class="dm-substatus dm-sub-offline"><span class="ss-dot ss-dot-off"></span> オフライン <span class="ss-cnt">${offlineUnread.length}</span></div>`);
+      html.push(offlineUnread.map(r => chatRowHtml(r)).join(''));
+    }
+    html.push(`</div>`);
+    html.push(`</div>`);
+  }
+
+  renderSection('group',  '👥 グループ',     grpUnread, groupRows);
+  renderSection('circle', '🎯 サークル活動', cirUnread, circleRows);
+  renderDmSplitSection(dmUnread, dmRows);
   list.innerHTML = html.join('');
+}
+
+// セクション折りたたみトグル
+function toggleChatSection(key) {
+  let collapsed;
+  try {
+    const cur = localStorage.getItem('chat_sec_' + key) === '1';
+    collapsed = !cur;
+    localStorage.setItem('chat_sec_' + key, collapsed ? '1' : '0');
+  } catch (e) { return; }
+  const sec = document.querySelector(`[data-sec="${key}"]`);
+  if (!sec) return;
+  sec.classList.toggle('collapsed', collapsed);
+  const body = sec.querySelector('.sec-body');
+  if (body) body.style.display = collapsed ? 'none' : '';
+  const caret = sec.querySelector('.sec-caret');
+  if (caret) caret.textContent = collapsed ? '▶' : '▼';
 }
 
 // グループ名の先頭にあるアイコン絵文字を取り除く ('👔 管理職グループ' → '管理職グループ')
@@ -1951,9 +2108,11 @@ function openMembersModal() {
   $('mp-count').textContent = (g.member_count || 0) + '名';
   renderMpList();
   $('members-modal').classList.add('show');
+  if (window.Overlay) Overlay.open('members-modal', closeMembersModal);
 }
 function closeMembersModal() {
   $('members-modal').classList.remove('show');
+  if (window.Overlay) Overlay.close('members-modal');
 }
 function renderMpList() {
   if (!currentGid) return;
@@ -2335,6 +2494,22 @@ function setupSocket() {
     // 再接続時のオンライン一覧再取得
     loadOnlineUsers().then(() => { try { renderGroupList(); } catch (e) {} });
   });
+  // 別端末で同種別ログイン → 旧セッションキック
+  socket.on('session:kicked', (d) => {
+    try { localStorage.removeItem('cohub_token'); } catch (e) {}
+    alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
+    location.replace('/');
+  });
+  // socket接続が認証エラーで失敗 (session_kicked / unauth)
+  socket.on('connect_error', (err) => {
+    if (err && (err.message === 'session_kicked' || err.message === 'unauth')) {
+      try { localStorage.removeItem('cohub_token'); } catch (e) {}
+      if (err.message === 'session_kicked') {
+        alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
+      }
+      location.replace('/');
+    }
+  });
 
   // 在席状態
   socket.on('user:login', (d) => { if (d && d.uid) setUserOnline(d.uid, true); });
@@ -2444,10 +2619,12 @@ function setupSocket() {
       const senderName = (peerInfo && peerInfo.display_name) || '';
       const viewingThisDm = currentMode === 'dm' && currentDmPeer && currentDmPeer.id === payload.from;
       const visible = document.visibilityState === 'visible';
-      console.log('[dm:msg]', { from: payload.from, viewingThisDm, visible });
+      const isAdmin = !!(me && (me.employee_type === 'admin' || me.role === 'admin'));
+      console.log('[dm:msg]', { from: payload.from, viewingThisDm, visible, isAdmin });
       if (viewingThisDm && visible) {
-        // ★ 表示中: 既読化のみ、通知音は鳴らさない
+        // ★ 表示中: 既読化のみ、通知音は鳴らさない (Adminは全件チャイム)
         markVisibleMessagesRead();
+        if (isAdmin && chatNotifOn) playChatChime();
       } else {
         // 別スレッド or タブ背面: 未読+1 + 通知
         if (!viewingThisDm) {
@@ -2460,6 +2637,9 @@ function setupSocket() {
             try { selectDmPeer(payload.from); } catch (e) {}
           });
           showToastMsg('💬 ' + (senderName || '誰か') + 'さんからメッセージ');
+        } else if (isAdmin && chatNotifOn) {
+          // Admin: bot DMでもチャイムは鳴らす (TTSは抑制)
+          playChatChime();
         }
       }
     }
@@ -2520,9 +2700,12 @@ function setupSocket() {
     if (payload.from !== me.uid) {
       const viewingThisGroup = currentMode === 'group' && currentGid === payload.group_id;
       const visible = document.visibilityState === 'visible';
-      console.log('[group:msg]', { gid: payload.group_id, viewingThisGroup, visible });
+      const isAdmin = !!(me && (me.employee_type === 'admin' || me.role === 'admin'));
+      console.log('[group:msg]', { gid: payload.group_id, viewingThisGroup, visible, isAdmin });
       if (viewingThisGroup && visible) {
         markVisibleMessagesRead();
+        // Adminは表示中でも全件チャイム (bot送信もスキップしない)
+        if (isAdmin && chatNotifOn) playChatChime();
       } else {
         if (!viewingThisGroup) {
           unreadGroups.set(payload.group_id, (unreadGroups.get(payload.group_id) || 0) + 1);
@@ -2536,6 +2719,9 @@ function setupSocket() {
             try { selectGroup(payload.group_id); } catch (e) {}
           });
           showToastMsg('💬 [' + (groupName || 'グループ') + '] ' + (payload.sender_name || '誰か') + 'さんからメッセージ');
+        } else if (isAdmin && chatNotifOn) {
+          // Admin: bot送信メッセージでもチャイムは鳴らす (TTSは抑制)
+          playChatChime();
         }
       }
     }
@@ -2801,10 +2987,47 @@ function clearAttach() {
 }
 // 既存の send 関数に attach を渡すためラップ
 const _origSend = send;
-window.send = function() {
+// 送信前 安全警告チェック (人間同士チャットのみ。AI bot 宛は既存のサーバ側L1で処理)
+async function checkSafetyBeforeSend(text) {
+  if (!text || !text.trim()) return { ok: true };
+  // bot 宛 DM は対象外 (既存のL1拒否応答に任せる)
+  if (currentMode === 'dm' && currentDmPeer && /^bot_/.test(currentDmPeer.id)) return { ok: true };
+  try {
+    const r = await api('/api/safety/check-message', { method: 'POST', body: { text } });
+    if (!r || !r.success || !r.hit) return { ok: true };
+    return await new Promise((resolve) => {
+      const w = r.warning || {};
+      const isCrisis = r.hit.category === 'mental_crisis';
+      $('sw-icon').textContent = isCrisis ? '💙' : '⚠️';
+      $('sw-title').textContent = w.title || '内容を確認してください';
+      $('sw-body').textContent = w.body || '';
+      $('sw-cancel').textContent = w.cancel || '書き直す';
+      $('sw-ok').textContent = w.ok || 'このまま送信';
+      $('sw-ok').style.background = isCrisis ? '#0ea5e9' : '#dc2626';
+      const modal = $('safety-warn');
+      modal.style.display = 'flex';
+      const close = (ok) => {
+        modal.style.display = 'none';
+        $('sw-ok').onclick = null;
+        $('sw-cancel').onclick = null;
+        resolve({ ok });
+      };
+      $('sw-ok').onclick = () => close(true);
+      $('sw-cancel').onclick = () => close(false);
+    });
+  } catch (e) {
+    console.warn('[safety check fail]', e);
+    return { ok: true }; // チェック失敗時は通常送信を妨げない (フェイルオープン)
+  }
+}
+
+window.send = async function() {
   const t = $('input-text').value.trim();
   if (!t && !pendingAttach) return;
   if (!socket) return;
+  // 送信前安全チェック
+  const sc = await checkSafetyBeforeSend(t);
+  if (!sc.ok) return;
   // 添付ありの選択送信は1人ずつ chat:dm で送る (既存ロジックに合流)
   const attach = pendingAttach;
   if (currentMode === 'group' && selectedPeers.size > 0) {
@@ -3141,5 +3364,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
+<script src="/overlay-history.js?v=3"></script>
 </body>
 </html>

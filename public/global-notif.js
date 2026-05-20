@@ -35,23 +35,24 @@
     return _audio;
   }
 
-  // iOS Safari は最初に「ユーザーのタップ内で play()」をしないとロックされたまま。
-  // ボリューム0で1回再生→止める→以降は通常再生できる。
+  // iOS Safari の autoplay 制約解除。
+  // 旧実装は muted=true で MP3 を一瞬再生していたが、iOS で先頭音が漏れる事故あり
+  // (2026-05-20)。AudioContext の 1サンプル空バッファ → 完全無音で解除する方式に変更。
+  var _unlockCtx = null;
   function unlockAudio() {
     if (_audioUnlocked) return;
-    var a = ensureAudio();
-    if (!a) return;
     try {
-      a.muted = true;
-      var p = a.play();
-      var done = function () {
-        try { a.pause(); a.currentTime = 0; a.muted = false; } catch (e) {}
-        _audioUnlocked = true;
-      };
-      if (p && typeof p.then === 'function') {
-        p.then(done).catch(function (e) { console.warn('[chime] unlock fail', e); });
-      } else { done(); }
-    } catch (e) { console.warn('[chime] unlock exception', e); }
+      if (!_unlockCtx) _unlockCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_unlockCtx.state === 'suspended') _unlockCtx.resume();
+      var buf = _unlockCtx.createBuffer(1, 1, 22050);
+      var src = _unlockCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(_unlockCtx.destination);
+      src.start(0);
+      // MP3 Audio もプリロード (decode は最初の play 時)
+      ensureAudio();
+      _audioUnlocked = true;
+    } catch (e) { console.warn('[chime] unlock fail', e); }
   }
 
   document.addEventListener('click', unlockAudio, { passive: true });
