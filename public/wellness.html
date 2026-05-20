@@ -89,6 +89,8 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 .help-section ul { padding-left: 20px; font-size: 13px; line-height: 1.7; color: #334155; }
 </style>
 <script src="/font-zoom.js" defer></script>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 <header>
@@ -110,6 +112,48 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
 
   <div id="role-banner" class="banner banner-info" style="display:none;"></div>
 
+  <!-- 健康推進 主要入口ナビ (一体感のあるカード — home.htmlと同じテイスト) -->
+  <style>
+    .wn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .wn-card {
+      --c1: #6ee7b7; --c2: #059669;
+      position: relative; overflow: hidden;
+      background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+      border: 1px solid #e2e8f0; border-radius: 14px;
+      padding: 14px 16px; text-decoration: none; color: inherit;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .wn-card:before {
+      content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+      background: linear-gradient(90deg, var(--c1), var(--c2));
+    }
+    .wn-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,42,0.08); border-color: rgba(13,148,136,0.30); }
+    .wn-pill {
+      flex-shrink: 0;
+      width: 40px; height: 40px; border-radius: 11px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 22px; line-height: 1; color: #fff;
+      background: linear-gradient(135deg, var(--c1), var(--c2));
+      box-shadow: 0 3px 9px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    }
+    .wn-body { line-height: 1.35; min-width: 0; }
+    .wn-ttl { font-size: 14px; font-weight: 800; color: #0f172a; display: block; }
+    .wn-desc { font-size: 11px; color: #64748b; display: block; margin-top: 2px; }
+    .wn-card.wn-archive { --c1: #cbd5e1; --c2: #475569; }
+  </style>
+  <div class="wn-grid">
+    <!-- 「今日の一歩」「食事・投稿」はメインメニューと重複のため削除 (2026-05-20) -->
+    <a class="wn-card wn-archive" href="/wellness-archive.html">
+      <span class="wn-pill">📦</span>
+      <span class="wn-body">
+        <span class="wn-ttl">Classic履歴</span>
+        <span class="wn-desc">2026年4月までの個人履歴</span>
+      </span>
+    </a>
+  </div>
+
   <!-- 🗳 社員投票カード (投票中の施策があれば表示) -->
   <div id="voting-card" class="card" style="display:none;background:linear-gradient(135deg,#dbeafe,#e0e7ff);border-left:4px solid #3b82f6;">
     <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#1d4ed8;margin-bottom:4px;">🗳 NOW VOTING</div>
@@ -124,16 +168,7 @@ th { background: #f8fafc; font-weight: 600; color: #475569; }
   <!-- 運営ダッシュボード入口は撤去済 (健康管理室フロアの紫ボタンから直接アクセス) -->
 
 
-  <!-- 推進メンバー向けオリエンテーション (帝京大学 西村さん 提供資料) -->
-  <a id="orientation-entry" href="/orientation.html" style="display:none;text-decoration:none;margin-bottom:12px;background:linear-gradient(135deg,#0f766e,#047857);color:#fff;border-radius:12px;padding:14px 16px;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(15,118,110,0.25);position:relative;overflow:hidden;">
-    <span style="font-size:28px;flex-shrink:0;">📖</span>
-    <div style="flex:1;line-height:1.45;">
-      <div style="font-size:11px;letter-spacing:1.2px;font-weight:700;opacity:0.85;">帝京大学公衆衛生学研究科 西村さん 提供資料</div>
-      <div style="font-size:15px;font-weight:800;">推進メンバーへのメッセージ</div>
-      <div style="font-size:11px;opacity:0.85;margin-top:2px;">アプリ運用前の事前説明 — 画面+音声で4スライドを解説</div>
-    </div>
-    <span style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.45);padding:7px 14px;border-radius:18px;font-size:12px;font-weight:700;flex-shrink:0;">▶ 視聴</span>
-  </a>
+  <!-- 推進メンバー向け導線はホーム画面の「🩺 推進メンバー専用」セクションに集約 (オリエンテーション/健康戦略室など) -->
 
   <!-- タブナビ (個人健康記録) -->
   <div class="tab-nav">
@@ -417,9 +452,7 @@ async function checkAccessAndShow(user) {
         entry.style.display = 'block';
       }
     }
-    // 推進メンバー / 管理職: 帝京大オリエンテーション入口を表示
-    const orientationEntry = document.getElementById('orientation-entry');
-    if (orientationEntry && isManager) orientationEntry.style.display = 'flex';
+    // 推進メンバー導線はホームの「推進メンバー専用」セクションに集約 (このページからは出さない)
     switchTab('bp');
     loadVotingActions();
   } catch (e) {
