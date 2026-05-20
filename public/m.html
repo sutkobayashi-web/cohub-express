@@ -260,6 +260,51 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   .mem-av .sdot.online { background: #10b981; }
   .mem-av .sdot.busy { background: #ef4444; }
   .mem-av .sdot.focus { background: #8b5cf6; }
+
+  /* ===== 在席感: オンラインメンバーのアバターに緩いリング演出 (2026-05-20) ===== */
+  /* リング波紋 (transform+opacityのみで描画 — GPU最適化) */
+  @keyframes onlineRing {
+    0%   { transform: scale(0.92); opacity: 0.55; }
+    70%  { transform: scale(1.18); opacity: 0; }
+    100% { transform: scale(1.20); opacity: 0; }
+  }
+  /* ステータスドット自体も小さく脈打つ */
+  @keyframes onlineDot {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.20); }
+  }
+  /* ホーム横スクロール (.online-strip) */
+  .online-chip .av::after {
+    content: ''; position: absolute; inset: -2px;
+    border: 2px solid #10b981; border-radius: 50%;
+    pointer-events: none; opacity: 0;
+  }
+  .online-chip .av:not(:has(.sd.busy)):not(:has(.sd.focus)):not(:has(.sd.away))::after {
+    animation: onlineRing 2.6s ease-out infinite;
+  }
+  .online-chip .av .sd:not(.busy):not(.focus):not(.away) {
+    animation: onlineDot 1.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+  /* メンバー一覧 (.mem-av) */
+  .mem-av::after {
+    content: ''; position: absolute; inset: -2px;
+    border: 2px solid #10b981; border-radius: 50%;
+    pointer-events: none; opacity: 0;
+  }
+  .mem-av:has(.sdot.online)::after {
+    animation: onlineRing 2.6s ease-out infinite;
+  }
+  .mem-av .sdot.online {
+    animation: onlineDot 1.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+  /* アクセシビリティ: モーション軽減ユーザーには静止 */
+  @media (prefers-reduced-motion: reduce) {
+    .online-chip .av::after, .mem-av::after,
+    .online-chip .av .sd, .mem-av .sdot { animation: none !important; }
+  }
+
   .mem-info { flex: 1; min-width: 0; }
   .mem-name { font-size: 14px; font-weight: 700; }
   .mem-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
