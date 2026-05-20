@@ -482,7 +482,7 @@
   }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js" defer></script>
+<script src="/global-notif.js?v=2" defer></script>
 <script src="/fukuri-hint.js?v=2"></script>
 </head>
 <body>
@@ -522,6 +522,7 @@
     <button id="hd-fz-btn" onclick="cycleFontSize()" title="文字サイズ切替" aria-label="文字サイズ切替">
       <span style="font-size:10px;">A</span><span style="font-size:14px;margin-left:1px;">A</span><span id="hd-fz-lvl">M</span>
     </button>
+    <button id="hd-bell-btn" onclick="toggleHeaderChime()" title="着信音 ON/OFF" aria-label="着信音切替" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:10px;width:34px;height:34px;font-size:18px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">🔔</button>
     <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" style="display:none;">⚙️ 管理画面</button>
     <button id="hd-logout-btn" onclick="logout()" title="ログアウト" aria-label="ログアウト"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
   </div>
@@ -762,6 +763,45 @@ function cycleFontSize() {
 }
 applyFz(getFzLevel());
 window.addEventListener('storage', (e) => { if (e.key === 'm_fz') applyFz(getFzLevel()); });
+
+// ===== 着信音 ON/OFF ヘッダーボタン =====
+// global-notif.js が公開する cohubGetChimeOn / cohubSetChimeOn を呼ぶ。
+// global-notif.js が未ロードの場合は localStorage を直接見て表示だけ更新する。
+function _bellRead() {
+  if (typeof window.cohubGetChimeOn === 'function') return window.cohubGetChimeOn();
+  try { return localStorage.getItem('cohub_chat_notif_on') !== '0'; } catch (e) { return true; }
+}
+function _bellWrite(on) {
+  if (typeof window.cohubSetChimeOn === 'function') return window.cohubSetChimeOn(on);
+  try { localStorage.setItem('cohub_chat_notif_on', on ? '1' : '0'); } catch (e) {}
+  return on;
+}
+function updateBellLabel() {
+  const b = document.getElementById('hd-bell-btn');
+  if (!b) return;
+  const on = _bellRead();
+  b.textContent = on ? '🔔' : '🔕';
+  b.title = on ? '着信音 ON (タップでOFF)' : '着信音 OFF (タップでON)';
+  b.style.background = on ? 'rgba(255,255,255,0.18)' : 'rgba(127,29,29,0.55)';
+  b.style.borderColor = on ? 'rgba(255,255,255,0.35)' : 'rgba(252,165,165,0.55)';
+}
+function toggleHeaderChime() {
+  const next = !_bellRead();
+  _bellWrite(next);
+  updateBellLabel();
+  // フィードバックトースト (DOM上に既存トーストがあれば再利用)
+  try {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:rgba(15,23,42,0.92);color:#fff;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:700;z-index:99999;box-shadow:0 4px 14px rgba(0,0,0,0.25);';
+    t.textContent = next ? '🔔 着信音 ON (テスト音再生)' : '🔕 着信音 OFF';
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.transition = 'opacity 0.3s'; t.style.opacity = '0'; }, 1800);
+    setTimeout(() => t.remove(), 2200);
+  } catch (e) {}
+}
+// global-notif.js が後から読み込まれるので少し遅延してラベル同期
+setTimeout(updateBellLabel, 150);
+setTimeout(updateBellLabel, 800);
 
 async function api(path, opts = {}) {
   opts.headers = opts.headers || {};
