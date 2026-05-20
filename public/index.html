@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CoWell</title>
+<script>
+// 旧 lobby/葵 版引退ガード (2026-05-18)。
+// /api/config の minimal_mode=true なら即 /home に飛ばす。
+// 旧SWがHTMLキャッシュしている端末がこのページに着地した時の最後の関門。
+// ?force=1 が付いている時だけ旧版を表示する (admin用エスケープ)。
+(function() {
+  try {
+    if (location.search.indexOf('force=1') !== -1) return;
+    fetch('/api/config', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(c) {
+      if (c && c.minimal_mode) location.replace('/home');
+    }).catch(function() {});
+  } catch (e) {}
+})();
+</script>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
@@ -577,6 +591,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
   #dock-chat-wrap { min-width: 100px; max-width: 160px; }
 }
 </style>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 
@@ -974,7 +989,7 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;text-align:right;"><span id="fv-memo-count">0</span>/200</div>
       </div>
       <div id="fv-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;min-height:14px;"></div>
-      <button type="submit" id="fv-submit" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#047857);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">POST送信</button>
+      <button type="button" id="fv-submit" onclick="submitFieldVoice()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#047857);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">POST送信</button>
     </form>
   </div>
 </div>
@@ -1281,6 +1296,17 @@ function showConsentModal(u) {
             <span>③ プライバシーポリシーに同意します</span>
           </label>
         </div>
+        <!-- 任意項目: 帝京大学公衆衛生学研究科との共同研究 -->
+        <div style="margin-top:12px;padding:12px 14px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:8px;border-left:4px solid #7c3aed;">
+          <div style="font-weight:700;color:#5b21b6;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:6px;">🎓 任意: 学術研究への協力 <span style="background:#fff;color:#7c3aed;font-size:10px;padding:2px 8px;border-radius:8px;border:1px solid #c4b5fd;">opt-in</span></div>
+          <div style="font-size:11.5px;color:#475569;line-height:1.65;margin-bottom:8px;">
+            帝京大学公衆衛生学研究科 (福田研究室) との共同研究において、<b>個人を特定できない匿名集計データ</b> (反応分布・ヘルスリテラシー集計・施策反応など) の利用に協力します。論文・学会発表前に当社が確認します。<b>いつでも撤回できます</b> (マイページ → 同意設定)。
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12.5px;line-height:1.55;">
+            <input type="checkbox" id="consent-c4" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;cursor:pointer;">
+            <span><b style="color:#5b21b6;">④</b> 匿名集計データの学術研究利用に協力します (任意・拒否しても CoWell は通常利用可)</span>
+          </label>
+        </div>
 
         <div id="consent-err" style="color:#dc2626;font-size:12px;min-height:16px;text-align:center;margin:8px 0;"></div>
       </div>
@@ -1321,6 +1347,7 @@ async function submitConsent() {
         accepted_log: true,
         accepted_privacy: true,
         accepted_policy: true,
+        accepted_research: !!document.getElementById('consent-c4')?.checked,
         version: userData && userData.current_consent_version,
       }),
     });
@@ -1523,13 +1550,21 @@ async function openFieldVoiceModal() {
   document.getElementById('fv-memo').value = '';
   document.getElementById('fv-memo-count').textContent = '0';
   _fvState = { source_type: '', category: '', urgency: '', identity_mode: '' };
-  // メタ情報取得 (初回のみ)
-  if (!_fvMeta) {
-    try {
-      const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
-      _fvMeta = await r.json();
-    } catch (e) { _fvMeta = { categories: ['体調','食事','睡眠','職場環境','その他'], urgencies: ['低','中','高'], identity_modes: ['本人特定可','匿名','集計のみ'], source_types: ['運管','倉庫','総務','その他'] }; }
+  // メタ情報を毎回取得 (キャッシュ古化対策)
+  _fvMeta = null;
+  try {
+    const r = await fetch('/api/wellness/meta', { headers: { Authorization: 'Bearer ' + token } });
+    _fvMeta = await r.json();
+    console.log('[fv] meta loaded:', _fvMeta);
+  } catch (e) {
+    console.warn('[fv] meta fetch fail', e);
+    _fvMeta = { categories: ['体調','食事','睡眠','職場環境','その他'], urgencies: ['低','中','高'], identity_modes: ['本人特定可','匿名','集計のみ'], source_types: ['運管','倉庫','総務','その他'] };
   }
+  // 配列でない/空なら強制フォールバック
+  if (!Array.isArray(_fvMeta.source_types) || _fvMeta.source_types.length < 2) _fvMeta.source_types = ['運管','倉庫','総務','その他'];
+  if (!Array.isArray(_fvMeta.categories) || _fvMeta.categories.length < 2) _fvMeta.categories = ['体調','食事','睡眠','職場環境','その他'];
+  if (!Array.isArray(_fvMeta.urgencies) || _fvMeta.urgencies.length < 2) _fvMeta.urgencies = ['低','中','高'];
+  if (!Array.isArray(_fvMeta.identity_modes) || _fvMeta.identity_modes.length < 2) _fvMeta.identity_modes = ['本人特定可','匿名','集計のみ'];
   // 選択肢ボタン描画
   const renderChoiceGrid = (id, items, key, defaultIdx) => {
     const host = document.getElementById(id);
@@ -1560,27 +1595,41 @@ function setFieldVoice(key, v) {
   });
 }
 async function submitFieldVoice() {
-  const memo = document.getElementById('fv-memo').value.trim();
+  console.log('[fv] submit fired, state=', _fvState);
+  const memoEl = document.getElementById('fv-memo');
   const errEl = document.getElementById('fv-err');
+  if (!memoEl || !errEl) { showToast('⚠ フォーム要素が見つかりません'); return; }
+  const memo = memoEl.value.trim();
   errEl.textContent = '';
-  if (!_fvState.source_type) { errEl.textContent = '投稿元を選択してください'; return; }
-  if (!_fvState.category) { errEl.textContent = 'カテゴリを選択してください'; return; }
-  if (!_fvState.urgency) { errEl.textContent = '緊急度を選択してください'; return; }
-  if (!_fvState.identity_mode) { errEl.textContent = '特定区分を選択してください'; return; }
+  if (!_fvState.source_type) { errEl.textContent = '投稿元を選択してください'; showToast('⚠ 投稿元を選択してください'); return; }
+  if (!_fvState.category) { errEl.textContent = 'カテゴリを選択してください'; showToast('⚠ カテゴリを選択してください'); return; }
+  if (!_fvState.urgency) { errEl.textContent = '緊急度を選択してください'; showToast('⚠ 緊急度を選択してください'); return; }
+  if (!_fvState.identity_mode) { errEl.textContent = '特定区分を選択してください'; showToast('⚠ 特定区分を選択してください'); return; }
   const btn = document.getElementById('fv-submit');
   btn.disabled = true; btn.textContent = '送信中…';
+  showToast('📤 送信中…');
   try {
     const r = await fetch('/api/wellness/post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ source_type: _fvState.source_type, category: _fvState.category, urgency: _fvState.urgency, identity_mode: _fvState.identity_mode, memo }),
     });
-    const j = await r.json();
-    if (!j.success) { errEl.textContent = j.msg || '送信失敗'; btn.disabled = false; btn.textContent = 'POST送信'; return; }
+    console.log('[fv] response status', r.status);
+    const j = await r.json().catch(() => ({ success: false, msg: 'JSONパース失敗 status=' + r.status }));
+    console.log('[fv] response body', j);
+    if (!j.success) {
+      const m = j.msg || ('送信失敗 (HTTP ' + r.status + ')');
+      errEl.textContent = m;
+      showToast('❌ ' + m);
+      btn.disabled = false; btn.textContent = 'POST送信';
+      return;
+    }
     closeFieldVoiceModal();
     showToast('🩺 現場の声を送信しました (#' + j.post_id + ')');
   } catch (e) {
-    errEl.textContent = '通信エラー: ' + e.message;
+    console.error('[fv] error', e);
+    errEl.textContent = '通信エラー: ' + (e && e.message);
+    showToast('❌ 通信エラー: ' + (e && e.message));
     btn.disabled = false; btn.textContent = 'POST送信';
   }
 }
@@ -5847,78 +5896,18 @@ function updateGroupsBadge() {
 }
 
 async function openGroupsPanel() {
-  const modal = document.getElementById('groups-modal');
-  modal.style.display = 'flex';
-  const list = document.getElementById('groups-list');
-  list.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;font-size:12px;">読み込み中…</div>';
-  try {
-    const r = await fetch('/api/chat/groups', { headers: { 'Authorization': 'Bearer ' + token } });
-    const d = await r.json();
-    if (!d.success) { list.innerHTML = '<div style="padding:20px;color:#dc2626;">取得失敗</div>'; return; }
-    myGroups = d.groups;
-    if (!myGroups.length) {
-      list.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#94a3b8;font-size:13px;">まだグループに参加していません。<br>管理者に追加依頼してください。</div>';
-      return;
-    }
-    list.innerHTML = myGroups.map(g => {
-      const last = g.last_content ? escapeHtml(g.last_content.slice(0, 40)) : '<span style="color:#cbd5e1;">まだメッセージがありません</span>';
-      const t = g.last_at ? new Date(g.last_at + 'Z').toLocaleDateString('ja-JP') : '';
-      const unread = groupUnread[g.id] || 0;
-      const badge = unread ? '<span style="background:#ef4444;color:#fff;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:800;margin-left:6px;">' + (unread > 99 ? '99+' : unread) + '</span>' : '';
-      return `<div class="member-row" style="padding:12px;cursor:pointer;" onclick="openGroupChat('${g.id}')">
-        <div class="member-avatar" style="border-color:#06b6d4;display:flex;align-items:center;justify-content:center;font-size:20px;background:#ecfeff;">${g.icon || '💬'}</div>
-        <div class="member-meta" style="flex:1;">
-          <div class="member-name">${escapeHtml(g.name)}${badge}</div>
-          <div class="member-sub">${last}</div>
-        </div>
-        <div style="font-size:10px;color:#94a3b8;">${t}</div>
-      </div>`;
-    }).join('');
-  } catch (e) { list.innerHTML = '<div style="padding:20px;color:#dc2626;">通信エラー</div>'; }
+  // 旧モーダルは廃止: 新グループチャット (chat-simple.html) へ遷移
+  location.href = '/chat-simple.html';
 }
 
 function closeGroupsPanel() {
   document.getElementById('groups-modal').style.display = 'none';
 }
 
-async function openGroupChat(gid) {
-  currentGroupId = gid;
-  closeGroupsPanel();
-  let g = (myGroups || []).find(x => x.id === gid);
-  // フォールバック: myGroups 未取得 / 直接呼出 → サーバーから取得して再度探す
-  if (!g) {
-    console.log('[openGroupChat] gid not in myGroups, fetching list', gid);
-    try {
-      const r = await fetch('/api/chat/groups', { headers: { 'Authorization': 'Bearer ' + token } });
-      const d = await r.json();
-      if (d && d.success) {
-        myGroups = d.groups || [];
-        g = myGroups.find(x => x.id === gid);
-      }
-    } catch (e) { console.error('[openGroupChat] groups fetch err', e); }
-  }
-  if (!g) {
-    console.warn('[openGroupChat] group not found, using minimal stub', gid);
-    g = { id: gid, name: gid, icon: '💬', member_count: 0 };
-  }
-  document.getElementById('group-icon').textContent = g.icon || '💬';
-  document.getElementById('group-name').textContent = g.name;
-  document.getElementById('group-sub').textContent = 'メンバー ' + (g.member_count || 0) + '名';
-  document.getElementById('group-modal').style.display = 'flex';
-  delete groupUnread[gid]; updateGroupsBadge();
-  setTimeout(() => { const inp = document.getElementById('group-input'); if (inp) inp.focus(); }, 100);
-  try {
-    const r = await fetch('/api/chat/groups/' + encodeURIComponent(gid) + '/messages', { headers: { 'Authorization': 'Bearer ' + token } });
-    const d = await r.json();
-    if (d.success) {
-      currentGroupLog = d.messages.map(m => ({
-        id: m.id, from: m.sender_id, name: m.sender_name || '',
-        content: m.content, at: m.created_at + 'Z',
-        attach: m.attach_url ? { url: m.attach_url, name: m.attach_name, size: m.attach_size, type: m.attach_type } : null,
-      }));
-    }
-    renderGroupChat();
-  } catch (e) { currentGroupLog = []; renderGroupChat(); }
+function openGroupChat(gid) {
+  // 旧モーダルは廃止: 新グループチャット (chat-simple.html) へ遷移
+  if (gid) location.href = '/chat-simple.html?g=' + encodeURIComponent(gid);
+  else location.href = '/chat-simple.html';
 }
 
 function closeGroupChat() {
@@ -9011,6 +9000,19 @@ function isMobileDevice() {
     return uaHit && minSide < 820;
   } catch (e) { return false; }
 }
+// タブレット判定: iPad / Android タブレット / iPadOS 13+ (Mac UA 偽装) / Tablet UA
+// 2026-05-20: タブレットも PC版ロビーではなくスマホUI(/m) に飛ばす方針
+function isTabletDevice() {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/Mobile/i.test(ua)) return false; // スマホは除外 (Androidスマホ等)
+    if (/iPad/.test(ua)) return true;
+    if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true; // iPadOS 13+
+    if (/Android/.test(ua)) return true; // Mobile が無ければタブレット扱い
+    if (/Tablet/i.test(ua)) return true;
+    return false;
+  } catch (e) { return false; }
+}
 function shouldRedirectToMobile(u) {
   if (!u) return false;
   // ユーザーが明示的にPC版を選んでいたらリダイレクトしない
@@ -9025,6 +9027,7 @@ function shouldRedirectToMobile(u) {
   } catch (e) {}
   if (u.employee_type === 'field') return true;
   if (isMobileDevice()) return true;
+  if (isTabletDevice()) return true;
   return false;
 }
 
@@ -9053,6 +9056,15 @@ if (token && userData) {
       else enterSpace();
     });
 } else {
+  // 2026-05-20: 未ログインかつタブレットUAは共有端末ログイン /tablet へ
+  // (PC優先フラグ ?pc=1 / localStorage cohub_force_pc が立っていなければ)
+  try {
+    var _qs = new URLSearchParams(location.search);
+    var _forcePc = _qs.get('pc') === '1' || localStorage.getItem('cohub_force_pc') === '1';
+    if (!_forcePc && isTabletDevice()) {
+      location.replace('/tablet');
+    }
+  } catch (e) {}
   const savedId = localStorage.getItem('cohub_login_id');
   if (savedId) {
     const idEl = document.getElementById('login-id');
