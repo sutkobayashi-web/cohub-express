@@ -712,13 +712,19 @@ async function initApp() {
   bar.innerHTML = html;
   window._TAB_META = TAB_META;
   // ?action=food でモバイル「食事診断」から直接来た場合: 食事タブ+カメラ即起動
-  const urlAction = new URLSearchParams(location.search).get('action');
+  // ?tab=相談 等で特定タブを開いた状態でランディング (home メニューの専用ボタン用)
+  const _qs = new URLSearchParams(location.search);
+  const urlAction = _qs.get('action');
+  const urlTab = _qs.get('tab');
+  const _validTabs = ['all', '食事', '相談', '雑談', '健康Tips'];
   if (urlAction === 'food') {
     setTab('食事');
     setTimeout(() => {
       const cam = document.getElementById('cmp-file');
       if (cam) cam.click();
     }, 250);
+  } else if (urlTab && _validTabs.includes(urlTab)) {
+    setTab(urlTab);
   } else {
     setTab('all');
   }
