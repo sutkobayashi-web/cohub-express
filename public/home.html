@@ -413,6 +413,7 @@
   /* 💬 Communication = 青系 (sec-title #0284c7) */
   .card.chat       { --c1: #7dd3fc; --c2: #0284c7; }  /* 営業所チャット: sky */
   .card.board      { --c1: #60a5fa; --c2: #1d4ed8; }  /* 掲示板: blue中間 */
+  .card.announce   { --c1: #818cf8; --c2: #4338ca; }  /* 通達: indigo (青系・正式感) */
   .card.ops        { --c1: #38bdf8; --c2: #075985; }  /* 業務連絡: 深い青 */
   .card.members    { --c1: #93c5fd; --c2: #1e40af; }  /* メンバー一覧: blue-800 */
   .card.circles    { --c1: #67e8f9; --c2: #0e7490; }  /* サークル: cyan (青系) */
@@ -637,7 +638,13 @@
       <span class="badge" id="b-board" style="display:none;">0</span>
       <div class="icon-pill">📋</div>
       <div class="label">掲示板</div>
-      <div class="desc">全社お知らせ・告知・経営メッセージ。</div>
+      <div class="desc">社内のニュース・トピック・経営メッセージ。</div>
+    </a>
+    <a class="card announce" href="/announcements.html">
+      <span class="badge" id="b-announce-card" style="display:none;">0</span>
+      <div class="icon-pill">📢</div>
+      <div class="label">通達</div>
+      <div class="desc">管理部からの正式な通達。重要事項は要確認。</div>
     </a>
     <a class="card ops" href="/ops.html">
       <span class="badge" id="b-ops" style="display:none;">0</span>
@@ -833,7 +840,7 @@
   </section>
 
   <div class="footer">
-    <a href="/announcements.html" style="position:relative;">📢 告知一覧<span id="b-announce" style="display:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;box-shadow:0 2px 6px rgba(220,38,38,0.30);">0</span></a>
+    <a href="/announcements.html" style="position:relative;">📢 通達<span id="b-announce" style="display:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;box-shadow:0 2px 6px rgba(220,38,38,0.30);">0</span></a>
     <a href="/mylog">📜 自分のログ</a>
     <a href="/security.html">🔒 セキュリティ</a>
     <a href="/about-cowell.html">ℹ️ CoWellについて</a>
@@ -1197,14 +1204,19 @@ async function fetchBadges() {
       $('b-board').style.display = 'none';
     }
   } catch(e) {}
-  // お知らせ (announcements): フッターの告知一覧
+  // 通達 (announcements): フッターリンク + Communication 内カード両方
   try {
     const a = await api('/api/announcements/unread-count');
-    if (a && a.success && a.count > 0) {
-      const el = $('b-announce');
-      if (el) { el.textContent = a.count; el.style.display = 'inline-block'; }
-    } else if ($('b-announce')) {
-      $('b-announce').style.display = 'none';
+    const cnt = (a && a.success && a.count) ? a.count : 0;
+    const el = $('b-announce');
+    if (el) {
+      if (cnt > 0) { el.textContent = cnt; el.style.display = 'inline-block'; }
+      else el.style.display = 'none';
+    }
+    const elCard = $('b-announce-card');
+    if (elCard) {
+      if (cnt > 0) { elCard.textContent = cnt; elCard.style.display = ''; }
+      else elCard.style.display = 'none';
     }
   } catch(e) {}
   // チャット未読
