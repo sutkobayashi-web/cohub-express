@@ -247,58 +247,56 @@
     .daily-msg .dm-body { font-size: 13px; }
   }
 
-  /* What's new — 新幹線車内LEDボード風 */
+  /* What's new — ベージュ背景の横スクロール1行 */
   .whats-new {
     margin: 22px 4px 0;
-    background: #0b1220;
-    border: 1.5px solid #1e293b;
+    background: #fdf6e3; /* うすいベージュ */
+    border: 1.5px solid #e7d9b5;
     border-radius: 10px;
     height: 38px;
     display: flex; align-items: stretch;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(2,6,23,0.25), inset 0 0 0 1px rgba(255,255,255,0.04);
+    box-shadow: 0 2px 6px rgba(120,90,40,0.08);
   }
   .whats-new .wn-label {
     flex-shrink: 0;
-    background: linear-gradient(135deg, #0ea5e9, #0369a1);
+    background: linear-gradient(135deg, #f59e0b, #d97706);
     color: #fff;
     font-size: 11px; font-weight: 800; letter-spacing: 0.6px;
     padding: 0 12px;
     display: flex; align-items: center; gap: 4px;
-    border-right: 1px solid #1e293b;
+    border-right: 1px solid #e7d9b5;
     font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
   }
   .whats-new .wn-track {
     flex: 1; min-width: 0;
     position: relative;
     overflow: hidden;
-    /* 両端をマスクでフェードアウト (新幹線LEDの読みやすさ模倣) */
-    -webkit-mask: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent);
-            mask: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent);
+    -webkit-mask: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
+            mask: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
   }
   .whats-new .wn-strip {
     display: inline-block; white-space: nowrap;
-    padding-left: 100%; /* 右端外から登場 */
+    padding-left: 100%;
     line-height: 38px;
     will-change: transform;
-    animation: ledScroll linear infinite;
+    animation: tickerScroll linear infinite;
   }
   .whats-new .wn-strip a {
-    color: #fbbf24; /* LEDアンバー */
+    color: #422006;
     text-decoration: none;
     margin-right: 40px;
     font-size: 13.5px; font-weight: 600;
-    letter-spacing: 0.3px;
-    text-shadow: 0 0 6px rgba(251,191,36,0.45);
-    font-family: "Helvetica Neue", Helvetica, Consolas, "Hiragino Sans", "Yu Gothic UI", Meiryo, monospace;
+    letter-spacing: 0.2px;
+    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
   }
-  .whats-new .wn-strip a:hover { color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.7); }
-  .whats-new .wn-strip .wn-sep { color: #475569; margin-right: 40px; }
-  .whats-new .wn-strip .wn-cat { color: #38bdf8; font-weight: 700; margin-right: 6px; }
-  .whats-new .wn-strip .wn-author { color: #94a3b8; margin-right: 6px; font-size: 12px; }
-  .whats-new .wn-strip .wn-time { color: #64748b; margin-left: 6px; font-size: 11.5px; }
+  .whats-new .wn-strip a:hover { color: #b45309; text-decoration: underline; }
+  .whats-new .wn-strip .wn-sep { color: #c8b88a; margin-right: 40px; }
+  .whats-new .wn-strip .wn-cat { color: #b45309; font-weight: 700; margin-right: 6px; }
+  .whats-new .wn-strip .wn-author { color: #78716c; margin-right: 6px; font-size: 12px; }
+  .whats-new .wn-strip .wn-time { color: #a8a29e; margin-left: 6px; font-size: 11.5px; }
   .whats-new:hover .wn-strip { animation-play-state: paused; }
-  @keyframes ledScroll {
+  @keyframes tickerScroll {
     0%   { transform: translateX(0); }
     100% { transform: translateX(-100%); }
   }
