@@ -288,8 +288,8 @@ body { padding-bottom: 80px !important; }
   <div id="app" style="display:none;">
     <div class="eitaro-hero" id="eitaro-hero">
       <button class="close-btn" type="button" onclick="hideEitaro()" aria-label="栄太郎を非表示">✕</button>
-      <div class="bubble">食べ過ぎたぁ〜<span class="sub">ごちそうさまでした…</span></div>
-      <img class="ava-full" src="/assets/eitaro_stuffed.png?v=2" alt="栄太郎(満腹)">
+      <div class="bubble" id="eitaro-bubble">食べ過ぎたぁ〜<span class="sub" id="eitaro-bubble-sub">ごちそうさまでした…</span></div>
+      <img class="ava-full" id="eitaro-img" src="/assets/eitaro_stuffed.png?v=2" alt="栄太郎">
     </div>
     <button class="eitaro-restore" id="eitaro-restore" type="button" onclick="showEitaro()" aria-label="栄太郎を表示" title="栄太郎を呼ぶ">🍱</button>
     <div class="section-ttl">📅 開催中のイベント</div>
@@ -767,7 +767,30 @@ function setTab(t) {
   // フィード見出し
   const feedTtl = (t === 'all') ? '🌳 みんなの投稿' : (meta.label || t) + ' の投稿';
   document.getElementById('feed-section-ttl').textContent = feedTtl;
+  // 栄太郎アバターをタブに合わせて差し替え
+  updateEitaroForTab(t);
   loadFeed();
+}
+
+// タブ別の栄太郎ヒーロー設定
+const EITARO_PRESETS = {
+  '食事':    { img: '/assets/eitaro_stuffed.png?v=2', alt: '栄太郎(満腹)',     text: '食べ過ぎたぁ〜',   sub: 'ごちそうさまでした…' },
+  '相談':    { img: '/assets/eitaro_worried.png?v=1', alt: '栄太郎(悩み中)',   text: 'うーん…どうしよう', sub: '誰かに相談してみよう' },
+  '雑談':    { img: '/assets/eitaro_stuffed.png?v=2', alt: '栄太郎',            text: 'おーい、みんな〜',  sub: 'なんか話そう' },
+  '健康Tips': { img: '/assets/eitaro_stuffed.png?v=2', alt: '栄太郎',           text: 'なるほど〜',        sub: '勉強になるなぁ' },
+  'all':     { img: '/assets/eitaro_stuffed.png?v=2', alt: '栄太郎(満腹)',     text: '食べ過ぎたぁ〜',   sub: 'ごちそうさまでした…' },
+};
+function updateEitaroForTab(t) {
+  const p = EITARO_PRESETS[t] || EITARO_PRESETS['all'];
+  const img = document.getElementById('eitaro-img');
+  const bub = document.getElementById('eitaro-bubble');
+  const sub = document.getElementById('eitaro-bubble-sub');
+  if (img && img.getAttribute('src') !== p.img) { img.src = p.img; img.alt = p.alt; }
+  if (bub && sub) {
+    // テキスト部分(吹き出し本文)を更新しつつ sub span は維持
+    bub.childNodes[0].nodeValue = p.text;
+    sub.textContent = p.sub;
+  }
 }
 
 // カテゴリピッカー: 「全部」タブ時にカテゴリを直接切替 (タブは all のまま、投稿先カテゴリだけ変更)
