@@ -8,9 +8,11 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-const REF_FILE = path.join(__dirname, '..', 'public', 'assets', 'eitaro_ref.jpg');
+const REF_FILE  = path.join(__dirname, '..', 'public', 'assets', 'eitaro_ref.jpg');
+// 既存の満腹版は顔がよく出ているので識別アンカーとして併用
+const REF_FILE2 = path.join(__dirname, '..', 'public', 'assets', 'eitaro_stuffed.png');
 
-const PROMPT = `Photorealistic full-body image of THE EXACT SAME middle-aged Japanese man shown in the attached reference photo. KEEP HIS FACE, HAIR, BUILD, AGE 100% IDENTICAL to the reference - same person, just shown in a different pose and without the mask. (You may remove the white mask so his full face is visible, but keep all his facial features identical to the reference.)
+const PROMPT = `Photorealistic full-body image of THE EXACT SAME middle-aged Japanese man shown in BOTH attached reference photos. The SECOND reference (eitaro_stuffed.png) shows his face most clearly — TREAT IT AS THE GROUND TRUTH FOR HIS FACE, HAIR, GLASSES (if any), SKIN TONE, AGE, AND BUILD. The first reference (eitaro_ref.jpg) shows him wearing a mask but in his actual workplace outfit. Generate the SAME PERSON shown in both photos — match the face from the second reference EXACTLY.
 
 He is "栄太郎 (Eitaro)", a friendly Japanese senior employee. He is wearing the SAME outfit as in the reference: dark navy blue work jacket (作業ジャケット) over a polo or shirt, with black work pants, and dark sneakers.
 
@@ -48,9 +50,12 @@ ABSOLUTELY DO NOT:
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) { console.error('GEMINI_API_KEY not set'); process.exit(1); }
   if (!fs.existsSync(REF_FILE)) { console.error('Reference image not found:', REF_FILE); process.exit(1); }
+  if (!fs.existsSync(REF_FILE2)) { console.error('Reference image not found:', REF_FILE2); process.exit(1); }
 
   const refMime = REF_FILE.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const refB64 = fs.readFileSync(REF_FILE).toString('base64');
+  const ref2Mime = REF_FILE2.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  const ref2B64 = fs.readFileSync(REF_FILE2).toString('base64');
   const outFile = path.join(__dirname, '..', 'public', 'assets', 'eitaro_worried.png');
   try {
     if (fs.existsSync(outFile)) {
@@ -65,15 +70,16 @@ ABSOLUTELY DO NOT:
       parts: [
         { text: PROMPT },
         { inlineData: { mimeType: refMime, data: refB64 } },
+        { inlineData: { mimeType: ref2Mime, data: ref2B64 } },
       ]
     }],
     generationConfig: {
       responseModalities: ['IMAGE', 'TEXT'],
-      temperature: 0.85,
+      temperature: 0.55,
       imageConfig: { aspectRatio: '2:3' },
     },
   };
-  console.log('Calling Gemini with reference image...');
+  console.log('Calling Gemini with 2 reference images (masked + stuffed)...');
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
