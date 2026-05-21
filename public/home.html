@@ -247,6 +247,41 @@
     .daily-msg .dm-body { font-size: 13px; }
   }
 
+  /* What's new */
+  .whats-new {
+    position: relative;
+    margin: 22px 4px 0; padding: 12px 14px;
+    background: #fff; border: 1.5px solid #bae6fd; border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(2,132,199,0.10);
+  }
+  .whats-new .wn-label {
+    position: absolute; top: -11px; left: 14px;
+    font-size: 11px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, #0ea5e9, #0369a1);
+    border: 1.5px solid #bae6fd;
+    padding: 2px 10px; border-radius: 999px;
+    white-space: nowrap; letter-spacing: 0.4px;
+    box-shadow: 0 2px 5px rgba(3,105,161,0.30);
+    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
+  }
+  .whats-new .wn-list { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; }
+  .whats-new .wn-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; background: #f8fafc; text-decoration: none; color: #0f172a; transition: background 0.15s; }
+  .whats-new .wn-item:hover { background: #e0f2fe; }
+  .whats-new .wn-ic { width: 28px; height: 28px; border-radius: 8px; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .whats-new .wn-body { flex: 1; min-width: 0; }
+  .whats-new .wn-top { display: flex; align-items: baseline; gap: 6px; }
+  .whats-new .wn-cat { font-size: 11px; font-weight: 800; color: #0369a1; flex-shrink: 0; }
+  .whats-new .wn-author { font-size: 11px; color: #64748b; flex-shrink: 0; }
+  .whats-new .wn-time { font-size: 10.5px; color: #94a3b8; margin-left: auto; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .whats-new .wn-text { font-size: 12.5px; color: #334155; line-height: 1.4; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .whats-new .wn-empty { font-size: 12px; color: #94a3b8; text-align: center; padding: 8px; }
+  @media (max-width: 600px) {
+    .whats-new { padding: 12px 12px 10px; }
+    .whats-new .wn-label { font-size: 10px; top: -10px; }
+    .whats-new .wn-cat, .whats-new .wn-author { font-size: 10.5px; }
+    .whats-new .wn-text { font-size: 12px; }
+  }
+
   /* セクション見出し */
   .sec-title {
     display: flex; align-items: center; gap: 10px;
@@ -548,6 +583,12 @@
   <div id="daily-msg" class="daily-msg" style="display:none;">
     <span class="dm-label">🌟 今日のひとこと</span>
     <span class="dm-body" id="dm-body"></span>
+  </div>
+
+  <!-- ━━━ What's new ━━━ -->
+  <div id="whats-new" class="whats-new" style="display:none;">
+    <span class="wn-label">📰 What's new</span>
+    <ul class="wn-list" id="wn-list"></ul>
   </div>
 
   <!-- ⭐ 主役カード: 今日の一歩、明日の自分 (最上段) -->
@@ -995,6 +1036,48 @@ async function loadDailyMessage() {
   } catch (e) { /* ひとことの取得失敗は黙って無視 */ }
 }
 
+function relTime(iso) {
+  if (!iso) return '';
+  // SQLiteの 'YYYY-MM-DD HH:MM:SS' (UTC) を Date 化
+  const t = Date.parse(iso.replace(' ', 'T') + 'Z');
+  if (!t) return '';
+  const diffMs = Date.now() - t;
+  const m = Math.floor(diffMs / 60000);
+  if (m < 1) return 'たった今';
+  if (m < 60) return m + '分前';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + '時間前';
+  const d = Math.floor(h / 24);
+  if (d < 7) return d + '日前';
+  return Math.floor(d / 7) + '週前';
+}
+
+async function loadWhatsNew() {
+  try {
+    const r = await api('/api/whats-new?limit=8');
+    if (!r || !r.success) return;
+    const box = document.getElementById('whats-new');
+    const list = document.getElementById('wn-list');
+    if (!box || !list) return;
+    if (!r.events || !r.events.length) return; // 何も無ければ非表示のまま
+    list.innerHTML = r.events.map(ev => {
+      const summary = ev.summary ? escapeHtml(ev.summary) : '';
+      return '<a class="wn-item" href="' + escapeHtml(ev.link || '#') + '">'
+        + '<span class="wn-ic">' + (ev.icon || '📌') + '</span>'
+        + '<span class="wn-body">'
+        +   '<span class="wn-top">'
+        +     '<span class="wn-cat">' + escapeHtml(ev.label || '') + '</span>'
+        +     (ev.author ? '<span class="wn-author">' + escapeHtml(ev.author) + '</span>' : '')
+        +     '<span class="wn-time">' + escapeHtml(relTime(ev.created_at)) + '</span>'
+        +   '</span>'
+        +   (summary ? '<span class="wn-text">' + summary + '</span>' : '')
+        + '</span>'
+        + '</a>';
+    }).join('');
+    box.style.display = '';
+  } catch (e) { /* What's newは黙って無視 */ }
+}
+
 async function init() {
   if (!token) { showLogin(); return; }
   const r = await api('/api/auth/me');
@@ -1028,6 +1111,8 @@ async function init() {
 
   // 今日のひとこと (AIメッセージ)
   loadDailyMessage();
+  // What's new (全社活動の最新ダイジェスト)
+  loadWhatsNew();
 
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;
