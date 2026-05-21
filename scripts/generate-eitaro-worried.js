@@ -28,6 +28,15 @@ He is troubled by a concern and clearly worried. Show this clearly with EVERY si
 - Standing pose, both feet on the ground, body facing roughly the viewer (slight 3/4 angle is fine)
 - Full body visible from the top of his head down to his shoes
 
+CHICK ON HEAD (CRITICAL — must be included):
+- A single small fluffy baby chick (ひな鳥/ヒヨコ) is sitting calmly on the very top of his head
+- The chick is a round, fluffy, bright yellow body with tiny orange beak, tiny orange feet, and small round black eyes
+- The chick is sized about 1/4 of his head's width — small and cute, not exaggerated
+- The chick sits naturally on his hair as if perched there, contrasting his worried expression
+- The ENTIRE chick (head to feet) must be visible inside the image frame — DO NOT crop the chick at the top edge
+- Leave ~12% padding above the chick so its full body is in frame
+- Only ONE chick, exactly one — not multiple, not zero
+
 STYLE:
 - PHOTOREALISTIC, natural lifestyle photography
 - NOT anime, NOT illustration, NOT cartoon — must look like a real candid photo of the real man
@@ -37,11 +46,13 @@ STYLE:
 - Vertical 2:3 portrait orientation, centered with ~10% padding on all sides
 
 ABSOLUTELY DO NOT:
-- Do not draw anime or cartoon style
-- Do not show any objects (no phone, no documents, no money) — pure pose only
+- Do not draw anime or cartoon style (the chick may be slightly stylized but should look like a real fluffy chick)
+- Do not show any other objects (no phone, no documents, no money) — pose + chick only
 - Do not show any text, speech bubbles, words, or logos
 - Do not change his face, hair, age, or body type from the reference
 - Do not add other people
+- Do not add more than one chick — exactly ONE
+- Do not crop the chick — its entire body must be inside the frame
 - Do not include any background scenery (no walls, no floor pattern, no street)
 - Background must be uniform pure white #FFFFFF for chroma-key background removal
 - Do not make him look angry or crying — just worried/troubled/perplexed`;
