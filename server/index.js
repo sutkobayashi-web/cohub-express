@@ -287,6 +287,7 @@ app.use('/api/health-literacy', require('./routes/health_literacy'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/takara', require('./routes/takara_demo'));
 app.use('/api/circles', require('./routes/circles'));
+app.use('/api/branch-wifi', require('./routes/branch_wifi'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -295,7 +296,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-05-20-board-header-fixed";
+const APP_VERSION = "2026-05-21-home-menu-categorized";
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -749,6 +750,8 @@ function canDm(sender, receiver) {
   if (receiver.role === 'bot') return true;
   // 推進メンバー(現場/倉庫)は横断的に全員へDM可 (5/19、役員宛も含む)
   if (sender.is_field_promoter || sender.is_warehouse_promoter) return true;
+  // 推進メンバー宛も誰からでも受信可 (5/20、現場相談窓口として機能させるため)
+  if (receiver.is_field_promoter || receiver.is_warehouse_promoter) return true;
 
   const recvIsExec = isExecutive(receiver.id);
   // 役員以外の管理者は引き続き自由に許可
@@ -1394,24 +1397,25 @@ io.on('connection', (socket) => {
       sender_company: senderRow.company_code || '',
       sender_ring: senderRow.ring_color || '',
     };
-    // メンバー全員に配信 (オンラインは即、オフラインはPush)
+    // 送信者本人にACK echo (非メンバーadmin送信でも「送信中」を解除するため) — 5/20
+    socket.emit('group:msg', payload);
+    // メンバー全員に配信 (オンラインは即、オフラインはPush) — 送信者は上で echo 済みなのでスキップ
     const members = getDb().prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(gid);
     const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
     const groupName = (getDb().prepare('SELECT name FROM chat_groups WHERE id = ?').get(gid) || {}).name || 'グループ';
     for (const m of members) {
+      if (m.user_id === uid) continue;
       const tp = presence.get(m.user_id);
       if (tp) {
         const s = io.sockets.sockets.get(tp.socketId);
         if (s) s.emit('group:msg', payload);
       }
-      if (m.user_id !== uid) {
-        sendPushToUser(m.user_id, {
-          title: '[' + groupName + '] ' + senderName,
-          body: (content || '').slice(0, 120) || '📎 添付ファイル',
-          tag: 'grp-' + gid,
-          url: '/?g=' + gid,
-        }).catch(() => {});
-      }
+      sendPushToUser(m.user_id, {
+        title: '[' + groupName + '] ' + senderName,
+        body: (content || '').slice(0, 120) || '📎 添付ファイル',
+        tag: 'grp-' + gid,
+        url: '/?g=' + gid,
+      }).catch(() => {});
     }
     // 安全フィルタ: 警告を無視して送信された場合に静かに監査ログのみ記録 (Push通知なし)
     if (content) {
@@ -1450,7 +1454,7 @@ io.on('connection', (socket) => {
     const to = (data && data.to || '').toString();
     const content = (data && data.content || '').toString().trim().slice(0, 1000);
     if (!to || (!content && !(data && data.attach)) || to === uid) return;
-    const target = getDb().prepare('SELECT id, role, dm_group, dm_rank FROM users WHERE id = ?').get(to);
+    const target = getDb().prepare('SELECT id, role, dm_group, dm_rank, dm_restricted, job_role, is_field_promoter, is_warehouse_promoter FROM users WHERE id = ?').get(to);
     if (!target) return;
     // DM権限判定 (レポートライン保護)
     const sender = loadUserForDm(uid);
