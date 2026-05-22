@@ -165,6 +165,12 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .chat-msg .meta .nm { font-weight: 700; color: #475569; }
 .chat-msg .bubble { max-width: 85%; padding: 7px 12px; border-radius: 14px; background: #f1f5f9; font-size: 13px; color: #0f172a; word-break: break-word; line-height: 1.4; }
 .chat-msg.self .bubble { background: #06b6d4; color: #fff; }
+.bubble .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 10px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
+.chat-msg.self .bubble .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
+.bubble .tr-btn:hover { background: #fff; color: #0f172a; }
+.chat-msg.self .bubble .tr-btn:hover { background: rgba(255,255,255,0.5); color: #fff; }
+.bubble .tr-result { color: #475569; }
+.chat-msg.self .bubble .tr-result { color: rgba(255,255,255,0.95); border-top-color: rgba(255,255,255,0.45) !important; }
 .chat-msg .read-mark { font-size: 10px; color: #06b6d4; margin-top: 2px; padding: 0 4px; }
 .chat-msg.self .read-mark { text-align: right; }
 .member-group { padding: 10px 12px 4px; font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; }
@@ -691,8 +697,8 @@ body.layout-meeting.cam-open #video-grid:has(.v-tile.pinned) { flex: 0 0 auto; m
     <button class="rail-btn" id="rail-board" onclick="location.href='/board.html'" title="社内掲示板" style="background:rgba(8,145,178,0.10);border:1px solid rgba(8,145,178,0.35);color:#0e7490;">
       <span>📋</span><span class="lbl">掲示板</span><span class="cnt cnt-new" id="rail-board-cnt" style="display:none;">0</span>
     </button>
-    <button class="rail-btn" id="rail-announce" onclick="location.href='/announcements.html'" title="告知" style="background:rgba(220,38,38,0.10);border:1px solid rgba(220,38,38,0.35);color:#b91c1c;">
-      <span>📢</span><span class="lbl">告知</span><span class="cnt cnt-new" id="rail-announce-cnt" style="display:none;">0</span>
+    <button class="rail-btn" id="rail-announce" onclick="location.href='/announcements.html'" title="通達" style="background:rgba(220,38,38,0.10);border:1px solid rgba(220,38,38,0.35);color:#b91c1c;">
+      <span>📢</span><span class="lbl">通達</span><span class="cnt cnt-new" id="rail-announce-cnt" style="display:none;">0</span>
     </button>
     <button class="rail-btn" id="rail-ops" onclick="location.href='/ops.html'" title="業務連絡 (車両不具合/事故報告/関東BC)" style="background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.35);color:#6d28d9;">
       <span>🚛</span><span class="lbl">業務連絡</span><span class="cnt cnt-new" id="rail-ops-cnt" style="display:none;">0</span>
@@ -2014,12 +2020,21 @@ function renderAnnouncePopup(a) {
   const ackBtn = a.requires_ack
     ? `<button onclick="ackAnnouncePopup(${a.id})" style="padding:14px 28px;background:#10b981;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;">✅ 確認しました</button>`
     : `<button onclick="closeAnnouncePopup(${a.id})" style="padding:14px 28px;background:#0891b2;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">既読にして閉じる</button>`;
+  let attHtml = '';
+  if (Array.isArray(a.attachments) && a.attachments.length) {
+    attHtml = '<div style="padding:0 22px 12px;display:flex;flex-wrap:wrap;gap:6px;">' +
+      a.attachments.map(f => {
+        const icon = /^image\//.test(f.mime||'') ? '🖼' : /pdf/.test(f.mime||'') ? '📄' : /sheet|excel/.test(f.mime||'') ? '📊' : /word|document/.test(f.mime||'') ? '📝' : /presentation|powerpoint/.test(f.mime||'') ? '📽' : '📎';
+        return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;color:#0f172a;text-decoration:none;font-weight:600;">${icon} ${escapeHtml(f.name)}</a>`;
+      }).join('') + '</div>';
+  }
   modal.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.4);">
     <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;padding:16px 20px;border-radius:16px 16px 0 0;">
       <div style="font-size:13px;font-weight:800;margin-bottom:4px;opacity:0.9;">${lvl}</div>
       <div style="font-size:18px;font-weight:800;line-height:1.4;">${escapeHtml(a.title)}</div>
     </div>
     <div style="padding:18px 22px;font-size:14px;line-height:1.7;color:#0f172a;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(a.body)}</div>
+    ${attHtml}
     <div style="padding:14px 20px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;">${escapeHtml(a.author_name || '')} · 重要なため確認をお願いします</div>
     <div style="padding:14px 20px 20px;">${ackBtn}</div>
   </div>`;
@@ -5429,6 +5444,63 @@ function setupMentionSuggest() {
 }
 
 // ===== チャットログ描画 =====
+// ============================================================
+// チャット本文の翻訳トグル (🌐 訳)
+// 任意言語のメッセージを閲覧者の希望言語に訳す (デフォルト JA)
+// ============================================================
+function viewerLang() {
+  try { return localStorage.getItem('cohub_lang') || 'ja'; } catch (e) { return 'ja'; }
+}
+function bubbleTranslateBtn(text) {
+  if (!text || text.length < 2) return '';
+  // data-orig はトグル時に取り出すため raw text (HTMLエスケープ別途)
+  const safe = escapeHtml(text).replace(/"/g, '&quot;');
+  return ' <button class="tr-btn" data-orig="' + safe + '" onclick="toggleMsgTranslate(this);event.stopPropagation();" title="翻訳を表示">🌐 訳</button>';
+}
+async function toggleMsgTranslate(btn) {
+  const bubble = btn.closest('.bubble');
+  if (!bubble) return;
+  const existing = bubble.querySelector('.tr-result');
+  if (existing) {
+    existing.remove();
+    btn.textContent = '🌐 訳';
+    return;
+  }
+  const text = btn.getAttribute('data-orig') || '';
+  // data-orig は escapeHtml済みなので戻す
+  const decoded = (function (s) {
+    const d = document.createElement('div'); d.innerHTML = s; return d.textContent || '';
+  })(text);
+  if (!decoded) return;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = '🌐 …';
+  try {
+    const r = await fetch('/api/translate/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ text: decoded, target: viewerLang() }),
+    });
+    const d = await r.json();
+    if (d && d.translation) {
+      const div = document.createElement('div');
+      div.className = 'tr-result';
+      div.style.cssText = 'margin-top:6px;padding-top:6px;border-top:1px dashed rgba(148,163,184,0.4);font-size:12px;opacity:0.92;font-style:italic;white-space:pre-wrap;';
+      div.textContent = '🌐 ' + d.translation;
+      bubble.appendChild(div);
+      btn.textContent = '原文のみ';
+    } else {
+      btn.textContent = '🌐 訳失敗';
+      setTimeout(() => { btn.textContent = prev; }, 1500);
+    }
+  } catch (e) {
+    btn.textContent = '🌐 訳失敗';
+    setTimeout(() => { btn.textContent = prev; }, 1500);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function attachBoxHtml(a) {
   if (!a || !a.url) return '';
   const isImg = (a.type || '').startsWith('image/');
@@ -5460,7 +5532,7 @@ function renderChatLog() {
       : '';
     html += '<div class="chat-msg ' + (m.self ? 'self' : '') + '">';
     if (showMeta) html += '<div class="meta"><span class="nm">' + escapeHtml(nm) + '</span><span>' + hhmm + '</span></div>';
-    if (m.content) html += '<div class="bubble">' + escapeHtml(m.content) + '</div>';
+    if (m.content) html += '<div class="bubble">' + escapeHtml(m.content) + bubbleTranslateBtn(m.content) + '</div>';
     if (m.attach) html += attachBoxHtml(m.attach);
     if (readStr) html += '<div class="read-mark">' + readStr + '</div>';
     html += '</div>';
@@ -5740,7 +5812,7 @@ const AVATAR_INTRO_CONFIG = {
       { emoji: '💬', label: '葵に話しかける', onclick: "openDM('bot_aoi')" },
       { emoji: '📅', label: '今日の予定を確認', onclick: "openDM('bot_aoi'); setTimeout(()=>{ const t=document.getElementById('dm-text'); if(t){ t.value='今日の予定を教えて'; t.focus(); } }, 600)" },
       { emoji: '📋', label: '掲示板を見る', onclick: "location.href='/board.html'" },
-      { emoji: '📢', label: 'お知らせを確認', onclick: "location.href='/announcements.html'" },
+      { emoji: '📢', label: '通達を確認', onclick: "location.href='/announcements.html'" },
       { emoji: '🏥', label: '健康管理室へ移動', onclick: "switchFloor('wellness_room')" },
     ],
   },
@@ -5930,7 +6002,7 @@ function renderGroupChat() {
     const nm = isSelf ? '自分' : (m.name || (users[m.from] && users[m.from].name) || '誰か');
     html += '<div class="chat-msg ' + (isSelf ? 'self' : '') + '">';
     if (showMeta) html += '<div class="meta"><span class="nm">' + escapeHtml(nm) + '</span><span>' + hhmm + '</span></div>';
-    if (m.content) html += '<div class="bubble">' + escapeHtml(m.content) + '</div>';
+    if (m.content) html += '<div class="bubble">' + escapeHtml(m.content) + bubbleTranslateBtn(m.content) + '</div>';
     if (m.attach) html += attachBoxHtml(m.attach);
     html += '</div>';
     prevAuthor = m.from; prevTime = t.getTime();
@@ -6032,7 +6104,7 @@ function renderDM() {
       const replayBtn = m.voice
         ? ' <button onclick="replayVoiceDm(' + (m.id || 0) + ')" title="もう一度読み上げ" style="margin-left:6px;background:none;border:1px solid rgba(15,23,42,0.15);border-radius:10px;padding:1px 8px;font-size:11px;cursor:pointer;color:#64748b;">▶ 再生</button>'
         : '';
-      html += '<div class="bubble">' + vMark + escapeHtml(m.content) + replayBtn + '</div>';
+      html += '<div class="bubble">' + vMark + escapeHtml(m.content) + replayBtn + bubbleTranslateBtn(m.content) + '</div>';
     }
     if (m.attach) html += attachBoxHtml(m.attach);
     html += '</div>';
@@ -9074,5 +9146,6 @@ if (token && userData) {
 
 // (旧FABは廃止 - 頭上ボタン+bot本体タップで充足)
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

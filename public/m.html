@@ -236,6 +236,10 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   .msg .sender { font-size: 10px; color: #64748b; margin-bottom: 2px; padding: 0 4px; }
   .msg .bub { background: #fff; padding: 10px 12px; border-radius: 14px; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(15,23,42,0.06); white-space: pre-wrap; word-break: break-word; }
   .msg.self .bub { background: #06b6d4; color: #fff; }
+  .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
+  .msg.self .bub .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
+  .bub .tr-result { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(148,163,184,0.4); font-size: 13px; opacity: 0.92; font-style: italic; white-space: pre-wrap; color: #475569; }
+  .msg.self .bub .tr-result { color: rgba(255,255,255,0.95); border-top-color: rgba(255,255,255,0.45); }
   .msg .t { font-size: 9px; color: #94a3b8; margin-top: 2px; padding: 0 4px; }
   .msg .attach { margin-top: 6px; }
   .msg .attach img { max-width: 100%; max-height: 240px; border-radius: 10px; display: block; }
@@ -410,7 +414,7 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   #m-float-help .mfh-sos { background: linear-gradient(135deg,#f97316,#ea580c); }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js" defer></script>
+<script src="/global-notif.js?v=20260521b" defer></script>
 </head>
 <body>
 
@@ -529,7 +533,7 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
           </div>
           <div class="qa-item" id="qa-announce" onclick="location.href='/announcements.html'" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c;position:relative;">
             <div class="i">📢</div>
-            <div>告知</div>
+            <div>通達</div>
             <span id="qa-announce-cnt" style="display:none;position:absolute;top:6px;right:8px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;">0</span>
           </div>
           <div class="qa-item" onclick="location.href='/challenges.html'" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;position:relative;">
@@ -905,6 +909,60 @@ function ttsOptsForBot(uid) {
 // ============================================================
 function escapeHtml(s) {
   return String(s || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'})[c]);
+}
+
+// ============================================================
+// チャット本文の翻訳トグル (🌐 訳)
+// 任意言語のメッセージを閲覧者の希望言語に訳す (デフォルト JA)
+// ============================================================
+function viewerLang() {
+  try { return localStorage.getItem('cohub_lang') || 'ja'; } catch (e) { return 'ja'; }
+}
+function bubbleTranslateBtn(text) {
+  if (!text || text.length < 2) return '';
+  const safe = escapeHtml(text).replace(/"/g, '&quot;');
+  return ' <button class="tr-btn" data-orig="' + safe + '" onclick="toggleMsgTranslate(this);event.stopPropagation();" title="翻訳を表示">🌐 訳</button>';
+}
+async function toggleMsgTranslate(btn) {
+  const bubble = btn.closest('.bub') || btn.closest('.bubble');
+  if (!bubble) return;
+  const existing = bubble.querySelector('.tr-result');
+  if (existing) {
+    existing.remove();
+    btn.textContent = '🌐 訳';
+    return;
+  }
+  const text = btn.getAttribute('data-orig') || '';
+  const decoded = (function (s) {
+    const d = document.createElement('div'); d.innerHTML = s; return d.textContent || '';
+  })(text);
+  if (!decoded) return;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = '🌐 …';
+  try {
+    const r = await fetch('/api/translate/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof token !== 'undefined' ? token : (localStorage.getItem('cohub_token') || '')) },
+      body: JSON.stringify({ text: decoded, target: viewerLang() }),
+    });
+    const d = await r.json();
+    if (d && d.translation) {
+      const div = document.createElement('div');
+      div.className = 'tr-result';
+      div.textContent = '🌐 ' + d.translation;
+      bubble.appendChild(div);
+      btn.textContent = '原文のみ';
+    } else {
+      btn.textContent = '🌐 訳失敗';
+      setTimeout(() => { btn.textContent = prev; }, 1500);
+    }
+  } catch (e) {
+    btn.textContent = '🌐 訳失敗';
+    setTimeout(() => { btn.textContent = prev; }, 1500);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ===== 入出室チャイム＆音声アナウンス =====
@@ -1633,12 +1691,21 @@ function renderAnnouncePopup(a) {
   const ackBtn = a.requires_ack
     ? `<button onclick="ackAnnouncePopup(${a.id})" style="padding:14px;background:#10b981;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;">✅ 確認しました</button>`
     : `<button onclick="closeAnnouncePopup(${a.id})" style="padding:14px;background:#0891b2;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">既読にして閉じる</button>`;
+  let attHtml = '';
+  if (Array.isArray(a.attachments) && a.attachments.length) {
+    attHtml = '<div style="padding:0 18px 10px;display:flex;flex-wrap:wrap;gap:6px;">' +
+      a.attachments.map(f => {
+        const icon = /^image\//.test(f.mime||'') ? '🖼' : /pdf/.test(f.mime||'') ? '📄' : /sheet|excel/.test(f.mime||'') ? '📊' : /word|document/.test(f.mime||'') ? '📝' : /presentation|powerpoint/.test(f.mime||'') ? '📽' : '📎';
+        return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:7px 11px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;color:#0f172a;text-decoration:none;font-weight:600;">${icon} ${escapeHtml(f.name)}</a>`;
+      }).join('') + '</div>';
+  }
   modal.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.4);">
     <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;">
       <div style="font-size:12px;font-weight:800;margin-bottom:4px;opacity:0.9;">${lvl}</div>
       <div style="font-size:17px;font-weight:800;line-height:1.4;">${escapeHtml(a.title)}</div>
     </div>
     <div style="padding:16px 18px;font-size:14px;line-height:1.7;color:#0f172a;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(a.body)}</div>
+    ${attHtml}
     <div style="padding:10px 18px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;">${escapeHtml(a.author_name || '')} · 重要なため確認をお願いします</div>
     <div style="padding:14px 18px 18px;">${ackBtn}</div>
   </div>`;
@@ -2170,7 +2237,7 @@ function msgHtml(m, isSelf, showSenderName) {
     (isSelf ? '' : '<div class="av">' + avHtml + '</div>') +
     '<div class="bub-wrap">' +
       (showSenderName && !isSelf && name ? '<div class="sender">' + escapeHtml(name) + '</div>' : '') +
-      '<div class="bub">' + vMark + escapeHtml(m.content || '') + replayBtn + attachHtml + '</div>' +
+      '<div class="bub">' + vMark + escapeHtml(m.content || '') + replayBtn + bubbleTranslateBtn(m.content || '') + attachHtml + '</div>' +
       (m.at ? '<div class="t">' + fmtTime(m.at) + '</div>' : '') +
     '</div>' +
   '</div>';
@@ -3604,5 +3671,6 @@ function openMobileSOS() {
 </div>
 <script src="/overlay-history.js?v=3"></script>
 <script src="/fukuri-hint.js?v=2"></script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

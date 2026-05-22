@@ -640,6 +640,10 @@
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(14,165,233,0.25);
   }
+  .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
+  .msg.me .bub .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
+  .bub .tr-result { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(148,163,184,0.4); font-size: 13px; opacity: 0.92; font-style: italic; white-space: pre-wrap; color: #475569; }
+  .msg.me .bub .tr-result { color: rgba(255,255,255,0.95); border-top-color: rgba(255,255,255,0.45); }
 
   .msg .ts {
     font-size: 10px; color: #94a3b8; margin-top: 2px;
@@ -1592,6 +1596,49 @@ function showApp() { $('login-screen').classList.remove('show'); $('app').style.
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
+// ============================================================
+// チャット本文の翻訳トグル (🌐 訳)
+// ============================================================
+function viewerLang() {
+  try { return localStorage.getItem('cohub_lang') || 'ja'; } catch (e) { return 'ja'; }
+}
+function bubbleTranslateBtn(text) {
+  if (!text || text.length < 2) return '';
+  const safe = escapeHtml(text);
+  return ' <button class="tr-btn" data-orig="' + safe + '" onclick="toggleMsgTranslate(this);event.stopPropagation();" title="翻訳を表示">🌐 訳</button>';
+}
+async function toggleMsgTranslate(btn) {
+  const bubble = btn.closest('.bub');
+  if (!bubble) return;
+  const existing = bubble.querySelector('.tr-result');
+  if (existing) { existing.remove(); btn.textContent = '🌐 訳'; return; }
+  const text = btn.getAttribute('data-orig') || '';
+  const decoded = (function (s) {
+    const d = document.createElement('div'); d.innerHTML = s; return d.textContent || '';
+  })(text);
+  if (!decoded) return;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = '🌐 …';
+  try {
+    const token = localStorage.getItem('cohub_token') || '';
+    const r = await fetch('/api/translate/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ text: decoded, target: viewerLang() }),
+    });
+    const d = await r.json();
+    if (d && d.translation) {
+      const div = document.createElement('div');
+      div.className = 'tr-result';
+      div.textContent = '🌐 ' + d.translation;
+      bubble.appendChild(div);
+      btn.textContent = '原文のみ';
+    } else { btn.textContent = '🌐 訳失敗'; setTimeout(() => { btn.textContent = prev; }, 1500); }
+  } catch (e) { btn.textContent = '🌐 訳失敗'; setTimeout(() => { btn.textContent = prev; }, 1500); }
+  finally { btn.disabled = false; }
+}
+
 function fmtTime(s) {
   if (!s) return '';
   const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
@@ -2410,7 +2457,7 @@ function renderMessages() {
 
     // バブル本文 + 添付
     const attach = m.attach_url ? `<a class="attach-link" href="${escapeHtml(m.attach_url)}" target="_blank">📎 ${escapeHtml(m.attach_name || 'attach')}</a>` : '';
-    const bubble = `<div class="bub">${escapeHtml(m.content || '')}${attach}</div>`;
+    const bubble = `<div class="bub">${escapeHtml(m.content || '')}${bubbleTranslateBtn(m.content || '')}${attach}</div>`;
 
     // 自分の連続でないメッセージは右下に時刻 + 既読/未読
     let tsBottom = '';
@@ -3365,5 +3412,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/overlay-history.js?v=3"></script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>
