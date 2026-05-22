@@ -71,6 +71,8 @@
   .photo-list-row img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
   .photo-list-row .rm { margin-left: auto; background: transparent; border: none; color: #dc2626; cursor: pointer; padding: 4px 8px; }
 </style>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 
@@ -206,6 +208,9 @@ async function loadMasters() {
 async function loadSummary() {
   const d = await api('/api/accident/summary');
   if (!d || !d.success) return;
+  // 両タブのバッジを同時更新 (現在表示していない側が0に張り付くのを防ぐ)
+  if (d.product) document.getElementById('cnt-product').textContent = d.product.total;
+  if (d.vehicle) document.getElementById('cnt-vehicle').textContent = d.vehicle.total;
   const s = currentTab === 'product' ? d.product : d.vehicle;
   const pills = [];
   pills.push(`<span class="stat-pill">📊 総件数 ${s.total}</span>`);
@@ -627,5 +632,6 @@ async function approveOne(id) {
 loadList();
 </script>
 
+  <script src="/translate.js" defer></script>
 </body>
 </html>
