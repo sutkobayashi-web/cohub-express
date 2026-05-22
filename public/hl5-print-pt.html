@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>ヘルスリテラシー調査票 (紙配布版) — CoWell</title>
+<title>Pesquisa de Letramento em Saúde (Versão Impressa) — CoWell</title>
 <style>
   @page { size: A4 portrait; margin: 10mm 12mm; }
   * { box-sizing: border-box; }
   body {
-    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-family: "Helvetica Neue", "Arial", "Yu Gothic UI", sans-serif;
     color: #1f2937;
     background: #fff;
     margin: 0; padding: 14mm 14mm 10mm;
@@ -18,7 +18,25 @@
     width: 186mm;
     margin: 0 auto;
   }
-  /* ヘッダー */
+  /* Seletor de idioma (somente tela) */
+  .lang-bar {
+    max-width: 186mm; margin: 0 auto 6mm;
+    display: flex; gap: 6px; justify-content: flex-end;
+    font-size: 10pt;
+  }
+  .lang-bar a {
+    text-decoration: none;
+    padding: 4px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    color: #475569;
+    background: #f8fafc;
+  }
+  .lang-bar a.active {
+    background: #0d9488; color: #fff; border-color: #0d9488; font-weight: 700;
+  }
+  @media print { .lang-bar { display: none !important; } }
+  /* Cabeçalho */
   .hdr {
     display: flex; align-items: stretch; gap: 10mm;
     border-bottom: 2px solid #0d9488;
@@ -52,7 +70,7 @@
   .hdr-right .url {
     font-size: 7.5pt; color: #64748b; margin-top: 0.5mm;
   }
-  /* CoWellの目的ボックス */
+  /* Caixa de propósito */
   .purpose {
     background: #f0fdfa;
     border: 1px solid #5eead4;
@@ -70,7 +88,7 @@
   .purpose p { margin: 0 0 1mm; }
   .purpose p:last-child { margin-bottom: 0; }
   .purpose b { color: #134e4a; }
-  /* アンケート説明 */
+  /* Introdução */
   .intro {
     margin-bottom: 4mm;
   }
@@ -84,7 +102,7 @@
     font-size: 9.5pt; color: #334155; margin: 0;
     line-height: 1.55;
   }
-  /* 記名欄 */
+  /* Identificação */
   .meta-row {
     display: flex; gap: 4mm;
     margin: 3mm 0 4mm;
@@ -98,7 +116,7 @@
     min-height: 9mm;
   }
   .meta-row .cell .lbl { font-weight: 700; color: #0d9488; font-size: 9pt; flex-shrink: 0; }
-  /* アンケートテーブル */
+  /* Tabela da pesquisa */
   table.q {
     width: 100%; border-collapse: collapse;
     font-size: 10pt;
@@ -132,7 +150,7 @@
     border-radius: 2px;
   }
   table.q tr:nth-child(even) td { background: #f8fafc; }
-  /* フッター */
+  /* Rodapé */
   .foot {
     margin-top: 5mm;
     padding: 3mm 4mm;
@@ -154,7 +172,7 @@
     text-align: right;
     font-size: 8.5pt; color: #64748b;
   }
-  /* 画面プレビュー時の背景 */
+  /* Pré-visualização */
   @media screen {
     body { background: #f1f5f9; padding: 20mm 10mm; }
     .sheet {
@@ -168,113 +186,95 @@
     body { background: #fff; padding: 0; }
     .sheet { box-shadow: none; padding: 0; }
   }
-  /* 言語切替 (画面のみ・印刷時非表示) */
-  .lang-bar {
-    max-width: 186mm; margin: 0 auto 6mm;
-    display: flex; gap: 6px; justify-content: flex-end;
-    font-size: 10pt;
-  }
-  .lang-bar a {
-    text-decoration: none;
-    padding: 4px 10px;
-    border: 1px solid #cbd5e1;
-    border-radius: 14px;
-    color: #475569;
-    background: #f8fafc;
-  }
-  .lang-bar a.active {
-    background: #0d9488; color: #fff; border-color: #0d9488; font-weight: 700;
-  }
-  @media print { .lang-bar { display: none !important; } }
 </style>
 </head>
 <body>
 
 <div class="lang-bar" data-no-translate>
-  <a href="/hl5-print.html" class="active">日本語</a>
+  <a href="/hl5-print.html">日本語</a>
   <a href="/hl5-print-en.html">English</a>
-  <a href="/hl5-print-pt.html">Português</a>
+  <a href="/hl5-print-pt.html" class="active">Português</a>
 </div>
 
 <div class="sheet">
 
-  <!-- ヘッダー -->
+  <!-- Cabeçalho -->
   <div class="hdr">
     <div class="hdr-left">
-      <h1>📋 ヘルスリテラシー調査票</h1>
-      <p class="sub">スタンダード運輸グループ｜健康づくり活動の評価・改善のためのアンケート</p>
-      <div class="meta">所要時間: <b>約2分</b>　／　回答方法: 各項目1つにチェック (☑)</div>
+      <h1>📋 Pesquisa de Letramento em Saúde</h1>
+      <p class="sub">Grupo Standard Transport | Pesquisa para avaliação e melhoria das atividades de promoção da saúde</p>
+      <div class="meta">Tempo necessário: <b>cerca de 2 min</b>　／　Como responder: marque (☑) uma opção por item</div>
     </div>
     <div class="hdr-right">
       <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAC6AQMAAAAjwMWyAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAA+ElEQVRYhe2W6w0EIQiEJ7GAK8nWtyQLMOFgZh/ebQGwyRI16vdnAgICrz3eurmN3jTiYBWAzzZgA5Mb3aQDl+jn+dkk2tc6wK+cVQP7vgxQaOdHom8xTwIlc3DHLtcG7pYEutzHzOw/TkwFzbZgtvmAi/a1APBpzExwzPUlpgG044Vpcz24VMBMiNoKuvIMbSro/tRmqIwAx627sgZQvQDBVUtSAR0XDVKZsHaDVGCSO6m1LVmbBw4sPx7qs4FaEcCfhFgFgOM7aMttOlBo7ezZZ3IWAHQi6E0rA/bk/CsZiYChpRNHdKNWA+g7qIrPv04vAF57tH0BAaLv98TCnL0AAAAASUVORK5CYII=" alt="CoWell QR">
-      <div class="cap">📱 CoWell スマホ版</div>
+      <div class="cap">📱 CoWell celular</div>
       <div class="url">cohub.biz-terrace.org</div>
     </div>
   </div>
 
-  <!-- CoWellの目的 -->
+  <!-- Propósito -->
   <div class="purpose">
-    <div class="ttl">🌱 CoWell (Communication &amp; Wellness) の目的</div>
-    <p>CoWell はスタンダード運輸グループの<b>社内コミュニケーションと健康経営を統合したバーチャルオフィス</b>です。
-    「健康になりましょう」と直接訴えるのではなく、<b>本人が「ちょっとやってみようかな」と思える瞬間</b>を社内につくることを目的としています。</p>
-    <p>会社の最終的な評価軸は <b>健康診断レッド/イエロー対象者の減少</b>。その実現に向けて、まず一人ひとりの<b>「健康情報との向き合い方 (ヘルスリテラシー)」</b>を把握することが第一歩になります。</p>
+    <div class="ttl">🌱 Propósito do CoWell (Communication &amp; Wellness)</div>
+    <p>O CoWell é um <b>escritório virtual que integra a comunicação interna e a gestão da saúde</b> no Grupo Standard Transport.
+    Em vez de simplesmente dizer "fique saudável", nosso objetivo é criar <b>momentos em que cada pessoa pense "talvez eu possa tentar um pouco"</b> dentro da empresa.</p>
+    <p>O principal indicador da empresa é <b>reduzir o número de funcionários classificados como vermelho/amarelo nos exames anuais de saúde</b>. O primeiro passo é compreender como cada pessoa lida com as informações de saúde — ou seja, seu <b>"letramento em saúde"</b>.</p>
   </div>
 
-  <!-- アンケート説明 -->
+  <!-- Introdução -->
   <div class="intro">
-    <div class="ttl">アンケートご協力のお願い</div>
-    <p class="desc">本アンケートは、健康づくり活動の評価および今後の改善を目的として実施するものです。回答は<b>自由意思</b>によるものであり、回答しない場合でも不利益は一切ありません。集計結果は個人が特定できない形で取り扱います。</p>
+    <div class="ttl">Solicitação de Colaboração</div>
+    <p class="desc">Esta pesquisa tem como objetivo avaliar as atividades de promoção da saúde e orientar melhorias futuras. A participação é <b>voluntária</b>, e não há nenhuma desvantagem caso você opte por não responder. Os resultados são agregados de forma que ninguém possa ser identificado individualmente.</p>
   </div>
 
-  <!-- 記名欄 -->
+  <!-- Identificação -->
   <div class="meta-row">
-    <div class="cell"><span class="lbl">氏名</span><span style="flex:1;"></span></div>
-    <div class="cell"><span class="lbl">所属</span><span style="flex:1;"></span></div>
-    <div class="cell" style="flex:0 0 50mm;"><span class="lbl">回答日</span><span style="flex:1;text-align:right;color:#94a3b8;">    年   月   日</span></div>
+    <div class="cell"><span class="lbl">Nome</span><span style="flex:1;"></span></div>
+    <div class="cell"><span class="lbl">Setor</span><span style="flex:1;"></span></div>
+    <div class="cell" style="flex:0 0 50mm;"><span class="lbl">Data</span><span style="flex:1;text-align:right;color:#94a3b8;">AAAA  /  MM  /  DD</span></div>
   </div>
 
-  <!-- アンケート本体 -->
+  <!-- Tabela da pesquisa -->
   <table class="q">
     <thead>
       <tr>
-        <th class="qcol">項目</th>
-        <th>全く<br>できない</th>
-        <th>あまり<br>できない</th>
-        <th>どちらとも<br>いえない</th>
-        <th>とても<br>そう思う</th>
+        <th class="qcol">Item</th>
+        <th>Não consigo<br>de jeito nenhum</th>
+        <th>Quase não<br>consigo</th>
+        <th>Não sei /<br>Mais ou menos</th>
+        <th>Concordo<br>plenamente</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td class="q"><span class="qnum">1</span>健康に関する情報を、さまざまな情報源 (インターネット、テレビ、医療者など) から集めることができる</td>
+        <td class="q"><span class="qnum">1</span>Consigo reunir informações sobre saúde a partir de diversas fontes (internet, TV, profissionais de saúde, etc.).</td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
       </tr>
       <tr>
-        <td class="q"><span class="qnum">2</span>集めた健康情報が信頼できるかどうかを判断することができる</td>
+        <td class="q"><span class="qnum">2</span>Consigo julgar se as informações de saúde que reúno são confiáveis.</td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
       </tr>
       <tr>
-        <td class="q"><span class="qnum">3</span>健康情報を理解し、自分に必要な情報を選ぶことができる</td>
+        <td class="q"><span class="qnum">3</span>Consigo entender as informações de saúde e selecionar o que é necessário para mim.</td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
       </tr>
       <tr>
-        <td class="q"><span class="qnum">4</span>得た健康情報をもとに、自分の行動を決めることができる</td>
+        <td class="q"><span class="qnum">4</span>Consigo decidir minhas ações com base nas informações de saúde que obtive.</td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
       </tr>
       <tr>
-        <td class="q"><span class="qnum">5</span>健康に関する自分の考えや意見を、周囲の人 (家族・同僚・医療者など) に伝えることができる</td>
+        <td class="q"><span class="qnum">5</span>Consigo comunicar meus próprios pensamentos e opiniões sobre saúde às pessoas ao meu redor (família, colegas, profissionais de saúde, etc.).</td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
         <td class="opt"><span class="cb"></span></td>
@@ -283,21 +283,20 @@
     </tbody>
   </table>
 
-  <!-- 提出フッター -->
+  <!-- Entrega -->
   <div class="foot">
-    <div class="ttl">📥 ご提出について</div>
+    <div class="ttl">📥 Sobre a Entrega</div>
     <ul>
-      <li>記入後はそのまま各営業所の<b>回収箱</b>または所属長へ提出してください。</li>
-      <li>個人回答は匿名化のうえ集計し、本人特定可能な形で外部に開示することはありません。</li>
-      <li>後日、社員登録完了後は CoWell スマホ版 (右上QR) から同じ調査に回答できるようになります。今回はその準備として紙でご協力ください。</li>
+      <li>Depois de preencher, entregue na <b>caixa de coleta da sua filial</b> ou diretamente ao seu superior.</li>
+      <li>As respostas individuais são anonimizadas antes da agregação, e nunca serão divulgadas externamente de forma identificável.</li>
+      <li>Após concluir seu cadastro, você poderá responder à mesma pesquisa pelo aplicativo CoWell (QR code no canto superior direito). Por enquanto, contamos com sua colaboração na versão em papel.</li>
     </ul>
   </div>
 
   <div class="signoff">
-    配布元: <b>健康推進チーム</b>　／　2026年5月版
+    Emitido por: <b>Equipe de Promoção da Saúde</b>　／　Edição de maio de 2026
   </div>
 
 </div>
-  <script src="/translate.js" defer></script>
 </body>
 </html>
