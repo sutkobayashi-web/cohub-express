@@ -1748,8 +1748,9 @@ function themeKey(gid) {
 // Teams風フラット チャット一覧 (グループ + 最近のDM相手を統合)
 function renderGroupList() {
   const list = $('group-list');
-  // グループ・サークル・個人(DM)を別配列で構築
+  // グループ・サークル・営業所・個人(DM)を別配列で構築
   const groupRows = [];
+  const branchRows = [];
   const circleRows = [];
   const dmRows = [];
   for (const g of groups) {
@@ -1761,8 +1762,10 @@ function renderGroupList() {
       member_count: g.member_count,
       is_member: g.is_member !== 0,
       is_circle: !!g.is_circle,
+      category: g.category || '',
     };
     if (row.is_circle) circleRows.push(row);
+    else if (row.category === 'branch') branchRows.push(row);
     else groupRows.push(row);
   }
   // DM一覧: グループメンバー全員 (=DM可能な登録アバター全員) を表示
@@ -1791,6 +1794,7 @@ function renderGroupList() {
   // グループ・サークルは最終アクティビティ降順
   const byActivity = (a, b) => (b.last_at || '0').localeCompare(a.last_at || '0');
   groupRows.sort(byActivity);
+  branchRows.sort(byActivity);
   circleRows.sort(byActivity);
   // DM: 履歴ありを上 (last_at 降順) → 履歴なしを下 (display_name 昇順 五十音)
   dmRows.sort((a, b) => {
@@ -1801,12 +1805,13 @@ function renderGroupList() {
     return (a.name || '').localeCompare(b.name || '', 'ja');
   });
   // 描画 (セクションラベル付き、各セクション折りたたみ可)
-  if (groupRows.length === 0 && circleRows.length === 0 && dmRows.length === 0) {
+  if (groupRows.length === 0 && branchRows.length === 0 && circleRows.length === 0 && dmRows.length === 0) {
     list.innerHTML = '<div class="list-empty">チャットがありません</div>';
     return;
   }
   const html = [];
   const grpUnread = groupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const branchUnread = branchRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const cirUnread = circleRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const dmUnread = dmRows.reduce((a, r) => a + (unreadDms.get(r.id) || 0), 0);
 
@@ -1887,8 +1892,9 @@ function renderGroupList() {
     html.push(`</div>`);
   }
 
-  renderSection('group',  '👥 グループ',     grpUnread, groupRows);
-  renderSection('circle', '🎯 サークル活動', cirUnread, circleRows);
+  renderSection('group',  '👥 グループ',         grpUnread,    groupRows);
+  renderSection('branch', '🏢 営業所グループ',   branchUnread, branchRows);
+  renderSection('circle', '🎯 サークル活動',     cirUnread,    circleRows);
   renderDmSplitSection(dmUnread, dmRows);
   list.innerHTML = html.join('');
 }

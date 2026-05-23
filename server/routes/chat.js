@@ -178,7 +178,7 @@ router.get('/groups', authUser, (req, res) => {
   if (admin) {
     // 管理者: 全GCを返す。is_memberフラグで自身がメンバーかも示す
     rows = getDb().prepare(`
-      SELECT g.id, g.name, g.icon, g.created_at,
+      SELECT g.id, g.name, g.icon, g.created_at, g.is_circle, g.category,
         (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
         (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
         (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
@@ -188,7 +188,7 @@ router.get('/groups', authUser, (req, res) => {
     `).all(req.uid);
   } else {
     rows = getDb().prepare(`
-      SELECT g.id, g.name, g.icon, g.created_at,
+      SELECT g.id, g.name, g.icon, g.created_at, g.is_circle, g.category,
         (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
         (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
         (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,

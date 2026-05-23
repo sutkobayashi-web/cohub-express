@@ -289,6 +289,7 @@ app.use('/api/members', require('./routes/members'));
 app.use('/api/takara', require('./routes/takara_demo'));
 app.use('/api/circles', require('./routes/circles'));
 app.use('/api/branch-wifi', require('./routes/branch_wifi'));
+app.use('/api/translate', require('./routes/translate'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -297,7 +298,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-05-22-application-en";
+const APP_VERSION = "2026-05-23-branch-group-nest";
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });

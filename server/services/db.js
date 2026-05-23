@@ -263,6 +263,12 @@ function getDb() {
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('UNIVERSITY', '大学・研究機関', '#7c3aed')").run();
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('NPO', 'NPO法人', '#0891b2')").run();
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('GUEST', 'ゲスト', '#94a3b8')").run();
+  // 拠点ごとのWi-Fi情報 (タブレット表示用 — 個人スマホがWi-Fi経由でCoWellへ接続できるよう推進メンバーが入力)
+  ensureColumn(_db, 'companies', 'wifi_ssid', 'wifi_ssid TEXT');
+  ensureColumn(_db, 'companies', 'wifi_password', 'wifi_password TEXT');
+  ensureColumn(_db, 'companies', 'wifi_security', "wifi_security TEXT DEFAULT 'WPA'");
+  ensureColumn(_db, 'companies', 'wifi_updated_at', 'wifi_updated_at TEXT');
+  ensureColumn(_db, 'companies', 'wifi_updated_by', 'wifi_updated_by TEXT');
   // 現場の声POST 構造化テーブル
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -304,6 +310,21 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_wa_status ON wellness_actions(status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wa_at ON wellness_actions(created_at DESC);`);
+  // 推進メンバー共有スケジュール (2026-05-20)
+  _db.exec(`CREATE TABLE IF NOT EXISTS wellness_schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    owner_id TEXT,
+    color TEXT DEFAULT '#3b82f6',
+    status TEXT DEFAULT 'planned',
+    created_by TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_ws_date ON wellness_schedule(start_date, end_date);`);
   // 配車センター追加 (2026-04-27): 現場棟内、未実装ページ
   _db.prepare(`INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, entry_y, sort_order, icon, building)
     VALUES ('field_dispatch', '配車センター', '/assets/floor_field_rest.png', 1344, 768, 672, 678, 11, '🗺', 'field')`).run();
@@ -817,6 +838,8 @@ function getDb() {
     if (!cgCols.includes('join_mode')) _db.prepare("ALTER TABLE chat_groups ADD COLUMN join_mode TEXT DEFAULT 'approve'").run();
     if (!cgCols.includes('cover_image')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN cover_image TEXT').run();
     if (!cgCols.includes('color_theme')) _db.prepare("ALTER TABLE chat_groups ADD COLUMN color_theme TEXT DEFAULT 'teal'").run();
+    // 2026-05-23: category 列 (営業所グループ親カテゴリ用) ─ 'branch' = 各営業所, 'hq' = 事業本部, null = それ以外
+    if (!cgCols.includes('category')) _db.prepare('ALTER TABLE chat_groups ADD COLUMN category TEXT').run();
   } catch (e) { console.warn('[chat_groups migration]', e.message); }
   // サークル参加申請テーブル (idempotent)
   _db.exec(`
@@ -877,6 +900,15 @@ function getDb() {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
       .run(OPS_GROUP_ID, '🚛 業務連絡', '🚛', null);
   }
+  // 事業本部グループ (2026-05-23): 経営層+事業推進中核メンバー専用
+  const HQ_GROUP_ID = 'g_jigyo_honbu';
+  const hqExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(HQ_GROUP_ID);
+  if (!hqExists) {
+    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by, category) VALUES (?, ?, ?, ?, ?)")
+      .run(HQ_GROUP_ID, '🏛 事業本部', '🏛', null, 'hq');
+  } else {
+    _db.prepare("UPDATE chat_groups SET category = 'hq' WHERE id = ? AND (category IS NULL OR category = '')").run(HQ_GROUP_ID);
+  }
   // メンバー: 推進メンバー + 全管理者を自動加入 (推進系GC両方共通、既加入はスキップ)
   const promoterRows = _db.prepare("SELECT id FROM users WHERE is_field_promoter = 1 OR role = 'admin'").all();
   const memInsert = _db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
@@ -900,12 +932,25 @@ function getDb() {
   for (const r of opsAdminRows) {
     memInsert.run(OPS_GROUP_ID, r.id);
   }
+  // 事業本部GC: 経営層+事業推進中核 (login_idで列挙、未在席ユーザは無視)
+  const HQ_LOGIN_IDS = ['taketake', 'y_gotoh', 'y_okada', 'chikara', 'e_sugai', 'y_yoshizawa', 'ts_hamamichi'];
+  const hqUserRows = _db.prepare(
+    `SELECT id FROM users WHERE login_id IN (${HQ_LOGIN_IDS.map(() => '?').join(',')})`
+  ).all(...HQ_LOGIN_IDS);
+  for (const r of hqUserRows) {
+    memInsert.run(HQ_GROUP_ID, r.id);
+  }
+  // 営業所カテゴリ自動付与 (idempotent): SU*/IBA*/スズエ
+  _db.prepare(`UPDATE chat_groups SET category = 'branch'
+               WHERE (name LIKE 'SU%' OR name LIKE 'IBA%' OR name = 'スズエ')
+                 AND (category IS NULL OR category = '')`).run();
   // 特殊GCの sort_order を権威的に設定 (idempotent)
   const specialOrders = [
     [OPS_GROUP_ID, 10],
     [MANAGERS_GROUP_ID, 20],
     [WELLNESS_DISC_ID, 30],
     [PROMOTER_GROUP_ID, 40],
+    [HQ_GROUP_ID, 45], // 事業本部: 現場の声(40)と営業所(60〜)の中間
   ];
   for (const [gid, n] of specialOrders) {
     _db.prepare('UPDATE chat_groups SET sort_order = ? WHERE id = ?').run(n, gid);
