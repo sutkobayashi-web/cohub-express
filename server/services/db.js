@@ -886,13 +886,7 @@ function getDb() {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
       .run(WELLNESS_DISC_ID, '🏥 健康管理室ディスカッション', '🏥', null);
   }
-  // 管理職グループ (2026-05-08): 全管理者の専用GC
-  const MANAGERS_GROUP_ID = 'g_managers';
-  const mgrExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(MANAGERS_GROUP_ID);
-  if (!mgrExists) {
-    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
-      .run(MANAGERS_GROUP_ID, '👔 管理職グループ', '👔', null);
-  }
+  // 2026-05-23: 「👔 管理職グループ」(g_managers) は廃止。既存のdm_group由来「管理職」GCに集約
   // 業務連絡グループ (2026-05-08): 車両不具合/事故/荷主クレーム/BC のops.js POSTを自動配信
   const OPS_GROUP_ID = 'g_ops_reports';
   const opsGrpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(OPS_GROUP_ID);
@@ -922,11 +916,6 @@ function getDb() {
   for (const r of warehousePromoterRows) {
     memInsert.run(PROMOTER_GROUP_ID, r.id);
   }
-  // 管理職グループ: role=admin のみ自動加入
-  const adminRows = _db.prepare("SELECT id FROM users WHERE role = 'admin'").all();
-  for (const r of adminRows) {
-    memInsert.run(MANAGERS_GROUP_ID, r.id);
-  }
   // 業務連絡GC: employee_type=admin (管理職) も自動加入
   const opsAdminRows = _db.prepare("SELECT id FROM users WHERE employee_type = 'admin' OR role = 'admin' OR is_field_promoter = 1").all();
   for (const r of opsAdminRows) {
@@ -947,7 +936,6 @@ function getDb() {
   // 特殊GCの sort_order を権威的に設定 (idempotent)
   const specialOrders = [
     [OPS_GROUP_ID, 10],
-    [MANAGERS_GROUP_ID, 20],
     [WELLNESS_DISC_ID, 30],
     [PROMOTER_GROUP_ID, 40],
     [HQ_GROUP_ID, 45], // 事業本部: 現場の声(40)と営業所(60〜)の中間

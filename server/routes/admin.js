@@ -353,6 +353,111 @@ router.post('/users/bulk-delete', authAdmin, express.json(), (req, res) => {
   res.json({ success: true, deleted, skipped: ids.length - filtered.length });
 });
 
+// ============================================================
+// CSV 一括登録 (2026-05-22)
+// 列: login_id, display_name, nickname, company_code, job_role, dm_group, birth_date
+// 推進メンバーから登録権限を剥がしたため、事務局がここから一括登録する。
+// ============================================================
+const JOB_ROLES_BULK = {
+  driver:        'field',
+  warehouse:     'field',
+  office:        'office',
+  construction:  'field',
+  manufacturing: 'field',
+};
+function genBulkPassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 8; i++) s += chars[crypto.randomInt(chars.length)];
+  return s;
+}
+router.post('/users/bulk-enroll', authAdmin, express.json({ limit: '2mb' }), (req, res) => {
+  const rows = Array.isArray(req.body && req.body.rows) ? req.body.rows : [];
+  if (!rows.length) return res.status(400).json({ success: false, msg: '行が空です' });
+  if (rows.length > 500) return res.status(400).json({ success: false, msg: '一度に登録できるのは500行までです' });
+
+  const db = getDb();
+  const companyMap = {};
+  for (const c of db.prepare('SELECT code, name FROM companies').all()) companyMap[c.code] = c.name;
+
+  const results = [];
+  const seenLogin = new Set();
+  const seenNick = new Set();
+  // 既存DB照合用
+  const existsLogin = db.prepare('SELECT 1 FROM users WHERE login_id = ?');
+  const existsNick = db.prepare('SELECT 1 FROM users WHERE LOWER(nickname) = LOWER(?)');
+
+  // バリデーション (DB書き込みなし)
+  const valid = [];
+  rows.forEach((raw, i) => {
+    const lineNo = i + 1;
+    const r = raw || {};
+    const loginId = String(r.login_id || '').trim().toLowerCase();
+    const displayName = String(r.display_name || '').trim();
+    const nickname = String(r.nickname || '').trim();
+    const companyCode = String(r.company_code || '').trim();
+    const jobRole = String(r.job_role || '').trim();
+    const dmGroupInput = String(r.dm_group || '').trim();
+    const birthRaw = String(r.birth_date || '').trim();
+
+    const errs = [];
+    if (!/^[a-z0-9_.-]{3,30}$/.test(loginId)) errs.push('login_id形式不正');
+    if (!displayName || displayName.length > 80) errs.push('display_name必須');
+    if (!nickname || nickname.length < 2 || nickname.length > 20) errs.push('nickname 2-20文字必須');
+    if (nickname && /[\x00-\x1f\x7f]/.test(nickname)) errs.push('nickname不正文字');
+    if (!companyCode || !companyMap[companyCode]) errs.push('company_code不正');
+    if (!JOB_ROLES_BULK[jobRole]) errs.push('job_role不正');
+    const birth = normalizeBirthDate(birthRaw);
+    if (!birth) errs.push('birth_date不正(YYYY-MM-DD)');
+
+    if (!errs.length) {
+      if (seenLogin.has(loginId)) errs.push('CSV内login_id重複');
+      else if (existsLogin.get(loginId)) errs.push('login_id既存');
+      if (seenNick.has(nickname.toLowerCase())) errs.push('CSV内nickname重複');
+      else if (existsNick.get(nickname)) errs.push('nickname既存');
+    }
+
+    if (errs.length) {
+      results.push({ line: lineNo, login_id: loginId, status: 'error', errors: errs });
+    } else {
+      seenLogin.add(loginId);
+      seenNick.add(nickname.toLowerCase());
+      const employeeType = JOB_ROLES_BULK[jobRole];
+      const dmGroup = dmGroupInput || companyMap[companyCode] || '';
+      valid.push({ lineNo, loginId, displayName, nickname, companyCode, jobRole, employeeType, dmGroup, birth });
+    }
+  });
+
+  // 1件でもエラーがあれば全件中止 (CSVを修正して再投入させる方が事故が少ない)
+  const dryRun = !!(req.body && req.body.dry_run);
+  const hasErr = results.some(r => r.status === 'error');
+  if (hasErr || dryRun) {
+    // 成功予定の行も含めて返す
+    valid.forEach(v => results.push({ line: v.lineNo, login_id: v.loginId, status: dryRun && !hasErr ? 'preview' : 'skipped(他行エラーのため未登録)' }));
+    results.sort((a, b) => a.line - b.line);
+    return res.json({ success: !hasErr, dry_run: dryRun, total: rows.length, error_count: results.filter(r => r.status === 'error').length, results });
+  }
+
+  // 本実行
+  const insStmt = db.prepare(`INSERT INTO users
+    (id, login_id, password_hash, display_name, nickname, company_code, role, employee_type, job_role, dm_group, dm_rank, dm_restricted, birth_date)
+    VALUES (?, ?, ?, ?, ?, ?, 'member', ?, ?, ?, 0, 1, ?)`);
+  const out = [];
+  const tx = db.transaction(() => {
+    for (const v of valid) {
+      const id = crypto.randomUUID();
+      const password = genBulkPassword();
+      const hash = bcrypt.hashSync(password, 10);
+      insStmt.run(id, v.loginId, hash, v.displayName, v.nickname, v.companyCode, v.employeeType, v.jobRole, v.dmGroup || null, v.birth);
+      try { syncDmGroupMembership(id, v.dmGroup || null, null, req.uid); } catch (e) { console.warn('[bulk-enroll dm_group sync]', e.message); }
+      out.push({ line: v.lineNo, login_id: v.loginId, status: 'ok', initial_password: password, display_name: v.displayName });
+    }
+  });
+  tx();
+
+  res.json({ success: true, total: rows.length, registered: out.length, results: out });
+});
+
 // 会社(company_code)からdm_groupを一括設定 + 同期
 // dm_group 未設定 のユーザーに対して、所属会社名を dm_group として設定し、
 // その後 権威的同期を実施する。
@@ -380,7 +485,7 @@ router.post('/auto-assign-from-company', authAdmin, express.json(), (req, res) =
   })();
 
   // 続けて権威的同期 (上の sync-dm-groups と同じロジック)
-  const SPECIAL_GROUP_IDS = ['g_field_voice', 'g_wellness_disc', 'g_managers'];
+  const SPECIAL_GROUP_IDS = ['g_field_voice', 'g_wellness_disc'];
   const allGroups = db.prepare('SELECT id, name FROM chat_groups').all();
   const dmGroupSet = new Set();
   const groupByName = {};
