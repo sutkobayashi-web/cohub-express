@@ -14,11 +14,11 @@ function trunc(s, n) {
 }
 
 function safeAuthor(db, uid, isAnon) {
-  if (isAnon) return '匿名さん';
   try {
-    const u = db.prepare('SELECT display_name FROM users WHERE id = ?').get(uid);
+    const u = db.prepare('SELECT display_name, nickname FROM users WHERE id = ?').get(uid);
+    if (isAnon) return u && u.nickname ? '🎭 ' + u.nickname : '🎭 匿名';
     return u && u.display_name ? u.display_name : '社員';
-  } catch (e) { return '社員'; }
+  } catch (e) { return isAnon ? '🎭 匿名' : '社員'; }
 }
 
 router.get('/', authUser, (req, res) => {
