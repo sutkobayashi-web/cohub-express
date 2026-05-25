@@ -236,6 +236,10 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   .msg .sender { font-size: 10px; color: #64748b; margin-bottom: 2px; padding: 0 4px; }
   .msg .bub { background: #fff; padding: 10px 12px; border-radius: 14px; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(15,23,42,0.06); white-space: pre-wrap; word-break: break-word; }
   .msg.self .bub { background: #06b6d4; color: #fff; }
+  /* 悩み相談トリアージの背景色分け */
+  .msg .bub.tier1 { background: #ecfdf5; border-left: 4px solid #10b981; }
+  .msg .bub.tier2 { background: #fffbeb; border-left: 4px solid #f59e0b; }
+  .msg .bub.tier3 { background: #fef2f2; border-left: 4px solid #ef4444; }
   .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
   .msg.self .bub .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
   .bub .tr-result { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(148,163,184,0.4); font-size: 13px; opacity: 0.92; font-style: italic; white-space: pre-wrap; color: #475569; }
@@ -2229,6 +2233,14 @@ function closeChatModal() {
   if (sqa) sqa.style.display = 'none';
   if (window.Overlay) Overlay.close('chat-modal');
 }
+// 悩み相談トリアージカード(bot_health)を背景色分けするためのクラス判定
+function consultTierClass(text) {
+  const s = String(text || '');
+  if (s.indexOf('【Tier3') >= 0) return ' tier3';
+  if (s.indexOf('【Tier2') >= 0) return ' tier2';
+  if (s.indexOf('【Tier1') >= 0) return ' tier1';
+  return '';
+}
 function renderMessages(msgs, showSenderName) {
   const body = document.getElementById('chat-body');
   body.innerHTML = msgs.map(m => msgHtml(m, m.from === user.uid, showSenderName)).join('');
@@ -2266,7 +2278,7 @@ function msgHtml(m, isSelf, showSenderName) {
     (isSelf ? '' : '<div class="av">' + avHtml + '</div>') +
     '<div class="bub-wrap">' +
       (showSenderName && !isSelf && name ? '<div class="sender">' + escapeHtml(name) + '</div>' : '') +
-      '<div class="bub">' + vMark + escapeHtml(m.content || '') + replayBtn + bubbleTranslateBtn(m.content || '') + attachHtml + '</div>' +
+      '<div class="bub' + consultTierClass(m.content) + '">' + vMark + escapeHtml(m.content || '') + replayBtn + bubbleTranslateBtn(m.content || '') + attachHtml + '</div>' +
       (m.at ? '<div class="t">' + fmtTime(m.at) + '</div>' : '') +
     '</div>' +
   '</div>';

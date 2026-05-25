@@ -640,6 +640,10 @@
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(14,165,233,0.25);
   }
+  /* 悩み相談トリアージの背景色分け (g_field_voiceに流れるbot_healthカード) */
+  .msg .bub.tier1 { background: #ecfdf5; border-color: #a7f3d0; border-left: 4px solid #10b981; }
+  .msg .bub.tier2 { background: #fffbeb; border-color: #fde68a; border-left: 4px solid #f59e0b; }
+  .msg .bub.tier3 { background: #fef2f2; border-color: #fecaca; border-left: 4px solid #ef4444; }
   .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
   .msg.me .bub .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
   .bub .tr-result { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(148,163,184,0.4); font-size: 13px; opacity: 0.92; font-style: italic; white-space: pre-wrap; color: #475569; }
@@ -2414,6 +2418,14 @@ let RENDER_LIMIT = 60;
 function expandRenderWindow() { RENDER_LIMIT = (RENDER_LIMIT || 0) + 200; renderMessages(); }
 // 二重送信ガード用 (直近送信の宛先/本文/時刻)
 let _lastSent = { key: '', content: '', at: 0 };
+// 悩み相談トリアージカード(bot_health)を背景色分けするためのクラス判定
+function consultTierClass(text) {
+  const s = String(text || '');
+  if (s.indexOf('【Tier3') >= 0) return ' tier3';
+  if (s.indexOf('【Tier2') >= 0) return ' tier2';
+  if (s.indexOf('【Tier1') >= 0) return ' tier1';
+  return '';
+}
 function renderMessages() {
   const msgsEl = $('msgs');
   // ★ 再描画前に「ユーザーが下端付近を見ているか」を判定
@@ -2480,7 +2492,7 @@ function renderMessages() {
 
     // バブル本文 + 添付
     const attach = m.attach_url ? `<a class="attach-link" href="${escapeHtml(m.attach_url)}" target="_blank">📎 ${escapeHtml(m.attach_name || 'attach')}</a>` : '';
-    const bubble = `<div class="bub">${escapeHtml(m.content || '')}${bubbleTranslateBtn(m.content || '')}${attach}</div>`;
+    const bubble = `<div class="bub${consultTierClass(m.content)}">${escapeHtml(m.content || '')}${bubbleTranslateBtn(m.content || '')}${attach}</div>`;
 
     // 自分の連続でないメッセージは右下に時刻 + 既読/未読
     let tsBottom = '';
