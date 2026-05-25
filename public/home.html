@@ -1198,10 +1198,10 @@ function showWnItem(i) {
   const author = ev.author ? '<span class="wn-author">' + escapeHtml(ev.author) + '</span>' : '';
   view.innerHTML = '<a class="wn-item" href="' + escapeHtml(ev.link || '#') + '">'
     + '<span class="wn-cat">' + (ev.icon || '📌') + ' ' + escapeHtml(ev.label || '') + '</span>'
-    + '<span class="wn-time">' + escapeHtml(postTime(ev.created_at)) + '</span>'
     + author
     + '<span class="wn-text">' + escapeHtml(ev.summary || '') + '</span>'
     + thumb
+    + '<span class="wn-time">' + escapeHtml(postTime(ev.created_at)) + '</span>'
     + '</a>';
   requestAnimationFrame(function () { const el = view.querySelector('.wn-item'); if (el) el.classList.add('show'); });
 }
