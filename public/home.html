@@ -619,7 +619,6 @@
 
   <!-- ━━━ What's new (1案件ずつフェード・写真投稿はサムネ・一行) ━━━ -->
   <div id="whats-new" class="whats-new" style="display:none;">
-    <span class="wn-label">📰 NEWS</span>
     <div class="wn-view" id="wn-view"></div>
   </div>
 
@@ -1163,6 +1162,14 @@ function relTime(iso) {
   if (d < 7) return d + '日前';
   return Math.floor(d / 7) + '週前';
 }
+// 投稿時間 (実時刻 M/D HH:MM。SQLiteのUTCをローカルに変換)
+function postTime(iso) {
+  if (!iso) return '';
+  const t = new Date(String(iso).replace(' ', 'T') + 'Z');
+  if (isNaN(t.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return (t.getMonth() + 1) + '/' + t.getDate() + ' ' + p(t.getHours()) + ':' + p(t.getMinutes());
+}
 
 // ===== What's new: 1案件ずつフェード表示 (写真投稿はサムネ・一行) 2026-05-25 =====
 var _wnEvents = [], _wnIdx = 0, _wnTimer = null, _wnHover = false;
@@ -1198,7 +1205,7 @@ function showWnItem(i) {
     + '<span class="wn-cat">' + (ev.icon || '📌') + ' ' + escapeHtml(ev.label || '') + '</span>'
     + '<span class="wn-text">' + escapeHtml(ev.summary || '') + '</span>'
     + thumb
-    + '<span class="wn-time">' + escapeHtml(relTime(ev.created_at)) + '</span>'
+    + '<span class="wn-time">' + escapeHtml(postTime(ev.created_at)) + '</span>'
     + '</a>';
   requestAnimationFrame(function () { const el = view.querySelector('.wn-item'); if (el) el.classList.add('show'); });
 }
