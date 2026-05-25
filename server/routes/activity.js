@@ -265,6 +265,7 @@ router.get('/ranking', authUser, (req, res) => {
   const rows = getDb().prepare(`SELECT
       a.user_id,
       u.company_code,
+      u.nickname,
       SUM(a.kcal) AS kcal,
       (SELECT activity_type FROM activity_logs
         WHERE user_id = a.user_id AND date BETWEEN ? AND ? AND deleted_at IS NULL AND visibility = 'company'
@@ -286,11 +287,11 @@ router.get('/ranking', authUser, (req, res) => {
   for (let i = 0; i < rows.length; i++) {
     if (rows[i].user_id === req.uid) { myRank = i + 1; break; }
   }
-  // 個人名は出さず、匿名化 (company_code + main_type アイコンのみ)
+  // 実名は出さず匿名化。表示はニックネーム優先 (管理職の company_code='ADMIN' を出さない)
   const typeIcon = { walk: '👣', jog: '🏃', run: '💨', bike: '🚴', gym: '💪' };
   const ranking = rows.slice(0, 10).map((r, i) => ({
     rank: i + 1,
-    branch: r.company_code || '—',
+    branch: r.nickname || r.company_code || '匿名',
     main_type: r.main_type || 'walk',
     icon: typeIcon[r.main_type] || '🔥',
     kcal: r.kcal,
