@@ -1399,7 +1399,14 @@ document.addEventListener('DOMContentLoaded', () => {
     result.innerHTML = '';
     if (!file) { fnSpan.textContent = ''; dry.disabled = true; cmt.disabled = true; bulkParsedRows = null; return; }
     fnSpan.textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
-    const text = await file.text();
+    // ExcelのCSVは Shift_JIS(CP932) のことが多い。常にUTF-8で読むと日本語が化けて
+    // 氏名が壊れて登録される(2026-05-25 事故)。まずUTF-8で読み、置換文字(U+FFFD)が
+    // 出たら Shift_JIS で読み直して自動判別する。
+    const buf = await file.arrayBuffer();
+    let text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+    if (/�/.test(text)) {
+      try { text = new TextDecoder('shift_jis').decode(buf); } catch (e) {}
+    }
     const matrix = parseCsv(text);
     if (matrix.length < 2) {
       result.innerHTML = '<div style="color:#dc2626;">⚠ ヘッダ + 1行以上が必要です</div>';
@@ -1472,11 +1479,16 @@ function renderBulkResult(d, dryRun) {
   }
   if (list.length) {
     html += '<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px;">';
-    html += '<thead><tr style="background:#f1f5f9;"><th style="padding:4px;border:1px solid #cbd5e1;">行</th><th style="padding:4px;border:1px solid #cbd5e1;">login_id</th><th style="padding:4px;border:1px solid #cbd5e1;">状態</th><th style="padding:4px;border:1px solid #cbd5e1;">詳細</th></tr></thead><tbody>';
+    html += '<thead><tr style="background:#f1f5f9;"><th style="padding:4px;border:1px solid #cbd5e1;">行</th><th style="padding:4px;border:1px solid #cbd5e1;">login_id</th><th style="padding:4px;border:1px solid #cbd5e1;">状態</th><th style="padding:4px;border:1px solid #cbd5e1;">初期パスワード</th><th style="padding:4px;border:1px solid #cbd5e1;">詳細</th></tr></thead><tbody>';
     for (const r of list) {
       const color = r.status === 'error' ? '#dc2626' : (r.status === 'ok' ? '#16a34a' : '#64748b');
       const detail = r.status === 'error' ? (r.errors || []).join(' / ') : (r.status === 'ok' ? '✓ 登録済' : (r.status === 'preview' ? '✓ 登録可' : r.status));
-      html += '<tr><td style="padding:4px;border:1px solid #cbd5e1;text-align:center;">' + r.line + '</td><td style="padding:4px;border:1px solid #cbd5e1;font-family:monospace;">' + (r.login_id || '') + '</td><td style="padding:4px;border:1px solid #cbd5e1;color:' + color + ';font-weight:700;">' + r.status + '</td><td style="padding:4px;border:1px solid #cbd5e1;">' + detail + '</td></tr>';
+      // 初期パスワードは本登録(ok)時のみ。画面で直接読める/コピーできるよう等幅・選択可で表示
+      // (CSVをExcelで開かなくても確認できるようにする 2026-05-25)
+      const pwCell = (r.status === 'ok' && r.initial_password)
+        ? '<span style="font-family:\'Consolas\',monospace;font-weight:800;font-size:14px;letter-spacing:1px;color:#0f172a;background:#fef3c7;padding:2px 8px;border-radius:4px;user-select:all;">' + escapeHtml(r.initial_password) + '</span>'
+        : '<span style="color:#cbd5e1;">—</span>';
+      html += '<tr><td style="padding:4px;border:1px solid #cbd5e1;text-align:center;">' + r.line + '</td><td style="padding:4px;border:1px solid #cbd5e1;font-family:monospace;">' + (r.login_id || '') + '</td><td style="padding:4px;border:1px solid #cbd5e1;color:' + color + ';font-weight:700;">' + r.status + '</td><td style="padding:4px;border:1px solid #cbd5e1;text-align:center;">' + pwCell + '</td><td style="padding:4px;border:1px solid #cbd5e1;">' + detail + '</td></tr>';
     }
     html += '</tbody></table>';
   }
