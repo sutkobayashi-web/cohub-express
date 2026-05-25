@@ -221,28 +221,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     </div>
   </div>
 
-  <div class="card">
-    <h2>⏰ 出退勤打刻 / PC起動時刻 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">PC電源ONから打刻まで15分以上空くと⚠表示</span></h2>
-    <div class="row" style="margin-bottom:8px;">
-      <label style="font-size:12px;color:#475569;">対象日</label>
-      <input type="date" id="tc-date">
-      <button class="btn" onclick="loadTimecard()">表示</button>
-      <button class="btn btn-ghost" onclick="loadTimecardDiscrepancies()">⚠ 差分のみ抽出 (直近7日)</button>
-      <a class="btn" href="/admin-pc-deploy.html" style="background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;text-decoration:none;">🖥 PC配布管理</a>
-      <span id="tc-meta" style="font-size:12px;color:#64748b;margin-left:8px;"></span>
-    </div>
-    <div style="max-height:420px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
-      <table style="margin:0;font-size:12px;">
-        <thead style="position:sticky;top:0;"><tr>
-          <th style="width:140px;">所属/ID</th><th>表示名</th>
-          <th style="width:90px;">PC起動</th><th style="width:90px;">出勤打刻</th><th style="width:90px;">退勤打刻</th>
-          <th style="width:80px;">差分(分)</th>
-        </tr></thead>
-        <tbody id="tc-tbody"><tr><td colspan="6" style="color:#94a3b8;padding:14px;">「表示」を押して読み込み</td></tr></tbody>
-      </table>
-    </div>
-    <div style="font-size:11px;color:#94a3b8;margin-top:6px;">※ PC起動時刻は各PCのタスクスケジューラから自動送信されます (scripts/pc_startup.ps1 を install_pc_startup.ps1 で配布)</div>
-  </div>
+  <!-- 出退勤打刻 / PC起動時刻 / PC配布管理 セクションは完全削除 (2026-05-25) -->
 
   <div class="card">
     <h2>🎙️ 会議録音 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">管理者が録音開始→自動アップロード</span></h2>
@@ -588,10 +567,7 @@ function showPanel(user) {
   loadAttendance();
   loadGroups();
   loadReportSummary();
-  // 出退勤の対象日を本日に初期化 + 自動表示
-  const tcDate = document.getElementById('tc-date');
-  if (tcDate && !tcDate.value) tcDate.value = new Date().toISOString().slice(0, 10);
-  loadTimecard();
+  // 出退勤打刻は完全削除 (2026-05-25)
 }
 
 async function loadReportSummary() {

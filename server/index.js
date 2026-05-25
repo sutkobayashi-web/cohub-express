@@ -274,7 +274,7 @@ app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/help', require('./routes/help'));
-app.use('/api/timecard', require('./routes/timecard'));
+// 出退勤打刻機能は完全削除 (2026-05-25)。/api/timecard 廃止 → 自動打刻(scanAutoPunchOut/PC起動in)も停止
 app.use('/api/meeting', require('./routes/meeting'));
 {
   const mp = require('./routes/meeting_poll');
@@ -306,7 +306,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-05-25-home-cat-shadow-smaller-cards"
+const APP_VERSION = "2026-05-25-remove-timecard"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -318,7 +318,7 @@ app.get('/api/config', (req, res) => {
     minimal_mode: MINIMAL_MODE,
     features: {
       chat: true,
-      timecard: true,
+      timecard: false,
       meal: true,
       plaza: true,
       board: true,
@@ -602,7 +602,7 @@ app.get('/takara/driver', (req, res) => sendHtmlNoCache(res, 'takara/driver.html
 app.get('/takara/shipper', (req, res) => sendHtmlNoCache(res, 'takara/shipper.html'));
 app.get('/takara/proposal', (req, res) => sendHtmlNoCache(res, 'takara/proposal.html'));
 app.get('/takara/onepager', (req, res) => sendHtmlNoCache(res, 'takara/onepager.html'));
-app.get('/timecard', (req, res) => sendHtmlNoCache(res, 'timecard.html'));
+app.get('/timecard', (req, res) => res.redirect(302, '/home'));   // 出退勤打刻 完全削除 (2026-05-25)
 app.get('/chat', (req, res) => sendHtmlNoCache(res, 'chat-simple.html'));
 app.get('/avatar', (req, res) => sendHtmlNoCache(res, 'avatar.html'));
 // PC起動通知ワンライナー (text/plain で配信して Invoke-RestMethod が文字列として受け取れるように)
