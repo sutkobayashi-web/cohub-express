@@ -1,5 +1,15 @@
 // What's new: ホーム画面に表示する全社活動の最新ダイジェスト
 // 直近の plaza/board/announcement/accident/circle/wellness を統合し時系列で返す
+//
+// ⚠️ タイムゾーン注意 (2026-05-25):
+//   ソーステーブルで created_at の保存TZが混在している(歴史的経緯)。
+//     UTC(datetime('now'))  : plaza_posts / board_posts / announcements / circle_events / wellness_posts
+//     JST(datetime('now','localtime')): vehicle_accident_reports / kbc_accident_reports /
+//                                        weekly_reports / driving_alerts.received_at
+//   クライアントの postTime() は created_at を UTC とみなして端末ローカル(JST)へ +9h 変換するため、
+//   JST保存ソースをそのまま返すと二重変換で +9h ズレる(=「投稿時間が狂う」)。
+//   よって JST保存ソースは出力時に datetime(col,'-9 hours') で UTC に正規化して揃える。
+//   (日本はUTC+9固定・夏時間なしのため -9h は常に正確。全イベントの time順ソートも揃う。)
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../services/db');
@@ -112,7 +122,8 @@ router.get('/', authUser, (req, res) => {
   // vehicle_accident_reports (車両事故)
   try {
     const rows = db.prepare(`
-      SELECT id, reporter_id, reporter_name, accident_type, location, media_paths, created_at
+      SELECT id, reporter_id, reporter_name, accident_type, location, media_paths,
+             datetime(created_at, '-9 hours') AS created_at_utc
       FROM vehicle_accident_reports
       WHERE created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at DESC LIMIT 3
@@ -126,7 +137,7 @@ router.get('/', authUser, (req, res) => {
         link: '/accident.html',
         author: r.reporter_name || safeAuthor(db, r.reporter_id, 0),
         thumb: firstMedia(r.media_paths),
-        created_at: r.created_at,
+        created_at: r.created_at_utc,
       });
     }
   } catch (e) {}
@@ -134,7 +145,8 @@ router.get('/', authUser, (req, res) => {
   // kbc_accident_reports (製品事故)
   try {
     const rows = db.prepare(`
-      SELECT id, reporter_name, accident_type, location_area, media_paths, label_photo_path, created_at
+      SELECT id, reporter_name, accident_type, location_area, media_paths, label_photo_path,
+             datetime(created_at, '-9 hours') AS created_at_utc
       FROM kbc_accident_reports
       WHERE created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at DESC LIMIT 3
@@ -148,7 +160,7 @@ router.get('/', authUser, (req, res) => {
         link: '/accident.html',
         author: r.reporter_name || '報告者',
         thumb: r.label_photo_path || firstMedia(r.media_paths),
-        created_at: r.created_at,
+        created_at: r.created_at_utc,
       });
     }
   } catch (e) {}
@@ -204,7 +216,8 @@ router.get('/', authUser, (req, res) => {
   try {
     const mgr = db.prepare('SELECT is_manager FROM users WHERE id = ?').get(req.uid);
     if (mgr && mgr.is_manager) {
-      const rows = db.prepare(`SELECT office, period_to, created_by, created_at
+      const rows = db.prepare(`SELECT office, period_to, created_by,
+          datetime(created_at, '-9 hours') AS created_at_utc
         FROM weekly_reports
         WHERE deleted_at IS NULL AND created_at >= datetime('now', '-' || ? || ' days')
         ORDER BY created_at DESC LIMIT 5`).all(days);
@@ -215,7 +228,7 @@ router.get('/', authUser, (req, res) => {
           link: '/weekly-report.html',
           author: safeAuthor(db, r.created_by, 0),
           thumb: null,
-          created_at: r.created_at,
+          created_at: r.created_at_utc,
         });
       }
     }
@@ -225,7 +238,8 @@ router.get('/', authUser, (req, res) => {
   try {
     const mgrA = db.prepare('SELECT is_manager FROM users WHERE id = ?').get(req.uid);
     if (mgrA && mgrA.is_manager) {
-      const rows = db.prepare(`SELECT id, vehicle_name, vehicle_number, driver_name, notice, handled, received_at
+      const rows = db.prepare(`SELECT id, vehicle_name, vehicle_number, driver_name, notice, handled,
+          datetime(received_at, '-9 hours') AS received_at_utc
         FROM driving_alerts
         WHERE received_at >= datetime('now', '-' || ? || ' days')
         ORDER BY received_at DESC LIMIT 5`).all(days);
@@ -237,7 +251,7 @@ router.get('/', authUser, (req, res) => {
           link: '/alerts.html',
           author: null,
           thumb: null,
-          created_at: r.received_at,
+          created_at: r.received_at_utc,
         });
       }
     }

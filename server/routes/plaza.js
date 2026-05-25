@@ -203,13 +203,19 @@ router.get('/posts', authUser, (req, res) => {
       // 表示用: nutrition_scores に extra_alcohol_g を合算
       nutrition_scores: mergeExtraAlcohol(p.nutrition_scores, p.extra_alcohol_g),
     };
-    // 匿名投稿: 投稿者本人以外には author_id/name/avatar/company を隠す
-    // ニックネームが設定されていれば表示 (本人のみ実名と紐付け可能)
-    if (p.is_anonymous && !isAuthor) {
-      enr.author_id = null;
+    // 匿名(ニックネーム)投稿: 表示名は本人・他人ともニックネームに統一する。
+    //   以前は本人(isAuthor)のとき実名(display_name)のままで、「自分の食事投稿に
+    //   ニックネームが表示されない」状態だった(2026-05-25 修正)。「🎭ニックネームで投稿中」
+    //   バッジとも整合させ、本人にもニックネームを出す。
+    //   他人にはさらに author_id/avatar/company を隠し実名と紐付かないようにする
+    //   (本人にはアバター/編集権を残す → is_mine/can_delete は上で設定済み)。
+    if (p.is_anonymous) {
       enr.author_name = p.author_nickname ? '🎭 ' + p.author_nickname : '🎭 匿名';
-      enr.author_avatar = null;
-      enr.author_company = null;
+      if (!isAuthor) {
+        enr.author_id = null;
+        enr.author_avatar = null;
+        enr.author_company = null;
+      }
     }
     delete enr.author_nickname;
     return enr;
