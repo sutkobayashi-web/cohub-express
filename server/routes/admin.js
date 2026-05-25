@@ -62,10 +62,14 @@ function normalizeRank(r) {
   return Math.max(0, Math.min(3, n));
 }
 
-// 生年月日のバリデーション (YYYY-MM-DD)
+// 生年月日のバリデーション → 常に YYYY-MM-DD に正規化して返す
+// Excelが CSV の "1900-01-01" を勝手に "1900/01/01" や "1900.1.1" に変換してしまう問題に対応し、
+// 区切りは - / . のいずれも許容する (年が先頭の YYYY 区切り MM 区切り DD 形式)。
 function normalizeBirthDate(s) {
-  if (!s) return null;
-  const m = String(s).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (s === null || s === undefined) return null;
+  const str = String(s).trim();
+  if (!str) return null;
+  const m = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   if (!m) return null;
   const y = parseInt(m[1]), mo = parseInt(m[2]), d = parseInt(m[3]);
   if (y < 1900 || y > 2099 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
@@ -419,7 +423,7 @@ router.post('/users/bulk-enroll', authAdmin, express.json({ limit: '2mb' }), (re
     if (!companyCode || !companyMap[companyCode]) errs.push('company_code不正');
     if (!JOB_ROLES_BULK[jobRole]) errs.push('job_role不正');
     const birth = normalizeBirthDate(birthRaw);
-    if (!birth) errs.push('birth_date不正(YYYY-MM-DD)');
+    if (!birth) errs.push('birth_date不正(YYYY-MM-DD / YYYY/MM/DD)');
 
     if (!errs.length) {
       if (seenLogin.has(loginId)) errs.push('CSV内login_id重複');
