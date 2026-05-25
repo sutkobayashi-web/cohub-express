@@ -253,13 +253,17 @@
     .daily-msg .dm-body { font-size: 13px; }
   }
 
-  /* What's new — ベージュ背景の横スクロール1行 */
+  /* 今日のひとこと + NEWS を1枚に連結 (両方表示時のみ上下端をフラット結合) */
+  .daily-msg.has-news { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; box-shadow: none; }
+  .whats-new.has-msg { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+
+  /* What's new — 1案件ずつフェード表示 (2026-05-25: 横スクロール廃止、写真投稿はサムネ・一行) */
   .whats-new {
     margin: 22px 4px 0;
-    background: #fdf6e3; /* うすいベージュ */
+    background: #fdf6e3;
     border: 1.5px solid #e7d9b5;
     border-radius: 10px;
-    height: 38px;
+    min-height: 42px;
     display: flex; align-items: stretch;
     overflow: hidden;
     box-shadow: 0 2px 6px rgba(120,90,40,0.08);
@@ -272,50 +276,38 @@
     padding: 0 12px;
     display: flex; align-items: center; gap: 4px;
     border-right: 1px solid #e7d9b5;
-    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
   }
-  .whats-new .wn-track {
-    flex: 1; min-width: 0;
-    position: relative;
-    overflow: hidden;
-    -webkit-mask: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
-            mask: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
+  .whats-new .wn-view { flex: 1; min-width: 0; position: relative; }
+  .whats-new .wn-item {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    text-decoration: none; color: #422006;
+    opacity: 0; transition: opacity 0.45s ease;
   }
-  .whats-new .wn-strip {
-    display: inline-block; white-space: nowrap;
-    padding-left: 100%;
-    line-height: 38px;
-    will-change: transform;
-    animation: tickerScroll linear infinite;
-  }
-  .whats-new .wn-strip a {
-    color: #422006;
-    text-decoration: none;
-    margin-right: 40px;
-    font-size: 13.5px; font-weight: 600;
-    letter-spacing: 0.2px;
-    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
-  }
-  .whats-new .wn-strip a:hover { color: #b45309; text-decoration: underline; }
-  .whats-new .wn-strip .wn-sep { color: #c8b88a; margin-right: 40px; }
-  .whats-new .wn-strip .wn-cat { color: #b45309; font-weight: 700; margin-right: 6px; }
-  .whats-new .wn-strip .wn-author { color: #78716c; margin-right: 6px; font-size: 12px; }
-  .whats-new .wn-strip .wn-time { color: #a8a29e; margin-left: 6px; font-size: 11.5px; }
-  .whats-new:hover .wn-strip { animation-play-state: paused; }
-  @keyframes tickerScroll {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
-  }
+  .whats-new .wn-item.show { opacity: 1; }
+  .whats-new .wn-item .wn-cat { color: #b45309; font-weight: 800; font-size: 12px; flex-shrink: 0; }
+  .whats-new .wn-item .wn-text { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .whats-new .wn-item .wn-thumb { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
+  .whats-new .wn-item .wn-time { color: #a8a29e; font-size: 11px; flex-shrink: 0; margin-left: auto; padding-left: 6px; }
   @media (max-width: 600px) {
-    .whats-new { height: 34px; }
     .whats-new .wn-label { font-size: 10px; padding: 0 9px; }
-    .whats-new .wn-strip { line-height: 34px; }
-    .whats-new .wn-strip a { font-size: 12.5px; margin-right: 30px; }
-    .whats-new .wn-strip .wn-sep { margin-right: 30px; }
+    .whats-new .wn-item .wn-text { font-size: 12.5px; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .whats-new .wn-strip { animation: none; padding-left: 8px; }
-  }
+
+  /* 🆕 新機能のお知らせ — 一行カードを下から押上げて循環 (2026-05-25) */
+  .new-features { position: relative; margin: 14px 4px 0; padding: 14px 12px 10px;
+    background: linear-gradient(135deg,#fffbeb,#fef3c7); border: 1.5px solid #fcd34d; border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(252,211,77,0.18); }
+  .new-features .nf-head { position: absolute; top: -11px; left: 14px; font-size: 11px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg,#f59e0b,#d97706); border: 1.5px solid #fcd34d; padding: 2px 10px; border-radius: 999px; }
+  .new-features .nf-view { height: 96px; overflow: hidden; }
+  .new-features .nf-list { display: flex; flex-direction: column; gap: 4px; }
+  .new-features .nf-item { display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box;
+    background: #fff; border: 1px solid #fde68a; border-radius: 10px; padding: 0 12px; text-decoration: none; color: #1f2937; }
+  .new-features .nf-item .nf-ic { font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .new-features .nf-item .nf-tx { font-size: 13px; line-height: 1.3; min-width: 0; }
+  .new-features .nf-item .nf-tx small { display: block; font-size: 11px; color: #78716c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* セクション見出し */
   .sec-title {
@@ -625,23 +617,16 @@
     <span class="dm-body" id="dm-body"></span>
   </div>
 
-  <!-- ━━━ What's new (新幹線車内LEDボード風) ━━━ -->
+  <!-- ━━━ What's new (1案件ずつフェード・写真投稿はサムネ・一行) ━━━ -->
   <div id="whats-new" class="whats-new" style="display:none;">
     <span class="wn-label">📰 NEWS</span>
-    <div class="wn-track"><div class="wn-strip" id="wn-strip"></div></div>
+    <div class="wn-view" id="wn-view"></div>
   </div>
 
-  <!-- ━━━ 🆕 新機能のお知らせ (2026-05-24〜25機能。動線復旧 2026-05-25) ━━━ -->
-  <div id="new-features" style="display:none;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fcd34d;border-radius:14px;padding:12px 14px;margin:0 0 14px;box-shadow:0 2px 8px rgba(180,83,9,.08);">
-    <div style="font-size:13px;font-weight:800;color:#b45309;margin-bottom:8px;">🆕 新機能のお知らせ</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <a id="nf-calendar" href="/calendar.html" style="display:none;align-items:center;gap:10px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;text-decoration:none;color:#1f2937;">
-        <span style="font-size:20px;line-height:1;">🗓</span><span style="font-size:13px;line-height:1.4;"><b>共有カレンダー</b><br><span style="font-size:11px;color:#78716c;">役員・管理職の予定を社内で共有</span></span></a>
-      <a href="/chat" style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;text-decoration:none;color:#1f2937;">
-        <span style="font-size:20px;line-height:1;">🦉</span><span style="font-size:13px;line-height:1.4;"><b>まとめる君</b><br><span style="font-size:11px;color:#78716c;">報告メモをAIが5W1Hに整形（事業本部チャット）</span></span></a>
-      <a href="/myactivity.html" style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;text-decoration:none;color:#1f2937;">
-        <span style="font-size:20px;line-height:1;">🔥</span><span style="font-size:13px;line-height:1.4;"><b>マイ運動記録</b><br><span style="font-size:11px;color:#78716c;">運動をkcalで記録・月間ランキング</span></span></a>
-    </div>
+  <!-- ━━━ 🆕 新機能のお知らせ (一行・下から押上げ循環) ━━━ -->
+  <div id="new-features" class="new-features" style="display:none;">
+    <div class="nf-head">🆕 新機能のお知らせ</div>
+    <div class="nf-view"><div class="nf-list" id="nf-list"></div></div>
   </div>
 
   <!-- ⭐ 主役カード: 今日の一歩、明日の自分 (最上段) -->
@@ -1158,6 +1143,7 @@ async function loadDailyMessage() {
       const body = document.getElementById('dm-body');
       if (body) body.textContent = r.message;
       if (box) box.style.display = '';
+      if (typeof linkMsgNews === 'function') linkMsgNews();   // NEWSと連結
     }
   } catch (e) { /* ひとことの取得失敗は黙って無視 */ }
 }
@@ -1178,37 +1164,83 @@ function relTime(iso) {
   return Math.floor(d / 7) + '週前';
 }
 
+// ===== What's new: 1案件ずつフェード表示 (写真投稿はサムネ・一行) 2026-05-25 =====
+var _wnEvents = [], _wnIdx = 0, _wnTimer = null, _wnHover = false;
 async function loadWhatsNew() {
   try {
     const r = await api('/api/whats-new?limit=10');
-    if (!r || !r.success) return;
+    if (!r || !r.success || !r.events || !r.events.length) return;
+    _wnEvents = r.events;
     const box = document.getElementById('whats-new');
-    const strip = document.getElementById('wn-strip');
-    if (!box || !strip) return;
-    if (!r.events || !r.events.length) return; // 何も無ければ非表示のまま
-
-    // 1イベント = 1リンク(横並び)。区切りは ◆ で。
-    const items = r.events.map(ev => {
-      const t = ev.summary || ev.label || '';
-      const time = relTime(ev.created_at);
-      return '<a href="' + escapeHtml(ev.link || '#') + '">'
-        + (ev.icon || '📌') + ' '
-        + '<span class="wn-cat">' + escapeHtml(ev.label || '') + '</span>'
-        + (ev.author ? '<span class="wn-author">' + escapeHtml(ev.author) + '</span>' : '')
-        + escapeHtml(t)
-        + '<span class="wn-time">(' + escapeHtml(time) + ')</span>'
-        + '</a>';
-    });
-    strip.innerHTML = items.join('<span class="wn-sep">◆</span>');
+    const view = document.getElementById('wn-view');
+    if (!box || !view) return;
     box.style.display = '';
-
-    // 文字量に応じてスクロール速度を決定 (1秒で~80px進む目安)
-    requestAnimationFrame(() => {
-      const w = strip.scrollWidth;
-      const sec = Math.max(20, Math.round(w / 80));
-      strip.style.animationDuration = sec + 's';
-    });
+    box.onmouseenter = function () { _wnHover = true; };   // ホバーで停止
+    box.onmouseleave = function () { _wnHover = false; };
+    _wnIdx = 0; showWnItem(0);
+    linkMsgNews();
+    if (_wnEvents.length > 1) {
+      clearInterval(_wnTimer);
+      _wnTimer = setInterval(function () {
+        if (_wnHover) return;
+        _wnIdx = (_wnIdx + 1) % _wnEvents.length;
+        showWnItem(_wnIdx);
+      }, 4500);
+    }
   } catch (e) { /* What's newは黙って無視 */ }
+}
+function showWnItem(i) {
+  const view = document.getElementById('wn-view');
+  const ev = _wnEvents[i];
+  if (!view || !ev) return;
+  const thumb = ev.thumb ? '<img class="wn-thumb" src="' + escapeHtml(ev.thumb) + '" alt="" onerror="this.remove()">' : '';
+  view.innerHTML = '<a class="wn-item" href="' + escapeHtml(ev.link || '#') + '">'
+    + '<span class="wn-cat">' + (ev.icon || '📌') + ' ' + escapeHtml(ev.label || '') + '</span>'
+    + '<span class="wn-text">' + escapeHtml(ev.summary || '') + '</span>'
+    + thumb
+    + '<span class="wn-time">' + escapeHtml(relTime(ev.created_at)) + '</span>'
+    + '</a>';
+  requestAnimationFrame(function () { const el = view.querySelector('.wn-item'); if (el) el.classList.add('show'); });
+}
+// 今日のひとこと + NEWS を1枚に連結 (両方表示中のみ上下端フラット)
+function linkMsgNews() {
+  const dm = document.getElementById('daily-msg'), wn = document.getElementById('whats-new');
+  if (!dm || !wn) return;
+  const both = dm.style.display !== 'none' && wn.style.display !== 'none';
+  dm.classList.toggle('has-news', both);
+  wn.classList.toggle('has-msg', both);
+}
+// 🆕 新機能のお知らせ: 一行カードを下から押上げて循環 (3件以上のとき)
+function renderNewFeatures(isManager) {
+  const box = document.getElementById('new-features'), list = document.getElementById('nf-list');
+  if (!box || !list) return;
+  const items = [];
+  if (isManager) items.push({ ic: '🗓', t: '共有カレンダー', d: '役員・管理職の予定を社内で共有', href: '/calendar.html' });
+  items.push({ ic: '🦉', t: 'まとめる君', d: '報告メモをAIが5W1Hに整形（事業本部チャット）', href: '/chat' });
+  items.push({ ic: '🔥', t: 'マイ運動記録', d: '運動をkcalで記録・月間ランキング', href: '/myactivity.html' });
+  list.innerHTML = items.map(function (x) {
+    return '<a class="nf-item" href="' + x.href + '"><span class="nf-ic">' + x.ic + '</span><span class="nf-tx"><b>' + escapeHtml(x.t) + '</b><small>' + escapeHtml(x.d) + '</small></span></a>';
+  }).join('');
+  box.style.display = '';
+  if (items.length > 2) initNewFeatures();   // 3件以上=押上げ循環 / 2件以下=静止
+}
+function initNewFeatures() {
+  const list = document.getElementById('nf-list');
+  if (!list) return;
+  const orig = Array.prototype.slice.call(list.children);
+  if (orig.length <= 2) return;
+  list.appendChild(orig[0].cloneNode(true));   // 先頭2件をクローン→末尾 (継ぎ目なしループ)
+  list.appendChild(orig[1].cloneNode(true));
+  const step = (orig[0].offsetHeight || 44) + 4;
+  let idx = 0;
+  setInterval(function () {
+    idx++;
+    list.style.transition = 'transform 0.6s ease';
+    list.style.transform = 'translateY(-' + (idx * step) + 'px)';
+    if (idx >= orig.length) {
+      setTimeout(function () { list.style.transition = 'none'; idx = 0; list.style.transform = 'translateY(0)'; }, 640);
+    }
+  }, 3600);
 }
 
 async function init() {
@@ -1217,11 +1249,11 @@ async function init() {
   if (!r || !r.success) { showLogin(); return; }
   me = r.user;
   showApp();
-  // 2026-05-24〜25機能の動線復旧 (2026-05-25): 新機能パネル + 管理職限定カード(共有カレンダー/業務週報/運転アラート)
-  var _nf = document.getElementById('new-features'); if (_nf) _nf.style.display = '';
+  // 2026-05-24〜25機能の動線復旧 (2026-05-25): 🆕新機能パネル(押上げ循環) + 管理職限定カード
+  renderNewFeatures(!!me.is_manager);
   if (me.is_manager) {
-    ['card-shared-cal', 'nf-calendar', 'card-weekly', 'card-alerts'].forEach(function(id) {
-      var el = document.getElementById(id); if (el) el.style.display = (id === 'nf-calendar') ? 'flex' : '';
+    ['card-shared-cal', 'card-weekly', 'card-alerts'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.style.display = '';
     });
   }
   $('hd-name').textContent = me.display_name + 'さん';
