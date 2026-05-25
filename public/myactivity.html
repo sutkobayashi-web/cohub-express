@@ -364,7 +364,7 @@ function setType(t) {
 }
 function setVis(v) {
   state.vis = v;
-  document.querySelectorAll('.vis-row[id!="setting-vis-row"] .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === v));
+  document.querySelectorAll('.vis-row:not(#setting-vis-row) .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === v));
 }
 
 // kcal推定 (フロントで仮表示。サーバ側で最終計算)
@@ -653,7 +653,7 @@ async function ensureWeightAndStart() {
     return;
   }
   state.vis = state.prefs.default_visibility || 'private';
-  document.querySelectorAll('.vis-row[id!="setting-vis-row"] .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === state.vis));
+  document.querySelectorAll('.vis-row:not(#setting-vis-row) .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === state.vis));
   refresh();
 }
 async function saveWeight() {
@@ -695,7 +695,7 @@ async function saveSettings() {
     state.prefs.monthly_goal_kcal = goal;
     state.prefs.default_visibility = vis;
     state.vis = vis;
-    document.querySelectorAll('.vis-row[id!="setting-vis-row"] .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === vis));
+    document.querySelectorAll('.vis-row:not(#setting-vis-row) .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === vis));
     closeSettings();
     toast('保存しました');
     refresh();
