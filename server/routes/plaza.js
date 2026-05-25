@@ -280,6 +280,7 @@ router.get('/posts', authUser, (req, res) => {
     });
   }
   const merged = [...enriched, ...archive].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, limit);
+  res.set('Cache-Control', 'no-store'); // ニックネーム等の表示変更が即反映されるようキャッシュ無効化
   res.json({ success: true, posts: merged });
 });
 
