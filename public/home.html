@@ -291,6 +291,7 @@
   .whats-new .wn-item .wn-thumb { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
   .whats-new .wn-item .wn-time { color: #a8a29e; font-size: 11px; flex-shrink: 0; }
   .whats-new .wn-item .wn-author { color: #7c5e10; font-weight: 700; font-size: 11.5px; flex-shrink: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .whats-new .wn-item.wn-meal .wn-text { font-weight: 800; }
   @media (max-width: 600px) {
     .whats-new .wn-label { font-size: 10px; padding: 0 9px; }
     .whats-new .wn-item .wn-text { font-size: 12.5px; }
@@ -1196,7 +1197,8 @@ function showWnItem(i) {
   if (!view || !ev) return;
   const thumb = ev.thumb ? '<img class="wn-thumb" src="' + escapeHtml(ev.thumb) + '" alt="" onerror="this.remove()">' : '';
   const author = ev.author ? '<span class="wn-author">' + escapeHtml(ev.author) + '</span>' : '';
-  view.innerHTML = '<a class="wn-item" href="' + escapeHtml(ev.link || '#') + '">'
+  const meal = ev.type === 'plaza:食事' ? ' wn-meal' : ''; // 食事投稿は本文を太字で強調
+  view.innerHTML = '<a class="wn-item' + meal + '" href="' + escapeHtml(ev.link || '#') + '">'
     + '<span class="wn-cat">' + (ev.icon || '📌') + ' ' + escapeHtml(ev.label || '') + '</span>'
     + author
     + '<span class="wn-text">' + escapeHtml(ev.summary || '') + '</span>'
