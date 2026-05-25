@@ -5,9 +5,87 @@ const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
-const { analyzeFoodImage } = require('../services/ai');
+const { analyzeFoodImage, generateText } = require('../services/ai');
 
 const CATEGORIES = ['食事', '相談', '雑談', '健康Tips'];
+
+// ── 悩み相談(相談カテゴリ)の一次対応【黒子型】 2026-05-26 ──
+// AIは公開の自動返信はせず、推進メンバーのグループ(g_field_voice)へ
+// 「相談内容 + AIの回答下書き + 論点」を流す。表の回答は人が自分の言葉で行う。
+const CONSULT_PROMOTER_GROUP = 'g_field_voice';
+// 深刻ワード検知時はAI助言を出さず、人/専門窓口への緊急エスカレーションに切替える
+const CONSULT_SERIOUS_RE = /(死に?たい|消えたい|自殺|リスカ|リストカット|死のう|生きてても|もう限界|限界です|うつ病|鬱|パワハラ|セクハラ|暴力|殴ら|蹴ら|いじめ|ハラスメント|虐待|休職|辞めたい|退職したい)/;
+
+// 相談投稿 → 推進グループへAI下書きを通知 (非同期・投稿成立を妨げない)
+async function notifyConsultToPromoters(app, post) {
+  try {
+    const db = getDb();
+    const content = String(post.content || '').trim();
+    if (!content) return;
+    const serious = CONSULT_SERIOUS_RE.test(content);
+    const nick = post.is_anonymous
+      ? (post.author_nickname ? '🎭 ' + post.author_nickname : '🎭 匿名')
+      : (post.author_name || '社員');
+
+    let draft;
+    if (serious) {
+      draft = '🚨 要注意ワードを検知したため、AIの助言は控えます。\n保健師・管理者が直接フォローし、本人の安全確認を最優先に。必要に応じて外部相談窓口を案内してください。';
+    } else {
+      try {
+        const prompt =
+          'あなたは運送会社の健康推進担当を補佐するアシスタントです。以下は社員が匿名で投稿した「悩み相談」。' +
+          '実際に回答するのは人間の推進メンバーで、あなたはその"下書き"を作るだけです。\n\n' +
+          '相談内容:\n「' + content.slice(0, 1500) + '」\n\n' +
+          '推進メンバーがそのまま手直しして使える日本語の下書きを、次の形式で作成してください。' +
+          '専門外の断定や医療診断はしない。共感だけで終わらせず必ず具体的な次の一歩を1つ添える。深刻なら産業医/保健師への相談を促す。\n\n' +
+          '【共感の一言】(1文)\n【一般的なアドバイス】(2〜3点・箇条書き)\n【次の一歩】(今日からできる具体的な1つ)\n【回答者向けメモ】(確認したい点・注意点を1〜2行)';
+        draft = await generateText(prompt, { temperature: 0.5, maxTokens: 700 });
+      } catch (e) {
+        draft = '(AI下書き生成に失敗: ' + e.message + ')\nお手数ですが内容を読んで対応をお願いします。';
+      }
+    }
+
+    const head = (serious ? '🚨 悩み相談 一次対応【緊急】' : '🆘 悩み相談 一次対応')
+      + '  (AI下書き / 返信は人がお願いします)';
+    const msgContent = [
+      head,
+      '投稿者: ' + nick + '　#' + post.id,
+      '─ 相談内容 ─',
+      content.slice(0, 600),
+      '─ AI下書き ─',
+      draft,
+      '→ 「悩み相談」を開いて、あなたの言葉で返信してください: /plaza.html?tab=相談',
+    ].join('\n');
+
+    const roomCode = 'grp_' + CONSULT_PROMOTER_GROUP;
+    const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_health', NULL, ?, ?)`).run(msgContent, roomCode);
+
+    const payload = {
+      id: msgIns.lastInsertRowid,
+      from: 'bot_health',
+      group_id: CONSULT_PROMOTER_GROUP,
+      content: msgContent,
+      at: new Date().toISOString(),
+      attach: null,
+    };
+    const emitG = app && app.locals && app.locals.emitToGroupMembers;
+    if (emitG) emitG(CONSULT_PROMOTER_GROUP, 'group:msg', payload);
+
+    const sendPush = app && app.locals && app.locals.sendPushToUser;
+    if (sendPush) {
+      const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(CONSULT_PROMOTER_GROUP);
+      for (const m of members) {
+        sendPush(m.user_id, {
+          title: serious ? '🚨 悩み相談【緊急】' : '🆘 悩み相談 一次対応',
+          body: content.slice(0, 100),
+          tag: 'consult-' + post.id,
+          url: '/?g=' + CONSULT_PROMOTER_GROUP,
+          requireInteraction: serious,
+        }).catch(() => {});
+      }
+    }
+  } catch (e) { console.warn('[plaza] consult notify fail', e.message); }
+}
 
 // 起動時マイグレーション: 追加飲酒記録カラム (写真未反映分の自己申告)
 try {
@@ -378,6 +456,11 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
       }
     }
   } catch (e) { console.warn('[plaza] push broadcast fail', e.message); }
+
+  // 悩み相談【黒子型】: AIが回答下書きを作り推進グループへ通知 (非同期・投稿成立は妨げない)
+  if (category === '相談') {
+    notifyConsultToPromoters(req.app, post);
+  }
 
   res.json({ success: true, post });
 });
