@@ -1,14 +1,65 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 
 const LEVELS = ['normal', 'important', 'urgent'];
 
-// 告知作成権限: 管理職 (employee_type='admin') または system admin
-function canCreate(uid) {
-  const u = getDb().prepare('SELECT employee_type, role FROM users WHERE id = ?').get(uid);
-  return !!(u && (u.employee_type === 'admin' || u.role === 'admin'));
+// 通達作成権限: 管理部の固定6名のみ (2026-05-21)
+//   吉沢佑也, 小林猛, 須貝栄二, 後藤裕司, 金子力, 岡田恭司
+const ALLOWED_CREATORS = new Set([
+  'b097b512-468b-4161-a273-2e96ee589960', // 吉沢　佑也
+  '7cf1bd9c-5c97-495d-84e8-5339583a5e6c', // 小林　猛
+  '0da5798c-335e-42f4-8842-c08630453ffd', // 須貝　栄二
+  '918f29f1-a030-4176-af28-a694067ffefc', // 後藤　裕司
+  '0717f9c9-472d-4f5f-831d-3c54ce019327', // 金子　力
+  '4c170870-33f5-45d6-a0dd-760adee79526', // 岡田　恭司
+]);
+function canCreate(uid) { return ALLOWED_CREATORS.has(uid); }
+router.get('/can-create', authUser, (req, res) => {
+  res.json({ success: true, can_create: canCreate(req.uid) });
+});
+
+// 添付ファイル保存
+const attachDir = path.join(__dirname, '..', '..', 'uploads', 'announcements');
+if (!fs.existsSync(attachDir)) fs.mkdirSync(attachDir, { recursive: true });
+const ALLOWED_MIME = /^(image\/|application\/pdf$|application\/vnd\.openxmlformats-officedocument\.|application\/msword$|application\/vnd\.ms-(excel|powerpoint)$|text\/plain$|text\/csv$)/;
+const attachUpload = multer({
+  storage: multer.diskStorage({
+    destination: attachDir,
+    filename: (req, file, cb) => {
+      const ext = (path.extname(file.originalname || '').slice(0, 10) || '').replace(/[^a-zA-Z0-9.]/g, '');
+      cb(null, Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024, files: 5 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME.test(file.mimetype || '')) return cb(null, true);
+    cb(new Error('PDF/画像/Office/テキストのみ添付可'));
+  },
+});
+
+// 起動時スキーマ移行: attachments 列追加
+try {
+  const db = getDb();
+  const cols = new Set(db.prepare('PRAGMA table_info(announcements)').all().map(c => c.name));
+  if (!cols.has('attachments')) {
+    db.prepare("ALTER TABLE announcements ADD COLUMN attachments TEXT").run();
+    console.log('[announcements] migrated: attachments column');
+  }
+} catch (e) { console.warn('[announcements] migration skipped:', e.message); }
+
+function parseAttachments(row) {
+  if (!row) return row;
+  let atts = [];
+  if (row.attachments) {
+    try { atts = JSON.parse(row.attachments); if (!Array.isArray(atts)) atts = []; } catch (e) { atts = []; }
+  }
+  row.attachments = atts;
+  return row;
 }
 
 // 対象判定: target='all' | 'company:CODE' | 'building:office|field' | 'role:admin' など
@@ -23,20 +74,20 @@ function userMatchesTarget(uid, target) {
   return false;
 }
 
-// 自分宛の有効告知一覧 (新着順、デフォルトは未削除のみ)
+// 通達一覧 (新着順、過去通達も含めて全件表示)
 router.get('/', authUser, (req, res) => {
   const onlyUnread = req.query.unread === '1';
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const db = getDb();
+  // 期限フィルタは外す: 過去通達も閲覧可能 (2026-05-21)
   const all = db.prepare(`SELECT a.*, u.display_name AS author_name,
                                  r.read_at, r.acked_at
                           FROM announcements a
                           LEFT JOIN users u ON u.id = a.author_id
                           LEFT JOIN announcement_reads r ON r.announcement_id = a.id AND r.user_id = ?
                           WHERE a.deleted_at IS NULL
-                            AND (a.expires_at IS NULL OR a.expires_at >= datetime('now'))
                           ORDER BY a.id DESC LIMIT ?`).all(req.uid, limit);
-  const filtered = all.filter(a => userMatchesTarget(req.uid, a.target));
+  const filtered = all.filter(a => userMatchesTarget(req.uid, a.target)).map(parseAttachments);
   const list = onlyUnread ? filtered.filter(a => !a.read_at) : filtered;
   res.json({ success: true, announcements: list });
 });
@@ -80,7 +131,7 @@ router.get('/popup-next', authUser, (req, res) => {
     const unread = !a.read_at;
     const needsAck = a.requires_ack && !a.acked_at;
     if (unread || needsAck) {
-      return res.json({ success: true, announcement: a });
+      return res.json({ success: true, announcement: parseAttachments(a) });
     }
   }
   res.json({ success: true, announcement: null });
@@ -112,21 +163,34 @@ router.post('/:id/ack', authUser, (req, res) => {
   res.json({ success: true });
 });
 
-// 新規作成 (管理職)
-router.post('/', authUser, express.json(), (req, res) => {
-  if (!canCreate(req.uid)) return res.status(403).json({ success: false, msg: '管理職のみ作成可' });
+// 新規作成 (管理部6名のみ、PDF/画像/Office添付可、最大5件・各30MB)
+router.post('/', authUser, (req, res, next) => {
+  // 認可チェックを先に (multer 起動前に弾く)
+  if (!canCreate(req.uid)) return res.status(403).json({ success: false, msg: '通達作成は管理部のみ可能です' });
+  attachUpload.array('files', 5)(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, msg: err.message || 'アップロード失敗' });
+    next();
+  });
+}, (req, res) => {
   const b = req.body || {};
   const title = String(b.title || '').slice(0, 100).trim();
   const body = String(b.body || '').slice(0, 4000).trim();
   if (!title || !body) return res.status(400).json({ success: false, msg: 'タイトルと本文は必須' });
   const level = LEVELS.includes(b.level) ? b.level : 'normal';
-  const requiresAck = b.requires_ack ? 1 : 0;
+  const requiresAck = (b.requires_ack === '1' || b.requires_ack === 'true' || b.requires_ack === true) ? 1 : 0;
   const target = String(b.target || 'all').slice(0, 50);
   const expiresAt = b.expires_at ? String(b.expires_at).slice(0, 30) : null;
+  const atts = (req.files || []).map(f => ({
+    url: '/uploads/announcements/' + f.filename,
+    name: String(f.originalname || '').slice(0, 200),
+    mime: f.mimetype || '',
+    size: f.size || 0,
+  }));
+  const attsJson = atts.length ? JSON.stringify(atts) : null;
   const db = getDb();
   const ins = db.prepare(`INSERT INTO announcements
-    (author_id, title, body, level, requires_ack, target, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(req.uid, title, body, level, requiresAck, target, expiresAt);
+    (author_id, title, body, level, requires_ack, target, expires_at, attachments)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, title, body, level, requiresAck, target, expiresAt, attsJson);
   const id = ins.lastInsertRowid;
 
   // 全社realtime + Push通知

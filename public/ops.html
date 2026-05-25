@@ -105,6 +105,8 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 </style>
 <script src="/font-zoom.js" defer></script>
 <script src="/image-zoom.js" defer></script>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 
@@ -126,11 +128,9 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
   </div>
 
   <div id="app" style="display:none;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-      <button onclick="location.href='/accident.html'" style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;color:#c2410c;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;text-align:left;">
-        <span style="font-size:18px;">🚨</span><span>事故報告書</span>
-      </button>
-      <button onclick="location.href='/kbc.html'" style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;color:#1d4ed8;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;text-align:left;">
+    <!-- 旧: 🚨 事故報告書 ボタン (撤去 2026-05-06 — 安全太郎のインラインメニューへ統合) -->
+    <div style="margin-bottom:10px;">
+      <button onclick="location.href='/kbc.html'" style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;color:#1d4ed8;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;text-align:left;width:100%;max-width:300px;">
         <span style="font-size:18px;">📦</span><span>関東BC管理</span>
       </button>
     </div>
@@ -485,5 +485,6 @@ function closeImgModal() {
   } catch (e) { showLogin(''); }
 })();
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

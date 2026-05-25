@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>📢 告知 — CoWell</title>
+<title>📢 通達 — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json?v=4">
@@ -82,11 +82,14 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
 </style>
 <script src="/font-zoom.js" defer></script>
+<script src="/global-notif.js?v=20260521b" defer></script>
+<script src="/version-check.js" defer></script>
+<script src="/unify-header.js" defer></script>
 </head>
 <body>
 
 <header>
-  <h1>📢 告知</h1>
+  <h1>📢 通達</h1>
   <div class="spacer"></div>
   <div id="who" style="font-size:12px;"></div>
   <button onclick="goBackHome()" style="margin-left:14px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">✕ 閉じる</button>
@@ -113,14 +116,19 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
     <div id="pane-unread" style="display:none;"></div>
 
     <div id="pane-create" class="composer" style="display:none;">
-      <h3>新規告知</h3>
+      <h3>新規通達</h3>
       <div class="field">
         <label>タイトル *</label>
         <input type="text" id="cmp-title" maxlength="100" placeholder="例) 5月の連休前後の業務について">
       </div>
       <div class="field">
         <label>本文 *</label>
-        <textarea id="cmp-body" maxlength="4000" placeholder="告知の詳細をここに記入。改行可。"></textarea>
+        <textarea id="cmp-body" maxlength="4000" placeholder="通達の詳細をここに記入。改行可。"></textarea>
+      </div>
+      <div class="field">
+        <label>📎 添付ファイル (PDF・画像・Office・テキスト、最大5件・各10MBまで)</label>
+        <input type="file" id="cmp-files" multiple accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv">
+        <div id="cmp-files-preview" style="margin-top:6px;font-size:11px;color:#475569;"></div>
       </div>
       <div class="row3">
         <div class="field">
@@ -137,13 +145,13 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
             <option value="all">全員</option>
             <option value="building:office">事務所棟のみ</option>
             <option value="building:field">現場棟のみ</option>
-            <option value="company:SU_HQ">SU本社</option>
-            <option value="company:SU_SAITAMA">SU埼玉</option>
-            <option value="company:SU_MKANTO">SU南関東</option>
-            <option value="company:SU_ZAMA">SU座間</option>
-            <option value="company:IBA_KASHIMA">IBA鹿島</option>
-            <option value="company:IBA_SANWA">IBA三和</option>
-            <option value="company:SUZUE">スズエ</option>
+            <option value="company:SU_HQ">スタンダード運輸 本社</option>
+            <option value="company:SU_SAITAMA">スタンダード運輸 埼玉</option>
+            <option value="company:SU_MKANTO">スタンダード運輸 南関東</option>
+            <option value="company:SU_ZAMA">スタンダード運輸 座間</option>
+            <option value="company:IBA_KASHIMA">茨運(鹿島)</option>
+            <option value="company:IBA_SANWA">茨運(三和)</option>
+            <option value="company:SUZUE">スズエ電機</option>
           </select>
         </div>
         <div class="field">
@@ -156,7 +164,7 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn btn-ghost" onclick="switchTab('all')">キャンセル</button>
-        <button class="btn" id="cmp-submit" onclick="submitCreate()">📢 配信</button>
+        <button class="btn" id="cmp-submit" onclick="submitCreate()">📢 発信</button>
       </div>
       <div class="err" id="cmp-err"></div>
     </div>
@@ -233,16 +241,27 @@ async function doLogin() {
   } catch (e) { err.textContent = '通信エラー'; }
 }
 
+// 管理部6名 — フロント表示判定用 (実enforce はサーバ側で実施)
+const ALLOWED_CREATORS = new Set([
+  'b097b512-468b-4161-a273-2e96ee589960', // 吉沢
+  '7cf1bd9c-5c97-495d-84e8-5339583a5e6c', // 小林猛
+  '0da5798c-335e-42f4-8842-c08630453ffd', // 須貝
+  '918f29f1-a030-4176-af28-a694067ffefc', // 後藤
+  '0717f9c9-472d-4f5f-831d-3c54ce019327', // 金子
+  '4c170870-33f5-45d6-a0dd-760adee79526', // 岡田
+]);
+
 function initApp() {
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('who').textContent = (me && me.display_name) || '';
-  // 管理職のみ作成タブ表示
-  if (me && (me.employee_type === 'admin' || me.role === 'admin')) {
+  // 管理部6名のみ作成タブ表示
+  if (me && ALLOWED_CREATORS.has(me.uid)) {
     document.getElementById('tab-create').style.display = 'inline-block';
   }
   loadList();
   setupSocket();
+  setupFilePreview();
   // ハッシュで個別告知へ
   if (location.hash.startsWith('#a-')) {
     setTimeout(() => {
@@ -280,7 +299,7 @@ function render() {
   const unread = _list.filter(a => !a.read_at || (a.requires_ack && !a.acked_at));
   document.getElementById('cnt-all').textContent = all.length;
   document.getElementById('cnt-unread').textContent = unread.length;
-  document.getElementById('pane-all').innerHTML = all.length ? all.map(card).join('') : emptyHtml('告知はまだありません');
+  document.getElementById('pane-all').innerHTML = all.length ? all.map(card).join('') : emptyHtml('通達はまだありません');
   document.getElementById('pane-unread').innerHTML = unread.length ? unread.map(card).join('') : emptyHtml('🎉 すべて確認済みです');
   // 自動既読の監視を開始: 画面に1.5秒以上見えたら read マーク (要確認は除く=明示的にボタン押させる)
   setupAutoReadObserver();
@@ -391,14 +410,33 @@ function card(a) {
   } else {
     actions += `<span style="font-size:11px;color:#10b981;font-weight:700;">✓ 確認済</span>`;
   }
-  // 作成者or管理職には統計+削除
-  const canManage = me && (me.uid === a.author_id || me.employee_type === 'admin' || me.role === 'admin');
+  // 作成者or管理部6名には統計+削除
+  const canManage = me && (me.uid === a.author_id || ALLOWED_CREATORS.has(me.uid));
   if (canManage) {
     actions += `<button class="btn btn-sm btn-ghost" onclick="openReads(${a.id})">📊 既読率</button>`;
     actions += `<button class="btn btn-sm btn-ghost" style="color:#dc2626;" onclick="delAnnouncement(${a.id})">🗑</button>`;
   }
   const expIcon = a.expires_at ? `<span style="font-size:10px;color:#94a3b8;">期限: ${escapeHtml(a.expires_at.slice(0,10))}</span>` : '';
   const ackBadge = a.requires_ack ? '<span style="font-size:10px;background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:6px;font-weight:700;">要確認</span>' : '';
+  // 添付ファイル表示 (画像はサムネ、PDF/Office等はアイコン+リンク)
+  let attHtml = '';
+  if (Array.isArray(a.attachments) && a.attachments.length) {
+    attHtml = '<div class="atts" style="margin:6px 0 4px;display:flex;flex-wrap:wrap;gap:6px;">' +
+      a.attachments.map(f => {
+        const isImg = /^image\//.test(f.mime || '');
+        if (isImg) {
+          return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.name)}" style="display:inline-block;"><img src="${escapeHtml(f.url)}" alt="${escapeHtml(f.name)}" style="height:84px;max-width:140px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;"></a>`;
+        }
+        const icon = /pdf/.test(f.mime) ? '📄'
+                   : /sheet|excel/.test(f.mime) ? '📊'
+                   : /word|document/.test(f.mime) ? '📝'
+                   : /presentation|powerpoint/.test(f.mime) ? '📽'
+                   : /text|csv/.test(f.mime) ? '📃' : '📎';
+        const kb = f.size ? Math.max(1, Math.round(f.size / 1024)) : 0;
+        const sizeStr = kb >= 1024 ? (kb / 1024).toFixed(1) + 'MB' : kb + 'KB';
+        return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;color:#0f172a;text-decoration:none;font-weight:600;">${icon} <span>${escapeHtml(f.name)}</span><span style="color:#94a3b8;font-size:10px;font-weight:500;">${sizeStr}</span></a>`;
+      }).join('') + '</div>';
+  }
   return `<article class="card ${cls}" id="a-${a.id}">
     <div class="card-head">
       <span class="lvl ${a.level}">${lvlLabel}</span>
@@ -407,8 +445,26 @@ function card(a) {
     </div>
     <div class="meta">${escapeHtml(a.author_name || '不明')} · ${relTime(a.created_at)} · 対象: ${escapeHtml(tgt)} ${expIcon}</div>
     <div class="body">${escapeHtml(a.body)}</div>
+    ${attHtml}
     <div class="actions">${actions}</div>
   </article>`;
+}
+
+function setupFilePreview() {
+  const inp = document.getElementById('cmp-files');
+  const prev = document.getElementById('cmp-files-preview');
+  if (!inp || !prev) return;
+  inp.addEventListener('change', () => {
+    const files = Array.from(inp.files || []);
+    if (!files.length) { prev.textContent = ''; return; }
+    if (files.length > 5) { prev.innerHTML = '<span style="color:#dc2626;">最大5件まで</span>'; return; }
+    prev.innerHTML = files.map(f => {
+      const kb = Math.max(1, Math.round(f.size / 1024));
+      const size = kb >= 1024 ? (kb/1024).toFixed(1) + 'MB' : kb + 'KB';
+      const tooBig = f.size > 10 * 1024 * 1024;
+      return `<div${tooBig ? ' style="color:#dc2626;"' : ''}>📎 ${escapeHtml(f.name)} <span style="color:#94a3b8;">(${size})</span>${tooBig ? ' ✗超過' : ''}</div>`;
+    }).join('');
+  });
 }
 
 async function readOne(id) {
@@ -420,7 +476,7 @@ async function ackOne(id) {
   loadList();
 }
 async function delAnnouncement(id) {
-  if (!confirm('この告知を削除しますか？')) return;
+  if (!confirm('この通達を削除しますか？')) return;
   const r = await api('/api/announcements/' + id, { method: 'DELETE' });
   if (r.success) loadList();
 }
@@ -431,20 +487,23 @@ async function submitCreate() {
   const errEl = document.getElementById('cmp-err');
   errEl.textContent = '';
   if (!title || !body) { errEl.textContent = 'タイトルと本文を入力してください'; return; }
-  const payload = {
-    title, body,
-    level: document.getElementById('cmp-level').value,
-    target: document.getElementById('cmp-target').value,
-    requires_ack: document.getElementById('cmp-ack').checked,
-    expires_at: document.getElementById('cmp-expires').value || null,
-  };
+  const files = Array.from((document.getElementById('cmp-files') || {}).files || []);
+  if (files.length > 5) { errEl.textContent = '添付は最大5件まで'; return; }
+  const oversize = files.find(f => f.size > 10 * 1024 * 1024);
+  if (oversize) { errEl.textContent = '10MBを超えるファイル: ' + oversize.name; return; }
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('body', body);
+  fd.append('level', document.getElementById('cmp-level').value);
+  fd.append('target', document.getElementById('cmp-target').value);
+  fd.append('requires_ack', document.getElementById('cmp-ack').checked ? '1' : '0');
+  const exp = document.getElementById('cmp-expires').value;
+  if (exp) fd.append('expires_at', exp);
+  for (const f of files) fd.append('files', f);
   const btn = document.getElementById('cmp-submit');
-  btn.disabled = true; btn.textContent = '配信中…';
+  btn.disabled = true; btn.textContent = '発信中…';
   try {
-    const r = await api('/api/announcements', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const r = await api('/api/announcements', { method: 'POST', body: fd });
     if (!r.success) { errEl.textContent = r.msg || '失敗'; return; }
     document.getElementById('cmp-title').value = '';
     document.getElementById('cmp-body').value = '';
@@ -452,10 +511,12 @@ async function submitCreate() {
     document.getElementById('cmp-expires').value = '';
     document.getElementById('cmp-level').value = 'normal';
     document.getElementById('cmp-target').value = 'all';
+    document.getElementById('cmp-files').value = '';
+    document.getElementById('cmp-files-preview').textContent = '';
     switchTab('all');
     loadList();
   } catch (e) { errEl.textContent = '通信エラー: ' + e.message; }
-  finally { btn.disabled = false; btn.textContent = '📢 配信'; }
+  finally { btn.disabled = false; btn.textContent = '📢 発信'; }
 }
 
 async function openReads(id) {
@@ -502,5 +563,7 @@ function closeReads() { document.getElementById('reads-modal').classList.remove(
   } catch (e) { showLogin(''); }
 })();
 </script>
+<script src="/overlay-history.js?v=3"></script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

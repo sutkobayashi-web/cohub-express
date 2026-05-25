@@ -233,6 +233,44 @@ tr:hover td { background: #fafbfd; }
   .card { padding: 18px 16px; border-radius: 14px; }
   .wo-tab-bar { top: 56px; }
 }
+
+/* 推進メンバー スケジュール (ガントチャート) */
+.sched-grid { display: grid; grid-template-columns: 200px 1fr; }
+.sched-corner { background: #f8fafc; padding: 8px 10px; font-size: 11px; font-weight: 800; color: #475569; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; position: sticky; left: 0; z-index: 2; }
+.sched-week-header { display: grid; grid-template-columns: repeat(12, 1fr); background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.sched-wk { padding: 6px 2px; font-size: 11px; font-weight: 700; color: #475569; text-align: center; border-right: 1px solid #e2e8f0; line-height: 1.3; }
+.sched-wk:last-child { border-right: none; }
+.sched-wk.this-week { background: #fef3c7; color: #92400e; }
+.sched-wk .wn { font-size: 9px; color: #94a3b8; font-weight: 600; }
+.sched-row { display: contents; }
+.sched-row-label { padding: 8px 10px; font-size: 12px; color: #0f172a; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; background: #fff; position: sticky; left: 0; z-index: 1; display: flex; align-items: center; gap: 6px; min-height: 40px; }
+.sched-row-label .ti { font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-row-label .ow { font-size: 10px; color: #64748b; flex-shrink: 0; }
+.sched-row-track { position: relative; height: 40px; border-bottom: 1px solid #f1f5f9; background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / 12 - 1px), #f1f5f9 calc(100% / 12 - 1px), #f1f5f9 calc(100% / 12)); }
+.sched-row-track.today-mark::before { content: ''; position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; opacity: 0.5; z-index: 1; pointer-events: none; }
+.sched-bar { position: absolute; top: 6px; bottom: 6px; border-radius: 6px; padding: 0 8px; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.15); overflow: hidden; transition: all 0.15s; min-width: 24px; }
+.sched-bar:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.25); transform: translateY(-1px); }
+.sched-bar.status-done { opacity: 0.55; text-decoration: line-through; }
+.sched-bar.status-in_progress { box-shadow: 0 0 0 2px rgba(59,130,246,0.4), 0 1px 2px rgba(0,0,0,0.15); }
+.sched-bar .bar-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 13px; }
+.sched-modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 250; align-items: center; justify-content: center; padding: 16px; }
+.sched-modal-bg.show { display: flex; }
+.sched-modal { background: #fff; border-radius: 14px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 18px 20px; box-shadow: 0 24px 64px rgba(0,0,0,0.3); }
+.sched-modal h3 { margin: 0 0 12px; font-size: 16px; color: #1e3a8a; }
+.sched-modal .fld { margin-bottom: 12px; }
+.sched-modal .fld label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+.sched-modal .fld input, .sched-modal .fld select, .sched-modal .fld textarea { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
+.sched-modal .fld textarea { min-height: 60px; resize: vertical; }
+.sched-modal .fld.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sched-modal .colors { display: flex; gap: 6px; flex-wrap: wrap; }
+.sched-modal .color-chip { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+.sched-modal .color-chip.selected { border-color: #0f172a; box-shadow: 0 0 0 2px #fff inset; }
+.sched-modal .btns { display: flex; gap: 8px; margin-top: 16px; }
+.sched-modal .btns button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.sched-modal .btn-save { background: linear-gradient(135deg,#3b82f6,#1e40af); color: #fff; }
+.sched-modal .btn-cancel { background: #f1f5f9; color: #475569; flex: 0 0 90px; }
+.sched-modal .btn-delete { background: #fee2e2; color: #991b1b; flex: 0 0 90px; }
 </style>
 <script src="/global-notif.js?v=20260518b" defer></script>
 <script src="/version-check.js" defer></script>
@@ -296,6 +334,10 @@ function switchWoTab(tab) {
 }
 window.addEventListener('DOMContentLoaded', () => {
   try {
+    // URL hash (#schedule など) > localStorage > デフォルト
+    const hashTab = (location.hash || '').replace(/^#/, '').trim();
+    const VALID = ['inbox', 'board', 'schedule', 'members'];
+    if (hashTab && VALID.includes(hashTab)) { switchWoTab(hashTab); return; }
     const saved = localStorage.getItem('cohub_wo_tab');
     if (saved) switchWoTab(saved);
     else switchWoTab('inbox');
@@ -385,6 +427,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
   <div class="wo-tab-bar">
     <button data-tab="inbox" class="active" onclick="switchWoTab('inbox')">📥 受信箱<span class="tb-badge" id="tab-badge-inbox" style="display:none;">0</span></button>
     <button data-tab="board" onclick="switchWoTab('board')">📋 施策ボード<span class="tb-badge" id="tab-badge-board" style="display:none;">0</span></button>
+    <button data-tab="schedule" onclick="switchWoTab('schedule')">📅 スケジュール</button>
     <button data-tab="members" onclick="switchWoTab('members')">👥 メンバー</button>
   </div>
 
@@ -467,7 +510,12 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
         3つの柱の声と推進コメントを AI が読み込み、施策候補を提案します。<br>
         <span style="font-size:11px;color:#7c3aed;">月1回の健康管理室会議で実行</span>
       </div>
-      <button class="btn" id="btn-ai" onclick="runAiInsights()">🧠 AI で凝縮</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span id="ai-cand-count" style="display:none;font-size:11px;color:#7c3aed;font-weight:700;background:#ede9fe;border:1px solid #ddd6fe;border-radius:999px;padding:3px 10px;">AI候補 <b>0</b>件</span>
+        <button class="btn" id="btn-ai" onclick="runAiInsights()">🧠 AI で凝縮</button>
+        <button class="btn" id="btn-ai-redo" style="display:none;background:linear-gradient(135deg,#fbbf24,#f59e0b);" onclick="redoAiInsights()" title="現在のAI候補を削除して再生成">🔄 やり直し</button>
+        <button class="btn btn-danger" id="btn-ai-delete" style="display:none;" onclick="deleteAiCandidates()" title="現在のAI候補を全て削除">🗑 削除</button>
+      </div>
     </div>
     <div id="ai-insights-box" style="display:none;background:#fff;border:1px solid #f3e8ff;border-radius:14px;padding:14px;margin-top:8px;"></div>
   </div>
@@ -638,14 +686,101 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
       <button class="btn" onclick="loadFieldVoice()">再読込</button>
       <span id="fv-count" style="margin-left:auto;color:#64748b;font-size:12px;align-self:center;"></span>
     </div>
-    <div style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
-      <table style="margin:0;">
-        <thead style="position:sticky;top:0;"><tr><th style="width:50px;">#</th><th style="width:140px;">日時</th><th style="width:80px;">投稿元</th><th style="width:120px;">投稿者</th><th style="width:120px;">対象者</th><th style="width:90px;">営業所</th><th style="width:90px;">カテゴリ</th><th style="width:60px;">緊急</th><th style="width:90px;">特定</th><th>聞き取り内容 / メモ</th><th style="width:80px;">議論</th></tr></thead>
+    <div style="max-height:560px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+      <table id="fv-table" style="margin:0;min-width:1600px;table-layout:fixed;">
+        <thead style="position:sticky;top:0;z-index:2;">
+          <tr>
+            <th style="width:50px;">#</th>
+            <th style="width:140px;">日時</th>
+            <th style="width:90px;">投稿元</th>
+            <th style="width:130px;">投稿者</th>
+            <th style="width:130px;">対象者</th>
+            <th style="width:80px;">営業所</th>
+            <th style="width:90px;">カテゴリ</th>
+            <th style="width:70px;">緊急</th>
+            <th style="width:90px;">特定</th>
+            <th style="min-width:600px;">聞き取り内容 / メモ</th>
+            <th style="width:80px;">議論</th>
+          </tr>
+        </thead>
         <tbody id="fv-tbody"></tbody>
       </table>
     </div>
     <div style="margin-top:8px;padding:8px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:11px;color:#991b1b;line-height:1.6;">
       🔒 <b>取り扱い注意</b>: 個人の体調・睡眠・食事に関する情報を含みます。閲覧履歴は監査対象です。第三者への共有・SNS掲載は禁止。
+    </div>
+  </div>
+
+  <!-- ━━━ ヘルスリテラシー (HL) 回答状況 ━━━ -->
+  <div class="card" data-pane="inbox">
+    <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">📊 ヘルスリテラシー回答状況
+      <span style="color:#64748b;font-weight:400;font-size:12px;">CCHL 5問・各ユーザー最新1件で集計</span>
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="loadHlStats()" style="font-size:11px;padding:5px 10px;">🔄 再読込</button>
+        <button id="btn-hl-announce" class="btn" onclick="openHlAnnounceModal()" style="font-size:12px;padding:6px 14px;background:linear-gradient(135deg,#7c3aed,#5b21b6);">📢 推進メンバーへアナウンス</button>
+      </span>
+    </h2>
+    <div id="hl-stats-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <div style="color:#94a3b8;font-size:12px;padding:8px;">読み込み中…</div>
+    </div>
+    <div id="hl-stats-detail" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">■ 営業所別 回答状況</div>
+          <table id="hl-by-branch" style="font-size:12px;"><thead><tr><th>営業所</th><th style="text-align:right;width:60px;">対象</th><th style="text-align:right;width:60px;">回答</th><th style="text-align:right;width:60px;">率</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">■ 設問別 平均スコア (1〜4)</div>
+          <table id="hl-by-q" style="font-size:12px;"><thead><tr><th>設問</th><th style="text-align:right;width:80px;">平均</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px;padding:8px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:11px;color:#0c4a6e;line-height:1.6;">
+      💡 推進メンバーは🩺聞き取りカードPOST 画面でHL5問を同時入力できます (PC使えない社員向け代理入力)。
+    </div>
+  </div>
+
+  <!-- 📢 HL再アナウンス モーダル -->
+  <div id="hl-ann-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:200;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+      <div style="padding:14px 18px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;display:flex;align-items:center;gap:10px;">
+        <div style="font-weight:800;font-size:15px;flex:1;">📢 推進メンバーへHL再アナウンス</div>
+        <button onclick="closeHlAnnounceModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:18px 22px;">
+        <div style="font-size:12px;color:#475569;line-height:1.7;margin-bottom:12px;">
+          🩺 現場の声グループ (g_field_voice) へ自動メッセージを送信します。<br>
+          現在の回答率・営業所別未回答数・聞き取りカード誘導文が自動で本文に入ります。<br>
+          下に追記したい内容があれば入力してください (任意)。
+        </div>
+        <label style="display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:4px;">追記メッセージ (任意・600字以内)</label>
+        <textarea id="hl-ann-msg" rows="5" placeholder="例) 5/末までに完了させたいので、ご協力をお願いします" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+        <div id="hl-ann-err" style="color:#dc2626;font-size:12px;margin-top:8px;"></div>
+      </div>
+      <div style="padding:14px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeHlAnnounceModal()" style="flex:0 0 100px;">キャンセル</button>
+        <button id="btn-hl-ann-send" class="btn" onclick="sendHlAnnouncement()" style="flex:1;background:linear-gradient(135deg,#7c3aed,#5b21b6);">📢 送信</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━ スケジュール (ガントチャート) ━━━ -->
+  <div class="card" data-pane="schedule">
+    <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">📅 推進メンバー スケジュール
+      <span style="color:#64748b;font-weight:400;font-size:12px;">12週ガント・全員で起票/編集</span>
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+        <button class="btn btn-ghost" onclick="schedShiftWeeks(-4)" title="4週戻る">← 戻る</button>
+        <button class="btn btn-ghost" onclick="schedShiftWeeks(0)" title="今週へ">今週</button>
+        <button class="btn btn-ghost" onclick="schedShiftWeeks(4)" title="4週進む">進む →</button>
+        <button class="btn" style="background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;" onclick="openScheduleNew()">＋ 追加</button>
+      </span>
+    </h2>
+    <div id="sched-range-label" style="font-size:12px;color:#64748b;margin-bottom:8px;"></div>
+    <div id="sched-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid #e2e8f0;border-radius:8px;background:#fff;">
+      <div id="sched-table" style="min-width:880px;"></div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#94a3b8;line-height:1.6;">
+      バーをクリックすると編集/削除。終了日は当日含む。色・担当者・ステータス (予定/進行中/完了) を設定可。
     </div>
   </div>
 
@@ -823,6 +958,8 @@ function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','
       document.getElementById('btn-new').style.display = 'none';
     }
     loadFieldVoice(); loadActions(); loadPipeline(); loadPillarRecent(); loadPromoterBoard();
+    refreshAiCandidateButtons();
+    loadHlStats();
     if (m.is_guest_reviewer) loadNursePending();
   } catch (e) {
     document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
@@ -831,6 +968,30 @@ function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','
 
 
 // ===== AI凝縮 (シンプル: 結果を施策ボードへ自動登録) =====
+let _lastAiCreatedIds = [];
+
+// 既存のAI候補 (status='候補' AND is_ai_suggested=1) を取得してボタン表示制御
+async function refreshAiCandidateButtons() {
+  try {
+    const r = await fetch('/api/wellness/actions?status=' + encodeURIComponent('候補'), { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success) return;
+    const aiCands = (j.actions || []).filter(a => a.is_ai_suggested);
+    _lastAiCreatedIds = aiCands.map(a => a.id);
+    const canEdit = !!(_meta && _meta.can_edit_actions);
+    const n = _lastAiCreatedIds.length;
+    const cntEl = document.getElementById('ai-cand-count');
+    const redoEl = document.getElementById('btn-ai-redo');
+    const delEl = document.getElementById('btn-ai-delete');
+    if (cntEl) {
+      if (n > 0) { cntEl.style.display = ''; cntEl.querySelector('b').textContent = n; }
+      else cntEl.style.display = 'none';
+    }
+    if (redoEl) redoEl.style.display = (canEdit && n > 0) ? '' : 'none';
+    if (delEl) delEl.style.display = (canEdit && n > 0) ? '' : 'none';
+  } catch (e) {}
+}
+
 async function runAiInsights() {
   const box = document.getElementById('ai-insights-box');
   box.style.display = 'block';
@@ -846,6 +1007,7 @@ async function runAiInsights() {
     const ins = j.insights;
     const createdIds = j.created_action_ids || [];
     const createdN = createdIds.length;
+    _lastAiCreatedIds = createdIds.slice();
     // シンプルなサマリ + 施策候補リスト + 「議論する」リンク (=施策ボードへスクロール)
     const sumLine = ins.summary ? `<div style="background:#fff;border:1px solid #e5e7eb;padding:10px 12px;border-radius:6px;margin-bottom:10px;font-size:12px;line-height:1.7;color:#1f2937;">📝 ${escapeHtml(ins.summary)}</div>` : '';
     const listHtml = (ins.actions || []).map((a, i) => {
@@ -858,13 +1020,19 @@ async function runAiInsights() {
         ${actId ? `<button class="btn btn-ghost" style="font-size:11px;padding:5px 12px;flex-shrink:0;" onclick="scrollToActionAndDiscuss(${actId})">💬 議論する</button>` : ''}
       </div>`;
     }).join('');
+    const canEdit = !!(_meta && _meta.can_edit_actions);
+    const actionBtns = canEdit && createdN > 0 ? `
+      <button class="btn btn-ghost" style="padding:8px 14px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;" onclick="redoAiInsights()" title="現在のAI候補を削除して再生成">🔄 やり直し</button>
+      <button class="btn btn-danger" style="padding:8px 14px;" onclick="deleteAiCandidates()" title="現在のAI候補を全て削除">🗑 削除</button>
+    ` : '';
     box.innerHTML = `
-      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span style="font-size:24px;">✅</span>
-        <div style="flex:1;">
+        <div style="flex:1;min-width:200px;">
           <div style="font-weight:800;color:#065f46;font-size:14px;">AI が ${createdN} 案の施策候補を提案しました</div>
           <div style="font-size:11px;color:#047857;margin-top:2px;">下の「🎯 施策ボード詳細」に【候補】として登録済み。各候補で議論を進めてください。</div>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${actionBtns}</div>
       </div>
       ${sumLine}
       ${listHtml}
@@ -875,9 +1043,160 @@ async function runAiInsights() {
     // ボードに新しい候補を反映
     loadActions();
     loadPipeline();
+    refreshAiCandidateButtons();
   } catch (e) {
     box.innerHTML = '<div style="color:#dc2626;padding:12px;">通信エラー: ' + escapeHtml(e.message) + '</div>';
   }
+}
+
+// AI生成候補を一括削除
+async function deleteAiCandidates() {
+  if (!_lastAiCreatedIds.length) { alert('削除対象のAI候補がありません'); return; }
+  if (!confirm(`AI が生成した ${_lastAiCreatedIds.length} 件の候補を削除します。よろしいですか?\n(議論が始まっていてもAI候補かつ「候補」段階のみ削除します)`)) return;
+  const r = await fetch('/api/wellness/actions/bulk-delete-ai-candidates', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ ids: _lastAiCreatedIds }),
+  });
+  const j = await r.json();
+  if (!j.success) { alert('削除失敗: ' + (j.msg || '不明')); return; }
+  _lastAiCreatedIds = [];
+  document.getElementById('ai-insights-box').style.display = 'none';
+  document.getElementById('ai-insights-box').innerHTML = '';
+  loadActions();
+  loadPipeline();
+  refreshAiCandidateButtons();
+}
+
+// ===== HL (ヘルスリテラシー) 集計表示 =====
+async function loadHlStats() {
+  const summary = document.getElementById('hl-stats-summary');
+  const detail = document.getElementById('hl-stats-detail');
+  if (!summary) return;
+  summary.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">読み込み中…</div>';
+  try {
+    // 並行: 全体stats + 全ユーザー対象数 (subjects)
+    const [sRes, subRes] = await Promise.all([
+      fetch('/api/health-literacy/stats', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+      fetch('/api/health-literacy/subjects', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+    ]);
+    if (!sRes.success) { summary.innerHTML = '<div style="color:#dc2626;font-size:12px;">取得失敗: ' + escapeHtml(sRes.msg || '') + '</div>'; return; }
+    const subjects = (subRes.success && subRes.subjects) || [];
+    // 全対象数 (subjects は自分以外を返すので +1)
+    const totalTargets = subjects.length + 1;
+    const responded = sRes.count || 0;
+    const rate = totalTargets ? Math.round(responded * 1000 / totalTargets) / 10 : 0;
+    const pending = Math.max(totalTargets - responded, 0);
+    const score = sRes.overall ? sRes.overall.score_avg : null;
+    summary.innerHTML = `
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:#64748b;">対象</div>
+        <div style="font-size:22px;font-weight:800;color:#0f172a;">${totalTargets}<span style="font-size:11px;color:#94a3b8;font-weight:500;">名</span></div>
+      </div>
+      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px 14px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:#065f46;">回答済</div>
+        <div style="font-size:22px;font-weight:800;color:#065f46;">${responded}<span style="font-size:11px;color:#10b981;font-weight:500;">名</span></div>
+      </div>
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:#92400e;">未回答</div>
+        <div style="font-size:22px;font-weight:800;color:#92400e;">${pending}<span style="font-size:11px;color:#d97706;font-weight:500;">名</span></div>
+      </div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:#1e40af;">回答率</div>
+        <div style="font-size:22px;font-weight:800;color:#1e40af;">${rate}<span style="font-size:11px;color:#3b82f6;font-weight:500;">%</span></div>
+      </div>
+      ${score !== null ? `<div style="background:#f3e8ff;border:1px solid #d8b4fe;border-radius:10px;padding:10px 14px;flex:1;min-width:120px;">
+        <div style="font-size:11px;color:#6b21a8;">平均スコア</div>
+        <div style="font-size:22px;font-weight:800;color:#6b21a8;">${score.toFixed(2)}<span style="font-size:11px;color:#a855f7;font-weight:500;">/4.0</span></div>
+      </div>` : ''}
+    `;
+    // 営業所別: stats.by_company + subjects から拠点別総数を補完
+    const branchTotals = {};
+    for (const s of subjects) {
+      const k = s.company_code || '(未設定)';
+      branchTotals[k] = (branchTotals[k] || 0) + 1;
+    }
+    // 自分も対象に含めるため、自分のcompany_codeを足す (subjects側に_meta経由が不要なので簡略化のため省略)
+    // 実用上は subjects+1 のtotal_targetsで十分。営業所別は subjects ベース。
+    const respByBranch = {};
+    for (const r of (sRes.by_company || [])) {
+      respByBranch[r.company_code || '-'] = { count: r.count, score: r.score_avg };
+    }
+    const branchKeys = Array.from(new Set([...Object.keys(branchTotals), ...Object.keys(respByBranch)])).sort();
+    const branchTbody = document.querySelector('#hl-by-branch tbody');
+    branchTbody.innerHTML = branchKeys.map(k => {
+      const tot = branchTotals[k] || 0;
+      const resp = (respByBranch[k] && respByBranch[k].count) || 0;
+      const r = tot ? Math.round(resp * 1000 / tot) / 10 : (resp > 0 ? 100 : 0);
+      const color = r >= 80 ? '#059669' : r >= 50 ? '#d97706' : r === 0 ? '#dc2626' : '#475569';
+      return `<tr><td style="font-size:11px;">${escapeHtml(k)}</td><td style="text-align:right;font-size:11px;">${tot}</td><td style="text-align:right;font-size:11px;">${resp}</td><td style="text-align:right;font-size:11px;font-weight:700;color:${color};">${r}%</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:#94a3b8;text-align:center;padding:10px;">データなし</td></tr>';
+    // 設問別
+    const QLABELS = [
+      '①情報収集',
+      '②信頼性判断',
+      '③理解・選択',
+      '④行動決定',
+      '⑤伝達',
+    ];
+    const qTbody = document.querySelector('#hl-by-q tbody');
+    const qAvg = sRes.q_avg || [0,0,0,0,0];
+    qTbody.innerHTML = QLABELS.map((lbl, i) => {
+      const v = qAvg[i] || 0;
+      const color = v >= 3.5 ? '#059669' : v >= 2.5 ? '#d97706' : v > 0 ? '#dc2626' : '#94a3b8';
+      return `<tr><td style="font-size:11px;">${escapeHtml(lbl)}</td><td style="text-align:right;font-size:12px;font-weight:700;color:${color};">${v ? v.toFixed(2) : '-'}</td></tr>`;
+    }).join('');
+    detail.style.display = '';
+  } catch (e) {
+    summary.innerHTML = '<div style="color:#dc2626;font-size:12px;">通信エラー: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function openHlAnnounceModal() {
+  document.getElementById('hl-ann-msg').value = '';
+  document.getElementById('hl-ann-err').textContent = '';
+  document.getElementById('hl-ann-modal').style.display = 'flex';
+}
+function closeHlAnnounceModal() {
+  document.getElementById('hl-ann-modal').style.display = 'none';
+}
+async function sendHlAnnouncement() {
+  const msg = document.getElementById('hl-ann-msg').value.trim();
+  const btn = document.getElementById('btn-hl-ann-send');
+  const err = document.getElementById('hl-ann-err');
+  err.textContent = '';
+  if (!confirm('現在の回答状況を盛り込んで、推進メンバーGCへアナウンスを送信します。よろしいですか?')) return;
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    const r = await fetch('/api/health-literacy/announce-to-promoters', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ message: msg }),
+    });
+    const j = await r.json();
+    if (!j.success) { err.textContent = j.msg || '送信失敗'; btn.disabled = false; btn.textContent = '📢 送信'; return; }
+    btn.textContent = '✅ 送信しました (' + j.responded + '/' + j.targets + '名)';
+    setTimeout(() => {
+      closeHlAnnounceModal();
+      btn.disabled = false; btn.textContent = '📢 送信';
+    }, 1200);
+  } catch (e) {
+    err.textContent = '通信エラー: ' + e.message;
+    btn.disabled = false; btn.textContent = '📢 送信';
+  }
+}
+
+// AI候補を削除して再生成 (やり直し)
+async function redoAiInsights() {
+  if (!_lastAiCreatedIds.length) { runAiInsights(); return; }
+  if (!confirm(`現在のAI候補 ${_lastAiCreatedIds.length} 件を削除して、AIに再度生成させます。よろしいですか?`)) return;
+  const r = await fetch('/api/wellness/actions/bulk-delete-ai-candidates', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ ids: _lastAiCreatedIds }),
+  });
+  const j = await r.json();
+  if (!j.success) { alert('削除失敗: ' + (j.msg || '不明')); return; }
+  _lastAiCreatedIds = [];
+  await runAiInsights();
+  refreshAiCandidateButtons();
 }
 
 // 該当施策行までスクロールして議論を開く
@@ -1983,11 +2302,11 @@ async function loadFieldVoice() {
   const tb = document.getElementById('fv-tbody');
   const cnt = document.getElementById('fv-count');
   const limit = parseInt(document.getElementById('fv-limit').value) || 50;
-  tb.innerHTML = '<tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
+  tb.innerHTML = '<tr><td colspan="11" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
   try {
     const r = await fetch('/api/wellness/posts?limit=' + limit, { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
-    if (!d.success) { tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="11" style="color:#dc2626;">取得失敗</td></tr>'; return; }
     const srcFilter = (document.getElementById('fv-src-filter') || {}).value || '';
     const catFilter = document.getElementById('fv-cat-filter').value;
     const urgFilter = document.getElementById('fv-urg-filter').value;
@@ -1998,49 +2317,332 @@ async function loadFieldVoice() {
     );
     cnt.textContent = filtered.length + '件 / 全' + (d.posts || []).length + '件';
     if (!filtered.length) {
-      tb.innerHTML = '<tr><td colspan="9" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
+      tb.innerHTML = '<tr><td colspan="11" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
       return;
     }
     const urgIcon = u => u === '高' ? '🔴' : u === '中' ? '🟡' : '🟢';
     const urgColor = u => u === '高' ? '#dc2626' : u === '中' ? '#d97706' : '#059669';
+    const urgRowBg = u => u === '高' ? '#fef2f2' : u === '中' ? '#fffbeb' : '#fff';
     const idColor = m => m === '本人特定可' ? '#0891b2' : m === '匿名' ? '#7c3aed' : '#64748b';
     const srcIcon = s => s === '聞き取り' ? '🩺' : s === '倉庫' ? '📦' : s === '総務' ? '🏢' : s === 'その他' ? '💼' : '🚛';
     const srcColor = s => s === '聞き取り' ? '#0d9488' : s === '倉庫' ? '#ea580c' : s === '総務' ? '#0e7490' : s === 'その他' ? '#7c3aed' : '#0891b2';
+    const sevColor = s => s === 2 ? '#b91c1c' : s === 1 ? '#b45309' : '#0f172a';
+    const cardOpts = (_meta && _meta.card_options) || {};
     tb.innerHTML = filtered.map(p => {
       const dtime = new Date(p.created_at + 'Z').toLocaleString('ja-JP');
       const srcType = p.source_type || '運管';
-      // カード回答 (structured_json) を1行にまとめて表示
-      let cardLine = '';
+      // structured_json を ラベル: 値 でチップ表示 (severity色付き)
+      let answersHtml = '';
       if (p.structured_json) {
         try {
-          const obj = JSON.parse(p.structured_json);
-          const parts = Object.entries(obj || {}).map(([k, v]) => escapeHtml(v)).filter(Boolean);
-          if (parts.length) cardLine = '<div style="font-size:11px;color:#475569;background:#f8fafc;padding:4px 8px;border-radius:4px;margin-bottom:4px;">' + parts.join(' / ') + '</div>';
+          const obj = JSON.parse(p.structured_json) || {};
+          const conf = cardOpts[srcType] || cardOpts['聞き取り'];
+          const fields = (conf && conf.fields) || [];
+          const chips = [];
+          for (const f of fields) {
+            const v = obj[f.key];
+            if (!v) continue;
+            const opt = (f.options || []).find(o => o.v === v);
+            const sev = opt ? opt.s : 0;
+            chips.push(`<span style="display:inline-flex;align-items:baseline;gap:4px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12px;line-height:1.4;"><span style="color:#64748b;font-size:11px;">${escapeHtml(f.label)}</span><b style="color:${sevColor(sev)};">${escapeHtml(v)}</b></span>`);
+          }
+          // 未知keyフォールバック
+          const knownKeys = new Set(fields.map(f => f.key));
+          for (const [k, v] of Object.entries(obj)) {
+            if (knownKeys.has(k) || !v) continue;
+            chips.push(`<span style="display:inline-flex;align-items:baseline;gap:4px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12px;"><span style="color:#64748b;font-size:11px;">${escapeHtml(k)}</span><b style="color:#0f172a;">${escapeHtml(String(v))}</b></span>`);
+          }
+          if (chips.length) answersHtml = '<div style="background:#f8fafc;border-radius:6px;padding:5px 6px 3px;margin-bottom:6px;">' + chips.join('') + '</div>';
         } catch (e) {}
       }
-      const memoHtml = escapeHtml(p.memo || '').replace(/\n/g, '<br>') || (cardLine ? '' : '<span style="color:#cbd5e1;">(なし)</span>');
-      return `<tr>
-        <td style="font-size:11px;color:#94a3b8;font-weight:700;">#${p.id}</td>
-        <td style="font-size:11px;color:#64748b;white-space:nowrap;">${dtime}</td>
-        <td style="font-size:11px;color:${srcColor(srcType)};font-weight:700;">${srcIcon(srcType)} ${escapeHtml(srcType)}</td>
-        <td style="font-size:12px;">${escapeHtml(p.poster_name || '-')}</td>
-        <td style="font-size:12px;color:#0f172a;font-weight:600;">${p.subject_name ? escapeHtml(p.subject_name) : '<span style="color:#cbd5e1;">-</span>'}</td>
-        <td style="font-size:11px;color:#64748b;">${escapeHtml(p.company_code || '-')}</td>
-        <td style="font-size:12px;font-weight:600;">${escapeHtml(p.category)}</td>
-        <td style="font-size:11px;color:${urgColor(p.urgency)};font-weight:700;">${urgIcon(p.urgency)} ${escapeHtml(p.urgency)}</td>
-        <td style="font-size:11px;color:${idColor(p.identity_mode)};">${escapeHtml(p.identity_mode)}</td>
-        <td style="font-size:12px;line-height:1.5;">${cardLine}${memoHtml}</td>
-        <td style="font-size:11px;"><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="togglePostDiscuss(${p.id})">💬議論</button></td>
+      const memo = (p.memo || '').trim();
+      const memoHtml = memo
+        ? '<div style="font-size:13px;line-height:1.7;color:#0f172a;background:#fffbeb;border-left:3px solid #f59e0b;padding:7px 10px;border-radius:4px;white-space:pre-wrap;word-break:break-word;">' + escapeHtml(memo) + '</div>'
+        : (answersHtml ? '' : '<span style="color:#cbd5e1;font-size:12px;">(本文なし)</span>');
+      const avImg = (url) => `<img src="${escapeHtml(url)}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px;background:#e2e8f0;" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'👤',style:'display:inline-flex;width:22px;height:22px;border-radius:50%;background:#e2e8f0;align-items:center;justify-content:center;font-size:13px;vertical-align:middle;margin-right:5px;'}))">`;
+      const avPlaceholder = `<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:#e2e8f0;align-items:center;justify-content:center;font-size:13px;vertical-align:middle;margin-right:5px;">👤</span>`;
+      const posterCell = p.poster_name
+        ? (p.poster_avatar ? avImg(p.poster_avatar) : avPlaceholder) + escapeHtml(p.poster_name)
+        : '-';
+      const subjectCell = p.subject_name
+        ? (p.subject_avatar ? avImg(p.subject_avatar) : avPlaceholder) + escapeHtml(p.subject_name)
+        : '<span style="color:#cbd5e1;">-</span>';
+      return `<tr style="background:${urgRowBg(p.urgency)};">
+        <td style="font-size:11px;color:#94a3b8;font-weight:700;vertical-align:top;">#${p.id}</td>
+        <td style="font-size:11px;color:#64748b;white-space:nowrap;vertical-align:top;">${dtime}</td>
+        <td style="font-size:11px;color:${srcColor(srcType)};font-weight:700;vertical-align:top;">${srcIcon(srcType)} ${escapeHtml(srcType)}</td>
+        <td style="font-size:12px;white-space:nowrap;vertical-align:top;">${posterCell}</td>
+        <td style="font-size:12px;color:#0f172a;font-weight:600;white-space:nowrap;vertical-align:top;">${subjectCell}</td>
+        <td style="font-size:11px;color:#64748b;vertical-align:top;">${escapeHtml(p.company_code || '-')}</td>
+        <td style="font-size:12px;font-weight:600;vertical-align:top;">${escapeHtml(p.category)}</td>
+        <td style="font-size:11px;color:${urgColor(p.urgency)};font-weight:700;vertical-align:top;">${urgIcon(p.urgency)} ${escapeHtml(p.urgency)}</td>
+        <td style="font-size:11px;color:${idColor(p.identity_mode)};vertical-align:top;">${escapeHtml(p.identity_mode)}</td>
+        <td style="vertical-align:top;padding:8px 12px;">${answersHtml}${memoHtml}</td>
+        <td style="font-size:11px;vertical-align:top;"><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="togglePostDiscuss(${p.id})">💬議論</button></td>
       </tr>
       <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="11" style="background:#f8fafc;padding:10px;">
         <div id="post-discuss-area-${p.id}"></div>
       </td></tr>`;
     }).join('');
   } catch (e) {
-    tb.innerHTML = '<tr><td colspan="8" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';
+    tb.innerHTML = '<tr><td colspan="11" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';
   }
 }
+
+// =============================================================
+// 推進メンバー スケジュール (ガントチャート) 2026-05-20
+// =============================================================
+const SCHED_WEEKS = 12;
+const SCHED_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
+let _schedItems = [];
+let _schedMembers = [];
+let _schedStartMonday = null;
+let _schedEditing = null; // current editing item id
+
+function schedMonday(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : (1 - day);
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+function schedFmtYMD(d) {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+function schedParseYMD(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+  if (!m) return null;
+  return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+}
+function schedShiftWeeks(n) {
+  if (n === 0 || !_schedStartMonday) {
+    _schedStartMonday = schedMonday(new Date());
+  } else {
+    const d = new Date(_schedStartMonday);
+    d.setDate(d.getDate() + n * 7);
+    _schedStartMonday = d;
+  }
+  loadSchedule();
+}
+
+async function loadSchedule() {
+  if (!_schedStartMonday) _schedStartMonday = schedMonday(new Date());
+  const from = schedFmtYMD(_schedStartMonday);
+  const endD = new Date(_schedStartMonday);
+  endD.setDate(endD.getDate() + SCHED_WEEKS * 7 - 1);
+  const to = schedFmtYMD(endD);
+  document.getElementById('sched-range-label').textContent = `${from} 〜 ${to}`;
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(`/api/wellness/schedule?from=${from}&to=${to}`, { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+      _schedMembers.length ? Promise.resolve({ success: true, members: _schedMembers })
+        : fetch('/api/wellness/schedule/members', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+    ]);
+    if (r1.success) _schedItems = r1.items || [];
+    if (r2.success) _schedMembers = r2.members || [];
+    renderSchedule();
+  } catch (e) {
+    document.getElementById('sched-table').innerHTML = '<div class="sched-empty">読み込み失敗: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderSchedule() {
+  const wrap = document.getElementById('sched-table');
+  const startMs = _schedStartMonday.getTime();
+  const totalDays = SCHED_WEEKS * 7;
+  const totalMs = totalDays * 86400000;
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  const todayMs = todayD.getTime();
+  const todayOffset = (todayMs - startMs) / totalMs * 100;
+  const todayVisible = todayOffset >= 0 && todayOffset <= 100;
+
+  // header
+  const weekCells = [];
+  for (let i = 0; i < SCHED_WEEKS; i++) {
+    const d = new Date(_schedStartMonday);
+    d.setDate(d.getDate() + i * 7);
+    const dEnd = new Date(d);
+    dEnd.setDate(dEnd.getDate() + 6);
+    const isThisWeek = d.getTime() <= todayMs && todayMs <= dEnd.getTime() + 86400000;
+    weekCells.push(`<div class="sched-wk${isThisWeek ? ' this-week' : ''}"><div class="wn">W${i+1}</div>${d.getMonth()+1}/${d.getDate()}</div>`);
+  }
+
+  // rows
+  let rowsHtml = '';
+  if (!_schedItems.length) {
+    rowsHtml = `<div class="sched-row">
+      <div class="sched-row-label" style="grid-column: 1 / -1; justify-content: center; color: #94a3b8;">タスク未登録。右上「＋追加」から登録できます。</div>
+    </div>`;
+  } else {
+    for (const item of _schedItems) {
+      const sD = schedParseYMD(item.start_date);
+      const eD = schedParseYMD(item.end_date);
+      if (!sD || !eD) continue;
+      const sMs = sD.getTime();
+      const eMs = eD.getTime() + 86400000; // inclusive end
+      const lo = Math.max(0, (sMs - startMs) / totalMs * 100);
+      const hi = Math.min(100, (eMs - startMs) / totalMs * 100);
+      if (hi <= 0 || lo >= 100) continue;
+      const widthPct = Math.max(1.5, hi - lo);
+      const owner = item.owner_name ? `<span class="ow">${escapeHtml(item.owner_name)}</span>` : '';
+      const statusClass = 'status-' + (item.status || 'planned');
+      const todayCss = todayVisible ? ' today-mark' : '';
+      const todayStyle = todayVisible ? `<div style="position:absolute;top:0;bottom:0;left:${todayOffset}%;width:2px;background:#ef4444;opacity:0.5;z-index:1;pointer-events:none;"></div>` : '';
+      const color = (item.color && /^#[0-9a-fA-F]{3,8}$/.test(item.color)) ? item.color : '#3b82f6';
+      rowsHtml += `<div class="sched-row">
+        <div class="sched-row-label">
+          <span class="ti" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
+          ${owner}
+        </div>
+        <div class="sched-row-track">
+          ${todayStyle}
+          <div class="sched-bar ${statusClass}" style="left:${lo}%;width:${widthPct}%;background:${color};" onclick="openScheduleEdit(${item.id})">
+            <span class="bar-text">${escapeHtml(item.title)}</span>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+  wrap.innerHTML = `
+    <div class="sched-grid">
+      <div class="sched-corner">タスク / 担当</div>
+      <div class="sched-week-header">${weekCells.join('')}</div>
+      ${rowsHtml}
+    </div>`;
+}
+
+function openScheduleNew() {
+  _schedEditing = null;
+  const today = schedFmtYMD(new Date());
+  const wkEnd = new Date(); wkEnd.setDate(wkEnd.getDate() + 6);
+  schedShowModal({
+    title: '',
+    description: '',
+    start_date: today,
+    end_date: schedFmtYMD(wkEnd),
+    owner_id: '',
+    color: SCHED_COLORS[0],
+    status: 'planned',
+  });
+}
+function openScheduleEdit(id) {
+  const item = _schedItems.find(x => x.id === id);
+  if (!item) return;
+  _schedEditing = id;
+  schedShowModal(item);
+}
+function schedShowModal(v) {
+  const memberOpts = ['<option value="">担当者なし</option>'].concat(_schedMembers.map(m =>
+    `<option value="${escapeHtml(m.id)}"${m.id === (v.owner_id || '') ? ' selected' : ''}>${escapeHtml(m.display_name)}</option>`
+  )).join('');
+  const colorChips = SCHED_COLORS.map(c =>
+    `<div class="color-chip${c.toLowerCase() === (v.color || '').toLowerCase() ? ' selected' : ''}" data-color="${c}" style="background:${c};" onclick="schedPickColor('${c}')"></div>`
+  ).join('');
+  const deleteBtn = _schedEditing ? `<button type="button" class="btn-delete" onclick="schedDelete()">削除</button>` : '';
+  const html = `
+    <div class="sched-modal">
+      <h3>${_schedEditing ? '📝 タスク編集' : '＋ タスク追加'}</h3>
+      <div class="fld"><label>タイトル *</label><input type="text" id="sched-f-title" maxlength="80" value="${escapeHtml(v.title || '')}"></div>
+      <div class="fld"><label>説明 (任意)</label><textarea id="sched-f-desc" maxlength="500">${escapeHtml(v.description || '')}</textarea></div>
+      <div class="fld row2">
+        <div><label>開始日 *</label><input type="date" id="sched-f-start" value="${escapeHtml(v.start_date || '')}"></div>
+        <div><label>終了日 *</label><input type="date" id="sched-f-end" value="${escapeHtml(v.end_date || '')}"></div>
+      </div>
+      <div class="fld"><label>担当者</label><select id="sched-f-owner">${memberOpts}</select></div>
+      <div class="fld row2">
+        <div><label>ステータス</label><select id="sched-f-status">
+          <option value="planned"${v.status === 'planned' ? ' selected' : ''}>📋 予定</option>
+          <option value="in_progress"${v.status === 'in_progress' ? ' selected' : ''}>🔵 進行中</option>
+          <option value="done"${v.status === 'done' ? ' selected' : ''}>✅ 完了</option>
+        </select></div>
+        <div><label>色</label><div class="colors" id="sched-f-colors">${colorChips}</div></div>
+      </div>
+      <div class="btns">
+        ${deleteBtn}
+        <button type="button" class="btn-cancel" onclick="schedCloseModal()">キャンセル</button>
+        <button type="button" class="btn-save" onclick="schedSave()">${_schedEditing ? '保存' : '追加'}</button>
+      </div>
+    </div>`;
+  let bg = document.getElementById('sched-modal-bg');
+  if (!bg) {
+    bg = document.createElement('div');
+    bg.id = 'sched-modal-bg';
+    bg.className = 'sched-modal-bg';
+    bg.addEventListener('click', (e) => { if (e.target === bg) schedCloseModal(); });
+    document.body.appendChild(bg);
+  }
+  bg.innerHTML = html;
+  bg.dataset.color = v.color || SCHED_COLORS[0];
+  bg.classList.add('show');
+}
+function schedPickColor(c) {
+  const bg = document.getElementById('sched-modal-bg');
+  if (!bg) return;
+  bg.dataset.color = c;
+  bg.querySelectorAll('.color-chip').forEach(el => el.classList.toggle('selected', el.dataset.color.toLowerCase() === c.toLowerCase()));
+}
+function schedCloseModal() {
+  const bg = document.getElementById('sched-modal-bg');
+  if (bg) bg.classList.remove('show');
+  _schedEditing = null;
+}
+async function schedSave() {
+  const bg = document.getElementById('sched-modal-bg');
+  const body = {
+    title: document.getElementById('sched-f-title').value,
+    description: document.getElementById('sched-f-desc').value,
+    start_date: document.getElementById('sched-f-start').value,
+    end_date: document.getElementById('sched-f-end').value,
+    owner_id: document.getElementById('sched-f-owner').value || null,
+    status: document.getElementById('sched-f-status').value,
+    color: (bg && bg.dataset.color) || SCHED_COLORS[0],
+  };
+  const url = _schedEditing ? '/api/wellness/schedule/' + _schedEditing : '/api/wellness/schedule';
+  const method = _schedEditing ? 'PUT' : 'POST';
+  try {
+    const r = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!d.success) { alert(d.msg || '保存失敗'); return; }
+    schedCloseModal();
+    await loadSchedule();
+  } catch (e) { alert('通信エラー'); }
+}
+async function schedDelete() {
+  if (!_schedEditing) return;
+  if (!confirm('このタスクを削除しますか?')) return;
+  try {
+    const r = await fetch('/api/wellness/schedule/' + _schedEditing, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = await r.json();
+    if (!d.success) { alert(d.msg || '削除失敗'); return; }
+    schedCloseModal();
+    await loadSchedule();
+  } catch (e) { alert('通信エラー'); }
+}
+
+// タブ切替フック (switchWoTab を上書きしないよう、後付け)
+(function() {
+  const orig = window.switchWoTab;
+  window.switchWoTab = function(tab) {
+    if (typeof orig === 'function') orig(tab);
+    if (tab === 'schedule' && !_schedItems.length && !_schedStartMonday) {
+      loadSchedule();
+    } else if (tab === 'schedule') {
+      // 表示済みでも最新化したい場合の保険
+      loadSchedule();
+    }
+  };
+})();
 </script>
 <script src="/overlay-history.js?v=3"></script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

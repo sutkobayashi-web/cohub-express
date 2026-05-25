@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🔥 マイ運動記録 — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json?v=4">
+<meta name="theme-color" content="#ea580c">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 60%, #fed7aa 100%); color: #0f172a; padding-bottom: 80px; min-height: 100vh; }
+header { position: sticky; top: 0; z-index: 30; background: linear-gradient(135deg, #ea580c, #c2410c); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 14px rgba(234,88,12,0.25); }
+header h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: 0.5px; }
+header .spacer { flex: 1; }
+header .icon-btn { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 7px 12px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 720px; margin: 0 auto; padding: 14px 12px 80px; }
+
+.card { background: #fff; border-radius: 14px; padding: 14px 14px 12px; box-shadow: 0 4px 14px rgba(15,23,42,0.06); margin-bottom: 12px; border: 1px solid rgba(15,23,42,0.04); }
+.card h3 { margin: 0 0 10px; font-size: 13px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+
+/* Hero: today + streak */
+.hero { background: linear-gradient(135deg, #fb923c, #ea580c); color: #fff; padding: 16px 18px; border-radius: 16px; margin-bottom: 14px; box-shadow: 0 8px 22px rgba(234,88,12,0.28); }
+.hero .today { font-size: 12px; opacity: 0.9; }
+.hero .kcal { font-size: 40px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; margin-top: 4px; }
+.hero .kcal .unit { font-size: 16px; opacity: 0.9; margin-left: 4px; }
+.hero .row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.hero .chip { background: rgba(255,255,255,0.2); padding: 6px 11px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+.hero .chip b { font-size: 14px; margin-right: 4px; }
+
+/* Activity type chooser */
+.type-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+.type-btn { padding: 10px 4px; border: 2px solid #fed7aa; background: #fff; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.15s; }
+.type-btn .ico { font-size: 22px; display: block; line-height: 1.2; }
+.type-btn .lbl { font-size: 11px; font-weight: 700; color: #7c2d12; margin-top: 2px; }
+.type-btn.active { border-color: #ea580c; background: linear-gradient(135deg, #fff7ed, #fed7aa); }
+.type-btn.active .lbl { color: #9a3412; }
+
+/* Inputs */
+.input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.input-row .field { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 8px 10px; }
+.input-row .field label { display: block; font-size: 10px; color: #9a3412; font-weight: 700; margin-bottom: 2px; }
+.input-row .field input { width: 100%; padding: 6px 4px; font-size: 18px; font-weight: 800; text-align: right; border: none; background: transparent; outline: none; color: #7c2d12; }
+.input-row .field input::placeholder { color: #fdba74; font-weight: 600; }
+.input-row .field .unit { font-size: 11px; color: #9a3412; font-weight: 700; text-align: right; display: block; }
+.kcal-field { background: linear-gradient(135deg, #fff7ed, #fed7aa); border: 2px solid #ea580c; }
+.kcal-field input { color: #c2410c; }
+.kcal-field .hint { font-size: 10px; color: #9a3412; text-align: right; }
+
+.photo-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.photo-btn { flex: 1; padding: 12px; background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px dashed #f59e0b; border-radius: 10px; cursor: pointer; color: #92400e; font-weight: 700; font-size: 13px; text-align: center; }
+.photo-btn:hover { background: linear-gradient(135deg, #fde68a, #fcd34d); }
+.photo-preview { max-width: 100%; max-height: 200px; border-radius: 10px; border: 1px solid #fed7aa; margin: 6px 0; }
+.ocr-msg { font-size: 12px; padding: 8px 10px; border-radius: 8px; margin-top: 6px; }
+.ocr-msg.success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.ocr-msg.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.ocr-msg.info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+
+textarea.comment-input { width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid #fed7aa; border-radius: 8px; resize: vertical; min-height: 50px; font-family: inherit; background: #fff7ed; }
+textarea.comment-input:focus { outline: none; border-color: #ea580c; }
+
+.vis-row { display: flex; gap: 4px; margin: 8px 0; }
+.vis-btn { flex: 1; padding: 8px 4px; border: 1.5px solid #fed7aa; background: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; color: #7c2d12; }
+.vis-btn.active { border-color: #ea580c; background: linear-gradient(135deg, #fff7ed, #fed7aa); color: #9a3412; }
+
+.submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #ea580c, #c2410c); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 6px 16px rgba(234,88,12,0.32); margin-top: 6px; }
+.submit-btn:hover { filter: brightness(1.08); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Heatmap */
+.heatmap-wrap { overflow-x: auto; padding: 4px 0 6px; }
+.heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 2px; padding: 6px 2px; }
+.hm-cell { width: 11px; height: 11px; border-radius: 2px; background: #f1f5f9; cursor: pointer; }
+.hm-cell.l1 { background: #fed7aa; }
+.hm-cell.l2 { background: #fdba74; }
+.hm-cell.l3 { background: #fb923c; }
+.hm-cell.l4 { background: #ea580c; }
+.hm-cell.l5 { background: #9a3412; }
+.heatmap-legend { display: flex; gap: 4px; align-items: center; justify-content: flex-end; font-size: 10px; color: #64748b; margin-top: 4px; }
+
+/* Today's logs list */
+.log-row { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: #fff7ed; border-radius: 8px; margin-bottom: 4px; }
+.log-row .ico { font-size: 22px; }
+.log-row .body { flex: 1; }
+.log-row .meta { font-size: 11px; color: #9a3412; }
+.log-row .kcal { font-size: 16px; font-weight: 800; color: #c2410c; }
+.log-row .del { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 4px; }
+
+/* Best records */
+.best-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.best-cell { background: linear-gradient(135deg, #fff7ed, #fed7aa); padding: 10px; border-radius: 10px; text-align: center; }
+.best-cell .lbl { font-size: 10px; color: #9a3412; font-weight: 700; }
+.best-cell .val { font-size: 18px; font-weight: 900; color: #7c2d12; line-height: 1.1; margin: 4px 0; }
+.best-cell .sub { font-size: 10px; color: #9a3412; }
+
+/* Goal progress */
+.goal-bar { position: relative; height: 22px; background: #fed7aa; border-radius: 12px; overflow: hidden; margin: 6px 0; }
+.goal-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #fb923c, #ea580c); border-radius: 12px; transition: width 0.5s; }
+.goal-bar .label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: 800; color: #7c2d12; z-index: 2; }
+
+/* Ranking */
+.rank-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; background: #fff7ed; border-radius: 8px; margin-bottom: 4px; }
+.rank-row.me { background: linear-gradient(135deg, #fed7aa, #fdba74); border: 2px solid #ea580c; }
+.rank-row .pos { font-size: 18px; font-weight: 900; color: #c2410c; text-align: center; }
+.rank-row .who { font-size: 12px; color: #7c2d12; }
+.rank-row .kcal { font-size: 14px; font-weight: 800; color: #c2410c; }
+
+/* Badges */
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; }
+.badge-cell { background: linear-gradient(135deg, #fff7ed, #fde68a); padding: 10px 6px; border-radius: 10px; text-align: center; border: 1.5px solid #fcd34d; }
+.badge-cell.locked { background: #f1f5f9; border-color: #e2e8f0; opacity: 0.5; }
+.badge-cell .ico { font-size: 24px; }
+.badge-cell .name { font-size: 10px; font-weight: 700; color: #92400e; margin-top: 2px; }
+
+/* Weight gate modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: #fff; border-radius: 16px; padding: 24px 20px; max-width: 380px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+.modal h2 { margin: 0 0 8px; font-size: 18px; color: #c2410c; }
+.modal p { margin: 0 0 14px; font-size: 13px; color: #475569; line-height: 1.6; }
+.modal input { width: 100%; padding: 12px 14px; font-size: 18px; font-weight: 700; border: 2px solid #fed7aa; border-radius: 10px; text-align: center; }
+.modal input:focus { outline: none; border-color: #ea580c; }
+
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 22px; font-size: 13px; font-weight: 700; z-index: 200; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.toast.show { display: block; animation: toastIn 0.25s; }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+.empty { text-align: center; color: #94a3b8; padding: 20px 0; font-size: 12px; }
+.note-line { font-size: 11px; color: #9a3412; margin-top: 6px; }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body data-app-version="20260523-1">
+
+<header>
+  <div style="font-size:24px;">🔥</div>
+  <h1>マイ運動記録</h1>
+  <div class="spacer"></div>
+  <button class="icon-btn" onclick="openSettings()">⚙</button>
+  <button class="icon-btn" onclick="goBackHome()">✕</button>
+</header>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <div class="today" id="today-label">今日 (—)</div>
+    <div class="kcal"><span id="today-kcal">0</span><span class="unit">kcal</span></div>
+    <div class="row">
+      <span class="chip">🔥 連続 <b id="streak-current">0</b>日</span>
+      <span class="chip">最長 <b id="streak-longest">0</b>日</span>
+      <span class="chip">今月 <b id="month-kcal">0</b> kcal</span>
+    </div>
+  </div>
+
+  <!-- 月間目標プログレス -->
+  <div class="card" id="goal-card" style="display:none;">
+    <h3>🎯 月間目標</h3>
+    <div class="goal-bar">
+      <div class="fill" id="goal-fill" style="width:0%;"></div>
+      <div class="label" id="goal-label">— / — kcal</div>
+    </div>
+    <div class="note-line" id="goal-status"></div>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <h3>📝 今日の運動を記録</h3>
+
+    <div class="type-grid">
+      <button class="type-btn active" data-type="walk" onclick="setType('walk')">
+        <span class="ico">👣</span><div class="lbl">歩く</div>
+      </button>
+      <button class="type-btn" data-type="jog" onclick="setType('jog')">
+        <span class="ico">🏃</span><div class="lbl">ジョグ</div>
+      </button>
+      <button class="type-btn" data-type="run" onclick="setType('run')">
+        <span class="ico">💨</span><div class="lbl">ラン</div>
+      </button>
+      <button class="type-btn" data-type="bike" onclick="setType('bike')">
+        <span class="ico">🚴</span><div class="lbl">自転車</div>
+      </button>
+      <button class="type-btn" data-type="gym" onclick="setType('gym')">
+        <span class="ico">💪</span><div class="lbl">ジム</div>
+      </button>
+    </div>
+
+    <!-- Photo OCR -->
+    <input type="file" id="ocr-input" accept="image/*" capture="environment" style="display:none;" onchange="onOcrImage(event)">
+    <button class="photo-btn" onclick="document.getElementById('ocr-input').click()">
+      📷 万歩計 / ランアプリ / ジムマシン から自動入力
+    </button>
+    <img id="ocr-preview" class="photo-preview" style="display:none;">
+    <div id="ocr-msg"></div>
+
+    <!-- Numeric inputs -->
+    <div class="input-row">
+      <div class="field">
+        <label>歩数</label>
+        <input type="number" id="in-steps" placeholder="0" min="0" max="150000" oninput="recalcKcal()">
+        <span class="unit">歩</span>
+      </div>
+      <div class="field">
+        <label>距離</label>
+        <input type="number" id="in-distance" placeholder="0" min="0" max="500" step="0.01" oninput="recalcKcal()">
+        <span class="unit">km</span>
+      </div>
+      <div class="field">
+        <label>時間</label>
+        <input type="number" id="in-duration" placeholder="0" min="0" max="1440" oninput="recalcKcal()">
+        <span class="unit">分</span>
+      </div>
+    </div>
+    <div class="input-row" style="grid-template-columns: 1fr;">
+      <div class="field kcal-field">
+        <label>🔥 消費カロリー</label>
+        <input type="number" id="in-kcal" placeholder="自動計算" min="0" max="20000" oninput="onKcalManual()">
+        <span class="unit">kcal</span>
+        <div class="hint" id="kcal-hint">歩数 / 距離 / 時間から推定</div>
+      </div>
+    </div>
+
+    <!-- Comment -->
+    <textarea class="comment-input" id="in-comment" placeholder="一言コメント (任意): 今日の体調・気づき など" maxlength="280"></textarea>
+
+    <!-- Visibility -->
+    <div class="vis-row">
+      <button class="vis-btn active" data-vis="private" onclick="setVis('private')">🔒 本人のみ</button>
+      <button class="vis-btn" data-vis="dept" onclick="setVis('dept')">👥 部署内</button>
+      <button class="vis-btn" data-vis="company" onclick="setVis('company')">🌐 全社匿名</button>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitRecord()">記録する</button>
+  </div>
+
+  <!-- 今日の記録 (合算用) -->
+  <div class="card" id="today-logs-card" style="display:none;">
+    <h3>📋 今日の記録</h3>
+    <div id="today-logs"></div>
+  </div>
+
+  <!-- 草型ヒートマップ -->
+  <div class="card">
+    <h3>📅 365日の記録</h3>
+    <div class="heatmap-wrap">
+      <div class="heatmap" id="heatmap"></div>
+    </div>
+    <div class="heatmap-legend">
+      少 <span class="hm-cell" style="display:inline-block;"></span>
+      <span class="hm-cell l1" style="display:inline-block;"></span>
+      <span class="hm-cell l2" style="display:inline-block;"></span>
+      <span class="hm-cell l3" style="display:inline-block;"></span>
+      <span class="hm-cell l4" style="display:inline-block;"></span>
+      <span class="hm-cell l5" style="display:inline-block;"></span> 多
+    </div>
+  </div>
+
+  <!-- ベスト記録 -->
+  <div class="card">
+    <h3>🏆 ベスト記録</h3>
+    <div class="best-grid">
+      <div class="best-cell">
+        <div class="lbl">1日最多 kcal</div>
+        <div class="val" id="best-kcal">—</div>
+        <div class="sub" id="best-kcal-date"></div>
+      </div>
+      <div class="best-cell">
+        <div class="lbl">1日最多 歩数</div>
+        <div class="val" id="best-steps">—</div>
+        <div class="sub" id="best-steps-date"></div>
+      </div>
+      <div class="best-cell">
+        <div class="lbl">1日最長 距離</div>
+        <div class="val" id="best-dist">—</div>
+        <div class="sub" id="best-dist-date"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- バッジ -->
+  <div class="card">
+    <h3>🎖 獲得バッジ</h3>
+    <div class="badge-grid" id="badge-grid"></div>
+  </div>
+
+  <!-- ランキング -->
+  <div class="card">
+    <h3>🌐 月間 匿名ランキング (kcal)</h3>
+    <div id="ranking-list">
+      <div class="empty">読み込み中…</div>
+    </div>
+    <div class="note-line" id="my-rank-line"></div>
+    <div class="note-line">※「全社匿名」設定で投稿した記録のみ集計。名前は表示されません。</div>
+  </div>
+
+</main>
+
+<!-- 体重初回入力モーダル -->
+<div class="modal-overlay" id="weight-modal" style="display:none;">
+  <div class="modal">
+    <h2>🔥 はじめに体重を教えてください</h2>
+    <p>消費カロリーを正確に計算するため、体重を1度だけ入力します。<br>あとから ⚙設定 でいつでも変更できます。</p>
+    <input type="number" id="weight-input" placeholder="例: 65" min="25" max="250" step="0.1">
+    <div style="margin-top:6px;font-size:11px;color:#9a3412;text-align:center;">単位: kg</div>
+    <button class="submit-btn" style="margin-top:14px;" onclick="saveWeight()">保存して始める</button>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-overlay" id="settings-modal" style="display:none;">
+  <div class="modal">
+    <h2>⚙ 設定</h2>
+    <label style="display:block;font-size:12px;font-weight:700;color:#7c2d12;margin-bottom:4px;">体重 (kg)</label>
+    <input type="number" id="setting-weight" min="25" max="250" step="0.1">
+    <label style="display:block;font-size:12px;font-weight:700;color:#7c2d12;margin:14px 0 4px;">月間目標 (kcal)</label>
+    <input type="number" id="setting-goal" min="0" max="1000000" placeholder="例: 12000">
+    <div style="font-size:11px;color:#9a3412;margin-top:4px;">未入力なら目標表示なし</div>
+    <label style="display:block;font-size:12px;font-weight:700;color:#7c2d12;margin:14px 0 4px;">既定の公開範囲</label>
+    <div class="vis-row" id="setting-vis-row">
+      <button class="vis-btn active" data-vis="private">🔒 本人のみ</button>
+      <button class="vis-btn" data-vis="dept">👥 部署内</button>
+      <button class="vis-btn" data-vis="company">🌐 全社匿名</button>
+    </div>
+    <button class="submit-btn" style="margin-top:14px;" onclick="saveSettings()">保存</button>
+    <button style="width:100%;margin-top:8px;padding:10px;background:#fff;color:#7c2d12;border:1px solid #fed7aa;border-radius:10px;font-weight:700;cursor:pointer;" onclick="closeSettings()">キャンセル</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+if (!token) location.replace('/');
+let myUid = '';
+try { myUid = JSON.parse(localStorage.getItem('cohub_user') || '{}').uid || ''; } catch(e) {}
+
+let state = {
+  prefs: null,
+  type: 'walk',
+  vis: 'private',
+  ocrPhotoUrl: null,
+};
+
+function goBackHome() { location.href = '/'; }
+function toast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isErr ? 'rgba(185,28,28,0.95)' : 'rgba(15,23,42,0.92)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  return fetch('/api/activity' + path, opts).then(r => r.json());
+}
+
+function setType(t) {
+  state.type = t;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === t));
+  recalcKcal();
+}
+function setVis(v) {
+  state.vis = v;
+  document.querySelectorAll('.vis-row[id!="setting-vis-row"] .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === v));
+}
+
+// kcal推定 (フロントで仮表示。サーバ側で最終計算)
+const METS = { walk: 3.0, jog: 7.0, run: 10.0, bike: 6.0, gym: 5.0 };
+let kcalManual = false;
+function recalcKcal() {
+  if (kcalManual) return;
+  const w = (state.prefs && state.prefs.weight_kg) || 65;
+  const steps = parseInt(document.getElementById('in-steps').value) || 0;
+  const dist = parseFloat(document.getElementById('in-distance').value) || 0;
+  const dur = parseInt(document.getElementById('in-duration').value) || 0;
+  const met = METS[state.type] || 4;
+  let kcal = 0;
+  if (dur > 0) kcal = Math.round(met * w * (dur / 60));
+  else if (dist > 0) {
+    const speed = state.type === 'walk' ? 4 : state.type === 'jog' ? 8 : state.type === 'run' ? 11 : state.type === 'bike' ? 18 : 5;
+    kcal = Math.round(met * w * (dist / speed));
+  } else if (steps > 0) {
+    const km = steps * 0.0007;
+    kcal = Math.round(3 * w * (km / 4));
+  }
+  document.getElementById('in-kcal').placeholder = kcal > 0 ? kcal : '自動計算';
+  document.getElementById('kcal-hint').textContent = kcal > 0 ? `推定 ${kcal} kcal (体重${w}kg×${met}METs)` : '歩数 / 距離 / 時間から推定';
+}
+function onKcalManual() {
+  const v = document.getElementById('in-kcal').value;
+  kcalManual = v && v.trim() !== '';
+  document.getElementById('kcal-hint').textContent = kcalManual ? '手動入力中' : '歩数 / 距離 / 時間から推定';
+}
+
+async function onOcrImage(ev) {
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const img = document.getElementById('ocr-preview');
+  img.src = url; img.style.display = 'block';
+  document.getElementById('ocr-msg').innerHTML = '<div class="ocr-msg info">📷 AI で読み取り中…</div>';
+
+  const fd = new FormData();
+  fd.append('photo', f);
+  try {
+    const r = await fetch('/api/activity/ocr', { method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd });
+    const d = await r.json();
+    if (!d.success) {
+      document.getElementById('ocr-msg').innerHTML = '<div class="ocr-msg error">❌ ' + (d.msg || 'OCR失敗') + '<br><b>再度撮影してください</b></div>';
+      img.style.display = 'none';
+      document.getElementById('ocr-input').value = '';
+      return;
+    }
+    // 写真も添付保存
+    const fd2 = new FormData(); fd2.append('photo', f);
+    fetch('/api/activity/photo', { method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd2 })
+      .then(r => r.json()).then(d2 => { if (d2.success) state.ocrPhotoUrl = d2.url; })
+      .catch(() => {});
+    // 入力欄に反映
+    const p = d.parsed;
+    if (p.activity_type && ['walk','jog','run','bike','gym'].includes(p.activity_type)) setType(p.activity_type);
+    if (p.steps != null) document.getElementById('in-steps').value = p.steps;
+    if (p.distance_km != null) document.getElementById('in-distance').value = p.distance_km;
+    if (p.duration_min != null) document.getElementById('in-duration').value = p.duration_min;
+    if (p.kcal != null) {
+      document.getElementById('in-kcal').value = p.kcal;
+      kcalManual = true;
+      document.getElementById('kcal-hint').textContent = '画像から直接取得 (kcal)';
+    } else {
+      kcalManual = false;
+      recalcKcal();
+    }
+    const filled = [p.steps && '歩数', p.distance_km && '距離', p.duration_min && '時間', p.kcal && 'kcal'].filter(Boolean).join('・');
+    document.getElementById('ocr-msg').innerHTML = '<div class="ocr-msg success">✅ 読取成功: ' + filled + (p.confidence ? ' (' + p.confidence + ')' : '') + '</div>';
+  } catch (e) {
+    document.getElementById('ocr-msg').innerHTML = '<div class="ocr-msg error">❌ 通信エラー: ' + e.message + '<br><b>再度撮影してください</b></div>';
+  }
+}
+
+async function submitRecord() {
+  const body = {
+    activity_type: state.type,
+    steps: parseInt(document.getElementById('in-steps').value) || null,
+    distance_km: parseFloat(document.getElementById('in-distance').value) || null,
+    duration_min: parseInt(document.getElementById('in-duration').value) || null,
+    kcal: parseInt(document.getElementById('in-kcal').value) || null,
+    comment: document.getElementById('in-comment').value || '',
+    photo_url: state.ocrPhotoUrl || null,
+    visibility: state.vis,
+    source: state.ocrPhotoUrl ? 'ocr' : 'manual',
+  };
+  if (!body.steps && !body.distance_km && !body.duration_min && !body.kcal) {
+    toast('歩数 / 距離 / 時間 / kcal いずれかを入力', true);
+    return;
+  }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '記録中…';
+  try {
+    const r = await api('/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!r.success) { toast(r.msg || '記録失敗', true); return; }
+    toast('🔥 ' + r.kcal + ' kcal を記録しました');
+    // 入力リセット
+    ['in-steps','in-distance','in-duration','in-kcal','in-comment'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ocr-preview').style.display = 'none';
+    document.getElementById('ocr-msg').innerHTML = '';
+    state.ocrPhotoUrl = null;
+    kcalManual = false;
+    recalcKcal();
+    await refresh();
+  } catch (e) {
+    toast('通信エラー: ' + e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '記録する';
+  }
+}
+
+async function refresh() {
+  // 今日 + stats
+  const [today, stats, hm, badges, rank] = await Promise.all([
+    api('/me/today'),
+    api('/me/stats'),
+    api('/me/heatmap?days=365'),
+    api('/me/badges'),
+    api('/ranking'),
+  ]);
+  // Hero
+  const todayStr = (today && today.date) || new Date().toISOString().slice(0,10);
+  document.getElementById('today-label').textContent = '今日 (' + todayStr.slice(5) + ')';
+  document.getElementById('today-kcal').textContent = (today.total ? today.total.kcal : 0).toLocaleString();
+  document.getElementById('streak-current').textContent = stats.streak.current;
+  document.getElementById('streak-longest').textContent = stats.streak.longest;
+  document.getElementById('month-kcal').textContent = (stats.month.kcal || 0).toLocaleString();
+
+  // 今日の記録一覧 (合算)
+  if (today.logs && today.logs.length) {
+    document.getElementById('today-logs-card').style.display = '';
+    const TI = { walk:'👣', jog:'🏃', run:'💨', bike:'🚴', gym:'💪' };
+    document.getElementById('today-logs').innerHTML = today.logs.map(l => {
+      const parts = [];
+      if (l.steps) parts.push(l.steps.toLocaleString() + '歩');
+      if (l.distance_km) parts.push(l.distance_km + 'km');
+      if (l.duration_min) parts.push(l.duration_min + '分');
+      return `<div class="log-row">
+        <div class="ico">${TI[l.activity_type] || '🔥'}</div>
+        <div class="body">
+          <div class="meta">${parts.join(' / ') || '記録'}</div>
+          ${l.comment ? `<div style="font-size:11px;color:#475569;">${escapeHtml(l.comment)}</div>` : ''}
+        </div>
+        <div class="kcal">${l.kcal} kcal</div>
+        <button class="del" onclick="deleteLog(${l.id})" title="削除">🗑</button>
+      </div>`;
+    }).join('');
+  } else {
+    document.getElementById('today-logs-card').style.display = 'none';
+  }
+
+  // 目標
+  const goal = state.prefs && state.prefs.monthly_goal_kcal;
+  if (goal && goal > 0) {
+    document.getElementById('goal-card').style.display = '';
+    const pct = Math.min(100, Math.round((stats.month.kcal / goal) * 100));
+    document.getElementById('goal-fill').style.width = pct + '%';
+    document.getElementById('goal-label').textContent = (stats.month.kcal||0).toLocaleString() + ' / ' + goal.toLocaleString() + ' kcal (' + pct + '%)';
+    document.getElementById('goal-status').textContent = pct >= 100 ? '🎉 達成おめでとう' : '残り ' + (goal - stats.month.kcal).toLocaleString() + ' kcal';
+  } else {
+    document.getElementById('goal-card').style.display = 'none';
+  }
+
+  // ヒートマップ
+  renderHeatmap(hm.points || []);
+
+  // ベスト
+  if (stats.best.kcal) {
+    document.getElementById('best-kcal').textContent = stats.best.kcal.kcal.toLocaleString();
+    document.getElementById('best-kcal-date').textContent = stats.best.kcal.date;
+  }
+  if (stats.best.steps && stats.best.steps.steps) {
+    document.getElementById('best-steps').textContent = stats.best.steps.steps.toLocaleString();
+    document.getElementById('best-steps-date').textContent = stats.best.steps.date;
+  }
+  if (stats.best.distance && stats.best.distance.km) {
+    document.getElementById('best-dist').textContent = stats.best.distance.km + 'km';
+    document.getElementById('best-dist-date').textContent = stats.best.distance.date;
+  }
+
+  // バッジ
+  renderBadges(badges);
+
+  // ランキング
+  renderRanking(rank);
+}
+
+function renderHeatmap(points) {
+  const map = {};
+  for (const p of points) map[p.date] = p.kcal;
+  const today = new Date();
+  // 過去365日分 (古い→新しい順、日曜始まり)
+  const cells = [];
+  const start = new Date(today); start.setDate(start.getDate() - 365);
+  // 開始位置を日曜まで戻す
+  while (start.getDay() !== 0) start.setDate(start.getDate() - 1);
+  let cur = new Date(start);
+  const cellsByCol = []; let col = [];
+  while (cur <= today) {
+    const ds = cur.toISOString().slice(0, 10);
+    const v = map[ds] || 0;
+    col.push({ date: ds, kcal: v });
+    if (cur.getDay() === 6) { cellsByCol.push(col); col = []; }
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (col.length) cellsByCol.push(col);
+  const hm = document.getElementById('heatmap');
+  hm.innerHTML = '';
+  for (const c of cellsByCol) {
+    for (const cell of c) {
+      const div = document.createElement('div');
+      div.className = 'hm-cell ' + kcalLevel(cell.kcal);
+      div.title = cell.date + ' — ' + (cell.kcal || 0).toLocaleString() + ' kcal';
+      hm.appendChild(div);
+    }
+    // パディング
+    const pad = 7 - c.length;
+    for (let i = 0; i < pad; i++) hm.appendChild(document.createElement('div'));
+  }
+}
+function kcalLevel(k) {
+  if (!k || k <= 0) return '';
+  if (k < 150) return 'l1';
+  if (k < 300) return 'l2';
+  if (k < 500) return 'l3';
+  if (k < 800) return 'l4';
+  return 'l5';
+}
+
+function renderBadges(d) {
+  const ALL_STREAK = [7, 30, 100, 365];
+  const ALL_KCAL = [10000, 50000, 100000, 500000];
+  const ALL_DIST = [100, 500, 1000, 3000];
+  const earnedSet = new Set((d.earned || []).map(b => b.kind + '-' + b.n));
+  const all = [];
+  ALL_STREAK.forEach(n => all.push({ kind:'streak', n, ico:'🔥', name: n + '日連続' }));
+  ALL_KCAL.forEach(n => all.push({ kind:'kcal', n, ico:'💎', name: (n/1000)+'k kcal' }));
+  ALL_DIST.forEach(n => all.push({ kind:'distance', n, ico:'🏁', name: n + 'km' }));
+  document.getElementById('badge-grid').innerHTML = all.map(b => {
+    const got = earnedSet.has(b.kind + '-' + b.n);
+    return `<div class="badge-cell ${got?'':'locked'}"><div class="ico">${b.ico}</div><div class="name">${b.name}</div></div>`;
+  }).join('');
+}
+
+function renderRanking(d) {
+  if (!d.success || !d.ranking || !d.ranking.length) {
+    document.getElementById('ranking-list').innerHTML = '<div class="empty">今月のランキング参加者はまだいません</div>';
+    document.getElementById('my-rank-line').textContent = '';
+    return;
+  }
+  document.getElementById('ranking-list').innerHTML = d.ranking.map(r => `
+    <div class="rank-row ${r.is_me?'me':''}">
+      <div class="pos">${r.rank}</div>
+      <div class="who"><b>${r.icon}</b> ${escapeHtml(r.branch)} (${typeName(r.main_type)})</div>
+      <div class="kcal">${r.kcal.toLocaleString()} kcal</div>
+    </div>
+  `).join('');
+  if (d.my_rank) {
+    document.getElementById('my-rank-line').textContent = `あなた: ${d.my_rank}位 (${d.my_kcal.toLocaleString()} kcal, 上位 ${d.my_percentile}%)`;
+  } else {
+    document.getElementById('my-rank-line').textContent = '※「全社匿名」で投稿するとランキングに参加できます';
+  }
+}
+function typeName(t) {
+  return ({walk:'歩く', jog:'ジョグ', run:'ラン', bike:'自転車', gym:'ジム'})[t] || t;
+}
+
+async function deleteLog(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  const r = await api('/' + id, { method:'DELETE' });
+  if (r.success) { toast('削除しました'); refresh(); }
+  else toast(r.msg || '削除失敗', true);
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ===== 体重・設定 =====
+async function ensureWeightAndStart() {
+  const r = await api('/prefs');
+  state.prefs = r.prefs || {};
+  if (!state.prefs.weight_kg) {
+    document.getElementById('weight-modal').style.display = 'flex';
+    return;
+  }
+  state.vis = state.prefs.default_visibility || 'private';
+  document.querySelectorAll('.vis-row[id!="setting-vis-row"] .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === state.vis));
+  refresh();
+}
+async function saveWeight() {
+  const w = parseFloat(document.getElementById('weight-input').value);
+  if (!w || w < 25 || w > 250) { alert('体重は25-250kgで入力してください'); return; }
+  const r = await api('/prefs', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ weight_kg: w }) });
+  if (r.success) {
+    document.getElementById('weight-modal').style.display = 'none';
+    state.prefs.weight_kg = w;
+    refresh();
+  } else { alert(r.msg || '保存失敗'); }
+}
+function openSettings() {
+  document.getElementById('setting-weight').value = state.prefs.weight_kg || '';
+  document.getElementById('setting-goal').value = state.prefs.monthly_goal_kcal || '';
+  document.querySelectorAll('#setting-vis-row .vis-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.vis === (state.prefs.default_visibility || 'private'));
+    b.onclick = () => {
+      document.querySelectorAll('#setting-vis-row .vis-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+async function saveSettings() {
+  const w = parseFloat(document.getElementById('setting-weight').value);
+  if (w && (w < 25 || w > 250)) { alert('体重は25-250kgで入力してください'); return; }
+  const goal = parseInt(document.getElementById('setting-goal').value) || null;
+  const visBtn = document.querySelector('#setting-vis-row .vis-btn.active');
+  const vis = visBtn ? visBtn.dataset.vis : 'private';
+  const r = await api('/prefs', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+    weight_kg: w || null,
+    monthly_goal_kcal: goal,
+    default_visibility: vis,
+  }) });
+  if (r.success) {
+    if (w) state.prefs.weight_kg = w;
+    state.prefs.monthly_goal_kcal = goal;
+    state.prefs.default_visibility = vis;
+    state.vis = vis;
+    document.querySelectorAll('.vis-row[id!="setting-vis-row"] .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === vis));
+    closeSettings();
+    toast('保存しました');
+    refresh();
+  } else { alert(r.msg || '保存失敗'); }
+}
+
+ensureWeightAndStart();
+</script>
+<script src="/translate.js" defer></script>
+</body>
+</html>

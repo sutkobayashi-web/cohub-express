@@ -7,7 +7,7 @@ const { generateToken, authUser } = require('../middleware/auth');
 
 // 利用規約・プライバシーポリシー バージョン
 // ポリシー本文を変更したらここを更新 → 全ユーザーに再同意を要求
-const CONSENT_VERSION = '1.0.0_20260427';
+const CONSENT_VERSION = '2.0.0_20260513';
 
 // パスワードポリシー (強度評価)
 function evaluatePassword(pw, loginId, displayName) {
@@ -30,6 +30,15 @@ function evaluatePassword(pw, loginId, displayName) {
   return errors;
 }
 
+// デバイス種別判定 (User-Agent)
+// 戻り値: 'pc' または 'mobile' のみ (デスクトップブラウザかスマホ/タブレットか)
+// iPad は mobile 扱い (近年のiPadは PC モードを名乗ることがあるが、業務用としては携帯端末扱い)
+function deviceTypeFromUA(ua) {
+  ua = String(ua || '');
+  if (/iPad|iPhone|Android|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(ua)) return 'mobile';
+  return 'pc';
+}
+
 router.post('/login', (req, res) => {
   const { login_id, password } = req.body;
   if (!login_id || !password) return res.status(400).json({ success: false, msg: 'IDとパスワードを入力してください' });
@@ -40,11 +49,18 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ success: false, msg: 'IDまたはパスワードが違います' });
   }
   const sid = crypto.randomBytes(16).toString('hex');
-  db.prepare("UPDATE users SET session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  const dev = deviceTypeFromUA(req.headers['user-agent']);
+  // 同一デバイス種別の旧セッションは上書き (PC+モバイルは並行ログイン可、PC2台目は旧PCをキック)
+  // 注意: 旧互換フィールド session_token は触らない。新規デバイス別ログインで旧トークンを巻き添えキックしないため
+  if (dev === 'mobile') {
+    db.prepare("UPDATE users SET mobile_session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  } else {
+    db.prepare("UPDATE users SET pc_session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  }
   db.prepare(`INSERT INTO positions (user_id, x, y, status) VALUES (?, ?, ?, 'online')
     ON CONFLICT(user_id) DO UPDATE SET status='online', updated_at=datetime('now')`)
     .run(user.id, 400 + Math.floor(Math.random() * 200) - 100, 300 + Math.floor(Math.random() * 200) - 100);
-  const token = generateToken({ uid: user.id, role: user.role, sid });
+  const token = generateToken({ uid: user.id, role: user.role, sid, dev });
   // bot系はそもそも対人ログイン経路に乗らないが念のため除外
   const needsConsent = user.role !== 'bot' && user.consent_version !== CONSENT_VERSION;
   res.json({
@@ -76,7 +92,7 @@ router.post('/login', (req, res) => {
 
 // 自分の最新ユーザー情報 (フラグ追加時に既存ログイン中ユーザーが再取得できるよう)
 router.get('/me', authUser, (req, res) => {
-  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, dm_group, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, dm_group, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at, research_consent, research_consent_at FROM users WHERE id = ?').get(req.uid);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
   const needsConsent = u.role !== 'bot' && u.consent_version !== CONSENT_VERSION;
   res.json({
@@ -100,6 +116,8 @@ router.get('/me', authUser, (req, res) => {
       needs_nickname_setup: !u.nickname,
       consent_version: u.consent_version || null,
       consent_accepted_at: u.consent_accepted_at || null,
+      research_consent: !!u.research_consent,
+      research_consent_at: u.research_consent_at || null,
       needs_consent: needsConsent,
       current_consent_version: CONSENT_VERSION,
     },
@@ -107,14 +125,16 @@ router.get('/me', authUser, (req, res) => {
 });
 
 // 利用規約・プライバシーポリシー 同意エンドポイント
-// 3項目すべてチェックされている必要あり (UI側でも検証するが、サーバー側でも必須化)
+// 必須3項目 (ログ/個人情報/ポリシー) + 任意1項目 (帝京大学 共同研究データ提供)
 router.post('/consent', authUser, express.json(), (req, res) => {
   const b = req.body || {};
   const acceptedLog = !!b.accepted_log;
   const acceptedPrivacy = !!b.accepted_privacy;
   const acceptedPolicy = !!b.accepted_policy;
+  // 任意項目: 帝京大学公衆衛生学研究科との共同研究データ提供 (opt-in、デフォルトOFF)
+  const acceptedResearch = !!b.accepted_research;
   if (!acceptedLog || !acceptedPrivacy || !acceptedPolicy) {
-    return res.status(400).json({ success: false, msg: '3つの項目すべてに同意が必要です' });
+    return res.status(400).json({ success: false, msg: '必須3項目すべてに同意が必要です' });
   }
   // クライアントから送られたバージョンが現行と一致することを確認 (古いポリシーへの同意を防ぐ)
   if (b.version && b.version !== CONSENT_VERSION) {
@@ -124,12 +144,33 @@ router.post('/consent', authUser, express.json(), (req, res) => {
   const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').toString().split(',')[0].trim().slice(0, 64);
   const ua = String(req.headers['user-agent'] || '').slice(0, 256);
   // 監査ログに記録 (削除しない)
-  db.prepare(`INSERT INTO consent_logs (user_id, consent_version, accepted_log, accepted_privacy, accepted_policy, ip_address, user_agent)
-              VALUES (?, ?, 1, 1, 1, ?, ?)`).run(req.uid, CONSENT_VERSION, ip, ua);
-  // ユーザーレコード更新
-  db.prepare("UPDATE users SET consent_version = ?, consent_accepted_at = datetime('now') WHERE id = ?")
-    .run(CONSENT_VERSION, req.uid);
-  res.json({ success: true, version: CONSENT_VERSION });
+  db.prepare(`INSERT INTO consent_logs (user_id, consent_version, accepted_log, accepted_privacy, accepted_policy, accepted_research, ip_address, user_agent)
+              VALUES (?, ?, 1, 1, 1, ?, ?, ?)`).run(req.uid, CONSENT_VERSION, acceptedResearch ? 1 : 0, ip, ua);
+  // ユーザーレコード更新 (research_consent は本人の選択を保存)
+  db.prepare(`UPDATE users SET
+    consent_version = ?,
+    consent_accepted_at = datetime('now'),
+    research_consent = ?,
+    research_consent_at = CASE WHEN ? = 1 THEN datetime('now') ELSE NULL END
+    WHERE id = ?`)
+    .run(CONSENT_VERSION, acceptedResearch ? 1 : 0, acceptedResearch ? 1 : 0, req.uid);
+  res.json({ success: true, version: CONSENT_VERSION, research_consent: acceptedResearch });
+});
+
+// 研究参加同意の単独更新 (設定画面からいつでも撤回/再同意可能)
+router.post('/research-consent', authUser, express.json(), (req, res) => {
+  const accepted = !!(req.body && req.body.accepted);
+  const db = getDb();
+  const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').toString().split(',')[0].trim().slice(0, 64);
+  const ua = String(req.headers['user-agent'] || '').slice(0, 256);
+  // 監査用に変更を consent_logs にも記録 (本ポリシー必須3項目は前回の値を引き継ぐ)
+  db.prepare(`INSERT INTO consent_logs (user_id, consent_version, accepted_log, accepted_privacy, accepted_policy, accepted_research, ip_address, user_agent)
+              VALUES (?, ?, 1, 1, 1, ?, ?, ?)`).run(req.uid, CONSENT_VERSION, accepted ? 1 : 0, ip, ua);
+  db.prepare(`UPDATE users SET
+    research_consent = ?,
+    research_consent_at = CASE WHEN ? = 1 THEN datetime('now') ELSE NULL END
+    WHERE id = ?`).run(accepted ? 1 : 0, accepted ? 1 : 0, req.uid);
+  res.json({ success: true, research_consent: accepted });
 });
 
 // 同意履歴 (本人のみ閲覧可) — 設定画面で「いつ何に同意したか」を確認できる
@@ -177,10 +218,16 @@ router.post('/change-password', authUser, express.json(), (req, res) => {
     return res.status(400).json({ success: false, msg: errors.join(' / '), errors });
   }
   const newHash = bcrypt.hashSync(new_password, 10);
-  // 全セッション無効化(同時ログイン排除) + 新トークン発行
+  // パスワード変更: 全デバイスのセッションを無効化し、現在のデバイス分だけ新トークン発行
   const sid = crypto.randomBytes(16).toString('hex');
-  db.prepare('UPDATE users SET password_hash = ?, session_token = ? WHERE id = ?').run(newHash, sid, u.id);
-  const token = generateToken({ uid: u.id, role: (req.user && req.user.role) || 'member', sid });
+  const dev = deviceTypeFromUA(req.headers['user-agent']);
+  // 全デバイス無効化(両カラムNULL+session_tokenはこのデバイスのみ)
+  if (dev === 'mobile') {
+    db.prepare('UPDATE users SET password_hash = ?, pc_session_token = NULL, mobile_session_token = ?, session_token = ? WHERE id = ?').run(newHash, sid, sid, u.id);
+  } else {
+    db.prepare('UPDATE users SET password_hash = ?, pc_session_token = ?, mobile_session_token = NULL, session_token = ? WHERE id = ?').run(newHash, sid, sid, u.id);
+  }
+  const token = generateToken({ uid: u.id, role: (req.user && req.user.role) || 'member', sid, dev });
   res.json({ success: true, token, msg: 'パスワードを変更しました' });
 });
 
@@ -244,11 +291,12 @@ router.post('/tablet-login', express.json(), (req, res) => {
     return res.status(401).json({ success: false, msg: 'PINが違います' });
   }
   const sid = crypto.randomBytes(16).toString('hex');
-  db.prepare("UPDATE users SET session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  const dev = 'mobile'; // タブレットキオスクログインは常にモバイル種別
+  db.prepare("UPDATE users SET mobile_session_token = ?, session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, sid, user.id);
   db.prepare(`INSERT INTO positions (user_id, x, y, status) VALUES (?, ?, ?, 'online')
     ON CONFLICT(user_id) DO UPDATE SET status='online', updated_at=datetime('now')`)
     .run(user.id, 400 + Math.floor(Math.random() * 200) - 100, 300 + Math.floor(Math.random() * 200) - 100);
-  const token = generateToken({ uid: user.id, role: user.role, sid });
+  const token = generateToken({ uid: user.id, role: user.role, sid, dev });
   const needsConsent = user.role !== 'bot' && user.consent_version !== CONSENT_VERSION;
   res.json({
     success: true,

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>📶 営業所Wi-Fi設定 — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); color: #0f172a; line-height: 1.6; min-height: 100vh; }
+header { background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff; padding: 14px 22px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(30,64,175,0.18); }
+header h1 { margin: 0; font-size: 17px; font-weight: 800; }
+header .spacer { flex: 1; }
+header .who { font-size: 12px; opacity: 0.9; }
+header button { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 800px; margin: 0 auto; padding: 22px 18px 80px; }
+.banner { padding: 14px 18px; border-radius: 12px; font-size: 13px; margin-bottom: 16px; line-height: 1.7; }
+.banner-info { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-left: 4px solid #0284c7; color: #075985; }
+.banner-warn { background: linear-gradient(135deg, #fef3c7, #fde68a); border-left: 4px solid #d97706; color: #78350f; }
+.card { background: #fff; border-radius: 14px; padding: 18px 22px; margin-bottom: 14px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+.card h2 { margin: 0 0 4px; font-size: 15px; color: #111827; font-weight: 800; }
+.card .sub { font-size: 11px; color: #64748b; margin-bottom: 12px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+.field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+.field input:focus, .field select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.18); }
+.row2 { display: grid; grid-template-columns: 1fr 200px; gap: 10px; }
+@media (max-width: 600px) { .row2 { grid-template-columns: 1fr; } }
+.btn { padding: 10px 22px; background: linear-gradient(135deg, #3b82f6, #1e40af); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(59,130,246,0.30); }
+.btn:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.40); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-ghost { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; box-shadow: none; }
+.msg { font-size: 12px; margin-top: 8px; }
+.msg.ok { color: #059669; }
+.msg.err { color: #dc2626; }
+.branch-card { border-left: 4px solid #3b82f6; }
+.branch-card.no-edit { border-left-color: #cbd5e1; opacity: 0.7; }
+.branch-card .ttl { display: flex; align-items: center; gap: 8px; }
+.branch-card .ttl .nm { font-weight: 800; font-size: 16px; }
+.branch-card .ttl .cd { font-size: 11px; color: #94a3b8; }
+.branch-card .ttl .ed { margin-left: auto; font-size: 10px; padding: 2px 8px; border-radius: 999px; background: #dbeafe; color: #1e40af; font-weight: 700; }
+.branch-card .ttl .ed.ro { background: #f1f5f9; color: #64748b; }
+.cur { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 12px; color: #475569; }
+.cur .v { color: #0f172a; font-weight: 700; }
+#no-access { max-width: 480px; margin: 60px auto; text-align: center; padding: 30px; background: #fff; border-radius: 14px; box-shadow: 0 6px 20px rgba(15,23,42,0.08); }
+</style>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>📶 営業所Wi-Fi設定</h1>
+  <div class="spacer"></div>
+  <div class="who" id="who"></div>
+  <button onclick="history.back()">← 戻る</button>
+</header>
+<main>
+  <div id="loading" style="text-align:center;color:#94a3b8;padding:60px;">読み込み中…</div>
+  <div id="no-access" style="display:none;">
+    <div style="font-size:40px;margin-bottom:14px;">🔒</div>
+    <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">権限がありません</h2>
+    <p style="color:#64748b;font-size:13px;">推進メンバー・管理職のみアクセス可能です。</p>
+  </div>
+  <div id="panel" style="display:none;">
+    <div class="banner banner-info">
+      📱 ここで入力したWi-Fi情報は <b>タブレット画面 (/tablet)</b> に表示され、個人スマホからWi-Fi接続するためのQRコードも自動生成されます。<br>
+      💡 推進メンバーは <b>自営業所のみ編集可能</b>。管理職は全営業所を編集できます。
+    </div>
+    <div id="branches"></div>
+  </div>
+</main>
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+(async function init() {
+  if (!token) { location.href = '/'; return; }
+  try {
+    const r = await fetch('/api/branch-wifi/editable', { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 403) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('no-access').style.display = 'block';
+      return;
+    }
+    const j = await r.json();
+    if (!j.success) throw new Error(j.msg || 'failed');
+    const editable = new Set(j.editable_codes || []);
+    const branches = j.branches || [];
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    const userJson = localStorage.getItem('cohub_user') || '{}';
+    try { const u = JSON.parse(userJson); document.getElementById('who').textContent = u.display_name || ''; } catch(e) {}
+    const container = document.getElementById('branches');
+    container.innerHTML = branches.map(b => {
+      const canEdit = editable.has(b.code);
+      const ssid = b.wifi_ssid || '';
+      const pw = b.wifi_password || '';
+      const sec = b.wifi_security || 'WPA';
+      const updated = b.wifi_updated_at ? b.wifi_updated_at.slice(0,16).replace('T',' ') : '';
+      return `<div class="card branch-card ${canEdit ? '' : 'no-edit'}" data-code="${escapeHtml(b.code)}">
+        <div class="ttl">
+          <span class="nm">${escapeHtml(b.name)}</span>
+          <span class="cd">${escapeHtml(b.code)}</span>
+          <span class="ed ${canEdit ? '' : 'ro'}">${canEdit ? '✏ 編集可' : '🔒 閲覧のみ'}</span>
+        </div>
+        <div class="sub">最終更新: ${updated || '未登録'}</div>
+        ${(ssid || pw) ? `<div class="cur">現在: SSID <span class="v">${escapeHtml(ssid || '(未設定)')}</span> / PW <span class="v">${pw ? '●●●●●●●●' : '(未設定)'}</span></div>` : ''}
+        <div class="row2">
+          <div class="field">
+            <label>SSID</label>
+            <input type="text" class="i-ssid" value="${escapeHtml(ssid)}" placeholder="例) SU_OFFICE_2G" ${canEdit ? '' : 'disabled'}>
+          </div>
+          <div class="field">
+            <label>セキュリティ</label>
+            <select class="i-sec" ${canEdit ? '' : 'disabled'}>
+              <option value="WPA" ${sec === 'WPA' ? 'selected' : ''}>WPA / WPA2</option>
+              <option value="WEP" ${sec === 'WEP' ? 'selected' : ''}>WEP</option>
+              <option value="nopass" ${sec === 'nopass' ? 'selected' : ''}>パスワードなし</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>パスワード</label>
+          <input type="text" class="i-pw" value="${escapeHtml(pw)}" placeholder="Wi-Fiパスワード" ${canEdit ? '' : 'disabled'}>
+        </div>
+        ${canEdit ? `<div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn" onclick="saveWifi('${escapeHtml(b.code)}', this)">💾 保存</button>
+          <span class="msg" id="msg-${escapeHtml(b.code)}"></span>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('loading').textContent = '読み込み失敗: ' + e.message;
+  }
+})();
+
+async function saveWifi(code, btn) {
+  const card = btn.closest('.branch-card');
+  const ssid = card.querySelector('.i-ssid').value.trim();
+  const pw = card.querySelector('.i-pw').value;
+  const sec = card.querySelector('.i-sec').value;
+  const msgEl = document.getElementById('msg-' + code);
+  msgEl.textContent = ''; msgEl.className = 'msg';
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const r = await fetch('/api/branch-wifi/' + encodeURIComponent(code), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ ssid, password: pw, security: sec }),
+    });
+    const j = await r.json();
+    if (!j.success) {
+      msgEl.textContent = '❌ ' + (j.msg || '保存失敗');
+      msgEl.className = 'msg err';
+    } else {
+      msgEl.textContent = '✅ 保存しました (タブレットへ反映)';
+      msgEl.className = 'msg ok';
+    }
+  } catch (e) {
+    msgEl.textContent = '❌ 通信エラー: ' + e.message;
+    msgEl.className = 'msg err';
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 保存';
+  }
+}
+</script>
+  <script src="/translate.js" defer></script>
+</body>
+</html>

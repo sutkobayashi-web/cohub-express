@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d9488">
+<title>🚛 LogiHub — 物流現場の本拠地</title>
+<link rel="icon" type="image/png" sizes="192x192" href="/img/logihub-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/img/logihub-icon-180.png">
+<link rel="manifest" href="/manifest.json?v=4">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; overscroll-behavior-x: contain; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: linear-gradient(180deg, #ecfeff 0%, #f0fdfa 40%, #f8fafc 100%); color: #0f172a; }
+  header { background: linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%); color: #fff; padding: 20px 22px 22px; box-shadow: 0 6px 20px rgba(13,148,136,0.25); position: relative; overflow: hidden; }
+  header:before { content: ''; position: absolute; right: -40px; top: -40px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%); pointer-events: none; }
+  header:after { content: ''; position: absolute; left: 30%; bottom: -60px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 60%); pointer-events: none; }
+  header .row { display: flex; align-items: center; gap: 16px; max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  header .brand-mark { width: 68px; height: 68px; border-radius: 18px; flex-shrink: 0; box-shadow: 0 6px 14px rgba(0,0,0,0.20); overflow: hidden; background: #fff; }
+  header .brand-mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  header .info { flex: 1; min-width: 0; }
+  header h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 1px; }
+  header h1 .sub-brand { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; opacity: 0.85; margin-left: 8px; }
+  header .tagline { margin-top: 4px; font-size: 13px; opacity: 0.92; line-height: 1.55; }
+  header .btn-back { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; flex-shrink: 0; }
+  header .btn-back:hover { background: rgba(255,255,255,0.32); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 22px 16px 80px; }
+  .summary { background: #fff; border-radius: 14px; padding: 16px 18px; margin-bottom: 22px; border-left: 4px solid #0d9488; box-shadow: 0 4px 12px rgba(15,118,110,0.06); font-size: 13.5px; line-height: 1.75; color: #334155; }
+  .summary b { color: #0f766e; }
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .pillars .pillar { background: linear-gradient(135deg,#f0fdfa,#ccfbf1); border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.5; }
+  .pillars .pillar b { color: #0f766e; font-size: 13px; }
+
+  .sec-title { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; padding-left: 12px; border-left: 4px solid #0d9488; }
+  .sec-title .lbl { font-size: 14px; font-weight: 900; color: #0f766e; letter-spacing: 1px; }
+  .sec-title .desc { font-size: 11px; color: #94a3b8; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { --c1: #14b8a6; --c2: #0d9488; position: relative; overflow: hidden; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%); border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px 18px 18px; cursor: pointer; text-decoration: none; color: inherit; display: block; box-shadow: 0 2px 8px rgba(15,23,42,0.04); transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
+  .card:before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--c1), var(--c2)); }
+  .card:after { content: ''; position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, var(--c1) 0%, transparent 60%); opacity: 0.08; pointer-events: none; transition: opacity 0.2s; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15,23,42,0.10); border-color: rgba(13,148,136,0.30); }
+  .card:hover:after { opacity: 0.15; }
+  .card .icon-pill { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 14px; font-size: 28px; line-height: 1; background: linear-gradient(135deg, var(--c1), var(--c2)); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30); margin-bottom: 12px; }
+  .card .label { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; letter-spacing: 0.3px; }
+  .card .desc { font-size: 12px; color: #64748b; line-height: 1.55; }
+
+  .card.dispatch  { --c1: #f87171; --c2: #1e40af; }
+  .card.gantt     { --c1: #818cf8; --c2: #4338ca; }
+  .card.map       { --c1: #34d399; --c2: #047857; }
+  .card.scan      { --c1: #fbbf24; --c2: #d97706; }
+  .card.master    { --c1: #fb923c; --c2: #ea580c; }
+
+  .badge-prep { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-6deg); background: linear-gradient(135deg, #94a3b8, #475569); color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; padding: 6px 18px; border-radius: 6px; z-index: 2; box-shadow: 0 3px 10px rgba(15,23,42,0.30); border: 2px solid rgba(255,255,255,0.7); white-space: nowrap; }
+  .card-prep { opacity: 0.75; }
+  .card-prep:hover { opacity: 0.92; }
+  .badge-test { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-6deg); background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 1px; padding: 6px 14px; border-radius: 6px; z-index: 2; box-shadow: 0 3px 10px rgba(217,119,6,0.40); border: 2px solid rgba(255,255,255,0.7); white-space: nowrap; }
+
+  @media (max-width: 600px) {
+    header { padding: 16px 14px; }
+    header .brand-mark { width: 54px; height: 54px; border-radius: 14px; }
+    header h1 { font-size: 21px; }
+    header h1 .sub-brand { display: block; margin: 4px 0 0; font-size: 11px; }
+    header .tagline { font-size: 12px; }
+    main { padding: 16px 12px 80px; }
+    .pillars { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script>
+  // bc-scan へ ?from= で戻り先 (このページ自身のURL) を渡し、
+  // bc-scan 側「戻る」が確実に LogiHub に戻れるようにする
+  document.addEventListener('DOMContentLoaded', function () {
+    var from = encodeURIComponent(location.origin + location.pathname);
+    ['lk-bcscan-register', 'lk-bcscan-master'].forEach(function (id) {
+      var a = document.getElementById(id);
+      if (!a) return;
+      var u = new URL(a.href);
+      u.searchParams.set('from', location.origin + location.pathname);
+      a.href = u.toString();
+    });
+  });
+</script>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <div class="brand-mark"><img src="/img/logihub-icon-192.png?v=1" alt="LogiHub"></div>
+    <div class="info">
+      <h1>LogiHub<span class="sub-brand">物流現場の本拠地</span></h1>
+      <div class="tagline">配車・ガント・地図・倉庫スキャン・商品マスタを束ねるオペレーションプラットフォーム</div>
+    </div>
+    <a class="btn-back" href="/home">← CoWell</a>
+  </div>
+</header>
+
+<main>
+  <div class="summary">
+    <b>LogiHub</b> は WMS取込から AI 配車組成、ガント編集、地図可視化、荷主追跡、現場のバーコード読取までを通しで支える物流専用ハブです。
+    <div class="pillars">
+      <div class="pillar"><b>🚛 配車</b><br>AI骨組み × 人手調整。OR-Tools + AI補完で配車を高速化</div>
+      <div class="pillar"><b>📦 倉庫</b><br>bc-scan でピッキング・誤積防止・ダメージ報告</div>
+      <div class="pillar"><b>📡 追跡</b><br>QR配信で荷主リアルタイム追跡（準備中）</div>
+    </div>
+  </div>
+
+  <div class="sec-title">
+    <span class="lbl">🚛 配車組成</span>
+    <span class="desc">WMS取込 → AI骨組み → ガント編集 → 地図可視化</span>
+  </div>
+  <div class="grid">
+    <a class="card dispatch card-prep" href="/takara/admin.html">
+      <span class="badge-prep">準備中</span>
+      <div class="icon-pill">🚛</div>
+      <div class="label">LogiHub ホーム</div>
+      <div class="desc">WMS取込 → OR-Tools骨組み + AI補完 → ガント編集 → 地図可視化 → QR配信 → 荷主追跡。配車組成のメインコンソール。</div>
+    </a>
+    <a class="card gantt card-prep" href="/takara/gantt.html">
+      <span class="badge-prep">準備中</span>
+      <div class="icon-pill">📅</div>
+      <div class="label">ガント編集</div>
+      <div class="desc">号車×時間軸でストップをドラッグ＆ドロップ。自社・他社貨物の入れ替えに。</div>
+    </a>
+    <a class="card map card-prep" href="/takara/route-map.html">
+      <span class="badge-prep">準備中</span>
+      <div class="icon-pill">🗺️</div>
+      <div class="label">ルート地図</div>
+      <div class="desc">座間拠点起点の号車別ルートを地図で可視化。業者・配送日フィルタ。</div>
+    </a>
+  </div>
+
+  <div class="sec-title">
+    <span class="lbl">📦 現場端末 (bc-scan)</span>
+    <span class="desc">座間倉庫で稼働中のバーコード読取オペレーション</span>
+  </div>
+  <div class="grid">
+    <a class="card scan" href="https://logihub.biz-terrace.org/bcscan/home.html" target="_blank" rel="noopener" style="position:relative;">
+      <span class="badge-test">読取テスト運用中</span>
+      <div class="icon-pill">📦</div>
+      <div class="label">bc-scan 倉庫モニター</div>
+      <div class="desc">バーコード読取で出庫管理・ピッキング・ダメージ報告。座間で1週間徹底テスト中(5/11〜)。</div>
+    </a>
+    <a class="card master" id="lk-bcscan-register" href="https://logihub.biz-terrace.org/bcscan/register.html" style="position:relative;">
+      <span class="badge-test">マスタ充実中</span>
+      <div class="icon-pill">📝</div>
+      <div class="label">商品マスタ登録</div>
+      <div class="desc">バーコード読取→商品名入力→写真撮影。マスタ充実でピッキング時に写真が出て、慣れない作業員の視覚的助けに。</div>
+    </a>
+    <a class="card master" id="lk-bcscan-master" href="https://logihub.biz-terrace.org/bcscan/master-list.html" style="position:relative;">
+      <div class="icon-pill">📚</div>
+      <div class="label">商品マスタ一覧</div>
+      <div class="desc">登録済の商品を検索・編集・CSV出力。誤登録の修正にも。</div>
+    </a>
+  </div>
+</main>
+
+  <script src="/translate.js" defer></script>
+</body>
+</html>

@@ -41,15 +41,10 @@ router.get('/posts', authUser, (req, res) => {
   res.json({ success: true, posts: rows });
 });
 
-// バディー会話
+// バディー会話 — 旧CoWellのAIキャラクター会話。UI非表示化に伴い閲覧不可 (2026-05-13〜)
+// DB上のデータ自体は保持 (cw_buddy_messages) するが、API経由での閲覧は禁止
 router.get('/buddy', authUser, (req, res) => {
-  const ids = myCwIds(req.uid);
-  if (!ids.length) return res.json({ success: true, messages: [] });
-  const ph = ids.map(() => '?').join(',');
-  const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
-  const rows = getDb().prepare(`SELECT cw_id, role, content, cw_created_at FROM cw_buddy_messages
-    WHERE cw_user_id IN (${ph}) ORDER BY cw_created_at DESC LIMIT ?`).all(...ids, limit);
-  res.json({ success: true, messages: rows.reverse() });
+  res.status(410).json({ success: false, msg: 'バディー会話の閲覧は終了しました' });
 });
 
 // 歩数履歴

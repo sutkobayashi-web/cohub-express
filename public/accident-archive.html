@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>📚 事故報告書アーカイブ — CoWell</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background: #f1f5f9; color: #0f172a; padding-bottom: 60px; }
+  header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  header h1 { margin: 0; font-size: 17px; flex: 1; }
+  header button.back { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  main { max-width: 880px; margin: 0 auto; padding: 14px; }
+
+  /* ===== モード選択タブ (大型・色分け) ===== */
+  .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .mode-tab {
+    padding: 16px 14px; border: 2px solid #e2e8f0; background: #fff; border-radius: 12px; cursor: pointer;
+    text-align: left; font-family: inherit; transition: 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .mode-tab .ico { font-size: 26px; margin-bottom: 4px; line-height: 1; }
+  .mode-tab .lbl { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
+  .mode-tab .desc { font-size: 11px; color: #64748b; line-height: 1.5; }
+  .mode-tab.write.active { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #b91c1c; }
+  .mode-tab.write.active .lbl { color: #991b1b; }
+  .mode-tab.view.active { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #d97706; }
+  .mode-tab.view.active .lbl { color: #92400e; }
+  .mode-tab:hover { border-color: #94a3b8; }
+
+  /* ===== セクションカード ===== */
+  .section { display: none; }
+  .section.active { display: block; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .card-head .ic { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .card-head h2 { margin: 0; font-size: 15px; color: #0f172a; flex: 1; min-width: 140px; }
+  .card-desc { font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 10px; }
+  .card.pdf .ic { background: #dbeafe; color: #1e40af; }
+  .card.reflection .ic { background: #fee2e2; color: #991b1b; }
+  .card.analysis .ic { background: #fef3c7; color: #92400e; }
+  .card.list .ic { background: #e2e8f0; color: #475569; }
+
+  /* ===== フォーム ===== */
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+  .field input[type="text"], .field input[type="date"], .field select, .field textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .field textarea { min-height: 60px; resize: vertical; }
+  .drop {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 16px 18px; background: linear-gradient(135deg, #2563eb, #1e40af);
+    color: #fff; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); transition: 0.15s;
+  }
+  .drop:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4); }
+  .drop input { display: none; }
+  .drop.has-file { background: linear-gradient(135deg, #16a34a, #15803d); }
+
+  /* ===== ボタン ===== */
+  .btn { padding: 10px 18px; background: #1e293b; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+  .btn-primary-pdf { background: linear-gradient(135deg, #2563eb, #1e40af); }
+  .btn-primary-ref { background: linear-gradient(135deg, #dc2626, #991b1b); }
+  .btn-primary-ana { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .btn-ghost { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-danger { background: #dc2626; }
+  .btn-screen { background: linear-gradient(135deg, #b91c1c, #991b1b); }
+  .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+  /* ===== ステータス・エラー ===== */
+  .progress { display: none; margin-top: 8px; padding: 10px; background: #fef3c7; color: #92400e; border-radius: 6px; font-size: 12px; }
+  .err { color: #dc2626; font-size: 12px; margin-top: 6px; min-height: 14px; }
+
+  /* ===== アーカイブ一覧 ===== */
+  .archive-card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); border-left: 4px solid #cbd5e1; }
+  .archive-card.is-pdf { border-left-color: #2563eb; }
+  .archive-card.is-ref { border-left-color: #dc2626; }
+  .archive-card .head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+  .archive-card .title { font-size: 14px; font-weight: 700; color: #0f172a; flex: 1; min-width: 160px; }
+  .archive-card .badge-date { font-size: 11px; color: #fff; background: #1e293b; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
+  .archive-card .badge-type { font-size: 11px; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
+  .archive-card .badge-type.pdf { background: #dbeafe; color: #1e40af; }
+  .archive-card .badge-type.ref { background: #fee2e2; color: #991b1b; }
+  .archive-card .meta { font-size: 11px; color: #94a3b8; }
+  .archive-card .summary { font-size: 12px; color: #334155; margin-top: 6px; line-height: 1.6; background: #f8fafc; padding: 7px 9px; border-radius: 6px; }
+  .archive-card .actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .pagecount { font-size: 11px; color: #64748b; background: #e2e8f0; padding: 1px 7px; border-radius: 8px; font-weight: 700; }
+  .empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
+  .empty .ico { font-size: 36px; margin-bottom: 8px; }
+
+  /* ===== 一覧フィルタ ===== */
+  .list-filter { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+  .list-filter .chip { padding: 5px 12px; border: 1px solid #cbd5e1; background: #fff; border-radius: 14px; cursor: pointer; font-size: 12px; font-weight: 700; color: #64748b; }
+  .list-filter .chip.active { background: #1e293b; color: #fff; border-color: #1e293b; }
+
+  /* ===== 分析レポート 一覧 ===== */
+  .ana-card { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back" onclick="goBackToCowell()">‹ 戻る</button>
+  <h1>📚 事故報告書アーカイブ</h1>
+</header>
+
+<script>
+// 親ウインドウから window.open で開かれた場合は、自分を閉じて親にフォーカスを返す
+function goBackToCowell() {
+  try {
+    if (window.opener && !window.opener.closed) {
+      window.opener.focus();
+      window.close();
+      return;
+    }
+  } catch (e) {}
+  location.href = '/';
+}
+</script>
+
+<main>
+  <!-- モード選択: 「書く」or「見る・分析する」 -->
+  <div class="mode-tabs">
+    <button class="mode-tab write active" id="tab-write" onclick="switchMode('write')">
+      <div class="ico">📝</div>
+      <div class="lbl">記録する</div>
+      <div class="desc">PDFアップロード / 反省会記録の入力</div>
+    </button>
+    <button class="mode-tab view" id="tab-view" onclick="switchMode('view')">
+      <div class="ico">📊</div>
+      <div class="lbl">見る・分析する</div>
+      <div class="desc">AI分析レポート / アーカイブ一覧</div>
+    </button>
+  </div>
+
+  <!-- ============ 記録するモード ============ -->
+  <div class="section active" id="sec-write">
+
+    <!-- PDFアップロード -->
+    <div class="card pdf">
+      <div class="card-head">
+        <div class="ic">📄</div>
+        <h2>事故報告書PDFをアップロード</h2>
+      </div>
+      <div class="card-desc">
+        正式な事故報告書PDF (社内・社外問わず) をアップロードすると、Geminiが全文を読み解き安全管理者AIの学習材料に取り込みます。<br>
+        個人情報は自動伏字化、各ページは前面スクリーンに掲示できます。
+      </div>
+      <div class="field">
+        <label>タイトル (任意・空欄ならGeminiが自動生成)</label>
+        <input type="text" id="f-title" placeholder="例: 2024年12月 三和営業所 追突事故報告">
+      </div>
+      <div class="field">
+        <label>事故発生日 (任意)</label>
+        <input type="date" id="f-date">
+      </div>
+      <label class="drop" id="f-drop">
+        <span style="font-size:20px;">📂</span>
+        <span id="f-drop-label">PDFファイルを選択 (30MBまで)</span>
+        <input type="file" id="f-input" accept="application/pdf">
+      </label>
+      <div class="progress" id="f-progress">📤 アップロード中…<br><span style="font-size:11px;">PDF読み込み + Gemini解析で30秒〜2分かかります</span></div>
+      <div class="err" id="f-err"></div>
+      <div style="margin-top:10px;text-align:right;">
+        <button class="btn btn-primary-pdf" id="f-submit" onclick="submitUpload()" disabled>📤 アップロード</button>
+      </div>
+    </div>
+
+    <!-- 反省会記録入力 -->
+    <div class="card reflection">
+      <div class="card-head">
+        <div class="ic">📝</div>
+        <h2>反省会記録を入力</h2>
+      </div>
+      <div class="card-desc">
+        反省会で決まった<b>事故内容・原因・再発防止・歯止め</b>を直接入力できます。<br>
+        PDFが無くても構造化データとして残せて、安全管理者AIの学習材料に即時反映されます。
+      </div>
+      <div style="text-align:right;">
+        <button class="btn btn-primary-ref" onclick="openReflectionForm()">＋ 入力フォームを開く</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 見る・分析するモード ============ -->
+  <div class="section" id="sec-view">
+
+    <!-- AI分析レポート -->
+    <div class="card analysis">
+      <div class="card-head">
+        <div class="ic">📊</div>
+        <h2>AI分析レポート</h2>
+        <button class="btn btn-primary-ana" id="ana-run" onclick="runAnalysis()">🔍 分析する</button>
+      </div>
+      <div class="card-desc">
+        安全管理者AI (Gemini 2.5 Pro) が社内アーカイブ + 事故報告書に加え、<b>運送業界の他社事故事例・厚労省/国交省/陸災防の公的資料</b>もGoogle検索で実際に参照し、8000〜12000字規模の包括的な分析レポートを生成します。<br>
+        生成後は安全管理者AIの会話にも自動的に反映されます。<span style="color:#dc2626;">深い分析と業界資料検索のため生成に2〜3分かかります</span>
+      </div>
+      <div class="progress" id="ana-progress">🤖 Geminiが過去データを分析中…</div>
+      <div class="err" id="ana-err"></div>
+      <div id="ana-list" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- アーカイブ一覧 -->
+    <div class="card list">
+      <div class="card-head">
+        <div class="ic">📚</div>
+        <h2>アーカイブ一覧</h2>
+        <span class="pagecount" id="list-count">0件</span>
+      </div>
+      <div class="list-filter">
+        <span style="font-size:12px;color:#64748b;">表示:</span>
+        <button class="chip active" data-filter="all" onclick="setListFilter('all')">すべて</button>
+        <button class="chip" data-filter="pdf" onclick="setListFilter('pdf')">📄 PDF</button>
+        <button class="chip" data-filter="ref" onclick="setListFilter('ref')">📝 反省会記録</button>
+      </div>
+      <div id="list"></div>
+    </div>
+  </div>
+</main>
+
+<!-- レポート全文モーダル -->
+<div id="ana-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:100;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:14px;max-width:780px;width:100%;margin:16px auto;max-height:92vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:1;">
+      <h3 style="margin:0;font-size:15px;flex:1;" id="ana-modal-title">📊 AI分析レポート</h3>
+      <button onclick="closeAnaModal()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div id="ana-modal-body" style="padding:16px 22px;font-size:14px;line-height:1.8;color:#0f172a;"></div>
+  </div>
+</div>
+
+<!-- 反省会記録入力モーダル -->
+<div id="ref-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:100;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:14px;max-width:720px;width:100%;margin:16px auto;max-height:92vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:1;">
+      <h3 style="margin:0;font-size:15px;flex:1;" id="ref-title">📝 反省会記録 新規追加</h3>
+      <button onclick="closeReflectionForm()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div style="padding:16px 18px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>事故発生日</label><input type="date" id="ref-accident-date"></div>
+        <div class="field"><label>反省会実施日</label><input type="date" id="ref-reflection-date"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+        <div class="field"><label>場所</label><input type="text" id="ref-place" placeholder="例: 横浜市港北区"></div>
+        <div class="field"><label>道路種別</label>
+          <select id="ref-road-type">
+            <option value="">-</option><option>現場</option><option>一般道</option><option>高速道路</option><option>その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>事故内容 *</label><textarea id="ref-content" rows="2" placeholder="例: 荷卸しの為バック時、後方未確認で停止中のトラックに接触"></textarea></div>
+      <div class="field"><label>原因 (本人の振り返り)</label><textarea id="ref-cause" rows="3" placeholder="例: 大丈夫だろうという過信、目視確認を怠った"></textarea></div>
+      <div class="field"><label>再発防止</label><textarea id="ref-prevention" rows="3" placeholder="例: バック前に必ず一旦停車・降車目視を徹底"></textarea></div>
+      <div class="field"><label>歯止め (組織として)</label><textarea id="ref-stop" rows="3" placeholder="例: 朝礼でバック時の声掛けルールを徹底、月1回の同乗指導"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>対象者 (氏名・伏字推奨)</label><input type="text" id="ref-subject" placeholder="例: 中●"></div>
+        <div class="field"><label>指導者</label><input type="text" id="ref-instructor" placeholder="例: 皆●"></div>
+      </div>
+      <div class="field"><label>反省会参加者</label><input type="text" id="ref-participants" placeholder="例: 他6名 / 営業所全員"></div>
+      <div class="err" id="ref-err"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="closeReflectionForm()">キャンセル</button>
+      <button class="btn btn-primary-ref" id="ref-submit" onclick="submitReflection()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token');
+let me = null;
+try { me = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch (e) {}
+if (!token) location.href = '/';
+const isManager = me && (me.employee_type === 'admin' || me.role === 'admin');
+
+async function api(path, opts = {}) {
+  const init = Object.assign({ headers: { Authorization: 'Bearer ' + token } }, opts);
+  if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
+    init.headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers);
+    init.body = JSON.stringify(init.body);
+  }
+  const r = await fetch(path, init);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.href = '/'; return; }
+  return r.json();
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// ============== モード切替 ==============
+function switchMode(mode) {
+  document.getElementById('tab-write').classList.toggle('active', mode === 'write');
+  document.getElementById('tab-view').classList.toggle('active', mode === 'view');
+  document.getElementById('sec-write').classList.toggle('active', mode === 'write');
+  document.getElementById('sec-view').classList.toggle('active', mode === 'view');
+  if (mode === 'view') {
+    loadList();
+    loadAnalysisList();
+  }
+}
+
+// ============== PDF アップロード ==============
+let _selectedFile = null;
+const input = document.getElementById('f-input');
+const submitBtn = document.getElementById('f-submit');
+input.addEventListener('change', () => {
+  _selectedFile = input.files && input.files[0];
+  document.getElementById('f-drop-label').textContent = _selectedFile ? '✅ ' + _selectedFile.name : 'PDFファイルを選択 (30MBまで)';
+  document.getElementById('f-drop').classList.toggle('has-file', !!_selectedFile);
+  submitBtn.disabled = !_selectedFile;
+});
+
+async function submitUpload() {
+  if (!_selectedFile) return;
+  if (!isManager) { document.getElementById('f-err').textContent = '管理職のみアップロード可'; return; }
+  document.getElementById('f-err').textContent = '';
+  document.getElementById('f-progress').style.display = 'block';
+  submitBtn.disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append('pdf', _selectedFile);
+    const t = document.getElementById('f-title').value.trim();
+    const d = document.getElementById('f-date').value.trim();
+    if (t) fd.append('title', t);
+    if (d) fd.append('accident_date', d);
+    const r = await fetch('/api/accident/archive', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: fd,
+    });
+    const data = await r.json();
+    if (!data || !data.success) throw new Error(data && data.msg || 'アップロード失敗');
+    _selectedFile = null;
+    input.value = '';
+    document.getElementById('f-drop-label').textContent = 'PDFファイルを選択 (30MBまで)';
+    document.getElementById('f-drop').classList.remove('has-file');
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-date').value = '';
+    alert('アップロード完了: ' + (data.title || '') + ' (' + (data.page_count || 0) + 'ページ)\nGemini要約: ' + (data.summary || '').slice(0, 80));
+  } catch (e) {
+    document.getElementById('f-err').textContent = e.message;
+  } finally {
+    document.getElementById('f-progress').style.display = 'none';
+    submitBtn.disabled = !_selectedFile;
+  }
+}
+
+// ============== 一覧表示 ==============
+let _allArchives = [];
+let _listFilter = 'all';
+
+async function loadList() {
+  const d = await api('/api/accident/archive');
+  if (!d || !d.success) return;
+  _allArchives = d.archives || [];
+  document.getElementById('list-count').textContent = _allArchives.length + '件';
+  renderList();
+}
+
+function setListFilter(f) {
+  _listFilter = f;
+  document.querySelectorAll('.list-filter .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === f));
+  renderList();
+}
+
+function renderList() {
+  const arr = _allArchives.filter(a => {
+    if (_listFilter === 'all') return true;
+    const isPdf = a.pdf_url && /^\/uploads\//.test(a.pdf_url);
+    return _listFilter === 'pdf' ? isPdf : !isPdf;
+  });
+  const list = document.getElementById('list');
+  if (!arr.length) {
+    list.innerHTML = '<div class="empty"><div class="ico">📭</div><div>該当するアーカイブはありません</div></div>';
+    return;
+  }
+  list.innerHTML = arr.map(a => {
+    const pages = (() => { try { return JSON.parse(a.page_image_urls || '[]'); } catch (e) { return []; } })();
+    const isPdf = a.pdf_url && /^\/uploads\//.test(a.pdf_url);
+    return `<div class="archive-card ${isPdf ? 'is-pdf' : 'is-ref'}">
+      <div class="head">
+        ${a.accident_date ? `<span class="badge-date">${escapeHtml(a.accident_date)}</span>` : ''}
+        <span class="badge-type ${isPdf ? 'pdf' : 'ref'}">${isPdf ? '📄 PDF' : '📝 反省会'}</span>
+        <div class="title">${escapeHtml(a.title || '無題')}</div>
+        ${pages.length ? `<span class="pagecount">${pages.length}ページ</span>` : ''}
+      </div>
+      <div class="meta">📥 ${escapeHtml(a.uploaded_name || '')} · ${escapeHtml((a.created_at || '').slice(0,16))}</div>
+      ${a.summary ? `<div class="summary">${escapeHtml(a.summary)}</div>` : ''}
+      <div class="actions">
+        ${isPdf ? `<a href="${escapeHtml(a.pdf_url)}" target="_blank" class="btn btn-ghost btn-sm">📄 PDFを開く</a>` : ''}
+        ${!isPdf && isManager ? `<button class="btn btn-ghost btn-sm" onclick="openReflectionForm(${a.id})">✏ 編集</button>` : ''}
+        ${pages.length && isManager ? `<button class="btn btn-screen btn-sm" onclick="pushToScreen(${a.id})">🖥 スクリーン掲示</button>` : ''}
+        ${isManager ? `<button class="btn btn-danger btn-sm" onclick="deleteArchive(${a.id})">削除</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============== 反省会記録 入力フォーム ==============
+let _refEditingId = null;
+async function openReflectionForm(id) {
+  if (!isManager) { alert('管理職のみ追加可'); return; }
+  _refEditingId = id || null;
+  const fields = ['accident-date','reflection-date','place','road-type','content','cause','prevention','stop','subject','instructor','participants'];
+  for (const f of fields) {
+    const el = document.getElementById('ref-' + f);
+    if (el) el.value = '';
+  }
+  document.getElementById('ref-err').textContent = '';
+  document.getElementById('ref-title').textContent = id ? '📝 反省会記録 編集' : '📝 反省会記録 新規追加';
+  if (id) {
+    const d = await api('/api/accident/archive/reflection/' + id);
+    if (!d || !d.success) { alert('読み込み失敗'); return; }
+    if (d.archive.is_pdf) { alert('PDF型はこのフォームから編集できません'); return; }
+    const a = d.archive;
+    document.getElementById('ref-accident-date').value = a.accident_date || '';
+    document.getElementById('ref-reflection-date').value = (a.reflection_date && /^\d{4}-\d{2}-\d{2}/.test(a.reflection_date)) ? a.reflection_date.slice(0,10) : '';
+    document.getElementById('ref-place').value = a.place || '';
+    document.getElementById('ref-road-type').value = a.road_type || '';
+    document.getElementById('ref-content').value = a.content || '';
+    document.getElementById('ref-cause').value = a.cause || '';
+    document.getElementById('ref-prevention').value = a.prevention || '';
+    document.getElementById('ref-stop').value = a.stop_measure || '';
+    document.getElementById('ref-subject').value = a.subject || '';
+    document.getElementById('ref-instructor').value = a.instructor || '';
+    document.getElementById('ref-participants').value = a.participants || '';
+  } else {
+    document.getElementById('ref-reflection-date').value = new Date().toISOString().slice(0, 10);
+  }
+  document.getElementById('ref-modal').style.display = 'flex';
+}
+
+function closeReflectionForm() {
+  document.getElementById('ref-modal').style.display = 'none';
+  _refEditingId = null;
+}
+
+async function submitReflection() {
+  const errEl = document.getElementById('ref-err');
+  errEl.textContent = '';
+  const submit = document.getElementById('ref-submit');
+  submit.disabled = true;
+  const body = {
+    accident_date: document.getElementById('ref-accident-date').value,
+    reflection_date: document.getElementById('ref-reflection-date').value,
+    place: document.getElementById('ref-place').value,
+    road_type: document.getElementById('ref-road-type').value,
+    content: document.getElementById('ref-content').value,
+    cause: document.getElementById('ref-cause').value,
+    prevention: document.getElementById('ref-prevention').value,
+    stop_measure: document.getElementById('ref-stop').value,
+    subject: document.getElementById('ref-subject').value,
+    instructor: document.getElementById('ref-instructor').value,
+    participants: document.getElementById('ref-participants').value,
+  };
+  if (!body.content.trim() && !body.cause.trim()) {
+    errEl.textContent = '事故内容または原因のいずれかは必須です';
+    submit.disabled = false;
+    return;
+  }
+  try {
+    const path = _refEditingId ? '/api/accident/archive/reflection/' + _refEditingId : '/api/accident/archive/reflection';
+    const method = _refEditingId ? 'PUT' : 'POST';
+    const d = await api(path, { method, body });
+    if (!d || !d.success) throw new Error(d && d.msg || '保存失敗');
+    closeReflectionForm();
+    alert('保存しました。安全管理者AIに即時反映されます。');
+    if (document.getElementById('sec-view').classList.contains('active')) loadList();
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function pushToScreen(id) {
+  if (!confirm('この報告書を事故対策室の前面スクリーンに掲示しますか?\n(各ページが画像として順番に流れます)')) return;
+  const d = await api('/api/accident/archive/' + id + '/screen', { method: 'POST' });
+  if (!d || !d.success) { alert('掲示失敗: ' + (d && d.msg || '')); return; }
+  alert('スクリーンに ' + d.inserted + ' ページを掲示しました');
+}
+
+async function deleteArchive(id) {
+  if (!confirm('このアーカイブを削除しますか?')) return;
+  const d = await api('/api/accident/archive/' + id, { method: 'DELETE' });
+  if (!d || !d.success) { alert('削除失敗'); return; }
+  loadList();
+}
+
+// ============== AI分析レポート ==============
+async function runAnalysis() {
+  if (!isManager) { alert('管理職のみ実行可'); return; }
+  if (!confirm('過去事故データの AI分析レポートを生成しますか?\n(Gemini APIを呼び出します・30秒〜1分)')) return;
+  document.getElementById('ana-progress').style.display = 'block';
+  document.getElementById('ana-err').textContent = '';
+  document.getElementById('ana-run').disabled = true;
+  try {
+    const r = await fetch('/api/accident/analysis', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const d = await r.json();
+    if (!d || !d.success) throw new Error(d && d.msg || '分析失敗');
+    showReportModal({ id: d.id, full_report: d.report, target_count: d.target_count });
+    loadAnalysisList();
+  } catch (e) {
+    document.getElementById('ana-err').textContent = e.message;
+  } finally {
+    document.getElementById('ana-progress').style.display = 'none';
+    document.getElementById('ana-run').disabled = false;
+  }
+}
+
+async function loadAnalysisList() {
+  const d = await api('/api/accident/analysis');
+  if (!d || !d.success) return;
+  const arr = d.reports || [];
+  const list = document.getElementById('ana-list');
+  if (!arr.length) {
+    list.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:8px;text-align:center;">まだレポートはありません。「🔍 分析する」を押してください。</div>';
+    return;
+  }
+  list.innerHTML = arr.map(a => `<div class="ana-card">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+      <span style="font-size:11px;font-weight:700;color:#9a3412;background:#fed7aa;padding:2px 8px;border-radius:8px;">${escapeHtml((a.created_at||'').slice(0,16))}</span>
+      <span style="font-size:11px;color:#64748b;">📚 ${a.target_archives}件 · 📋 ${a.target_reports}件</span>
+      <span style="font-size:11px;color:#64748b;flex:1;text-align:right;">📥 ${escapeHtml(a.generated_name || '')}</span>
+    </div>
+    <div style="font-size:13px;color:#334155;line-height:1.6;">${escapeHtml((a.summary||'').slice(0, 240))}${(a.summary||'').length > 240 ? '…' : ''}</div>
+    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="openReport(${a.id})">📖 レポート全文</button>
+      ${isManager ? `<button class="btn btn-screen btn-sm" onclick="pushReportToScreen(${a.id}, false)">🖥 スクリーン (テキストのみ)</button>` : ''}
+      ${isManager ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;" onclick="pushReportToScreen(${a.id}, true)">🎨 スクリーン (グラフ・図解付き)</button>` : ''}
+      ${isManager ? `<button class="btn btn-danger btn-sm" onclick="deleteReport(${a.id})">削除</button>` : ''}
+    </div>
+  </div>`).join('');
+}
+
+async function pushReportToScreen(id, withVisuals) {
+  const msg = withVisuals
+    ? 'AI分析レポートを 安全三箇条 + グラフ + テキスト混在のスライドで前面スクリーンに掲示しますか?\n(matplotlibでグラフ生成のため30〜60秒かかります)\n(過去の分析スライドは置き換わります)'
+    : 'このAI分析レポートを事故対策室の前面スクリーンにテキストのみで掲示しますか?\n章ごとに自動でスライド再生されます。\n(過去の分析スライドは置き換わります)';
+  if (!confirm(msg)) return;
+  const path = withVisuals ? '/api/accident/analysis/' + id + '/visual-screen' : '/api/accident/analysis/' + id + '/screen';
+  const d = await api(path, { method: 'POST' });
+  if (!d || !d.success) { alert('掲示失敗: ' + (d && d.msg || '')); return; }
+  const extra = withVisuals && d.charts ? ' (うちグラフ ' + d.charts + ' 枚)' : '';
+  alert('スクリーンに ' + d.inserted + ' スライドを掲示しました' + extra + '。事故対策室で確認できます。');
+}
+
+async function openReport(id) {
+  const d = await api('/api/accident/analysis/' + id);
+  if (!d || !d.success) { alert('読み込み失敗'); return; }
+  showReportModal(d.report);
+}
+
+function showReportModal(r) {
+  document.getElementById('ana-modal-title').textContent = '📊 AI分析レポート (' + ((r.created_at || new Date().toISOString()).slice(0,16)) + ')';
+  const md = (r.full_report || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+    .replace(/^##\s+(.+)$/gm, '<h3 style="margin:18px 0 6px;font-size:15px;color:#9a3412;border-bottom:2px solid #fed7aa;padding-bottom:4px;">$1</h3>')
+    .replace(/^#\s+(.+)$/gm, '<h2 style="margin:8px 0 12px;font-size:17px;color:#7c2d12;">$1</h2>')
+    .replace(/^-\s+(.+)$/gm, '<div style="margin:4px 0 4px 14px;">・$1</div>')
+    .replace(/\n{2,}/g, '<br>')
+    .replace(/\n/g, '<br>');
+  document.getElementById('ana-modal-body').innerHTML = md;
+  document.getElementById('ana-modal').style.display = 'flex';
+}
+
+function closeAnaModal() {
+  document.getElementById('ana-modal').style.display = 'none';
+}
+
+async function deleteReport(id) {
+  if (!confirm('このレポートを削除しますか?')) return;
+  const d = await api('/api/accident/analysis/' + id, { method: 'DELETE' });
+  if (!d || !d.success) { alert('削除失敗'); return; }
+  loadAnalysisList();
+}
+
+// 初期表示は「記録する」モード
+switchMode('write');
+</script>
+
+  <script src="/translate.js" defer></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>👣 Connect 230 — CoWell</title>
+<title>👣 Connect 222 — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -78,8 +78,8 @@ main { max-width: 720px; margin: 0 auto; padding: 16px 14px 80px; }
 <body>
 
 <header>
-  <img src="/assets/walk/logo.png" alt="Connect 230" style="height:38px;border-radius:6px;background:rgba(255,255,255,0.95);padding:2px 6px;">
-  <h1 style="margin-left:6px;">Connect 230</h1>
+  <img src="/assets/walk/logo.png?v=2" alt="Connect 222" style="height:38px;border-radius:6px;background:rgba(255,255,255,0.95);padding:2px 6px;">
+  <h1 style="margin-left:6px;">Connect 222</h1>
   <div class="spacer"></div>
   <button class="close-btn" onclick="goBackToFloor()">✕ 閉じる</button>
 </header>
@@ -88,14 +88,14 @@ main { max-width: 720px; margin: 0 auto; padding: 16px 14px 80px; }
   <div id="loading" style="text-align:center;padding:40px;color:#64748b;">読み込み中…</div>
 
   <div id="no-event" class="no-event" style="display:none;">
-    📅 現在開催中の Connect 230 イベントはありません。<br>
+    📅 現在開催中の Connect 222 イベントはありません。<br>
     管理者がイベントを開始するとここに表示されます。
   </div>
 
   <div id="content" style="display:none;">
 
     <div class="banner">
-      <h2 id="event-name">Connect 230</h2>
+      <h2 id="event-name">Connect 222</h2>
       <div class="sub" id="event-sub">東京日本橋 ⇔ 磐田スズエ電機を歩いて繋ぐ</div>
       <div class="countdown" id="event-countdown"></div>
     </div>
@@ -126,6 +126,18 @@ main { max-width: 720px; margin: 0 auto; padding: 16px 14px 80px; }
 
         <button class="submit-btn" id="submit-btn" onclick="submitSteps()">記録する</button>
       </div>
+    </div>
+
+    <!-- 道中フォト投稿 (5/6 新設) -->
+    <div class="card">
+      <h3>📷 道中の風景を共有</h3>
+      <div style="font-size:12px;color:#475569;margin-bottom:8px;">散歩で見つけた風景・気になった場所をロビーの「道中の便り」に流せます。</div>
+      <input type="file" id="field-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="onFieldPhotoSelected(event)">
+      <button class="photo-btn" onclick="document.getElementById('field-photo-input').click()" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;color:#78350f;">📷 写真を選ぶ / 撮る</button>
+      <img id="field-photo-preview" class="photo-preview" alt="プレビュー" style="margin-top:8px;">
+      <textarea id="field-comment-input" placeholder="一言メッセージ (任意): どこの風景? 気付いたこと?" style="width:100%;padding:10px 12px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;resize:vertical;min-height:50px;font-family:inherit;margin-top:8px;display:none;" id="field-comment-input"></textarea>
+      <button class="submit-btn" id="field-photo-submit" onclick="submitFieldPhoto()" style="display:none;margin-top:8px;background:linear-gradient(135deg,#f59e0b,#d97706);">道中フォトを投稿</button>
+      <div id="field-photo-status" class="ocr-status"></div>
     </div>
 
     <!-- 双方向進行マップ -->
@@ -404,6 +416,57 @@ function renderPersonal(p, history) {
   }).join('');
 }
 
+// 道中フォト投稿 (5/6 新設)
+let _fieldPhotoFile = null;
+function onFieldPhotoSelected(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  _fieldPhotoFile = file;
+  const preview = document.getElementById('field-photo-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  document.getElementById('field-comment-input').style.display = 'block';
+  document.getElementById('field-photo-submit').style.display = 'block';
+  document.getElementById('field-photo-status').textContent = '';
+}
+async function submitFieldPhoto() {
+  if (!_fieldPhotoFile) return;
+  const status = document.getElementById('field-photo-status');
+  const btn = document.getElementById('field-photo-submit');
+  btn.disabled = true;
+  status.textContent = '⏳ 投稿中…';
+  status.className = 'ocr-status';
+  const fd = new FormData();
+  fd.append('photo', _fieldPhotoFile);
+  const cmt = document.getElementById('field-comment-input').value.trim();
+  if (cmt) fd.append('comment', cmt);
+  try {
+    const r = await fetch('/api/walk/field-photo', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd,
+    });
+    const j = await r.json();
+    if (j.success) {
+      status.textContent = '✅ 投稿しました! ロビーの道中の便りに流れます';
+      status.className = 'ocr-status success';
+      document.getElementById('field-photo-preview').style.display = 'none';
+      document.getElementById('field-comment-input').value = '';
+      document.getElementById('field-comment-input').style.display = 'none';
+      btn.style.display = 'none';
+      _fieldPhotoFile = null;
+    } else {
+      status.textContent = '⚠ ' + (j.msg || '投稿失敗');
+      status.className = 'ocr-status error';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    status.textContent = '⚠ 通信エラー';
+    status.className = 'ocr-status error';
+    btn.disabled = false;
+  }
+}
+
 async function onPhotoSelected(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
@@ -479,5 +542,6 @@ function escapeHtml(s) {
 
 loadAll();
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

@@ -199,7 +199,9 @@ router.get('/posts', authUser, (req, res) => {
     SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code,
            wp.source_type, wp.subject_user_id, wp.structured_json, wp.created_at,
            u.display_name as poster_name,
-           s.display_name as subject_name
+           u.avatar_url   as poster_avatar,
+           s.display_name as subject_name,
+           s.avatar_url   as subject_avatar
     FROM wellness_posts wp
     LEFT JOIN users u ON u.id = wp.poster_id
     LEFT JOIN users s ON s.id = wp.subject_user_id`;
@@ -377,6 +379,31 @@ router.post('/actions/:id/reject', authUser, express.json(), (req, res) => {
   db.prepare("UPDATE wellness_actions SET status='却下', rejection_reason=?, approved_by=?, approved_at=datetime('now') WHERE id=?")
     .run(reason, req.uid, id);
   res.json({ success: true });
+});
+
+// POST /api/wellness/actions/bulk-delete-ai-candidates
+// AI生成された候補 (is_ai_suggested=1 AND status='候補') を一括削除 (やり直し用)
+// body: { ids: number[] }
+router.post('/actions/bulk-delete-ai-candidates', authUser, express.json(), (req, res) => {
+  if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(x => parseInt(x)).filter(x => !isNaN(x)) : [];
+  if (!ids.length) return res.json({ success: true, deleted: 0 });
+  const db = getDb();
+  const placeholders = ids.map(() => '?').join(',');
+  // 安全: AI候補かつ status='候補' のみ削除対象
+  const rows = db.prepare(`SELECT id FROM wellness_actions WHERE id IN (${placeholders}) AND is_ai_suggested = 1 AND status = '候補'`).all(...ids);
+  const delIds = rows.map(r => r.id);
+  if (!delIds.length) return res.json({ success: true, deleted: 0 });
+  const delPh = delIds.map(() => '?').join(',');
+  const tx = db.transaction(() => {
+    try { db.prepare(`DELETE FROM wellness_action_discussions WHERE action_id IN (${delPh})`).run(...delIds); } catch (e) {}
+    try { db.prepare(`DELETE FROM wellness_action_council WHERE action_id IN (${delPh})`).run(...delIds); } catch (e) {}
+    try { db.prepare(`DELETE FROM wellness_action_votes WHERE action_id IN (${delPh})`).run(...delIds); } catch (e) {}
+    try { db.prepare(`UPDATE wellness_insight_threads SET registered_action_id = NULL WHERE registered_action_id IN (${delPh})`).run(...delIds); } catch (e) {}
+    db.prepare(`DELETE FROM wellness_actions WHERE id IN (${delPh})`).run(...delIds);
+  });
+  tx();
+  res.json({ success: true, deleted: delIds.length });
 });
 
 // POST /api/wellness/actions/:id/start  実行中マーク
@@ -1693,6 +1720,112 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
   } catch (e) {}
 
   res.json({ success: true, post_id: postId, group_id: targetGroupId, urgency, category });
+});
+
+// =============================================================
+// 推進メンバー共有スケジュール (2026-05-20)
+// 推進メンバー (運管/倉庫) + admin が自由に起票してガントチャート共有
+// =============================================================
+
+function canEditSchedule(uid) {
+  return isFieldPromoter(uid) || isWarehousePromoter(uid) || isWellnessManager(uid);
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SCHED_STATUSES = ['planned', 'in_progress', 'done'];
+
+// GET /api/wellness/schedule?from=YYYY-MM-DD&to=YYYY-MM-DD
+router.get('/schedule', authUser, (req, res) => {
+  if (!canEditSchedule(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const from = req.query.from;
+  const to = req.query.to;
+  let sql = `SELECT s.id, s.title, s.description, s.start_date, s.end_date,
+                    s.owner_id, s.color, s.status, s.created_by, s.created_at, s.updated_at,
+                    u.display_name AS owner_name, u.avatar_url AS owner_avatar,
+                    c.display_name AS creator_name
+             FROM wellness_schedule s
+             LEFT JOIN users u ON u.id = s.owner_id
+             LEFT JOIN users c ON c.id = s.created_by`;
+  const params = [];
+  if (from && to && DATE_RE.test(from) && DATE_RE.test(to)) {
+    sql += ' WHERE NOT (s.end_date < ? OR s.start_date > ?)';
+    params.push(from, to);
+  }
+  sql += ' ORDER BY s.start_date ASC, s.id ASC';
+  const items = getDb().prepare(sql).all(...params);
+  res.json({ success: true, items });
+});
+
+// GET /api/wellness/schedule/members  担当者選択肢
+router.get('/schedule/members', authUser, (req, res) => {
+  if (!canEditSchedule(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const members = getDb().prepare(`
+    SELECT id, display_name, avatar_url, company_code
+    FROM users
+    WHERE (is_field_promoter = 1 OR is_warehouse_promoter = 1 OR employee_type = 'admin')
+      AND role != 'bot'
+    ORDER BY display_name ASC
+  `).all();
+  res.json({ success: true, members });
+});
+
+function parseSchedBody(b, base) {
+  base = base || {};
+  const out = {};
+  const title = b.title !== undefined ? String(b.title || '').trim() : base.title;
+  if (!title) return { error: 'タイトル必須' };
+  out.title = title.slice(0, 80);
+  out.description = b.description !== undefined ? String(b.description || '').slice(0, 500) : (base.description || '');
+  const start_date = b.start_date !== undefined ? String(b.start_date || '').trim() : base.start_date;
+  const end_date = b.end_date !== undefined ? String(b.end_date || '').trim() : base.end_date;
+  if (!DATE_RE.test(start_date) || !DATE_RE.test(end_date)) return { error: '日付形式が不正 (YYYY-MM-DD)' };
+  if (end_date < start_date) return { error: '終了日が開始日より前になっています' };
+  out.start_date = start_date;
+  out.end_date = end_date;
+  out.owner_id = b.owner_id !== undefined ? (b.owner_id ? String(b.owner_id) : null) : (base.owner_id || null);
+  const color = b.color !== undefined ? String(b.color || '').trim() : (base.color || '#3b82f6');
+  out.color = /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : '#3b82f6';
+  const status = b.status !== undefined ? String(b.status || '') : (base.status || 'planned');
+  out.status = SCHED_STATUSES.includes(status) ? status : 'planned';
+  return { value: out };
+}
+
+// POST /api/wellness/schedule
+router.post('/schedule', authUser, express.json(), (req, res) => {
+  if (!canEditSchedule(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const parsed = parseSchedBody(req.body || {});
+  if (parsed.error) return res.status(400).json({ success: false, msg: parsed.error });
+  const v = parsed.value;
+  const r = getDb().prepare(`
+    INSERT INTO wellness_schedule (title, description, start_date, end_date, owner_id, color, status, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(v.title, v.description, v.start_date, v.end_date, v.owner_id, v.color, v.status, req.uid);
+  res.json({ success: true, id: r.lastInsertRowid });
+});
+
+// PUT /api/wellness/schedule/:id
+router.put('/schedule/:id', authUser, express.json(), (req, res) => {
+  if (!canEditSchedule(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id, 10);
+  const row = getDb().prepare('SELECT * FROM wellness_schedule WHERE id = ?').get(id);
+  if (!row) return res.status(404).json({ success: false, msg: 'not found' });
+  const parsed = parseSchedBody(req.body || {}, row);
+  if (parsed.error) return res.status(400).json({ success: false, msg: parsed.error });
+  const v = parsed.value;
+  getDb().prepare(`
+    UPDATE wellness_schedule
+    SET title = ?, description = ?, start_date = ?, end_date = ?, owner_id = ?, color = ?, status = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(v.title, v.description, v.start_date, v.end_date, v.owner_id, v.color, v.status, id);
+  res.json({ success: true });
+});
+
+// DELETE /api/wellness/schedule/:id
+router.delete('/schedule/:id', authUser, (req, res) => {
+  if (!canEditSchedule(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const id = parseInt(req.params.id, 10);
+  getDb().prepare('DELETE FROM wellness_schedule WHERE id = ?').run(id);
+  res.json({ success: true });
 });
 
 module.exports = router;

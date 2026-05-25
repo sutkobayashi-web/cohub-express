@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d9488">
+<title>🎯 サークル活動 — CoWell</title>
+<link rel="manifest" href="/manifest.json?v=4">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior-x: contain; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: linear-gradient(180deg, #f0fdfa, #f8fafc); color: #0f172a; }
+  header { background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 10px rgba(13,148,136,0.20); }
+  header h1 { margin: 0; font-size: 19px; font-weight: 800; flex: 1; }
+  header .btn { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  header .btn:hover { background: rgba(255,255,255,0.32); }
+  main { max-width: 960px; margin: 0 auto; padding: 18px 14px 80px; }
+  .intro { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; border-left: 4px solid #0d9488; font-size: 13.5px; line-height: 1.7; color: #334155; }
+  .intro b { color: #0f766e; }
+
+  /* ゴルフ出太郎 (画面左下・全身固定表示、背景透過、フローティング) */
+  @keyframes detarouFloat {
+    0%   { transform: translateY(0) rotate(-0.6deg); }
+    50%  { transform: translateY(-10px) rotate(0.6deg); }
+    100% { transform: translateY(0) rotate(-0.6deg); }
+  }
+  @keyframes detarouBubblePop {
+    0%, 80%, 100% { transform: scale(1); }
+    85%           { transform: scale(1.08); }
+    90%           { transform: scale(0.97); }
+    95%           { transform: scale(1.03); }
+  }
+  .detarou-hero { position: fixed; left: -8px; bottom: 8px; z-index: 50; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; animation: detarouFloat 4.5s ease-in-out infinite; transform-origin: 50% 100%; }
+  .detarou-hero .ava-full { width: 280px; height: auto; display: block; filter: drop-shadow(0 8px 14px rgba(15,23,42,0.20)); pointer-events: auto; transform: translateX(-3cm); }
+  .detarou-hero .bubble { position: relative; margin-bottom: 340px; background: #fff; border: 2px solid #0d9488; border-radius: 16px; padding: 10px 16px; font-size: 16px; font-weight: 800; color: #0f766e; box-shadow: 0 4px 10px rgba(13,148,136,0.18); white-space: nowrap; pointer-events: auto; animation: detarouBubblePop 4.5s ease-in-out infinite; transform-origin: 100% 50%; }
+  .detarou-hero .bubble::after { content: ''; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid #0d9488; }
+  .detarou-hero .bubble::before { content: ''; position: absolute; right: -7px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 8px solid #fff; z-index: 1; }
+  @media (max-width: 480px) {
+    .detarou-hero { left: -10px; bottom: 6px; gap: 4px; }
+    .detarou-hero .ava-full { width: 180px; }
+    .detarou-hero .bubble { font-size: 13px; padding: 7px 11px; margin-bottom: 215px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .detarou-hero, .detarou-hero .bubble { animation: none; }
+  }
+  /* 閉じる ✕ ボタン (アバター右上に重ねる、左下配置なのでアバターの右側に) */
+  .detarou-hero .close-btn { position: absolute; top: 0; left: 248px; width: 30px; height: 30px; border-radius: 50%; background: rgba(15,23,42,0.65); color: #fff; border: 2px solid #fff; font-size: 14px; font-weight: 900; cursor: pointer; pointer-events: auto; box-shadow: 0 3px 8px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; z-index: 2; }
+  .detarou-hero .close-btn:hover { background: rgba(15,23,42,0.85); }
+  .detarou-hero.hidden { display: none; }
+  /* 復帰用 ⛳ FAB (アバター非表示時のみ表示、左下) */
+  .detarou-restore { position: fixed; left: 10px; bottom: 12px; z-index: 50; width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; border: 2px solid #fff; box-shadow: 0 4px 12px rgba(13,148,136,0.35); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 22px; pointer-events: auto; }
+  .detarou-restore.show { display: flex; }
+  .detarou-restore:hover { transform: scale(1.06); }
+  @media (max-width: 480px) {
+    .detarou-hero .close-btn { width: 26px; height: 26px; font-size: 12px; left: 160px; }
+    .detarou-restore { width: 42px; height: 42px; font-size: 20px; left: 8px; bottom: 10px; }
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .card { background: #fff; border-radius: 14px; padding: 0; box-shadow: 0 4px 12px rgba(15,23,42,0.06); border: 1px solid #e2e8f0; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; display: flex; flex-direction: column; overflow: hidden; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,42,0.10); }
+  .card .cover { height: 110px; background: linear-gradient(135deg, #ccfbf1, #99f6e4); display: flex; align-items: center; justify-content: center; font-size: 56px; line-height: 1; position: relative; }
+  .card .cover img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .card .body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; }
+  .card .name { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .card .desc { font-size: 12.5px; color: #475569; line-height: 1.6; flex: 1; margin-bottom: 10px; min-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .card .meta { display: flex; gap: 10px; align-items: center; font-size: 11.5px; color: #64748b; margin-bottom: 8px; flex-wrap: wrap; }
+  .card .meta .pill { background: #f1f5f9; padding: 3px 8px; border-radius: 999px; font-weight: 700; }
+  .card .meta .pill.lead { background: #fef3c7; color: #92400e; }
+  .card .badge-state { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; margin-top: auto; text-align: center; }
+  .badge-state.member { background: #dcfce7; color: #166534; }
+  .badge-state.pending { background: #fef3c7; color: #92400e; }
+  .badge-state.recruit { background: #ccfbf1; color: #0f766e; }
+  .badge-state.closed { background: #f1f5f9; color: #64748b; }
+  .card.closed { opacity: 0.7; }
+  .empty { background: #fff; border-radius: 12px; padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 14px; }
+
+  /* モーダル */
+  .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; overflow-y: auto; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #fff; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; border-radius: 16px; padding: 0; }
+  .modal .hd { background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; padding: 16px 18px; border-radius: 16px 16px 0 0; display: flex; align-items: center; gap: 12px; }
+  .modal .hd .ic { font-size: 36px; line-height: 1; }
+  .modal .hd h2 { margin: 0; font-size: 19px; font-weight: 800; flex: 1; }
+  .modal .hd .close { background: rgba(255,255,255,0.22); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+  .modal .bd { padding: 18px 20px; }
+  .modal .sec { margin-bottom: 16px; }
+  .modal .sec h3 { font-size: 13px; font-weight: 800; color: #334155; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+  .modal .desc-text { font-size: 14px; line-height: 1.7; color: #1e293b; white-space: pre-wrap; }
+  .member-list { display: flex; flex-direction: column; gap: 8px; }
+  .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; }
+  .member-row img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #e2e8f0; }
+  .member-row .fb { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#cbd5e1,#94a3b8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; }
+  .member-row .nm { flex: 1; font-size: 13.5px; font-weight: 700; }
+  .member-row .badge { font-size: 10px; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 999px; font-weight: 800; }
+  .member-row .btn-rm { background: transparent; border: 1px solid #fecaca; color: #b91c1c; padding: 3px 8px; border-radius: 6px; font-size: 10px; cursor: pointer; }
+  .req-row { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; margin-bottom: 6px; }
+  .req-row img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+  .req-row .fb { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#cbd5e1,#94a3b8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; }
+  .req-row .msg { font-size: 12px; color: #475569; flex: 1; min-width: 0; }
+  .req-row .btn-ok { background: #10b981; color: #fff; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .req-row .btn-ng { background: #f1f5f9; color: #475569; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer; flex-shrink: 0; }
+  /* 予定リスト */
+  .ev-list { display: flex; flex-direction: column; gap: 8px; }
+  .ev-row { display: flex; gap: 12px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #94a3b8; position: relative; }
+  .ev-row.past { opacity: 0.55; border-left-color: #cbd5e1; }
+  .ev-row .date-block { flex-shrink: 0; text-align: center; min-width: 52px; }
+  .ev-row .date-block .md { font-size: 16px; font-weight: 800; line-height: 1.2; color: #0f172a; }
+  .ev-row .date-block .wd { font-size: 10px; color: #64748b; font-weight: 700; }
+  .ev-row .date-block .tm { font-size: 11px; color: #475569; font-weight: 800; margin-top: 2px; }
+  .ev-row .ev-body { flex: 1; min-width: 0; }
+  .ev-row .ev-title { font-size: 14px; font-weight: 800; color: #0f172a; }
+  .ev-row .ev-meta { font-size: 11.5px; color: #64748b; margin-top: 2px; }
+  .ev-row .ev-memo { font-size: 12px; color: #334155; margin-top: 4px; white-space: pre-wrap; }
+  .ev-row .ev-del { background: transparent; border: none; color: #cbd5e1; font-size: 14px; cursor: pointer; align-self: flex-start; }
+  .ev-row .ev-del:hover { color: #ef4444; }
+  .ev-add { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #fffbeb; border: 1.5px dashed #fcd34d; border-radius: 10px; margin-top: 6px; }
+  .ev-add.hidden { display: none; }
+  .ev-add input, .ev-add textarea { width: 100%; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .ev-add textarea { min-height: 44px; resize: vertical; }
+  .ev-add .ev-add-row { display: flex; gap: 6px; }
+  .ev-add .ev-add-row > * { flex: 1; }
+  .ev-add .btn-row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+  .ev-add .btn-row button { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+  .btn-add-event { background: #fef9c3; border: 1.5px dashed #fcd34d; color: #92400e; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; width: 100%; }
+  .btn-add-event:hover { background: #fef3c7; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; }
+  .actions .btn { flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 800; border: none; cursor: pointer; }
+  .btn-primary { background: linear-gradient(135deg,#0d9488,#14b8a6); color: #fff; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: #f1f5f9; color: #334155; }
+  .btn-danger { background: #fee2e2; color: #b91c1c; }
+
+  /* フォーム */
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: #334155; }
+  .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-family: inherit; }
+  .form-row textarea { min-height: 90px; resize: vertical; }
+  .form-row .hint { font-size: 10.5px; color: #94a3b8; margin-top: 3px; }
+  .form-row.inline { display: flex; gap: 10px; }
+  .form-row.inline > div { flex: 1; }
+  .err { color: #dc2626; font-size: 12px; padding: 6px 0; text-align: center; min-height: 16px; }
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  /* テーマカラー (10種) */
+  .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .palette button { aspect-ratio: 1.4; border: 2px solid transparent; border-radius: 10px; cursor: pointer; padding: 0; position: relative; transition: transform 0.1s; }
+  .palette button:hover { transform: scale(1.05); }
+  .palette button.active { border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,0.10); }
+  .palette button .chk { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: 900; opacity: 0; transition: opacity 0.1s; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .palette button.active .chk { opacity: 1; }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script src="/global-notif.js?v=20260516e" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<header>
+  <button class="btn" onclick="goBackHome()">← 戻る</button>
+  <h1>🎯 サークル活動</h1>
+  <button class="btn" id="btn-new" onclick="openCreate()" style="display:none;">+ 新規</button>
+</header>
+
+<main>
+  <div class="intro">
+    <b>有志のサークル活動</b>。趣味やスポーツを通じて部署を越えたつながりを作る場です。<br>
+    興味のあるサークルがあれば「参加申請」してください。リーダーから返信があります。
+  </div>
+  <div class="grid" id="grid">
+    <div class="empty">読み込み中…</div>
+  </div>
+</main>
+
+<!-- 詳細モーダル -->
+<div class="modal-bg" id="detail-modal" onclick="if(event.target.id==='detail-modal') closeModal('detail-modal')">
+  <div class="modal" id="detail-modal-inner"></div>
+</div>
+
+<!-- 作成/編集モーダル -->
+<div class="modal-bg" id="form-modal" onclick="if(event.target.id==='form-modal') closeModal('form-modal')">
+  <div class="modal">
+    <div class="hd">
+      <div class="ic" id="form-icon-preview">🎯</div>
+      <h2 id="form-title">新しいサークル</h2>
+      <button class="close" onclick="closeModal('form-modal')">✕</button>
+    </div>
+    <div class="bd">
+      <input type="hidden" id="f-id">
+      <div class="form-row inline">
+        <div style="max-width:90px;">
+          <label>アイコン</label>
+          <input id="f-icon" maxlength="4" value="🎯" oninput="document.getElementById('form-icon-preview').textContent=this.value||'🎯'">
+        </div>
+        <div>
+          <label>サークル名</label>
+          <input id="f-name" maxlength="60" placeholder="例) ⛳ ゴルフ部">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>紹介文</label>
+        <textarea id="f-desc" maxlength="1000" placeholder="活動内容・頻度・参加条件など"></textarea>
+      </div>
+      <div class="form-row inline">
+        <div>
+          <label>リーダー</label>
+          <select id="f-lead"></select>
+        </div>
+        <div>
+          <label>参加方式</label>
+          <select id="f-mode">
+            <option value="approve">リーダー承認制</option>
+            <option value="open">自由参加</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>テーマカラー</label>
+        <div class="palette" id="f-palette"></div>
+        <div class="hint">モーダルヘッダー・カバー・バッジ色に反映されます</div>
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" id="f-recruit" checked> メンバー募集中</label>
+        <div class="hint">チェックを外すと一覧上で「募集停止」と表示され、新規参加申請を受け付けません</div>
+      </div>
+      <div class="err" id="form-err"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="closeModal('form-modal')">キャンセル</button>
+        <button class="btn btn-primary" id="btn-save" onclick="saveCircle()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- ゴルフ出太郎 (画面左下・全身) -->
+<div class="detarou-hero" id="detarou-hero">
+  <button class="close-btn" type="button" onclick="hideDetarou()" aria-label="ゴルフおやじを非表示">✕</button>
+  <div class="bubble">ナイスショット！</div>
+  <img class="ava-full" src="/assets/kaigi_detarou_golf.png?v=3" alt="かいぎ出太郎(ゴルフ)">
+</div>
+<button class="detarou-restore" id="detarou-restore" type="button" onclick="showDetarou()" aria-label="ゴルフおやじを表示" title="ゴルフおやじを呼ぶ">⛳</button>
+
+<script>
+// ゴルフおやじ表示トグル (localStorage 永続)
+function hideDetarou() {
+  document.getElementById('detarou-hero').classList.add('hidden');
+  document.getElementById('detarou-restore').classList.add('show');
+  try { localStorage.setItem('cohub_detarou_hidden', '1'); } catch (e) {}
+}
+function showDetarou() {
+  document.getElementById('detarou-hero').classList.remove('hidden');
+  document.getElementById('detarou-restore').classList.remove('show');
+  try { localStorage.setItem('cohub_detarou_hidden', '0'); } catch (e) {}
+}
+(function () {
+  try {
+    if (localStorage.getItem('cohub_detarou_hidden') === '1') {
+      document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('detarou-hero').classList.add('hidden');
+        document.getElementById('detarou-restore').classList.add('show');
+      });
+    }
+  } catch (e) {}
+})();
+
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let _data = { circles: [], can_create: false };
+let _members = [];
+
+// テーマカラー (10種) — gradient pair + cover background + badge
+const THEMES = {
+  teal:    { name: 'ティール',     g1: '#0d9488', g2: '#14b8a6', cov1: '#ccfbf1', cov2: '#99f6e4' },
+  emerald: { name: 'グリーン',     g1: '#059669', g2: '#10b981', cov1: '#d1fae5', cov2: '#a7f3d0' },
+  sky:     { name: 'スカイ',       g1: '#0284c7', g2: '#38bdf8', cov1: '#e0f2fe', cov2: '#bae6fd' },
+  indigo:  { name: 'インディゴ',   g1: '#4338ca', g2: '#6366f1', cov1: '#e0e7ff', cov2: '#c7d2fe' },
+  violet:  { name: 'バイオレット', g1: '#7c3aed', g2: '#a78bfa', cov1: '#ede9fe', cov2: '#ddd6fe' },
+  pink:    { name: 'ピンク',       g1: '#db2777', g2: '#ec4899', cov1: '#fce7f3', cov2: '#fbcfe8' },
+  rose:    { name: 'ローズ',       g1: '#e11d48', g2: '#fb7185', cov1: '#ffe4e6', cov2: '#fecdd3' },
+  orange:  { name: 'オレンジ',     g1: '#ea580c', g2: '#fb923c', cov1: '#ffedd5', cov2: '#fed7aa' },
+  amber:   { name: 'アンバー',     g1: '#d97706', g2: '#f59e0b', cov1: '#fef3c7', cov2: '#fde68a' },
+  slate:   { name: 'スレート',     g1: '#475569', g2: '#64748b', cov1: '#e2e8f0', cov2: '#cbd5e1' },
+};
+function themeOf(key) { return THEMES[key] || THEMES.teal; }
+let _formTheme = 'teal';
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg, ms = 1800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+function goBackHome() {
+  if (history.length > 1) { history.back(); return; }
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|iPhone|iPod|Mobile/i.test(ua);
+  location.replace(isMobile ? '/m' : '/');
+}
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401 && !/^\/admin/.test(path)) { location.replace('/'); return null; }
+  return r.json();
+}
+function avatarHtml(url, name) {
+  if (url) return `<img src="${escapeHtml(url)}" alt="">`;
+  const ch = (name || '?').slice(0, 1);
+  return `<div class="fb">${escapeHtml(ch)}</div>`;
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+
+async function init() {
+  if (!token) { location.replace('/'); return; }
+  const meR = await api('/api/auth/me');
+  if (!meR || !meR.success) { location.replace('/'); return; }
+  me = meR.user;
+  await load();
+}
+
+async function load() {
+  const d = await api('/api/circles');
+  if (!d || !d.success) { document.getElementById('grid').innerHTML = '<div class="empty">読み込みエラー</div>'; return; }
+  _data = d;
+  if (d.can_create) document.getElementById('btn-new').style.display = '';
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  if (!_data.circles.length) {
+    grid.innerHTML = '<div class="empty">サークルはまだありません' + (_data.can_create ? '。<br>右上の「+ 新規」から作成できます。' : '。') + '</div>';
+    return;
+  }
+  grid.innerHTML = _data.circles.map(c => {
+    let badge = '';
+    if (c.is_member) badge = '<div class="badge-state member">✓ 参加中</div>';
+    else if (c.my_request) badge = '<div class="badge-state pending">⏳ 申請中</div>';
+    else if (!c.recruiting) badge = '<div class="badge-state closed">募集停止</div>';
+    else badge = '<div class="badge-state recruit">＋ 募集中</div>';
+    const t = themeOf(c.color_theme);
+    const coverBg = `linear-gradient(135deg, ${t.cov1}, ${t.cov2})`;
+    const cover = c.cover_image
+      ? `<div class="cover" style="background:${coverBg};"><img src="${escapeHtml(c.cover_image)}" alt=""></div>`
+      : `<div class="cover" style="background:${coverBg};">${escapeHtml(c.icon || '🎯')}</div>`;
+    return `<div class="card ${!c.recruiting && !c.is_member ? 'closed' : ''}" onclick="openDetail('${c.id}')">
+      ${cover}
+      <div class="body">
+        <div class="name"><span>${escapeHtml(c.icon || '🎯')}</span> ${escapeHtml(c.name)}</div>
+        <div class="desc">${escapeHtml(c.description || '紹介文はまだありません')}</div>
+        <div class="meta">
+          ${c.lead_name ? `<span class="pill lead">👤 ${escapeHtml(c.lead_name)}</span>` : ''}
+          <span class="pill">👥 ${c.member_count || 0}人</span>
+        </div>
+        ${badge}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openDetail(id) {
+  const inner = document.getElementById('detail-modal-inner');
+  inner.innerHTML = '<div class="bd" style="text-align:center;color:#94a3b8;padding:40px;">読み込み中…</div>';
+  openModal('detail-modal');
+  const d = await api('/api/circles/' + encodeURIComponent(id));
+  if (!d || !d.success) { inner.innerHTML = '<div class="bd">読み込み失敗</div>'; return; }
+  const c = d.circle;
+  const isLead = me && c.lead_uid === me.id;
+  const t = themeOf(c.color_theme);
+  const cover = c.cover_image
+    ? `<div style="height:120px;background:url('${escapeHtml(c.cover_image)}') center/cover;"></div>`
+    : '';
+  const memberList = d.members.map(m => {
+    const isLeader = m.id === c.lead_uid;
+    const rmBtn = (d.can_manage && !isLeader) ? `<button class="btn-rm" onclick="removeMember('${c.id}','${m.id}','${escapeHtml(m.display_name)}')">外す</button>` : '';
+    return `<div class="member-row">
+      ${avatarHtml(m.avatar_url, m.display_name)}
+      <div class="nm">${escapeHtml(m.display_name)}${m.nickname && m.nickname !== m.display_name ? ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">/' + escapeHtml(m.nickname) + '</span>' : ''}</div>
+      ${isLeader ? '<span class="badge">👑 リーダー</span>' : ''}
+      ${rmBtn}
+    </div>`;
+  }).join('');
+  let requestsBlock = '';
+  if (d.can_manage && d.requests.length) {
+    requestsBlock = `<div class="sec">
+      <h3>📨 参加申請 (${d.requests.length}件)</h3>
+      ${d.requests.map(r => `<div class="req-row">
+        ${avatarHtml(r.avatar_url, r.display_name)}
+        <div class="msg"><b>${escapeHtml(r.display_name)}</b>${r.message ? '<br>' + escapeHtml(r.message) : ''}</div>
+        <button class="btn-ok" onclick="decideRequest('${c.id}','${r.id}','approve')">承認</button>
+        <button class="btn-ng" onclick="decideRequest('${c.id}','${r.id}','reject')">却下</button>
+      </div>`).join('')}
+    </div>`;
+  }
+  // アクションボタン
+  let actionsHtml = '';
+  if (d.is_member) {
+    if (isLead) {
+      actionsHtml = `<button class="btn btn-secondary" onclick="openEdit('${c.id}')">✏ 編集</button>`;
+    } else {
+      actionsHtml = `<button class="btn btn-danger" onclick="leaveCircle('${c.id}','${escapeHtml(c.name)}')">退会する</button>`;
+    }
+  } else if (d.my_request) {
+    actionsHtml = `<button class="btn btn-secondary" disabled>⏳ 申請中</button>`;
+  } else if (c.recruiting) {
+    const lbl = c.join_mode === 'open' ? '参加する' : '参加申請する';
+    actionsHtml = `<button class="btn btn-primary" style="background:linear-gradient(135deg,${t.g1},${t.g2});" onclick="requestJoin('${c.id}','${escapeHtml(c.name)}','${c.join_mode}')">${lbl}</button>`;
+  } else {
+    actionsHtml = `<button class="btn btn-secondary" disabled>募集停止中</button>`;
+  }
+  // 管理者なら編集ボタンを追加
+  const adminEdit = (d.can_manage && !isLead) ? `<button class="btn btn-secondary" onclick="openEdit('${c.id}')">✏ 編集</button>` : '';
+  inner.innerHTML = `
+    <div class="hd" style="background:linear-gradient(135deg, ${t.g1}, ${t.g2});">
+      <div class="ic">${escapeHtml(c.icon || '🎯')}</div>
+      <h2>${escapeHtml(c.name)}</h2>
+      <button class="close" onclick="closeModal('detail-modal')">✕</button>
+    </div>
+    ${cover}
+    <div class="bd">
+      <div class="sec">
+        <h3>📖 紹介</h3>
+        <div class="desc-text">${escapeHtml(c.description || '紹介文はまだありません')}</div>
+      </div>
+      ${requestsBlock}
+      <div class="sec" id="ev-sec">
+        <h3>📅 直近の予定</h3>
+        <div class="ev-list" id="ev-list"><div style="color:#94a3b8;font-size:12px;padding:6px;">読み込み中…</div></div>
+        ${d.is_member ? `
+          <button class="btn-add-event" id="btn-add-event-toggle" onclick="toggleAddEvent()">+ 予定を追加</button>
+          <div class="ev-add hidden" id="ev-add-form">
+            <input type="text" id="ev-title" maxlength="80" placeholder="例) 5月ラウンド" />
+            <div class="ev-add-row">
+              <input type="date" id="ev-date" />
+              <input type="time" id="ev-time" />
+            </div>
+            <input type="text" id="ev-location" maxlength="120" placeholder="場所 (任意)" />
+            <textarea id="ev-memo" maxlength="500" placeholder="メモ (任意)"></textarea>
+            <div class="btn-row">
+              <button style="background:#f1f5f9;color:#475569;" onclick="toggleAddEvent()">キャンセル</button>
+              <button style="background:#10b981;color:#fff;" onclick="addEvent('${c.id}', event)">追加</button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+      <div class="sec">
+        <h3>👥 メンバー (${d.members.length}人)</h3>
+        <div class="member-list">${memberList || '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだメンバーがいません</div>'}</div>
+      </div>
+      <div class="actions">
+        ${actionsHtml}
+        ${adminEdit}
+      </div>
+      <div style="text-align:center;font-size:11px;color:#94a3b8;margin-top:10px;">
+        参加方式: ${c.join_mode === 'open' ? '自由参加' : 'リーダー承認制'} ／ ${c.recruiting ? '募集中' : '募集停止'}
+      </div>
+    </div>`;
+  // 予定一覧をロード
+  window._lastDetail = d;
+  loadEvents(c.id);
+}
+
+const WD = ['日','月','火','水','木','金','土'];
+async function loadEvents(circleId) {
+  const r = await api('/api/circles/' + encodeURIComponent(circleId) + '/events');
+  const list = document.getElementById('ev-list');
+  if (!list) return;
+  if (!r || !r.success) { list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:6px;">取得失敗</div>'; return; }
+  const evs = r.events || [];
+  if (!evs.length) {
+    list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">まだ予定はありません。メンバーは「+ 予定を追加」から登録できます。</div>';
+    return;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  list.innerHTML = evs.map(e => {
+    const past = e.event_date < today;
+    let md = '';
+    let wd = '';
+    try {
+      const m = e.event_date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        const dt = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+        md = `${parseInt(m[2])}/${parseInt(m[3])}`;
+        wd = '(' + WD[dt.getDay()] + ')';
+      }
+    } catch (err) {}
+    const time = e.event_time ? `<div class="tm">${escapeHtml(e.event_time)}</div>` : '';
+    const loc = e.location ? ` ／ 📍${escapeHtml(e.location)}` : '';
+    const memo = e.memo ? `<div class="ev-memo">${escapeHtml(e.memo)}</div>` : '';
+    const canDel = (me && (e.created_by === me.id)) || (window._lastDetail && window._lastDetail.can_manage);
+    const delBtn = canDel ? `<button class="ev-del" onclick="deleteEvent('${circleId}','${e.id}')" title="削除">🗑</button>` : '';
+    return `<div class="ev-row ${past ? 'past' : ''}">
+      <div class="date-block">
+        <div class="md">${md}</div>
+        <div class="wd">${wd}</div>
+        ${time}
+      </div>
+      <div class="ev-body">
+        <div class="ev-title">${escapeHtml(e.title)}</div>
+        <div class="ev-meta">登録: ${escapeHtml(e.created_by_name || '不明')}${loc}</div>
+        ${memo}
+      </div>
+      ${delBtn}
+    </div>`;
+  }).join('');
+}
+
+function toggleAddEvent() {
+  const f = document.getElementById('ev-add-form');
+  if (!f) return;
+  f.classList.toggle('hidden');
+  if (!f.classList.contains('hidden')) {
+    // 既定値: 1週間後の今日と同じ曜日
+    const d = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+    document.getElementById('ev-date').value = d.toISOString().slice(0, 10);
+    document.getElementById('ev-title').focus();
+  }
+}
+
+let _addingEvent = false;
+async function addEvent(circleId, ev) {
+  if (_addingEvent) return; // 二重送信防止
+  const btn = ev && ev.currentTarget;
+  const payload = {
+    title: document.getElementById('ev-title').value.trim(),
+    event_date: document.getElementById('ev-date').value,
+    event_time: document.getElementById('ev-time').value || null,
+    location: document.getElementById('ev-location').value.trim(),
+    memo: document.getElementById('ev-memo').value.trim(),
+  };
+  if (!payload.title) { showToast('タイトルを入力してください'); return; }
+  if (!payload.event_date) { showToast('日付を入力してください'); return; }
+  _addingEvent = true;
+  if (btn) { btn.disabled = true; btn.textContent = '追加中…'; }
+  try {
+    const r = await api('/api/circles/' + encodeURIComponent(circleId) + '/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r || !r.success) { showToast(r && r.msg || '追加失敗'); return; }
+    showToast('予定を追加しました');
+    document.getElementById('ev-title').value = '';
+    document.getElementById('ev-time').value = '';
+    document.getElementById('ev-location').value = '';
+    document.getElementById('ev-memo').value = '';
+    toggleAddEvent();
+    loadEvents(circleId);
+  } finally {
+    _addingEvent = false;
+    if (btn) { btn.disabled = false; btn.textContent = '追加'; }
+  }
+}
+
+async function deleteEvent(circleId, eventId) {
+  if (!confirm('この予定を削除しますか？')) return;
+  const r = await api(`/api/circles/${circleId}/events/${eventId}`, { method: 'DELETE' });
+  if (!r || !r.success) { showToast(r && r.msg || '削除失敗'); return; }
+  showToast('削除しました');
+  loadEvents(circleId);
+}
+
+async function requestJoin(id, name, mode) {
+  const msg = mode === 'approve' ? prompt(`${name} に参加申請します。リーダーに伝えたいメッセージがあれば入力してください (任意)`) : '';
+  if (msg === null) return; // キャンセル
+  const r = await api('/api/circles/' + id + '/request', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg || '' }),
+  });
+  if (!r || !r.success) { showToast(r && r.msg || '申請失敗'); return; }
+  showToast(r.mode === 'joined' ? '参加しました' : '申請を送りました');
+  closeModal('detail-modal');
+  await load();
+}
+
+async function leaveCircle(id, name) {
+  if (!confirm(`「${name}」から退会しますか？`)) return;
+  const r = await api('/api/circles/' + id + '/membership', { method: 'DELETE' });
+  if (!r || !r.success) { showToast(r && r.msg || '退会失敗'); return; }
+  showToast('退会しました');
+  closeModal('detail-modal');
+  await load();
+}
+
+async function decideRequest(circleId, reqId, decision) {
+  const r = await api(`/api/circles/${circleId}/requests/${reqId}/decision`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision }),
+  });
+  if (!r || !r.success) { showToast(r && r.msg || '失敗'); return; }
+  showToast(decision === 'approve' ? '承認しました' : '却下しました');
+  await openDetail(circleId);
+  await load();
+}
+
+async function removeMember(circleId, uid, name) {
+  if (!confirm(`「${name}」をサークルから外しますか？`)) return;
+  const r = await api(`/api/circles/${circleId}/members/${uid}`, { method: 'DELETE' });
+  if (!r || !r.success) { showToast(r && r.msg || '失敗'); return; }
+  showToast('外しました');
+  await openDetail(circleId);
+  await load();
+}
+
+async function loadMemberCandidates() {
+  if (_members.length) return;
+  const r = await api('/api/members');
+  if (!r || !r.success) return;
+  _members = (r.items || []).map(u => ({ id: u.id, display_name: u.name }));
+}
+
+function renderPalette(selected) {
+  _formTheme = selected || 'teal';
+  const box = document.getElementById('f-palette');
+  box.innerHTML = Object.entries(THEMES).map(([k, t]) =>
+    `<button type="button" data-theme="${k}" class="${k === _formTheme ? 'active' : ''}" style="background:linear-gradient(135deg, ${t.g1}, ${t.g2});" title="${t.name}"><span class="chk">✓</span></button>`
+  ).join('');
+  box.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => {
+      _formTheme = btn.dataset.theme;
+      box.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.theme === _formTheme));
+      applyFormThemePreview();
+    };
+  });
+  applyFormThemePreview();
+}
+function applyFormThemePreview() {
+  const t = themeOf(_formTheme);
+  const hd = document.querySelector('#form-modal .hd');
+  if (hd) hd.style.background = `linear-gradient(135deg, ${t.g1}, ${t.g2})`;
+  const btn = document.getElementById('btn-save');
+  if (btn) btn.style.background = `linear-gradient(135deg, ${t.g1}, ${t.g2})`;
+}
+
+async function openCreate() {
+  await loadMemberCandidates();
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-icon').value = '🎯';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-mode').value = 'approve';
+  document.getElementById('f-recruit').checked = true;
+  document.getElementById('form-icon-preview').textContent = '🎯';
+  document.getElementById('form-title').textContent = '新しいサークル';
+  document.getElementById('form-err').textContent = '';
+  const sel = document.getElementById('f-lead');
+  sel.innerHTML = _members.map(m => `<option value="${m.id}" ${m.id === (me && me.id) ? 'selected' : ''}>${escapeHtml(m.display_name)}</option>`).join('');
+  renderPalette('teal');
+  openModal('form-modal');
+}
+
+async function openEdit(id) {
+  closeModal('detail-modal');
+  await loadMemberCandidates();
+  const c = _data.circles.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('f-id').value = c.id;
+  document.getElementById('f-icon').value = c.icon || '🎯';
+  document.getElementById('f-name').value = c.name;
+  document.getElementById('f-desc').value = c.description || '';
+  document.getElementById('f-mode').value = c.join_mode || 'approve';
+  document.getElementById('f-recruit').checked = !!c.recruiting;
+  document.getElementById('form-icon-preview').textContent = c.icon || '🎯';
+  document.getElementById('form-title').textContent = '編集: ' + c.name;
+  document.getElementById('form-err').textContent = '';
+  const sel = document.getElementById('f-lead');
+  sel.innerHTML = _members.map(m => `<option value="${m.id}" ${m.id === c.lead_uid ? 'selected' : ''}>${escapeHtml(m.display_name)}</option>`).join('');
+  renderPalette(c.color_theme || 'teal');
+  openModal('form-modal');
+}
+
+async function saveCircle() {
+  const id = document.getElementById('f-id').value;
+  const payload = {
+    name: document.getElementById('f-name').value.trim(),
+    icon: document.getElementById('f-icon').value.trim() || '🎯',
+    description: document.getElementById('f-desc').value.trim(),
+    lead_uid: document.getElementById('f-lead').value,
+    join_mode: document.getElementById('f-mode').value,
+    recruiting: document.getElementById('f-recruit').checked,
+    color_theme: _formTheme,
+  };
+  const errEl = document.getElementById('form-err');
+  if (!payload.name) { errEl.textContent = 'サークル名は必須'; return; }
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = '保存中…';
+  const r = id
+    ? await api('/api/circles/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    : await api('/api/circles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  btn.disabled = false; btn.textContent = '保存';
+  if (!r || !r.success) { errEl.textContent = r && r.msg || '保存失敗'; return; }
+  showToast('保存しました');
+  closeModal('form-modal');
+  await load();
+}
+
+init();
+</script>
+  <script src="/translate.js" defer></script>
+</body>
+</html>

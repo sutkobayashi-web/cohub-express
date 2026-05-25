@@ -2405,23 +2405,37 @@ function isContinuation(prev, curr) {
 // 前回renderしたコンテキストとメッセージ数を記憶 (スクロール挙動の判定用)
 let _lastRenderCtx = null;
 let _lastRenderCount = 0;
+// 描画する直近メッセージ件数の上限 (履歴肥大時に全再描画コストが膨らむのを防ぐ)。
+// スレッド切替で60に戻し、「以前を表示」で拡張。0=無制限。
+let RENDER_LIMIT = 60;
+function expandRenderWindow() { RENDER_LIMIT = (RENDER_LIMIT || 0) + 200; renderMessages(); }
+// 二重送信ガード用 (直近送信の宛先/本文/時刻)
+let _lastSent = { key: '', content: '', at: 0 };
 function renderMessages() {
   const msgsEl = $('msgs');
   // ★ 再描画前に「ユーザーが下端付近を見ているか」を判定
   const wasAtBottom = msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 120;
   const k = ctxKey();
-  const arr = (k && messageCache.get(k)) || [];
+  // スレッドが切り替わったら表示ウィンドウを初期化
+  if (k !== _lastRenderCtx) RENDER_LIMIT = 60;
+  const fullArr = (k && messageCache.get(k)) || [];
+  // 直近 RENDER_LIMIT 件だけ描画 (グループ化/既読ロジックは不変、対象配列を絞るだけ)
+  const windowed = (RENDER_LIMIT > 0 && fullArr.length > RENDER_LIMIT);
+  const arr = windowed ? fullArr.slice(-RENDER_LIMIT) : fullArr;
   // チャット切替 or 履歴大量読み込み = 初期表示扱い (即時jump)
   // 同じスレッドで新着1〜2件 = スムーズスクロール
-  const isInitialLoad = (k !== _lastRenderCtx) || (arr.length - _lastRenderCount) > 2;
+  const isInitialLoad = (k !== _lastRenderCtx) || (fullArr.length - _lastRenderCount) > 2;
   _lastRenderCtx = k;
-  _lastRenderCount = arr.length;
-  if (!arr.length) {
+  _lastRenderCount = fullArr.length;
+  if (!fullArr.length) {
     msgsEl.innerHTML = '<div class="empty" style="padding:50px 14px;text-align:center;color:#94a3b8;"><div style="font-size:36px;opacity:0.4;margin-bottom:6px;">💬</div>まだメッセージがありません<br><span style="font-size:11px;">最初の一言を書いてみましょう</span></div>';
     return;
   }
   let lastDay = '';
   const parts = [];
+  if (windowed) {
+    parts.push('<div style="text-align:center;padding:8px;"><button type="button" onclick="expandRenderWindow()" style="background:#eef4fb;border:1px solid #cbd5e1;border-radius:999px;padding:6px 16px;font-size:12px;color:#475569;cursor:pointer;font-weight:700;">▲ 以前のメッセージを表示</button></div>');
+  }
   for (let i = 0; i < arr.length; i++) {
     const m = arr[i];
     const next = arr[i + 1];
@@ -2801,6 +2815,15 @@ function send() {
     updateSelectionUI();
     return;
   }
+  // 二重送信ガード: 同一宛先へ同一本文を1.5秒以内に再送しない (重い再描画中の連打対策)
+  const _tgt = (currentMode === 'dm' && currentDmPeer) ? 'dm_' + currentDmPeer.id
+             : (currentMode === 'group' && currentGid) ? 'g_' + currentGid : '';
+  if (!_tgt) return;
+  const _now = Date.now();
+  if (_lastSent.key === _tgt && _lastSent.content === t && (_now - _lastSent.at) < 1500) {
+    $('input-text').value = ''; $('input-text').style.height = '40px'; return;
+  }
+  _lastSent = { key: _tgt, content: t, at: _now };
   if (currentMode === 'group' && currentGid) {
     socket.emit('chat:group', { group_id: currentGid, content: t });
   } else if (currentMode === 'dm' && currentDmPeer) {
@@ -2808,6 +2831,9 @@ function send() {
   } else {
     return;
   }
+  // 入力欄は楽観描画より先にクリア (反応が鈍くても空になっているので誤連打を防ぐ)
+  $('input-text').value = '';
+  $('input-text').style.height = '40px';
   appendMessage({
     id: 'pending_' + Date.now(),
     sender_id: me.uid,
@@ -2817,8 +2843,6 @@ function send() {
     content: t,
     created_at: new Date().toISOString(),
   });
-  $('input-text').value = '';
-  $('input-text').style.height = '40px';
 }
 
 function toggleSide() { $('side').classList.toggle('collapsed'); }

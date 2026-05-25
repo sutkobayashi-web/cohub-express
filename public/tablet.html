@@ -53,13 +53,69 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 .msg.info { color: var(--mute); }
 .foot { text-align: center; padding: 14px; color: var(--mute); font-size: 12px; }
 .foot a { color: var(--accent-d); text-decoration: none; font-weight: 600; }
+
+/* 個人スマホ誘導パネル (QR + Wi-Fi) */
+.invite-panel {
+  background: linear-gradient(135deg, #f0fdfa, #ecfeff);
+  border-bottom: 2px solid #99f6e4;
+  padding: 14px 18px;
+  display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap;
+}
+.invite-box {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 12px 14px; display: flex; gap: 14px; align-items: center;
+  flex: 1; min-width: 280px;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.05);
+}
+.invite-box .qr-img { width: 130px; height: 130px; background: #fff; border-radius: 8px; flex-shrink: 0; }
+.invite-box .qr-img img, .invite-box .qr-img svg { width: 100%; height: 100%; display: block; }
+.invite-box .qr-meta { flex: 1; min-width: 0; }
+.invite-box .qr-meta .title { font-size: 16px; font-weight: 800; color: var(--accent-d); margin-bottom: 4px; }
+.invite-box .qr-meta .desc { font-size: 12px; color: var(--mute); line-height: 1.55; margin-bottom: 6px; }
+.invite-box .qr-meta .url { font-size: 13px; color: #0f172a; font-weight: 700; word-break: break-all; }
+.invite-box.wifi .title { color: #1e40af; }
+.invite-box.wifi .ssid { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
+.invite-box.wifi .pw { font-size: 14px; color: #475569; font-family: ui-monospace, "Menlo", monospace; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; display: inline-block; }
+.invite-box.wifi .empty-msg { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+.invite-box .pw-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.invite-box .pw-toggle { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; color: #475569; }
+.invite-box .meta-foot { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+@media (max-width: 720px) {
+  .invite-box .qr-img { width: 100px; height: 100px; }
+}
 </style>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 <div class="hd">
   <div>
     <div class="ttl">📱 CoWell タブレットログイン</div>
     <div class="sub">自分のアバターをタップしてPINを入力してください</div>
+  </div>
+</div>
+<div class="invite-panel">
+  <div class="invite-box">
+    <div class="qr-img" id="qr-url"></div>
+    <div class="qr-meta">
+      <div class="title">📱 個人スマホからもOK</div>
+      <div class="desc">タブレットが混雑する時は、ご自身のスマホで読み取ってログイン (拠点Wi-Fi経由)。</div>
+      <div class="url" id="qr-url-text"></div>
+    </div>
+  </div>
+  <div class="invite-box wifi" id="wifi-box">
+    <div class="qr-img" id="qr-wifi"></div>
+    <div class="qr-meta" id="wifi-meta">
+      <div class="title">📶 拠点Wi-Fi</div>
+      <div class="empty-msg" id="wifi-empty">拠点を選択するとWi-Fi情報が表示されます。<br>未登録の場合は推進メンバーへ連絡。</div>
+      <div id="wifi-content" style="display:none;">
+        <div class="ssid" id="wifi-ssid"></div>
+        <div class="pw-row">
+          <span class="pw" id="wifi-pw">●●●●●●●●</span>
+          <button class="pw-toggle" onclick="toggleWifiPw()">表示</button>
+        </div>
+        <div class="meta-foot" id="wifi-updated"></div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="bar">
@@ -109,6 +165,84 @@ let submitting = false;
 
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
+// 拠点別Wi-Fi (タブレットキオスク用)
+let branchWifi = {};
+let wifiPwRevealed = false;
+
+function setQrUrl() {
+  // 個人スマホ向けログイン誘導
+  const url = location.origin + '/';
+  document.getElementById('qr-url-text').textContent = url;
+  const img = document.createElement('img');
+  img.src = '/api/branch-wifi/qr?t=' + encodeURIComponent(url);
+  img.alt = 'CoWell QR';
+  const box = document.getElementById('qr-url');
+  box.innerHTML = '';
+  box.appendChild(img);
+}
+
+async function loadBranchWifi() {
+  try {
+    const r = await fetch('/api/branch-wifi/list').then(x => x.json());
+    if (r && r.success) {
+      branchWifi = {};
+      for (const b of r.branches || []) branchWifi[b.code] = b;
+    }
+  } catch (e) {}
+  updateWifiPanel();
+}
+
+function updateWifiPanel() {
+  const code = document.getElementById('f-co').value;
+  // 全拠点(空) or 該当拠点なし
+  const w = code ? branchWifi[code] : null;
+  const empty = document.getElementById('wifi-empty');
+  const content = document.getElementById('wifi-content');
+  const qrBox = document.getElementById('qr-wifi');
+  if (!w || !w.wifi_ssid) {
+    empty.style.display = '';
+    content.style.display = 'none';
+    qrBox.innerHTML = '';
+    const hint = !code
+      ? '拠点を選択するとWi-Fi情報が表示されます。'
+      : 'この拠点のWi-Fi未登録。<br>推進メンバーへ登録依頼してください。';
+    empty.innerHTML = hint;
+    return;
+  }
+  empty.style.display = 'none';
+  content.style.display = '';
+  document.getElementById('wifi-ssid').textContent = 'SSID: ' + w.wifi_ssid;
+  wifiPwRevealed = false;
+  const pwEl = document.getElementById('wifi-pw');
+  pwEl.textContent = '●●●●●●●●';
+  pwEl.dataset.pw = w.wifi_password || '';
+  document.querySelector('.pw-toggle').textContent = '表示';
+  const upd = document.getElementById('wifi-updated');
+  upd.textContent = w.wifi_updated_at ? '最終更新: ' + w.wifi_updated_at.slice(0, 16).replace('T', ' ') : '';
+  // WiFi QR (WIFI:S:<SSID>;T:<TYPE>;P:<PASS>;;)
+  const escWifi = s => String(s || '').replace(/[\\;,":]/g, c => '\\' + c);
+  const sec = (w.wifi_security || 'WPA').toUpperCase();
+  const wifiUri = `WIFI:S:${escWifi(w.wifi_ssid)};T:${sec};P:${escWifi(w.wifi_password || '')};;`;
+  const img = document.createElement('img');
+  img.src = '/api/branch-wifi/qr?t=' + encodeURIComponent(wifiUri);
+  img.alt = 'WiFi QR';
+  qrBox.innerHTML = '';
+  qrBox.appendChild(img);
+}
+
+function toggleWifiPw() {
+  const pwEl = document.getElementById('wifi-pw');
+  const btn = document.querySelector('.pw-toggle');
+  wifiPwRevealed = !wifiPwRevealed;
+  if (wifiPwRevealed) {
+    pwEl.textContent = pwEl.dataset.pw || '(空)';
+    btn.textContent = '隠す';
+  } else {
+    pwEl.textContent = '●●●●●●●●';
+    btn.textContent = '表示';
+  }
+}
+
 async function init() {
   // ?demo=1 ならログイン済みでもキオスク画面を表示 (PC版からのプレビュー用)
   const demoMode = new URLSearchParams(location.search).get('demo') === '1';
@@ -124,9 +258,24 @@ async function init() {
     banner.innerHTML = '👀 プレビューモード (PC版からの表示確認)　<a href="/home" style="color:#0f766e;font-weight:700;">← ホームに戻る</a>';
     document.body.insertBefore(banner, document.body.firstChild);
   }
+  setQrUrl();
   await loadRoster();
+  await loadBranchWifi();
+  // 前回選択した拠点を復元
+  try {
+    const saved = localStorage.getItem('cohub_tablet_co');
+    if (saved && document.querySelector('#f-co option[value="' + saved + '"]')) {
+      document.getElementById('f-co').value = saved;
+      render();
+      updateWifiPanel();
+    }
+  } catch (e) {}
   document.getElementById('f-q').addEventListener('input', render);
-  document.getElementById('f-co').addEventListener('change', render);
+  document.getElementById('f-co').addEventListener('change', () => {
+    render();
+    updateWifiPanel();
+    try { localStorage.setItem('cohub_tablet_co', document.getElementById('f-co').value); } catch (e) {}
+  });
   // 数字キー対応 (BTキーボード/外付け用)
   document.addEventListener('keydown', e => {
     if (!document.getElementById('modal').classList.contains('show')) return;
@@ -245,5 +394,6 @@ async function trySubmit() {
 
 init();
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

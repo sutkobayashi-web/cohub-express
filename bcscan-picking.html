@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f3f4f6">
+<title>ピッキング (ドライバー用)</title>
+<link rel="manifest" href="picking-manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="picking-icon-192.png">
+<!-- iOS Safari: ホーム画面に追加時のPWA化 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ピッキング">
+<link rel="apple-touch-icon" sizes="180x180" href="picking-icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="picking-icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="picking-icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="picking-icon-120.png">
+<link rel="apple-touch-icon" href="picking-icon-180.png">
+<!-- html5-qrcode: iOS/Android両対応の実績ライブラリ (QR + 1Dバーコード) -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root { --fs-scale: 1; }
+  html { font-size: calc(16px * var(--fs-scale)); }
+  html, body { height:100%; background:#f3f4f6; color:#0f172a;
+    font-family:-apple-system,'Segoe UI','Hiragino Sans','Meiryo',sans-serif; }
+  /* フォントサイズ切替ボタン (右上固定) */
+  .fs-toggle { position:fixed; top:calc(env(safe-area-inset-top, 0) + 6px); right:6px; z-index:400; display:flex; gap:2px; background:rgba(15,23,42,0.9); border:1px solid #475569; border-radius:6px; padding:2px; }
+  .fs-toggle button { padding:3px 7px; border:none; background:transparent; color:#e2e8f0; border-radius:4px; cursor:pointer; font-size:11px; font-weight:800; min-width:26px; font-family:inherit; }
+  .fs-toggle button.active { background:#0891b2; color:#fff; }
+  /* 明細行の数量入力や操作ボタンもスケール時に見やすく */
+  body.fs-l .item-row, body.fs-xl .item-row { padding:14px; }
+  body.fs-l .pick-btn, body.fs-xl .pick-btn { padding:14px 20px; font-size:1.1em; }
+  /* スキャナーオーバーレイのカードはスケール時に高さが増えるので下固定の位置を調整 */
+  body.fs-l .scanner-last, body.fs-xl .scanner-last { bottom:calc(env(safe-area-inset-bottom, 20px) + 140px); }
+  body { padding:env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0); }
+  .header { padding:14px; background:#ffffff; position:sticky; top:0; z-index:10; border-bottom:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(15,23,42,0.04); color:#0f172a; }
+  .header h1 { font-size:1rem; font-weight:800; color:#0f172a; }
+  .header .sub { font-size:0.75rem; color:#64748b; margin-top:2px; }
+  .content { padding:14px; }
+  .input { background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; padding:14px 16px; border-radius:12px; font-size:1rem; width:100%; outline:none; }
+  .input:focus { border-color:#06b6d4; background:#ffffff; box-shadow:0 0 0 3px rgba(6,182,212,0.12); }
+  .btn { background:linear-gradient(135deg,#0ea5e9,#0891b2); border:none; color:#fff; padding:14px 20px; border-radius:12px; font-weight:800; font-size:0.95rem; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(14,165,233,0.25); }
+  .btn:disabled { background:#e5e7eb; color:#94a3b8; box-shadow:none; cursor:not-allowed; }
+  .btn-sub { background:#f1f5f9; color:#334155; padding:10px 14px; font-size:0.85rem; box-shadow:none; border:1px solid #e5e7eb; }
+  .site-card { background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; margin-bottom:10px; box-shadow:0 1px 2px rgba(15,23,42,0.04); }
+  .site-card.ready { border-color:#10b981; }
+  .site-card.done { opacity:0.55; }
+  .site-card.waiting { opacity:0.55; }
+  .site-name { font-weight:800; font-size:0.95rem; margin-bottom:4px; color:#0f172a; }
+  .site-meta { font-size:0.72rem; color:#64748b; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .badge { padding:2px 8px; border-radius:8px; font-size:0.7rem; font-weight:700; }
+  .badge-route { background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc; }
+  .badge-dealer { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+  .badge-arrival { background:#0891b2; color:#fff; border:1px solid #0891b2; font-weight:900; padding:3px 10px; font-size:0.78rem; letter-spacing:0.02em; }
+  .badge-arrival.next { background:#059669; border-color:#059669; box-shadow:0 0 0 3px rgba(5,150,105,0.2); }
+  .badge-order { background:#f8fafc; color:#334155; border:1px solid #cbd5e1; font-weight:800; padding:3px 8px; font-size:0.72rem; }
+  .badge-eta { background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; font-weight:800; padding:3px 8px; font-size:0.72rem; }
+  .badge-timespec { background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:800; padding:3px 8px; font-size:0.72rem; }
+  .badge-status-ready { background:#10b981; color:#fff; }
+  .badge-status-done { background:#94a3b8; color:#fff; }
+  .badge-status-waiting { background:#ef4444; color:#fff; }
+  .item-row { display:flex; align-items:center; gap:10px; padding:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:6px; }
+  .item-row.done { opacity:0.5; }
+  .item-name { flex:1; min-width:0; }
+  .item-name .cd { font-size:0.7rem; color:#0891b2; font-family:monospace; }
+  .item-name .nm { font-size:0.85rem; font-weight:700; margin-top:2px; color:#0f172a; }
+  .item-qty { font-weight:900; font-size:1.05rem; min-width:60px; text-align:right; }
+  .item-qty .picked { color:#059669; }
+  .item-qty .total { color:#94a3b8; }
+  .pick-btn { background:#10b981; border:none; color:#fff; padding:10px 16px; border-radius:8px; font-weight:800; cursor:pointer; }
+  .pick-btn:disabled { background:#e5e7eb; color:#94a3b8; cursor:not-allowed; }
+  .progress-bar { height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden; margin-top:6px; }
+  .progress-bar > div { height:100%; background:linear-gradient(90deg,#10b981,#34d399); transition:width 0.3s; }
+  .scanner { position:fixed; inset:0; background:#000; z-index:100; display:none; flex-direction:column; }
+  #scan-video { position:absolute; inset:0; width:100% !important; height:100% !important; }
+  #scan-video video { position:absolute !important; top:0 !important; left:0 !important;
+    width:100% !important; height:100% !important; object-fit:cover !important;
+    display:block !important; max-width:none !important; max-height:none !important; }
+  /* html5-qrcodeが内部に作る子divたちも全面化 */
+  #scan-video > div { position:absolute !important; inset:0 !important;
+    width:100% !important; height:100% !important; }
+  .scanner-cancel { position:absolute; top:env(safe-area-inset-top, 0); right:0; padding:14px; background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:1rem; z-index:103; border-radius:0 0 0 12px; }
+  .scanner-header { position:absolute; top:env(safe-area-inset-top, 0); left:0; right:60px; padding:10px 14px; background:rgba(0,0,0,0.55); color:#fff; z-index:103; font-size:0.8rem; }
+  .scanner-header .site { font-weight:800; font-size:0.95rem; }
+  .scanner-header .rem { margin-top:2px; color:#a7f3d0; }
+  /* 読取ウィンドウ: 周囲を暗フロスト化+L字ブラケット+走査線 */
+  .scan-viewport {
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%, -50%);
+    width:min(86%, 420px); height:min(26vh, 200px);
+    border-radius:14px; z-index:101; pointer-events:none;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    border:1px solid rgba(255,255,255,0.15);
+    overflow:hidden;
+    transition:box-shadow 0.25s, border-color 0.25s;
+  }
+  .scan-viewport.ok { box-shadow:0 0 0 9999px rgba(6,78,59,0.55); border-color:#10b981; }
+  .scan-viewport.dup { box-shadow:0 0 0 9999px rgba(120,53,15,0.55); border-color:#f59e0b; }
+  .scan-viewport.ng { box-shadow:0 0 0 9999px rgba(127,29,29,0.6); border-color:#ef4444; }
+  .scan-viewport .corner { position:absolute; width:26px; height:26px; border:3px solid #fb7185; }
+  .scan-viewport .c-tl { top:-1px; left:-1px; border-right:none; border-bottom:none; border-top-left-radius:14px; }
+  .scan-viewport .c-tr { top:-1px; right:-1px; border-left:none; border-bottom:none; border-top-right-radius:14px; }
+  .scan-viewport .c-bl { bottom:-1px; left:-1px; border-right:none; border-top:none; border-bottom-left-radius:14px; }
+  .scan-viewport .c-br { bottom:-1px; right:-1px; border-left:none; border-top:none; border-bottom-right-radius:14px; }
+  .scan-line { position:absolute; left:8%; right:8%; height:2px;
+    background:linear-gradient(90deg, transparent, #fb7185 20%, #fecaca 50%, #fb7185 80%, transparent);
+    box-shadow:0 0 10px rgba(251,113,133,0.85);
+    animation:sweepY 1.9s ease-in-out infinite;
+  }
+  @keyframes sweepY { 0%,100% { top:8%; } 50% { top:88%; } }
+  .scanner-last { position:absolute; bottom:calc(env(safe-area-inset-bottom, 20px) + 110px); left:14px; right:14px; padding:16px; background:rgba(0,0,0,0.78); color:#fff; border-radius:14px; z-index:102; text-align:center; border:2px solid rgba(255,255,255,0.15); transition:border-color 0.2s, background 0.2s; }
+  .scanner-last.ok { border-color:#10b981; background:rgba(6,95,70,0.85); }
+  .scanner-last.dup { border-color:#f59e0b; background:rgba(120,53,15,0.85); }
+  .scanner-last.ng { border-color:#ef4444; background:rgba(127,29,29,0.85); }
+  .scanner-last .nm { font-size:1.35rem; font-weight:900; line-height:1.25; word-break:break-all; }
+  .scanner-last .qty { font-size:2.6rem; font-weight:900; margin-top:6px; letter-spacing:0.02em; }
+  .scanner-last .meta { font-size:0.85rem; color:#e2e8f0; margin-top:4px; }
+  .scanner-last .hint { font-size:0.8rem; color:#cbd5e1; margin-top:8px; }
+  .scanner-mode { position:absolute; bottom:calc(env(safe-area-inset-bottom, 20px) + 20px); left:14px; right:14px; text-align:center; color:#fff; font-size:0.85rem; z-index:102; }
+  .scanner-mode .chip { display:inline-block; padding:6px 12px; border-radius:999px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); }
+  .scanner-mode .chip.rapid { background:#b45309; border-color:#fbbf24; font-weight:800; }
+  .scanner-status { position:absolute; bottom:env(safe-area-inset-bottom, 20px); left:14px; right:14px; padding:12px; background:rgba(0,0,0,0.7); color:#fff; border-radius:12px; text-align:center; font-size:0.9rem; z-index:101; }
+  .toast { position:fixed; bottom:env(safe-area-inset-bottom, 20px); left:14px; right:14px; padding:14px; border-radius:12px; font-weight:800; text-align:center; z-index:200; opacity:0; transform:translateY(20px); transition:0.3s; pointer-events:none; color:#fff; }
+  .toast.ok { background:#059669; }
+  .toast.ng { background:#dc2626; }
+  .toast.show { opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="fs-toggle">
+  <button data-scale="1.0">標準</button>
+  <button data-scale="1.2">大</button>
+  <button data-scale="1.4">特大</button>
+</div>
+
+<div id="step-vehicle" class="content">
+  <div style="background:#0891b2;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:0.78rem;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+    <div>📱 <b>ドライバー端末</b> — 自分の号車のピック作業</div>
+    <a href="register.html" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:6px 14px;border-radius:8px;text-decoration:none;font-weight:800;font-size:0.85rem;box-shadow:0 2px 8px rgba(217,119,6,0.40);border:1px solid #fbbf24;">📝 マスタ登録</a><a href="https://cohub.biz-terrace.org/takara/admin.html" style="background:#0d9488;color:#fff;padding:4px 10px;border-radius:6px;text-decoration:none;font-weight:700;font-size:0.75rem;">← 戻る</a><a href="home.html" style="background:#064e3b;color:#a7f3d0;padding:4px 10px;border-radius:6px;text-decoration:none;font-weight:700;font-size:0.75rem;">🟢 倉庫モニター</a>
+  </div>
+  <h1 style="font-size:1.3rem;margin-bottom:8px;">📦 ピッキング</h1>
+  <p style="color:#64748b; margin-bottom:18px; font-size:0.85rem;">ドライバー名と実号車を選んで開始してください。</p>
+
+  <label style="display:block;font-size:0.78rem;color:#64748b;margin-bottom:6px;">ドライバー名</label>
+  <input id="driver-input" class="input" type="text" placeholder="例: 山田 太郎" autocomplete="name" style="margin-bottom:14px;">
+
+  <label style="display:block;font-size:0.78rem;color:#64748b;margin-bottom:6px;">実号車</label>
+  <select id="vehicle-select" class="input" style="margin-bottom:14px;font-size:1.2rem;font-weight:800;text-align:center;text-align-last:center;">
+    <option value="">-- 当日の号車を読込中 --</option>
+  </select>
+
+  <button id="vehicle-go" class="btn">ピッキング開始</button>
+  <button id="vehicle-reload" class="btn btn-sub" style="margin-top:8px;">🔄 号車リスト再読込</button>
+  <div id="vehicle-msg" style="margin-top:10px;color:#b45309;font-size:0.8rem;text-align:center;"></div>
+</div>
+
+<div id="step-sites" style="display:none;">
+  <div class="header">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="background:linear-gradient(135deg,#0ea5e9,#0891b2); color:#fff; padding:8px 14px; border-radius:12px; font-weight:900; display:flex; flex-direction:column; align-items:center; min-width:78px;">
+        <div style="font-size:0.65rem; opacity:0.85; letter-spacing:0.1em;">号車</div>
+        <div id="header-vehicle" style="font-size:1.6rem; line-height:1;">---</div>
+      </div>
+      <div style="flex:1; min-width:0;">
+        <div id="header-driver" style="font-size:0.95rem; font-weight:800; color:#0f172a;">ドライバー</div>
+        <div id="header-company" style="font-size:0.7rem; font-weight:700; color:#64748b; margin-top:1px; display:none;"></div>
+        <div class="sub" id="header-sub" style="margin-top:2px;">--</div>
+        <div id="pick-timer" style="margin-top:4px; font-size:0.95rem; font-weight:800; color:#0891b2; font-variant-numeric:tabular-nums;">⏱ 0:00</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+      <button id="reload-btn" class="btn btn-sub">🔄 更新</button>
+      <button id="back-btn" class="btn btn-sub">🚐 号車変更</button>
+      <button id="memo-sites-btn" class="btn btn-sub" style="background:#fef2f2;color:#b91c1c;border-color:#fecaca;">📸 不具合メモ</button>
+    </div>
+  </div>
+  <div class="content">
+    <div id="overall-progress" style="margin-bottom:14px;background:#ffffff;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(15,23,42,0.04);"></div>
+    <button id="open-all-scan" class="btn" style="margin-bottom:8px;background:linear-gradient(135deg,#059669,#0891b2);font-size:1.1rem;padding:18px;">📷 スキャン開始 / 再開</button>
+    <div style="font-size:0.78rem; color:#64748b; margin-bottom:14px;">商品を選ばずそのまま読み込めば自動で現場に振り分けます。下の現場カードは進捗確認用。</div>
+    <div id="dispatch-summary" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;margin-bottom:14px;box-shadow:0 1px 2px rgba(15,23,42,0.04);"></div>
+    <div id="sites-list"></div>
+  </div>
+</div>
+
+<div id="step-items" style="display:none;">
+  <div class="header">
+    <h1 id="items-title">現場名</h1>
+    <div class="sub" id="items-sub">--</div>
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button id="back-to-sites" class="btn btn-sub" style="flex:1;">← 現場一覧</button>
+    </div>
+  </div>
+  <div class="content">
+    <div id="items-list"></div>
+  </div>
+</div>
+
+<!-- Camera Scanner -->
+<div id="scanner" class="scanner">
+  <div id="scan-video" style="background:#000;"></div>
+  <div class="scan-viewport" id="scan-viewport">
+    <span class="corner c-tl"></span><span class="corner c-tr"></span>
+    <span class="corner c-bl"></span><span class="corner c-br"></span>
+    <div class="scan-line"></div>
+  </div>
+  <div class="scanner-header">
+    <div class="site" id="scan-site">--</div>
+    <div class="rem" id="scan-rem">--</div>
+  </div>
+  <button class="scanner-cancel" onclick="stopScanner()">✕ 閉じる</button>
+  <button id="memo-btn" style="position:absolute; top:env(safe-area-inset-top,0); right:68px; padding:14px; background:rgba(239,68,68,0.85); color:#fff; border:none; font-size:1rem; z-index:103; border-radius:0 0 12px 12px; font-weight:800;">📸 写真メモ</button>
+  <div class="scanner-last" id="scan-last">
+    <div class="nm" id="scan-last-nm">バーコードを枠内に</div>
+    <div class="qty" id="scan-last-qty"></div>
+    <div class="meta" id="scan-last-meta"></div>
+    <div class="hint" id="scan-last-hint">音と振動で判定を伝えます</div>
+  </div>
+  <div class="scanner-mode" id="scan-mode"><span class="chip" id="scan-mode-chip">通常モード</span></div>
+  <div class="scanner-status" id="scan-status" style="display:none;"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- 商品不具合メモモーダル (写真+メモ) -->
+<div id="memo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;padding:12px;overflow-y:auto;">
+  <div style="max-width:520px;margin:20px auto;background:#1e293b;color:#f1f5f9;border-radius:14px;padding:18px;border:1px solid #475569;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="color:#fca5a5;font-size:1.1rem;">📸 商品不具合メモ</h3>
+      <button id="memo-close" style="background:transparent;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer;padding:4px 10px;">×</button>
+    </div>
+    <div id="memo-context" style="font-size:0.78rem;color:#cbd5e1;background:#0f172a;padding:8px 10px;border-radius:6px;margin-bottom:12px;">---</div>
+
+    <label style="display:block;font-size:0.8rem;color:#cbd5e1;margin-bottom:4px;">写真 (最大3枚、箱や商品の異常箇所を撮影)</label>
+    <input type="file" id="memo-file" accept="image/*" capture="environment" multiple style="width:100%;padding:10px;background:#0f172a;color:#f1f5f9;border:1px solid #475569;border-radius:8px;margin-bottom:8px;">
+    <div id="memo-preview" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;min-height:0;"></div>
+
+    <label style="display:block;font-size:0.8rem;color:#cbd5e1;margin-bottom:4px;">メモ (任意)</label>
+    <textarea id="memo-text" placeholder="例: 箱の角が潰れている、ラベル剥がれ、水濡れ跡、など" style="width:100%;min-height:80px;padding:10px;background:#0f172a;color:#f1f5f9;border:1px solid #475569;border-radius:8px;resize:vertical;font-family:inherit;"></textarea>
+
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button id="memo-cancel" style="flex:1;background:#475569;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:800;cursor:pointer;">キャンセル</button>
+      <button id="memo-submit" style="flex:1;background:#dc2626;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:900;cursor:pointer;">📤 送信</button>
+    </div>
+    <div id="memo-status" style="margin-top:10px;font-size:0.8rem;color:#94a3b8;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- 号車完了サマリモーダル -->
+<div id="done-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:400;padding:14px;overflow-y:auto;">
+  <div style="background:linear-gradient(135deg,#059669,#065f46);color:#fff;border-radius:14px;padding:20px;max-width:460px;margin:40px auto;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+    <div style="text-align:center;font-size:3rem;margin-bottom:4px;">🎉</div>
+    <div style="text-align:center;font-size:1.2rem;font-weight:900;margin-bottom:2px;">号車完了</div>
+    <div style="text-align:center;font-size:0.85rem;opacity:0.9;margin-bottom:18px;" id="done-subtitle">--</div>
+    <div id="done-stats" style="background:rgba(0,0,0,0.25);border-radius:10px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;"></div>
+    <div id="done-eta-compare" style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;margin-bottom:18px;font-size:0.85rem;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="done-next" style="flex:1;background:#fff;color:#065f46;border:none;padding:14px;border-radius:10px;font-weight:900;font-size:1rem;cursor:pointer;">🚐 次の号車へ</button>
+      <button id="done-finish" style="flex:1;background:rgba(0,0,0,0.3);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:14px;border-radius:10px;font-weight:900;font-size:1rem;cursor:pointer;">🏁 本日終了</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STATE = { vehicle: null, date: null, driver: null, sites: [], currentSite: null, sessionStartedAt: null, sessionEndedAt: null, sortMode: 'arrival' };
+const KEY_VEHICLE = 'bcscan_picker_vehicle';
+const KEY_DRIVER = 'bcscan_picker_driver';
+
+// ピッキング経過時間タイマー
+let timerInterval = null;
+function formatElapsed(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  return m + ':' + String(s).padStart(2,'0');
+}
+function updateTimer() {
+  const el = document.getElementById('pick-timer');
+  if (!el || !STATE.sessionStartedAt) return;
+  const end = STATE.sessionEndedAt || Date.now();
+  const elapsed = end - STATE.sessionStartedAt;
+  el.textContent = (STATE.sessionEndedAt ? '✅ ' : '⏱ ') + formatElapsed(elapsed);
+  if (STATE.sessionEndedAt) el.style.color = '#059669';
+  else el.style.color = '#0891b2';
+}
+function startTimer() {
+  updateTimer();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+}
+function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
+
+async function startPickSession() {
+  if (!STATE.vehicle || !STATE.date || !STATE.driver) return;
+  try {
+    const r = await api('/picking/session/start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ date: STATE.date, vehicle_no: STATE.vehicle, driver_name: STATE.driver })
+    });
+    if (r && r.session) {
+      STATE.sessionStartedAt = r.session.started_at;
+      STATE.sessionEndedAt = r.session.ended_at;
+      startTimer();
+    }
+  } catch(e) { console.warn('session/start failed', e); }
+}
+async function endPickSession() {
+  if (!STATE.vehicle || !STATE.date) return;
+  try {
+    await api('/picking/session/end', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ date: STATE.date, vehicle_no: STATE.vehicle })
+    });
+    STATE.sessionEndedAt = Date.now();
+    updateTimer();
+  } catch(e) {}
+}
+
+function todayYmd() {
+  // URLに ?date=YYYYMMDD があればそれ優先(デモ用)
+  try {
+    const u = new URL(window.location.href);
+    const q = u.searchParams.get('date');
+    if (q && /^\d{8}$/.test(q)) return q;
+  } catch(e) {}
+  const d = new Date();
+  return d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || 'ok');
+  setTimeout(() => { t.className = 'toast ' + (type || 'ok'); }, 1800);
+}
+
+function setStep(step) {
+  ['vehicle', 'sites', 'items'].forEach(s => {
+    document.getElementById('step-' + s).style.display = 'none';
+  });
+  document.getElementById('step-' + step).style.display = 'block';
+}
+
+async function api(path, opts) {
+  const r = await fetch('/bcscan/api' + path, opts);
+  return r.json();
+}
+
+function abbreviateCompany(name) {
+  if (!name) return '';
+  const s = String(name);
+  if (/スタンダード運輸/.test(s)) return 'SU';
+  if (/湘栄サービス/.test(s)) return '湘';
+  if (/[ｶカ][ｰー][ﾚレ][ﾝン][ﾄト]サービス/.test(s)) return 'カー';
+  // フォールバック: 最初の2文字
+  return s.slice(0, 2);
+}
+
+async function loadSites() {
+  const d = await api('/picking/driver/' + encodeURIComponent(STATE.vehicle) + '?date=' + STATE.date);
+  STATE.sites = d.sites || [];
+  STATE.company = d.company || null;
+  const coEl = document.getElementById('header-company');
+  if (coEl) {
+    if (STATE.company) { coEl.textContent = '🏢 ' + abbreviateCompany(STATE.company); coEl.style.display = 'block'; }
+    else coEl.style.display = 'none';
+  }
+  renderSites();
+  return d;
+}
+
+// 初回ロード後にスキャナーが起動していなければ自動起動
+async function loadSitesAndStartScanner() {
+  await loadSites();
+  if (!scannerActive && STATE.sites.length > 0) {
+    STATE.currentSite = null; // 全体スキャンモード
+    startScanner();
+  }
+}
+
+function renderDispatchSummary() {
+  const box = document.getElementById('dispatch-summary');
+  if (!box) return;
+  if (!STATE.sites || STATE.sites.length === 0) { box.innerHTML = ''; return; }
+  const byRoute = {};
+  STATE.sites.forEach(s => {
+    const key = (s.source_route || '') + '|' + (s.is_dealer ? 'd' : 'r');
+    if (!byRoute[key]) byRoute[key] = {
+      route: s.source_route || '',
+      label: s.arrival_label,
+      arrived: s.arrived,
+      is_dealer: s.is_dealer,
+      sites: 0, qty: 0, picked: 0, size: 0,
+      eta_min: null, eta_max: null, time_spec_count: 0,
+      done_sites: 0,
+    };
+    const r = byRoute[key];
+    r.sites++;
+    r.qty += s.total_qty || 0;
+    r.picked += s.picked_qty || 0;
+    if (s.status === 'done') r.done_sites++;
+    (s.items || []).forEach(it => { r.size += (it.size_count || 0); });
+    if (s.eta_time) {
+      if (!r.eta_min || s.eta_time < r.eta_min) r.eta_min = s.eta_time;
+      if (!r.eta_max || s.eta_time > r.eta_max) r.eta_max = s.eta_time;
+    }
+    if (s.time_spec === '有') r.time_spec_count++;
+  });
+  const rows = Object.values(byRoute).sort((a,b) => {
+    if (a.is_dealer !== b.is_dealer) return a.is_dealer ? 1 : -1;
+    return (a.label || 'Z').localeCompare(b.label || 'Z');
+  });
+  const fmtEta = (s) => (s && /^\d{3,4}$/.test(s)) ? (s.padStart(4,'0').slice(0,2) + ':' + s.slice(-2)) : s;
+  let totalSites = 0, totalQty = 0, totalSize = 0, totalPicked = 0;
+  const rowsHtml = rows.map(r => {
+    totalSites += r.sites; totalQty += r.qty; totalSize += r.size; totalPicked += r.picked;
+    const label = r.is_dealer
+      ? '<span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-size:0.72rem;font-weight:800;">販売店</span>'
+      : (r.label
+         ? '<span style="background:#0891b2;color:#fff;padding:1px 8px;border-radius:4px;font-size:0.72rem;font-weight:900;">' + r.label + '便</span> <span style="color:#64748b;font-size:0.7rem;">' + r.route + '</span>'
+         : '<span style="background:#94a3b8;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.72rem;font-weight:700;">' + r.route + '便</span>');
+    const etaStr = r.eta_min ? (r.eta_min === r.eta_max ? fmtEta(r.eta_min) : fmtEta(r.eta_min) + '-' + fmtEta(r.eta_max)) : '';
+    const pct = r.qty > 0 ? Math.round(r.picked / r.qty * 100) : 0;
+    const progressColor = pct >= 100 ? '#059669' : pct > 0 ? '#0891b2' : '#cbd5e1';
+    const statusIcon = r.done_sites === r.sites ? '✅' : r.arrived ? '▶' : '⏳';
+    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:0.8rem;flex-wrap:wrap;">' +
+      '<span style="color:' + progressColor + ';font-weight:900;width:16px;">' + statusIcon + '</span>' +
+      label +
+      (etaStr ? '<span style="color:#1e40af;font-weight:700;">⏱' + etaStr + '</span>' : '') +
+      (r.time_spec_count ? '<span style="color:#b45309;">⏰' + r.time_spec_count + '</span>' : '') +
+      '<span style="color:#64748b;">現場' + r.sites + '</span>' +
+      '<span style="margin-left:auto;font-weight:800;color:#0f172a;">' + Math.round(r.picked) + '/' + Math.round(r.qty) + '</span>' +
+      '<span style="color:#64748b;font-size:0.72rem;">' + Math.round(r.size*10)/10 + '才</span>' +
+    '</div>';
+  }).join('');
+  const overallPct = totalQty > 0 ? Math.round(totalPicked / totalQty * 100) : 0;
+  box.innerHTML =
+    '<div style="font-size:0.82rem;font-weight:800;color:#0f172a;margin-bottom:6px;display:flex;align-items:center;gap:6px;">📋 配車内容 (便別)</div>' +
+    rowsHtml +
+    '<div style="margin-top:6px;font-size:0.78rem;color:#475569;display:flex;gap:10px;flex-wrap:wrap;">' +
+      '<span>総計: <b style="color:#0f172a;">' + totalSites + '現場</b></span>' +
+      '<span><b style="color:#0f172a;">' + Math.round(totalPicked) + '/' + Math.round(totalQty) + '</b> 個 (' + overallPct + '%)</span>' +
+      '<span>才数 <b style="color:#0f172a;">' + (Math.round(totalSize*10)/10) + '</b></span>' +
+    '</div>';
+}
+
+function renderSites() {
+  document.getElementById('header-vehicle').textContent = STATE.vehicle || '---';
+  document.getElementById('header-driver').textContent = STATE.driver || 'ドライバー';
+  renderDispatchSummary();
+  let totalQty = 0, pickedQty = 0;
+  STATE.sites.forEach(s => { totalQty += s.total_qty; pickedQty += s.picked_qty; });
+  const pct = totalQty > 0 ? Math.round(pickedQty / totalQty * 100) : 0;
+  document.getElementById('header-sub').textContent =
+    STATE.sites.length + '現場 / ' + Math.round(pickedQty) + '/' + Math.round(totalQty) + '個 (' + pct + '%)';
+  document.getElementById('overall-progress').innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:4px;"><span>進捗</span><span>' + pct + '%</span></div>' +
+    '<div class="progress-bar"><div style="width:' + pct + '%"></div></div>';
+
+  const list = document.getElementById('sites-list');
+  if (STATE.sites.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;">本日この号車の指示はありません</div>';
+    return;
+  }
+  // 順序ルール:
+  //  1. ready + 着車済 便 → 着車順 (A便, B便, ...) = 早着=優先
+  //  2. ready + 販売店 (便なし) → 着車済の後
+  //  3. waiting (未着車)
+  //  4. done
+  // 各現場の総才数を事前計算 (表示用)
+  STATE.sites.forEach(s => {
+    s._totalSize = (s.items || []).reduce((sum, it) => sum + (it.size_count || 0), 0);
+  });
+  // 着車順ソート (着車済便→販売店→便待ち→完了、着車順位→配送順)
+  STATE.sites.sort((a,b) => {
+    const bucket = s => s.status === 'done' ? 3
+                       : s.status === 'waiting' ? 2
+                       : (s.is_dealer || !s.source_route) ? 1
+                       : 0;
+    const ba = bucket(a), bb = bucket(b);
+    if (ba !== bb) return ba - bb;
+    if (ba === 0) {
+      const ao = (a.arrival_order || 99) - (b.arrival_order || 99);
+      if (ao !== 0) return ao;
+      return (a.delivery_order || 99) - (b.delivery_order || 99);
+    }
+    return String(a.source_route||'').localeCompare(String(b.source_route||''));
+  });
+  // 次やるべき現場 = 最初の ready
+  const nextIdx = STATE.sites.findIndex(s => s.status === 'ready');
+
+  list.innerHTML = STATE.sites.map((s, idx) => {
+    const stLabel = s.status==='ready' ? 'ピック可' : s.status==='done' ? '完了' : '便待ち';
+    const stClass = 'badge-status-' + s.status;
+    const arrivalBadge = s.arrival_label
+      ? '<span class="badge badge-arrival' + (idx === nextIdx ? ' next' : '') + '">' + s.arrival_label + '便</span>'
+      : '';
+    const routeBadge = s.is_dealer
+      ? '<span class="badge badge-dealer">販売店</span>'
+      : '<span class="badge badge-route">' + s.source_route + '</span>';
+    const editedBadge = s.edited ? '<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-weight:800;padding:3px 8px;font-size:0.72rem;">✏️ 変更済</span>' : '';
+    const orderBadge = s.delivery_order ? '<span class="badge badge-order">順' + s.delivery_order + '</span>' : '';
+    const fmtEta = (t) => (t && /^\d{3,4}$/.test(t)) ? (t.padStart(4,'0').slice(0,2)+':'+t.slice(-2)) : t;
+    const etaBadge = s.eta_time ? '<span class="badge badge-eta">⏱' + fmtEta(s.eta_time) + '</span>' : '';
+    const timeBadge = s.time_spec === '有' ? '<span class="badge badge-timespec">⏰時間指定</span>' : '';
+    const sitePct = s.total_qty > 0 ? Math.round(s.picked_qty / s.total_qty * 100) : 0;
+    const clickable = s.status === 'ready' || s.status === 'done';
+    return '<div class="site-card ' + s.status + '" ' +
+      (clickable ? 'onclick="openSite(' + idx + ')" style="cursor:pointer;"' : '') + '>' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">' +
+        '<span class="badge ' + stClass + '">' + stLabel + '</span>' +
+        editedBadge +
+        arrivalBadge +
+        orderBadge +
+        routeBadge +
+        timeBadge +
+        etaBadge +
+        '<span style="margin-left:auto;font-weight:900;">' + Math.round(s.picked_qty) + '/' + Math.round(s.total_qty) + '</span>' +
+      '</div>' +
+      '<div class="site-name">' + escapeHtml(s.destination) + '</div>' +
+      '<div class="site-meta">明細 ' + s.items.length + '品 / 才数 <b style="color:#0891b2;">' + (Math.round((s._totalSize||0)*10)/10) + '</b></div>' +
+      '<div class="progress-bar"><div style="width:' + sitePct + '%"></div></div>' +
+    '</div>';
+  }).join('');
+}
+
+
+// 現場カードタップ: 明細確認のみ (スキャナーは起動しない)
+function openSite(idx) {
+  STATE.currentSite = STATE.sites[idx];
+  if (STATE.currentSite.status === 'waiting') {
+    showToast('便着車待ちです', 'ng'); return;
+  }
+  renderItems();
+  setStep('items');
+}
+
+function renderItems() {
+  const s = STATE.currentSite;
+  const label = s.arrival_label ? s.arrival_label + '便 ' : '';
+  document.getElementById('items-title').textContent = label + s.destination;
+  document.getElementById('items-sub').textContent =
+    (s.is_dealer ? '販売店納品' : (label ? '(' + s.source_route + ')' : s.source_route + '便')) + ' / ' +
+    Math.round(s.picked_qty) + '/' + Math.round(s.total_qty) + '個 / 📦才数の大きい順';
+  const list = document.getElementById('items-list');
+  // 並び順: 未完了を先、完了品は後ろ。同グループ内は才数DESC (大物から積込シミュレーション用)
+  const items = s.items.slice().sort((a, b) => {
+    const ad = a.picked_count >= a.quantity ? 1 : 0;
+    const bd = b.picked_count >= b.quantity ? 1 : 0;
+    if (ad !== bd) return ad - bd;
+    return (b.size_count || 0) - (a.size_count || 0);
+  });
+  // 最大の才数を判定してバッジ色分け
+  const maxSize = Math.max(0, ...items.map(it => it.size_count || 0));
+  list.innerHTML = items.map(it => {
+    const remaining = it.quantity - it.picked_count;
+    const done = remaining <= 0;
+    const size = it.size_count ? Math.round(it.size_count * 10) / 10 : null;
+    // 才数で大物判定: 最大の半分以上=大、1/4以上=中、以下=小
+    let sizeColor = '#94a3b8', sizeLabel = '';
+    if (size !== null && maxSize > 0) {
+      if (size >= maxSize * 0.5) { sizeColor = '#dc2626'; sizeLabel = ' 🔴大'; }
+      else if (size >= maxSize * 0.25) { sizeColor = '#f59e0b'; sizeLabel = ' 🟡中'; }
+    }
+    return '<div class="item-row ' + (done ? 'done' : '') + '" data-cd="' + it.product_cd + '">' +
+      '<div class="item-name">' +
+        '<div class="nm">' + escapeHtml(it.product_name) + '</div>' +
+        (size !== null ? '<div class="cd" style="color:' + sizeColor + ';font-weight:800;">才数 ' + size + sizeLabel + '</div>' : '') +
+      '</div>' +
+      '<div class="item-qty"><span class="picked">' + Math.round(it.picked_count) + '</span><span class="total">/' + Math.round(it.quantity) + '</span></div>' +
+      '<button class="pick-btn" ' + (done ? 'disabled' : 'onclick="pickItem(\'' + it.product_cd.replace(/'/g, '\\\'') + '\')"') + '>' +
+        (done ? '✓' : '+1') +
+      '</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function pickItem(productCd) {
+  const r = await api('/picking/pick', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      date: STATE.date,
+      vehicle_no: STATE.vehicle,
+      product_cd: productCd,
+      destination: STATE.currentSite.destination
+    })
+  });
+  if (!r.ok) { showToast('指示外の品です', 'ng'); return; }
+  // STATE側を更新
+  const item = STATE.currentSite.items.find(it => it.product_cd === productCd);
+  if (item) {
+    item.picked_count = r.picked_count;
+    STATE.currentSite.picked_qty = STATE.currentSite.items.reduce((sum, it) => sum + it.picked_count, 0);
+    if (STATE.currentSite.picked_qty >= STATE.currentSite.total_qty) STATE.currentSite.status = 'done';
+  }
+  showToast('✓ ' + r.product_name, 'ok');
+  if ('vibrate' in navigator) navigator.vibrate(80);
+  renderItems();
+  if (STATE.currentSite.status === 'done') {
+    setTimeout(() => { showToast('🎉 現場完了!', 'ok'); setTimeout(() => { setStep('sites'); renderSites(); }, 1200); }, 600);
+  }
+}
+
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ========== Camera Scanner (html5-qrcode) ==========
+let html5Scanner = null;
+let scannerActive = false;
+let scanBusy = false;        // API往復中はスキップ
+let lastScanCd = null;
+// 精度向上: 2フレーム一致 + CD検証 (2026-05-15)
+const CONFIRM_WINDOW_MS = 600;   // 2フレーム一致を受け付ける時間窓
+let pendingCd = null;            // 候補コード (まだ1回しか出ていない)
+let pendingFormat = '';
+let pendingAt = 0;
+let lastScanAt = 0;
+const DUP_WINDOW_MS = 900;
+const RAPID_WINDOW_MS = 220;
+
+// ----- Haptic + Beep -----
+function vib(pattern) { if ('vibrate' in navigator) { try { navigator.vibrate(pattern); } catch(e) {} } }
+let audioCtx = null;
+function ac() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); }
+  return audioCtx;
+}
+function beep(freq, ms, type, gain) {
+  const ctx = ac(); if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type || 'square';
+  o.frequency.value = freq;
+  g.gain.value = 0;
+  o.connect(g); g.connect(ctx.destination);
+  const t = ctx.currentTime;
+  const vol = gain || 0.25;
+  g.gain.linearRampToValueAtTime(vol, t + 0.008);
+  g.gain.linearRampToValueAtTime(0, t + ms/1000);
+  o.start(t); o.stop(t + ms/1000 + 0.02);
+}
+function beepSweep(fromHz, toHz, ms) {
+  const ctx = ac(); if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(fromHz, ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(toHz, ctx.currentTime + ms/1000);
+  g.gain.value = 0;
+  o.connect(g); g.connect(ctx.destination);
+  const t = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(0.28, t + 0.01);
+  g.gain.linearRampToValueAtTime(0, t + ms/1000);
+  o.start(t); o.stop(t + ms/1000 + 0.02);
+}
+function feedback(kind) {
+  // 振動パターンは手で明確に区別できるよう差別化 (画面を見ずとも判定可能)
+  if (kind === 'ok')      { vib(90);                          beep(1200, 80, 'square', 0.28); }
+  // 重複: 2発のダブルタップ
+  else if (kind === 'dup'){ vib([90, 120, 90]);               beep(650, 80, 'square', 0.22); setTimeout(() => beep(650, 80, 'square', 0.22), 130); }
+  // エラー: 長く強い3連
+  else if (kind === 'ng') { vib([180, 90, 180, 90, 180]);     beep(180, 260, 'sawtooth', 0.3); }
+  // 完了: 段階的に強くなる
+  else if (kind === 'done'){ vib([80, 50, 80, 50, 300]);      beepSweep(700, 1500, 380); }
+}
+
+function findItem(cd) {
+  if (STATE.currentSite) {
+    return STATE.currentSite.items.find(it => it.product_cd === cd);
+  }
+  // 全体スキャンモード: 全現場から cd 一致の未完了行
+  for (const s of STATE.sites) {
+    if (!s.items) continue;
+    const found = s.items.find(it => it.product_cd === cd && it.picked_count < it.quantity);
+    if (found) return found;
+  }
+  // 未完了なしでも1件返して画面表示用に
+  for (const s of STATE.sites) {
+    if (!s.items) continue;
+    const any = s.items.find(it => it.product_cd === cd);
+    if (any) return any;
+  }
+  return null;
+}
+function nextPendingItem() {
+  if (STATE.currentSite) {
+    return STATE.currentSite.items.find(it => it.picked_count < it.quantity) || null;
+  }
+  // 全体スキャンモード: 着車順に近い先頭現場の未完了品
+  for (const s of STATE.sites) {
+    if (s.status !== 'ready') continue;
+    if (!s.items) continue;
+    const found = s.items.find(it => it.picked_count < it.quantity);
+    if (found) return found;
+  }
+  return null;
+}
+function vehicleTotals() {
+  let total = 0, picked = 0;
+  for (const s of STATE.sites) { total += s.total_qty || 0; picked += s.picked_qty || 0; }
+  return { total, picked };
+}
+function isRapidTarget(item) { return !!item && item.quantity >= 2; }
+
+function updateScannerOverlay(last) {
+  // last: {kind, cd, name, picked, quantity, size, destination} or null
+  const s = STATE.currentSite;
+  if (s) {
+    const lbl = s.arrival_label ? s.arrival_label + '便 ' : '';
+    document.getElementById('scan-site').textContent = lbl + s.destination + (s.is_dealer ? ' (販売店)' : '');
+    const rem = Math.max(0, Math.round(s.total_qty - s.picked_qty));
+    document.getElementById('scan-rem').textContent = '現場 残 ' + rem + ' 個 (' + Math.round(s.picked_qty) + '/' + Math.round(s.total_qty) + ')';
+  } else {
+    // 全体スキャンモード
+    const t = vehicleTotals();
+    const rem = Math.max(0, Math.round(t.total - t.picked));
+    document.getElementById('scan-site').textContent = '🚐 ' + STATE.vehicle + '号車 / 全体スキャン';
+    document.getElementById('scan-rem').textContent = '号車 残 ' + rem + ' 個 (' + Math.round(t.picked) + '/' + Math.round(t.total) + ')';
+  }
+  const nextIt = nextPendingItem();
+  const chip = document.getElementById('scan-mode-chip');
+  if (isRapidTarget(nextIt)) {
+    chip.textContent = '連打モード (数量' + Math.round(nextIt.quantity) + ')';
+    chip.classList.add('rapid');
+  } else {
+    chip.textContent = '通常モード';
+    chip.classList.remove('rapid');
+  }
+  const card = document.getElementById('scan-last');
+  const vp = document.getElementById('scan-viewport');
+  const nm = document.getElementById('scan-last-nm');
+  const qty = document.getElementById('scan-last-qty');
+  const meta = document.getElementById('scan-last-meta');
+  const hint = document.getElementById('scan-last-hint');
+  card.classList.remove('ok','dup','ng');
+  if (vp) vp.classList.remove('ok','dup','ng');
+  if (!last) {
+    if (!STATE.currentSite) {
+      // 全体スキャンモード: 個別の次候補は出さない
+      nm.textContent = 'バーコードを枠内へ';
+      qty.textContent = '';
+      meta.textContent = '';
+      hint.textContent = '';
+    } else if (nextIt) {
+      nm.textContent = '▶ ' + nextIt.product_name;
+      qty.textContent = Math.round(nextIt.quantity - nextIt.picked_count) + ' 個';
+      meta.textContent = '才数 ' + (Math.round((nextIt.size_count||0)*10)/10) + ' / 全 ' + Math.round(nextIt.quantity) + ' 個';
+      hint.textContent = 'バーコードを画面中央へ';
+    } else {
+      nm.textContent = 'バーコードを画面中央へ';
+      qty.textContent = ''; meta.textContent = ''; hint.textContent = '';
+    }
+    return;
+  }
+  const k = last.kind === 'ok' ? 'ok' : last.kind === 'dup' ? 'dup' : 'ng';
+  card.classList.add(k);
+  if (vp) {
+    vp.classList.add(k);
+    // 0.5秒後に枠色を中立に戻す(走査線は常時)
+    clearTimeout(window._vpFlashT);
+    window._vpFlashT = setTimeout(() => vp.classList.remove('ok','dup','ng'), 500);
+  }
+  nm.textContent = last.name || last.cd || '---';
+  if (last.kind === 'ok') {
+    qty.textContent = '残 ' + Math.max(0, Math.round(last.quantity - last.picked)) + ' 個';
+    meta.textContent = (last.destination ? '→ ' + last.destination + ' ・ ' : '') + '取込 ' + Math.round(last.picked) + ' / ' + Math.round(last.quantity) + (last.size ? ' ・ 才数 ' + (Math.round(last.size*10)/10) : '');
+    hint.textContent = '次の品へ';
+  } else if (last.kind === 'dup') {
+    qty.textContent = '重複';
+    meta.textContent = '同じ商品を読み直しました';
+    hint.textContent = '数量オーバー防止のため無視';
+  } else {
+    qty.textContent = '対象外';
+    meta.textContent = last.cd ? ('CD: ' + last.cd) : '指示に無い or 完了済み';
+    hint.textContent = '別の品を読んでください';
+  }
+}
+
+// スキャナー起動中の離脱防止 & 全画面化
+let wakeLock = null;
+let scannerBackHandler = null;
+let scannerBeforeUnload = null;
+
+async function requestFullscreenIfPossible() {
+  try {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (req && !document.fullscreenElement) await req.call(el);
+  } catch (e) {}
+}
+async function exitFullscreenIfAny() {
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      const ex = document.exitFullscreen || document.webkitExitFullscreen;
+      if (ex) await ex.call(document);
+    }
+  } catch (e) {}
+}
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch (e) {}
+}
+function releaseWakeLock() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch(e) {} }
+// 復帰時に wake lock 再取得 (Androidはタブ復帰で解放される仕様)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && scannerActive) acquireWakeLock();
+});
+
+async function startScanner() {
+  if (typeof Html5Qrcode === 'undefined') {
+    showToast('スキャナーライブラリ未読込 (ネット確認)', 'ng'); return;
+  }
+  if (scannerActive) return;
+  try {
+    document.getElementById('scanner').style.display = 'flex';
+    lastScanCd = null; lastScanAt = 0; scanBusy = false;
+    pendingCd = null; pendingFormat = ''; pendingAt = 0;
+    ac();
+    updateScannerOverlay(null);
+
+    if (!html5Scanner) {
+      html5Scanner = new Html5Qrcode('scan-video', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      });
+    }
+    const cfg = {
+      fps: 10,
+      // qrbox 不使用 → html5-qrcode側のマスク非表示。映像全域をスキャンし、
+      // 赤枠(.scan-viewport)は中央配置の視覚ガイドとして機能
+      videoConstraints: { facingMode: { ideal: 'environment' } },
+    };
+    await html5Scanner.start(
+      { facingMode: { ideal: 'environment' } },
+      cfg,
+      (decodedText, decodedResult) => {
+        if (!scanBusy) handleScanRaw(decodedText, decodedResult);
+      },
+      () => { /* per-frame misses: ignore */ }
+    );
+    scannerActive = true;
+    // html5-qrcodeが生成したvideo/子divを強制的にフルフレーム表示
+    setTimeout(() => {
+      const container = document.getElementById('scan-video');
+      if (!container) return;
+      const videos = container.querySelectorAll('video');
+      videos.forEach(v => {
+        v.style.position = 'absolute';
+        v.style.top = '0'; v.style.left = '0';
+        v.style.width = '100%'; v.style.height = '100%';
+        v.style.objectFit = 'cover';
+        v.style.maxWidth = 'none'; v.style.maxHeight = 'none';
+        v.setAttribute('playsinline', 'true');
+        try { v.play(); } catch(_) {}
+      });
+      container.querySelectorAll(':scope > div').forEach(d => {
+        d.style.position = 'absolute';
+        d.style.inset = '0';
+        d.style.width = '100%'; d.style.height = '100%';
+      });
+    }, 250);
+
+    // 離脱防止系
+    requestFullscreenIfPossible();
+    acquireWakeLock();
+    try {
+      history.pushState({ scanner: true }, '', location.href);
+      scannerBackHandler = () => { if (scannerActive) { stopScanner(); history.pushState({ scanner: false }, '', location.href); } };
+      window.addEventListener('popstate', scannerBackHandler);
+    } catch (e) {}
+    scannerBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', scannerBeforeUnload);
+  } catch (e) {
+    document.getElementById('scanner').style.display = 'none';
+    showToast('カメラ起動失敗: ' + (e && (e.message || e.name || e)), 'ng');
+    console.warn('scanner start error:', e);
+  }
+}
+
+async function stopScanner() {
+  if (html5Scanner && scannerActive) {
+    try { await html5Scanner.stop(); } catch(_) {}
+    try { html5Scanner.clear(); } catch(_) {}
+  }
+  scannerActive = false;
+  document.getElementById('scanner').style.display = 'none';
+  if (scannerBackHandler) { window.removeEventListener('popstate', scannerBackHandler); scannerBackHandler = null; }
+  if (scannerBeforeUnload) { window.removeEventListener('beforeunload', scannerBeforeUnload); scannerBeforeUnload = null; }
+  releaseWakeLock();
+  exitFullscreenIfAny();
+}
+
+// ============ 精度向上ロジック (2026-05-15) ============
+// (A) CD検証: EAN/UPC/ITF系で報告された数値コードはチェックディジットが合わなければ棄却
+// (B) 2フレーム一致: 同じ(code,format)が CONFIRM_WINDOW_MS 以内に2回出るまで採用しない
+//
+// 商品マスタは8文字 Code-128/39 主体で本来CDなし。
+// ライブラリが Code-128 を誤って EAN_8 と判定したケースをCDで撃ち落とすのが狙い。
+
+const EAN_FORMATS = new Set(['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'ITF', 'RSS_14']);
+function isDigitsOnly(s) { return /^\d+$/.test(s || ''); }
+function verifyEANCheckDigit(code) {
+  if (!isDigitsOnly(code)) return false;
+  const len = code.length;
+  if (![8, 12, 13, 14].includes(len)) return false; // EAN-8/UPC-A/EAN-13/ITF-14
+  let sum = 0;
+  for (let i = 0; i < len - 1; i++) {
+    const digit = parseInt(code[i], 10);
+    // 右端(CD除く)からの位置: 偶数→×3、奇数→×1 (EAN/UPC/ITF共通)
+    const fromRight = len - 2 - i;
+    const mul = (fromRight % 2 === 0) ? 3 : 1;
+    sum += digit * mul;
+  }
+  const expected = (10 - (sum % 10)) % 10;
+  return expected === parseInt(code[len - 1], 10);
+}
+function formatNameOf(decodedResult) {
+  try {
+    return (decodedResult && decodedResult.result && decodedResult.result.format && decodedResult.result.format.formatName) || '';
+  } catch (e) { return ''; }
+}
+
+function handleScanRaw(cd, decodedResult) {
+  const format = formatNameOf(decodedResult);
+  // (A) EAN/UPC/ITFとして報告された場合のみCD検証 (Code-128/39は対象外)
+  if (EAN_FORMATS.has(format)) {
+    if (!verifyEANCheckDigit(cd)) {
+      // CD不一致 = 誤読の可能性が極めて高い。沈黙で棄却 (連射トースト避ける)
+      console.debug('[scan] reject CD-mismatch:', cd, format);
+      return;
+    }
+  }
+  // (B) 2フレーム一致
+  const now = Date.now();
+  // 既に正式採用済みのコードと同じ場合、handleScan内のDUP_WINDOW処理に任せる (連射抑制側)
+  if (cd === lastScanCd && (now - lastScanAt) < DUP_WINDOW_MS) {
+    return handleScan(cd);
+  }
+  // 候補と一致 + 時間窓内 → 確定して handleScan へ
+  if (pendingCd && pendingCd === cd && pendingFormat === format && (now - pendingAt) < CONFIRM_WINDOW_MS) {
+    pendingCd = null;
+    return handleScan(cd);
+  }
+  // 候補として保持 (まだ採用しない)
+  pendingCd = cd;
+  pendingFormat = format;
+  pendingAt = now;
+}
+
+async function handleScan(cd) {
+  showProductPreview(cd); // 商品マスタから写真を一時表示 (視覚補助)
+  if (scanBusy) return;
+  const now = Date.now();
+  const item = findItem(cd);
+  const rapid = isRapidTarget(item);
+  const window_ms = rapid ? RAPID_WINDOW_MS : DUP_WINDOW_MS;
+  // 同一コードの連射抑制 (通常モードのみ重複振動)
+  if (cd === lastScanCd && (now - lastScanAt) < window_ms) {
+    if (!rapid) {
+      feedback('dup');
+      updateScannerOverlay({ kind:'dup', cd, name: item ? item.product_name : cd });
+      lastScanAt = now;
+    }
+    return;
+  }
+  scanBusy = true;
+  try {
+    const body = { date: STATE.date, vehicle_no: STATE.vehicle, product_cd: cd };
+    if (STATE.currentSite) body.destination = STATE.currentSite.destination;
+    const r = await api('/picking/pick', {
+      method: 'POST', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      feedback('ok');
+      // 該当行の更新 (現場特定モードでは currentSite の items、全体モードでは r.destination で現場特定)
+      let siteCompleted = false;
+      if (STATE.currentSite) {
+        const it = STATE.currentSite.items.find(x => x.product_cd === cd && x.picked_count < x.quantity)
+                   || STATE.currentSite.items.find(x => x.product_cd === cd);
+        if (it) {
+          it.picked_count = r.picked_count;
+          STATE.currentSite.picked_qty = STATE.currentSite.items.reduce((sum, x) => sum + x.picked_count, 0);
+          if (STATE.currentSite.picked_qty >= STATE.currentSite.total_qty) {
+            STATE.currentSite.status = 'done';
+            siteCompleted = true;
+          }
+        }
+        updateScannerOverlay({ kind:'ok', cd, name: r.product_name, picked: r.picked_count, quantity: r.quantity, size: it && it.size_count, destination: r.destination });
+      } else {
+        // 全体スキャン: 該当現場を STATE.sites から検索
+        const site = STATE.sites.find(s => s.destination === r.destination || (s.is_dealer && !r.destination));
+        let it = null;
+        if (site && site.items) {
+          it = site.items.find(x => x.product_cd === cd && x.picked_count < x.quantity)
+               || site.items.find(x => x.product_cd === cd);
+          if (it) {
+            it.picked_count = r.picked_count;
+            site.picked_qty = site.items.reduce((sum, x) => sum + x.picked_count, 0);
+            if (site.picked_qty >= site.total_qty) {
+              if (site.status !== 'done') siteCompleted = true;
+              site.status = 'done';
+            }
+          }
+        }
+        updateScannerOverlay({ kind:'ok', cd, name: r.product_name, picked: r.picked_count, quantity: r.quantity, size: it && it.size_count, destination: r.destination });
+      }
+      lastScanCd = cd; lastScanAt = now;
+      // サーバー側で号車全体完了ならセッションタイマーも停止
+      if (r.vehicle_done && !STATE.sessionEndedAt) {
+        STATE.sessionEndedAt = Date.now();
+        updateTimer();
+      }
+      // 完了演出 → サマリモーダル
+      if (r.vehicle_done) {
+        feedback('done');
+        setTimeout(() => { stopScanner(); setStep('sites'); renderSites(); showDoneModal(r.summary); }, 900);
+        return;
+      }
+      if (siteCompleted) {
+        feedback('done');
+        if (STATE.currentSite) {
+          // 現場指定モードの場合は一覧に戻る
+          setTimeout(() => { stopScanner(); setStep('sites'); renderSites(); showToast('🎉 現場完了', 'ok'); }, 900);
+          return;
+        } else {
+          // 全体スキャンモードでは継続、トーストだけ
+          showToast('🎉 ' + (r.destination || '販売店') + ' 完了', 'ok');
+        }
+      }
+    } else {
+      // already_done(完了済=重複) と not_found(指示外=エラー) を区別
+      const isDup = r && r.error === 'already_done';
+      feedback(isDup ? 'dup' : 'ng');
+      updateScannerOverlay({ kind: isDup ? 'dup' : 'ng', cd, name: null });
+      lastScanCd = cd; lastScanAt = now;
+    }
+  } catch(e) {
+    feedback('ng');
+    updateScannerOverlay({ kind:'ng', cd, name: null });
+  } finally {
+    // API往復後のクールダウン (連打モードなら短く)
+    const cooldown = isRapidTarget(nextPendingItem()) ? 160 : 600;
+    setTimeout(() => { scanBusy = false; }, cooldown);
+  }
+}
+
+// scanLoop不要 (html5-qrcodeが内部で処理)
+
+// ========== Init ==========
+async function loadVehicleList() {
+  const sel = document.getElementById('vehicle-select');
+  const msg = document.getElementById('vehicle-msg');
+  sel.innerHTML = '<option value="">読込中...</option>';
+  msg.textContent = '';
+  try {
+    const date = todayYmd();
+    const r = await api('/picking/vehicles?date=' + date);
+    const list = (r && r.vehicles) || [];
+    if (list.length === 0) {
+      sel.innerHTML = '<option value="">指示データなし(管理者にxlsアップロード依頼)</option>';
+      msg.textContent = 'データがありません';
+      return;
+    }
+    // フォールバック発動時の表示
+    if (r.fallback && r.date !== r.requested_date) {
+      const f = r.date;
+      msg.textContent = '⚠️ 本日データなし → ' + f.slice(0,4) + '/' + f.slice(4,6) + '/' + f.slice(6,8) + ' のデータを表示中';
+      STATE.date = r.date; // フォールバック日に上書き
+    } else {
+      STATE.date = r.date;
+    }
+    const savedV = localStorage.getItem(KEY_VEHICLE);
+    sel.innerHTML = '<option value="">-- 号車を選択 --</option>' +
+      list.map(v => {
+        const sel2 = (v.vehicle_no === savedV) ? ' selected' : '';
+        const left = Math.max(0, Math.round(v.qty - v.picked));
+        return '<option value="' + v.vehicle_no + '"' + sel2 + '>' +
+          v.vehicle_no + '号車  (' + v.sites + '現場 / 残' + left + '個)' +
+        '</option>';
+      }).join('');
+    if (!msg.textContent) msg.textContent = list.length + '台が稼働中';
+  } catch (e) {
+    sel.innerHTML = '<option value="">読込失敗</option>';
+    msg.textContent = '通信エラー: ' + e.message;
+  }
+}
+
+document.getElementById('vehicle-go').onclick = () => {
+  const v = document.getElementById('vehicle-select').value;
+  const drv = document.getElementById('driver-input').value.trim();
+  if (!drv) { showToast('ドライバー名を入力', 'ng'); document.getElementById('driver-input').focus(); return; }
+  if (!v) { showToast('号車を選択', 'ng'); return; }
+  STATE.vehicle = v;
+  STATE.driver = drv;
+  // 号車リスト読込時にSTATE.date(フォールバック日)がセット済みならそれを使う
+  if (!STATE.date) STATE.date = todayYmd();
+  localStorage.setItem(KEY_VEHICLE, v);
+  localStorage.setItem(KEY_DRIVER, drv);
+  // API応答を待たずヘッダーを即更新(ネットワーク失敗時の保険)
+  document.getElementById('header-vehicle').textContent = v;
+  document.getElementById('header-driver').textContent = drv;
+  setStep('sites');
+  startPickSession();
+  loadSites();
+  // 初回開始時のみスキャナーを自動起動 (PWAインストール後の実運用フロー)
+  // ブラウザ経由で未インストール時は明示タップ待ち (=画面操作可能)
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    setTimeout(() => { STATE.currentSite = null; startScanner(); }, 300);
+  }
+};
+document.getElementById('vehicle-reload').onclick = loadVehicleList;
+document.getElementById('reload-btn').onclick = loadSites;
+document.getElementById('back-btn').onclick = () => {
+  stopTimer();
+  STATE.sessionStartedAt = null; STATE.sessionEndedAt = null;
+  setStep('vehicle');
+  loadVehicleList();
+};
+document.getElementById('back-to-sites').onclick = () => { setStep('sites'); };
+document.getElementById('open-all-scan').onclick = () => {
+  STATE.currentSite = null;
+  startScanner();
+};
+
+// ===== 号車完了サマリモーダル =====
+function showDoneModal(sum) {
+  const modal = document.getElementById('done-modal');
+  if (!modal) return;
+  const s = sum || {};
+  const fmtHM = ts => { if (!ts) return '--:--'; const d = new Date(ts); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+  const fmtDurMs = ms => {
+    const sec = Math.max(0, Math.floor((ms||0)/1000));
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+    return (h>0 ? h + '時間' : '') + m + '分';
+  };
+  const fmtEta = t => (t && /^\d{3,4}$/.test(t)) ? t.padStart(4,'0').slice(0,2)+':'+t.slice(-2) : (t||'');
+  document.getElementById('done-subtitle').textContent =
+    '🚐 ' + (s.vehicle_no || STATE.vehicle) + '号車 / ' + (s.driver_name || STATE.driver || '') + (s.company ? ' (' + abbreviateCompany(s.company) + ')' : '');
+  document.getElementById('done-stats').innerHTML =
+    stat('所要時間', fmtDurMs(s.duration_ms)) +
+    stat('ピック数', Math.round(s.total_picked || 0) + '個') +
+    stat('現場数', (s.sites || 0) + '箇所') +
+    stat('総才数', (s.total_size || 0)) +
+    stat('開始', fmtHM(s.started_at)) +
+    stat('終了', fmtHM(s.ended_at));
+  // ETA比較
+  const etaBox = document.getElementById('done-eta-compare');
+  if (s.eta_min) {
+    const etaStart = fmtEta(s.eta_min);
+    const endedAt = s.ended_at ? new Date(s.ended_at) : null;
+    let lateMsg = '';
+    if (endedAt && s.eta_min && /^\d{3,4}$/.test(s.eta_min)) {
+      const et = s.eta_min.padStart(4, '0');
+      const eh = parseInt(et.slice(0,2)), em = parseInt(et.slice(2));
+      const etaDate = new Date(endedAt);
+      etaDate.setHours(eh, em, 0, 0);
+      const diffMin = Math.round((endedAt.getTime() - etaDate.getTime()) / 60000);
+      if (diffMin <= -10) lateMsg = '⏰ 最早ETA ' + etaStart + ' より ' + Math.abs(diffMin) + '分 早く完了';
+      else if (diffMin <= 0) lateMsg = '⏰ 最早ETA ' + etaStart + ' ちょうど完了';
+      else if (diffMin <= 15) lateMsg = '⏰ 最早ETA ' + etaStart + ' +' + diffMin + '分 完了';
+      else lateMsg = '⚠️ 最早ETA ' + etaStart + ' を ' + diffMin + '分 超過';
+    } else {
+      lateMsg = '⏰ 配送ETA ' + etaStart + (s.eta_max && s.eta_max !== s.eta_min ? '-' + fmtEta(s.eta_max) : '');
+    }
+    etaBox.textContent = lateMsg;
+    etaBox.style.display = 'block';
+  } else {
+    etaBox.style.display = 'none';
+  }
+  modal.style.display = 'block';
+}
+function stat(label, value) {
+  return '<div><div style="font-size:0.7rem;opacity:0.7;">' + label + '</div><div style="font-size:1.35rem;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums;">' + value + '</div></div>';
+}
+
+// ===== 商品不具合メモ (写真+メモ送信) =====
+let memoFiles = [];
+const memoModal = document.getElementById('memo-modal');
+document.getElementById('memo-btn').onclick = () => openMemoModal();
+document.getElementById('memo-sites-btn').onclick = () => openMemoModal();
+document.getElementById('memo-close').onclick = () => closeMemoModal();
+document.getElementById('memo-cancel').onclick = () => closeMemoModal();
+document.getElementById('memo-file').addEventListener('change', (e) => {
+  memoFiles = Array.from(e.target.files || []).slice(0, 3);
+  renderMemoPreview();
+});
+
+function openMemoModal() {
+  memoFiles = [];
+  document.getElementById('memo-file').value = '';
+  document.getElementById('memo-text').value = '';
+  document.getElementById('memo-status').textContent = '';
+  document.getElementById('memo-preview').innerHTML = '';
+  // コンテキスト (号車/ドライバー/直近スキャン)
+  const ctxParts = [];
+  if (STATE.vehicle) ctxParts.push('🚐 ' + STATE.vehicle + '号車');
+  if (STATE.driver) ctxParts.push(STATE.driver);
+  if (STATE.currentSite) ctxParts.push('📍 ' + STATE.currentSite.destination);
+  if (lastScanCd) ctxParts.push('最終読取: ' + lastScanCd);
+  document.getElementById('memo-context').textContent = ctxParts.join(' / ') || '未選択';
+  memoModal.style.display = 'block';
+  // スキャンは一時停止 (busy化で読取無効化)
+  scanBusy = true;
+}
+function closeMemoModal() {
+  memoModal.style.display = 'none';
+  memoFiles = [];
+  // スキャン再開
+  setTimeout(() => { scanBusy = false; }, 500);
+}
+function renderMemoPreview() {
+  const box = document.getElementById('memo-preview');
+  box.innerHTML = '';
+  memoFiles.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid #475569;';
+    box.appendChild(img);
+  });
+}
+document.getElementById('memo-submit').onclick = async () => {
+  if (memoFiles.length === 0) {
+    document.getElementById('memo-status').textContent = '⚠️ 写真を1枚以上選んでください';
+    return;
+  }
+  document.getElementById('memo-status').textContent = '送信中...';
+  document.getElementById('memo-submit').disabled = true;
+  try {
+    const fd = new FormData();
+    memoFiles.forEach(f => fd.append('photos', f));
+    fd.append('driver_name', STATE.driver || '');
+    fd.append('vehicle_no', STATE.vehicle || '');
+    fd.append('memo', document.getElementById('memo-text').value || '');
+    if (lastScanCd) fd.append('scan_value', lastScanCd);
+    if (STATE.currentSite && STATE.currentSite.destination) fd.append('scan_format', 'destination:' + STATE.currentSite.destination);
+    const r = await fetch('/bcscan/api/damage', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (j.ok) {
+      document.getElementById('memo-status').textContent = '✓ 送信完了 (管理画面に反映されました)';
+      feedback('ok');
+      setTimeout(() => closeMemoModal(), 1200);
+    } else {
+      document.getElementById('memo-status').textContent = '❌ 送信失敗: ' + (j.error || '不明');
+    }
+  } catch (e) {
+    document.getElementById('memo-status').textContent = '❌ 通信エラー: ' + e.message;
+  } finally {
+    document.getElementById('memo-submit').disabled = false;
+  }
+};
+
+document.getElementById('done-next').onclick = () => {
+  document.getElementById('done-modal').style.display = 'none';
+  // 号車変更フロー
+  stopTimer();
+  STATE.sessionStartedAt = null; STATE.sessionEndedAt = null;
+  STATE.vehicle = null; STATE.sites = []; STATE.currentSite = null;
+  localStorage.removeItem(KEY_VEHICLE);
+  setStep('vehicle');
+  loadVehicleList();
+};
+document.getElementById('done-finish').onclick = () => {
+  document.getElementById('done-modal').style.display = 'none';
+  stopTimer();
+  STATE.sessionStartedAt = null; STATE.sessionEndedAt = null;
+  // 本日終了表示
+  document.body.innerHTML = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:#0b1220;color:#fff;text-align:center;font-family:-apple-system,\"Segoe UI\",\"Hiragino Sans\",\"Meiryo\",sans-serif;">' +
+    '<div style="font-size:4rem;margin-bottom:12px;">🏁</div>' +
+    '<div style="font-size:1.5rem;font-weight:900;margin-bottom:8px;">本日の作業終了</div>' +
+    '<div style="font-size:0.9rem;color:#94a3b8;margin-bottom:24px;">おつかれさまでした。</div>' +
+    '<a href="picking.html" style="background:#0891b2;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:800;">🔄 もう一度ピッキング画面へ</a>' +
+    '<a href="home.html" style="color:#38bdf8;margin-top:12px;text-decoration:none;">🏠 ホームへ</a>' +
+  '</div>';
+};
+
+// ===== フォントサイズ切替 (共通) =====
+(function setupFontScale() {
+  const KEY = 'bcscan-fs-scale';
+  const saved = localStorage.getItem(KEY) || '1.0';
+  applyScale(saved);
+  document.querySelectorAll('.fs-toggle button').forEach(btn => {
+    btn.onclick = () => {
+      const s = btn.dataset.scale;
+      localStorage.setItem(KEY, s);
+      applyScale(s);
+    };
+  });
+  function applyScale(s) {
+    document.documentElement.style.setProperty('--fs-scale', s);
+    const sn = parseFloat(s);
+    document.body.classList.remove('fs-s','fs-m','fs-l','fs-xl');
+    if (sn <= 0.95) document.body.classList.add('fs-s');
+    else if (sn <= 1.05) document.body.classList.add('fs-m');
+    else if (sn <= 1.25) document.body.classList.add('fs-l');
+    else document.body.classList.add('fs-xl');
+    document.querySelectorAll('.fs-toggle button').forEach(b => {
+      b.classList.toggle('active', b.dataset.scale === s);
+    });
+  }
+})();
+
+// 復元 — 前回の号車+ドライバーが残っていれば自動で現場一覧へ
+(async function autoResume() {
+  const savedDrv = localStorage.getItem(KEY_DRIVER);
+  const savedVeh = localStorage.getItem(KEY_VEHICLE);
+  if (savedDrv) document.getElementById('driver-input').value = savedDrv;
+  // 号車リスト読込は常に走らせる(フォールバック日の取得が必要)
+  await loadVehicleList();
+  if (savedDrv && savedVeh) {
+    // 前回の号車+ドライバー情報を保持 (自動復元は現場一覧まで、スキャナーは自動起動しない)
+    STATE.driver = savedDrv;
+    STATE.vehicle = savedVeh;
+    if (!STATE.date) STATE.date = todayYmd();
+    document.getElementById('header-vehicle').textContent = savedVeh;
+    document.getElementById('header-driver').textContent = savedDrv;
+    setStep('sites');
+    startPickSession();
+    loadSites();
+    // スキャナー起動はユーザーの明示タップ (全画面化前にブラウザメニューにアクセス可能)
+  }
+})();
+
+// 30秒ごとに自動更新(現場一覧表示中のみ)
+setInterval(() => {
+  if (document.getElementById('step-sites').style.display === 'block' && STATE.vehicle) loadSites();
+}, 30000);
+
+// Service Worker 登録 (PWAインストール要件)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW register failed', e));
+}
+</script>
+<!-- ===== 商品写真プレビュー (視覚補助) ===== -->
+<div id="product-preview-overlay" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(15,23,42,0.96);border:2px solid #0ea5e9;border-radius:12px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-width:260px;backdrop-filter:blur(6px);transition:opacity 0.2s;">
+  <img id="pp-img" style="width:100%;max-width:240px;max-height:200px;object-fit:contain;border-radius:8px;background:#fff;" alt="">
+  <div id="pp-name" style="color:#fff;font-size:13px;font-weight:700;text-align:center;padding:6px 4px 2px;line-height:1.3;"></div>
+  <div id="pp-info" style="color:#94a3b8;font-size:10px;text-align:center;padding-bottom:4px;"></div>
+</div>
+<script>
+let _ppTimer = null;
+async function showProductPreview(barcode) {
+  try {
+    const r = await fetch('/bcscan/api/products/' + encodeURIComponent(barcode));
+    const d = await r.json();
+    const overlay = document.getElementById('product-preview-overlay');
+    if (!d || !d.success || !d.product) {
+      // 未登録: フェードアウト
+      overlay.style.display = 'none';
+      return;
+    }
+    const p = d.product;
+    document.getElementById('pp-name').textContent = p.name;
+    document.getElementById('pp-info').textContent = (p.format || '') + (p.size_info ? ' / ' + p.size_info : '');
+    const img = document.getElementById('pp-img');
+    if (p.image_path) {
+      img.src = '/bcscan/api/products/' + encodeURIComponent(barcode) + '/photo';
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+    overlay.style.display = 'block';
+    overlay.style.opacity = '1';
+    if (_ppTimer) clearTimeout(_ppTimer);
+    _ppTimer = setTimeout(() => {
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 200);
+    }, 3500);
+  } catch (e) {}
+}
+</script>
+</body>
+</html>

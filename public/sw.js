@@ -1,12 +1,35 @@
 // CoWell Service Worker (PWA Push通知)
-const CACHE = 'cohub-v3';
+// v4 (2026-05-18): 旧 lobby/葵版が残存する PWA を強制的に /home に飛ばすため cache全削除＋controlled clientsをnavigate。
+const CACHE = 'cohub-v4';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    // 旧バージョン (v1/v2/v3) が CacheStorage に残した全エントリを掃除。
+    // 現行 SW は HTMLキャッシュしない設計だが、過去にキャッシュされた index.html が
+    // 旧 lobby/葵 を返し続ける事案が出ているため、ここで一掃する。
+    try {
+      const names = await caches.keys();
+      await Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n)));
+    } catch (e) {}
+    await self.clients.claim();
+    // controlled 化したクライアントを最新HTMLに再ナビゲート。
+    // ルート(`/`)とパス無しは /home に振り、それ以外は同じURLを再取得させて
+    // サーバー側302/最新static配信に乗せ替える。
+    try {
+      const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of list) {
+        try {
+          const u = new URL(c.url);
+          const target = (u.pathname === '/' || u.pathname === '') ? '/home' : c.url;
+          await c.navigate(target);
+        } catch (e) {}
+      }
+    } catch (e) {}
+  })());
 });
 
 self.addEventListener('push', (event) => {

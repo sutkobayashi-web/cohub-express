@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10b981">
+<title>ヘルプ — CoWell</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: #f0fdf4; min-height: 100vh; color: #0f172a; overscroll-behavior-x: contain; }
+  header { background: linear-gradient(135deg, #059669, #10b981); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(5,150,105,0.20); }
+  header h1 { margin: 0; font-size: 18px; font-weight: 800; flex: 1; }
+  header a { color: #fff; text-decoration: none; font-size: 12px; padding: 6px 12px; background: rgba(255,255,255,0.2); border-radius: 8px; }
+  header a:hover { background: rgba(255,255,255,0.3); }
+  .container { max-width: 780px; margin: 0 auto; padding: 20px 16px 60px; }
+  .intro { background: #fff; border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; border-left: 4px solid #10b981; font-size: 13.5px; line-height: 1.75; color: #334155; box-shadow: 0 4px 12px rgba(15,23,42,0.04); }
+  .intro strong { color: #047857; }
+  .toc { background: linear-gradient(135deg,#ecfdf5,#d1fae5); border: 1px solid #6ee7b7; border-radius: 12px; padding: 12px 16px; margin-bottom: 22px; font-size: 12.5px; line-height: 1.85; }
+  .toc a { color: #047857; text-decoration: none; font-weight: 700; margin-right: 12px; white-space: nowrap; display: inline-block; }
+  .toc a:hover { text-decoration: underline; }
+  h2 { font-size: 15px; font-weight: 800; color: #047857; margin: 28px 0 12px; padding: 6px 12px; background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 4px; scroll-margin-top: 60px; }
+  .item { background: #fff; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); display: flex; gap: 14px; align-items: flex-start; }
+  .item .icon { font-size: 30px; line-height: 1; flex-shrink: 0; width: 44px; text-align: center; }
+  .item .body { flex: 1; min-width: 0; }
+  .item h3 { margin: 0 0 5px; font-size: 14.5px; font-weight: 800; color: #0f172a; }
+  .item p { margin: 0 0 5px; font-size: 13px; color: #475569; line-height: 1.65; }
+  .item .tip { font-size: 12px; color: #475569; background: #f1f5f9; padding: 7px 10px; border-radius: 6px; margin-top: 6px; border-left: 3px solid #10b981; }
+  .item .tip strong { color: #047857; }
+  .item .new { display: inline-block; background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; margin-left: 6px; letter-spacing: 0.3px; }
+  .promoter-cta { background: linear-gradient(135deg,#f5f3ff,#ede9fe); border: 2px solid #c4b5fd; border-radius: 14px; padding: 18px 20px; margin: 18px 0; display: flex; gap: 14px; align-items: center; box-shadow: 0 4px 14px rgba(124,58,237,0.10); }
+  .promoter-cta .ic { font-size: 36px; flex-shrink: 0; }
+  .promoter-cta .body { flex: 1; min-width: 0; }
+  .promoter-cta h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; color: #5b21b6; }
+  .promoter-cta p { margin: 0; font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .promoter-cta a { background: linear-gradient(135deg,#7c3aed,#a78bfa); color: #fff; padding: 10px 16px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 13px; white-space: nowrap; flex-shrink: 0; box-shadow: 0 4px 10px rgba(124,58,237,0.30); }
+  .faq { background: #fff; border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+  .faq dt { font-size: 13.5px; font-weight: 800; color: #0f172a; margin-bottom: 5px; }
+  .faq dt:before { content: 'Q. '; color: #10b981; }
+  .faq dd { margin: 0 0 14px; font-size: 12.5px; color: #475569; line-height: 1.65; padding-left: 18px; }
+  .faq dd:before { content: 'A. '; color: #64748b; font-weight: 700; margin-left: -18px; }
+  .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #64748b; padding: 12px; }
+  .footer a { color: #047857; text-decoration: none; margin: 0 6px; }
+  .footer a:hover { text-decoration: underline; }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<header>
+  <h1>❓ CoWell ヘルプ</h1>
+  <a href="/">← ホーム</a>
+</header>
+
+<div class="container">
+
+  <div class="intro">
+    <strong>CoWell (Communication & Wellness)</strong> はスタンダード運輸グループの社内コミュニケーション・健康推進プラットフォームです。
+    気軽に投稿・反応・相談しながら、日々の体調と職場の声を可視化していきます。
+  </div>
+
+  <div class="toc">
+    <a href="#daily">📅 毎日使う</a>
+    <a href="#health">🩺 健康・食事</a>
+    <a href="#comm">💬 コミュニケーション</a>
+    <a href="#circles">🎯 サークル活動</a>
+    <a href="#field">🚛 LogiHub・現場系</a>
+    <a href="#promoter">🩺 推進メンバー</a>
+    <a href="#faq">❓ よくある質問</a>
+  </div>
+
+  <h2 id="daily">📅 毎日の業務に使う</h2>
+
+  <div class="item">
+    <div class="icon">⏰</div>
+    <div class="body">
+      <h3>出退勤打刻</h3>
+      <p>「出勤」「退勤」の大ボタンを押すだけ。PC起動時刻と打刻ラグが15分以上だと⚠が表示され、サービス残業の見える化につながります。</p>
+      <div class="tip"><strong>PC起動通知:</strong> 須貝さん経由で1/17から導入。各PCに常駐スクリプトが入っていれば自動記録されます。</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">👤</div>
+    <div class="body">
+      <h3>マイページ</h3>
+      <p>自分のプロフィール・アバター・ニックネーム・パスワード変更などの個人設定。ヘッダの丸アイコンから入れます。</p>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">📱</div>
+    <div class="body">
+      <h3>スマホ版・タブレット版</h3>
+      <p>スマホでアクセスすると自動でモバイル版に切替。タブレット (iPad等) は「タブレット版」ボタンで広い画面用UIに。</p>
+      <div class="tip"><strong>PWAインストール:</strong> ブラウザの「ホーム画面に追加」で実質アプリ化できます。</div>
+    </div>
+  </div>
+
+  <h2 id="health">🩺 健康・食事</h2>
+
+  <div class="item">
+    <div class="icon">🍱</div>
+    <div class="body">
+      <h3>食事投稿 (みんなの広場)</h3>
+      <p>食事の写真をAIが自動で栄養分析。塩分・カロリー・食物繊維・野菜・タンパク質など9項目をエビデンスと対比表示。アルコール飲料も本数カウントされカロリーに加算されます。</p>
+      <div class="tip">食事投稿への反応は <strong>👍 のみ</strong>（マウント防止）。それ以外の投稿は8種類の反応が押せます。</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">🏥</div>
+    <div class="body">
+      <h3>健康管理室</h3>
+      <p>個人アクションプラン、ヘルスアドバイザーAIへの相談、施策ボード、AI評議会の議論、保健師レビュー、役員決済まで一気通貫の入口です。</p>
+      <div class="tip">血圧・健診ファイル・CoWell個人履歴は <strong>本人以外閲覧不可</strong>。管理者・推進メンバーにも見えません。</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">📊</div>
+    <div class="body">
+      <h3>ヘルスリテラシー5問</h3>
+      <p>帝京大学公衆衛生学研究科 福田研究室監修のCCHL設問。本人が直接答える / 推進メンバーが代理入力する両方の入口があります（90日に1回）。</p>
+    </div>
+  </div>
+
+  <h2 id="comm">💬 コミュニケーション</h2>
+
+  <div class="item">
+    <div class="icon">🌳</div>
+    <div class="body">
+      <h3>みんなの広場 (投稿フィード)</h3>
+      <p>食事・相談・雑談・健康Tipsなど自由に投稿。匿名投稿も可（ニックネーム表示）。<strong>反応ボタンは8種類</strong>（👍いいね / ❤️推し / 😊共感 / 💪応援 / 👏すごい / 💡参考 / 🙏ありがとう / 😢心配）。 <span class="new">8種</span></p>
+      <div class="tip">「心配」「推し」「共感」が多い投稿は AI評議会の重要シグナルになります。職場の温度感が拾われます。</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">💬</div>
+    <div class="body">
+      <h3>営業所チャット</h3>
+      <p>所属の営業所グループでDM風にメッセージ。Enter送信、Shift+Enter改行。既読表示・通話・ファイル添付対応。</p>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">📋</div>
+    <div class="body">
+      <h3>掲示板</h3>
+      <p>全社向けのお知らせ・経営メッセージ・重要連絡。新着があればホームに赤バッジ。</p>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">📢</div>
+    <div class="body">
+      <h3>業務連絡 / 運管ポスト</h3>
+      <p>車両不具合・現場の声・ヒヤリハットなどを写真付きで報告。AIが集約し健康管理室の施策化フローに繋がります。</p>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">🚨</div>
+    <div class="body">
+      <h3>事故報告</h3>
+      <p>製品事故・車両事故の報告書を作成。荷主向けBC報告書も含めて一括管理。</p>
+      <div class="tip"><strong>緊急時:</strong> まず電話・口頭で速報。落ち着いてから報告書を作成してください。</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">👥</div>
+    <div class="body">
+      <h3>メンバー一覧</h3>
+      <p>全社員をアバター付きで一覧。拠点・所属で絞り込み、名前検索可。匿名性のためニックネームは表示しません。</p>
+    </div>
+  </div>
+
+  <h2 id="circles">🎯 サークル活動</h2>
+
+  <div class="item">
+    <div class="icon">🎯</div>
+    <div class="body">
+      <h3>サークル一覧・参加</h3>
+      <p>有志のサークル（趣味・スポーツ等）に参加申請できます。部署を越えた交流の場。<span class="new">NEW</span></p>
+      <p>各サークルはリーダー・紹介文・メンバー・直近の予定が確認可。参加方式は「リーダー承認制」または「自由参加」を選べます。</p>
+      <div class="tip"><strong>サークル作成:</strong> 管理者・推進メンバーが新規作成できます。アイコン・カラーテーマ・募集中ON/OFF を自由に設定可。</div>
+    </div>
+  </div>
+
+  <h2 id="field">🚛 LogiHub・現場系</h2>
+
+  <div class="item">
+    <div class="icon">🚛</div>
+    <div class="body">
+      <h3>LogiHub</h3>
+      <p>配車組成・ガント編集・ルート地図・bc-scan現場端末・商品マスタを束ねた物流専用ハブ。<strong>logihub.biz-terrace.org</strong> として独立しています。<span class="new">2026-05-13</span></p>
+      <div class="tip">CoWell home の「🚛 LogiHub を開く」カードから入れます (管理者向け)。</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">📦</div>
+    <div class="body">
+      <h3>bc-scan 倉庫モニター</h3>
+      <p>バーコード読取で出庫管理・ピッキング・ダメージ報告。座間倉庫で実運用中。誤積防止・荷物撮影・Box日次バックアップ対応。</p>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="icon">📝</div>
+    <div class="body">
+      <h3>商品マスタ登録</h3>
+      <p>バーコード読取→商品名入力→写真撮影で商品マスタを増やせます。写真はタップで全画面拡大表示。ピッキング時に作業員の視覚的助けに。</p>
+    </div>
+  </div>
+
+  <h2 id="promoter">🩺 推進メンバー専用</h2>
+
+  <div class="promoter-cta">
+    <div class="ic">🩺</div>
+    <div class="body">
+      <h3>推進メンバーガイド</h3>
+      <p>聞き取りカード・健康戦略室・社員登録・施策ボード等、推進メンバー固有の業務をまとめた専用ガイドを用意しています。</p>
+    </div>
+    <a href="/promoter-guide.html">ガイドを開く →</a>
+  </div>
+
+  <h2 id="faq">❓ よくある質問</h2>
+
+  <dl class="faq">
+    <dt>パスワードを忘れました</dt>
+    <dd>管理者にパスワードリセットを依頼してください。管理画面から再設定できます。</dd>
+
+    <dt>反応ボタンが小さすぎて押しにくい</dt>
+    <dd>2026-05-12 の改修で反応ボタンを大幅に拡大しました。それでも押しにくければ画面右下の「A·A」文字サイズ切替で全体を拡大してください（6段階：S/M/L/XL/2XL/3XL）。</dd>
+
+    <dt>反応ボタンの意味は？</dt>
+    <dd>8種類すべて意味があります。👍いいね / ❤️推し / 😊共感 / 💪応援 / 👏すごい / 💡参考 / 🙏ありがとう / 😢心配。<strong>「心配」</strong>は職場の早期介入シグナルとしてAI評議会で重要視されます。</dd>
+
+    <dt>食事投稿で👍以外が押せない</dt>
+    <dd>仕様です。食事投稿はマウント防止のため👍のみに制限しています。</dd>
+
+    <dt>商品マスタ登録から戻るとCoWellトップに飛んでしまう</dt>
+    <dd>2026-05-13 の改修で `?from=` クエリ方式に変更しました。LogiHub から開けば LogiHub に戻ります。</dd>
+
+    <dt>iPhone SE で3ボタンが窮屈です</dt>
+    <dd>2026-05-13 のスマホレイアウト調整でボタンを小さくしました。「マイページ」は「マイ／ページ」の2行表示に。</dd>
+
+    <dt>未読バッジが消えません</dt>
+    <dd>該当ページ（掲示板/業務連絡）を開けば自動で既読扱いになります。それでも消えない場合はブラウザ再読込（F5）を。</dd>
+
+    <dt>サークルへの参加申請はどう取り消しますか？</dt>
+    <dd>現状取り消し機能はありません。リーダーに直接メッセージで取り下げを伝えてください（v2で対応予定）。</dd>
+
+    <dt>個人の健康データは誰に見えますか？</dt>
+    <dd>血圧・健診ファイル・体調メモは <strong>本人のみ</strong>。管理者・推進メンバー・他社員には一切見えません。詳細は <a href="/security.html">プライバシーポリシー</a> をご覧ください。</dd>
+
+    <dt>スマホでも使えますか？</dt>
+    <dd>はい。自動でモバイル版に切替わります。ブラウザの「ホーム画面に追加」でアプリ化推奨。</dd>
+  </dl>
+
+  <h2>🛟 サポート連絡先</h2>
+  <div class="intro">
+    システム不具合・パスワード再発行・PC起動スクリプト導入のご依頼は <strong>管理部 (立石・小林)</strong> までご連絡ください。
+    要望・改善提案は <strong>みんなの広場</strong> に投稿いただければ拾います。
+  </div>
+
+  <div class="footer">
+    <a href="/">ホーム</a> ・
+    <a href="/about-cowell.html">CoWellについて</a> ・
+    <a href="/promoter-guide.html">推進メンバーガイド</a> ・
+    <a href="/security.html">プライバシーポリシー</a>
+  </div>
+
+</div>
+
+  <script src="/translate.js" defer></script>
+</body>
+</html>

@@ -62,6 +62,8 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
   main{padding:12px 12px 60px}
 }
 </style>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 <header>
@@ -154,6 +156,39 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
     </div>
     <button class="btn btn-primary" id="save-tpin" onclick="saveTabletPin()">PINを設定</button>
     <div class="msg" id="tp-msg"></div>
+  </div>
+
+  <!-- 同意設定 -->
+  <div class="section" style="border-left:4px solid #7c3aed;">
+    <h2 style="border-left-color:#7c3aed;color:#5b21b6;"><span class="ic">🎓</span>同意設定 (学術研究)</h2>
+    <div class="desc">
+      帝京大学公衆衛生学研究科 (福田研究室) との共同研究への匿名集計データ提供に協力するかどうか、いつでも切替えできます。<a href="/security.html#share" target="_blank">詳細は4-2項</a>。
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:800;font-size:13.5px;color:#5b21b6;">学術研究協力 (帝京大学)</div>
+        <div style="font-size:11.5px;color:#64748b;margin-top:2px;" id="rc-status">確認中…</div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="rc-toggle" style="width:22px;height:22px;cursor:pointer;" onchange="saveResearchConsent()">
+        <span id="rc-toggle-lbl" style="font-weight:700;font-size:12.5px;">OFF</span>
+      </label>
+    </div>
+    <div class="msg" id="rc-msg"></div>
+    <div style="margin-top:8px;font-size:11px;color:#94a3b8;line-height:1.6;">
+      ※ 撤回後は撤回時点以降の新規データが研究対象から外れます。過去に提供済の匿名集計データは個人特定不能なため復元・削除はできません。
+    </div>
+  </div>
+
+  <!-- プライバシーポリシー閲覧 -->
+  <div class="section">
+    <h2><span class="ic">📖</span>プライバシーポリシー・同意履歴</h2>
+    <div class="desc">最新のプライバシーポリシー全文と、これまでの同意履歴を確認できます。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a href="/security.html" class="btn btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">📖 プライバシーポリシー</a>
+      <a href="/promoter-guide.html" class="btn btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">🩺 推進メンバーガイド</a>
+      <a href="/help.html" class="btn btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">❓ ヘルプ</a>
+    </div>
   </div>
 </main>
 
@@ -339,10 +374,47 @@ async function savePassword(){
   } finally { btn.disabled = false; }
 }
 
+async function loadResearchConsent() {
+  try {
+    const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.success) return;
+    const on = !!d.user.research_consent;
+    const at = d.user.research_consent_at;
+    const tg = document.getElementById('rc-toggle');
+    const lbl = document.getElementById('rc-toggle-lbl');
+    const st = document.getElementById('rc-status');
+    if (tg) tg.checked = on;
+    if (lbl) { lbl.textContent = on ? 'ON' : 'OFF'; lbl.style.color = on ? '#5b21b6' : '#94a3b8'; }
+    if (st) st.textContent = on ? (at ? '✓ 同意中 (' + at.slice(0,10) + '〜)' : '✓ 同意中') : '— 不参加 (CoWell通常利用に影響なし)';
+  } catch (e) { console.warn(e); }
+}
+
+async function saveResearchConsent() {
+  const tg = document.getElementById('rc-toggle');
+  const msg = document.getElementById('rc-msg');
+  if (!tg) return;
+  msg.textContent = '';
+  try {
+    const r = await fetch('/api/auth/research-consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ accepted: tg.checked }),
+    });
+    const d = await r.json();
+    if (!d.success) { msg.textContent = d.msg || '保存失敗'; msg.className = 'msg err'; return; }
+    msg.textContent = tg.checked ? '研究参加に同意しました' : '研究参加を取り下げました';
+    msg.className = 'msg ok';
+    await loadResearchConsent();
+  } catch (e) { msg.textContent = '通信エラー: ' + e.message; msg.className = 'msg err'; }
+}
+
 (async () => {
   await loadMe();
   await loadGroups();
+  await loadResearchConsent();
 })();
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

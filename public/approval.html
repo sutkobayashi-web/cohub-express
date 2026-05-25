@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>申請・承認 | CoWell</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Hiragino Kaku Gothic ProN","Meiryo",sans-serif;background:#f5f7fb;margin:0;color:#1f2937}
+  .header{background:linear-gradient(135deg,#3730a3,#6d28d9);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+  .header h1{font-size:18px;margin:0;font-weight:800;flex:1}
+  .back{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:700}
+  .container{max-width:1100px;margin:14px auto;padding:0 12px 40px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:16px;margin-bottom:14px}
+  .card-title{font-size:16px;font-weight:800;margin-bottom:12px;color:#4338ca}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:5px}
+  label{font-size:12px;font-weight:700;color:#475569}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;background:#fff}
+  textarea{min-height:64px;resize:vertical}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .btn{border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-size:14px;font-weight:800;color:#fff}
+  .btn-primary{background:#4338ca}.btn-blue{background:#2563eb}.btn-green{background:#059669}.btn-gray{background:#7c8797}.btn-orange{background:#d97706}.btn-red{background:#dc2626}
+  .btn:active{transform:translateY(1px)}.btn.busy{opacity:.6;pointer-events:none}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:8px}
+  .nav-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav-btn{border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:800;background:#e0e7ff;color:#3730a3;font-size:13px}
+  .nav-btn.active{background:#4338ca;color:#fff}
+  .section{display:none}.section.active{display:block}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:9px;font-size:13px;display:none;white-space:pre-wrap}
+  .msg.info{display:block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe}
+  .msg.success{display:block;background:#e7f7ee;color:#156d45;border:1px solid #bde3ca}
+  .msg.error{display:block;background:#fdeaea;color:#a12a2a;border:1px solid #f2bcbc}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid #e4eaf2;padding:8px;text-align:left;vertical-align:top}
+  th{background:#f7f9fc;font-size:12px}
+  .mono{font-family:Consolas,monospace;font-size:11px}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;color:#fff;white-space:nowrap}
+  .st-申請中{background:#2563eb}.st-承認済{background:#059669}.st-差戻し{background:#d97706}.st-却下{background:#dc2626}
+  .chain-box{background:#eef2ff;border:1px solid #c7d2fe;border-radius:9px;padding:10px 12px;font-size:13px;line-height:1.7;color:#3730a3;margin-top:10px}
+  .small{font-size:12px;color:#64748b}
+  .step{display:inline-block;padding:2px 8px;border-radius:8px;background:#e2e8f0;color:#475569;margin:2px;font-size:12px;font-weight:700}
+  .step.cur{background:#4338ca;color:#fff}
+  .step.done{background:#059669;color:#fff}
+  .hist{font-size:12px;border-left:3px solid #c7d2fe;padding:4px 0 4px 10px;margin:6px 0;color:#334155}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999}
+  .overlay-card{background:#fff;border-radius:14px;padding:20px 26px;text-align:center;min-width:240px}
+  .spinner{width:30px;height:30px;border:4px solid #d9e1ec;border-top-color:#4338ca;border-radius:50%;margin:0 auto 10px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="header">
+  <button class="back" onclick="goBack()">← 戻る</button>
+  <h1>📑 申請・承認</h1>
+  <span id="whoami" class="small" style="color:#e0e7ff"></span>
+</div>
+<div class="container">
+  <div class="nav-row">
+    <button class="nav-btn active" id="navForm" onclick="showSection('form')">申請する</button>
+    <button class="nav-btn" id="navPending" onclick="showSection('pending');loadPending()">承認待ち <span id="pending-cnt" class="badge" style="background:#dc2626;display:none;">0</span></button>
+    <button class="nav-btn" id="navList" onclick="showSection('list');loadList()">申請一覧</button>
+    <button class="nav-btn hidden" id="navAdmin" onclick="showSection('admin');loadAdmin()">ルート管理</button>
+  </div>
+
+  <!-- 申請 -->
+  <div id="sectionForm" class="section active">
+    <div class="card">
+      <div class="card-title">新規申請</div>
+      <div class="grid">
+        <div class="field" style="grid-column:1/-1"><label>件名</label><input id="f_subject" placeholder="例: ノートPC購入"></div>
+        <div class="field"><label>申請種別</label><select id="f_type" onchange="clearPreview()"></select></div>
+        <div class="field"><label>営業所</label><select id="f_office" onchange="clearPreview()"></select></div>
+        <div class="field"><label>金額(税抜・円)</label><input id="f_amount" inputmode="numeric" placeholder="0" oninput="clearPreview()"></div>
+        <div class="field"><label>添付PDF(最大3)</label><input type="file" id="f_files" accept="application/pdf,.pdf" multiple></div>
+      </div>
+      <div id="previewBox" class="chain-box hidden"></div>
+      <div class="btn-row">
+        <button class="btn btn-blue" onclick="preview()">承認ルート確認</button>
+        <button class="btn btn-primary" onclick="submitApp()">申請する</button>
+      </div>
+      <div id="formMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 承認待ち -->
+  <div id="sectionPending" class="section">
+    <div class="card">
+      <div class="card-title">あなたの承認待ち</div>
+      <div class="btn-row" style="margin-top:0"><button class="btn btn-blue" onclick="loadPending()">更新</button></div>
+      <div id="pendingMsg" class="msg"></div>
+      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>申請日</th><th>件名</th><th>種別</th><th>営業所</th><th>金額</th><th>あなたの役割</th><th></th></tr></thead><tbody id="pendingBody"><tr><td colspan="7" class="small">読み込み中…</td></tr></tbody></table></div>
+    </div>
+    <div class="card"><div class="card-title">詳細</div><div id="detailPending" class="small">一覧の「詳細」を押してください。</div></div>
+  </div>
+
+  <!-- 一覧 -->
+  <div id="sectionList" class="section">
+    <div class="card">
+      <div class="card-title">申請一覧</div>
+      <div class="btn-row" style="margin-top:0"><button class="btn btn-blue" onclick="loadList()">更新</button></div>
+      <div id="listMsg" class="msg"></div>
+      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>申請日</th><th>申請番号</th><th>件名</th><th>種別</th><th>金額</th><th>現在</th><th>状態</th><th></th></tr></thead><tbody id="listBody"><tr><td colspan="8" class="small">読み込み中…</td></tr></tbody></table></div>
+    </div>
+    <div class="card"><div class="card-title">詳細</div><div id="detailList" class="small">一覧の「詳細」を押してください。</div></div>
+  </div>
+
+  <!-- ルート管理 (管理職) -->
+  <div id="sectionAdmin" class="section">
+    <div class="card">
+      <div class="card-title">役職の担当者割当</div>
+      <div class="small">役職コードと営業所（全社=ALL、所長は営業所別）に担当者を割り当てます。組織変更時はここを更新。</div>
+      <div class="btn-row" style="margin-top:8px;align-items:flex-end">
+        <div class="field" style="min-width:110px"><label>役職</label><select id="a_role"></select></div>
+        <div class="field" style="min-width:140px"><label>営業所</label><select id="a_office"></select></div>
+        <div class="field" style="min-width:180px"><label>担当者</label><select id="a_user"></select></div>
+        <button class="btn btn-primary" onclick="addAssignment()">割当追加</button>
+      </div>
+      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>役職</th><th>営業所</th><th>担当者</th><th></th></tr></thead><tbody id="asgBody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">承認ルート</div>
+      <div class="small">申請種別×金額帯×営業所 → 承認チェーン（役職コードをカンマ区切り・承認順）。役職コード: <span id="roleCodesHint" class="mono"></span></div>
+      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>申請種別</th><th>営業所</th><th>金額下限</th><th>金額上限</th><th>チェーン</th><th>有効</th><th></th></tr></thead><tbody id="routeBody"></tbody></table></div>
+      <div class="card-title" style="margin-top:16px;font-size:14px">ルート追加</div>
+      <div class="grid">
+        <div class="field"><label>申請種別</label><input id="r_type" placeholder="例: 消耗品購入"></div>
+        <div class="field"><label>営業所(ALL=全社)</label><input id="r_office" value="ALL"></div>
+        <div class="field"><label>金額下限</label><input id="r_min" inputmode="numeric" value="0"></div>
+        <div class="field"><label>金額上限(0=無制限)</label><input id="r_max" inputmode="numeric" value="0"></div>
+        <div class="field" style="grid-column:1/-1"><label>チェーン(役職コード,カンマ区切り)</label><input id="r_chain" placeholder="KCH,MGR,ADM"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="addRoute()">ルート追加</button></div>
+      <div id="adminMsg" class="msg"></div>
+    </div>
+  </div>
+</div>
+<div id="overlay" class="overlay"><div class="overlay-card"><div class="spinner"></div><div id="overlayText">処理中…</div></div></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+if (!token) location.href = '/';
+let INIT = null, CFG = null;
+function goBack(){ var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||''); if(history.length>1){history.back();}else{location.href=m?'/m':'/';} }
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function yen(v){const n=Number(v||0);return isNaN(n)?'':n.toLocaleString();}
+function $(id){return document.getElementById(id);}
+function val(id){const e=$(id);return e?(e.value||''):'';}
+function setVal(id,v){const e=$(id);if(e)e.value=v==null?'':v;}
+function busy(on,t){$('overlay').style.display=on?'flex':'none';if(t)$('overlayText').textContent=t;}
+function showMsg(id,t,type){const e=$(id);if(!e)return;e.className='msg '+(type||'info');e.textContent=t;}
+async function api(path,opts){
+  opts=opts||{};
+  const headers=Object.assign({'Authorization':'Bearer '+token},opts.headers||{});
+  if(opts.json!==undefined){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.json);delete opts.json;}
+  const r=await fetch('/api/approval'+path,Object.assign({},opts,{headers}));
+  if(r.status===401){location.href='/';return{success:false};}
+  return r.json();
+}
+function showSection(name){
+  ['form','pending','list','admin'].forEach(k=>{
+    $('section'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('active',k===name);
+    $('nav'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('active',k===name);
+  });
+}
+function fillSelect(id,items,withEmpty){const el=$(id);if(!el)return;el.innerHTML=withEmpty?'<option value="">選択</option>':'';items.forEach(it=>{const o=document.createElement('option');o.value=it.value;o.textContent=it.label;el.appendChild(o);});}
+
+async function init(){
+  const d=await api('/init');
+  if(!d.success){showMsg('formMsg','初期化に失敗しました','error');return;}
+  INIT=d;
+  $('whoami').textContent=(d.user.name||'')+(d.user.is_admin?'（管理職）':'');
+  fillSelect('f_type',(d.applyTypes||[]).map(t=>({value:t,label:t})),true);
+  fillSelect('f_office',(d.offices||[]).map(o=>({value:o.code,label:o.name})),true);
+  if(d.user.company_code)setVal('f_office',d.user.company_code);
+  if(d.user.is_admin)$('navAdmin').classList.remove('hidden');
+  loadPendingCount();
+}
+
+// ===== 申請 =====
+function clearPreview(){$('previewBox').classList.add('hidden');}
+async function preview(){
+  if(!val('f_type')||!val('f_office')){showMsg('formMsg','申請種別と営業所を選択してください','error');return;}
+  busy(true,'ルート判定中…');
+  const d=await api('/preview',{method:'POST',json:{apply_type:val('f_type'),amount:val('f_amount'),office_code:val('f_office')}});
+  busy(false);
+  if(!d.success){showMsg('formMsg',d.msg||'ルートなし','error');clearPreview();return;}
+  renderChainPreview(d.chain);
+  showMsg('formMsg','承認ルートが見つかりました。','success');
+}
+function renderChainPreview(chain){
+  const box=$('previewBox');box.classList.remove('hidden');
+  if(!chain||!chain.length){box.innerHTML='承認者が未設定です（管理画面で役職割当をご確認ください）';return;}
+  box.innerHTML='<b>承認の流れ:</b><br>'+chain.map((s,i)=>'<span class="step">'+(i+1)+'. '+esc(s.role_name)+'（'+esc(s.name)+'）</span>').join(' → ');
+}
+async function submitApp(){
+  if(!val('f_subject').trim()){showMsg('formMsg','件名を入力してください','error');return;}
+  if(!val('f_type')||!val('f_office')){showMsg('formMsg','申請種別と営業所を選択してください','error');return;}
+  busy(true,'申請中…');
+  let attachments=[];
+  const files=$('f_files').files;
+  if(files&&files.length){
+    const fd=new FormData();
+    for(let i=0;i<Math.min(files.length,3);i++)fd.append('files',files[i]);
+    const r=await fetch('/api/approval/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const u=await r.json();
+    if(u.success)attachments=u.files;
+  }
+  const d=await api('/',{method:'POST',json:{subject:val('f_subject'),apply_type:val('f_type'),office_code:val('f_office'),amount:val('f_amount'),attachments}});
+  busy(false);
+  if(!d.success){showMsg('formMsg',d.msg||'申請失敗','error');return;}
+  showMsg('formMsg','申請しました（番号: '+d.id+'）。最初の承認者に通知しました。','success');
+  renderChainPreview(d.chain);
+  ['f_subject','f_amount'].forEach(id=>setVal(id,''));$('f_files').value='';
+  loadPendingCount();
+}
+
+// ===== 承認待ち / 一覧 =====
+async function loadPendingCount(){
+  const d=await api('/pending');
+  if(d.success){const n=(d.items||[]).filter(x=>(x.chain_label&&true)).length;const b=$('pending-cnt');if(n>0){b.textContent=n;b.style.display='';}else b.style.display='none';}
+}
+function rowActionsBtn(id,target){return '<button class="btn btn-blue btn-sm" onclick="showDetail(\''+String(id).replace(/'/g,"\\'")+'\',\''+target+'\')">詳細</button>';}
+async function loadPending(){
+  const tb=$('pendingBody');tb.innerHTML='<tr><td colspan="7" class="small">読み込み中…</td></tr>';
+  const d=await api('/pending');
+  if(!d.success){tb.innerHTML='<tr><td colspan="7" class="small">取得失敗</td></tr>';return;}
+  if(!d.items.length){tb.innerHTML='<tr><td colspan="7" class="small">承認待ちはありません。</td></tr>';return;}
+  tb.innerHTML=d.items.map(x=>'<tr><td>'+esc((x.created_at||'').slice(0,10))+'</td><td>'+esc(x.subject)+'</td><td>'+esc(x.apply_type)+'</td><td>'+esc(x.office_name)+'</td><td>'+esc(yen(x.amount))+'</td><td>'+esc(x.cur_role_name)+'</td><td>'+rowActionsBtn(x.id,'Pending')+'</td></tr>').join('');
+}
+async function loadList(){
+  const tb=$('listBody');tb.innerHTML='<tr><td colspan="8" class="small">読み込み中…</td></tr>';
+  const d=await api('/list');
+  if(!d.success){tb.innerHTML='<tr><td colspan="8" class="small">取得失敗</td></tr>';return;}
+  if(!d.items.length){tb.innerHTML='<tr><td colspan="8" class="small">申請はありません。</td></tr>';return;}
+  tb.innerHTML=d.items.map(x=>'<tr><td>'+esc((x.created_at||'').slice(0,10))+'</td><td class="mono">'+esc(x.id)+'</td><td>'+esc(x.subject)+'</td><td>'+esc(x.apply_type)+'</td><td>'+esc(yen(x.amount))+'</td><td>'+esc(x.cur_role_name?x.cur_role_name+'('+x.cur_approver+')':'-')+'</td><td><span class="badge st-'+esc(x.status)+'">'+esc(x.status)+'</span></td><td>'+rowActionsBtn(x.id,'List')+'</td></tr>').join('');
+}
+async function showDetail(id,target){
+  const box=$('detail'+target);box.innerHTML='<div class="small">読み込み中…</div>';
+  const d=await api('/'+encodeURIComponent(id));
+  if(!d.success){box.innerHTML='<div class="small">取得失敗</div>';return;}
+  const x=d.item;
+  const steps=(x._chain||[]).map((s,i)=>'<span class="step '+(i<x.cur_step?'done':i===x.cur_step&&x.status==='申請中'?'cur':'')+'">'+(i+1)+'.'+esc(s.role_name)+'('+esc(s.name)+')</span>').join(' → ');
+  const att=(x.attachments||[]).map(a=>'<a href="'+esc(a.url)+'" target="_blank" rel="noopener">📄 '+esc(a.name)+'</a>').join(' / ');
+  const hist=(d.history||[]).map(h=>'<div class="hist"><b>'+esc(h.action)+'</b> '+esc(h.role||'')+' '+esc(h.actor_name||'')+' <span class="small">'+esc((h.created_at||'').slice(0,16))+'</span>'+(h.note?'<br>'+esc(h.note):'')+'</div>').join('');
+  let actions='';
+  if(x.can_act){
+    actions='<div class="btn-row"><input id="act-note" placeholder="コメント(任意/差戻・却下は理由)" style="flex:1;min-width:160px">'
+      +'<button class="btn btn-green" onclick="act(\''+id+'\',\'approve\',\''+target+'\')">承認</button>'
+      +'<button class="btn btn-orange" onclick="act(\''+id+'\',\'return\',\''+target+'\')">差戻し</button>'
+      +'<button class="btn btn-red" onclick="act(\''+id+'\',\'reject\',\''+target+'\')">却下</button></div>';
+  } else if(x.is_applicant&&x.status==='差戻し'){
+    actions='<div class="btn-row"><button class="btn btn-primary" onclick="act(\''+id+'\',\'resubmit\',\''+target+'\')">再申請</button></div>';
+  }
+  box.innerHTML='<div><b>'+esc(x.subject)+'</b> <span class="badge st-'+esc(x.status)+'">'+esc(x.status)+'</span></div>'
+    +'<div class="small" style="margin:6px 0">番号 '+esc(x.id)+' ／ '+esc(x.apply_type)+' ／ '+esc(x.office_name)+' ／ '+esc(yen(x.amount))+'円 ／ 申請者 '+esc(x.applicant_name)+'</div>'
+    +'<div style="margin:8px 0">'+steps+'</div>'
+    +(att?'<div class="small" style="margin:6px 0">添付: '+att+'</div>':'')
+    +actions
+    +'<div style="margin-top:12px"><div class="small" style="font-weight:700">履歴</div>'+(hist||'<div class="small">なし</div>')+'</div>'
+    +'<div id="actMsg" class="msg"></div>';
+}
+async function act(id,action,target){
+  if((action==='return'||action==='reject')&&!confirm(action==='return'?'差戻しますか？':'却下しますか？'))return;
+  const note=val('act-note');
+  busy(true,'処理中…');
+  const d=await api('/'+encodeURIComponent(id)+'/'+action,{method:'POST',json:{note}});
+  busy(false);
+  if(!d.success){showMsg('actMsg',d.msg||'失敗','error');return;}
+  showDetail(id,target);
+  if(target==='Pending')loadPending(); else loadList();
+  loadPendingCount();
+}
+
+// ===== 管理(ルート/割当) =====
+async function loadAdmin(){
+  const d=await api('/admin/config');
+  if(!d.success){showMsg('adminMsg',d.msg||'取得失敗','error');return;}
+  CFG=d;
+  $('roleCodesHint').textContent=d.roles.map(r=>r.code+'='+r.name).join(' / ');
+  fillSelect('a_role',d.roles.map(r=>({value:r.code,label:r.code+' '+r.name})),false);
+  fillSelect('a_office',[{value:'ALL',label:'ALL (全社)'}].concat(d.offices.map(o=>({value:o.code,label:o.name}))),false);
+  fillSelect('a_user',d.users.map(u=>({value:u.login_id,label:u.display_name+' ('+u.login_id+')'})),true);
+  $('asgBody').innerHTML=d.assignments.map(a=>'<tr><td>'+esc(a.role_code)+'</td><td>'+esc(a.office_code)+'</td><td>'+esc(a.display_name||a.user_login_id||'(未割当)')+'</td><td><button class="btn btn-red btn-sm" onclick="delAssignment('+a.id+')">削除</button></td></tr>').join('')||'<tr><td colspan="4" class="small">なし</td></tr>';
+  $('routeBody').innerHTML=d.routes.map(r=>'<tr><td>'+esc(r.apply_type)+'</td><td>'+esc(r.office_code)+'</td><td>'+esc(yen(r.amount_min))+'</td><td>'+(r.amount_max?esc(yen(r.amount_max)):'∞')+'</td><td class="mono">'+esc(r.chain)+'</td><td>'+(r.active?'✓':'×')+'</td><td><button class="btn btn-red btn-sm" onclick="delRoute('+r.id+')">削除</button></td></tr>').join('')||'<tr><td colspan="7" class="small">なし</td></tr>';
+}
+async function addAssignment(){
+  if(!val('a_role')||!val('a_user')){showMsg('adminMsg','役職と担当者を選択してください','error');return;}
+  busy(true,'追加中…');
+  const d=await api('/admin/assignment',{method:'POST',json:{role_code:val('a_role'),office_code:val('a_office'),user_login_id:val('a_user')}});
+  busy(false);if(!d.success){showMsg('adminMsg',d.msg||'失敗','error');return;}loadAdmin();
+}
+async function delAssignment(id){if(!confirm('削除しますか？'))return;busy(true,'削除中…');const d=await api('/admin/assignment/'+id,{method:'DELETE'});busy(false);if(!d.success){showMsg('adminMsg',d.msg||'失敗','error');return;}loadAdmin();}
+async function addRoute(){
+  if(!val('r_type').trim()||!val('r_chain').trim()){showMsg('adminMsg','申請種別とチェーンは必須です','error');return;}
+  busy(true,'追加中…');
+  const d=await api('/admin/route',{method:'POST',json:{apply_type:val('r_type'),office_code:val('r_office')||'ALL',amount_min:Number(val('r_min'))||0,amount_max:Number(val('r_max'))||0,chain:val('r_chain')}});
+  busy(false);if(!d.success){showMsg('adminMsg',d.msg||'失敗','error');return;}
+  ['r_type','r_chain'].forEach(id=>setVal(id,''));setVal('r_min','0');setVal('r_max','0');setVal('r_office','ALL');
+  loadAdmin();init();
+}
+async function delRoute(id){if(!confirm('削除しますか？'))return;busy(true,'削除中…');const d=await api('/admin/route/'+id,{method:'DELETE'});busy(false);if(!d.success){showMsg('adminMsg',d.msg||'失敗','error');return;}loadAdmin();init();}
+
+init();
+</script>
+</body>
+</html>

@@ -61,6 +61,7 @@ input[type=file] { display: none; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 200; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 </style>
+<script src="/version-check.js" defer></script>
 </head>
 <body>
 <div class="hd">
@@ -68,7 +69,8 @@ input[type=file] { display: none; }
   <div class="title">📷 社員登録</div>
 </div>
 <div class="intro">
-  拠点で新しい社員を登録します。<b>スマホで写真を撮ってアバターを作成</b>し、拠点・配属を選んで登録するだけ。<br>
+  <b>管理職専用画面</b>です。1名ずつ写真付きで登録できます。<br>
+  大量に登録する場合は <a href="/admin#bulk-enroll" style="color:var(--accent-d);font-weight:600;">admin → CSV一括登録</a> をご利用ください。<br>
   登録後は <b>ログインID</b> と <b>初期パスワード</b> を本人に伝えてください（その画面でしか表示されません）。
 </div>
 <div class="body">
@@ -107,6 +109,11 @@ input[type=file] { display: none; }
     <div class="row">
       <label>拠点 <span style="color:var(--danger);">*</span></label>
       <select id="company_code"></select>
+    </div>
+    <div class="row">
+      <label>所属グループ <span style="color:var(--danger);">*</span></label>
+      <select id="dm_group"></select>
+      <div class="hint">部署内DM・チャットグループに自動所属します。通常は拠点名と同じ。</div>
     </div>
     <div class="row">
       <label>職種 <span style="color:var(--danger);">*</span></label>
@@ -192,14 +199,46 @@ async function init() {
   meta = m;
   // 拠点
   const co = document.getElementById('company_code');
-  co.innerHTML = meta.companies.map(c => `<option value="${escapeHtml(c.code)}" ${c.code === meta.own_company ? 'selected' : ''}>${escapeHtml(c.name || c.code)} (${escapeHtml(c.code)})</option>`).join('');
+  co.innerHTML = meta.companies.map(c => `<option value="${escapeHtml(c.code)}" data-name="${escapeHtml(c.name || '')}" ${c.code === meta.own_company ? 'selected' : ''}>${escapeHtml(c.name || c.code)} (${escapeHtml(c.code)})</option>`).join('');
   if (!meta.is_admin) co.disabled = true;
+  // 所属グループ (dm_group): 既存候補 + 拠点名既定
+  const dg = document.getElementById('dm_group');
+  rebuildDmGroupOptions();
+  co.addEventListener('change', rebuildDmGroupOptions);
   // 職種
   const jr = document.getElementById('job_role');
   jr.innerHTML = '<option value="">選択してください</option>' + (meta.job_roles || []).map(j =>
     `<option value="${escapeHtml(j.v)}">${escapeHtml(j.label)}</option>`).join('');
   // 生年月日 (1970/1/1 デフォルト)
   initBirthDial();
+}
+
+function rebuildDmGroupOptions() {
+  const co = document.getElementById('company_code');
+  const dg = document.getElementById('dm_group');
+  const sel = co.options[co.selectedIndex];
+  const defName = sel ? (sel.getAttribute('data-name') || '') : '';
+  const existing = (meta && meta.dm_groups) ? meta.dm_groups.map(g => g.name).filter(Boolean) : [];
+  // 拠点名を先頭に、続いて既存候補 (重複除外)
+  const names = [];
+  if (defName) names.push(defName);
+  for (const n of existing) if (n && !names.includes(n)) names.push(n);
+  dg.innerHTML = names.map(n => `<option value="${escapeHtml(n)}" ${n === defName ? 'selected' : ''}>${escapeHtml(n)}${n === defName ? ' (拠点既定)' : ''}</option>`).join('')
+    + '<option value="__new__">+ 新しいグループ名を入力…</option>';
+  dg.onchange = function () {
+    if (dg.value === '__new__') {
+      const v = prompt('新しい所属グループ名を入力してください (例: 営業1課)');
+      if (v && v.trim()) {
+        const opt = document.createElement('option');
+        opt.value = v.trim();
+        opt.textContent = v.trim() + ' (新規)';
+        dg.insertBefore(opt, dg.options[dg.options.length - 1]);
+        dg.value = v.trim();
+      } else {
+        dg.value = defName || (names[0] || '');
+      }
+    }
+  };
 }
 
 function initBirthDial() {
@@ -299,11 +338,15 @@ async function retakePhoto() {
 async function submitEnroll() {
   const errEl = document.getElementById('form-err');
   errEl.textContent = '';
+  const dgEl = document.getElementById('dm_group');
+  let dgVal = dgEl ? dgEl.value : '';
+  if (dgVal === '__new__') dgVal = '';
   const payload = {
     login_id: document.getElementById('login_id').value.trim().toLowerCase(),
     display_name: document.getElementById('display_name').value.trim(),
     nickname: document.getElementById('nickname').value.trim(),
     company_code: document.getElementById('company_code').value,
+    dm_group: dgVal,
     job_role: document.getElementById('job_role').value,
     birth_date: getBirthDate(),
     avatar_url: pendingAvatarUrl || '',
@@ -362,5 +405,6 @@ function closeOk(continueMore) {
 
 init();
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

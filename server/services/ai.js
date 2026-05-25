@@ -139,8 +139,8 @@ const CONCIERGE_PROMPTS = {
 - 「ここはどこ?」「会社名は?」「何のサイト?」と聞かれたら必ず「スタンダード運輸グループ コミュニケーション＆ウエルネス サイト です」と答えてください。
 - 通称・略称として「CoWell」が使われることがありますが、ユーザー向けには正式名称「コミュニケーション＆ウエルネス サイト」を優先して案内してください。
 - 略称を読み上げる際は「コーウエル」と発音します。
-- 業務連絡・健康管理・ひろば・水族館などを統合した社内プラットフォームです。
-- 旧 CoWell (海の冒険RPG) は「CoWell Classic (コーウエル クラシック)」と区別して呼んでください。
+- 業務連絡・健康管理・申請ワークフロー・チャット・会議・福利厚生などを統合した社内プラットフォームです。
+- 旧 CoWell (海の冒険RPG) は2026年5月に停止しました。「CoWell Classic (コーウエル クラシック)」と区別して呼び、停止済である旨を案内してください。
 
 【サイトの構成】
 - 1Fロビー: 訪問者受付・待合(私はここに居ます)
@@ -642,6 +642,74 @@ async function analyzeBPImage(imageBuffer, mimeType) {
   return parsed;
 }
 
+// 領収書OCR (仮払精算): 画像から 支払先/金額/領収書日付/インボイス番号/勘定科目候補/全文 を構造化抽出。
+// accountTitles: 勘定科目名の配列 (Geminiに候補を渡して最適な1つを選ばせる)。
+async function analyzeReceiptImage(imageBuffer, mimeType, accountTitles) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
+  const titleList = (Array.isArray(accountTitles) ? accountTitles : []).filter(Boolean).join(' / ') || '(候補なし)';
+  const prompt = `あなたは日本の領収書・レシートを読み取る専門AIです。画像を読み取り、純粋なJSONのみで回答してください (前置き・コードフェンス禁止):
+
+{"vendor":"支払先(店名/会社名)。なければ空文字","amount":合計金額の整数(カンマ無し)またはnull,"receipt_date":"領収書の日付 YYYY-MM-DD。なければ空文字","invoice_no":"インボイス登録番号 T+13桁(例 T1234567890123)。なければ空文字","suggested_account":"勘定科目を次から最適な1つだけ選ぶ。判断できなければ空文字 → [${titleList}]","raw_text":"領収書に記載の文字を可能な範囲でそのまま(改行は\\nで)"}
+
+ルール:
+- amount は「合計/お会計/税込合計/ご請求額」など最終支払総額(税込)。小計や税額ではなく総額。
+- 和暦(令和/平成)は西暦に変換 (令和N年 = 2018+N年、平成N年 = 1988+N年)。
+- invoice_no は「T」+数字13桁。見つからなければ空文字。
+- suggested_account は必ず提示した候補の中の文字列か空文字。新しい科目名を作らない。
+- 領収書・レシートでない画像なら vendor/receipt_date/invoice_no/suggested_account/raw_text は空文字、amount は null。`;
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } },
+        { text: prompt },
+      ],
+    }],
+    // 構造化JSON取得時は thinkingBudget=0 必須 (出力切詰防止 — memory feedback_gemini_thinking_budget)
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2500, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini vision HTTP ' + resp.status + ': ' + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) text = m[0];
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) {
+    let fixed = text;
+    const opens = (fixed.match(/\{/g) || []).length;
+    const closes = (fixed.match(/\}/g) || []).length;
+    if (opens > closes) fixed += '"}'.slice(1).padEnd(opens - closes, '}');
+    try { parsed = JSON.parse(fixed); }
+    catch (e2) {
+      console.warn('[analyzeReceipt] parse fail:', text.slice(0, 200));
+      throw new Error('AI応答解析失敗 (領収書画像か確認してください)');
+    }
+  }
+  // 正規化
+  const amt = parsed.amount;
+  const amount = (amt == null || amt === '') ? '' : Number(String(amt).replace(/[^\d.-]/g, '')) || '';
+  return {
+    vendor: String(parsed.vendor || '').trim(),
+    amount: amount,
+    receipt_date: String(parsed.receipt_date || '').trim(),
+    invoice_no: String(parsed.invoice_no || '').trim(),
+    suggested_account: String(parsed.suggested_account || '').trim(),
+    raw_text: String(parsed.raw_text || '').trim(),
+  };
+}
+
 // 健康管理室 アクションプラン生成 (社員の選択肢+自由記述+食事/血圧コンテキストから5セクション提案)
 // selections: [{layer, key, label}, ...]、freeText: 任意の追記、context: { recent_meals_7d, bp_recent, age, ... }
 // movementPriority: 運動意欲フラグ (true なら今日/1週間アクションを運動寄りに)
@@ -1029,4 +1097,68 @@ ${todayConsecutiveMiss}日連続
   }
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, generateActionPlan, generateDialogStep, generateDailyReply };
+// マイ運動記録 🔥 — 万歩計/ランニングアプリ/ジムマシン の3パターン同時対応OCR
+async function analyzeActivityImage(imageBuffer, mimeType) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
+  const prompt = `あなたは運動記録の画像を読み取る専門AIです。万歩計・スマートウォッチ・ランニングアプリ(Strava/Nike Run/Apple ヘルス/Google Fit等)・ジムマシン(ランニングマシン/エアロバイク/クロストレーナー等)の表示から数値を抽出します。
+
+純粋なJSONのみで回答 (前置き・コードフェンス禁止):
+{"activity_type": "walk"|"jog"|"run"|"bike"|"gym"|null, "steps": 数値またはnull, "distance_km": 数値またはnull, "duration_min": 数値またはnull, "kcal": 数値またはnull, "confidence": "high"|"medium"|"low", "note": "補足"}
+
+ルール:
+- activity_type の推定基準:
+  - 歩数表示中心 / 「歩」「Steps」 → walk
+  - 「ジョグ」「Jog」 / 速度6-9km/h相当 → jog
+  - 「ラン」「Run」「Running」/ 速度9km/h超 / Strava等 → run
+  - 「Cycling」「Bike」「エアロバイク」 → bike
+  - 「ジム」「Treadmill」「Cross Trainer」 / マシン表示一般 → gym
+  - 判別不能なら null
+- steps = 整数歩数 (画像が万歩計時)
+- distance_km = 距離 (km単位、m表示なら÷1000)
+- duration_min = 時間 (分単位、秒は四捨五入で含めない)
+- kcal = 消費カロリー (kcal、画像に表示があれば必ず取得)
+- 数値が読めない項目はnull
+- 運動記録の画像でなければ全てnull + note="運動記録の画像ではありません"
+- 部分的に読める場合は confidence=medium、ほぼ全項目読めれば high`;
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 500,
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Gemini vision HTTP ' + resp.status + ': ' + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  let text = '';
+  if (parts) for (const p of parts) if (p.text) text += p.text;
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) text = m[0];
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) {
+    console.warn('[analyzeActivity] parse fail:', text.slice(0, 200));
+    throw new Error('AI応答解析失敗 (画像が運動記録か確認してください)');
+  }
+  console.log('[analyzeActivity] parsed:', JSON.stringify(parsed));
+  return parsed;
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, analyzeActivityImage, analyzeReceiptImage, generateActionPlan, generateDialogStep, generateDailyReply };

@@ -259,6 +259,171 @@ function getDb() {
   // ゲスト (大学・NPO等の外部レビュアー) フラグ — 施策ボードレビュー権限
   ensureColumn(_db, 'users', 'is_guest_reviewer', 'is_guest_reviewer INTEGER DEFAULT 0');
   ensureColumn(_db, 'users', 'guest_org', 'guest_org TEXT');
+  // 会社マスタ表示名を実社名へ正規化 (2026-05-25: 旧 SU本社/IBA鹿島/スズエ 等 → 正式社名)
+  // 本番では 支店チャットグループ名 と users.dm_group が旧社名そのもの (companies.name と連動)。
+  // 表示だけ変えると次回登録時に新社名グループが別途作られ既存グループと分断するため、
+  // companies.name / chat_groups.name(支店GC) / users.dm_group を旧→新へコヒーレントに一括リネーム。
+  // 全て exact-match の冪等UPDATE (旧名が無ければ no-op)。
+  try {
+    // code → [旧name, 新name]
+    const COMPANY_RENAME = [
+      ['SU_HQ',       'SU本社',   'スタンダード運輸 本社'],
+      ['SU_SAITAMA',  'SU埼玉',   'スタンダード運輸 埼玉'],
+      ['SU_MKANTO',   'SU南関東', 'スタンダード運輸 南関東'],
+      ['SU_ZAMA',     'SU座間',   'スタンダード運輸 座間'],
+      ['IBA_KASHIMA', 'IBA鹿島',  '茨運(鹿島)'],
+      ['IBA_SANWA',   'IBA三和',  '茨運(三和)'],
+      ['SUZUE',       'スズエ',   'スズエ電機'],
+    ];
+    const updCompany = _db.prepare('UPDATE companies SET name = ? WHERE code = ? AND name != ?');
+    const updGroup   = _db.prepare("UPDATE chat_groups SET name = ? WHERE name = ? AND category = 'branch'");
+    const updDmGroup = _db.prepare('UPDATE users SET dm_group = ? WHERE dm_group = ?');
+    const renameTx = _db.transaction(() => {
+      for (const [code, oldName, newName] of COMPANY_RENAME) {
+        updCompany.run(newName, code, newName);
+        updGroup.run(newName, oldName);
+        updDmGroup.run(newName, oldName);
+      }
+    });
+    renameTx();
+  } catch (e) { console.warn('[companies coherent rename]', e.message); }
+  // ============================================================
+  // 仮払精算システム (2026-05-25 GAS移植) — 領収書Gemini OCR型 経費精算
+  // 営業所は companies を流用。承認は単純1段 (申請済→承認済/差戻し、管理職が承認)。
+  // ============================================================
+  _db.exec(`CREATE TABLE IF NOT EXISTS expenses (
+    id TEXT PRIMARY KEY,
+    apply_date TEXT,
+    request_office TEXT,
+    target_office TEXT,
+    applicant TEXT,
+    usage_date TEXT,
+    vendor TEXT,
+    ocr_vendor TEXT,
+    amount INTEGER DEFAULT 0,
+    ocr_amount INTEGER DEFAULT 0,
+    account_title TEXT,
+    summary TEXT,
+    receipt_date TEXT,
+    ocr_receipt_date TEXT,
+    invoice_no TEXT,
+    ocr_text TEXT,
+    image_url TEXT,
+    status TEXT DEFAULT '申請済',
+    checker TEXT,
+    checked_at TEXT,
+    return_reason TEXT,
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_expenses_office ON expenses(request_office, status);
+  CREATE INDEX IF NOT EXISTS idx_expenses_created ON expenses(created_at DESC);
+  CREATE TABLE IF NOT EXISTS expense_account_titles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT, name TEXT NOT NULL, active INTEGER DEFAULT 1, sort_order INTEGER DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS expense_vendors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT, name TEXT NOT NULL, yomi TEXT, note TEXT, active INTEGER DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS expense_applicants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT, name TEXT NOT NULL, company_code TEXT, active INTEGER DEFAULT 1
+  );`);
+  // 勘定科目 初期シード (空のときのみ)
+  try {
+    const cnt = _db.prepare('SELECT COUNT(*) c FROM expense_account_titles').get().c;
+    if (!cnt) {
+      const seed = ['燃料費','旅費交通費','荷造運賃','消耗品費','事務用品費','通信費','会議費','接待交際費','修繕費','雑費'];
+      const ins = _db.prepare('INSERT INTO expense_account_titles (name, active, sort_order) VALUES (?, 1, ?)');
+      seed.forEach((n, i) => ins.run(n, i));
+    }
+  } catch (e) { console.warn('[expense account seed]', e.message); }
+  // ============================================================
+  // 承認申請システム (2026-05-25 GAS移植 / 決裁基準表ベース)
+  // SU・茨運共通。役職→担当者(login_id)、ルート(申請種別×金額帯×営業所→役職チェーン)は管理画面で編集可能。
+  // スズエ電機は別ルート(後日)。
+  // ============================================================
+  _db.exec(`CREATE TABLE IF NOT EXISTS appr_roles (
+    code TEXT PRIMARY KEY, name TEXT NOT NULL, rank INTEGER DEFAULT 0, office_specific INTEGER DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS appr_role_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_code TEXT NOT NULL, office_code TEXT NOT NULL DEFAULT 'ALL', user_login_id TEXT
+  );
+  CREATE TABLE IF NOT EXISTS appr_routes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    apply_type TEXT NOT NULL, office_code TEXT NOT NULL DEFAULT 'ALL',
+    amount_min INTEGER DEFAULT 0, amount_max INTEGER DEFAULT 0,
+    chain TEXT NOT NULL, priority INTEGER DEFAULT 100, active INTEGER DEFAULT 1, note TEXT
+  );
+  CREATE TABLE IF NOT EXISTS approval_apps (
+    id TEXT PRIMARY KEY,
+    subject TEXT, apply_type TEXT, office_code TEXT, amount INTEGER DEFAULT 0,
+    route_id INTEGER, chain TEXT, status TEXT DEFAULT '申請中',
+    cur_step INTEGER DEFAULT 0, cur_role TEXT,
+    attach1_url TEXT, attach1_name TEXT, attach2_url TEXT, attach2_name TEXT, attach3_url TEXT, attach3_name TEXT,
+    applicant_id TEXT, applicant_name TEXT,
+    created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_appr_apps_status ON approval_apps(status, cur_role);
+  CREATE TABLE IF NOT EXISTS approval_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_id TEXT NOT NULL, action TEXT, role TEXT, actor_name TEXT, note TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );`);
+  try {
+    if (!_db.prepare('SELECT COUNT(*) c FROM appr_roles').get().c) {
+      // 役職階層 (rank昇順=承認順)。office_specific=1 は営業所別(MGR=所長)
+      const roles = [
+        ['KCH','課長',1,0],['MGR','所長',2,1],['ADM','管理課長',3,0],['BRM','支社長',4,0],
+        ['EXE','執行役員',5,0],['HOB','事業本部長',6,0],['HQA','経営管理本部長',7,0],['SVP','専務',8,0],['PRES','社長',9,0],
+      ];
+      const ir = _db.prepare('INSERT INTO appr_roles (code,name,rank,office_specific) VALUES (?,?,?,?)');
+      roles.forEach(r => ir.run(...r));
+      // 役職→担当者(login_id) ※PDFユーザーマスタより。MGRは営業所別(CoHub company_code)。空営業所/役職は管理画面で割当。
+      const asg = [
+        ['PRES','ALL','taketake'],['SVP','ALL','chikara'],['HQA','ALL','y_gotoh'],
+        ['HOB','ALL','y_okada'],['ADM','ALL','y_yoshizawa'],
+        ['MGR','SU_HQ','a_yamada'],['MGR','SU_MKANTO','y_aoki'],['MGR','SU_ZAMA','ts_hamamichi'],
+        ['MGR','IBA_KASHIMA','t_tsuchiko'],['MGR','IBA_SANWA','e_sugai'],
+      ];
+      const ia = _db.prepare('INSERT INTO appr_role_assignments (role_code,office_code,user_login_id) VALUES (?,?,?)');
+      asg.forEach(a => ia.run(...a));
+      // ルート(決裁基準表 SU・茨運共通)。chain=役職コードを承認順(下位→上位)で。(●)所長不在=支社長 等の代理は省略しBRM/EXE/KCH等未割当ロールは申請時にスキップ。
+      const ALL = 'KCH,MGR,ADM,BRM,EXE,HOB,HQA,SVP,PRES';
+      const routes = [
+        ['届書(休暇・時間外等)',0,0,'KCH,MGR,ADM'],
+        ['時間外申請',0,0,'KCH,MGR,ADM'],
+        ['人事変更届',0,0,'KCH,MGR,ADM'],
+        ['休日手当支給申請',0,0,'KCH,MGR,ADM'],
+        ['出張申請・旅費清算',0,0,'KCH,MGR,ADM,HQA'],
+        ['慶弔見舞金支払申請',0,0,'KCH,MGR,ADM'],
+        ['事故報告書',0,0,'KCH,MGR,ADM'],
+        ['接待交際費清算',0,0,'KCH,MGR,ADM'],
+        ['取引条件変更(締日等)',0,0,'KCH,MGR,ADM'],
+        ['新規協力会社取引・取引条件変更',0,0,'KCH,MGR,ADM,EXE,HOB,HQA'],
+        ['車検申請',0,0,'KCH,MGR,ADM'],
+        ['タイヤ・バッテリー・シート申請',0,0,'KCH,MGR,ADM,EXE,HOB'],
+        ['車両修理(30万円以下)',0,300000,'KCH,MGR,ADM,EXE,HOB,HQA,SVP'],
+        ['車両修理(30万円超)',300001,0,ALL],
+        ['車両移動申請',0,0,ALL],
+        ['車両購入(新規・代替)',0,0,ALL],
+        ['物品購入・修理(3万円以下)',0,30000,'KCH,MGR,ADM,EXE,HOB'],
+        ['物品購入(3万円超〜5万円)',30001,50000,'KCH,MGR,ADM,EXE,HOB'],
+        ['物品購入(5万円超〜10万円)',50001,100000,'KCH,MGR,ADM,EXE,HOB,HQA,SVP'],
+        ['物品購入(10万円超)',100001,0,ALL],
+        ['社員募集広告',0,0,'KCH,MGR,ADM,EXE,HOB,HQA,SVP,PRES'],
+        ['資格取得申請',0,0,ALL],
+        ['土地購入等大型投資',0,0,ALL],
+        ['社外企業との契約',0,0,ALL],
+        ['稟議(一般)',0,0,'KCH,MGR,ADM,HOB,HQA,SVP,PRES'],
+      ];
+      const irt = _db.prepare("INSERT INTO appr_routes (apply_type,office_code,amount_min,amount_max,chain,priority,active) VALUES (?,?,?,?,?,100,1)");
+      routes.forEach(r => irt.run(r[0],'ALL',r[1],r[2],r[3]));
+    }
+  } catch (e) { console.warn('[approval seed]', e.message); }
   // 大学・NPO法人 会社コード追加 (ゲスト用所属)
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('UNIVERSITY', '大学・研究機関', '#7c3aed')").run();
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('NPO', 'NPO法人', '#0891b2')").run();
@@ -603,7 +768,7 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_pc_post ON plaza_comments(post_id, created_at);`);
   // 既存DBに is_anonymous 追加 (idempotent migration)
   ensureColumn(_db, 'plaza_posts', 'is_anonymous', 'is_anonymous INTEGER DEFAULT 0');
-  // イベント (Phase7) — 健康チャレンジ/水族館等の「開催中」リスト
+  // イベント (Phase7) — 健康チャレンジ等の「開催中」リスト
   _db.exec(`CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -649,6 +814,36 @@ function getDb() {
     deleted_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_hc_user ON health_checkups(user_id, year DESC);`);
+  // マイ運動記録 🔥 (2026-05-23) — 個人運動ログ、kcal統一KPI
+  _db.exec(`CREATE TABLE IF NOT EXISTS activity_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    activity_type TEXT NOT NULL,
+    steps INTEGER,
+    distance_km REAL,
+    duration_min INTEGER,
+    kcal INTEGER NOT NULL,
+    kcal_source TEXT DEFAULT 'estimated',
+    comment TEXT,
+    photo_url TEXT,
+    source TEXT DEFAULT 'manual',
+    visibility TEXT DEFAULT 'private',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_act_user_date ON activity_logs(user_id, date DESC);
+  CREATE INDEX IF NOT EXISTS idx_act_user_created ON activity_logs(user_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS user_activity_prefs (
+    user_id TEXT PRIMARY KEY,
+    weight_kg REAL,
+    monthly_goal_kcal INTEGER,
+    default_visibility TEXT DEFAULT 'private',
+    reminder_time TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );`);
   // 凝集型テーマ投票 (Phase10) — CoWell v2 から移植
   // 1サイクル = テーマ起票 → 全社投票 → 専門家コメント → 施策化
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_themes (
@@ -810,17 +1005,7 @@ function getDb() {
     deleted_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_ppc_post ON plaza_post_promoter_comments(post_id, created_at);`);
-  // 既定イベント: 🐠 水族館 (CoWell)
-  const eventExists = _db.prepare("SELECT 1 FROM events WHERE title = ?").get('🐠 水族館の冒険');
-  if (!eventExists) {
-    _db.prepare(`INSERT INTO events (title, description, icon, url, is_external, sort_order)
-      VALUES (?, ?, ?, ?, 1, 100)`).run(
-      '🐠 水族館の冒険',
-      '歩数で海を旅して魚を発見する CoWell の冒険RPGです。今までの冒険記録もそのまま続けられます。',
-      '🐠',
-      'https://health.biz-terrace.org/'
-    );
-  }
+  // 旧 🐠 水族館の冒険 (CoWell Classic) は2026-05に停止、シード処理は廃止
   // login_id 統一: eitaro → e_sugai (須貝栄二)
   try { _db.prepare("UPDATE users SET login_id = 'e_sugai' WHERE login_id = 'eitaro'").run(); } catch (e) {}
   // 推進メンバー初期付与 (運管型) — taketake はテスト確認用
@@ -929,9 +1114,10 @@ function getDb() {
   for (const r of hqUserRows) {
     memInsert.run(HQ_GROUP_ID, r.id);
   }
-  // 営業所カテゴリ自動付与 (idempotent): SU*/IBA*/スズエ
+  // 営業所カテゴリ自動付与 (idempotent): 旧名(SU*/IBA*/スズエ) + 新実社名(スタンダード運輸*/茨運*/スズエ電機)
   _db.prepare(`UPDATE chat_groups SET category = 'branch'
-               WHERE (name LIKE 'SU%' OR name LIKE 'IBA%' OR name = 'スズエ')
+               WHERE (name LIKE 'SU%' OR name LIKE 'IBA%' OR name = 'スズエ'
+                      OR name LIKE 'スタンダード運輸%' OR name LIKE '茨運%' OR name = 'スズエ電機')
                  AND (category IS NULL OR category = '')`).run();
   // 特殊GCの sort_order を権威的に設定 (idempotent)
   const specialOrders = [
@@ -1313,6 +1499,9 @@ function getDb() {
   );`);
   // タブレットPIN認証 (拠点共用デバイス用、社員ID + 4桁ピンで素早くログイン)
   ensureColumn(_db, 'users', 'walk_pin', 'walk_pin TEXT');
+  // 自動打刻オプション (2026-05-23): PC起動時に自動でpunch_in、退勤も最終ハートビートから自動推定
+  ensureColumn(_db, 'users', 'auto_punch_in', 'auto_punch_in INTEGER DEFAULT 0');
+  ensureColumn(_db, 'users', 'auto_punch_out', 'auto_punch_out INTEGER DEFAULT 0');
 
   // ==========================================================
   // 出退勤打刻 + PC起動時刻記録 (2026-05-07: ダウングレード時に追加)
@@ -1344,6 +1533,15 @@ function getDb() {
   );
   CREATE INDEX IF NOT EXISTS idx_psl_user ON pc_startup_logs(user_id, started_at DESC);
   CREATE INDEX IF NOT EXISTS idx_psl_at ON pc_startup_logs(started_at DESC);
+
+  -- ハートビート (2026-05-23): 5分おきPC側からPing、退勤時刻推定用
+  CREATE TABLE IF NOT EXISTS pc_heartbeats (
+    user_id TEXT NOT NULL,
+    pc_id TEXT,
+    last_at TEXT DEFAULT (datetime('now', 'localtime')),
+    PRIMARY KEY (user_id, pc_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pcb_user_at ON pc_heartbeats(user_id, last_at DESC);
 
   -- 既読管理 (2026-05-08): メッセージ単位で誰が読んだかを記録
   CREATE TABLE IF NOT EXISTS message_reads (

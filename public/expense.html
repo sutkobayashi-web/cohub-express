@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>仮払精算 | CoWell</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Hiragino Kaku Gothic ProN","Meiryo",sans-serif;background:#f5f7fb;margin:0;color:#1f2937}
+  .header{background:linear-gradient(135deg,#1d7f5f,#2fa0d7);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+  .header h1{font-size:18px;margin:0;font-weight:800;flex:1}
+  .back{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:700}
+  .container{max-width:1100px;margin:14px auto;padding:0 12px 40px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:16px;margin-bottom:14px}
+  .card-title{font-size:16px;font-weight:800;margin-bottom:12px;color:#145c46}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:5px}
+  label{font-size:12px;font-weight:700;color:#475569}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;background:#fff}
+  textarea{min-height:70px;resize:vertical}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .btn{border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-size:14px;font-weight:800;color:#fff}
+  .btn-primary{background:#1d7f5f}.btn-blue{background:#2f7ed8}.btn-gray{background:#7c8797}.btn-red{background:#dc2626}.btn-orange{background:#d97706}
+  .btn:active{transform:translateY(1px)}.btn.busy{opacity:.6;pointer-events:none}
+  .nav-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav-btn{border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:800;background:#dfe8f3;color:#234;font-size:13px}
+  .nav-btn.active{background:#1d7f5f;color:#fff}
+  .section{display:none}.section.active{display:block}
+  .preview-box{border:1px dashed #c2cedd;padding:10px;border-radius:12px;background:#fbfcfe;margin-top:10px;text-align:center}
+  .preview-img{max-width:100%;max-height:300px;border-radius:8px;display:none;margin:0 auto}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:9px;font-size:13px;display:none;white-space:pre-wrap}
+  .msg.info{display:block;background:#eaf3ff;color:#235a9f;border:1px solid #bfd7fb}
+  .msg.success{display:block;background:#e7f7ee;color:#156d45;border:1px solid #bde3ca}
+  .msg.error{display:block;background:#fdeaea;color:#a12a2a;border:1px solid #f2bcbc}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid #e4eaf2;padding:8px;text-align:left;vertical-align:top}
+  th{background:#f7f9fc;font-size:12px}
+  .mono{font-family:Consolas,monospace;font-size:11px}
+  .group-row td{background:#eef4fb;font-weight:800;color:#145c46}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;color:#fff;white-space:nowrap}
+  .st-申請済{background:#2563eb}.st-承認済{background:#059669}.st-差戻し{background:#d97706}
+  .updated{background:#fff7bf!important}
+  .ocr-out{background:#f7f9fc;border:1px solid #e2e8f0;border-radius:9px;padding:10px;margin-top:10px}
+  .small{font-size:12px;color:#64748b}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999}
+  .overlay-card{background:#fff;border-radius:14px;padding:20px 26px;text-align:center;min-width:240px}
+  .spinner{width:30px;height:30px;border:4px solid #d9e1ec;border-top-color:#2f7ed8;border-radius:50%;margin:0 auto 10px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .master-list{margin-top:10px}
+  .master-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eef2f7;font-size:13px}
+  .master-item .nm{flex:1}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="header">
+  <button class="back" onclick="goBack()">← 戻る</button>
+  <h1>🧾 仮払精算</h1>
+  <span id="whoami" class="small" style="color:#eaf6ff"></span>
+</div>
+
+<div class="container">
+  <div class="nav-row">
+    <button class="nav-btn active" id="navForm" onclick="showSection('form')">申請入力</button>
+    <button class="nav-btn" id="navList" onclick="showSection('list');loadList(false)">確認一覧</button>
+    <button class="nav-btn hidden" id="navApproval" onclick="showSection('approval');loadList(true)">承認管理</button>
+    <button class="nav-btn hidden" id="navMaster" onclick="showSection('master');renderMasters()">マスタ管理</button>
+  </div>
+
+  <!-- 申請入力 -->
+  <div id="sectionForm" class="section active">
+    <div class="card">
+      <div class="card-title">仮払申請入力</div>
+      <div class="grid">
+        <div class="field"><label>申請営業所</label><select id="f_request_office"></select></div>
+        <div class="field"><label>該当営業所</label><select id="f_target_office"></select></div>
+        <div class="field"><label>申請者</label><input id="f_applicant" list="applicantList"><datalist id="applicantList"></datalist></div>
+        <div class="field"><label>申請日</label><input type="date" id="f_apply_date"></div>
+        <div class="field"><label>使用日</label><input type="date" id="f_usage_date"></div>
+        <div class="field"><label>支払先</label><input id="f_vendor" list="vendorList"><datalist id="vendorList"></datalist></div>
+        <div class="field"><label>金額 (税込)</label><input id="f_amount" inputmode="numeric"></div>
+        <div class="field"><label>勘定科目</label><select id="f_account_title"></select></div>
+        <div class="field"><label>領収書日付</label><input type="date" id="f_receipt_date"></div>
+        <div class="field"><label>インボイス番号</label><input id="f_invoice_no" placeholder="T+13桁"></div>
+      </div>
+      <div class="field" style="margin-top:10px"><label>摘要</label><textarea id="f_summary"></textarea></div>
+
+      <div class="field" style="margin-top:10px">
+        <label>領収書画像</label>
+        <input type="file" id="f_image" accept="image/*">
+        <div class="small">画像を選んで「OCR読み取り」を押すと、支払先・金額・日付などを自動入力します（内容は手で直せます）。</div>
+      </div>
+      <div class="preview-box">
+        <img id="preview" class="preview-img" alt="">
+        <div id="previewEmpty" class="small">画像未選択</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-blue" id="btnOcr" onclick="runOcr()">🔍 OCR読み取り</button>
+        <button class="btn btn-gray" onclick="clearForm()">クリア</button>
+        <button class="btn btn-primary" onclick="submitExpense()">申請登録</button>
+      </div>
+
+      <div id="ocrOut" class="ocr-out hidden">
+        <div class="small" style="font-weight:700;margin-bottom:6px">OCR候補（参考）</div>
+        <div class="small">支払先: <span id="o_vendor">-</span> ／ 金額: <span id="o_amount">-</span> ／ 日付: <span id="o_date">-</span> ／ インボイス: <span id="o_invoice">-</span></div>
+      </div>
+      <div id="formMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 確認一覧 -->
+  <div id="sectionList" class="section">
+    <div class="card">
+      <div class="card-title">確認一覧</div>
+      <div class="btn-row" style="margin-top:0;align-items:flex-end">
+        <div class="field" style="min-width:180px"><label>営業所</label><select id="listOffice" onchange="loadList(false)"><option value="">すべて</option></select></div>
+        <div class="field" style="min-width:140px"><label>状態</label><select id="listStatus" onchange="loadList(false)"><option value="">すべて</option><option>申請済</option><option>承認済</option><option>差戻し</option></select></div>
+        <button class="btn btn-blue" onclick="loadList(false)">更新</button>
+      </div>
+      <div id="listMsg" class="msg"></div>
+      <div style="overflow:auto;margin-top:10px">
+        <table><thead><tr><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>状態</th><th></th></tr></thead>
+        <tbody id="listBody"><tr><td colspan="7" class="small">読み込み中…</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">申請詳細</div><div id="detailBox" class="small">一覧の「詳細」を押してください。</div></div>
+  </div>
+
+  <!-- 承認管理 -->
+  <div id="sectionApproval" class="section">
+    <div class="card">
+      <div class="card-title">承認管理（管理職）</div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn btn-blue" onclick="loadList(true)">更新</button>
+        <button class="btn btn-primary" onclick="approveChecked()">選択分を一括承認</button>
+        <button class="btn btn-gray" onclick="exportCsv()">承認済CSV出力</button>
+      </div>
+      <div id="apprMsg" class="msg"></div>
+      <div style="overflow:auto;margin-top:10px">
+        <table><thead><tr><th><input type="checkbox" id="checkAll" onclick="toggleAll(this.checked)"></th><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>営業所</th><th>状態</th><th></th></tr></thead>
+        <tbody id="apprBody"><tr><td colspan="9" class="small">読み込み中…</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- マスタ管理 -->
+  <div id="sectionMaster" class="section">
+    <div class="card">
+      <div class="card-title">勘定科目マスタ</div>
+      <div class="btn-row" style="margin-top:0"><input id="m_account_name" placeholder="科目名 (例: 燃料費)" style="max-width:220px"><button class="btn btn-primary" onclick="addMaster('account')">追加</button></div>
+      <div id="masterAccount" class="master-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">支払先マスタ</div>
+      <div class="btn-row" style="margin-top:0"><input id="m_vendor_name" placeholder="支払先名" style="max-width:220px"><input id="m_vendor_yomi" placeholder="よみ" style="max-width:160px"><button class="btn btn-primary" onclick="addMaster('vendor')">追加</button></div>
+      <div id="masterVendor" class="master-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">申請者マスタ</div>
+      <div class="btn-row" style="margin-top:0"><input id="m_applicant_name" placeholder="氏名" style="max-width:200px"><select id="m_applicant_office" style="max-width:200px"></select><button class="btn btn-primary" onclick="addMaster('applicant')">追加</button></div>
+      <div id="masterApplicant" class="master-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" class="overlay"><div class="overlay-card"><div class="spinner"></div><div id="overlayText">処理中…</div></div></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+if (!token) location.href = '/';
+let INIT = null;
+
+function goBack(){ var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||''); if(history.length>1){history.back();}else{location.href=m?'/m':'/';} }
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function yen(v){const n=Number(v||0);return isNaN(n)?'':n.toLocaleString();}
+function $(id){return document.getElementById(id);}
+function val(id){const e=$(id);return e?(e.value||''):'';}
+function setVal(id,v){const e=$(id);if(e)e.value=v==null?'':v;}
+function busy(on,t){$('overlay').style.display=on?'flex':'none';if(t)$('overlayText').textContent=t;}
+function showMsg(id,t,type){const e=$(id);e.className='msg '+(type||'info');e.textContent=t;}
+
+async function api(path, opts){
+  opts=opts||{};
+  const headers=Object.assign({'Authorization':'Bearer '+token},opts.headers||{});
+  if(opts.json!==undefined){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.json);delete opts.json;}
+  const r=await fetch('/api/expense'+path,Object.assign({},opts,{headers}));
+  if(r.status===401){location.href='/';return{success:false};}
+  return r.json();
+}
+
+function showSection(name){
+  ['form','list','approval','master'].forEach(k=>{
+    $('section'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('active',k===name);
+    $('nav'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('active',k===name);
+  });
+}
+
+function fillSelect(id, items, withEmpty){
+  const el=$(id); if(!el) return;
+  el.innerHTML = withEmpty?'<option value="">選択してください</option>':'';
+  items.forEach(it=>{const o=document.createElement('option');o.value=it.value;o.textContent=it.label;el.appendChild(o);});
+}
+
+async function init(){
+  const d=await api('/init');
+  if(!d.success){showMsg('formMsg','初期化に失敗しました','error');return;}
+  INIT=d;
+  $('whoami').textContent=(d.user.name||'')+(d.user.is_admin?'（管理職）':'');
+  const offices=(d.offices||[]).map(o=>({value:o.code,label:o.name}));
+  fillSelect('f_request_office',offices,true);
+  fillSelect('f_target_office',offices,true);
+  fillSelect('listOffice',offices,false); // keeps すべて first
+  // re-add すべて at top for listOffice
+  $('listOffice').insertAdjacentHTML('afterbegin','<option value="">すべて</option>');
+  fillSelect('m_applicant_office',offices,true);
+  fillSelect('f_account_title',(d.accountTitles||[]).map(a=>({value:a.name,label:a.name})),true);
+  $('vendorList').innerHTML=(d.vendors||[]).map(v=>'<option value="'+esc(v.name)+'">').join('');
+  $('applicantList').innerHTML=(d.applicants||[]).map(a=>'<option value="'+esc(a.name)+'">').join('');
+  // defaults
+  if(d.user.company_code) setVal('f_request_office',d.user.company_code);
+  if(d.user.name) setVal('f_applicant',d.user.name);
+  const today=new Date().toISOString().slice(0,10);
+  setVal('f_apply_date',today); setVal('f_usage_date',today);
+  // admin tabs
+  if(d.user.is_admin){ $('navApproval').classList.remove('hidden'); $('navMaster').classList.remove('hidden'); }
+}
+
+// ===== 画像プレビュー =====
+$('f_image').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];
+  const img=$('preview'),empty=$('previewEmpty');
+  if(!f){img.style.display='none';empty.style.display='block';return;}
+  const rd=new FileReader();
+  rd.onload=ev=>{img.src=ev.target.result;img.style.display='block';empty.style.display='none';};
+  rd.readAsDataURL(f);
+});
+
+let OCR_IMAGE_URL='', OCR_RAW='';
+async function runOcr(){
+  const f=$('f_image').files[0];
+  if(!f){showMsg('formMsg','先に領収書画像を選んでください','error');return;}
+  const btn=$('btnOcr');btn.classList.add('busy');busy(true,'OCR読み取り中…');
+  try{
+    const fd=new FormData();fd.append('image',f);
+    const r=await fetch('/api/expense/ocr',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const d=await r.json();
+    OCR_IMAGE_URL=d.image_url||'';
+    if(!d.success){showMsg('formMsg',(d.msg||'OCRに失敗しました')+'（画像は保存済。手入力で続行できます）','error');return;}
+    const p=d.parsed||{};
+    OCR_RAW=p.raw_text||'';
+    $('ocrOut').classList.remove('hidden');
+    $('o_vendor').textContent=p.vendor||'-';$('o_amount').textContent=p.amount?yen(p.amount):'-';
+    $('o_date').textContent=p.receipt_date||'-';$('o_invoice').textContent=p.invoice_no||'-';
+    // 空欄のみ自動入力（既入力は尊重）
+    if(!val('f_vendor')&&p.vendor){setVal('f_vendor',p.vendor);mark('f_vendor');}
+    if(!val('f_amount')&&p.amount){setVal('f_amount',p.amount);mark('f_amount');}
+    if(!val('f_receipt_date')&&p.receipt_date){setVal('f_receipt_date',p.receipt_date);mark('f_receipt_date');}
+    if(!val('f_invoice_no')&&p.invoice_no){setVal('f_invoice_no',p.invoice_no);mark('f_invoice_no');}
+    if(!val('f_account_title')&&p.suggested_account){setVal('f_account_title',p.suggested_account);mark('f_account_title');}
+    showMsg('formMsg','OCRが完了しました。内容を確認・修正して申請してください。','success');
+  }catch(e){showMsg('formMsg','OCRエラー: '+(e.message||e),'error');}
+  finally{btn.classList.remove('busy');busy(false);}
+}
+function mark(id){const e=$(id);if(e){e.classList.add('updated');setTimeout(()=>e.classList.remove('updated'),2500);}}
+
+async function submitExpense(){
+  if(!val('f_request_office')){showMsg('formMsg','申請営業所を選択してください','error');return;}
+  if(!val('f_applicant')){showMsg('formMsg','申請者を入力してください','error');return;}
+  if(!val('f_amount')){showMsg('formMsg','金額を入力してください','error');return;}
+  busy(true,'申請を登録中…');
+  const body={
+    apply_date:val('f_apply_date'),request_office:val('f_request_office'),target_office:val('f_target_office'),
+    applicant:val('f_applicant'),usage_date:val('f_usage_date'),vendor:val('f_vendor'),
+    ocr_vendor:$('o_vendor').textContent==='-'?'':$('o_vendor').textContent,
+    amount:val('f_amount'),ocr_amount:$('o_amount').textContent==='-'?'':$('o_amount').textContent.replace(/,/g,''),
+    account_title:val('f_account_title'),summary:val('f_summary'),receipt_date:val('f_receipt_date'),
+    invoice_no:val('f_invoice_no'),ocr_text:OCR_RAW,image_url:OCR_IMAGE_URL
+  };
+  const d=await api('/',{method:'POST',json:body});
+  busy(false);
+  if(!d.success){showMsg('formMsg',d.msg||'登録失敗','error');return;}
+  showMsg('formMsg','申請を登録しました（ID: '+d.id+'）','success');
+  clearForm(true);
+}
+function clearForm(keepMsg){
+  ['f_vendor','f_amount','f_receipt_date','f_invoice_no','f_summary','f_account_title','f_target_office'].forEach(id=>setVal(id,''));
+  $('f_image').value='';$('preview').style.display='none';$('previewEmpty').style.display='block';
+  $('ocrOut').classList.add('hidden');OCR_IMAGE_URL='';OCR_RAW='';
+  if(!keepMsg)showMsg('formMsg','','info'),$('formMsg').style.display='none';
+}
+
+// ===== 一覧 / 承認 =====
+function loadList(forApproval){
+  const tbody=forApproval?$('apprBody'):$('listBody');
+  const colspan=forApproval?9:7;
+  tbody.innerHTML='<tr><td colspan="'+colspan+'" class="small">読み込み中…</td></tr>';
+  const q=[];
+  if(!forApproval){const o=val('listOffice');const s=val('listStatus');if(o)q.push('office='+encodeURIComponent(o));if(s)q.push('status='+encodeURIComponent(s));}
+  api('/list'+(q.length?'?'+q.join('&'):'')).then(d=>{
+    if(!d.success){tbody.innerHTML='<tr><td colspan="'+colspan+'" class="small">読込失敗</td></tr>';return;}
+    let items=d.items||[];
+    if(forApproval) items=items.filter(x=>x.status!=='承認済');
+    if(!items.length){tbody.innerHTML='<tr><td colspan="'+colspan+'" class="small">該当データはありません。</td></tr>';return;}
+    const groups={};
+    items.forEach(x=>{const o=x.request_office_name||'未設定';(groups[o]=groups[o]||[]).push(x);});
+    tbody.innerHTML='';
+    Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ja')).forEach(office=>{
+      const gr=document.createElement('tr');gr.className='group-row';
+      gr.innerHTML='<td colspan="'+colspan+'">'+esc(office)+'（'+groups[office].length+'件）</td>';
+      tbody.appendChild(gr);
+      groups[office].forEach(x=>{
+        const tr=document.createElement('tr');
+        const idEsc=String(x.id).replace(/'/g,"\\'");
+        tr.innerHTML=
+          (forApproval?'<td><input type="checkbox" class="appr-chk" value="'+esc(x.id)+'"></td>':'')+
+          '<td>'+esc(x.apply_date)+'</td>'+
+          '<td class="mono">'+esc(x.id)+'</td>'+
+          '<td>'+esc(x.applicant)+'</td>'+
+          '<td>'+esc(x.vendor)+'</td>'+
+          '<td>'+esc(yen(x.amount))+'</td>'+
+          (forApproval?'<td>'+esc(x.request_office_name)+'</td>':'')+
+          '<td><span class="badge st-'+esc(x.status)+'">'+esc(x.status)+'</span></td>'+
+          '<td><button class="btn btn-blue" style="padding:5px 9px" onclick="showDetail(\''+idEsc+'\')">詳細</button>'+
+          (forApproval?' <button class="btn btn-primary" style="padding:5px 9px" onclick="approveOne(\''+idEsc+'\')">承認</button> <button class="btn btn-orange" style="padding:5px 9px" onclick="returnOne(\''+idEsc+'\')">差戻</button>':'')+
+          '</td>';
+        tbody.appendChild(tr);
+      });
+    });
+  });
+}
+
+function toggleAll(on){document.querySelectorAll('.appr-chk').forEach(c=>c.checked=on);}
+async function approveChecked(){
+  const ids=[...document.querySelectorAll('.appr-chk:checked')].map(c=>c.value);
+  if(!ids.length){showMsg('apprMsg','承認する申請を選択してください','error');return;}
+  if(!confirm(ids.length+'件を承認しますか？'))return;
+  busy(true,'承認中…');const d=await api('/approve-bulk',{method:'POST',json:{ids}});busy(false);
+  showMsg('apprMsg',d.success?(d.count+'件を承認しました'):(d.msg||'失敗'),d.success?'success':'error');
+  loadList(true);
+}
+async function approveOne(id){
+  if(!confirm('この申請を承認しますか？'))return;
+  busy(true,'承認中…');const d=await api('/'+encodeURIComponent(id)+'/approve',{method:'POST',json:{}});busy(false);
+  showMsg('apprMsg',d.msg||(d.success?'承認しました':'失敗'),d.success?'success':'error');loadList(true);
+}
+async function returnOne(id){
+  const reason=prompt('差戻し理由を入力してください','');
+  if(reason===null)return;
+  busy(true,'差戻し中…');const d=await api('/'+encodeURIComponent(id)+'/return',{method:'POST',json:{reason}});busy(false);
+  showMsg('apprMsg',d.msg||(d.success?'差戻しました':'失敗'),d.success?'success':'error');loadList(true);
+}
+async function exportCsv(){
+  busy(true,'CSV出力中…');const d=await api('/export-csv');busy(false);
+  if(!d.success){showMsg('apprMsg',d.msg||'CSV出力失敗','error');return;}
+  const blob=new Blob(['﻿'+d.csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=d.filename||'expenses.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),300);
+  showMsg('apprMsg','承認済 '+d.count+'件をCSV出力しました','success');
+}
+
+// ===== 詳細 / 修正 =====
+async function showDetail(id){
+  const d=await api('/'+encodeURIComponent(id));
+  const box=$('detailBox');
+  if(!d.success){box.innerHTML='<div class="small">取得失敗</div>';return;}
+  const x=d.item;
+  const offices=(INIT.offices||[]).map(o=>'<option value="'+esc(o.code)+'"'+(o.code===x.request_office?' selected':'')+'>'+esc(o.name)+'</option>').join('');
+  const officesT=(INIT.offices||[]).map(o=>'<option value="'+esc(o.code)+'"'+(o.code===x.target_office?' selected':'')+'>'+esc(o.name)+'</option>').join('');
+  const accs=(INIT.accountTitles||[]).map(a=>'<option'+(a.name===x.account_title?' selected':'')+'>'+esc(a.name)+'</option>').join('');
+  const editable = (x.status!=='承認済');
+  box.innerHTML=
+    '<div class="grid">'+
+    '<div class="field"><label>申請ID</label><div class="mono">'+esc(x.id)+'</div></div>'+
+    '<div class="field"><label>状態</label><div><span class="badge st-'+esc(x.status)+'">'+esc(x.status)+'</span>'+(x.return_reason?' <span class="small">理由: '+esc(x.return_reason)+'</span>':'')+'</div></div>'+
+    '<div class="field"><label>申請日</label><input type="date" id="d_apply_date" value="'+esc(x.apply_date)+'"></div>'+
+    '<div class="field"><label>使用日</label><input type="date" id="d_usage_date" value="'+esc(x.usage_date)+'"></div>'+
+    '<div class="field"><label>申請営業所</label><select id="d_request_office"><option value="">選択</option>'+offices+'</select></div>'+
+    '<div class="field"><label>該当営業所</label><select id="d_target_office"><option value="">選択</option>'+officesT+'</select></div>'+
+    '<div class="field"><label>申請者</label><input id="d_applicant" value="'+esc(x.applicant)+'"></div>'+
+    '<div class="field"><label>支払先</label><input id="d_vendor" value="'+esc(x.vendor)+'"></div>'+
+    '<div class="field"><label>金額</label><input id="d_amount" value="'+esc(x.amount)+'"></div>'+
+    '<div class="field"><label>勘定科目</label><select id="d_account_title"><option value="">選択</option>'+accs+'</select></div>'+
+    '<div class="field"><label>領収書日付</label><input type="date" id="d_receipt_date" value="'+esc(x.receipt_date)+'"></div>'+
+    '<div class="field"><label>インボイス番号</label><input id="d_invoice_no" value="'+esc(x.invoice_no)+'"></div>'+
+    '<div class="field" style="grid-column:1/-1"><label>摘要</label><textarea id="d_summary">'+esc(x.summary)+'</textarea></div>'+
+    '</div>'+
+    (x.image_url?'<div style="margin-top:8px"><a href="'+esc(x.image_url)+'" target="_blank" rel="noopener">🖼 領収書画像を開く</a></div>':'')+
+    (editable?'<div class="btn-row"><button class="btn btn-primary" onclick="saveDetail(\''+String(x.id).replace(/'/g,"\\'")+'\')">修正保存</button></div>':'<div class="small" style="margin-top:8px">承認済のため編集できません。</div>')+
+    '<div id="detailMsg" class="msg"></div>';
+}
+async function saveDetail(id){
+  busy(true,'保存中…');
+  const d=await api('/'+encodeURIComponent(id),{method:'PATCH',json:{
+    apply_date:val('d_apply_date'),usage_date:val('d_usage_date'),request_office:val('d_request_office'),
+    target_office:val('d_target_office'),applicant:val('d_applicant'),vendor:val('d_vendor'),amount:val('d_amount'),
+    account_title:val('d_account_title'),receipt_date:val('d_receipt_date'),invoice_no:val('d_invoice_no'),summary:val('d_summary')
+  }});
+  busy(false);
+  showMsg('detailMsg',d.msg||(d.success?'保存しました':'失敗'),d.success?'success':'error');
+  if(d.success){loadList(false);if(!$('sectionApproval').classList.contains('active')===false)loadList(true);}
+}
+
+// ===== マスタ管理 =====
+async function renderMasters(){
+  const d=await api('/init');INIT=d;
+  renderMasterList('account','masterAccount',(d.accountTitles||[]).map(a=>({id:a.id,label:a.name})));
+  renderMasterList('vendor','masterVendor',(d.vendors||[]).map(v=>({id:v.id,label:v.name+(v.yomi?'（'+v.yomi+'）':'')})));
+  renderMasterList('applicant','masterApplicant',(d.applicants||[]).map(a=>({id:a.id,label:a.name+(a.company_code?' / '+((INIT.offices.find(o=>o.code===a.company_code)||{}).name||a.company_code):'')})));
+}
+function renderMasterList(type,boxId,items){
+  const box=$(boxId);
+  if(!items.length){box.innerHTML='<div class="small">未登録です。</div>';return;}
+  box.innerHTML='';
+  items.forEach(it=>{
+    const div=document.createElement('div');div.className='master-item';
+    div.innerHTML='<span class="nm">'+esc(it.label)+'</span><button class="btn btn-red" style="padding:4px 10px" onclick="delMaster(\''+type+'\','+it.id+')">削除</button>';
+    box.appendChild(div);
+  });
+}
+async function addMaster(type){
+  let body={};
+  if(type==='account'){const n=val('m_account_name').trim();if(!n)return;body={name:n};}
+  if(type==='vendor'){const n=val('m_vendor_name').trim();if(!n)return;body={name:n,yomi:val('m_vendor_yomi')};}
+  if(type==='applicant'){const n=val('m_applicant_name').trim();if(!n)return;body={name:n,company_code:val('m_applicant_office')};}
+  busy(true,'追加中…');const d=await api('/master/'+type,{method:'POST',json:body});busy(false);
+  if(!d.success){alert(d.msg||'追加失敗');return;}
+  ['m_account_name','m_vendor_name','m_vendor_yomi','m_applicant_name'].forEach(id=>setVal(id,''));
+  renderMasters();init();
+}
+async function delMaster(type,id){
+  if(!confirm('削除しますか？'))return;
+  busy(true,'削除中…');const d=await api('/master/'+type+'/'+id,{method:'DELETE'});busy(false);
+  if(!d.success){alert(d.msg||'削除失敗');return;}
+  renderMasters();init();
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>📝 商品マスタ登録 — bc-scan</title>
+<meta name="theme-color" content="#f5f1e6">
+<link rel="apple-touch-icon" href="picking-icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:#f5f1e6; color:#1e293b; font-family:-apple-system,'Segoe UI','Hiragino Sans','Meiryo',sans-serif; font-size:16px; }
+  body { display:flex; flex-direction:column; padding:env(safe-area-inset-top,0) 12px env(safe-area-inset-bottom,0); }
+
+  header { padding:10px 4px; display:flex; align-items:center; gap:8px; flex-shrink:0; border-bottom:1px solid #e2e8f0; margin-bottom:10px; flex-wrap:wrap; row-gap:8px; }
+  header h1 { font-size:1rem; color:#0f172a; flex:1 1 auto; min-width:160px; }
+  header a { color:#fff; background:#0d9488; padding:6px 12px; border-radius:6px; text-decoration:none; font-size:0.8rem; font-weight:700; }
+
+  .step { background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(15,23,42,0.04); position:relative; }
+  .step-label { font-size:0.7rem; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px; font-weight:800; }
+  .step h2 { font-size:1rem; margin-bottom:10px; font-weight:800; }
+
+  /* ステップ別カラー (視認性UP) */
+  #step1 { background:linear-gradient(135deg,#ecfeff,#cffafe); border:2px solid #22d3ee; }
+  #step1 .step-label { color:#0e7490; }
+  #step1 h2 { color:#155e75; }
+  #step2 { background:linear-gradient(135deg,#eef2ff,#e0e7ff); border:2px solid #818cf8; }
+  #step2 .step-label { color:#4338ca; }
+  #step2 h2 { color:#3730a3; }
+  #step3 { background:linear-gradient(135deg,#fff7ed,#ffedd5); border:2px solid #fb923c; }
+  #step3 .step-label { color:#c2410c; }
+  #step3 h2 { color:#9a3412; }
+  #step4 { background:linear-gradient(135deg,#fefce8,#fef9c3); border:2px solid #facc15; }
+  #step4 .step-label { color:#a16207; }
+  #step4 h2 { color:#854d0e; }
+
+  /* 完了マーキング: 背景色は維持しつつ右上にチェックバッジ */
+  .step.done { box-shadow:0 0 0 2px rgba(16,185,129,0.40), 0 4px 14px rgba(16,185,129,0.20); }
+  .step.done::after {
+    content:'✓ 完了'; position:absolute; top:8px; right:10px;
+    background:#10b981; color:#fff;
+    font-size:0.65rem; font-weight:800; padding:3px 8px;
+    border-radius:999px; letter-spacing:0.5px;
+    box-shadow:0 2px 6px rgba(16,185,129,0.35);
+  }
+
+  /* バーコードスキャナー (picking.html 完全準拠) */
+  .scanner { position:fixed; inset:0; background:#000; z-index:9999; display:none; flex-direction:column; }
+  .scanner.show { display:flex; }
+  #scan-video { position:absolute; inset:0; width:100% !important; height:100% !important; }
+  #scan-video video { position:absolute !important; top:0 !important; left:0 !important;
+    width:100% !important; height:100% !important; object-fit:cover !important;
+    display:block !important; max-width:none !important; max-height:none !important; }
+  #scan-video > div { position:absolute !important; inset:0 !important;
+    width:100% !important; height:100% !important; }
+  .scanner-cancel { position:absolute; top:env(safe-area-inset-top, 0); right:0; padding:14px; background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:1rem; z-index:103; border-radius:0 0 0 12px; cursor:pointer; font-weight:800; }
+  .scanner-header { position:absolute; top:env(safe-area-inset-top, 0); left:0; right:60px; padding:10px 14px; background:rgba(0,0,0,0.55); color:#fff; z-index:103; font-size:0.85rem; font-weight:700; }
+  .scan-viewport {
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%, -50%);
+    width:min(86%, 420px); height:min(26vh, 200px);
+    border-radius:14px; z-index:101; pointer-events:none;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    border:1px solid rgba(255,255,255,0.15);
+    overflow:hidden;
+    transition:box-shadow 0.25s, border-color 0.25s;
+  }
+  .scan-viewport.ok { box-shadow:0 0 0 9999px rgba(6,78,59,0.55); border-color:#10b981; }
+  .scan-viewport.dup { box-shadow:0 0 0 9999px rgba(120,53,15,0.55); border-color:#f59e0b; }
+  .scan-viewport.ng { box-shadow:0 0 0 9999px rgba(127,29,29,0.6); border-color:#ef4444; }
+  .scan-viewport .corner { position:absolute; width:26px; height:26px; border:3px solid #fb7185; }
+  .scan-viewport .c-tl { top:-1px; left:-1px; border-right:none; border-bottom:none; border-top-left-radius:14px; }
+  .scan-viewport .c-tr { top:-1px; right:-1px; border-left:none; border-bottom:none; border-top-right-radius:14px; }
+  .scan-viewport .c-bl { bottom:-1px; left:-1px; border-right:none; border-top:none; border-bottom-left-radius:14px; }
+  .scan-viewport .c-br { bottom:-1px; right:-1px; border-left:none; border-top:none; border-bottom-right-radius:14px; }
+  .scan-line { position:absolute; left:8%; right:8%; height:2px;
+    background:linear-gradient(90deg, transparent, #fb7185 20%, #fecaca 50%, #fb7185 80%, transparent);
+    box-shadow:0 0 10px rgba(251,113,133,0.85);
+    animation:sweepY 1.9s ease-in-out infinite;
+  }
+  @keyframes sweepY { 0%,100% { top:8%; } 50% { top:88%; } }
+  /* 中央フォーカス赤点 (照準) */
+  .scan-viewport .aim-dot {
+    position:absolute; left:50%; top:50%;
+    width:14px; height:14px; margin-left:-7px; margin-top:-7px;
+    border-radius:50%; background:#ef4444;
+    box-shadow:0 0 10px rgba(239,68,68,0.9), 0 0 0 2px rgba(255,255,255,0.6);
+    animation: aimPulse 1.4s ease-in-out infinite;
+    z-index:2; pointer-events:none;
+  }
+  .scan-viewport .aim-cross-h, .scan-viewport .aim-cross-v {
+    position:absolute; left:50%; top:50%; background:rgba(239,68,68,0.6);
+    pointer-events:none; z-index:1;
+  }
+  .scan-viewport .aim-cross-h { width:44px; height:2px; margin-left:-22px; margin-top:-1px; }
+  .scan-viewport .aim-cross-v { width:2px; height:44px; margin-left:-1px; margin-top:-22px; }
+  @keyframes aimPulse {
+    0%, 100% { transform:scale(1); opacity:1; }
+    50%      { transform:scale(1.35); opacity:0.65; }
+  }
+  .scanner-last { position:absolute; bottom:calc(env(safe-area-inset-bottom, 20px) + 20px); left:14px; right:14px; padding:16px; background:rgba(0,0,0,0.78); color:#fff; border-radius:14px; z-index:102; text-align:center; border:2px solid rgba(255,255,255,0.15); transition:border-color 0.2s, background 0.2s; }
+  .scanner-last.ok { border-color:#10b981; background:rgba(6,95,70,0.85); }
+  .scanner-last .nm { font-size:1.35rem; font-weight:900; line-height:1.25; word-break:break-all; }
+  .scanner-last .hint { font-size:0.8rem; color:#cbd5e1; margin-top:8px; }
+  #barcode-input { width:100%; padding:10px; background:#ffffff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px; font-size:0.95rem; margin-top:8px; font-family:monospace; }
+
+  /* 商品名入力 */
+  input.txt, select.txt { width:100%; padding:10px; background:#ffffff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px; font-size:0.95rem; margin-bottom:6px; }
+  input.txt:focus, select.txt:focus { outline:none; border-color:#0ea5e9; box-shadow:0 0 0 3px rgba(14,165,233,0.15); }
+  .label { font-size:0.75rem; color:#64748b; margin-bottom:3px; display:block; }
+
+  /* 写真撮影 */
+  .photo-area { display:flex; gap:8px; flex-wrap:wrap; }
+  .photo-btn { flex:1; min-width:140px; padding:14px; background:#f8fafc; border:2px dashed #94a3b8; color:#475569; border-radius:8px; cursor:pointer; text-align:center; font-size:0.9rem; }
+  .photo-btn:hover { background:#e2e8f0; border-color:#0ea5e9; color:#0f172a; }
+  #photo-preview { max-width:100%; max-height:200px; border-radius:8px; margin-top:8px; display:none; cursor:zoom-in; }
+  /* 拡大表示ライトボックス */
+  #lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; z-index:500; padding:20px; cursor:zoom-out; touch-action:none; }
+  #lightbox.show { display:flex; }
+  #lightbox img { max-width:100%; max-height:100%; object-fit:contain; border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,0.6); user-select:none; -webkit-user-drag:none; }
+  #lightbox .lb-close { position:fixed; top:14px; right:14px; width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:22px; font-weight:800; cursor:pointer; backdrop-filter:blur(4px); }
+  #lightbox .lb-close:hover { background:rgba(255,255,255,0.28); }
+
+  /* 登録ボタン */
+  .submit { width:100%; padding:14px; background:linear-gradient(135deg,#0ea5e9,#0284c7); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:800; cursor:pointer; margin-top:8px; }
+  .submit:hover { background:linear-gradient(135deg,#0284c7,#0369a1); }
+  .submit:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* 既存マスタ一覧 (折りたたみ) */
+  details { margin-top:12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; }
+  summary { color:#475569; font-size:0.85rem; cursor:pointer; font-weight:700; }
+  .ml-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid #e2e8f0; font-size:0.85rem; }
+  .ml-row:first-of-type { border-top:none; margin-top:6px; }
+  .ml-row .bar { font-family:monospace; color:#64748b; font-size:0.75rem; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .ml-row .nm { color:#0f172a; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .ml-row img.thumb { width:32px; height:32px; object-fit:cover; border-radius:4px; }
+
+  /* ============ 統一プライマリアクションボタン (3ステップ共通) ============ */
+  .act-btn {
+    width:100%; padding:16px 14px;
+    background:linear-gradient(135deg,#0ea5e9,#0284c7);
+    color:#fff; border:none; border-radius:10px;
+    font-size:1rem; font-weight:800;
+    cursor:pointer; margin-bottom:8px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    box-shadow:0 4px 12px rgba(14,165,233,0.25);
+    transition:transform 0.1s, box-shadow 0.1s, background 0.15s;
+  }
+  .act-btn:hover { background:linear-gradient(135deg,#0284c7,#0369a1); }
+  .act-btn:active { transform:translateY(1px); box-shadow:0 2px 6px rgba(14,165,233,0.25); }
+  .act-btn .ico { font-size:1.2rem; line-height:1; }
+  .act-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .step.done .act-btn { background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 4px 12px rgba(16,185,129,0.25); }
+  /* 写真撮影は2ボタン並列 (撮影/ファイル選択) */
+  .act-btn-row { display:flex; gap:8px; }
+  .act-btn-row .act-btn { flex:1; }
+  .act-btn.secondary {
+    background:linear-gradient(135deg,#64748b,#475569);
+    box-shadow:0 2px 6px rgba(71,85,105,0.20);
+  }
+  .act-btn.secondary:hover { background:linear-gradient(135deg,#475569,#334155); }
+
+  /* 重複検出バナー */
+  .dup-banner {
+    background:linear-gradient(135deg,#fffbeb,#fef3c7);
+    border:2px solid #f59e0b; border-radius:10px;
+    padding:12px 14px; margin-top:8px; display:none;
+  }
+  .dup-banner.show { display:block; }
+  .dup-banner .dupb-hd { font-size:0.85rem; font-weight:800; color:#92400e; margin-bottom:4px; }
+  .dup-banner .dupb-name {
+    font-family:'BIZ UDPGothic','Hiragino Sans','Meiryo',sans-serif;
+    font-size:1.2rem; font-weight:700; color:#0f172a;
+    margin:6px 0 10px; word-break:break-all; line-height:1.4;
+  }
+  .dup-banner .dupb-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .dup-banner .dupb-btn {
+    flex:1; min-width:130px; padding:10px;
+    border:none; border-radius:8px;
+    font-size:0.9rem; font-weight:800; cursor:pointer;
+  }
+  .dup-banner .dupb-btn.primary { background:#f59e0b; color:#fff; }
+  .dup-banner .dupb-btn.danger { background:#dc2626; color:#fff; }
+  .dup-banner .dupb-btn.ghost { background:#fff; border:1.5px solid #cbd5e1; color:#475569; }
+  .name-scanner { position:fixed; inset:0; background:#000; z-index:9999; display:none; flex-direction:column; }
+  .name-scanner.show { display:flex; }
+  .name-scanner video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  /* 商品名OCR用 細長横帯ガイド (1行文字に最適) */
+  .name-scanner .ns-frame {
+    position:absolute;
+    left:6%; right:6%;
+    top:44%; height:14%;
+    border:3px solid #0ea5e9; border-radius:10px;
+    box-shadow:0 0 0 9999px rgba(0,0,0,0.55);
+    z-index:101; pointer-events:none;
+  }
+  .name-scanner .ns-frame::before, .name-scanner .ns-frame::after {
+    content: ''; position:absolute; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, #0ea5e9, transparent);
+  }
+  .name-scanner .ns-frame::before { top:50%; height:2px; }
+  .name-scanner .ns-hd { position:absolute; top:env(safe-area-inset-top, 0); left:0; right:60px; padding:10px 14px; background:rgba(0,0,0,0.55); color:#fff; z-index:103; font-size:0.85rem; font-weight:700; }
+  .name-scanner .ns-cancel { position:absolute; top:env(safe-area-inset-top, 0); right:0; padding:14px; background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:1rem; z-index:103; border-radius:0 0 0 12px; cursor:pointer; font-weight:800; }
+  .name-scanner .ns-capture {
+    position:absolute; bottom:calc(env(safe-area-inset-bottom, 20px) + 30px); left:50%; transform:translateX(-50%);
+    width:78px; height:78px; border-radius:50%; background:#fff; border:5px solid #0ea5e9;
+    z-index:103; cursor:pointer; box-shadow:0 6px 20px rgba(14,165,233,0.5);
+  }
+  .name-scanner .ns-capture:active { transform:translateX(-50%) scale(0.95); }
+  .name-scanner .ns-hint { position:absolute; bottom:calc(env(safe-area-inset-bottom, 20px) + 125px); left:14px; right:14px; padding:10px; background:rgba(0,0,0,0.78); color:#fff; border-radius:10px; z-index:102; text-align:center; font-size:0.85rem; font-weight:700; }
+
+  /* OCR候補モーダル */
+  .ocr-modal { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9998; display:none; align-items:center; justify-content:center; padding:14px; }
+  .ocr-modal.show { display:flex; }
+  .ocr-modal .om-body { background:#fff; border-radius:12px; padding:18px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; }
+  .ocr-modal h3 { margin:0 0 12px; font-size:1.05rem; color:#0f172a; }
+  .ocr-modal .om-ai { background:linear-gradient(135deg,#f0f9ff,#e0f2fe); border:2px solid #0ea5e9; border-radius:10px; padding:14px 14px 16px; margin-bottom:12px; }
+  .ocr-modal .om-ai .lbl { font-size:0.7rem; color:#0369a1; font-weight:800; letter-spacing:0.4px; margin-bottom:6px; }
+  .ocr-modal .om-ai .val {
+    font-family: 'BIZ UDPGothic', 'Hiragino Sans', 'Meiryo', sans-serif;
+    font-size:1.5rem; font-weight:700; color:#0f172a;
+    word-break:break-all; line-height:1.45; letter-spacing:0.02em;
+  }
+  .ocr-modal .om-section-lbl { font-size:0.75rem; color:#64748b; font-weight:700; margin:10px 0 6px; }
+  .ocr-modal .om-cand-btn, .ocr-modal .om-ai-btn, .ocr-modal .om-manual-btn {
+    width:100%; padding:12px; border-radius:8px; border:1.5px solid #cbd5e1;
+    background:#fff; color:#0f172a; font-size:0.95rem; font-weight:700;
+    cursor:pointer; text-align:left; margin-bottom:6px; line-height:1.4; word-break:break-all;
+    display:flex; align-items:center; gap:10px;
+  }
+  .ocr-modal .om-cand-btn > span:first-child {
+    font-family: 'BIZ UDPGothic', 'Hiragino Sans', 'Meiryo', sans-serif;
+    font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em;
+  }
+  .ocr-modal .om-cand-btn:hover { background:#f1f5f9; border-color:#0ea5e9; }
+  .ocr-modal .om-cand-btn .sim { flex-shrink:0; background:#10b981; color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:10px; font-weight:800; }
+  .ocr-modal .om-cand-btn.warn { border-color:#f59e0b; background:#fffbeb; }
+  .ocr-modal .om-cand-btn.warn .sim { background:#f59e0b; }
+  .ocr-modal .om-ai-btn { border-color:#0ea5e9; background:#f0f9ff; color:#0369a1; }
+  .ocr-modal .om-manual-btn { border-color:#94a3b8; background:#f8fafc; color:#475569; font-size:0.85rem; }
+  .ocr-modal .om-cancel { width:100%; padding:10px; border:none; border-radius:8px; background:#e2e8f0; color:#475569; font-weight:700; cursor:pointer; margin-top:6px; }
+
+  .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#10b981; color:#fff; padding:10px 18px; border-radius:8px; font-weight:700; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.4); opacity:0; transition:opacity 0.2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .toast.err { background:#dc2626; }
+
+  /* 横向き警告 (iOS Safariなどscreen.orientation.lockが効かない端末向けフォールバック) */
+  .rotate-hint { display:none; position:absolute; inset:0; z-index:110;
+    background:rgba(0,0,0,0.92); color:#fff; align-items:center; justify-content:center;
+    flex-direction:column; gap:14px; text-align:center; padding:24px; }
+  .rotate-hint .icon { font-size:3.5rem; animation:rotShake 1.6s ease-in-out infinite; }
+  .rotate-hint .msg { font-size:1.1rem; font-weight:800; line-height:1.5; }
+  .rotate-hint .sub { font-size:0.85rem; color:#cbd5e1; }
+  @keyframes rotShake {
+    0%,100% { transform:rotate(-15deg); }
+    50%     { transform:rotate(15deg); }
+  }
+  @media (orientation: landscape) and (max-height: 520px) {
+    .scanner.show .rotate-hint { display:flex; }
+  }
+</style>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>📝 商品マスタ登録</h1>
+  <a href="home.html" id="back-link" style="background:#0d9488;color:#fff;">← 戻る</a>
+  <script>
+    (function(){
+      // 戻り先優先: ?from > document.referrer (cross-originは origin のみ) > history.back > home.html
+      var ALLOWED_HOSTS = ['cohub.biz-terrace.org','logihub.biz-terrace.org','health.biz-terrace.org','localhost'];
+      function isSafe(u){ try { var x=new URL(u); return /^https?:$/.test(x.protocol) && ALLOWED_HOSTS.indexOf(x.hostname)>=0; } catch(e){ return false; } }
+      var qs = new URLSearchParams(location.search);
+      var from = qs.get('from');
+      var a = document.getElementById('back-link');
+      if (!a) return;
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        if (from && isSafe(from)) { location.href = from; return; }
+        var r = document.referrer;
+        if (r && r.indexOf('/bcscan/')<0) { location.href = r; return; }
+        if (history.length > 1) { history.back(); return; }
+        location.href = 'home.html';
+      });
+    })();
+  </script>
+</header>
+
+<div class="step" id="step1">
+  <div class="step-label">STEP 1</div>
+  <h2>① バーコードを読取</h2>
+  <button id="scan-start-btn" type="button" class="act-btn" onclick="startScanner()">
+    <span class="ico">📷</span><span>バーコードをカメラで読取</span>
+  </button>
+  <input id="barcode-input" type="text" placeholder="または手入力 (例: 4901234567890)" autocomplete="off" inputmode="numeric">
+  <!-- 重複検出バナー -->
+  <div id="dup-banner" class="dup-banner">
+    <div class="dupb-hd">⚠ このバーコードは既にマスタ登録されています</div>
+    <div class="dupb-name" id="dup-name">-</div>
+    <div class="dupb-actions">
+      <button type="button" class="dupb-btn primary" onclick="dupOverwrite()">✏ 上書き編集する</button>
+      <button type="button" class="dupb-btn ghost" onclick="dupCancel()">✕ 別のバーコードを読む</button>
+    </div>
+  </div>
+</div>
+
+<!-- Camera Scanner (picking.html 完全準拠) -->
+<div id="scanner" class="scanner">
+  <div id="scan-video" style="background:#000;"></div>
+  <div class="scan-viewport" id="scan-viewport">
+    <span class="corner c-tl"></span><span class="corner c-tr"></span>
+    <span class="corner c-bl"></span><span class="corner c-br"></span>
+    <span class="aim-cross-h"></span><span class="aim-cross-v"></span>
+    <span class="aim-dot"></span>
+    <div class="scan-line"></div>
+  </div>
+  <div class="scanner-header">📝 商品マスタ登録 — バーコードを枠内に</div>
+  <button class="scanner-cancel" onclick="stopScanner()">✕ 閉じる</button>
+  <div class="scanner-last" id="scan-last">
+    <div class="nm" id="scan-last-nm">バーコードを枠内に</div>
+    <div class="hint" id="scan-last-hint">音と振動で判定を伝えます</div>
+  </div>
+  <div class="rotate-hint">
+    <div class="icon">📱</div>
+    <div class="msg">縦向きでご利用ください</div>
+    <div class="sub">スキャナーは縦画面専用です</div>
+  </div>
+</div>
+
+<div class="step" id="step2">
+  <div class="step-label">STEP 2</div>
+  <h2>② 商品名を読取</h2>
+  <button type="button" class="act-btn" onclick="startNameScan('name')">
+    <span class="ico">📷</span><span>商品名をカメラで読取</span>
+  </button>
+  <span class="label">商品名 (必須) <span id="ocr-status" style="margin-left:6px;font-size:0.7rem;color:#0369a1;font-weight:700;display:none;">🔎 AI読取中…</span></span>
+  <input class="txt" id="prod-name" placeholder="例: KM5021 シンク・キャビネット (またはAI読取結果)" maxlength="80">
+</div>
+
+<div class="step" id="step3">
+  <div class="step-label">STEP 3</div>
+  <h2>③ 品種名を読取</h2>
+  <button type="button" class="act-btn" onclick="startNameScan('name2')">
+    <span class="ico">📷</span><span>品種名をカメラで読取</span>
+  </button>
+  <span class="label">品種名 (任意 / 例: 吊戸・洗面天板・レンジフード等)</span>
+  <input class="txt" id="prod-name2" placeholder="マスタの分類用語 (またはAI読取結果)" maxlength="80">
+  <span class="label">カテゴリ (任意)</span>
+  <select class="txt" id="prod-format">
+    <option value="">未選択</option>
+    <option value="キッチン">キッチン</option>
+    <option value="バス">バス・お風呂</option>
+    <option value="洗面">洗面</option>
+    <option value="トイレ">トイレ</option>
+    <option value="水栓">水栓・蛇口</option>
+    <option value="部材">部材・パーツ</option>
+    <option value="その他">その他</option>
+  </select>
+  <span class="label">サイズ・特記 (任意)</span>
+  <input class="txt" id="prod-size" placeholder="例: 2400×600 / 才数20" maxlength="40">
+</div>
+
+<div class="step" id="step4">
+  <div class="step-label">STEP 4</div>
+  <h2>④ 商品写真を撮影</h2>
+  <label style="display:flex;align-items:center;gap:8px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:10px;cursor:pointer;">
+    <input type="checkbox" id="measure-toggle" style="width:18px;height:18px;cursor:pointer;">
+    <span style="font-size:0.85rem;font-weight:700;color:#92400e;line-height:1.45;">
+      💴 500円玉と一緒に撮影して寸法を自動推定
+      <small style="display:block;font-size:0.7rem;color:#b45309;font-weight:500;margin-top:2px;">中型商品(200〜800mm)向け。500円硬貨を商品の隣に置いて1枚で撮影</small>
+    </span>
+  </label>
+  <div id="photo-pick-area">
+    <div class="act-btn-row">
+      <label class="act-btn" style="margin:0;">
+        <span class="ico">📷</span><span>カメラで撮影</span>
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="onPickPhoto(event)">
+      </label>
+      <label class="act-btn secondary" style="margin:0;">
+        <span class="ico">📁</span><span>ファイル選択</span>
+        <input type="file" accept="image/*" style="display:none" onchange="onPickPhoto(event)">
+      </label>
+    </div>
+  </div>
+  <div id="measure-status" style="display:none;margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:0.85rem;color:#92400e;font-weight:700;text-align:center;">
+    💴 寸法推定中...
+  </div>
+  <img id="photo-preview" alt="商品写真プレビュー" onclick="if(this.src) openLightbox(this.src)">
+  <div id="photo-actions" style="display:none;margin-top:8px;">
+    <div class="act-btn-row">
+      <label class="act-btn" style="margin:0;">
+        <span class="ico">🔄</span><span>撮り直す</span>
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="onPickPhoto(event)">
+      </label>
+      <button type="button" class="act-btn secondary" style="margin:0;background:linear-gradient(135deg,#dc2626,#b91c1c);" onclick="clearPhoto()">
+        <span class="ico">🗑</span><span>削除</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<button class="submit" id="submit-btn" onclick="submitProduct()" disabled>📝 商品マスタに登録</button>
+
+<details>
+  <summary>📚 登録済み商品マスタ (タップで開く)</summary>
+  <div id="master-list"><div style="color:#64748b;text-align:center;padding:10px;">読み込み中...</div></div>
+</details>
+
+<!-- 商品名スキャナー (Gemini OCR用) -->
+<div id="name-scanner" class="name-scanner">
+  <video id="name-video" autoplay playsinline muted></video>
+  <div class="ns-hd">📝 商品名を1行で青帯に大きく合わせてシャッター</div>
+  <button class="ns-cancel" onclick="stopNameScan()">✕ 閉じる</button>
+  <div class="ns-frame"></div>
+  <div class="ns-hint">細い青帯の中に商品名の1行が大きく入るようにかざしてください</div>
+  <button class="ns-capture" onclick="captureNameNow()" aria-label="撮影"></button>
+</div>
+
+<!-- OCR候補モーダル -->
+<div id="ocr-modal" class="ocr-modal">
+  <div class="om-body">
+    <h3 id="om-title">🔎 商品名OCR結果</h3>
+    <div class="om-ai">
+      <div class="lbl" id="om-ai-lbl">AIが読み取った文字列</div>
+      <div class="val" id="om-ai-text">-</div>
+    </div>
+    <div id="om-candidates-wrap" style="display:none;">
+      <div class="om-section-lbl" id="om-cand-lbl">⚠ 似た商品が既にマスタに登録されています</div>
+      <div id="om-candidates"></div>
+    </div>
+    <div class="om-section-lbl" id="om-pick-lbl">採用する商品名</div>
+    <button class="om-ai-btn" id="om-pick-ai" onclick="pickOcrName('ai')">✅ AI読取結果をそのまま使う</button>
+    <button class="om-manual-btn" onclick="pickOcrName('manual')">✏ 手動で入力する (モーダルを閉じる)</button>
+    <button class="om-cancel" onclick="closeOcrModal()">キャンセル</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+let _photoBlob = null;
+let _stream = null;
+let _lastScan = '';
+
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function updateSubmitBtn() {
+  const bc = document.getElementById('barcode-input').value.trim();
+  const nm = document.getElementById('prod-name').value.trim();
+  const nm2 = document.getElementById('prod-name2').value.trim();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = !(bc && nm);
+  // ステップ完了マーク
+  document.getElementById('step1').classList.toggle('done', !!bc);
+  document.getElementById('step2').classList.toggle('done', !!nm);
+  document.getElementById('step3').classList.toggle('done', !!nm2);
+  document.getElementById('step4').classList.toggle('done', !!_photoBlob);
+}
+
+document.getElementById('barcode-input').addEventListener('input', updateSubmitBtn);
+// 手入力時の重複チェック (連打抑制で200ms debounce、5文字以上で発火)
+let _dupCheckTimer = null;
+document.getElementById('barcode-input').addEventListener('input', (e) => {
+  const v = (e.target.value || '').trim();
+  if (_dupCheckTimer) clearTimeout(_dupCheckTimer);
+  hideDupBanner();
+  _dupExisting = null; _dupMode = null;
+  if (v.length < 5) return;
+  _dupCheckTimer = setTimeout(() => { checkDuplicateSilent(v); }, 350);
+});
+async function checkDuplicateSilent(barcode) {
+  try {
+    const r = await fetch('/bcscan/api/products/' + encodeURIComponent(barcode));
+    const d = await r.json();
+    if (d && d.success && d.product) showDupBanner(d.product);
+  } catch (e) {}
+}
+document.getElementById('prod-name').addEventListener('input', updateSubmitBtn);
+
+// ===== バーコードスキャナー (picking.html 完全準拠コピー) =====
+let html5Scanner = null;
+let scannerActive = false;
+let lastScanCd = null;
+let lastScanAt = 0;
+let scanBusy = false;
+const DUP_WINDOW_MS = 900;
+
+// AudioContext (picking.html と同じ ac() パターン)
+let _audioCtx = null;
+function ac() {
+  if (!_audioCtx) { try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; } }
+  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(()=>{});
+  return _audioCtx;
+}
+function vib(p) { if ('vibrate' in navigator) { try { navigator.vibrate(p); } catch(e){} } }
+function beep(freq, ms, type, gain) {
+  const ctx = ac(); if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type || 'square'; o.frequency.value = freq; g.gain.value = 0;
+  o.connect(g); g.connect(ctx.destination);
+  const t = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(gain || 0.25, t + 0.008);
+  g.gain.linearRampToValueAtTime(0, t + ms/1000);
+  o.start(t); o.stop(t + ms/1000 + 0.02);
+}
+function feedback(kind) {
+  if (kind === 'ok')      { vib(90); beep(1200, 80, 'square', 0.28); }
+  else if (kind === 'dup'){ vib([90,120,90]); beep(650, 80, 'square', 0.22); setTimeout(()=>beep(650,80,'square',0.22), 130); }
+  else if (kind === 'ng') { vib([180,90,180,90,180]); beep(180, 260, 'sawtooth', 0.3); }
+}
+function updateScannerOverlay(info) {
+  const vp = document.getElementById('scan-viewport');
+  const last = document.getElementById('scan-last');
+  const nm = document.getElementById('scan-last-nm');
+  if (!vp || !last) return;
+  vp.classList.remove('ok','dup','ng');
+  last.classList.remove('ok','dup','ng');
+  if (!info) { nm.textContent = 'バーコードを枠内に'; return; }
+  vp.classList.add(info.kind);
+  last.classList.add(info.kind);
+  nm.textContent = info.cd || '';
+}
+
+async function startScanner() {
+  if (typeof Html5Qrcode === 'undefined') {
+    toast('スキャナーライブラリ未読込 (ネット確認)', true); return;
+  }
+  if (scannerActive) return;
+  try {
+    document.getElementById('scanner').style.display = 'flex';
+    document.getElementById('scanner').classList.add('show');
+    // スキャナー起動中は縦向き固定 (Android Chrome等で有効、iOS Safariは仕様非対応のためCSS fallback併用)
+    try {
+      const scEl = document.getElementById('scanner');
+      if (scEl.requestFullscreen) { await scEl.requestFullscreen().catch(()=>{}); }
+      else if (scEl.webkitRequestFullscreen) { try { scEl.webkitRequestFullscreen(); } catch(_){} }
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock('portrait').catch(()=>{});
+      }
+    } catch(_) {}
+    lastScanCd = null; lastScanAt = 0; scanBusy = false;
+    pendingCd = null; pendingFormat = ''; pendingAt = 0;
+    ac();
+    updateScannerOverlay(null);
+
+    if (!html5Scanner) {
+      html5Scanner = new Html5Qrcode('scan-video', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      });
+    }
+    const cfg = {
+      fps: 10,
+      // qrbox 不使用 → html5-qrcode側のマスク非表示。映像全域をスキャンし、
+      // 赤枠(.scan-viewport)は中央配置の視覚ガイドとして機能
+      videoConstraints: { facingMode: { ideal: 'environment' } },
+    };
+    await html5Scanner.start(
+      { facingMode: { ideal: 'environment' } },
+      cfg,
+      (decodedText, decodedResult) => {
+        if (!scanBusy) handleScanRaw(decodedText, decodedResult);
+      },
+      () => { /* per-frame misses: ignore */ }
+    );
+    scannerActive = true;
+    // html5-qrcodeが生成したvideo/子divを強制的にフルフレーム表示
+    setTimeout(() => {
+      const container = document.getElementById('scan-video');
+      if (!container) return;
+      const videos = container.querySelectorAll('video');
+      videos.forEach(v => {
+        v.style.position = 'absolute';
+        v.style.top = '0'; v.style.left = '0';
+        v.style.width = '100%'; v.style.height = '100%';
+        v.style.objectFit = 'cover';
+        v.style.maxWidth = 'none'; v.style.maxHeight = 'none';
+        v.setAttribute('playsinline', 'true');
+        try { v.play(); } catch(_) {}
+      });
+      container.querySelectorAll(':scope > div').forEach(d => {
+        d.style.position = 'absolute';
+        d.style.inset = '0';
+        d.style.width = '100%'; d.style.height = '100%';
+      });
+    }, 250);
+  } catch (e) {
+    document.getElementById('scanner').style.display = 'none';
+    toast('カメラ起動失敗: ' + (e && (e.message || e.name || e)), true);
+    console.warn('scanner start error:', e);
+  }
+}
+
+async function stopScanner() {
+  if (html5Scanner && scannerActive) {
+    try { await html5Scanner.stop(); } catch(_) {}
+    try { html5Scanner.clear(); } catch(_) {}
+  }
+  scannerActive = false;
+  // 縦向きロック解除 + フルスクリーン解除
+  try {
+    if (screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); }
+    if (document.fullscreenElement) { await document.exitFullscreen().catch(()=>{}); }
+    else if (document.webkitFullscreenElement) { try { document.webkitExitFullscreen(); } catch(_){} }
+  } catch(_) {}
+  document.getElementById('scanner').classList.remove('show');
+  document.getElementById('scanner').style.display = 'none';
+}
+
+// 現在のスキャナー映像から1フレームをキャプチャしてBlobで返す
+function captureScanFrame() {
+  return new Promise((resolve) => {
+    try {
+      const v = document.querySelector('#scan-video video');
+      if (!v || !v.videoWidth) return resolve(null);
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth; c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      c.toBlob(b => resolve(b), 'image/jpeg', 0.85);
+    } catch(_) { resolve(null); }
+  });
+}
+
+// ============ 商品名/品種名スキャナー (Gemini OCR専用) ============
+let _nameStream = null;
+let _ocrAiText = '';
+let _ocrMode = 'name'; // 'name' | 'name2'
+
+async function startNameScan(mode) {
+  _ocrMode = (mode === 'name2') ? 'name2' : 'name';
+  // 文言を mode で動的に変更
+  const headerEl = document.querySelector('#name-scanner .ns-hd');
+  const hintEl = document.querySelector('#name-scanner .ns-hint');
+  if (_ocrMode === 'name2') {
+    if (headerEl) headerEl.textContent = '📝 品種名(分類)を1行で青帯に大きく合わせてシャッター';
+    if (hintEl) hintEl.textContent = '細い青帯の中に品種名(例: 吊戸/レンジフード等)を入れてください';
+  } else {
+    if (headerEl) headerEl.textContent = '📝 商品名を1行で青帯に大きく合わせてシャッター';
+    if (hintEl) hintEl.textContent = '細い青帯の中に商品名の1行が大きく入るようにかざしてください';
+  }
+  // バーコードが空でもスキャン自体は可能 (運用上、先に取りたい場合もある)
+  const bc = document.getElementById('barcode-input').value.trim();
+  if (!bc) {
+    const fieldLabel = (_ocrMode === 'name2') ? '品種名' : '商品名';
+    if (!confirm('バーコードが未入力です。' + fieldLabel + 'だけ先に読みますか？')) return;
+  }
+  try {
+    _nameStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+  } catch (e) {
+    toast('カメラ起動失敗: ' + (e && e.message || ''), true);
+    return;
+  }
+  const wrap = document.getElementById('name-scanner');
+  const v = document.getElementById('name-video');
+  v.srcObject = _nameStream;
+  wrap.classList.add('show');
+  try { await v.play(); } catch (_) {}
+}
+
+function stopNameScan() {
+  try {
+    if (_nameStream) {
+      _nameStream.getTracks().forEach(t => t.stop());
+      _nameStream = null;
+    }
+  } catch (_) {}
+  const wrap = document.getElementById('name-scanner');
+  if (wrap) wrap.classList.remove('show');
+  const v = document.getElementById('name-video');
+  if (v) v.srcObject = null;
+}
+
+// CSS .ns-frame と同じ比率でキャプチャ画像をクロップ (Gemini への送信量・ノイズ削減)
+const NS_CROP = { left: 0.06, right: 0.94, top: 0.44, bottom: 0.58 };
+async function captureNameNow() {
+  const v = document.getElementById('name-video');
+  if (!v || !v.videoWidth) { toast('カメラ準備中', true); return; }
+  feedback('ok');
+  // video element は object-fit:cover で表示している。video の source 解像度を
+  // 元に CSS の枠位置と同じ「縦中央の細い帯」をクロップする。
+  const vw = v.videoWidth, vh = v.videoHeight;
+  let sx = Math.round(vw * NS_CROP.left);
+  let sw = Math.round(vw * (NS_CROP.right - NS_CROP.left));
+  let sy = Math.round(vh * NS_CROP.top);
+  let sh = Math.round(vh * (NS_CROP.bottom - NS_CROP.top));
+  // 安全策: 最小サイズ確保
+  if (sw < 200) sw = Math.min(vw, 200);
+  if (sh < 60)  sh = Math.min(vh, 60);
+  // OCRしやすいよう、横幅を最大1280pxに正規化 (高解像でもGemini入力サイズを抑える)
+  const targetW = Math.min(1280, sw * 2); // 2倍アップサンプルで小文字も読みやすく
+  const targetH = Math.round(sh * targetW / sw);
+  const c = document.createElement('canvas');
+  c.width = targetW; c.height = targetH;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(v, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.92));
+  stopNameScan();
+  if (!blob) { toast('画像取得失敗', true); return; }
+  await runNameOcr(blob);
+}
+
+async function runNameOcr(blob) {
+  const status = document.getElementById('ocr-status');
+  if (status) status.style.display = 'inline';
+  toast('🔎 AI読取中…');
+  try {
+    const fd = new FormData();
+    fd.append('photo', blob, 'name.jpg');
+    fd.append('field', _ocrMode); // 'name' or 'name2'
+    const bc = document.getElementById('barcode-input').value.trim();
+    if (bc) fd.append('barcode', bc);
+    const r = await fetch('/bcscan/api/products/ocr', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d || !d.success) { toast(d && d.msg || 'OCR失敗', true); return; }
+    _ocrAiText = (d.name || '').trim();
+    showOcrModal(_ocrAiText, Array.isArray(d.candidates) ? d.candidates : []);
+  } catch (e) {
+    toast('通信エラー: ' + (e && e.message || ''), true);
+  } finally {
+    if (status) status.style.display = 'none';
+  }
+}
+
+function showOcrModal(aiText, candidates) {
+  const modal = document.getElementById('ocr-modal');
+  const isName2 = _ocrMode === 'name2';
+  // 文言を mode で切替
+  document.getElementById('om-title').textContent = isName2 ? '🔎 品種名OCR結果' : '🔎 商品名OCR結果';
+  document.getElementById('om-ai-lbl').textContent = isName2 ? 'AIが読み取った品種名' : 'AIが読み取った商品名';
+  document.getElementById('om-cand-lbl').textContent = isName2 ? '⚠ 似た品種名が既にマスタにあります' : '⚠ 似た商品が既にマスタに登録されています';
+  document.getElementById('om-pick-lbl').textContent = isName2 ? '採用する品種名' : '採用する商品名';
+  document.getElementById('om-ai-text').textContent = aiText || '(読み取れませんでした)';
+  const wrap = document.getElementById('om-candidates-wrap');
+  const list = document.getElementById('om-candidates');
+  if (candidates && candidates.length) {
+    wrap.style.display = 'block';
+    list.innerHTML = candidates.map((c, i) => {
+      const cls = (c.sim >= 80) ? '' : 'warn';
+      const esc = s => String(s || '').replace(/[<>&"]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]));
+      return `<button class="om-cand-btn ${cls}" onclick="pickOcrName('cand', ${i})">
+        <span style="flex:1;">${esc(c.name)}</span>
+        <span class="sim">${c.sim}%</span>
+      </button>`;
+    }).join('');
+    list._candidates = candidates;
+  } else {
+    wrap.style.display = 'none';
+    list._candidates = [];
+  }
+  const aiBtn = document.getElementById('om-pick-ai');
+  aiBtn.disabled = !aiText;
+  aiBtn.style.opacity = aiText ? '1' : '0.4';
+  modal.classList.add('show');
+}
+
+function closeOcrModal() {
+  document.getElementById('ocr-modal').classList.remove('show');
+}
+
+function pickOcrName(source, candIndex) {
+  const isName2 = _ocrMode === 'name2';
+  const targetId = isName2 ? 'prod-name2' : 'prod-name';
+  const label = isName2 ? '品種名' : '商品名';
+  let name = '';
+  if (source === 'ai') name = _ocrAiText;
+  else if (source === 'cand') {
+    const list = document.getElementById('om-candidates');
+    const c = (list._candidates || [])[candIndex || 0];
+    if (c) name = c.name;
+  } else if (source === 'manual') {
+    closeOcrModal();
+    document.getElementById(targetId).focus();
+    return;
+  }
+  if (!name) { toast('名前が空です', true); return; }
+  document.getElementById(targetId).value = name;
+  updateSubmitBtn();
+  closeOcrModal();
+  toast('✅ ' + label + ': ' + name);
+  // 商品名確定 → 続けて品種名スキャンを起動 (auto-chain)
+  if (!isName2) {
+    setTimeout(() => { startNameScan('name2'); }, 500);
+  }
+}
+
+// ============ 精度向上: フォーマット限定CD検証 + 2フレーム一致 (2026-05-15) ============
+const EAN_FORMATS = new Set(['EAN_13','EAN_8','UPC_A','UPC_E','ITF','RSS_14']);
+const CONFIRM_WINDOW_MS = 600;
+let pendingCd = null, pendingFormat = '', pendingAt = 0;
+function isDigitsOnly(s) { return /^\d+$/.test(s || ''); }
+function verifyEANCheckDigit(code) {
+  if (!isDigitsOnly(code)) return false;
+  const len = code.length;
+  if (![8,12,13,14].includes(len)) return false;
+  let sum = 0;
+  for (let i = 0; i < len - 1; i++) {
+    const fromRight = len - 2 - i;
+    const mul = (fromRight % 2 === 0) ? 3 : 1;
+    sum += parseInt(code[i], 10) * mul;
+  }
+  const expected = (10 - (sum % 10)) % 10;
+  return expected === parseInt(code[len-1], 10);
+}
+function formatNameOf(decodedResult) {
+  try { return (decodedResult && decodedResult.result && decodedResult.result.format && decodedResult.result.format.formatName) || ''; }
+  catch (e) { return ''; }
+}
+function handleScanRaw(cd, decodedResult) {
+  const format = formatNameOf(decodedResult);
+  if (EAN_FORMATS.has(format) && !verifyEANCheckDigit(cd)) {
+    console.debug('[scan] CD-mismatch reject:', cd, format); return;
+  }
+  const now = Date.now();
+  if (cd === lastScanCd && (now - lastScanAt) < DUP_WINDOW_MS) return handleScan(cd);
+  if (pendingCd === cd && pendingFormat === format && (now - pendingAt) < CONFIRM_WINDOW_MS) {
+    pendingCd = null; return handleScan(cd);
+  }
+  pendingCd = cd; pendingFormat = format; pendingAt = now;
+}
+
+// 商品マスタ登録版の読取ハンドラ: 読み取り後に input にセットして閉じる
+function handleScan(cd) {
+  if (scanBusy) return;
+  const now = Date.now();
+  if (cd === lastScanCd && (now - lastScanAt) < DUP_WINDOW_MS) {
+    feedback('dup');
+    updateScannerOverlay({ kind:'dup', cd });
+    lastScanAt = now;
+    return;
+  }
+  scanBusy = true;
+  lastScanCd = cd; lastScanAt = now;
+  feedback('ok');
+  updateScannerOverlay({ kind:'ok', cd });
+  document.getElementById('barcode-input').value = cd;
+  updateSubmitBtn();
+  toast('📷 バーコード読取: ' + cd);
+  setTimeout(() => {
+    stopScanner();
+    scanBusy = false;
+    // マスタ重複チェック → 結果で分岐
+    checkDuplicate(cd);
+  }, 500);
+}
+
+// ============ 重複検出 (バーコード読取直後) ============
+let _dupMode = null; // 'overwrite' | null
+async function checkDuplicate(barcode) {
+  try {
+    const r = await fetch('/bcscan/api/products/' + encodeURIComponent(barcode));
+    const d = await r.json();
+    if (d && d.success && d.product) {
+      // 既存あり → バナー表示、商品名スキャナーは起動しない
+      showDupBanner(d.product);
+      return;
+    }
+  } catch (e) { /* ネットワーク不調時は通常フロー */ }
+  hideDupBanner();
+  // 新規 → 続けて商品名スキャナー起動
+  _dupMode = null;
+  setTimeout(() => { startNameScan(); }, 200);
+}
+
+function showDupBanner(prod) {
+  const b = document.getElementById('dup-banner');
+  document.getElementById('dup-name').textContent = prod.name + (prod.name2 ? ' / ' + prod.name2 : '');
+  b.classList.add('show');
+  feedback('dup');
+  toast('⚠ 既に登録済み', true);
+  // 既存値で他フィールドはプリフィルしておく (上書き選択時に楽)
+  _dupExisting = prod;
+}
+function hideDupBanner() {
+  document.getElementById('dup-banner').classList.remove('show');
+}
+let _dupExisting = null;
+function dupOverwrite() {
+  if (!_dupExisting) { hideDupBanner(); return; }
+  // 既存値をフォームに展開
+  const nm = document.getElementById('prod-name');
+  const nm2 = document.getElementById('prod-name2');
+  const fmt = document.getElementById('prod-format');
+  const sz = document.getElementById('prod-size');
+  if (nm) nm.value = _dupExisting.name || '';
+  if (nm2) nm2.value = _dupExisting.name2 || '';
+  if (fmt) fmt.value = _dupExisting.format || '';
+  if (sz) sz.value = _dupExisting.size_info || '';
+  updateSubmitBtn();
+  _dupMode = 'overwrite';
+  hideDupBanner();
+  toast('✏ 上書き編集モード: 必要な箇所だけ撮り直してください');
+}
+function dupCancel() {
+  hideDupBanner();
+  document.getElementById('barcode-input').value = '';
+  _dupExisting = null;
+  _dupMode = null;
+  lastScanCd = null;
+  updateSubmitBtn();
+  toast('🔄 バーコードをクリアしました。もう一度読取ってください');
+}
+
+
+function onPickPhoto(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  if (f.size > 5 * 1024 * 1024) { toast('5MB以下にしてください', true); return; }
+  _photoBlob = f;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('photo-preview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    // 写真選択後: 元の選択ボタンを隠し、撮り直し/削除ボタンを表示
+    document.getElementById('photo-pick-area').style.display = 'none';
+    const pa = document.getElementById('photo-actions');
+    pa.style.display = 'block';
+    updateSubmitBtn();
+    // 寸法推定 (チェックON時のみ)
+    const measureOn = document.getElementById('measure-toggle');
+    if (measureOn && measureOn.checked) {
+      runMeasure(f);
+    }
+  };
+  reader.readAsDataURL(f);
+}
+
+// ============ 500円玉基準の寸法推定 ============
+async function runMeasure(blob) {
+  const status = document.getElementById('measure-status');
+  if (status) status.style.display = 'block';
+  try {
+    const fd = new FormData();
+    fd.append('photo', blob, 'measure.jpg');
+    const r = await fetch('/bcscan/api/products/measure', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d || !d.success) {
+      toast(d && d.msg || '寸法推定失敗', true);
+      return;
+    }
+    const dim = d.dimensions || {};
+    const parts = [];
+    if (dim.width_mm) parts.push(dim.width_mm);
+    if (dim.height_mm) parts.push(dim.height_mm);
+    if (dim.depth_mm) parts.push(dim.depth_mm);
+    if (!parts.length) { toast('寸法を読み取れませんでした', true); return; }
+    let sizeStr = parts.join('×') + ' mm';
+    if (dim.confidence === '低') sizeStr += ' (精度低)';
+    const szInput = document.getElementById('prod-size');
+    if (szInput) {
+      szInput.value = sizeStr;
+      // STEP 3 のサイズ欄が更新されるので step3 を視覚的に強調
+      szInput.style.transition = 'background 0.4s';
+      szInput.style.background = '#fef3c7';
+      setTimeout(() => { szInput.style.background = ''; }, 1500);
+    }
+    toast('💴 推定寸法: ' + sizeStr + (dim.note ? ' (' + dim.note + ')' : ''));
+  } catch (e) {
+    toast('通信エラー: ' + (e && e.message || ''), true);
+  } finally {
+    if (status) status.style.display = 'none';
+  }
+}
+
+function clearPhoto() {
+  _photoBlob = null;
+  const img = document.getElementById('photo-preview');
+  img.src = '';
+  img.style.display = 'none';
+  // ファイル入力をリセット (同じ写真を再選択可能にする)
+  document.querySelectorAll('#step3 input[type=file]').forEach(i => { i.value = ''; });
+  // UIを元に戻す
+  document.getElementById('photo-actions').style.display = 'none';
+  document.getElementById('photo-pick-area').style.display = 'flex';
+  updateSubmitBtn();
+}
+
+async function submitProduct() {
+  const barcode = document.getElementById('barcode-input').value.trim();
+  const name = document.getElementById('prod-name').value.trim();
+  const name2 = document.getElementById('prod-name2').value.trim();
+  const format = document.getElementById('prod-format').value;
+  const size = document.getElementById('prod-size').value.trim();
+  if (!barcode || !name) return;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '登録中…';
+  try {
+    const fd = new FormData();
+    fd.append('barcode', barcode);
+    fd.append('name', name);
+    fd.append('name2', name2);
+    fd.append('format', format);
+    fd.append('size_info', size);
+    fd.append('created_by', localStorage.getItem('bcscan_driver') || '');
+    if (_photoBlob) fd.append('photo', _photoBlob);
+    const r = await fetch('/bcscan/api/products', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success) { toast(d.msg || '登録失敗', true); return; }
+    toast('✅ 登録: ' + name);
+    // リセットして次の登録へ
+    document.getElementById('barcode-input').value = '';
+    document.getElementById('prod-name').value = '';
+    document.getElementById('prod-name2').value = '';
+    document.getElementById('prod-size').value = '';
+    clearPhoto();
+    _lastScan = '';
+    updateSubmitBtn();
+    loadMasterList();
+  } catch (e) {
+    toast('通信エラー', true);
+  } finally {
+    btn.textContent = '📝 商品マスタに登録';
+    updateSubmitBtn();
+  }
+}
+
+async function loadMasterList() {
+  try {
+    const r = await fetch('/bcscan/api/products');
+    const d = await r.json();
+    const wrap = document.getElementById('master-list');
+    if (!d.success || !d.products.length) {
+      wrap.innerHTML = '<div style="color:#64748b;text-align:center;padding:10px;">未登録</div>';
+      return;
+    }
+    wrap.innerHTML = `<div style="color:#94a3b8;font-size:0.75rem;margin:6px 0;">登録数: ${d.products.length}</div>` +
+      d.products.map(p => `<div class="ml-row">
+        ${p.image_path ? `<img class="thumb" src="/bcscan/api/products/${encodeURIComponent(p.barcode)}/photo">` : '<div class="thumb" style="background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:14px;">📦</div>'}
+        <span class="nm">${escapeHtml(p.name)}${p.name2 ? ' <span style="color:#64748b;font-weight:400;">/ '+escapeHtml(p.name2)+'</span>' : ''}</span>
+        <span class="bar">${escapeHtml(p.barcode)}</span>
+      </div>`).join('');
+  } catch (e) {}
+}
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// 起動
+window.addEventListener('load', () => {
+  loadMasterList();
+  updateSubmitBtn();
+});
+
+// 写真タップで拡大表示
+function openLightbox(src) {
+  if (!src) return;
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('lightbox').classList.remove('show');
+  document.getElementById('lightbox-img').src = '';
+}
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLightbox(); });
+</script>
+
+<!-- 拡大表示ライトボックス -->
+<div id="lightbox" onclick="closeLightbox(event)">
+  <img id="lightbox-img" alt="">
+  <button class="lb-close" onclick="closeLightbox(event)" aria-label="閉じる">✕</button>
+</div>
+
+</body>
+</html>

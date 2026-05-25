@@ -50,7 +50,7 @@ const recUpload = multer({
 
 // ユーザー一覧 (AIボットはインフラなので非表示。削除しても ensureConciergeBots が再生成するため、UIに出さない)
 router.get('/users', authAdmin, (req, res) => {
-  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter,
+  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.job_role, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter, u.is_manager,
     CASE WHEN u.tablet_pin_hash IS NOT NULL AND u.tablet_pin_hash <> '' THEN 1 ELSE 0 END AS has_tablet_pin,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id WHERE u.role != 'bot' ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
@@ -74,7 +74,7 @@ function normalizeBirthDate(s) {
 
 // ユーザー作成（1件）
 router.post('/users', authAdmin, (req, res) => {
-  const { login_id, display_name, company_code, password, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org } = req.body;
+  const { login_id, display_name, company_code, password, role, employee_type, job_role, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org } = req.body;
   if (!login_id || !display_name || !company_code || !password) {
     return res.status(400).json({ success: false, msg: '必須項目が不足しています' });
   }
@@ -83,7 +83,11 @@ router.post('/users', authAdmin, (req, res) => {
   if (exists) return res.status(400).json({ success: false, msg: 'このログインIDは既に使われています' });
   const id = crypto.randomUUID();
   const hash = bcrypt.hashSync(password, 10);
-  const etype = (employee_type === 'field' || employee_type === 'admin') ? employee_type : 'office';
+  // 職種 (job_role): 既知の5職種のみ許可。管理職は etype で表現するため job_role は職務の方を保持。
+  const jr = JOB_ROLES_BULK[job_role] ? job_role : null;
+  // employee_type は明示指定優先。未指定かつ職種があれば職種から導出 (現場系→field / 事務→office)。
+  const etype = (employee_type === 'field' || employee_type === 'admin') ? employee_type
+              : (jr ? JOB_ROLES_BULK[jr] : 'office');
   const dg = (dm_group || '').toString().trim().slice(0, 40) || null;
   const dr = normalizeRank(dm_rank);
   const bd = normalizeBirthDate(birth_date);
@@ -92,8 +96,8 @@ router.post('/users', authAdmin, (req, res) => {
   // DM制限: 明示指定なし & 一般社員(member + non-admin etype + non-guest) なら デフォルトON
   const isPlainMember = (role || 'member') === 'member' && etype !== 'admin' && !guest;
   const dmr = (dm_restricted === undefined || dm_restricted === null) ? (isPlainMember ? 1 : 0) : (dm_restricted ? 1 : 0);
-  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, dg, dr, dmr, bd, guest, gorg);
+  db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, employee_type, job_role, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, login_id, hash, display_name, company_code, role || 'member', etype, jr, dg, dr, dmr, bd, guest, gorg);
   // dm_group が設定されてれば同名グループチャットに自動加入 (なければ作成)
   try { syncDmGroupMembership(id, dg, null, req.uid); } catch (e) { console.warn('[dm_group sync]', e.message); }
   res.json({ success: true, id });
@@ -101,7 +105,7 @@ router.post('/users', authAdmin, (req, res) => {
 
 // ユーザー更新 (dm_group, dm_rank 等の編集)
 router.patch('/users/:id', authAdmin, (req, res) => {
-  const { display_name, company_code, role, employee_type, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org, is_field_promoter, is_warehouse_promoter } = req.body;
+  const { display_name, company_code, role, employee_type, job_role, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org, is_field_promoter, is_warehouse_promoter, is_manager } = req.body;
   const db = getDb();
   const u = db.prepare('SELECT id, dm_group FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
@@ -114,6 +118,10 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   if (employee_type !== undefined) {
     const etype = (employee_type === 'field' || employee_type === 'admin') ? employee_type : 'office';
     updates.push('employee_type = ?'); params.push(etype);
+  }
+  if (job_role !== undefined) {
+    const jr = JOB_ROLES_BULK[job_role] ? job_role : null;
+    updates.push('job_role = ?'); params.push(jr);
   }
   if (dm_group !== undefined) {
     const dg = (dm_group || '').toString().trim().slice(0, 40) || null;
@@ -136,6 +144,9 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   }
   if (is_field_promoter !== undefined) {
     updates.push('is_field_promoter = ?'); params.push(is_field_promoter ? 1 : 0);
+  }
+  if (is_manager !== undefined) {
+    updates.push('is_manager = ?'); params.push(is_manager ? 1 : 0);
   }
   if (is_warehouse_promoter !== undefined) {
     updates.push('is_warehouse_promoter = ?'); params.push(is_warehouse_promoter ? 1 : 0);

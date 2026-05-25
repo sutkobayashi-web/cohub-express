@@ -82,6 +82,33 @@ router.post('/reports', authUser, opsUpload.single('image'), (req, res) => {
       }).catch(() => {});
     }
   }
+  // チャット連携: 業務連絡GC (g_ops_reports) にも自動配信 (2026-05-08)
+  try {
+    const OPS_GROUP_ID = 'g_ops_reports';
+    const lines = [
+      `🚛 #${id} 【${category}】 ${urgIcon}${urgency}`,
+      `営業所: ${rep.reporter_company || '-'}` + (vehicleNo ? `　/　車両: ${vehicleNo}` : '') + (location ? `　/　場所: ${location}` : ''),
+    ];
+    if (description) lines.push('─', description);
+    if (imageUrl) lines.push('📎 写真添付');
+    const content = lines.join('\n');
+    const roomCode = 'grp_' + OPS_GROUP_ID;
+    const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url) VALUES (?, NULL, ?, ?, ?)`)
+      .run(req.uid, content, roomCode, imageUrl);
+    const payload = {
+      id: msgIns.lastInsertRowid,
+      from: req.uid,
+      group_id: OPS_GROUP_ID,
+      content,
+      at: new Date().toISOString(),
+      attach: imageUrl ? { url: imageUrl, name: '報告画像' } : null,
+      sender_name: rep.reporter_name || '',
+      sender_company: rep.reporter_company || '',
+    };
+    if (req.app && req.app.locals && req.app.locals.emitToGroupMembers) {
+      req.app.locals.emitToGroupMembers(OPS_GROUP_ID, 'group:msg', payload);
+    }
+  } catch (e) { console.warn('[ops] chat broadcast fail', e.message); }
   res.json({ success: true, report: rep });
 });
 

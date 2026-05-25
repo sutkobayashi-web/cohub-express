@@ -6,7 +6,9 @@ const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 
-const ALLOWED_EMOJIS = ['❤️', '🎉', '👍', '😊', '👏'];
+// 反応セット (8種): 👍いいね/❤️推し/😊共感/💪応援/👏すごい/💡参考/🙏ありがとう/😢心配
+// 🎉は旧データ互換のため許容（UIには表示しない）
+const ALLOWED_EMOJIS = ['👍', '❤️', '😊', '💪', '👏', '💡', '🙏', '😢', '🎉'];
 const MAX_CONTENT = 280;
 const MAX_COMMENT = 280;
 

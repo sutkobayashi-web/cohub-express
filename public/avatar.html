@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ec4899">
+<title>アバター設定 — CoWell</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: linear-gradient(180deg, #fdf2f8 0%, #fef3c7 100%); background-attachment: fixed; min-height: 100vh; color: #0f172a; }
+  header { background: linear-gradient(135deg, #db2777 0%, #ec4899 60%, #f472b6 100%); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 18px rgba(219,39,119,0.20); position: sticky; top: 0; z-index: 30; }
+  header h1 { margin: 0; font-size: 17px; font-weight: 800; flex: 1; letter-spacing: 0.5px; }
+  header a { color: #fff; text-decoration: none; font-size: 12px; padding: 7px 14px; background: rgba(255,255,255,0.20); border: 1px solid rgba(255,255,255,0.35); border-radius: 18px; font-weight: 700; backdrop-filter: blur(6px); }
+  header a:hover { background: rgba(255,255,255,0.30); }
+  main { max-width: 720px; margin: 0 auto; padding: 22px 18px 60px; }
+
+  .card { background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); border-radius: 18px; padding: 22px 24px; margin-bottom: 18px; box-shadow: 0 8px 24px rgba(15,23,42,0.06); }
+  .card h2 { margin: 0 0 14px; font-size: 15px; color: #0f172a; font-weight: 800; }
+  .card .desc { font-size: 12px; color: #64748b; line-height: 1.65; margin-bottom: 14px; }
+
+  .me-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; }
+  .me-av {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(135deg, #f472b6, #db2777);
+    color: #fff; font-weight: 800; font-size: 30px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(219,39,119,0.25), inset 0 1px 0 rgba(255,255,255,0.30);
+    overflow: hidden; flex-shrink: 0;
+  }
+  .me-av img { width: 100%; height: 100%; object-fit: cover; }
+  .me-meta .nm { font-size: 17px; font-weight: 800; color: #0f172a; }
+  .me-meta .lid { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .me-meta .status { font-size: 12px; margin-top: 4px; padding: 3px 10px; display: inline-block; border-radius: 999px; font-weight: 700; }
+  .me-meta .status.set { background: #d1fae5; color: #065f46; }
+  .me-meta .status.unset { background: #fee2e2; color: #991b1b; }
+
+  .upload-area {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 100%; min-height: 160px;
+    border: 2px dashed #cbd5e1; border-radius: 14px;
+    padding: 28px 20px; text-align: center; cursor: pointer;
+    transition: border 0.15s, background 0.15s;
+    background: #fafbfc;
+    box-sizing: border-box;
+  }
+  .upload-area:hover { border-color: #ec4899; background: #fdf2f8; }
+  .upload-area.has-file { border-color: #10b981; background: #ecfdf5; padding: 12px; min-height: 0; }
+  .upload-area > * { max-width: 100%; }
+  .upload-area .ic { font-size: 38px; line-height: 1; margin-bottom: 6px; opacity: 0.6; }
+  .upload-area .lbl { font-size: 13px; font-weight: 700; color: #475569; }
+  .upload-area .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .upload-area img { max-width: 100%; max-height: 240px; border-radius: 10px; display: block; }
+  #upload-empty { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+  /* iOS Safariは display:none の input で label クリックが効かないため、視覚的に隠すだけにする */
+  #photo-input {
+    position: absolute; opacity: 0; width: 1px; height: 1px;
+    overflow: hidden; pointer-events: none; left: -9999px;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #db2777, #ec4899); color: #fff;
+    border: none; border-radius: 12px;
+    font-size: 14px; font-weight: 800; cursor: pointer; letter-spacing: 0.5px;
+    box-shadow: 0 6px 18px rgba(219,39,119,0.30);
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(219,39,119,0.40); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  .btn-ghost { background: #f1f5f9; color: #475569; box-shadow: none; }
+  .btn-ghost:hover { background: #e2e8f0; transform: none; box-shadow: none; }
+  .btn-danger { background: linear-gradient(135deg, #b91c1c, #dc2626); box-shadow: 0 4px 12px rgba(220,38,38,0.25); }
+
+  /* 候補グリッド */
+  .candidates {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-top: 14px;
+  }
+  @media (max-width: 480px) { .candidates { grid-template-columns: 1fr; } }
+  .cand {
+    background: #fff; border: 2px solid #e2e8f0; border-radius: 14px;
+    padding: 12px; cursor: pointer; transition: all 0.15s;
+    text-align: center;
+  }
+  .cand:hover { border-color: #ec4899; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,42,0.10); }
+  .cand img {
+    width: 100%; aspect-ratio: 1; object-fit: cover;
+    border-radius: 12px; background: #f1f5f9;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .cand .lbl { font-size: 12px; font-weight: 700; color: #475569; margin-top: 8px; }
+
+  /* ローディング */
+  .loading { display: none; padding: 22px; text-align: center; color: #ec4899; font-weight: 700; }
+  .loading.show { display: block; }
+  .loading .spin { display: inline-block; animation: rot 1.2s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #0f172a; color: #fff; padding: 11px 20px;
+    border-radius: 24px; font-size: 13px; font-weight: 700;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25); opacity: 0; transition: opacity 0.2s;
+    pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+  .toast.err { background: #991b1b; }
+
+  #login-screen { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #login-screen.show { display: flex; }
+
+  .err-msg { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 16px; font-weight: 600; }
+
+  /* カメラモーダル (getUserMedia ベース) */
+  #cam-modal {
+    display: none; position: fixed; inset: 0;
+    background: #0f172a; z-index: 200;
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+  }
+  #cam-modal.show { display: flex; }
+  #cam-video {
+    width: 100%; max-width: 720px; max-height: calc(100vh - 200px);
+    background: #000; object-fit: contain;
+    transform: scaleX(-1); /* 自分撮り鏡像 */
+  }
+  #cam-bar {
+    width: 100%; padding: 16px 20px; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+  }
+  #cam-bar .cam-btn {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: #fff; border: 4px solid rgba(255,255,255,0.4);
+    cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.30);
+    transition: transform 0.1s;
+    padding: 0; display: flex; align-items: center; justify-content: center;
+  }
+  #cam-bar .cam-btn:hover { transform: scale(1.05); }
+  #cam-bar .cam-btn:active { transform: scale(0.95); }
+  #cam-bar .side-btn {
+    background: rgba(255,255,255,0.18); color: #fff;
+    border: 1px solid rgba(255,255,255,0.30); border-radius: 24px;
+    padding: 10px 18px; font-size: 13px; font-weight: 700;
+    cursor: pointer;
+  }
+  #cam-bar .side-btn:hover { background: rgba(255,255,255,0.28); }
+  #cam-msg {
+    color: #fff; font-size: 13px; padding: 12px 20px; text-align: center;
+    background: rgba(0,0,0,0.5);
+  }
+  #cam-msg.err { color: #fca5a5; }
+</style>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<div id="login-screen">
+  <div style="background:#fff;padding:24px;border-radius:14px;text-align:center;">
+    <p style="margin:0 0 12px;color:#64748b;">ログインが必要です</p>
+    <a href="/" style="color:#db2777;font-weight:800;">ホームへ戻る</a>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+<header>
+  <h1>🎨 アバター設定</h1>
+  <a href="/chat" id="back-link">← チャットへ</a>
+</header>
+
+<main>
+  <!-- 現在のアバター -->
+  <div class="card">
+    <h2>現在の状態</h2>
+    <div class="me-row">
+      <div class="me-av" id="me-av-display"></div>
+      <div class="me-meta">
+        <div class="nm" id="me-name"></div>
+        <div class="lid" id="me-id"></div>
+        <span class="status" id="me-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- アップロード+生成 -->
+  <div class="card" id="step-upload">
+    <h2>📸 写真からAIアバターを作る</h2>
+    <div class="desc">
+      ご自身の顔が写った写真をアップロードしてください。AI が3パターンのアニメ風アバターを生成します。<br>
+      <strong>写真は生成のみに使用</strong>され、サーバには保存されません。
+    </div>
+    <!-- 隠し input: 「アルバムから選ぶ」用 (カメラは getUserMedia モーダル) -->
+    <input type="file" id="photo-input" accept="image/*">
+
+    <div class="upload-area" id="upload-area">
+      <div id="upload-empty">
+        <div class="ic">📷</div>
+        <div class="lbl">写真を準備してください</div>
+        <div class="hint">JPEG / PNG / 8MB以内</div>
+      </div>
+      <img id="photo-preview" src="" style="display:none;" alt="プレビュー">
+    </div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn" id="btn-camera" type="button" style="background:linear-gradient(135deg,#06b6d4,#0891b2);">📷 カメラ撮影</button>
+      <button class="btn btn-ghost" id="btn-pick" type="button">🖼 アルバムから選ぶ</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn" id="generate-btn" disabled>✨ 3パターン生成</button>
+      <button class="btn btn-ghost" id="reset-btn" style="display:none;">写真を選び直す</button>
+    </div>
+    <div class="err-msg" id="upload-err"></div>
+  </div>
+
+  <!-- 生成中ローディング -->
+  <div class="card loading" id="loading">
+    <div class="spin" style="font-size:32px;">🌀</div>
+    <div style="margin-top:8px;">AIがアバターを生成中... (20〜40秒)</div>
+    <div style="font-size:11px;color:#94a3b8;margin-top:4px;">画面を閉じずにお待ちください</div>
+  </div>
+
+  <!-- 候補選択 -->
+  <div class="card" id="step-pick" style="display:none;">
+    <h2>🎯 お気に入りを1つ選んでください</h2>
+    <div class="desc">タップで確定。残りの候補は自動で削除されます。</div>
+    <div class="candidates" id="cand-grid"></div>
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" id="restart-btn">最初からやり直す</button>
+    </div>
+  </div>
+
+  <!-- 既存アバター削除 -->
+  <div class="card" id="step-remove">
+    <h2>🗑 アバター削除</h2>
+    <div class="desc">アバターを未設定状態に戻します（イニシャル丸でフォールバック表示）。</div>
+    <button class="btn btn-danger" id="remove-btn">削除する</button>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- カメラ撮影モーダル -->
+<div id="cam-modal">
+  <div id="cam-msg">カメラを起動しています...</div>
+  <video id="cam-video" autoplay playsinline muted></video>
+  <div id="cam-bar">
+    <button class="side-btn" type="button" id="cam-flip">↺ 反転</button>
+    <button class="cam-btn" type="button" id="cam-shoot" title="撮影"><span style="font-size:24px;">📸</span></button>
+    <button class="side-btn" type="button" id="cam-close">キャンセル</button>
+  </div>
+</div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let photoFile = null;
+let candidates = [];
+const $ = (id) => document.getElementById(id);
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin(); return null; }
+  return r.json();
+}
+
+function showLogin() { $('login-screen').classList.add('show'); $('app').style.display = 'none'; }
+function showApp() { $('login-screen').classList.remove('show'); $('app').style.display = 'block'; }
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+function showToast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function avatarInitial(name) {
+  const n = String(name || '?').trim();
+  if (!n) return '?';
+  if (/^[A-Za-z]/.test(n)) return n.slice(0, 2).toUpperCase();
+  return n.slice(0, 1);
+}
+
+function renderMe() {
+  $('me-name').textContent = (me.display_name || '') + 'さん';
+  $('me-id').textContent = me.login_id || '';
+  const av = $('me-av-display');
+  if (me.avatar_url) {
+    av.innerHTML = '<img src="' + escapeHtml(me.avatar_url) + '" alt="">';
+    $('me-status').textContent = '✓ アバター設定済み';
+    $('me-status').className = 'status set';
+    $('step-remove').style.display = 'block';
+  } else {
+    av.textContent = avatarInitial(me.display_name);
+    $('me-status').textContent = '未設定';
+    $('me-status').className = 'status unset';
+    $('step-remove').style.display = 'none';
+  }
+}
+
+async function init() {
+  if (!token) { showLogin(); return; }
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) { showLogin(); return; }
+  me = r.user;
+  showApp();
+  renderMe();
+}
+
+// 写真選択 (カメラ / アルバム両入力で共通処理)
+function handlePhotoChange(e) {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (f.size > 8 * 1024 * 1024) { $('upload-err').textContent = '8MB以下の写真にしてください'; return; }
+  $('upload-err').textContent = '';
+  photoFile = f;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    $('photo-preview').src = ev.target.result;
+    $('photo-preview').style.display = 'block';
+    $('upload-empty').style.display = 'none';
+    $('upload-area').classList.add('has-file');
+    $('generate-btn').disabled = false;
+    $('reset-btn').style.display = '';
+  };
+  reader.readAsDataURL(f);
+}
+$('photo-input').addEventListener('change', handlePhotoChange);
+$('btn-pick').addEventListener('click', () => $('photo-input').click());
+$('upload-area').addEventListener('click', () => {
+  if (!photoFile) $('photo-input').click();
+});
+
+// === カメラモーダル (getUserMedia ベース) ===
+let camStream = null;
+let camFacing = 'user'; // 'user' = 自分撮り / 'environment' = 背面
+
+async function openCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('このブラウザはカメラ撮影に対応していません。「アルバムから選ぶ」をご利用ください。');
+    return;
+  }
+  $('cam-modal').classList.add('show');
+  $('cam-msg').textContent = 'カメラを起動しています...';
+  $('cam-msg').classList.remove('err');
+  try {
+    if (camStream) camStream.getTracks().forEach(t => t.stop());
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: camFacing, width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+    $('cam-video').srcObject = camStream;
+    $('cam-video').style.transform = camFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+    $('cam-msg').textContent = '中央に顔が来るよう構えて 📸 を押してください';
+  } catch (e) {
+    $('cam-msg').textContent = '✗ カメラを起動できませんでした: ' + (e.name || '') + ' — 許可されているか、別アプリが使用中でないかご確認ください';
+    $('cam-msg').classList.add('err');
+    console.error('getUserMedia error', e);
+  }
+}
+
+function closeCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  $('cam-video').srcObject = null;
+  $('cam-modal').classList.remove('show');
+}
+
+async function shootCamera() {
+  const video = $('cam-video');
+  if (!video.videoWidth || !video.videoHeight) {
+    showToast('カメラがまだ準備中です', true); return;
+  }
+  // canvas に描画
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  // 自分撮りは鏡像で表示してたが、保存時は反転して保存しない (実像)
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  // Blob 化
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  if (!blob) { showToast('撮影に失敗しました', true); return; }
+  const file = new File([blob], 'camera_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+  closeCamera();
+  // 共通ハンドラに流す
+  handlePhotoChange({ target: { files: [file] } });
+}
+
+function flipCamera() {
+  camFacing = camFacing === 'user' ? 'environment' : 'user';
+  openCamera();
+}
+
+$('btn-camera').addEventListener('click', openCamera);
+$('cam-shoot').addEventListener('click', shootCamera);
+$('cam-close').addEventListener('click', closeCamera);
+$('cam-flip').addEventListener('click', flipCamera);
+// バックグラウンド遷移時にカメラ停止
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && camStream) closeCamera();
+});
+
+$('reset-btn').addEventListener('click', () => {
+  photoFile = null;
+  $('photo-input').value = '';
+  $('photo-preview').src = '';
+  $('photo-preview').style.display = 'none';
+  $('upload-empty').style.display = '';
+  $('upload-area').classList.remove('has-file');
+  $('generate-btn').disabled = true;
+  $('reset-btn').style.display = 'none';
+});
+
+// 生成
+$('generate-btn').addEventListener('click', async () => {
+  if (!photoFile) return;
+  $('step-upload').style.display = 'none';
+  $('loading').classList.add('show');
+  const fd = new FormData();
+  fd.append('photo', photoFile);
+  try {
+    const r = await fetch('/api/avatar/generate-set', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd,
+    });
+    const d = await r.json();
+    $('loading').classList.remove('show');
+    if (!d.success) {
+      $('step-upload').style.display = 'block';
+      showToast(d.msg || '生成失敗', true);
+      return;
+    }
+    candidates = d.candidates || [];
+    renderCandidates();
+    $('step-pick').style.display = 'block';
+    window.scrollTo({ top: 9999, behavior: 'smooth' });
+  } catch (e) {
+    $('loading').classList.remove('show');
+    $('step-upload').style.display = 'block';
+    showToast('通信エラー', true);
+  }
+});
+
+function renderCandidates() {
+  $('cand-grid').innerHTML = candidates.map((c, i) => `
+    <div class="cand" onclick="pickCand(${i})">
+      <img src="${escapeHtml(c.avatar_url)}" alt="${escapeHtml(c.label || '')}">
+      <div class="lbl">${escapeHtml(c.label || ('案 ' + (i+1)))}</div>
+    </div>
+  `).join('');
+}
+
+window.pickCand = async function(idx) {
+  const chosen = candidates[idx];
+  if (!chosen) return;
+  if (!confirm(chosen.label + ' で確定しますか？')) return;
+  const r = await api('/api/avatar/select', {
+    method: 'POST',
+    body: { avatar_url: chosen.avatar_url, candidates },
+  });
+  if (!r || !r.success) { showToast(r && r.msg || '確定失敗', true); return; }
+  showToast('✓ アバターを設定しました');
+  // me を更新して画面再描画
+  me.avatar_url = chosen.avatar_url;
+  renderMe();
+  $('step-pick').style.display = 'none';
+  $('step-upload').style.display = 'block';
+  // フォームリセット
+  $('reset-btn').click();
+  candidates = [];
+  // 1.2秒後にチャット画面へ自動復帰
+  setTimeout(() => { location.href = '/chat'; }, 1200);
+};
+
+$('restart-btn').addEventListener('click', async () => {
+  // 候補を破棄サーバ通知
+  if (candidates.length) {
+    api('/api/avatar/discard', { method: 'POST', body: { candidates } }).catch(() => {});
+  }
+  candidates = [];
+  $('step-pick').style.display = 'none';
+  $('step-upload').style.display = 'block';
+  $('reset-btn').click();
+});
+
+$('remove-btn').addEventListener('click', async () => {
+  if (!confirm('現在のアバターを削除して未設定状態に戻しますか？')) return;
+  const r = await api('/api/avatar/remove', { method: 'POST' });
+  if (!r || !r.success) { showToast('削除失敗', true); return; }
+  showToast('✓ アバターを削除しました');
+  me.avatar_url = '';
+  renderMe();
+});
+
+init();
+</script>
+  <script src="/translate.js" defer></script>
+</body>
+</html>

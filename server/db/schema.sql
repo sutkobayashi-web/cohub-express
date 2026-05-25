@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url TEXT DEFAULT '',
   avatar_style TEXT DEFAULT '',  -- shonen | anime | pixar | watercolor
   status TEXT DEFAULT 'active',  -- active | 退席中 | 会議中
-  session_token TEXT,
+  session_token TEXT,                 -- (旧・互換用) 単一セッションtoken
+  pc_session_token TEXT,              -- PC端末用セッションtoken (UAでPC判定された場合)
+  mobile_session_token TEXT,          -- モバイル端末用セッションtoken (UAでスマホ/タブレット判定)
   google_cal_id TEXT,                 -- Googleカレンダー連携ID (NULL=未連携)
   last_cal_dm_date TEXT,              -- 最後に葵から予定DMを送った日 YYYY-MM-DD
   dm_group TEXT,                      -- DM所属グループ (例: 営業部/経理/経営層) NULLは無制限(移行互換)
@@ -75,7 +77,7 @@ INSERT OR IGNORE INTO floors (code, name, bg_image, world_w, world_h, entry_x, e
   ('field_work', '倉庫作業室',         '/assets/floor_field_work.png', 1344, 768, 672, 678, 12, '📦', 'field'),
   ('field_meet', 'ミーティング',       '/assets/floor_field_meet.png', 1344, 768, 672, 678, 13, '📋', 'field'),
   ('field_accident','事故対策室',       '/assets/floor_field_accident.png', 1344, 768, 672, 700, 14, '🚨', 'field'),
-  ('promoter_club','推進カフェ',         '/assets/floor_promoter_club.png',  1344, 768, 672, 600, 6,  '☕', 'office');
+  ('promoter_club','健康戦略室',         '/assets/floor_promoter_club.png',  1344, 768, 672, 600, 6,  '📊', 'office');
 
 -- グループチャット (管理者作成・メンバー制)
 CREATE TABLE IF NOT EXISTS chat_groups (
@@ -178,11 +180,11 @@ CREATE TABLE IF NOT EXISTS companies (
   ring_color TEXT DEFAULT '#000000'
 );
 INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES
-  ('SU_HQ',       'SU本社',   '#1f2937'),
-  ('SU_SAITAMA',  'SU埼玉',   '#dc2626'),
-  ('SU_MKANTO',   'SU南関東', '#7c3aed'),
-  ('SU_ZAMA',     'SU座間',   '#ea580c'),
-  ('IBA_KASHIMA', 'IBA鹿島',  '#0891b2'),
-  ('IBA_SANWA',   'IBA三和',  '#0284c7'),
-  ('SUZUE',       'スズエ',   '#059669'),
-  ('ADMIN',       '管理職',   '#ca8a04');
+  ('SU_HQ',       'スタンダード運輸 本社',   '#1f2937'),
+  ('SU_SAITAMA',  'スタンダード運輸 埼玉',   '#dc2626'),
+  ('SU_MKANTO',   'スタンダード運輸 南関東', '#7c3aed'),
+  ('SU_ZAMA',     'スタンダード運輸 座間',   '#ea580c'),
+  ('IBA_KASHIMA', '茨運(鹿島)',             '#0891b2'),
+  ('IBA_SANWA',   '茨運(三和)',             '#0284c7'),
+  ('SUZUE',       'スズエ電機',             '#059669'),
+  ('ADMIN',       '管理職',                 '#ca8a04');

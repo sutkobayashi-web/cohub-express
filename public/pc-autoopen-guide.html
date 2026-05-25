@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#7c3aed">
+<title>💻 PC起動時に CoWell を自動で開く設定</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: linear-gradient(180deg, #faf5ff 0%, #f5f3ff 60%, #f8fafc 100%); min-height: 100vh; color: #0f172a; }
+  header { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 60%, #a78bfa 100%); color: #fff; padding: 26px 22px; box-shadow: 0 6px 20px rgba(124,58,237,0.25); position: relative; overflow: hidden; }
+  header:before { content:''; position:absolute; right:-40px; top:-40px; width:220px; height:220px; background:radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%); pointer-events:none; }
+  header .row { display: flex; align-items: center; gap: 14px; max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+  header .ic { font-size: 42px; line-height: 1; flex-shrink: 0; background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.35); border-radius: 18px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+  header h1 { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 0.5px; }
+  header .tagline { margin-top: 4px; font-size: 13px; opacity: 0.92; line-height: 1.5; }
+  header a.back { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; flex-shrink: 0; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 22px 16px 80px; }
+
+  /* 流れ図 (PC ON → CoHub) */
+  .flow-diagram { background: #fff; border-radius: 16px; padding: 24px 20px; margin-bottom: 22px; box-shadow: 0 4px 14px rgba(15,23,42,0.06); }
+  .flow-diagram h2 { margin: 0 0 18px; font-size: 16px; font-weight: 900; color: #5b21b6; text-align: center; }
+  .flow-grid { display: flex; align-items: stretch; justify-content: center; gap: 6px; flex-wrap: wrap; }
+  .flow-box { background: linear-gradient(180deg, #ede9fe, #ddd6fe); border: 2px solid #a78bfa; border-radius: 14px; padding: 14px 10px; text-align: center; flex: 1; min-width: 110px; max-width: 160px; box-shadow: 0 3px 8px rgba(124,58,237,0.12); }
+  .flow-box .emoji { font-size: 36px; line-height: 1; margin-bottom: 6px; display: block; }
+  .flow-box .lbl { font-size: 12px; font-weight: 800; color: #5b21b6; line-height: 1.4; }
+  .flow-arrow { display: flex; align-items: center; justify-content: center; font-size: 24px; color: #a78bfa; font-weight: 900; min-width: 20px; }
+  @media (max-width: 640px) {
+    .flow-grid { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); padding: 4px 0; }
+    .flow-box { max-width: none; width: 100%; }
+  }
+
+  /* なぜ */
+  .why { background: linear-gradient(135deg, #fef9c3, #fef3c7); border: 2px solid #fbbf24; border-radius: 14px; padding: 18px 22px; margin-bottom: 22px; }
+  .why h3 { margin: 0 0 8px; font-size: 15px; font-weight: 900; color: #854d0e; }
+  .why p { margin: 6px 0; font-size: 13px; line-height: 1.8; color: #4a3208; }
+  .why b { color: #92400e; }
+
+  /* before/after 比較 */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+  .compare > div { background: #fff; border-radius: 14px; padding: 18px 16px; box-shadow: 0 3px 10px rgba(15,23,42,0.05); }
+  .compare .before { border-top: 4px solid #cbd5e1; }
+  .compare .after { border-top: 4px solid #10b981; }
+  .compare h4 { margin: 0 0 10px; font-size: 14px; font-weight: 900; }
+  .compare .before h4 { color: #64748b; }
+  .compare .after h4 { color: #047857; }
+  .compare .scene { background: #f8fafc; border-radius: 10px; padding: 14px 12px; margin-bottom: 8px; text-align: center; }
+  .compare .scene .em { font-size: 42px; line-height: 1; }
+  .compare .scene .cap { font-size: 11.5px; color: #475569; margin-top: 6px; line-height: 1.5; }
+  .compare .after .scene { background: #ecfdf5; }
+  .compare ul { margin: 8px 0 0; padding-left: 20px; font-size: 12.5px; line-height: 1.7; color: #475569; }
+  @media (max-width: 600px) { .compare { grid-template-columns: 1fr; } }
+
+  /* インストール手順 */
+  h2.sec { font-size: 17px; font-weight: 900; color: #5b21b6; margin: 32px 0 14px; padding: 10px 16px; background: linear-gradient(90deg, #ede9fe, transparent); border-left: 5px solid #7c3aed; border-radius: 4px; }
+
+  .step { background: #fff; border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 3px 10px rgba(15,23,42,0.05); }
+  .step .top { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  .step .n { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; flex-shrink: 0; box-shadow: 0 3px 8px rgba(124,58,237,0.30); }
+  .step .ttl { font-size: 15.5px; font-weight: 900; color: #0f172a; }
+  .step p { margin: 6px 0; font-size: 13.5px; color: #334155; line-height: 1.75; }
+  .step .visual { background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 14px; margin: 10px 0; text-align: center; }
+  .step .visual .big-em { font-size: 50px; line-height: 1; }
+  .step .visual .cap { font-size: 12px; color: #64748b; margin-top: 8px; }
+  .step code.cmd { display: block; background: #0f172a; color: #a7f3d0; padding: 14px 16px; border-radius: 10px; font-family: "Consolas","Menlo",monospace; font-size: 12.5px; line-height: 1.6; word-break: break-all; margin: 10px 0; position: relative; }
+  .step button.copy { position: absolute; top: 8px; right: 8px; background: #a78bfa; color: #fff; border: 0; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; }
+  .step button.copy:hover { background: #7c3aed; }
+  .step button.copy.ok { background: #10b981; }
+
+  /* キーボードキャプ */
+  .kbd { display: inline-block; background: #f1f5f9; border: 1.5px solid #cbd5e1; border-bottom-width: 2.5px; border-radius: 5px; padding: 2px 7px; font-family: monospace; font-size: 12px; color: #0f172a; font-weight: 700; }
+
+  /* 注意ボックス */
+  .note { background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 12px 16px; margin: 10px 0; font-size: 12.5px; color: #1e3a8a; line-height: 1.7; }
+  .note b { color: #1e40af; }
+  .warn { background: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 10px; padding: 12px 16px; margin: 10px 0; font-size: 12.5px; color: #7f1d1d; line-height: 1.7; }
+
+  /* よくある質問 */
+  .faq { background: #fff; border-radius: 14px; padding: 18px 20px; margin-top: 14px; box-shadow: 0 3px 10px rgba(15,23,42,0.05); }
+  .faq h3 { margin: 0 0 10px; font-size: 15px; font-weight: 900; color: #5b21b6; }
+  .faq .q { font-weight: 800; color: #0f172a; margin: 14px 0 4px; font-size: 13.5px; }
+  .faq .q:before { content: "Q. "; color: #7c3aed; }
+  .faq .a { font-size: 13px; color: #475569; line-height: 1.75; margin: 0; }
+  .faq .a:before { content: "A. "; color: #10b981; font-weight: 800; }
+
+  /* アンインストール */
+  .uninstall { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1.5px solid #fdba74; border-radius: 12px; padding: 16px 18px; margin-top: 22px; font-size: 13px; line-height: 1.75; color: #7c2d12; }
+  .uninstall b { color: #9a3412; }
+
+  .footer { text-align: center; margin-top: 36px; font-size: 12px; color: #64748b; padding: 14px; }
+
+  @media (max-width: 600px) {
+    header { padding: 18px 14px; }
+    header h1 { font-size: 18px; }
+    header .ic { width: 50px; height: 50px; font-size: 30px; }
+    main { padding: 16px 12px 60px; }
+  }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <div class="ic">💻</div>
+    <div>
+      <h1>PC電源ON で CoWell が自動で開く</h1>
+      <div class="tagline">朝の起動時に手作業ゼロ。クリック1回で設定完了</div>
+    </div>
+    <a class="back" href="/">← ホーム</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- 流れ図 -->
+  <div class="flow-diagram">
+    <h2>📌 設定するとこうなります</h2>
+    <div class="flow-grid">
+      <div class="flow-box">
+        <span class="emoji">🔌</span>
+        <div class="lbl">PC電源 ON</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">
+        <span class="emoji">🪟</span>
+        <div class="lbl">Windowsにログオン</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">
+        <span class="emoji">🌐</span>
+        <div class="lbl">ブラウザが起動</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="background: linear-gradient(180deg, #d1fae5, #a7f3d0); border-color: #10b981;">
+        <span class="emoji">💜</span>
+        <div class="lbl" style="color: #047857;">CoWellが自動で開く</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- なぜ -->
+  <div class="why">
+    <h3>🤔 なぜこれが必要?</h3>
+    <p>
+      Teams や Outlook は <b>朝の起動時に勝手に立ち上がる</b> のに、社内連絡や健康管理に使う CoWell は毎回ブックマークから開かないといけません。
+    </p>
+    <p>
+      この設定をすると、朝 PC を立ち上げるだけで <b>CoWell が他のアプリと並んで自動表示</b> されます。「開き忘れていた」「気づいたら半日経っていた」がなくなります。
+    </p>
+    <p style="font-size: 12px; color: #78716c;">
+      ※ CoWell を開いた時刻はサーバーログに自動記録されます。出退勤の打刻ではありません。
+    </p>
+  </div>
+
+  <!-- before/after -->
+  <div class="compare">
+    <div class="before">
+      <h4>😩 設定する前</h4>
+      <div class="scene">
+        <div class="em">🖱️🌐</div>
+        <div class="cap">PC起動 → ブックマーク探す → クリック → やっと開く</div>
+      </div>
+      <ul>
+        <li>毎朝の手作業</li>
+        <li>開き忘れて夕方気づく</li>
+        <li>新人がURLを知らない</li>
+      </ul>
+    </div>
+    <div class="after">
+      <h4>😊 設定した後</h4>
+      <div class="scene">
+        <div class="em">☕✨</div>
+        <div class="cap">PC起動 → コーヒー入れている間に CoWell が開いている</div>
+      </div>
+      <ul>
+        <li>朝の手作業ゼロ</li>
+        <li>勝手に視界に入る</li>
+        <li>新人もすぐ慣れる</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- インストール手順 -->
+  <h2 class="sec">🛠 設定のしかた (3ステップ・約30秒)</h2>
+
+  <div class="step">
+    <div class="top">
+      <div class="n">1</div>
+      <div class="ttl">PowerShell を開く</div>
+    </div>
+    <div class="visual">
+      <div class="big-em">⊞ + R</div>
+      <div class="cap">キーボードで <span class="kbd">Windowsキー</span> + <span class="kbd">R</span> を同時押し<br>→ 出てきた窓に <b>powershell</b> と入力 → <span class="kbd">Enter</span></div>
+    </div>
+    <p>真っ青な画面が立ち上がります。</p>
+    <div class="note">
+      <b>💡 注意:</b> 「<b>管理者として実行</b>」する必要はありません。普通のPowerShellでOK。
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="top">
+      <div class="n">2</div>
+      <div class="ttl">下のコマンドをコピーして貼り付け</div>
+    </div>
+    <p>PowerShellの画面で右クリック (または <span class="kbd">Ctrl</span> + <span class="kbd">V</span>) で貼り付けて <span class="kbd">Enter</span>。</p>
+    <code class="cmd" id="cmd1">iex (irm https://cohub.biz-terrace.org/setup/install-autoopen.ps1)<button class="copy" onclick="copyCmd('cmd1', this)">📋 コピー</button></code>
+    <div class="visual">
+      <div class="big-em">✅</div>
+      <div class="cap">画面に「<b>CoWell 自動オープン設定 完了</b>」と表示されれば成功です</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="top">
+      <div class="n">3</div>
+      <div class="ttl">PCを再起動して確認</div>
+    </div>
+    <p>1回 PC を再起動 (またはサインアウト→サインイン) すると、起動直後に CoWell が自動で開きます。</p>
+    <div class="visual">
+      <div class="big-em">🎉</div>
+      <div class="cap">これだけで完了!<br>次の朝から手作業なしで CoWell が立ち上がります</div>
+    </div>
+  </div>
+
+  <!-- アンインストール -->
+  <div class="uninstall">
+    <b>❌ やっぱりやめたい時は:</b><br>
+    エクスプローラのアドレス欄に <code>shell:startup</code> と入れて <span class="kbd">Enter</span>。<br>
+    開いたフォルダの中の「<b>CoHub.url</b>」を削除するだけです。
+  </div>
+
+  <!-- FAQ -->
+  <h2 class="sec">💬 よくある質問</h2>
+  <div class="faq">
+    <div class="q">他のアプリより前に開きますか?</div>
+    <p class="a">いいえ。Windowsのスタートアップ起動順なので、Teams等と並んで自動で立ち上がります。順番にこだわる必要はありません。</p>
+
+    <div class="q">ブラウザが何個も開きませんか?</div>
+    <p class="a">いいえ。1回のログオンで1回だけ、既定ブラウザのタブで開きます。</p>
+
+    <div class="q">ログイン情報は覚えさせて良いですか?</div>
+    <p class="a">ブラウザに保存しておけば次回からログイン操作不要です。社用PCのみ・他人とPCを共有しない前提で保存してください。</p>
+
+    <div class="q">設定を入れたかどうかわからなくなった</div>
+    <p class="a">エクスプローラのアドレス欄に <code>shell:startup</code> と入れて開き、「CoHub.url」があれば設定済みです。</p>
+
+    <div class="q">スマホには影響しますか?</div>
+    <p class="a">影響しません。これはWindows PC専用の設定です。スマホは引き続き手動で CoWell を開いてください。</p>
+  </div>
+
+  <div class="footer">
+    困ったときは <b>須貝</b> または <b>立石</b> までお声がけください。<br>
+    🔗 <a href="/" style="color:#7c3aed;font-weight:700;">CoWell ホームへ戻る</a>
+  </div>
+
+</main>
+
+<script>
+function copyCmd(id, btn) {
+  const txt = document.getElementById(id).childNodes[0].nodeValue;
+  navigator.clipboard.writeText(txt).then(() => {
+    btn.textContent = '✓ コピー完了';
+    btn.classList.add('ok');
+    setTimeout(() => {
+      btn.textContent = '📋 コピー';
+      btn.classList.remove('ok');
+    }, 2000);
+  }).catch(() => {
+    btn.textContent = '失敗';
+  });
+}
+</script>
+
+  <script src="/translate.js" defer></script>
+</body>
+</html>

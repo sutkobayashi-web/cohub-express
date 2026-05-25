@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#7c3aed">
+<title>🩺 推進メンバーガイド — CoWell</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: linear-gradient(180deg, #faf5ff 0%, #f5f3ff 60%, #f8fafc 100%); min-height: 100vh; color: #0f172a; overscroll-behavior-x: contain; }
+  header { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 60%, #a78bfa 100%); color: #fff; padding: 22px 22px 24px; box-shadow: 0 6px 20px rgba(124,58,237,0.25); position: relative; overflow: hidden; }
+  header:before { content:''; position:absolute; right:-40px; top:-40px; width:220px; height:220px; background:radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%); pointer-events:none; }
+  header .row { display: flex; align-items: center; gap: 14px; max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+  header .ic { font-size: 42px; line-height: 1; flex-shrink: 0; background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.35); border-radius: 18px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+  header .info { flex: 1; min-width: 0; }
+  header h1 { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 0.5px; }
+  header .tagline { margin-top: 4px; font-size: 13px; opacity: 0.92; line-height: 1.5; }
+  header a.back { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; flex-shrink: 0; }
+  header a.back:hover { background: rgba(255,255,255,0.32); }
+
+  main { max-width: 900px; margin: 0 auto; padding: 22px 16px 80px; }
+
+  .mission { background: #fff; border-radius: 14px; padding: 18px 20px; margin-bottom: 24px; border-left: 5px solid #7c3aed; box-shadow: 0 6px 18px rgba(124,58,237,0.08); }
+  .mission h2 { margin: 0 0 8px; font-size: 16px; font-weight: 900; color: #5b21b6; }
+  .mission p { margin: 0; font-size: 13.5px; line-height: 1.8; color: #334155; }
+  .mission b { color: #5b21b6; }
+
+  .toc { background: linear-gradient(135deg,#f5f3ff,#ede9fe); border: 1px solid #c4b5fd; border-radius: 12px; padding: 12px 16px; margin-bottom: 22px; font-size: 12.5px; line-height: 1.9; }
+  .toc a { color: #5b21b6; text-decoration: none; font-weight: 700; margin-right: 14px; white-space: nowrap; display: inline-block; }
+  .toc a:hover { text-decoration: underline; }
+
+  h2.sec { font-size: 16px; font-weight: 900; color: #5b21b6; margin: 28px 0 12px; padding: 8px 14px; background: linear-gradient(90deg, #ede9fe, transparent); border-left: 5px solid #7c3aed; border-radius: 4px; scroll-margin-top: 60px; }
+
+  .task { background: #fff; border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 3px 10px rgba(15,23,42,0.04); }
+  .task .top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .task .num { background: linear-gradient(135deg,#7c3aed,#a78bfa); color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; box-shadow: 0 2px 6px rgba(124,58,237,0.30); }
+  .task .ttl { font-size: 15px; font-weight: 900; color: #0f172a; flex: 1; }
+  .task .freq { background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; flex-shrink: 0; }
+  .task .freq.daily { background: #dcfce7; color: #166534; }
+  .task .freq.weekly { background: #dbeafe; color: #1e40af; }
+  .task .freq.monthly { background: #fee2e2; color: #991b1b; }
+  .task p { margin: 6px 0; font-size: 13px; color: #475569; line-height: 1.7; }
+  .task .how { background: #f8fafc; border-left: 3px solid #7c3aed; padding: 8px 12px; margin: 8px 0; border-radius: 6px; font-size: 12.5px; color: #475569; line-height: 1.7; }
+  .task .how b { color: #5b21b6; }
+  .task a.btn { display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: #fff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 12.5px; margin-top: 6px; box-shadow: 0 3px 8px rgba(124,58,237,0.25); }
+
+  .flow { background: #fff; border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; box-shadow: 0 3px 10px rgba(15,23,42,0.04); }
+  .flow h3 { margin: 0 0 12px; font-size: 14.5px; font-weight: 900; color: #5b21b6; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-step .n { background: #ede9fe; color: #5b21b6; font-weight: 800; min-width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+  .flow-step .t { font-size: 13px; color: #334155; line-height: 1.6; }
+  .flow-step .t b { color: #5b21b6; }
+
+  .principles { background: linear-gradient(135deg,#fef9c3,#fde68a); border: 2px solid #facc15; border-radius: 14px; padding: 16px 18px; margin: 22px 0; }
+  .principles h3 { margin: 0 0 8px; font-size: 14.5px; font-weight: 900; color: #854d0e; }
+  .principles ul { margin: 0; padding-left: 22px; font-size: 13px; line-height: 1.85; color: #4a3208; }
+  .principles ul li b { color: #854d0e; }
+
+  .ng { background: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 12px; padding: 14px 18px; margin: 18px 0; }
+  .ng h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 900; color: #b91c1c; }
+  .ng ul { margin: 0; padding-left: 22px; font-size: 12.5px; line-height: 1.75; color: #7f1d1d; }
+
+  .footer { text-align: center; margin-top: 36px; font-size: 12px; color: #64748b; padding: 14px; }
+  .footer a { color: #5b21b6; text-decoration: none; margin: 0 6px; font-weight: 700; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    header { padding: 16px 14px; }
+    header h1 { font-size: 19px; }
+    header .ic { width: 52px; height: 52px; font-size: 32px; }
+    main { padding: 16px 12px 70px; }
+  }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script src="/global-notif.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <div class="ic">🩺</div>
+    <div class="info">
+      <h1>推進メンバーガイド</h1>
+      <div class="tagline">健康管理室を現場と繋ぐ、CoWell の翼。日々の業務と判断基準をまとめました。</div>
+    </div>
+    <a class="back" href="/">← ホーム</a>
+  </div>
+</header>
+
+<main>
+
+  <div class="mission">
+    <h2>🎯 推進メンバーの役割</h2>
+    <p>
+      推進メンバーは <b>「現場の声」と「健康管理室」をつなぐハブ</b> です。
+      点呼・帰庫・日々のやり取りの中で拾った気づきを CoWell に投稿し、
+      AI評議会・保健師・役員と一緒に <b>会社全体の健康施策</b> へ育てていきます。<br>
+      自分の声で会社が動く、その実感を持てる立ち位置です。
+    </p>
+  </div>
+
+  <div class="toc">
+    <a href="#setup">🧭 ステップ0 — 担当エリアの社員登録・管理</a>
+    <a href="#daily">📅 日々のタスク</a>
+    <a href="#weekly">📊 週次・月次</a>
+    <a href="#flow">🔄 施策化フロー</a>
+    <a href="#principles">⭐ 行動原則</a>
+    <a href="#ng">⚠ やってはいけないこと</a>
+  </div>
+
+  <h2 class="sec" id="setup">🧭 ステップ0 — まず担当エリアの社員登録・管理</h2>
+
+  <div class="task" style="border-left: 4px solid #7c3aed; background: linear-gradient(180deg, #faf5ff 0%, #fff 50%);">
+    <div class="top">
+      <div class="num">0</div>
+      <div class="ttl">担当エリア社員の全員登録・最新化</div>
+      <div class="freq monthly">着任時 → 以降随時</div>
+    </div>
+    <p>
+      推進メンバーは <b>まず自分の担当エリア (拠点・営業所・倉庫) の社員を全員 CoWell に登録</b> するところから始まります。<br>
+      登録されていない社員は聞き取り対象にも投稿にも乗らず、現場の声が拾えません。<br>
+      着任時に <b>名簿と CoWell 登録状況を突合</b> し、未登録者を順次登録 → 以降は新規入社・退職・異動のたびに更新します。
+    </p>
+    <div class="how"><b>具体的な流れ:</b><br>
+      ① <b>メンバー一覧</b> で担当エリアの登録済み社員を確認 (拠点・会社で絞り込み可)<br>
+      ② 名簿と照合し、未登録・退職・異動を洗い出し<br>
+      ③ 未登録者は <b>社員登録</b> ページで写真撮影 → アバター生成 → ID/初期パス発行<br>
+      ④ 退職・異動者はメンバー一覧から非アクティブ化 (管理画面で処理)<br>
+      ⑤ 月初に名簿と再突合 — <b>「自エリアの全員が CoWell にいる」状態</b> を維持
+    </div>
+    <p style="margin-top:10px;">
+      <a class="btn" href="/members.html">メンバー一覧 →</a>
+      <a class="btn" href="/enroll.html" style="margin-left:6px;">社員登録 →</a>
+    </p>
+    <div class="how" style="border-left-color:#dc2626; background:#fef2f2; margin-top:10px;">
+      <b>⚠ なぜここが「ステップ0」か:</b> 担当エリアの社員把握がないと、聞き取りカード(タスク1)も施策議論(タスク3)も <b>母集団がブレて統計が歪み</b> ます。先にここを固めると以降の全業務が機能します。
+    </div>
+  </div>
+
+  <h2 class="sec" id="daily">📅 日々のタスク</h2>
+
+  <div class="task">
+    <div class="top">
+      <div class="num">1</div>
+      <div class="ttl">聞き取りカードで現場の声を投稿</div>
+      <div class="freq daily">毎日 / 点呼時</div>
+    </div>
+    <p>点呼・朝礼・昼礼で気になった様子（体調・疲労・モチベ・職場環境のヒヤリハット等）を聞き取り、<b>1人1枚</b> 投稿します。匿名/記名は任意です。</p>
+    <div class="how"><b>使い方:</b> ホーム → 推進メンバー専用 → <b>📷 聞き取りカードPOST</b> → 対象社員選択 → 5項目入力 → 投稿</div>
+    <a class="btn" href="/ops-listening.html">聞き取りカードへ →</a>
+  </div>
+
+  <div class="task">
+    <div class="top">
+      <div class="num">2</div>
+      <div class="ttl">「みんなの広場」の投稿に反応 (8種類)</div>
+      <div class="freq daily">毎日</div>
+    </div>
+    <p>社員の食事・相談・雑談投稿に <b>1日1回は何か反応</b>。共感だけでなく、心配な投稿には 😢 を、模範事例には 💡 や ❤️ を。反応の偏りが AI評議会のシグナルになります。</p>
+    <div class="how"><b>特に注目すべき反応:</b><br>
+      ・<b>😢 心配</b>: 体調不良・愚痴・孤立感を示す投稿 → 早期声かけ候補<br>
+      ・<b>💡 参考</b>: 良い習慣・Tips → 横展開候補<br>
+      ・<b>❤️ 推し</b>: 強く共感した投稿 → 施策化候補
+    </div>
+    <a class="btn" href="/plaza.html">みんなの広場へ →</a>
+  </div>
+
+  <h2 class="sec" id="weekly">📊 週次・月次のタスク</h2>
+
+  <div class="task">
+    <div class="top">
+      <div class="num">3</div>
+      <div class="ttl">議論待ち施策にコメント</div>
+      <div class="freq weekly">週1回以上</div>
+    </div>
+    <p>AI評議会が提案した施策候補に対して、現場目線で <b>「実現性」「効果」「副作用」</b> をコメント。推進メンバー間で議論を回します。</p>
+    <div class="how"><b>コメントのコツ:</b> 「いいと思う」だけでなく具体的な追加情報（「うちの拠点だと◯◯が課題」「水曜は朝礼が長くて時間取れない」等）を添える。</div>
+  </div>
+
+  <div class="task">
+    <div class="top">
+      <div class="num">4</div>
+      <div class="ttl">ヘルスリテラシー設問の代理入力</div>
+      <div class="freq monthly">90日に1回</div>
+    </div>
+    <p>聞き取りカード入力時に <b>📊 ヘルスリテラシー5問</b> も同じカードから入力可能。<br>
+    本人が直接入力できない場合は、推進メンバーが対話形式で聞き取り代理入力します（帝京大学 福田研究室 共同研究データ）。</p>
+    <div class="how"><b>注意:</b> 設問は誘導なく素直に。本人の自己評価を正確に拾うことが研究の前提です。</div>
+  </div>
+
+  <div class="task">
+    <div class="top">
+      <div class="num">5</div>
+      <div class="ttl">担当エリアの名簿確認 (新規入社・異動・退職の把握)</div>
+      <div class="freq monthly">発生都度</div>
+    </div>
+    <p>新規入社・異動・退職が出たら <b>事務局 (管理職)</b> に連絡し、登録依頼を出します。<br>
+    推進メンバーは登録権限を持たない方針です (生年月日など個人情報を扱うため、事務局に一元化)。</p>
+    <div class="how"><b>運用フロー:</b> 入退社情報を把握 → 事務局へ依頼 → 事務局が admin 画面 (1名登録 or CSV一括) で登録 → 完了後にメンバー一覧に反映。<br>
+      <b>異動 (所属グループ変更):</b> こちらも事務局に依頼してください。</div>
+    <p style="margin-top:8px;">
+      <a class="btn" href="/members.html">メンバー一覧 →</a>
+    </p>
+  </div>
+
+  <h2 class="sec" id="flow">🔄 施策化フロー (推進メンバーの位置づけ)</h2>
+
+  <div class="flow">
+    <h3>「現場の声」が「会社の施策」になるまで</h3>
+    <div class="flow-step">
+      <div class="n">1</div>
+      <div class="t"><b>運管・推進メンバー</b> が聞き取り → 現場の声POST 投稿</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">2</div>
+      <div class="t"><b>社員自身</b> も みんなの広場で食事/雑談/相談 を投稿、反応ボタンで温度感を可視化</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">3</div>
+      <div class="t"><b>AI評議会</b> が3系統 (運管POST/広場/食事) を横断し、テーマ抽出 + 施策候補を提案</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">4</div>
+      <div class="t"><b>推進メンバー</b> が施策候補に議論コメント → 現実性・優先度を磨く</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">5</div>
+      <div class="t"><b>保健師</b>(中間レビュー) が専門家視点で監修</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">6</div>
+      <div class="t"><b>役員</b> が決済 → 投票期間に入る</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">7</div>
+      <div class="t"><b>全社員</b> が投票で施策に賛否表明</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">8</div>
+      <div class="t"><b>保健師</b>(末レビュー) で最終調整 → 実行</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">9</div>
+      <div class="t"><b>推進メンバー</b> が完了アナウンス + KPI を3つの柱に投稿者へDMで報告</div>
+    </div>
+  </div>
+
+  <div class="principles" id="principles">
+    <h3>⭐ 推進メンバー 行動原則</h3>
+    <ul>
+      <li><b>受け身ではなく、自発的に動きたくなる仕組みを使う。</b> 押し付けではなく、社員が自然と健康に関心を持てるよう触媒として動く</li>
+      <li><b>「健康」を前面に出しすぎない。</b> 言った瞬間に離脱する層が運送業には多い。<b>気づきの芽</b> を起点に</li>
+      <li><b>個人特定はしない。</b> 投稿・聞き取り内容は集約・匿名化して扱う。特に体調/血圧/健診の数値には絶対触れない</li>
+      <li><b>共感だけで終わらない。</b> 反応や返信には <b>+αの具体情報・提案</b> を添える黄金パターン</li>
+      <li><b>記録する習慣を作る。</b> 些細な気づきも投稿。後でAIが繋ぎ合わせて意味を見つけてくれる</li>
+      <li><b>本人の自己決定を尊重する。</b> 健康行動を強制せず、選択肢を増やす</li>
+      <li><b>「2つの未来」を見せる。</b> 加齢衰退に対し、何もしない場合と少し動いた場合の差分を具体的に</li>
+    </ul>
+  </div>
+
+  <div class="ng" id="ng">
+    <h3>⚠ やってはいけないこと</h3>
+    <ul>
+      <li>個人を特定できる形での体調・健診結果の共有・噂話</li>
+      <li>「あの人最近痩せたよね」「飲み過ぎだよ」等の <b>体型・生活習慣への直接的な指摘</b></li>
+      <li>聞き取りカードを <b>本人に無断で代理入力</b>（同意取得が前提）</li>
+      <li>「心配」反応を <b>ネガティブ評価</b> として個人に伝える（あくまで気にかける合図）</li>
+      <li>健診の有所見データを <b>転職妨害・人事評価</b> に使う（健康パスポート開示の罠 → 主用途は本人の改善）</li>
+      <li>役員投票の数字を理由に推進メンバー個人を責める/責められる（仕組みは集合知）</li>
+    </ul>
+  </div>
+
+  <h2 class="sec">🛟 困ったときは</h2>
+  <div class="mission" style="border-left-color:#10b981;">
+    <h2 style="color:#047857;">相談先</h2>
+    <p>
+      ・<b>運用相談</b>: 健康管理室ディスカッショングループ (内部GC)<br>
+      ・<b>システム不具合</b>: 管理部 (立石・小林)<br>
+      ・<b>研究関連</b>: 帝京大学公衆衛生学 福田研究室 (NPO連携窓口)<br>
+      ・<b>その他</b>: <a href="/help.html" style="color:#047857;text-decoration:underline;font-weight:700;">CoWell ヘルプ</a> もご参照ください
+    </p>
+  </div>
+
+  <div class="footer">
+    <a href="/">ホーム</a> ・
+    <a href="/help.html">ヘルプ</a> ・
+    <a href="/about-cowell.html">CoWellについて</a> ・
+    <a href="/security.html">プライバシーポリシー</a>
+  </div>
+
+</main>
+
+<script src="/overlay-history.js?v=3"></script>
+  <script src="/translate.js" defer></script>
+</body>
+</html>

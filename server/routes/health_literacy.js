@@ -155,4 +155,99 @@ router.get('/stats', authUser, (req, res) => {
   res.json({ success: true, count, overall, q_avg: qAvg, by_company: byCompany, by_job: byJob });
 });
 
+// 推進メンバーGCへアナウンス送信 (管理職/推進メンバーのみ)
+// HL未回答者数+回答率を盛り込んだリマインドメッセージを g_field_voice に投稿
+const PROMOTER_GROUP_ID = 'g_field_voice';
+router.post('/announce-to-promoters', authUser, express.json(), (req, res) => {
+  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const db = getDb();
+  const me = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(req.uid);
+  if (!me) return res.status(404).json({ success: false, msg: 'user not found' });
+
+  // 全体集計 (各ユーザー最新1件)
+  const stats = db.prepare(`
+    SELECT COUNT(DISTINCT u.id) AS targets,
+           COUNT(DISTINCT h.user_id) AS responded
+    FROM users u
+    LEFT JOIN health_literacy h ON h.user_id = u.id
+    WHERE u.role != 'bot' AND u.role != 'admin'
+      AND (u.employee_type IS NULL OR u.employee_type NOT IN ('guest','bot'))
+      AND u.is_guest_reviewer = 0
+  `).get();
+  const targets = stats.targets || 0;
+  const responded = stats.responded || 0;
+  const rate = targets ? Math.round(responded * 1000 / targets) / 10 : 0;
+  const pending = targets - responded;
+
+  // 営業所別未回答数 (上位5)
+  const byBranch = db.prepare(`
+    SELECT u.company_code AS code,
+           COUNT(DISTINCT u.id) AS targets,
+           COUNT(DISTINCT h.user_id) AS responded
+    FROM users u
+    LEFT JOIN health_literacy h ON h.user_id = u.id
+    WHERE u.role != 'bot' AND u.role != 'admin'
+      AND (u.employee_type IS NULL OR u.employee_type NOT IN ('guest','bot'))
+      AND u.is_guest_reviewer = 0
+    GROUP BY u.company_code
+    HAVING (targets - responded) > 0
+    ORDER BY (targets - responded) DESC, u.company_code
+    LIMIT 5
+  `).all();
+  const branchLines = byBranch.map(r => `・${r.code || '(未設定)'}: ${r.targets - r.responded}名未回答 (${r.targets}名中${r.responded}名回答)`).join('\n');
+
+  const custom = String((req.body && req.body.message) || '').slice(0, 600).trim();
+  const lines = [
+    `📊 ヘルスリテラシー調査 再アナウンス`,
+    ``,
+    `現在の回答状況: ${responded} / ${targets}名 (回答率 ${rate}%)`,
+    `未回答: ${pending}名`,
+  ];
+  if (branchLines) lines.push(``, `■ 営業所別 未回答数 (上位5)`, branchLines);
+  lines.push(``);
+  if (custom) lines.push(custom, ``);
+  lines.push(
+    `■ 推進メンバーへのお願い`,
+    `点呼・朝礼・昼礼で 🩺 聞き取りカード を起票する際、HL5問も同時入力できます。`,
+    `PCを使えない社員には、推進メンバーが対面で代理入力してください。`,
+    ``,
+    `🔗 聞き取りカードPOST: /ops-listening.html`,
+    `🔗 HLのみ代理入力: /ops-literacy.html`,
+  );
+  const content = lines.join('\n');
+
+  const roomCode = 'grp_' + PROMOTER_GROUP_ID;
+  const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, NULL, ?, ?)`)
+    .run(me.id, content, roomCode);
+
+  const payload = {
+    id: msgIns.lastInsertRowid,
+    from: me.id,
+    group_id: PROMOTER_GROUP_ID,
+    content,
+    at: new Date().toISOString(),
+    attach: null,
+  };
+  if (req.app && req.app.locals && req.app.locals.emitToGroupMembers) {
+    req.app.locals.emitToGroupMembers(PROMOTER_GROUP_ID, 'group:msg', payload);
+  }
+  try {
+    const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(PROMOTER_GROUP_ID);
+    const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
+    if (sendPush) {
+      for (const m of members) {
+        if (m.user_id === me.id) continue;
+        sendPush(m.user_id, {
+          title: '📊 HL調査リマインド',
+          body: `未回答 ${pending}名 (回答率${rate}%)。聞き取りカードと同時入力でご協力ください。`,
+          tag: 'hl-announce-' + Date.now(),
+          url: '/?g=' + PROMOTER_GROUP_ID,
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {}
+
+  res.json({ success: true, sent: true, targets, responded, rate, pending });
+});
+
 module.exports = router;

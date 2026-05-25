@@ -231,47 +231,62 @@ async function getBoxToken() {
 
 router.get('/box-checkup', authUser, async (req, res) => {
   if (!XLSX) return res.status(500).json({ success: false, msg: 'xlsxライブラリ未インストール' });
-  const u = getDb().prepare('SELECT display_name, birth_date FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT display_name, birth_date, maiden_name FROM users WHERE id = ?').get(req.uid);
   if (!u || !u.display_name) return res.status(400).json({ success: false, msg: 'ユーザー情報不足' });
   const folderId = process.env.BOX_CHECKUP_FOLDER_ID || '354720844674';
   try {
     const token = await getBoxToken();
-    // フォルダ内の判定結果xlsmを探す
-    const lr = await fetchFn(`https://api.box.com/2.0/folders/${folderId}/items?fields=id,name,type&limit=1000`, {
-      headers: { 'Authorization': 'Bearer ' + token },
-    });
-    const ldata = await lr.json();
-    const xlsmFiles = (ldata.entries || []).filter(e => e.type === 'file' && /判定結果.*\.(xlsm|xlsx)$/i.test(e.name));
+    // フォルダ内の判定結果xlsmをサブフォルダ再帰で探す (実構成: 親→年度別フォルダ→事業所別フォルダ→01_判定結果_*.xlsm)
+    const xlsmFiles = [];
+    async function walk(fid, depth) {
+      if (depth > 4) return;  // 過剰な再帰を防止
+      const lr = await fetchFn(`https://api.box.com/2.0/folders/${fid}/items?fields=id,name,type&limit=1000`, {
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      const ldata = await lr.json();
+      for (const e of (ldata.entries || [])) {
+        if (e.type === 'file' && /判定結果.*\.(xlsm|xlsx)$/i.test(e.name)) {
+          xlsmFiles.push(e);
+        } else if (e.type === 'folder') {
+          await walk(e.id, depth + 1);
+        }
+      }
+    }
+    await walk(folderId, 0);
     if (!xlsmFiles.length) return res.json({ success: false, msg: 'Boxに判定結果ファイルが見つかりません' });
 
-    // 最新ファイル取得 (名前で年度ソート、降順)
+    // 名前で降順ソート (最新年度から検索する想定)
     xlsmFiles.sort((a, b) => b.name.localeCompare(a.name));
-    const latest = xlsmFiles[0];
-    const fr = await fetchFn(`https://api.box.com/2.0/files/${latest.id}/content`, {
-      headers: { 'Authorization': 'Bearer ' + token }, redirect: 'follow',
-    });
-    if (!fr.ok) throw new Error('Box DL失敗: ' + fr.status);
-    const buf = await fr.buffer();
-
-    // xlsm から該当氏名行を抽出
-    const wb = XLSX.read(buf, { type: 'buffer' });
-    const sheet = wb.Sheets['判定結果'];
-    if (!sheet) return res.json({ success: false, msg: '判定結果シートが無い (' + latest.name + ')' });
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
     const target = u.display_name.replace(/[\s　]+/g, '');
+    const targetMaiden = (u.maiden_name || '').replace(/[\s　]+/g, '');  // 旧姓があれば併用
     const targetBd = (u.birth_date || '').replace(/[-/]/g, '');
-    let found = null;
-    for (let i = 4; i < rows.length; i++) {
-      const r = rows[i];
-      if (!r || !r[2]) continue;
-      const name = String(r[2]).replace(/[\s　]+/g, '');
-      if (name === target) {
-        // 生年月日もチェック (あれば)
+    // 事業所別+SU/茨運コピーで同一データが複数ファイルに存在するため、受診日でユニーク化する
+    const recordsByDate = new Map();  // key: 受診日(YYYY/MM/DD)、 value: {data, source, matched_as}
+    for (const file of xlsmFiles) {
+      const fr = await fetchFn(`https://api.box.com/2.0/files/${file.id}/content`, {
+        headers: { 'Authorization': 'Bearer ' + token }, redirect: 'follow',
+      });
+      if (!fr.ok) continue;
+      const buf = await fr.buffer();
+      const wb = XLSX.read(buf, { type: 'buffer' });
+      const sheet = wb.Sheets['判定結果'];
+      if (!sheet) continue;
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      for (let i = 4; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r[2]) continue;
+        const name = String(r[2]).replace(/[\s　]+/g, '');
+        let matchedAs = null;
+        if (name === target) matchedAs = 'current';
+        else if (targetMaiden && name === targetMaiden) matchedAs = 'maiden';
+        if (!matchedAs) continue;
         if (targetBd) {
           const rowBd = String(r[7] || '').replace(/[\s　\-\/年月日]/g, '');
           if (rowBd && rowBd !== targetBd) continue;
         }
-        found = {
+        // xlsm 列マッピング (判定結果シート 行3 ヘッダー基準、2025年フォーマット)
+        // 41:総コレステロール 42:HDL 43:LDL 44:中性脂肪 / 46:血糖値 47:HbA1c / 50:GOT(AST) 51:GPT(ALT) 52:γGTP
+        const data = {
           氏名: r[2], 支店名: r[4] || '', 職種: r[6] || '',
           生年月日: r[7] || '', 年齢: r[8] || '', 性別: r[9] || '',
           健診受診日: r[10] || '',
@@ -280,15 +295,40 @@ router.get('/box-checkup', authUser, async (req, res) => {
           貧血判定: r[19] || '',
           身長: r[29] || '', 体重: r[30] || '', BMI: r[31] || '', 腹囲: r[32] || '',
           収縮期血圧: r[38] || r[34] || '', 拡張期血圧: r[39] || r[35] || '',
-          中性脂肪: r[42] || '', HDL: r[43] || '', LDL: r[44] || '',
-          AST: r[45] || '', ALT: r[46] || '', γGT: r[47] || '',
-          空腹時血糖: r[49] || '', HbA1c: r[50] || '',
+          総コレステロール: r[41] || '',
+          HDL: r[42] || '', LDL: r[43] || '', 中性脂肪: r[44] || '',
+          空腹時血糖: r[46] || '', HbA1c: r[47] || '',
+          AST: r[50] || '', ALT: r[51] || '', γGT: r[52] || '',
         };
-        break;
+        const dateKey = String(data.健診受診日 || '').trim() || file.name;
+        if (!recordsByDate.has(dateKey)) {
+          recordsByDate.set(dateKey, { data, source: file.name, matched_as: matchedAs });
+        }
+        break;  // 同一ファイル内では1人1行のみ
       }
     }
-    if (!found) return res.json({ success: false, msg: 'Box内に該当データが見つかりません (氏名: ' + u.display_name + ', 生年月日: ' + (u.birth_date || '未登録') + ')' });
-    res.json({ success: true, source: latest.name, data: found });
+    if (!recordsByDate.size) {
+      const searched = u.maiden_name ? `${u.display_name} / 旧姓 ${u.maiden_name}` : u.display_name;
+      return res.json({ success: false, msg: 'Box内に該当データが見つかりません (氏名: ' + searched + ', 生年月日: ' + (u.birth_date || '未登録') + ', 検索ファイル数: ' + xlsmFiles.length + ')' });
+    }
+
+    // 受診日昇順 (古→新) でソート
+    const records = [...recordsByDate.values()].sort((a, b) => {
+      const ad = String(a.data.健診受診日 || '');
+      const bd = String(b.data.健診受診日 || '');
+      return ad.localeCompare(bd);
+    });
+    const latest = records[records.length - 1];
+    const usedMaiden = records.some(r => r.matched_as === 'maiden');
+    res.json({
+      success: true,
+      source: latest.source,
+      data: latest.data,         // 後方互換: 従来UIは最新年度のみ参照
+      records: records,           // 経年データ全件 (昇順)
+      total_years: records.length,
+      matched_via_maiden: usedMaiden,
+      maiden_name: usedMaiden ? u.maiden_name : null,
+    });
   } catch (e) {
     res.status(500).json({ success: false, msg: e.message });
   }

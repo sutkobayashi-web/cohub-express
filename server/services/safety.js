@@ -80,4 +80,70 @@ function refusalResponse(category) {
   return REFUSAL_TEMPLATES[category] || REFUSAL_TEMPLATES.harassment;
 }
 
-module.exports = { checkInappropriate, refusalResponse, PATTERNS };
+// 人間同士チャット用の警告判定 (AIチャットより緩く、軽口・冗談を除外)
+// harassment の中でも明確に攻撃的な「強い言葉」だけ拾う (アホ/ボケ/カス等は除外)
+const HUMAN_CHAT_PATTERNS = {
+  sexual: PATTERNS.sexual,
+  discrimination: PATTERNS.discrimination,
+  violence_crime: PATTERNS.violence_crime,
+  mental_crisis: PATTERNS.mental_crisis,
+  harassment_severe: [
+    '死ね', '殺す', '殺してやる', '消えろ', '消えてくれ',
+    'クビにしろ', '辞めさせろ', 'クズ',
+    'kill yourself', 'go die',
+  ],
+};
+
+function checkForHumanChat(text) {
+  const t = normalize(text);
+  if (!t) return null;
+  for (const [category, words] of Object.entries(HUMAN_CHAT_PATTERNS)) {
+    for (const w of words) {
+      if (t.includes(normalize(w))) {
+        const severity = category === 'mental_crisis' ? 'crisis' : 'high';
+        return { category, matched: w, severity };
+      }
+    }
+  }
+  return null;
+}
+
+// 警告モーダルに表示する文言 (送信前の本人向け)
+const WARNING_TEMPLATES = {
+  sexual: {
+    title: '内容を確認してください',
+    body: 'メッセージに性的な表現が含まれているようです。職場でのやり取りとして適切か、もう一度ご確認ください。',
+    ok: 'このまま送信',
+    cancel: '書き直す',
+  },
+  discrimination: {
+    title: '内容を確認してください',
+    body: 'メッセージに差別的に受け取られる可能性のある表現が含まれているようです。送信前にもう一度ご確認ください。',
+    ok: 'このまま送信',
+    cancel: '書き直す',
+  },
+  violence_crime: {
+    title: '内容を確認してください',
+    body: 'メッセージに暴力・違法行為に関する表現が含まれているようです。送信前にもう一度ご確認ください。',
+    ok: 'このまま送信',
+    cancel: '書き直す',
+  },
+  harassment_severe: {
+    title: '内容を確認してください',
+    body: 'メッセージに強い攻撃的表現が含まれているようです。相手を傷つける可能性があります。送信前にもう一度ご確認ください。',
+    ok: 'このまま送信',
+    cancel: '書き直す',
+  },
+  mental_crisis: {
+    title: 'お話してくれてありがとうございます',
+    body: 'とても辛い気持ちが伝わってきました。一人で抱えず、専門の窓口にも頼ってみませんか。\n\n・よりそいホットライン: 0120-279-338 (24時間・無料)\n・いのちの電話: 0570-783-556\n・職場の産業医・社内相談窓口 (人事部)\n\nもちろん、このまま送ってもかまいません。',
+    ok: 'このまま送信',
+    cancel: '窓口を確認する',
+  },
+};
+
+function warningTemplate(category) {
+  return WARNING_TEMPLATES[category] || WARNING_TEMPLATES.harassment_severe;
+}
+
+module.exports = { checkInappropriate, refusalResponse, PATTERNS, checkForHumanChat, warningTemplate };

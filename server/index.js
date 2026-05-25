@@ -87,17 +87,17 @@ const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 // 28+28=56 が完全密着、70px で「軽く触れた」感覚 (耳打ちできる距離)
 const WHISPER_TOUCH_DISTANCE = parseInt(process.env.WHISPER_TOUCH_DISTANCE || '70', 10);
 
-// 総合案内から健康管理室のひろば案内DM (1日1回、ロビー入室時)
+// 総合案内から健康管理室の案内DM (1日1回、ロビー入室時)
 // 文面を変えたい時はこの定数を編集 (環境変数WELLNESS_EVENT_TEXTで上書きも可)
-const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🌳 健康管理室「ひろば」より
+const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🏥 健康管理室からのご案内
 
-ひろばに食事や雑談を投稿してみませんか？
-食事の写真を投稿すると AI が栄養スコアを自動分析します。
+食事の写真を1枚撮るだけで、AIが栄養バランスを分析してくれます。
+日々のちょっとした記録から、自分にあった健康のヒントが見えてきますよ。
 
-🎯 今すぐできること
-・「ひろば」(左メニュー🌳) で 30秒で食事投稿 → AI栄養分析
-・「🐠 水族館の冒険」(開催中イベント) で歩数を冒険に
-・気になることがあれば「相談」カテゴリで投稿
+🎯 まず試せること
+・「🍱 食事投稿」で30秒撮影 → AIが栄養バランスをチェック
+・「🩺 今日の一歩、明日の自分」で3日間のアクションプラン作成
+・「🏥 健康管理室」でヘルスアドバイザーに気軽に相談
 
 皆さんの健康づくり、応援しています！`;
 
@@ -272,6 +272,7 @@ app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
 app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
+app.use('/api/activity', require('./routes/activity'));
 app.use('/api/help', require('./routes/help'));
 app.use('/api/timecard', require('./routes/timecard'));
 app.use('/api/meeting', require('./routes/meeting'));
@@ -290,6 +291,13 @@ app.use('/api/takara', require('./routes/takara_demo'));
 app.use('/api/circles', require('./routes/circles'));
 app.use('/api/branch-wifi', require('./routes/branch_wifi'));
 app.use('/api/translate', require('./routes/translate'));
+app.use('/api/expense', require('./routes/expense'));
+app.use('/api/approval', require('./routes/approval'));
+// 2026-05-24〜25 機能 (誤って未mount化していたため復旧 2026-05-25): 共有カレンダー/業務週報/まとめる君/運転アラート
+app.use('/api/shared-calendar', require('./routes/shared_calendar'));
+app.use('/api/weekly-report', require('./routes/weekly_report'));
+app.use('/api/report', require('./routes/report'));
+app.use('/api/alert', require('./routes/alert'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -298,7 +306,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-05-23-cleanup-3groups";
+const APP_VERSION = "2026-05-25-recover2-home-newfeatures";
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -2199,6 +2207,28 @@ ensureConciergeBots();
 for (const b of CONCIERGE_BOTS) {
   presence.set(b.id, { x: b.x, y: b.y, status: 'online', statusText: '案内係です。話しかけてください', floor: b.floor, socketId: null, voiceOn: false, isBot: true });
 }
+
+// ===== 運転アラート(ITP違反通知)配線 — 2026-05-25実装、誤って巻き戻したため復旧 2026-05-25 =====
+// 新着アラート → 管理職(is_manager)へ alert:new emit + Push (派手な音+音声読み上げは global-notif.js 側)
+try {
+  const alertRoute = require('./routes/alert');
+  if (typeof alertRoute.setOnNewAlert === 'function') {
+    alertRoute.setOnNewAlert((a) => {
+      try {
+        const mgrs = getDb().prepare('SELECT id FROM users WHERE is_manager = 1').all();
+        const body = [a.vehicle_name || a.vehicle_number, a.driver_name, a.notice].filter(Boolean).join(' / ');
+        for (const m of mgrs) {
+          io.to('user:' + m.id).emit('alert:new', a);
+          sendPushToUser(m.id, { title: '⚠️ 運転アラート', body: body, tag: 'alert-' + (a.id || ''), mention: true, alwaysShow: true, url: '/alerts.html' }).catch(() => {});
+        }
+      } catch (e) { console.warn('[alert onNew]', e.message); }
+    });
+  }
+} catch (e) { console.warn('[alert wiring]', e.message); }
+// ITPメール IMAP自動受信ポーラ起動 (services/itp_imap.js, 5分間隔, error handler内蔵の修正版)
+try {
+  require('./services/itp_imap').start(require('./routes/alert').ingestText);
+} catch (e) { console.warn('[itp_imap start]', e.message); }
 
 server.listen(PORT, () => {
   console.log('CoWell (Communication & Wellness) サーバー起動: http://localhost:' + PORT);

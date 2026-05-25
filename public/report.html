@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>🆘 外部相談窓口 — CoWell</title>
+<title>🆘 管理部 相談窓口 — CoWell</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json?v=4">
@@ -48,7 +48,7 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 
 <header>
   <div style="font-size:24px;">🆘</div>
-  <h1>外部相談窓口</h1>
+  <h1>管理部 相談窓口</h1>
   <button class="back" onclick="goBackHome()">✕ 閉じる</button>
   <script>function goBackHome(){var m=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent||'');if(history.length>1){history.back();}else{location.href=m?'/m':'/';}}</script>
 </header>
@@ -57,11 +57,10 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
   <div class="notice">
     <h2>🛡 この窓口について</h2>
     <ul>
-      <li><b>外部のNPO/専門家</b>に直接届きます (社内管理者を経由しません)</li>
+      <li><b>管理部 (人事・総務)</b> に直接メールで届きます</li>
       <li>本文は <b>CoWell サーバには保存されません</b> (送信のみ。件数とカテゴリだけ集計)</li>
-      <li>管理者は「相談があった件数」しか見られません (誰が・何を、は分かりません)</li>
-      <li>連絡先 <b>未記入で完全匿名</b>。記入すると外部担当が直接連絡可</li>
-      <li>緊急 (自傷他害の恐れ等) は警察 110 / 救急 119 を最優先で</li>
+      <li>システム管理者は「相談があった件数」しか見られません (誰が・何を、は分かりません)</li>
+      <li>連絡先 <b>未記入で完全匿名</b>。記入すると管理部が直接連絡可</li>
     </ul>
   </div>
 
@@ -82,7 +81,7 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
       <button type="button" class="urgency-btn active" data-urg="normal">通常</button>
       <button type="button" class="urgency-btn urgent" data-urg="urgent">🚨 即対応希望</button>
     </div>
-    <div class="hint">即対応希望は外部担当が優先で確認します (24h目安)。</div>
+    <div class="hint">即対応希望は管理部が優先で確認します (営業日24h目安)。</div>
   </div>
 
   <div class="field">
@@ -94,10 +93,10 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
   <div class="field">
     <label for="contact">連絡先 (任意)</label>
     <input type="text" id="contact" placeholder="メール / 電話 / 「DM希望」など (空欄=完全匿名)" maxlength="200">
-    <div class="hint">記入すると外部担当が直接連絡できます。社内には連絡先も含めて伝わりません。</div>
+    <div class="hint">記入すると管理部が直接連絡できます。システム管理者には連絡先は伝わりません。</div>
   </div>
 
-  <button id="submit-btn" class="submit" onclick="doSubmit()">外部窓口へ送信</button>
+  <button id="submit-btn" class="submit" onclick="doSubmit()">管理部へ送信</button>
   <div id="msg"></div>
 </main>
 
@@ -169,11 +168,11 @@ async function doSubmit() {
     if (!r.ok || !d || !d.success) {
       msg.className = 'msg err';
       msg.textContent = '送信失敗 (' + r.status + '): ' + (d && d.msg || 'サーバ応答なし');
-      btn.disabled = false; btn.textContent = '外部窓口へ送信';
+      btn.disabled = false; btn.textContent = '管理部へ送信';
       return;
     }
     msg.className = 'msg ok';
-    msg.innerHTML = '✅ 外部窓口に送信しました<br>受付ID: <b>#' + d.id + '</b><br>必要に応じて担当からご連絡があります。';
+    msg.innerHTML = '✅ 管理部に送信しました<br>受付ID: <b>#' + d.id + '</b><br>必要に応じて管理部からご連絡があります。';
     bodyEl.value = '';
     document.getElementById('contact').value = '';
     bodyCounter.textContent = '0 / 4000 文字';
@@ -181,9 +180,10 @@ async function doSubmit() {
   } catch (e) {
     msg.className = 'msg err';
     msg.textContent = '通信エラー: ' + (e.message || 'ネットワーク確認');
-    btn.disabled = false; btn.textContent = '外部窓口へ送信';
+    btn.disabled = false; btn.textContent = '管理部へ送信';
   }
 }
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

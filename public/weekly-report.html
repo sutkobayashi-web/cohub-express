@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>業務週報｜CoWell</title>
+<link rel="icon" href="/img/icon-192.png">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif; background: #f1f5f9; color: #1e293b; padding-bottom: 40px; }
+  header { background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 800; flex: 1; }
+  header .home { color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.5); border-radius: 8px; padding: 8px 14px; white-space: nowrap; flex-shrink: 0; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 14px; }
+  .denied { max-width: 480px; margin: 60px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 32px; text-align: center; }
+  .denied a { color: #0f766e; font-weight: 600; }
+  .hide { display: none !important; }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .toolbar .spacer { flex: 1; }
+  .btn { border: none; border-radius: 9px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-primary { background: #dc2626; color: #fff; }
+  .btn-primary:hover { background: #b91c1c; }
+  .btn-teal { background: #0f766e; color: #fff; }
+  .btn-gray { background: #e2e8f0; color: #334155; }
+  .btn-del { background: #fee2e2; color: #b91c1c; }
+
+  /* 一覧 */
+  .rep-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; box-shadow: 0 2px 6px rgba(15,23,42,.04); }
+  .rep-card:hover { border-color: #fca5a5; }
+  .rep-card .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rep-card .office { font-size: 16px; font-weight: 800; color: #0f172a; }
+  .rep-card .period { font-size: 12px; color: #64748b; }
+  .rep-card .ratio { margin-left: auto; font-size: 13px; font-weight: 800; padding: 2px 10px; border-radius: 12px; }
+  .rep-card .meta { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+  .rep-card .excerpt { font-size: 13px; color: #475569; margin-top: 6px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .empty { text-align: center; color: #94a3b8; padding: 40px 16px; font-size: 14px; }
+
+  /* ダッシュボード */
+  .dash { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(15,23,42,.04); }
+  .dash-head { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+  .dash-head select { margin-left: auto; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; max-width: 50%; }
+  .dash-row { margin-bottom: 12px; }
+  .dash-row:last-child { margin-bottom: 0; }
+  .dash-lbl { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 4px; }
+  .dash-lbl span { font-weight: 400; color: #94a3b8; font-size: 12px; }
+  .bar { position: relative; height: 24px; background: #f1f5f9; border-radius: 12px; overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 12px; width: 0; transition: width .5s ease; }
+  .bar .bar-pct { position: absolute; right: 10px; top: 0; line-height: 24px; font-size: 12.5px; font-weight: 800; color: #0f172a; }
+  .dash-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+  .dash-kpi { display: flex; gap: 8px; margin: 4px 0 4px; }
+  .dash-kpi .kpi-c { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 4px; text-align: center; }
+  .dash-kpi .kpi-l { font-size: 11px; color: #64748b; }
+  .dash-kpi .kpi-v { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+
+  /* フォーム */
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 16px; }
+  label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin: 14px 0 5px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=date], input[type=number], select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-family: inherit; }
+  textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+  .row2 { display: flex; gap: 10px; }
+  .row2 > * { flex: 1; }
+  .ai-row { display: flex; align-items: center; gap: 8px; margin: 5px 0 -2px; }
+  .ai-btn { background: #0f766e; color: #fff; border: none; border-radius: 8px; padding: 7px 13px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .ai-btn img { width: 18px; height: 18px; object-fit: contain; }
+  .ai-status { font-size: 11px; color: #64748b; }
+  .ratio-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 6px; }
+  .ratio-box b { font-size: 18px; }
+  .actions { display: flex; gap: 8px; margin-top: 20px; }
+  .actions .btn { flex: 1; }
+  .actions .btn.fixed { flex: 0 0 auto; }
+  .ferr { color: #dc2626; font-size: 13px; margin-top: 10px; }
+
+  /* 詳細 */
+  .det-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .det-row .k { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: .3px; }
+  .det-row .v { font-size: 15px; color: #1e293b; margin-top: 3px; white-space: pre-wrap; line-height: 1.7; }
+  .det-sales { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  .det-sales .s { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+  .det-sales .s b { display: block; font-size: 16px; color: #0f172a; }
+  /* コメント */
+  .cmt { display: flex; gap: 9px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .cmt:last-child { border-bottom: none; }
+  .cmt .ava { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+  .cmt .body { flex: 1; min-width: 0; }
+  .cmt .nm { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .cmt .tm { font-size: 11px; color: #94a3b8; margin-left: 6px; }
+  .cmt .tx { font-size: 14px; color: #1e293b; margin-top: 2px; white-space: pre-wrap; line-height: 1.6; }
+  .cmt .chat-btn { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700; color: #0f766e; text-decoration: none; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 4px 10px; }
+  .cmt-empty { color: #94a3b8; font-size: 13px; padding: 6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 業務週報</h1>
+  <a href="/" class="home" title="閉じてトップへ戻る">閉じる</a>
+</header>
+
+<div id="denied" class="denied hide">
+  <h2>🔒 アクセス権限がありません</h2>
+  <p style="color:#64748b;font-size:14px;">業務週報は管理職以上のみ利用できます。<br><a href="/">トップへ戻る</a></p>
+</div>
+
+<div id="app" class="wrap hide">
+  <!-- 一覧 -->
+  <div id="list-view">
+    <!-- 売上進捗ダッシュボード -->
+    <div id="dashboard" class="dash">
+      <div class="dash-head">
+        <span>📈 売上進捗</span>
+        <select id="dash-office" onchange="dashOffice=this.value; loadDashboard();"><option value="">全営業所</option></select>
+      </div>
+      <div class="dash-row">
+        <div class="dash-lbl">月間 <span id="dm-label"></span></div>
+        <div class="bar"><div class="fill" id="dm-fill"></div><span class="bar-pct" id="dm-pct"></span></div>
+        <div class="dash-sub" id="dm-sub"></div>
+      </div>
+      <div class="dash-row">
+        <div class="dash-lbl">年間 <span id="dy-label"></span></div>
+        <div class="bar"><div class="fill" id="dy-fill"></div><span class="bar-pct" id="dy-pct"></span></div>
+        <div class="dash-sub" id="dy-sub"></div>
+      </div>
+      <div class="dash-lbl" style="margin-top:10px;">🚚 車両KPI（台数=最新 / 率=当月）</div>
+      <div class="dash-kpi">
+        <div class="kpi-c"><div class="kpi-l">所属台数</div><div class="kpi-v" id="kpi-fleet">—</div></div>
+        <div class="kpi-c"><div class="kpi-l">休車台数</div><div class="kpi-v" id="kpi-idle">—</div></div>
+        <div class="kpi-c"><div class="kpi-l">稼働率</div><div class="kpi-v" id="kpi-op">—</div></div>
+        <div class="kpi-c"><div class="kpi-l">休車率</div><div class="kpi-v" id="kpi-ir">—</div></div>
+      </div>
+      <div class="dash-trend">
+        <div class="dash-lbl" style="margin-top:8px;">📉 予算比の推移（直近）</div>
+        <div id="trend-box"><div class="dash-sub">読み込み中…</div></div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div style="font-size:13px;color:#64748b;">提出済みの週報</div>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="openForm()">＋ 新規作成</button>
+    </div>
+    <div id="rep-list"><div class="empty">読み込み中…</div></div>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div id="form-view" class="hide">
+    <div class="card">
+      <input type="hidden" id="f-id">
+      <div class="row2">
+        <div><label>営業所 *</label>
+          <input type="text" id="f-office" list="office-list" placeholder="例：海老名営業所">
+          <datalist id="office-list">
+            <option>海老名営業所</option><option>座間営業所</option><option>埼玉営業所</option>
+            <option>南関東営業所</option><option>三和営業所</option><option>鹿島営業所</option><option>本社</option>
+          </datalist>
+        </div>
+        <div><label>報告日</label><input type="date" id="f-date"></div>
+      </div>
+      <div class="row2">
+        <div><label>対象期間（いつから）</label><input type="date" id="f-from"></div>
+        <div><label>（いつまで）</label><input type="date" id="f-to"></div>
+      </div>
+
+      <label>今週の課題【実務】</label>
+      <input type="text" id="f-issue" maxlength="500" placeholder="例：新入社員の対応(3)">
+
+      <label>今週の実績及び課題に対する結果【実務】</label>
+      <div class="ai-row">
+        <button class="ai-btn" onclick="aiFormat('f-result')"><img src="/assets/matomeru-owl.png" alt="">✨ まとめる君で整える</button>
+        <span class="ai-status" id="st-result"></span>
+      </div>
+      <textarea id="f-result" maxlength="5000" placeholder="思いつくまま書いてOK。AIで読みやすく整えられます。"></textarea>
+
+      <label>週違反（件数）</label>
+      <input type="number" id="f-violations" min="0" value="0" style="max-width:140px;">
+
+      <label>収支報告内容</label>
+      <div class="ai-row">
+        <button class="ai-btn" onclick="aiFormat('f-finance')"><img src="/assets/matomeru-owl.png" alt="">✨ まとめる君で整える</button>
+        <span class="ai-status" id="st-finance"></span>
+      </div>
+      <textarea id="f-finance" maxlength="5000" placeholder="休車・受注状況・予算未達の理由など"></textarea>
+
+      <div class="row2">
+        <div><label>週売上予算（円）</label><input type="number" id="f-budget" min="0" oninput="calcRatio()" placeholder="1150500"></div>
+        <div><label>週売上実績（円）</label><input type="number" id="f-actual" min="0" oninput="calcRatio()" placeholder="1148000"></div>
+      </div>
+      <div class="ratio-box">予算比：<b id="f-ratio">—</b></div>
+
+      <label>車両KPI（台数を入力すると稼働率・休車率を自動計算）</label>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">所属台数</div><input type="number" id="f-fleet" min="0" oninput="calcRates()" placeholder="50"></div>
+        <div style="flex:1;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">休車台数</div><input type="number" id="f-idle" min="0" oninput="calcRates()" placeholder="2"></div>
+      </div>
+      <div class="ratio-box" style="margin-top:6px;">稼働率：<b id="f-oprate">—</b> ／ 休車率：<b id="f-idlerate">—</b></div>
+
+      <div id="f-err" class="ferr"></div>
+      <div class="actions">
+        <button class="btn btn-gray fixed" onclick="showList()">キャンセル</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveReport()">提出する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細 -->
+  <div id="detail-view" class="hide">
+    <div class="card" id="detail-body"></div>
+    <div class="actions">
+      <button class="btn btn-gray fixed" onclick="showList()">戻る</button>
+      <button class="btn btn-teal hide" id="d-edit" onclick="editCurrent()">編集</button>
+      <button class="btn btn-del fixed hide" id="d-del" onclick="deleteCurrent()">削除</button>
+    </div>
+    <!-- コメント・質問 (回答はチャットで) -->
+    <div class="card" style="margin-top:12px;">
+      <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:10px;">💬 コメント・質問</div>
+      <div id="comments-box"><div class="cmt-empty">読み込み中…</div></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <input type="text" id="cmt-input" maxlength="2000" placeholder="コメント・質問を入力…" style="flex:1;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;" onkeydown="if(event.key==='Enter')postComment()">
+        <button class="btn btn-primary" style="flex:0 0 auto;" onclick="postComment()">送信</button>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:6px;">送信すると作成者へ DM＋プッシュ通知 が届き、回答はチャットで行えます。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null, reports = [], curId = null, dashOffice = '';
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function yen(n){ return (n==null||n==='') ? '—' : Number(n).toLocaleString('ja-JP') + '円'; }
+function ratioOf(b,a){ if(!b||!a) return null; return Math.round(a/b*1000)/10; }
+function ratioColor(r){ if(r==null) return {bg:'#f1f5f9',c:'#64748b'}; if(r>=100) return {bg:'#dcfce7',c:'#15803d'}; if(r>=95) return {bg:'#fef9c3',c:'#a16207'}; return {bg:'#fee2e2',c:'#b91c1c'}; }
+function fmtDate(s){ if(!s) return ''; const [y,m,d]=s.split('-'); return m&&d?`${parseInt(m)}/${parseInt(d)}`:s; }
+
+async function api(path, opts){
+  opts = opts || {}; opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.href = '/'; throw new Error('401'); }
+  if (r.status === 403) { showDenied(); throw new Error('403'); }
+  return r.json();
+}
+function showDenied(){ document.getElementById('app').classList.add('hide'); document.getElementById('denied').classList.remove('hide'); }
+function view(id){ ['list-view','form-view','detail-view'].forEach(v => document.getElementById(v).classList.toggle('hide', v !== id)); }
+function showList(){ view('list-view'); loadList(); }
+
+async function init(){
+  if (!token) { location.href = '/'; return; }
+  let j; try { j = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } }).then(r=>r.json()); }
+  catch(e){ location.href = '/'; return; }
+  if (!j || !j.success) { location.href = '/'; return; }
+  me = j.user;
+  if (!me.is_manager) { showDenied(); return; }
+  document.getElementById('app').classList.remove('hide');
+  loadList();
+}
+
+async function loadDashboard(){
+  let j; try { j = await api('/api/weekly-report/dashboard' + (dashOffice ? '?office=' + encodeURIComponent(dashOffice) : '')); } catch(e){ return; }
+  if (!j || !j.success) return;
+  const sel = document.getElementById('dash-office');
+  if (sel.dataset.filled !== '1') {
+    sel.innerHTML = '<option value="">全営業所</option>' + (j.offices||[]).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+    sel.dataset.filled = '1';
+  }
+  renderBar('dm', j.month, j.month_label);
+  renderBar('dy', j.fiscal_year, j.fy_label);
+  const k = j.month_kpi || {};
+  document.getElementById('kpi-fleet').textContent = k.fleet_count != null ? k.fleet_count + '台' : '—';
+  document.getElementById('kpi-idle').textContent = k.idle_count != null ? k.idle_count + '台' : '—';
+  document.getElementById('kpi-op').textContent = k.operation_rate != null ? k.operation_rate + '%' : '—';
+  document.getElementById('kpi-ir').textContent = k.idle_rate != null ? k.idle_rate + '%' : '—';
+  loadTrend();
+}
+
+async function loadTrend(){
+  const box = document.getElementById('trend-box');
+  let j; try { j = await api('/api/weekly-report/trend' + (dashOffice ? '?office=' + encodeURIComponent(dashOffice) : '')); } catch(e){ return; }
+  const pts = ((j && j.trend) || []).map(r => ({ wk: r.wk, ratio: r.budget>0 ? Math.round(r.actual/r.budget*1000)/10 : null })).filter(p => p.ratio != null);
+  if (pts.length < 2) { box.innerHTML = '<div class="dash-sub">推移グラフは、売上を入力した週報が2週分以上たまると表示されます。</div>'; return; }
+  const W=600,H=130,padL=34,padR=12,padT=14,padB=22;
+  const rs=pts.map(p=>p.ratio); let lo=Math.min(...rs,98), hi=Math.max(...rs,102); const sp=Math.max(hi-lo,6); lo-=sp*0.15; hi+=sp*0.15;
+  const x=i=> padL+(W-padL-padR)*(pts.length===1?0.5:i/(pts.length-1));
+  const y=v=> padT+(H-padT-padB)*(1-(v-lo)/(hi-lo));
+  const mmdd=s=>{const a=String(s).split('-');return a.length===3?(+a[1])+'/'+(+a[2]):s;};
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">`;
+  if (100>=lo&&100<=hi) svg+=`<line x1="${padL}" y1="${y(100)}" x2="${W-padR}" y2="${y(100)}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 4"/><text x="${padL-5}" y="${y(100)+3}" text-anchor="end" font-size="9" fill="#94a3b8">100%</text>`;
+  svg+=`<polyline points="${pts.map((p,i)=>x(i)+','+y(p.ratio)).join(' ')}" fill="none" stroke="#dc2626" stroke-width="2"/>`;
+  pts.forEach((p,i)=>{ const c=p.ratio>=100?'#15803d':(p.ratio>=95?'#a16207':'#dc2626');
+    svg+=`<circle cx="${x(i)}" cy="${y(p.ratio)}" r="3.5" fill="${c}"/>`;
+    svg+=`<text x="${x(i)}" y="${y(p.ratio)-7}" text-anchor="middle" font-size="9" font-weight="700" fill="${c}">${p.ratio}</text>`;
+    svg+=`<text x="${x(i)}" y="${H-7}" text-anchor="middle" font-size="9" fill="#94a3b8">${mmdd(p.wk)}</text>`; });
+  svg+=`</svg>`;
+  box.innerHTML=svg;
+}
+function renderBar(prefix, data, label){
+  data = data || { budget:0, actual:0, n:0 };
+  const b = data.budget||0, a = data.actual||0;
+  const pct = b>0 ? Math.round(a/b*1000)/10 : null;
+  document.getElementById(prefix+'-label').textContent = label || '';
+  const fill = document.getElementById(prefix+'-fill');
+  fill.style.width = (pct==null ? 0 : Math.min(pct,100)) + '%';
+  fill.style.background = ratioColor(pct).c;
+  document.getElementById(prefix+'-pct').textContent = pct==null ? '—' : pct+'%';
+  document.getElementById(prefix+'-sub').textContent = b>0 ? `実績 ${yen(a)} ／ 予算 ${yen(b)}（週報${data.n}件）` : '週報の売上データがありません';
+}
+
+async function loadList(){
+  loadDashboard();
+  const box = document.getElementById('rep-list');
+  try {
+    const j = await api('/api/weekly-report');
+    reports = (j && j.reports) || [];
+  } catch(e){ return; }
+  if (!reports.length) { box.innerHTML = '<div class="empty">まだ週報がありません。「＋ 新規作成」から提出できます。</div>'; return; }
+  box.innerHTML = reports.map(r => {
+    const ratio = ratioOf(r.sales_budget, r.sales_actual);
+    const rc = ratioColor(ratio);
+    return `<div class="rep-card" onclick="openDetail(${r.id})">
+      <div class="top">
+        <span class="office">${esc(r.office||'(営業所未記入)')}</span>
+        <span class="period">${fmtDate(r.period_from)}〜${fmtDate(r.period_to)}</span>
+        <span class="ratio" style="background:${rc.bg};color:${rc.c};">予算比 ${ratio==null?'—':ratio+'%'}</span>
+      </div>
+      <div class="excerpt">${esc((r.result_practical||'').slice(0,80) || r.issue_practical || '')}</div>
+      <div class="meta">報告日 ${esc(r.report_date||'')} ・ ${esc(r.created_by_name||'')} ・ 違反${r.violations||0}件</div>
+    </div>`;
+  }).join('');
+}
+
+function openForm(){
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-office').value = (me && me.dm_group) ? '' : '';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('f-date').value = today;
+  document.getElementById('f-from').value = '';
+  document.getElementById('f-to').value = '';
+  document.getElementById('f-issue').value = '';
+  document.getElementById('f-result').value = '';
+  document.getElementById('f-violations').value = '0';
+  document.getElementById('f-finance').value = '';
+  document.getElementById('f-budget').value = '';
+  document.getElementById('f-actual').value = '';
+  document.getElementById('f-fleet').value = '';
+  document.getElementById('f-idle').value = '';
+  calcRates();
+  document.getElementById('f-err').textContent = '';
+  document.getElementById('st-result').textContent = '';
+  document.getElementById('st-finance').textContent = '';
+  document.getElementById('save-btn').textContent = '提出する';
+  calcRatio();
+  view('form-view');
+}
+
+function calcRatio(){
+  const b = parseInt(document.getElementById('f-budget').value)||0;
+  const a = parseInt(document.getElementById('f-actual').value)||0;
+  const r = ratioOf(b,a);
+  const el = document.getElementById('f-ratio');
+  el.textContent = r==null ? '—' : r+'%';
+  const rc = ratioColor(r); el.style.color = rc.c;
+}
+function calcRates(){
+  const f = parseInt(document.getElementById('f-fleet').value)||0;
+  const i = parseInt(document.getElementById('f-idle').value)||0;
+  const op = f>0 ? Math.round((f-i)/f*1000)/10 : null;
+  const ir = f>0 ? Math.round(i/f*1000)/10 : null;
+  document.getElementById('f-oprate').textContent = op==null ? '—' : op+'%';
+  document.getElementById('f-idlerate').textContent = ir==null ? '—' : ir+'%';
+}
+
+async function aiFormat(fieldId){
+  const ta = document.getElementById(fieldId);
+  const stId = fieldId === 'f-result' ? 'st-result' : 'st-finance';
+  const st = document.getElementById(stId);
+  const text = ta.value.trim();
+  if (!text) { st.style.color='#dc2626'; st.textContent='先に内容を入力してください'; return; }
+  st.style.color='#64748b'; st.textContent='整えています…';
+  try {
+    const j = await api('/api/report/format', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, mode:'weekly' }) });
+    if (!j.success) { st.style.color='#dc2626'; st.textContent=j.msg||'整形に失敗しました'; return; }
+    ta.value = j.formatted || text;
+    st.style.color='#0f766e'; st.textContent='✓ 整えました（必要なら修正してください）';
+  } catch(e){ if(String(e.message)!=='403'&&String(e.message)!=='401'){ st.style.color='#dc2626'; st.textContent='通信エラー'; } }
+}
+
+async function saveReport(){
+  const err = document.getElementById('f-err'); err.textContent='';
+  const office = document.getElementById('f-office').value.trim();
+  if (!office) { err.textContent = '営業所を入力してください'; return; }
+  const body = {
+    office,
+    report_date: document.getElementById('f-date').value,
+    period_from: document.getElementById('f-from').value,
+    period_to: document.getElementById('f-to').value,
+    issue_practical: document.getElementById('f-issue').value.trim(),
+    result_practical: document.getElementById('f-result').value.trim(),
+    violations: parseInt(document.getElementById('f-violations').value)||0,
+    finance_note: document.getElementById('f-finance').value.trim(),
+    sales_budget: document.getElementById('f-budget').value || null,
+    sales_actual: document.getElementById('f-actual').value || null,
+    fleet_count: document.getElementById('f-fleet').value || null,
+    idle_count: document.getElementById('f-idle').value || null,
+  };
+  const id = document.getElementById('f-id').value;
+  const btn = document.getElementById('save-btn'); btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const j = id
+      ? await api('/api/weekly-report/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+      : await api('/api/weekly-report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!j.success) { err.textContent = j.msg||'保存に失敗しました'; btn.disabled=false; btn.textContent='提出する'; return; }
+    showList();
+  } catch(e){ if(String(e.message)!=='403'&&String(e.message)!=='401') err.textContent='通信エラー'; btn.disabled=false; btn.textContent='提出する'; }
+}
+
+async function openDetail(id){
+  let r; try { const j = await api('/api/weekly-report/'+id); r = j.report; } catch(e){ return; }
+  if (!r) return;
+  curId = id;
+  const ratio = ratioOf(r.sales_budget, r.sales_actual); const rc = ratioColor(ratio);
+  const row = (k,v) => v ? `<div class="det-row"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>` : '';
+  document.getElementById('detail-body').innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+       <span style="font-size:18px;font-weight:800;">${esc(r.office||'')}</span>
+       <span style="font-size:13px;color:#64748b;">${fmtDate(r.period_from)}〜${fmtDate(r.period_to)}</span>
+       <span class="ratio" style="margin-left:auto;background:${rc.bg};color:${rc.c};font-weight:800;padding:3px 12px;border-radius:12px;">予算比 ${ratio==null?'—':ratio+'%'}</span>
+     </div>`
+    + row('報告日', r.report_date)
+    + row('今週の課題【実務】', r.issue_practical)
+    + row('今週の実績及び課題に対する結果【実務】', r.result_practical)
+    + `<div class="det-row"><div class="k">週違反</div><div class="v">${r.violations||0}件</div></div>`
+    + row('収支報告内容', r.finance_note)
+    + `<div class="det-row"><div class="k">売上</div><div class="det-sales">
+         <div class="s">週売上予算<b>${yen(r.sales_budget)}</b></div>
+         <div class="s">週売上実績<b>${yen(r.sales_actual)}</b></div>
+       </div></div>`
+    + ((r.fleet_count!=null||r.idle_count!=null)
+       ? (()=>{ const f=r.fleet_count||0,i=r.idle_count||0; const op=f>0?Math.round((f-i)/f*1000)/10+'%':'—'; const ir=f>0?Math.round(i/f*1000)/10+'%':'—';
+          return `<div class="det-row"><div class="k">車両KPI</div><div class="det-sales">
+            <div class="s">所属台数<b>${r.fleet_count!=null?r.fleet_count+'台':'—'}</b></div>
+            <div class="s">休車台数<b>${r.idle_count!=null?r.idle_count+'台':'—'}</b></div>
+            <div class="s">稼働率<b>${op}</b></div>
+            <div class="s">休車率<b>${ir}</b></div>
+          </div></div>`; })() : '')
+    + `<div class="det-row" style="border:none;"><div class="k">提出者</div><div class="v" style="font-size:13px;">${esc(r.created_by_name||'')}</div></div>`;
+  const canEdit = me.role === 'admin' || r.created_by === me.uid;
+  document.getElementById('d-edit').classList.toggle('hide', !canEdit);
+  document.getElementById('d-del').classList.toggle('hide', !canEdit);
+  view('detail-view');
+  loadComments(id);
+}
+
+async function loadComments(id){
+  const box = document.getElementById('comments-box');
+  let j; try { j = await api('/api/weekly-report/' + id + '/comments'); } catch(e){ return; }
+  const cs = (j && j.comments) || [];
+  if (!cs.length) { box.innerHTML = '<div class="cmt-empty">まだコメントはありません。最初のコメント・質問を書いてみましょう。</div>'; return; }
+  box.innerHTML = cs.map(c => {
+    const ava = c.author_avatar ? `<img class="ava" src="${esc(c.author_avatar)}" alt="">` : `<div class="ava"></div>`;
+    const mine = me && c.author_id === me.uid;
+    return `<div class="cmt">${ava}<div class="body">
+      <div><span class="nm">${esc(c.author_name||'')}</span><span class="tm">${esc((c.created_at||'').slice(5,16))}</span></div>
+      <div class="tx">${esc(c.body)}</div>
+      ${mine ? '' : `<a class="chat-btn" href="/chat?dm=${esc(c.author_id)}">💬 チャットで回答する</a>`}
+    </div></div>`;
+  }).join('');
+}
+async function postComment(){
+  const inp = document.getElementById('cmt-input');
+  const body = inp.value.trim();
+  if (!body || !curId) return;
+  try {
+    const j = await api('/api/weekly-report/' + curId + '/comments', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ body }) });
+    if (!j.success) { alert(j.msg || '送信に失敗しました'); return; }
+    inp.value = '';
+    loadComments(curId);
+  } catch(e){}
+}
+
+function editCurrent(){
+  const r = reports.find(x => x.id === curId);
+  if (!r) { openForm(); return; }
+  openForm();
+  document.getElementById('f-id').value = r.id;
+  document.getElementById('f-office').value = r.office || '';
+  document.getElementById('f-date').value = r.report_date || '';
+  document.getElementById('f-from').value = r.period_from || '';
+  document.getElementById('f-to').value = r.period_to || '';
+  document.getElementById('f-issue').value = r.issue_practical || '';
+  document.getElementById('f-result').value = r.result_practical || '';
+  document.getElementById('f-violations').value = r.violations || 0;
+  document.getElementById('f-finance').value = r.finance_note || '';
+  document.getElementById('f-budget').value = r.sales_budget || '';
+  document.getElementById('f-actual').value = r.sales_actual || '';
+  document.getElementById('f-fleet').value = r.fleet_count != null ? r.fleet_count : '';
+  document.getElementById('f-idle').value = r.idle_count != null ? r.idle_count : '';
+  document.getElementById('save-btn').textContent = '更新する';
+  calcRatio(); calcRates();
+}
+
+async function deleteCurrent(){
+  if (!curId) return;
+  if (!confirm('この週報を削除しますか？')) return;
+  try { const j = await api('/api/weekly-report/'+curId, { method:'DELETE' }); if (!j.success){ alert(j.msg||'削除に失敗'); return; } showList(); } catch(e){}
+}
+
+init();
+</script>
+</body>
+</html>

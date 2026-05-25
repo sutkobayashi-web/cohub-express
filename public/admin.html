@@ -64,17 +64,24 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <input type="text" id="new-login" placeholder="ログインID">
       <input type="text" id="new-name" placeholder="表示名">
       <select id="new-company">
-        <option value="SU_HQ">SU本社</option>
-        <option value="SU_SAITAMA">SU埼玉</option>
-        <option value="SU_MKANTO">SU南関東</option>
-        <option value="SU_ZAMA">SU座間</option>
-        <option value="IBA_KASHIMA">IBA鹿島</option>
-        <option value="IBA_SANWA">IBA三和</option>
-        <option value="SUZUE">スズエ</option>
+        <option value="SU_HQ">スタンダード運輸 本社</option>
+        <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
+        <option value="SU_MKANTO">スタンダード運輸 南関東</option>
+        <option value="SU_ZAMA">スタンダード運輸 座間</option>
+        <option value="IBA_KASHIMA">茨運(鹿島)</option>
+        <option value="IBA_SANWA">茨運(三和)</option>
+        <option value="SUZUE">スズエ電機</option>
         <option value="ADMIN">管理職</option>
         <option value="UNIVERSITY">🎓 大学・研究機関</option>
         <option value="NPO">🏥 NPO法人</option>
         <option value="GUEST">👥 ゲスト</option>
+      </select>
+      <select id="new-job-role" title="職種 (現場系は自動で現場棟所属)">
+        <option value="office">事務</option>
+        <option value="driver">ドライバー</option>
+        <option value="warehouse">倉庫荷役</option>
+        <option value="construction">施工</option>
+        <option value="manufacturing">製造</option>
       </select>
       <input type="text" id="new-pass" placeholder="初期パスワード">
       <select id="new-role">
@@ -103,6 +110,37 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       💡 <b>生年月日</b>: 健診Box連携 (氏名×生年月日でPDF照合) と年齢別健康分析に使用。本人と管理者のみ閲覧。
     </div>
     <div id="add-msg"></div>
+  </div>
+
+  <div class="card" id="bulk-enroll" style="background:linear-gradient(135deg,#fef3c7,#fef9c3);border-left:4px solid #f59e0b;">
+    <h2 style="color:#78350f;">📥 CSV一括登録 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">事務局専用。大量登録時はこちら</span></h2>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.7;">
+      <b>列順 (1行目はヘッダ):</b><br>
+      <code style="background:#fff;padding:4px 8px;border-radius:4px;border:1px solid #fcd34d;display:inline-block;margin:4px 0;">login_id, display_name, nickname, company_code, job_role, dm_group, birth_date</code><br>
+      • <b>login_id</b>: 半角小文字英数・<code>_ . -</code>・3〜30文字・全社員で一意。<b>社内標準は「名前の頭文字_苗字」</b>(例: 山田太郎=<code>t_yamada</code>)<br>
+      • <b>company_code</b> (会社コード。子会社も下表のコードで指定):<br>
+      <span style="display:inline-block;background:#fff;padding:6px 10px;border-radius:4px;border:1px solid #fcd34d;margin:4px 0;line-height:1.9;">
+        スタンダード運輸 本社=<code>SU_HQ</code> / 埼玉=<code>SU_SAITAMA</code> / 南関東=<code>SU_MKANTO</code> / 座間=<code>SU_ZAMA</code><br>
+        <b>茨運(鹿島)</b>=<code>IBA_KASHIMA</code> / <b>茨運(三和)</b>=<code>IBA_SANWA</code> ・ <b>スズエ電機</b>=<code>SUZUE</code> ・ 管理職=<code>ADMIN</code>
+      </span><br>
+      • <b>job_role</b>: driver / warehouse / office / construction / manufacturing<br>
+      • <b>birth_date</b>: YYYY-MM-DD (例: 1975-04-15)<br>
+      • <b>dm_group</b>: 所属DMグループ名。<b>空欄推奨</b>(空欄なら上表の会社名で支店グループに自動所属)。指定する場合は既存グループ名と完全一致させること(例: <code>スタンダード運輸 本社</code>)。新名で勝手に作ると別グループに分かれます<br>
+      • <b>nickname</b>: 2-20文字、大小無視で全社員一意<br>
+      • 1行でもエラーがあれば <b>全件中止</b>。修正してから本登録してください。<br>
+      <span style="color:#92400e;">⚠ 初期パスワードは本登録時に1回だけ表示されます (DLボタンで保存)。</span>
+    </div>
+    <div class="row" style="align-items:flex-start;">
+      <input type="file" id="bulk-csv-file" accept=".csv,text/csv" style="display:none;">
+      <button class="btn" style="background:#f59e0b;" onclick="document.getElementById('bulk-csv-file').click()">📂 CSVを選択</button>
+      <button class="btn" onclick="downloadBulkTemplate()" style="background:#64748b;">📥 雛形DL</button>
+      <span id="bulk-file-name" style="color:#475569;font-size:13px;align-self:center;"></span>
+    </div>
+    <div class="row" style="gap:8px;">
+      <button class="btn" id="bulk-dryrun-btn" onclick="bulkEnroll(true)" disabled style="background:#0284c7;">🔍 ドライラン (検証のみ)</button>
+      <button class="btn" id="bulk-commit-btn" onclick="bulkEnroll(false)" disabled style="background:#dc2626;">🚀 本登録 (DB反映)</button>
+    </div>
+    <div id="bulk-result" style="margin-top:12px;font-size:13px;"></div>
   </div>
 
   <!-- 外部相談窓口の集計 (本文/送信者は管理者でも見えない、件数のみ) -->
@@ -190,6 +228,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <input type="date" id="tc-date">
       <button class="btn" onclick="loadTimecard()">表示</button>
       <button class="btn btn-ghost" onclick="loadTimecardDiscrepancies()">⚠ 差分のみ抽出 (直近7日)</button>
+      <a class="btn" href="/admin-pc-deploy.html" style="background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;text-decoration:none;">🖥 PC配布管理</a>
       <span id="tc-meta" style="font-size:12px;color:#64748b;margin-left:8px;"></span>
     </div>
     <div style="max-height:420px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
@@ -346,13 +385,13 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div><label style="font-size:12px;font-weight:600;color:#475569;">所属会社</label>
           <select id="edit-company" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
-            <option value="SU_HQ">SU本社</option>
-            <option value="SU_SAITAMA">SU埼玉</option>
-            <option value="SU_MKANTO">SU南関東</option>
-            <option value="SU_ZAMA">SU座間</option>
-            <option value="IBA_KASHIMA">IBA鹿島</option>
-            <option value="IBA_SANWA">IBA三和</option>
-            <option value="SUZUE">スズエ</option>
+            <option value="SU_HQ">スタンダード運輸 本社</option>
+            <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
+            <option value="SU_MKANTO">スタンダード運輸 南関東</option>
+            <option value="SU_ZAMA">スタンダード運輸 座間</option>
+            <option value="IBA_KASHIMA">茨運(鹿島)</option>
+            <option value="IBA_SANWA">茨運(三和)</option>
+            <option value="SUZUE">スズエ電機</option>
             <option value="ADMIN">管理職</option>
             <option value="UNIVERSITY">🎓 大学・研究機関</option>
             <option value="NPO">🏥 NPO法人</option>
@@ -371,6 +410,15 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
           <select id="edit-employee-type" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
             <option value="office">一般</option>
             <option value="admin">管理職</option>
+          </select>
+        </div>
+        <div><label style="font-size:12px;font-weight:600;color:#475569;">職種</label>
+          <select id="edit-job-role" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <option value="office">事務</option>
+            <option value="driver">ドライバー</option>
+            <option value="warehouse">倉庫荷役</option>
+            <option value="construction">施工</option>
+            <option value="manufacturing">製造</option>
           </select>
         </div>
       </div>
@@ -409,6 +457,13 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
           <input type="checkbox" id="edit-field-promoter"> 推進メンバー権限を付与
         </label>
         <div style="font-size:10px;color:#64748b;line-height:1.6;">推進メンバーは点呼・朝礼・昼礼で同拠点全員に聞き取りカードを記録できます。健康戦略室の閲覧権限が付与され、🩺 現場の声 GC に自動加入します。<br>※ 原則は社員自身の投稿で吸い上げ、聞き取りはバックアップ用途です。</div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🗓 管理職 (共有カレンダー・業務週報・運転アラート)</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-manager"> 管理職として扱う (is_manager)
+        </label>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;">ONにすると 共有カレンダー(/calendar.html) の閲覧・登録、業務週報、運転アラートを利用できます。役員・各営業所長・システム管理者向け。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎓 ゲストレビュアー (大学/NPO等の外部専門家)</div>
@@ -1313,14 +1368,185 @@ async function bulkDelete() {
   loadGroups();
 }
 
+// ===== CSV 一括登録 =====
+let bulkParsedRows = null;
+function downloadBulkTemplate() {
+  const csv = [
+    'login_id,display_name,nickname,company_code,job_role,dm_group,birth_date',
+    't_yamada,山田太郎,たろう,SU_HQ,office,スタンダード運輸 本社,1980-04-15',
+    'h_sato,佐藤花子,はなこ,SU_SAITAMA,driver,スタンダード運輸 埼玉,1992-11-03',
+    'k_takahashi,高橋健一,けんいち,SU_MKANTO,driver,スタンダード運輸 南関東,1987-06-22',
+    'm_tanaka,田中美咲,みさき,SU_ZAMA,warehouse,スタンダード運輸 座間,1995-09-10',
+    'j_ito,伊藤次郎,じろう,IBA_KASHIMA,driver,茨運(鹿島),1978-02-11',
+    's_watanabe,渡辺三郎,さぶろう,IBA_SANWA,warehouse,茨運(三和),1983-12-05',
+    'i_suzuki,鈴木一郎,いちろう,SUZUE,manufacturing,スズエ電機,1985-07-20',
+  ].join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bulk_enroll_template.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 200);
+}
+function parseCsv(text) {
+  // BOM除去 + 簡易CSV parser (引用符内のカンマ・改行も対応)
+  text = text.replace(/^﻿/, '');
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuote = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuote = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* ignore */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c && c.trim()));
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const fi = document.getElementById('bulk-csv-file');
+  if (!fi) return;
+  fi.addEventListener('change', async () => {
+    const file = fi.files && fi.files[0];
+    const fnSpan = document.getElementById('bulk-file-name');
+    const dry = document.getElementById('bulk-dryrun-btn');
+    const cmt = document.getElementById('bulk-commit-btn');
+    const result = document.getElementById('bulk-result');
+    result.innerHTML = '';
+    if (!file) { fnSpan.textContent = ''; dry.disabled = true; cmt.disabled = true; bulkParsedRows = null; return; }
+    fnSpan.textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+    const text = await file.text();
+    const matrix = parseCsv(text);
+    if (matrix.length < 2) {
+      result.innerHTML = '<div style="color:#dc2626;">⚠ ヘッダ + 1行以上が必要です</div>';
+      dry.disabled = true; cmt.disabled = true; bulkParsedRows = null; return;
+    }
+    const header = matrix[0].map(h => h.trim().toLowerCase());
+    const expected = ['login_id','display_name','nickname','company_code','job_role','dm_group','birth_date'];
+    const idx = {};
+    for (const k of expected) { idx[k] = header.indexOf(k); }
+    const missing = expected.filter(k => idx[k] < 0);
+    if (missing.length) {
+      result.innerHTML = '<div style="color:#dc2626;">⚠ 列が見つかりません: ' + missing.join(', ') + '</div>';
+      dry.disabled = true; cmt.disabled = true; bulkParsedRows = null; return;
+    }
+    bulkParsedRows = matrix.slice(1).map(r => ({
+      login_id: (r[idx.login_id] || '').trim(),
+      display_name: (r[idx.display_name] || '').trim(),
+      nickname: (r[idx.nickname] || '').trim(),
+      company_code: (r[idx.company_code] || '').trim(),
+      job_role: (r[idx.job_role] || '').trim(),
+      dm_group: (r[idx.dm_group] || '').trim(),
+      birth_date: (r[idx.birth_date] || '').trim(),
+    }));
+    result.innerHTML = '<div style="color:#475569;">読込: ' + bulkParsedRows.length + ' 行。先に「ドライラン」で検証してください。</div>';
+    dry.disabled = false; cmt.disabled = false;
+  });
+});
+async function bulkEnroll(dryRun) {
+  if (!bulkParsedRows || !bulkParsedRows.length) return;
+  const result = document.getElementById('bulk-result');
+  result.innerHTML = '<div style="color:#475569;">' + (dryRun ? '検証中…' : '登録中…') + '</div>';
+  if (!dryRun) {
+    if (!confirm('本登録します。よろしいですか?\n登録数: ' + bulkParsedRows.length + ' 件')) {
+      result.innerHTML = '';
+      return;
+    }
+  }
+  try {
+    const r = await fetch('/api/admin/users/bulk-enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ rows: bulkParsedRows, dry_run: !!dryRun }),
+    });
+    const d = await r.json();
+    renderBulkResult(d, dryRun);
+  } catch (e) {
+    result.innerHTML = '<div style="color:#dc2626;">通信エラー: ' + (e.message || e) + '</div>';
+  }
+}
+function renderBulkResult(d, dryRun) {
+  const result = document.getElementById('bulk-result');
+  if (!d) { result.innerHTML = '<div style="color:#dc2626;">空応答</div>'; return; }
+  const list = (d.results || []);
+  const errs = list.filter(r => r.status === 'error');
+  const oks = list.filter(r => r.status === 'ok');
+  const previews = list.filter(r => r.status === 'preview');
+  let html = '';
+  if (dryRun) {
+    if (errs.length) {
+      html += '<div style="color:#dc2626;font-weight:700;margin-bottom:6px;">❌ ' + errs.length + ' 件エラー (修正してください)</div>';
+    } else {
+      html += '<div style="color:#16a34a;font-weight:700;margin-bottom:6px;">✅ ' + previews.length + ' 件すべて登録可能。本登録ボタンを押してください。</div>';
+    }
+  } else {
+    html += '<div style="color:#16a34a;font-weight:700;margin-bottom:6px;">🎉 ' + oks.length + ' 件登録完了</div>';
+    if (oks.length) {
+      html += '<button class="btn" style="background:#16a34a;margin-bottom:8px;" onclick="downloadBulkPasswords()">📥 初期パスワードCSVをDL</button>';
+      window.__bulkPasswords = oks;
+    }
+  }
+  if (list.length) {
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px;">';
+    html += '<thead><tr style="background:#f1f5f9;"><th style="padding:4px;border:1px solid #cbd5e1;">行</th><th style="padding:4px;border:1px solid #cbd5e1;">login_id</th><th style="padding:4px;border:1px solid #cbd5e1;">状態</th><th style="padding:4px;border:1px solid #cbd5e1;">詳細</th></tr></thead><tbody>';
+    for (const r of list) {
+      const color = r.status === 'error' ? '#dc2626' : (r.status === 'ok' ? '#16a34a' : '#64748b');
+      const detail = r.status === 'error' ? (r.errors || []).join(' / ') : (r.status === 'ok' ? '✓ 登録済' : (r.status === 'preview' ? '✓ 登録可' : r.status));
+      html += '<tr><td style="padding:4px;border:1px solid #cbd5e1;text-align:center;">' + r.line + '</td><td style="padding:4px;border:1px solid #cbd5e1;font-family:monospace;">' + (r.login_id || '') + '</td><td style="padding:4px;border:1px solid #cbd5e1;color:' + color + ';font-weight:700;">' + r.status + '</td><td style="padding:4px;border:1px solid #cbd5e1;">' + detail + '</td></tr>';
+    }
+    html += '</tbody></table>';
+  }
+  result.innerHTML = html;
+}
+function downloadBulkPasswords() {
+  const list = window.__bulkPasswords || [];
+  if (!list.length) return;
+  const rows = ['login_id,display_name,initial_password'];
+  for (const r of list) {
+    const esc = (s) => /[",\n]/.test(s || '') ? '"' + String(s).replace(/"/g, '""') + '"' : (s || '');
+    rows.push([esc(r.login_id), esc(r.display_name), esc(r.initial_password)].join(','));
+  }
+  const csv = rows.join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const ts = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
+  a.download = 'initial_passwords_' + ts + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 200);
+}
+
+// 職種(job_role) 選択肢 — enroll.js の JOB_ROLES と対応。employee_type を自動導出。
+const JOB_ROLE_OPTS = [
+  { v: 'office',        label: '事務',       etype: 'office' },
+  { v: 'driver',        label: 'ドライバー', etype: 'field'  },
+  { v: 'warehouse',     label: '倉庫荷役',   etype: 'field'  },
+  { v: 'construction',  label: '施工',       etype: 'field'  },
+  { v: 'manufacturing', label: '製造',       etype: 'field'  },
+];
+function etypeFromJobRole(jr) { const o = JOB_ROLE_OPTS.find(x => x.v === jr); return o ? o.etype : 'office'; }
+function jobRoleOptionsHtml(sel) {
+  return JOB_ROLE_OPTS.map(o => `<option value="${o.v}"${o.v === sel ? ' selected' : ''}>${o.label}</option>`).join('');
+}
+
 async function addUser() {
+  const jobRole = document.getElementById('new-job-role').value;
   const body = {
     login_id: document.getElementById('new-login').value.trim(),
     display_name: document.getElementById('new-name').value.trim(),
     company_code: document.getElementById('new-company').value,
     password: document.getElementById('new-pass').value,
     role: document.getElementById('new-role').value,
-    employee_type: 'office',
+    job_role: jobRole,
+    employee_type: etypeFromJobRole(jobRole),
     dm_group: document.getElementById('new-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('new-dm-rank').value) || 0,
     birth_date: document.getElementById('new-birth').value || null,
@@ -1361,11 +1587,13 @@ function openEditModal(id) {
   document.getElementById('edit-company').value = u.company_code || 'SU_HQ';
   document.getElementById('edit-role').value = u.role || 'member';
   document.getElementById('edit-employee-type').value = (u.employee_type === 'admin') ? 'admin' : 'office';
+  document.getElementById('edit-job-role').value = JOB_ROLE_OPTS.some(o => o.v === u.job_role) ? u.job_role : 'office';
   document.getElementById('edit-dm-group').value = u.dm_group || '';
   document.getElementById('edit-dm-rank').value = String(u.dm_rank | 0);
   document.getElementById('edit-birth').value = u.birth_date || '';
   document.getElementById('edit-guest-rev').checked = !!u.is_guest_reviewer;
   document.getElementById('edit-field-promoter').checked = !!(u.is_field_promoter || u.is_warehouse_promoter);
+  document.getElementById('edit-manager').checked = !!u.is_manager;
   document.getElementById('edit-dm-restricted').checked = !!u.dm_restricted;
   document.getElementById('edit-guest-org').value = u.guest_org || '';
   document.getElementById('edit-new-password').value = '';
@@ -1424,12 +1652,16 @@ async function submitEdit() {
     display_name: document.getElementById('edit-display-name').value.trim(),
     company_code: document.getElementById('edit-company').value,
     role: document.getElementById('edit-role').value,
-    employee_type: document.getElementById('edit-employee-type').value,
+    job_role: document.getElementById('edit-job-role').value,
+    // 管理職を選んだら admin、それ以外は職種から field/office を導出
+    employee_type: document.getElementById('edit-employee-type').value === 'admin'
+      ? 'admin' : etypeFromJobRole(document.getElementById('edit-job-role').value),
     dm_group: document.getElementById('edit-dm-group').value.trim(),
     dm_rank: parseInt(document.getElementById('edit-dm-rank').value) || 0,
     birth_date: document.getElementById('edit-birth').value || null,
     is_guest_reviewer: document.getElementById('edit-guest-rev').checked,
     is_field_promoter: document.getElementById('edit-field-promoter').checked,
+    is_manager: document.getElementById('edit-manager').checked,
     dm_restricted: document.getElementById('edit-dm-restricted').checked,
     guest_org: document.getElementById('edit-guest-org').value.trim(),
   };
@@ -1588,9 +1820,9 @@ async function loadUnmappedCw() {
           </div>
           <div style="display:flex;gap:3px;">
             <select id="mig-co-${i}" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
-              <option value="SU_HQ">SU本社</option><option value="SU_SAITAMA">SU埼玉</option><option value="SU_MKANTO">SU南関東</option>
-              <option value="SU_ZAMA">SU座間</option><option value="IBA_KASHIMA">IBA鹿島</option><option value="IBA_SANWA">IBA三和</option>
-              <option value="SUZUE">スズエ</option><option value="ADMIN">管理職</option>
+              <option value="SU_HQ">スタンダード運輸 本社</option><option value="SU_SAITAMA">スタンダード運輸 埼玉</option><option value="SU_MKANTO">スタンダード運輸 南関東</option>
+              <option value="SU_ZAMA">スタンダード運輸 座間</option><option value="IBA_KASHIMA">茨運(鹿島)</option><option value="IBA_SANWA">茨運(三和)</option>
+              <option value="SUZUE">スズエ電機</option><option value="ADMIN">管理職</option>
             </select>
             <select id="mig-type-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
               <option value="office">事務</option><option value="field">現場</option><option value="admin">管理職</option>
@@ -1739,5 +1971,6 @@ async function exportChatCsv() {
   } catch(e) {}
 })();
 </script>
+  <script src="/translate.js" defer></script>
 </body>
 </html>

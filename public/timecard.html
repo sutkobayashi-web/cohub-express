@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f59e0b">
+<title>出退勤打刻 — CoWell</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: #fff7ed; min-height: 100vh; color: #0f172a; }
+  header { background: linear-gradient(135deg, #f59e0b, #fb923c); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 800; }
+  header .right { margin-left: auto; }
+  header a, header button.icon-btn { color: #fff; text-decoration: none; font-size: 12px; padding: 6px 12px; background: rgba(255,255,255,0.2); border-radius: 8px; border: none; cursor: pointer; font-family: inherit; }
+  header a:hover, header button.icon-btn:hover { background: rgba(255,255,255,0.3); }
+  header .right { margin-left: auto; display: flex; gap: 6px; }
+  .auto-badge { display: inline-block; background: #dbeafe; color: #1e40af; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 22px 18px; max-width: 400px; width: 100%; }
+  .modal h2 { margin: 0 0 12px; font-size: 16px; color: #b45309; }
+  .modal p { margin: 0 0 12px; font-size: 12px; color: #475569; line-height: 1.55; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px dashed #e2e8f0; }
+  .toggle-row:last-of-type { border-bottom: none; }
+  .toggle-row .body { flex: 1; }
+  .toggle-row .title { font-size: 13px; font-weight: 800; color: #0f172a; }
+  .toggle-row .desc { font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.5; }
+  .switch { position: relative; width: 44px; height: 24px; background: #cbd5e1; border-radius: 12px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+  .switch.on { background: #10b981; }
+  .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: left 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+  .switch.on::after { left: 22px; }
+  .container { max-width: 720px; margin: 0 auto; padding: 20px; }
+  .clock { background: #fff; border-radius: 16px; padding: 24px 20px; text-align: center; box-shadow: 0 8px 24px rgba(245,158,11,0.10); margin-bottom: 18px; }
+  .clock .now { font-size: 38px; font-weight: 800; letter-spacing: 2px; color: #0f172a; font-variant-numeric: tabular-nums; }
+  .clock .date { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .clock .name { font-size: 12px; color: #475569; margin-top: 4px; }
+  .punch-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+  .btn-in, .btn-out { padding: 22px 14px; border: none; border-radius: 14px; font-size: 18px; font-weight: 800; cursor: pointer; color: #fff; transition: transform 0.1s, box-shadow 0.1s; }
+  .btn-in { background: linear-gradient(135deg, #10b981, #14b8a6); box-shadow: 0 6px 18px rgba(16,185,129,0.30); }
+  .btn-in:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(16,185,129,0.40); }
+  .btn-out { background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 6px 18px rgba(99,102,241,0.30); }
+  .btn-out:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(99,102,241,0.40); }
+  .btn-in:disabled, .btn-out:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-in .sub, .btn-out .sub { display: block; font-size: 11px; opacity: 0.85; font-weight: 600; margin-top: 4px; }
+  .summary { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); margin-bottom: 16px; }
+  .summary h2 { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: #0f172a; }
+  .row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px; }
+  .row:last-child { border-bottom: none; }
+  .row .lbl { color: #64748b; min-width: 110px; }
+  .row .val { flex: 1; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+  .row .val.muted { color: #94a3b8; font-weight: 500; font-style: italic; }
+  .alert { background: rgba(239,68,68,0.08); border-left: 3px solid #dc2626; padding: 10px 14px; border-radius: 6px; font-size: 12px; color: #7f1d1d; margin-top: 10px; line-height: 1.6; }
+  .alert.ok { background: rgba(16,185,129,0.08); border-left-color: #10b981; color: #064e3b; }
+  .history { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); }
+  .history h2 { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: #0f172a; }
+  .h-row { display: grid; grid-template-columns: 90px 60px 1fr 70px; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; font-size: 12px; }
+  .h-row .d { color: #475569; font-weight: 600; }
+  .h-row .t { background: #ecfeff; padding: 1px 6px; border-radius: 6px; font-size: 11px; text-align: center; font-weight: 700; }
+  .h-row .t.in { background: #d1fae5; color: #047857; }
+  .h-row .t.out { background: #ede9fe; color: #6d28d9; }
+  .h-row .pc { color: #64748b; font-variant-numeric: tabular-nums; }
+  .h-row .diff { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .h-row .diff.warn { color: #dc2626; }
+  .empty { text-align: center; padding: 22px; color: #94a3b8; font-size: 12px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,0.25); opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 100; }
+  .toast.show { opacity: 1; }
+  #login-screen { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #login-screen.show { display: flex; }
+</style>
+<script src="/font-zoom.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+
+<div id="login-screen">
+  <div style="background:#fff;padding:24px;border-radius:14px;text-align:center;">
+    <p style="margin:0 0 12px;color:#64748b;">ログインが必要です</p>
+    <a href="/" style="color:#f59e0b;font-weight:800;">ホームへ戻る</a>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+<header>
+  <h1>⏰ 出退勤打刻</h1>
+  <div class="right">
+    <button class="icon-btn" onclick="openSettings()">⚙ 自動打刻</button>
+    <a href="/">← ホーム</a>
+  </div>
+</header>
+
+<div class="container">
+  <div class="clock">
+    <div class="now" id="now-time">--:--:--</div>
+    <div class="date" id="now-date"></div>
+    <div class="name" id="me-name"></div>
+  </div>
+
+  <div class="punch-row">
+    <button class="btn-in" id="btn-in">出勤<span class="sub">START</span></button>
+    <button class="btn-out" id="btn-out">退勤<span class="sub">END</span></button>
+  </div>
+
+  <div class="summary">
+    <h2>📅 本日の打刻</h2>
+    <div class="row"><span class="lbl">PC起動時刻</span><span class="val muted" id="pc-start">記録なし</span></div>
+    <div class="row"><span class="lbl">出勤打刻</span><span class="val muted" id="punch-in">未打刻</span></div>
+    <div class="row"><span class="lbl">退勤打刻</span><span class="val muted" id="punch-out">未打刻</span></div>
+    <div class="row" id="row-estimated" style="display:none;"><span class="lbl">推定退勤</span><span class="val" id="est-out" style="color:#7c3aed;">—</span></div>
+    <div id="diff-alert"></div>
+  </div>
+
+  <!-- 自動打刻設定モーダル -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal">
+      <h2>⚙ 自動打刻の設定</h2>
+      <p>PC起動・終了に合わせて自動で打刻します。手動打刻と併用可。</p>
+
+      <div class="toggle-row">
+        <div class="body">
+          <div class="title">PC起動時に「出勤」を自動打刻</div>
+          <div class="desc">Windows ログオンで CoWell に届いた時刻を出勤として記録します。本日まだ手動打刻が無い場合のみ実行。</div>
+        </div>
+        <div class="switch" id="sw-in" onclick="toggleSwitch('sw-in')"></div>
+      </div>
+
+      <div class="toggle-row">
+        <div class="body">
+          <div class="title">最終操作から30分後に「退勤」を自動打刻</div>
+          <div class="desc">5分おきのハートビートPingが途絶えた時刻を退勤として記録します。本日まだ手動打刻が無い場合のみ実行。</div>
+        </div>
+        <div class="switch" id="sw-out" onclick="toggleSwitch('sw-out')"></div>
+      </div>
+
+      <button class="btn-in" style="width:100%;margin-top:16px;padding:12px;" onclick="saveSettings()">保存</button>
+      <button style="width:100%;margin-top:6px;padding:10px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-weight:700;cursor:pointer;" onclick="closeSettings()">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="history">
+    <h2>📜 過去の記録 (直近30日)</h2>
+    <div class="h-row" style="font-weight:800;border-bottom:1px solid #cbd5e1;">
+      <span class="d">日付</span>
+      <span class="t" style="background:none;color:#64748b;">種別</span>
+      <span>打刻時刻</span>
+      <span style="text-align:right;color:#64748b;">PC起動差</span>
+    </div>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+let token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let state = { today: null, autoIn: false, autoOut: false };
+
+const $ = (id) => document.getElementById(id);
+
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showLogin(); return null; }
+  return r.json();
+}
+
+function showLogin() {
+  $('login-screen').classList.add('show');
+  $('app').style.display = 'none';
+}
+
+function showApp() {
+  $('login-screen').classList.remove('show');
+  $('app').style.display = 'block';
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function tickClock() {
+  const d = new Date();
+  $('now-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  const wd = ['日','月','火','水','木','金','土'][d.getDay()];
+  $('now-date').textContent = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 (' + wd + ')';
+}
+
+function fmtTime(s) {
+  if (!s) return null;
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return s;
+  return m[4] + ':' + m[5];
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[2] + '/' + m[3]) : s;
+}
+
+function diffMin(a, b) {
+  if (!a || !b) return null;
+  const da = new Date(a.replace(' ', 'T'));
+  const db = new Date(b.replace(' ', 'T'));
+  return Math.round((db - da) / 60000);
+}
+
+function showToast(msg) {
+  $('toast').textContent = msg;
+  $('toast').classList.add('show');
+  setTimeout(() => $('toast').classList.remove('show'), 2200);
+}
+
+async function init() {
+  if (!token) { showLogin(); return; }
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) { showLogin(); return; }
+  me = r.user;
+  showApp();
+  $('me-name').textContent = me.display_name + 'さん';
+  await refresh();
+}
+
+async function refresh() {
+  const t = await api('/api/timecard/today');
+  if (!t || !t.success) return;
+  state.today = t;
+  const inP = t.punches.find(p => p.punch_type === 'in');
+  const outP = [...t.punches].reverse().find(p => p.punch_type === 'out');
+  // 自動打刻バッジ
+  const inBadge = inP && inP.source === 'auto' ? '<span class="auto-badge">自動</span>' : '';
+  const outBadge = outP && outP.source === 'auto' ? '<span class="auto-badge">自動</span>' : '';
+  $('punch-in').innerHTML = (inP ? fmtTime(inP.punched_at) : '未打刻') + inBadge;
+  $('punch-in').classList.toggle('muted', !inP);
+  $('punch-out').innerHTML = (outP ? fmtTime(outP.punched_at) : '未打刻') + outBadge;
+  $('punch-out').classList.toggle('muted', !outP);
+  $('pc-start').textContent = t.pc_startup_at ? fmtTime(t.pc_startup_at) : '記録なし';
+  $('pc-start').classList.toggle('muted', !t.pc_startup_at);
+  // 推定退勤: 退勤未打刻 + 当日ハートビートあり時に表示
+  if (!outP && t.last_heartbeat_at) {
+    $('row-estimated').style.display = '';
+    $('est-out').textContent = fmtTime(t.last_heartbeat_at) + ' (最終操作)';
+  } else {
+    $('row-estimated').style.display = 'none';
+  }
+  // 出勤と PC起動の差分表示
+  const diff = inP && t.pc_startup_at ? diffMin(t.pc_startup_at, inP.punched_at) : null;
+  const al = $('diff-alert');
+  al.innerHTML = '';
+  if (diff !== null) {
+    if (diff >= 15) {
+      al.className = 'alert';
+      al.innerHTML = '⚠ PC起動から出勤打刻まで <strong>' + diff + '分</strong>のラグがあります。打刻前作業の有無をご確認ください。';
+    } else if (diff >= 0) {
+      al.className = 'alert ok';
+      al.textContent = '✓ PC起動から ' + diff + '分以内で打刻されています。';
+    }
+  }
+  // ボタン制御 (重複打刻防止)
+  $('btn-in').disabled = !!inP;
+  if (inP) $('btn-in').innerHTML = '出勤済み<span class="sub">' + fmtTime(inP.punched_at) + '</span>';
+  // 履歴
+  await refreshHistory();
+}
+
+async function refreshHistory() {
+  const h = await api('/api/timecard/history?days=30');
+  if (!h || !h.success) return;
+  // 日付ごとに in/out をマージ
+  const byDate = new Map();
+  for (const p of h.punches) {
+    const d = p.punched_at.slice(0, 10);
+    if (!byDate.has(d)) byDate.set(d, { date: d, in: null, out: null, pc: null });
+    const r = byDate.get(d);
+    if (p.punch_type === 'in' && !r.in) r.in = p.punched_at;
+    if (p.punch_type === 'out') r.out = p.punched_at;
+  }
+  for (const s of h.startups) {
+    const d = s.started_at.slice(0, 10);
+    if (!byDate.has(d)) byDate.set(d, { date: d, in: null, out: null, pc: null });
+    const r = byDate.get(d);
+    if (!r.pc) r.pc = s.started_at;
+  }
+  const arr = [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
+  const list = $('history-list');
+  if (!arr.length) { list.innerHTML = '<div class="empty">記録がまだありません</div>'; return; }
+  list.innerHTML = arr.map(r => {
+    const d = diffMin(r.pc, r.in);
+    const diffStr = d !== null ? (d + '分') : '—';
+    const diffClass = (d !== null && d >= 15) ? 'diff warn' : 'diff';
+    const inT = r.in ? fmtTime(r.in) : '—';
+    const outT = r.out ? fmtTime(r.out) : '—';
+    const pcT = r.pc ? fmtTime(r.pc) : '—';
+    return `<div class="h-row">
+      <span class="d">${escapeHtml(fmtDate(r.date))}</span>
+      <span class="t in">出${inT}</span>
+      <span style="font-size:11px;color:#64748b;">退${outT} / PC ${pcT}</span>
+      <span class="${diffClass}">${diffStr}</span>
+    </div>`;
+  }).join('');
+}
+
+async function punch(type) {
+  const r = await api('/api/timecard/punch', { method: 'POST', body: { type, source: 'web' } });
+  if (!r || !r.success) {
+    showToast(r && r.msg ? r.msg : '打刻失敗');
+    return;
+  }
+  showToast(type === 'in' ? '✓ 出勤を記録しました' : '✓ 退勤を記録しました');
+  await refresh();
+}
+
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+async function openSettings() {
+  const r = await api('/api/timecard/me/prefs');
+  if (r && r.success) {
+    state.autoIn = !!r.auto_punch_in;
+    state.autoOut = !!r.auto_punch_out;
+  }
+  $('sw-in').classList.toggle('on', state.autoIn);
+  $('sw-out').classList.toggle('on', state.autoOut);
+  $('settings-modal').classList.add('show');
+}
+function closeSettings() { $('settings-modal').classList.remove('show'); }
+function toggleSwitch(id) {
+  const sw = $(id);
+  sw.classList.toggle('on');
+  if (id === 'sw-in') state.autoIn = sw.classList.contains('on');
+  if (id === 'sw-out') state.autoOut = sw.classList.contains('on');
+}
+async function saveSettings() {
+  const r = await api('/api/timecard/me/prefs', { method:'PUT', body: { auto_punch_in: state.autoIn, auto_punch_out: state.autoOut } });
+  if (r && r.success) { showToast('✓ 設定を保存しました'); closeSettings(); refresh(); }
+  else { showToast('保存失敗'); }
+}
+
+$('btn-in').addEventListener('click', () => punch('in'));
+$('btn-out').addEventListener('click', () => {
+  if (!confirm('退勤を記録します。よろしいですか？')) return;
+  punch('out');
+});
+
+setInterval(tickClock, 1000);
+tickClock();
+init();
+</script>
+  <script src="/translate.js" defer></script>
+</body>
+</html>

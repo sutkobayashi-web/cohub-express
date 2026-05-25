@@ -21,9 +21,29 @@ function authUser(req, res, next) {
     const payload = verifyToken(token);
     req.user = payload;
     req.uid = payload.uid;
-    // 多端末対応: PC + モバイル + 別ブラウザを同時にログイン可能にするため
-    // session_token (sid) の単一セッション制約を撤去。
-    // JWT自体の有効期限 (30日) で十分なセキュリティ確保。
+    // デバイス種別ごとのセッション照合 (PC1台 + モバイル1台まで併用可、同種別は新ログインで旧をキック)
+    // dev 未指定 (旧トークン) の場合は互換のため session_token と照合
+    if (payload.sid) {
+      try {
+        const u = getDb().prepare('SELECT pc_session_token, mobile_session_token, session_token, role FROM users WHERE id = ?').get(payload.uid);
+        if (!u) return res.status(401).json({ success: false, msg: 'ユーザー無効' });
+        // bot は照合不要 (ログインしない)
+        if (u.role !== 'bot') {
+          let ok = false;
+          if (payload.dev === 'mobile') ok = u.mobile_session_token && u.mobile_session_token === payload.sid;
+          else if (payload.dev === 'pc') ok = u.pc_session_token && u.pc_session_token === payload.sid;
+          else {
+            // 旧JWT互換: dev未指定なら3フィールドのいずれかに一致すればOK
+            ok = (u.session_token && u.session_token === payload.sid)
+              || (u.pc_session_token && u.pc_session_token === payload.sid)
+              || (u.mobile_session_token && u.mobile_session_token === payload.sid);
+          }
+          if (!ok) {
+            return res.status(401).json({ success: false, msg: '別の端末で同じアカウントがログインされたため、このセッションは終了しました', code: 'session_kicked' });
+          }
+        }
+      } catch (e) { /* DB エラー時は通す (フェイルオープン) */ }
+    }
     next();
   } catch (e) {
     res.status(401).json({ success: false, msg: 'トークンが無効です' });

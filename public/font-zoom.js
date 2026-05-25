@@ -44,24 +44,25 @@
     fab.type = 'button';
     fab.setAttribute('aria-label', '文字サイズ切替');
     fab.title = '文字サイズ切替';
-    fab.innerHTML = '<span style="font-size:10px;line-height:1;">A</span>·<span style="font-size:14px;line-height:1;">A</span> <span id="fz-fab-lvl" style="font-size:9px;color:#3b82f6;margin-left:2px;">M</span>';
+    fab.innerHTML = '<span style="font-size:11px;line-height:1;">A</span>·<span style="font-size:16px;line-height:1;">A</span><span id="fz-fab-lvl" style="font-size:10px;color:#fff;background:#1e3a8a;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:900;">M</span>';
+    // 右下 FAB (親指操作しやすい位置、ヘッダーの「閉じる」ボタン+ボトムナビと重ならない)
     fab.style.cssText = [
       'position:fixed',
-      'top:calc(env(safe-area-inset-top) + 6px)',
-      'right:6px',
+      'bottom:calc(env(safe-area-inset-bottom) + 90px)',
+      'right:12px',
       'z-index:99500',
       'background:linear-gradient(135deg,#eff6ff,#dbeafe)',
       'color:#1e3a8a',
-      'border:1px solid #93c5fd',
-      'border-radius:8px',
-      'height:28px',
-      'padding:0 8px',
+      'border:1.5px solid #93c5fd',
+      'border-radius:24px',
+      'height:44px',
+      'padding:0 12px',
       'font-weight:800',
       'cursor:pointer',
       'display:inline-flex',
       'align-items:center',
-      'gap:2px',
-      'box-shadow:0 2px 6px rgba(15,23,42,0.18)'
+      'gap:0',
+      'box-shadow:0 4px 12px rgba(15,23,42,0.25), 0 2px 4px rgba(15,23,42,0.10)'
     ].join(';');
     fab.onclick = cycle;
     document.body.appendChild(fab);
@@ -79,4 +80,29 @@
   window.addEventListener('storage', function (e) {
     if (e.key === 'm_fz') applyZoom(getLevel());
   });
+
+  // 画面端からの横スワイプ抑止 (ブラウザ「戻る/進む」ジェスチャで画面が消える事故対策)
+  // 端 EDGE_PX 以内から始まった touch かつ横方向優位な動きだけ preventDefault
+  // → 通常の縦スクロール・中央付近の横スワイプUIは無傷
+  (function blockEdgeSwipe() {
+    var EDGE_PX = 24;
+    var startX = 0, startY = 0, fromEdge = false;
+    document.addEventListener('touchstart', function (e) {
+      if (!e.touches || e.touches.length !== 1) { fromEdge = false; return; }
+      var t = e.touches[0];
+      startX = t.pageX; startY = t.pageY;
+      var w = window.innerWidth || document.documentElement.clientWidth || 0;
+      fromEdge = (startX < EDGE_PX) || (startX > w - EDGE_PX);
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      if (!fromEdge || !e.touches || e.touches.length !== 1) return;
+      var t = e.touches[0];
+      var dx = t.pageX - startX;
+      var dy = t.pageY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 6) {
+        if (e.cancelable) e.preventDefault();
+      }
+    }, { passive: false });
+    document.addEventListener('touchend', function () { fromEdge = false; }, { passive: true });
+  })();
 })();

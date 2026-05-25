@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>共有カレンダー｜CoWell</title>
+<link rel="icon" href="/icon-192.png">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif; background: #f1f5f9; color: #1e293b; }
+  header { background: linear-gradient(180deg, #0f766e, #115e59); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  /* トップへ戻る: アプリ標準に合わせ右上の✕アイコンボタン (myactivity等と統一) */
+  header .home { color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; line-height: 1; opacity: .95; background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 8px 14px; white-space: nowrap; flex-shrink: 0; }
+  header .home:hover { background: rgba(255,255,255,0.34); }
+  header h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .02em; flex: 1; }
+  header .sub { font-size: 11px; opacity: .8; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 14px; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar .nav { display: flex; align-items: center; gap: 4px; }
+  .toolbar button.navbtn { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; color: #334155; }
+  .toolbar button.navbtn:hover { background: #f8fafc; }
+  .toolbar .ym { font-size: 18px; font-weight: 700; min-width: 130px; text-align: center; }
+  .toolbar .today-btn { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #334155; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .add-btn { background: #0f766e; color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .toolbar .add-btn:hover { background: #115e59; }
+  .toolbar .viewtog { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+  .toolbar .viewtog button { background: #fff; border: none; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #475569; }
+  .toolbar .viewtog button.on { background: #0f766e; color: #fff; }
+  .toolbar .viewtog button + button { border-left: 1px solid #cbd5e1; }
+
+  /* 一覧(アジェンダ)ビュー */
+  #list-view { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  .lv-day { border-bottom: 1px solid #eef2f6; }
+  .lv-day:last-child { border-bottom: none; }
+  .lv-date { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; background: #f8fafc; }
+  .lv-date .dnum { font-weight: 700; font-size: 16px; color: #0f172a; }
+  .lv-date .ddow { font-size: 12px; color: #64748b; }
+  .lv-date.today { background: #f0fdfa; }
+  .lv-date.today .dnum { color: #0f766e; }
+  .lv-date.sun .dnum { color: #dc2626; }
+  .lv-date.sat .dnum { color: #2563eb; }
+  .lv-ev { display: flex; align-items: center; gap: 9px; padding: 10px 12px; cursor: pointer; border-top: 1px solid #f8fafc; }
+  .lv-ev:active { background: #f1f5f9; }
+  .lv-ev .bar { width: 4px; align-self: stretch; border-radius: 3px; flex-shrink: 0; min-height: 34px; }
+  .lv-ev .lv-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+  .lv-ev .lv-body { flex: 1; min-width: 0; }
+  .lv-ev .lv-ttl { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .lv-ev .lv-meta { font-size: 12px; color: #64748b; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lv-ev .lv-cat { font-size: 11px; color: #fff; padding: 1px 8px; border-radius: 10px; flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .lv-empty { padding: 44px 16px; text-align: center; color: #94a3b8; font-size: 14px; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; color: #475569; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; text-shadow: 0 1px 1px rgba(0,0,0,.15); }
+  .legend .dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+  .grid { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  /* 平日(月〜金)を広く、土日を細く。列幅を minmax(0,..) で固定し、長い予定名でも列幅は不変(セル内で折り返す) */
+  .dow, .cells { display: grid; grid-template-columns: minmax(0,0.62fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,0.62fr); }
+  .dow { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .dow div { padding: 8px 0; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; }
+  .dow div.sun { color: #dc2626; }
+  .dow div.sat { color: #2563eb; }
+  .cell { min-height: 104px; min-width: 0; border-right: 1px solid #eef2f6; border-bottom: 1px solid #eef2f6; padding: 4px 4px 6px; position: relative; cursor: pointer; }
+  .cell:nth-child(7n) { border-right: none; }
+  .cell.other-month { background: #fafbfc; }
+  .cell.other-month .daynum { color: #cbd5e1; }
+  .cell.today { background: #f0fdfa; }
+  .cell.past { background: #fafbfc; }
+  .cell.past .daynum { color: #cbd5e1; }
+  /* 2週表示: マスを縦に大きく(複数名の書き込みが見やすいように) */
+  .cells.tw .cell { min-height: 170px; vertical-align: top; }
+  .cells.tw .cell .daynum { font-size: 13px; }
+  .cells.tw .chip { font-size: 12px; padding: 3px 6px; margin: 3px 0; line-height: 1.35; }
+  .cells.tw .chip-ava { width: 16px; height: 16px; }
+  @media (max-width: 640px) { .cells.tw .cell { min-height: 110px; } }
+  .cell .daynum { font-size: 12px; font-weight: 600; color: #475569; padding: 2px 4px; display: inline-block; }
+  .cell.today .daynum { background: #0f766e; color: #fff; border-radius: 50%; width: 22px; height: 22px; text-align: center; line-height: 18px; }
+  .cell .daynum.sun { color: #dc2626; }
+  .cell .daynum.sat { color: #2563eb; }
+  .chip { display: block; font-size: 11px; line-height: 1.3; padding: 2px 5px; border-radius: 4px; margin: 2px 0; color: #fff; white-space: normal; overflow-wrap: anywhere; word-break: break-word; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,.35); font-weight: 600; }
+  .chip .t { opacity: .85; font-variant-numeric: tabular-nums; margin-right: 3px; }
+  .chip-ava { width: 14px; height: 14px; border-radius: 50%; object-fit: cover; vertical-align: -2px; margin-right: 3px; background: #fff; border: 1px solid rgba(255,255,255,.6); }
+  .more { font-size: 10px; color: #64748b; padding: 1px 4px; }
+
+  /* ホバーポップアップ (PCのみ) — 少し拡大表示 + ふわっと出現 */
+  .hover-pop { position: fixed; z-index: 200; display: none; max-width: 340px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.22); padding: 14px 18px; font-size: 14px; line-height: 1.5; color: #334155; pointer-events: none; transform-origin: top left; animation: popIn .13s ease-out; }
+  @keyframes popIn { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .hover-pop .hp-title { font-weight: 700; font-size: 17px; color: #0f172a; margin-bottom: 8px; }
+  .hover-pop .hp-when { margin-left: 8px; }
+  .hover-pop .hp-row { margin-top: 6px; }
+  .hover-pop .hp-row.memo { color: #64748b; white-space: pre-wrap; }
+  .hover-pop .hp-badge { display: inline-block; padding: 2px 11px; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .hover-pop .hp-by { display: flex; align-items: center; gap: 7px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f1f5f9; color: #475569; }
+  .hover-pop .hp-by img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+
+  /* modal */
+  .ov { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 100; align-items: center; justify-content: center; padding: 14px; }
+  .ov.show { display: flex; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 460px; max-height: 90vh; overflow: auto; padding: 20px; }
+  .modal h2 { margin: 0 0 14px; font-size: 17px; }
+  .modal label { display: block; font-size: 12px; color: #475569; margin: 10px 0 4px; font-weight: 600; }
+  .modal input[type=text], .modal input[type=date], .modal input[type=time], .modal select, .modal textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .modal textarea { min-height: 64px; resize: vertical; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > * { flex: 1; }
+  .chk { display: flex; align-items: center; gap: 7px; margin: 12px 0 2px; font-size: 14px; }
+  .chk input { width: 18px; height: 18px; }
+  .modal .actions { display: flex; gap: 8px; margin-top: 18px; }
+  .modal .actions button { flex: 1; padding: 11px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-save { background: #0f766e; color: #fff; }
+  /* 戻る: 全モーダル共通。常に左端・固定幅で位置統一 */
+  .btn-back { background: #e2e8f0; color: #334155; flex: 0 0 auto !important; padding: 11px 22px !important; }
+  .btn-del { background: #fee2e2; color: #b91c1c; flex: 0 0 auto !important; padding: 11px 14px !important; }
+  .cat-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cat-pick label { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 20px; font-size: 13px; cursor: pointer; margin: 0; }
+  .cat-pick label.on { border-color: transparent; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .cat-pick input { display: none; }
+  /* 種別(共有/自分) ピッカー */
+  .scope-pick { display: flex; gap: 8px; }
+  .scope-pick label { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; cursor: pointer; margin: 0; color: #475569; }
+  .scope-pick label:has(input:checked) { border-color: #0f766e; background: #f0fdfa; color: #0f766e; font-weight: 700; }
+
+  /* detail */
+  .det-meta { font-size: 13px; color: #475569; margin: 6px 0; display: flex; gap: 8px; align-items: flex-start; }
+  .det-meta b { color: #1e293b; min-width: 52px; display: inline-block; }
+  .cat-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+
+  .denied { max-width: 480px; margin: 60px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 32px; text-align: center; }
+  .denied h2 { margin: 0 0 8px; }
+  .denied p { color: #64748b; font-size: 14px; }
+  .denied a { color: #0f766e; font-weight: 600; }
+  .hide { display: none !important; }
+  @media (max-width: 640px) {
+    .cell { min-height: 72px; }
+    .chip .t { display: none; }
+    .toolbar .ym { font-size: 16px; min-width: 110px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div style="flex:1">
+    <h1>🗓 共有カレンダー</h1>
+    <div class="sub">役員・管理職の共有予定（個人カレンダーには影響しません）</div>
+  </div>
+  <a href="/" class="home" title="閉じてトップへ戻る">閉じる</a>
+</header>
+
+<div id="denied" class="denied hide">
+  <h2>🔒 アクセス権限がありません</h2>
+  <p>この共有カレンダーは役員・管理職のみが利用できます。<br><a href="/">バーチャルオフィスへ戻る</a></p>
+</div>
+
+<div id="app" class="wrap hide">
+  <div class="toolbar">
+    <div class="nav">
+      <button class="navbtn" onclick="moveMonth(-1)">‹</button>
+      <div class="ym" id="ym"></div>
+      <button class="navbtn" onclick="moveMonth(1)">›</button>
+    </div>
+    <button class="today-btn" onclick="goToday()">今日</button>
+    <div class="viewtog">
+      <button id="vt-tw" onclick="setView('twoweek')">2週</button>
+      <button id="vt-grid" onclick="setView('grid')">月</button>
+      <button id="vt-list" onclick="setView('list')">一覧</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="add-btn" onclick="openAdd()">＋ 予定を追加</button>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="grid" id="grid-view">
+    <div class="dow"><div class="sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="sat">土</div></div>
+    <div class="cells" id="cells"></div>
+  </div>
+  <div id="list-view" class="hide"></div>
+</div>
+
+<!-- ホバーポップアップ (PCのみ) -->
+<div id="hover-pop" class="hover-pop"></div>
+
+<!-- 追加/編集モーダル -->
+<div class="ov" id="edit-ov">
+  <div class="modal">
+    <h2 id="edit-title">予定を追加</h2>
+    <input type="hidden" id="f-id">
+    <label>件名 *</label>
+    <input type="text" id="f-title" maxlength="200" placeholder="例：定例役員会議">
+    <label>種別</label>
+    <div class="scope-pick">
+      <label><input type="radio" name="scope" value="shared" checked> 👥 共有予定</label>
+      <label><input type="radio" name="scope" value="personal"> 👤 自分の予定</label>
+    </div>
+    <label>区分</label>
+    <div class="cat-pick" id="f-cat"></div>
+    <div class="chk"><input type="checkbox" id="f-allday" onchange="toggleAllday()"><label for="f-allday" style="margin:0">終日</label></div>
+    <div class="row2">
+      <div><label>開始日</label><input type="date" id="f-sdate"></div>
+      <div id="f-stime-wrap"><label>開始時刻</label><input type="time" id="f-stime"></div>
+    </div>
+    <div class="row2">
+      <div><label>終了日 <span style="font-weight:400;color:#94a3b8">(任意)</span></label><input type="date" id="f-edate"></div>
+      <div id="f-etime-wrap"><label>終了時刻</label><input type="time" id="f-etime"></div>
+    </div>
+    <label>場所 <span style="font-weight:400;color:#94a3b8">(任意)</span></label>
+    <input type="text" id="f-loc" maxlength="200" placeholder="例：本社3F役員室 / Zoom">
+    <label>メモ <span style="font-weight:400;color:#94a3b8">(任意)</span></label>
+    <textarea id="f-desc" maxlength="2000"></textarea>
+    <div id="f-err" style="color:#dc2626;font-size:13px;margin-top:8px;"></div>
+    <div class="actions">
+      <button class="btn-back" onclick="closeEdit()">閉じる</button>
+      <button class="btn-save" onclick="saveEvent()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="ov" id="det-ov">
+  <div class="modal">
+    <span class="cat-badge" id="d-cat"></span>
+    <span class="cat-badge" id="d-scope" style="margin-left:6px;"></span>
+    <h2 id="d-title" style="margin-top:10px;"></h2>
+    <div class="det-meta"><b>日時</b><span id="d-when"></span></div>
+    <div class="det-meta" id="d-loc-row"><b>場所</b><span id="d-loc"></span></div>
+    <div class="det-meta" id="d-desc-row"><b>メモ</b><span id="d-desc" style="white-space:pre-wrap"></span></div>
+    <div class="det-meta"><b>登録者</b><span id="d-by"></span></div>
+    <div class="actions">
+      <button class="btn-back" onclick="closeDet()">閉じる</button>
+      <button class="btn-save" id="d-edit-btn" onclick="editFromDet()">編集</button>
+      <button class="btn-del hide" id="d-del-btn" onclick="deleteEvent()">削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || '';
+let me = null;
+let events = [];
+let cur = new Date(); cur.setDate(1);
+let _detId = null;
+
+// 色は home.html のカード配色(--c2)に統一 (2026-05-24)
+const CATS = {
+  meeting: { label: '会議',     color: '#6d28d9' },  // ミーティング violet
+  visitor: { label: '来客',     color: '#b45309' },  // 福利厚生(YBA) amber/gold
+  trip:    { label: '出張',     color: '#075985' },  // 業務連絡(ops) deep blue
+  outing:  { label: '外出',     color: '#ea580c' },  // orange (出張=深青と区別)
+  event:   { label: '社内行事', color: '#047857' },  // みんなの投稿(plaza) emerald
+  leave:   { label: '休暇',     color: '#475569' },  // 申請カード共通 gray
+  other:   { label: 'その他',   color: '#0f766e' },  // CoWell teal
+};
+
+// 日本の祝日 (2026年。色分け用。土日は列を細く・祝日は赤色表示。※祝日の列幅は7列グリッドの制約で個別に細くできず色のみ)
+const JP_HOLIDAYS = new Set([
+  '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20','2026-04-29',
+  '2026-05-03','2026-05-04','2026-05-05','2026-05-06','2026-07-20','2026-08-11',
+  '2026-09-21','2026-09-22','2026-09-23','2026-10-12','2026-11-03','2026-11-23'
+]);
+function isHoliday(dstr){ return JP_HOLIDAYS.has(dstr); }
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function pad(n){ return (n<10?'0':'')+n; }
+function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function dateOf(s){ return (s||'').slice(0,10); }
+function timeOf(s){ const m=(s||'').match(/\s(\d{2}:\d{2})/); return m?m[1]:''; }
+
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.href = '/'; throw new Error('401'); }
+  if (r.status === 403) { showDenied(); throw new Error('403'); }
+  return r.json();
+}
+
+function showDenied(){
+  document.getElementById('app').classList.add('hide');
+  document.getElementById('denied').classList.remove('hide');
+}
+
+async function init(){
+  if (!token) { location.href = '/'; return; }
+  let j;
+  try { j = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } }).then(r=>r.json()); }
+  catch(e){ location.href = '/'; return; }
+  if (!j || !j.success) { location.href = '/'; return; }
+  me = j.user;
+  if (!me.is_manager) { showDenied(); return; }
+  document.getElementById('app').classList.remove('hide');
+  buildLegend();
+  buildCatPick();
+  await load();
+}
+
+function buildLegend(){
+  const cats = Object.keys(CATS).map(k =>
+    `<span><i class="dot" style="background:${CATS[k].color}"></i>${CATS[k].label}</span>`).join('');
+  const kinds = `<span style="color:#cbd5e1;margin:0 2px;">|</span><span>🎙 会議予約</span><span>👥 共有予定</span><span>👤 自分の予定</span>`;
+  document.getElementById('legend').innerHTML = cats + kinds;
+}
+function buildCatPick(){
+  document.getElementById('f-cat').innerHTML = Object.keys(CATS).map((k,i) =>
+    `<label data-cat="${k}" style="${i===0?'':''}"><input type="radio" name="cat" value="${k}" ${i===0?'checked':''}>${CATS[k].label}</label>`).join('');
+  syncCatStyle();
+  document.querySelectorAll('#f-cat input').forEach(r => r.addEventListener('change', syncCatStyle));
+}
+function syncCatStyle(){
+  // 各カテゴリボタンは常に自分の色を表示: 未選択=色枠+色文字、選択=塗りつぶし
+  document.querySelectorAll('#f-cat label').forEach(l => {
+    const k = l.dataset.cat;
+    const col = (CATS[k] || CATS.other).color;
+    const on = l.querySelector('input').checked;
+    l.classList.toggle('on', on);
+    l.style.borderColor = col;
+    l.style.background = on ? col : '#fff';
+    l.style.color = on ? '#fff' : col;
+  });
+}
+
+async function load(){
+  let fromD, toD;
+  if (viewMode === 'twoweek') {
+    fromD = new Date(twStart);
+    toD = new Date(twStart); toD.setDate(twStart.getDate() + 13);
+  } else {
+    const first = new Date(cur.getFullYear(), cur.getMonth(), 1);
+    fromD = new Date(first); fromD.setDate(1 - first.getDay());
+    toD = new Date(fromD); toD.setDate(fromD.getDate() + 41);
+  }
+  const j = await api(`/api/shared-calendar?from=${ymd(fromD)}&to=${ymd(toD)}`);
+  const evs = ((j && j.events) || []).map(e => Object.assign({ kind: 'event' }, e));
+  // 会議予約(確定会議)を読み取り専用の予定として合流
+  const mtgs = ((j && j.meetings) || []).map(m => ({
+    kind: 'meeting', id: 'm' + m.poll_id, poll_id: m.poll_id,
+    title: m.title || '(無題)', category: 'meeting', scope: 'meeting',
+    start_at: (m.starts_at || '').replace('T', ' '), end_at: null, all_day: 0,
+    location: m.location || null, duration_minutes: m.duration_minutes || 30,
+    created_by_name: m.organizer_name || '', created_by_avatar: m.organizer_avatar || ''
+  }));
+  events = evs.concat(mtgs);
+  render();
+}
+
+function eventsOn(dstr){
+  return events.filter(e => {
+    const s = dateOf(e.start_at);
+    const en = dateOf(e.end_at) || s;
+    return s <= dstr && dstr <= en;
+  }).sort((a,b) => {
+    const aa = a.all_day?1:0, bb = b.all_day?1:0;
+    if (aa !== bb) return bb - aa;            // 終日を上に
+    return (a.start_at||'').localeCompare(b.start_at||'');
+  });
+}
+
+// 既定: PCは2週表示 / スマホは一覧(7列グリッドは狭く名前を書けないため)
+let viewMode = (window.innerWidth <= 640) ? 'list' : 'twoweek';
+function startOfWeek(d){ const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - x.getDay()); return x; }
+let twStart = startOfWeek(new Date());  // 2週表示の開始(週頭=日曜)
+function setView(mode){ viewMode = mode; load(); }
+
+// 予定チップのHTML (グリッド/2週 共通)
+function chipHtml(e){
+  const handlers = `onclick="event.stopPropagation();openItem('${e.id}')" onmouseenter="showPop(event,'${e.id}')" onmousemove="movePop(event)" onmouseleave="hidePop()"`;
+  if (e.kind === 'meeting') {
+    const t = timeOf(e.start_at) ? `<span class="t">${timeOf(e.start_at)}</span>` : '';
+    return `<span class="chip" style="background:${CATS.meeting.color}" ${handlers}>🎙${t}${esc(e.title)}</span>`;
+  }
+  const c = CATS[e.category] || CATS.other;
+  const t = (!e.all_day && timeOf(e.start_at)) ? `<span class="t">${timeOf(e.start_at)}</span>` : '';
+  const ava = e.created_by_avatar ? `<img class="chip-ava" src="${esc(e.created_by_avatar)}" alt="">` : '';
+  const sc = e.scope === 'personal' ? '👤' : '';   // 自分の予定マーク (共有は無印)
+  return `<span class="chip" style="background:${c.color}" ${handlers}>${ava}${sc}${t}${esc(e.title)}</span>`;
+}
+
+// 項目クリック: 会議予約は会議詳細へ / 通常予定は詳細モーダル
+function openItem(id){
+  const e = events.find(x => String(x.id) === String(id));
+  if (!e) return;
+  if (e.kind === 'meeting') { location.href = '/poll.html?id=' + e.poll_id; return; }
+  openDet(id);
+}
+
+function render(){
+  const gridish = (viewMode === 'twoweek' || viewMode === 'grid');
+  document.getElementById('vt-tw').classList.toggle('on', viewMode === 'twoweek');
+  document.getElementById('vt-grid').classList.toggle('on', viewMode === 'grid');
+  document.getElementById('vt-list').classList.toggle('on', viewMode === 'list');
+  document.getElementById('grid-view').classList.toggle('hide', !gridish);
+  document.getElementById('list-view').classList.toggle('hide', viewMode !== 'list');
+  document.getElementById('cells').classList.toggle('tw', viewMode === 'twoweek');
+  if (viewMode === 'twoweek') {
+    const e = new Date(twStart); e.setDate(twStart.getDate() + 13);
+    document.getElementById('ym').textContent = (twStart.getMonth()+1) + '/' + twStart.getDate() + ' 〜 ' + (e.getMonth()+1) + '/' + e.getDate();
+    renderTwoWeek();
+  } else {
+    document.getElementById('ym').textContent = cur.getFullYear() + '年 ' + (cur.getMonth()+1) + '月';
+    if (viewMode === 'grid') renderGrid(); else renderList();
+  }
+}
+
+function renderTwoWeek(){
+  const todayStr = ymd(new Date());
+  let html = '';
+  for (let i = 0; i < 14; i++){
+    const d = new Date(twStart); d.setDate(twStart.getDate() + i);
+    const dstr = ymd(d);
+    const dow = d.getDay();
+    const dayCls = (dow===0 || isHoliday(dstr))?'sun':(dow===6?'sat':'');
+    const pastCls = dstr < todayStr ? 'past' : '';
+    const evs = eventsOn(dstr);
+    const chips = evs.map(chipHtml).join('');   // 縦に大きいので件数制限なし
+    html += `<div class="cell ${dstr===todayStr?'today':''} ${pastCls}" onclick="openAdd('${dstr}')">
+      <span class="daynum ${dayCls}">${(d.getMonth()+1)}/${d.getDate()}</span>${chips}</div>`;
+  }
+  document.getElementById('cells').innerHTML = html;
+}
+
+function renderGrid(){
+  const first = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  const gridStart = new Date(first); gridStart.setDate(1 - first.getDay());
+  const todayStr = ymd(new Date());
+  let html = '';
+  // 月表示は1ヶ月まるまる表示 (過去日は淡色)。2週表示と役割を分ける
+  for (let i = 0; i < 42; i++){
+    const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+    const dstr = ymd(d);
+    const other = d.getMonth() !== cur.getMonth();
+    const dow = d.getDay();
+    const dayCls = (dow===0 || isHoliday(dstr))?'sun':(dow===6?'sat':'');
+    const pastCls = (!other && dstr < todayStr) ? 'past' : '';
+    const evs = eventsOn(dstr);
+    let chips = evs.slice(0,3).map(chipHtml).join('');
+    if (evs.length > 3) chips += `<div class="more">＋${evs.length-3}件</div>`;
+    html += `<div class="cell ${other?'other-month':''} ${dstr===todayStr?'today':''} ${pastCls}" onclick="openAdd('${dstr}')">
+      <span class="daynum ${dayCls}">${d.getDate()}</span>${chips}</div>`;
+  }
+  document.getElementById('cells').innerHTML = html;
+}
+
+function renderList(){
+  const todayStr = ymd(new Date());
+  const y = cur.getFullYear(), m = cur.getMonth();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const DOW = ['日','月','火','水','木','金','土'];
+  let html = '';
+  for (let dd = 1; dd <= daysInMonth; dd++){
+    const d = new Date(y, m, dd);
+    const dstr = ymd(d);
+    if (dstr < todayStr) continue;  // 過ぎた日は表示しない (今日以降のみ)
+    const evs = eventsOn(dstr);
+    if (!evs.length) continue;
+    const dow = d.getDay();
+    const dcls = (dstr === todayStr ? 'today ' : '') + ((dow === 0 || isHoliday(dstr)) ? 'sun' : (dow === 6 ? 'sat' : ''));
+    html += `<div class="lv-day"><div class="lv-date ${dcls}"><span class="dnum">${dd}</span><span class="ddow">(${DOW[dow]})${dstr===todayStr?' 今日':''}</span></div>`;
+    html += evs.map(e => {
+      const isMtg = e.kind === 'meeting';
+      const c = isMtg ? CATS.meeting : (CATS[e.category] || CATS.other);
+      const when = e.all_day ? '終日' : (timeOf(e.start_at) || '');
+      const catLabel = isMtg ? '' : c.label;
+      const meta = [when, catLabel, e.location, e.created_by_name].filter(Boolean).join(' ・ ');
+      const ava = e.created_by_avatar ? `<img class="lv-ava" src="${esc(e.created_by_avatar)}" alt="">` : `<div class="lv-ava">${isMtg ? '🎙' : ''}</div>`;
+      const label = isMtg ? '会議予約' : (e.scope === 'personal' ? '自分の予定' : '共有予定');
+      const labelColor = isMtg ? CATS.meeting.color : (e.scope === 'personal' ? '#64748b' : '#0f766e');
+      return `<div class="lv-ev" onclick="openItem('${e.id}')">
+        <span class="bar" style="background:${c.color}"></span>${ava}
+        <div class="lv-body"><div class="lv-ttl">${isMtg ? '🎙 ' : ''}${esc(e.title)}</div><div class="lv-meta">${esc(meta)}</div></div>
+        <span class="lv-cat" style="background:${labelColor}">${label}</span>
+      </div>`;
+    }).join('');
+    html += `</div>`;
+  }
+  if (!html) html = `<div class="lv-empty">${cur.getMonth()+1}月の今後の共有予定はありません。<br>「＋ 予定を追加」から登録できます。</div>`;
+  document.getElementById('list-view').innerHTML = html;
+}
+
+function moveMonth(n){
+  if (viewMode === 'twoweek') { twStart.setDate(twStart.getDate() + n * 14); }
+  else { cur.setMonth(cur.getMonth() + n); }
+  load();
+}
+function goToday(){ cur = new Date(); cur.setDate(1); twStart = startOfWeek(new Date()); load(); }
+
+/* ---- ホバーポップアップ (PCのみ。タッチ端末はタップで詳細モーダル) ---- */
+const CAN_HOVER = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+function showPop(ev, id){
+  if (!CAN_HOVER) return;
+  const e = events.find(x => String(x.id) === String(id)); if (!e) return;
+  const isMtg = e.kind === 'meeting';
+  const c = isMtg ? CATS.meeting : (CATS[e.category] || CATS.other);
+  const ava = e.created_by_avatar ? `<img src="${esc(e.created_by_avatar)}" alt="">` : '';
+  const typeLabel = isMtg ? '🎙 会議予約' : (e.scope === 'personal' ? '👤 自分の予定' : '👥 共有予定');
+  const pop = document.getElementById('hover-pop');
+  pop.innerHTML =
+    `<div class="hp-title">${esc(e.title)}</div>` +
+    `<div><span class="hp-badge" style="background:${c.color}">${isMtg ? '会議' : c.label}</span><span class="hp-when">${esc(fmtWhen(e))}</span></div>` +
+    `<div class="hp-row" style="color:#64748b;font-weight:600;">${typeLabel}</div>` +
+    (e.location ? `<div class="hp-row">📍 ${esc(e.location)}</div>` : '') +
+    (e.description ? `<div class="hp-row memo">${esc(e.description)}</div>` : '') +
+    `<div class="hp-by">${ava}<span>${esc(e.created_by_name || '—')}${isMtg ? '（主催）' : ''}</span></div>` +
+    (isMtg ? `<div class="hp-row" style="color:#6d28d9;font-weight:700;">▶ クリックで会議詳細へ</div>` : '');
+  pop.style.display = 'block';
+  movePop(ev);
+}
+function movePop(ev){
+  const pop = document.getElementById('hover-pop');
+  if (pop.style.display !== 'block') return;
+  const pad = 12, w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w + pad > window.innerWidth) x = ev.clientX - w - 14;
+  if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+  if (x < pad) x = pad;
+  if (y < pad) y = pad;
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+}
+function hidePop(){ document.getElementById('hover-pop').style.display = 'none'; }
+
+/* ---- 追加/編集 ---- */
+function openAdd(dstr){
+  document.getElementById('edit-title').textContent = '予定を追加';
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-title').value = '';
+  document.querySelector('#f-cat input[value="meeting"]').checked = true; syncCatStyle();
+  document.querySelector('input[name=scope][value="shared"]').checked = true;
+  document.getElementById('f-allday').checked = false; toggleAllday();
+  const d = (typeof dstr === 'string' && dstr) ? dstr : ymd(new Date());
+  document.getElementById('f-sdate').value = d;
+  document.getElementById('f-stime').value = '09:00';
+  document.getElementById('f-edate').value = '';
+  document.getElementById('f-etime').value = '';
+  document.getElementById('f-loc').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-err').textContent = '';
+  document.getElementById('edit-ov').classList.add('show');
+}
+function toggleAllday(){
+  const on = document.getElementById('f-allday').checked;
+  document.getElementById('f-stime-wrap').style.visibility = on ? 'hidden' : 'visible';
+  document.getElementById('f-etime-wrap').style.visibility = on ? 'hidden' : 'visible';
+}
+function closeEdit(){ document.getElementById('edit-ov').classList.remove('show'); }
+
+async function saveEvent(){
+  const err = document.getElementById('f-err');
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { err.textContent = '件名を入力してください'; return; }
+  const sdate = document.getElementById('f-sdate').value;
+  if (!sdate) { err.textContent = '開始日を入力してください'; return; }
+  const allDay = document.getElementById('f-allday').checked;
+  const stime = document.getElementById('f-stime').value;
+  const edate = document.getElementById('f-edate').value;
+  const etime = document.getElementById('f-etime').value;
+  const cat = (document.querySelector('#f-cat input:checked')||{}).value || 'meeting';
+  const scope = (document.querySelector('input[name=scope]:checked')||{}).value || 'shared';
+
+  let start_at = sdate + (allDay ? '' : (stime ? ' ' + stime : ''));
+  let end_at = null;
+  if (edate) end_at = edate + (allDay ? '' : (etime ? ' ' + etime : ''));
+  else if (!allDay && etime) end_at = sdate + ' ' + etime;   // 同日の終了時刻のみ
+
+  const body = { title, category: cat, scope, all_day: allDay ? 1 : 0, start_at, end_at,
+                 location: document.getElementById('f-loc').value.trim(),
+                 description: document.getElementById('f-desc').value.trim() };
+  const id = document.getElementById('f-id').value;
+  try {
+    const j = id
+      ? await api('/api/shared-calendar/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+      : await api('/api/shared-calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!j.success) { err.textContent = j.msg || '保存に失敗しました'; return; }
+    closeEdit();
+    await load();
+  } catch(e) { if (String(e.message)!=='403' && String(e.message)!=='401') err.textContent = '通信エラー'; }
+}
+
+/* ---- 詳細 ---- */
+function fmtWhen(e){
+  const sd = dateOf(e.start_at), st = timeOf(e.start_at);
+  const ed = dateOf(e.end_at), et = timeOf(e.end_at);
+  const fd = s => { const [y,m,d]=s.split('-'); return `${parseInt(m)}月${parseInt(d)}日`; };
+  if (e.all_day) {
+    return ed && ed !== sd ? `${fd(sd)} 〜 ${fd(ed)}（終日）` : `${fd(sd)}（終日）`;
+  }
+  let s = fd(sd) + (st ? ' ' + st : '');
+  if (ed && ed !== sd) s += ` 〜 ${fd(ed)}${et?' '+et:''}`;
+  else if (et) s += ` 〜 ${et}`;
+  return s;
+}
+function openDet(id){
+  const e = events.find(x => String(x.id) === String(id)); if (!e) return;
+  hidePop();
+  _detId = id;
+  const c = CATS[e.category] || CATS.other;
+  const badge = document.getElementById('d-cat');
+  badge.textContent = c.label; badge.style.background = c.color;
+  const sb = document.getElementById('d-scope');
+  sb.textContent = (e.scope === 'personal') ? '👤 自分の予定' : '👥 共有予定';
+  sb.style.background = (e.scope === 'personal') ? '#64748b' : '#0f766e';
+  document.getElementById('d-title').textContent = e.title;
+  document.getElementById('d-when').textContent = fmtWhen(e);
+  document.getElementById('d-loc-row').style.display = e.location ? 'flex' : 'none';
+  document.getElementById('d-loc').textContent = e.location || '';
+  document.getElementById('d-desc-row').style.display = e.description ? 'flex' : 'none';
+  document.getElementById('d-desc').textContent = e.description || '';
+  const byAva = e.created_by_avatar ? `<img src="${esc(e.created_by_avatar)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-4px;margin-right:5px;">` : '';
+  document.getElementById('d-by').innerHTML = byAva + esc(e.created_by_name || '—');
+  const canEdit = me.role === 'admin' || e.created_by === me.uid;
+  document.getElementById('d-edit-btn').classList.toggle('hide', !canEdit);
+  document.getElementById('d-del-btn').classList.toggle('hide', !canEdit);
+  document.getElementById('det-ov').classList.add('show');
+}
+function closeDet(){ document.getElementById('det-ov').classList.remove('show'); _detId = null; }
+
+function editFromDet(){
+  const e = events.find(x => String(x.id) === String(_detId)); if (!e) return;
+  closeDet();
+  openAdd();
+  document.getElementById('edit-title').textContent = '予定を編集';
+  document.getElementById('f-id').value = e.id;
+  document.getElementById('f-title').value = e.title;
+  const r = document.querySelector(`#f-cat input[value="${e.category}"]`); if (r) { r.checked = true; syncCatStyle(); }
+  const sr = document.querySelector(`input[name=scope][value="${e.scope === 'personal' ? 'personal' : 'shared'}"]`); if (sr) sr.checked = true;
+  document.getElementById('f-allday').checked = !!e.all_day; toggleAllday();
+  document.getElementById('f-sdate').value = dateOf(e.start_at);
+  document.getElementById('f-stime').value = timeOf(e.start_at) || '09:00';
+  document.getElementById('f-edate').value = (dateOf(e.end_at) && dateOf(e.end_at)!==dateOf(e.start_at)) ? dateOf(e.end_at) : '';
+  document.getElementById('f-etime').value = timeOf(e.end_at) || '';
+  document.getElementById('f-loc').value = e.location || '';
+  document.getElementById('f-desc').value = e.description || '';
+}
+
+async function deleteEvent(){
+  if (!_detId) return;
+  if (!confirm('この予定を削除しますか？')) return;
+  try {
+    const j = await api('/api/shared-calendar/' + _detId, { method:'DELETE' });
+    if (!j.success) { alert(j.msg || '削除に失敗しました'); return; }
+    closeDet();
+    await load();
+  } catch(e) {}
+}
+
+// オーバーレイ背景クリックで閉じる
+document.getElementById('edit-ov').addEventListener('click', e => { if (e.target.id==='edit-ov') closeEdit(); });
+document.getElementById('det-ov').addEventListener('click', e => { if (e.target.id==='det-ov') closeDet(); });
+
+init();
+</script>
+</body>
+</html>
