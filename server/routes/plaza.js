@@ -9,78 +9,114 @@ const { analyzeFoodImage, generateText } = require('../services/ai');
 
 const CATEGORIES = ['食事', '相談', '雑談', '健康Tips'];
 
-// ── 悩み相談(相談カテゴリ)の一次対応【黒子型】 2026-05-26 ──
-// AIは公開の自動返信はせず、推進メンバーのグループ(g_field_voice)へ
-// 「相談内容 + AIの回答下書き + 論点」を流す。表の回答は人が自分の言葉で行う。
+// ── 悩み相談(相談カテゴリ)の一次対応【黒子型 + 3段階トリアージ】 2026-05-26 ──
+// AIは公開の自動返信はせず、推進メンバーのグループ(g_field_voice)へ「相談内容+Tier+AI下書き」を流す。
+// 表の回答は人が自分の言葉で行う。Tierに応じて push 先(つなぐ先)を変える:
+//   Tier1 軽い/一般  → 推進メンバーがピア対応 (AI下書きあり)
+//   Tier2 要観察/健康 → 安島さん(NPO法人ヘルスケアネットワーク)へ
+//   Tier3 危機/メンタル→ 西村さん(産業医紹介の窓口)+管理者へ。AI助言は出さない
+// 設計詳細: docs/悩み相談_AI一次対応とトリアージ設計.md
 const CONSULT_PROMOTER_GROUP = 'g_field_voice';
-// 深刻ワード検知時はAI助言を出さず、人/専門窓口への緊急エスカレーションに切替える
+const CONSULT_NPO_LOGIN = 'dalerisu';            // 安島=NPOヘルスケアネットワーク (Tier2のつなぐ先)
+const CONSULT_SANGYOI_GW_LOGIN = 's_nishimura';  // 西村=産業医紹介の窓口 (Tier3。傍観者だが危機時のみ)
+// 深刻ワード(検知したら問答無用でTier3=AI助言なし・緊急エスカレ)
 const CONSULT_SERIOUS_RE = /(死に?たい|消えたい|自殺|リスカ|リストカット|死のう|生きてても|もう限界|限界です|うつ病|鬱|パワハラ|セクハラ|暴力|殴ら|蹴ら|いじめ|ハラスメント|虐待|休職|辞めたい|退職したい)/;
 
-// 相談投稿 → 推進グループへAI下書きを通知 (非同期・投稿成立を妨げない)
+function consultUidByLogin(db, loginId) {
+  try { const r = db.prepare('SELECT id FROM users WHERE login_id = ?').get(loginId); return r ? r.id : null; }
+  catch (e) { return null; }
+}
+
+// 相談内容を Tier 1/2/3 に分類し、Tier1/2 はAI下書きも生成 (深刻ワードは即Tier3)
+async function classifyConsult(content) {
+  if (CONSULT_SERIOUS_RE.test(content)) return { tier: 3, draft: '' };
+  try {
+    const prompt =
+      'あなたは運送会社の健康推進担当を補佐するアシスタント。社員が匿名投稿した「悩み相談」を分類し回答下書きを作る。\n' +
+      '相談内容:\n「' + content.slice(0, 1500) + '」\n\n' +
+      'tierの基準:\n' +
+      '1=軽い/一般的(寒暖差の頭痛・肩こり・軽い食事や生活の相談など、ピアで十分)\n' +
+      '2=要観察/専門寄り(眠れない日が続く・血圧・慢性的な不調・強いストレスなど、健康相談の専門窓口につなぐべき)\n' +
+      '3=深刻/危機(希死念慮・ハラスメント・メンタル危機など)\n\n' +
+      'draftの方針(医療診断・断定はしない):\n' +
+      'tier1: 推進メンバーが本人へそのまま手直しして返せる下書き →【共感】【一般的なアドバイス2-3点】【次の一歩】【回答者向けメモ】\n' +
+      'tier2: 「専門の窓口(NPO)におつなぎします」方向。共感+一般情報+つなぐ旨+回答者向けメモ\n' +
+      'tier3: draftは空文字\n\n' +
+      '次のJSONのみで返答: {"tier":1|2|3,"draft":"日本語の下書き(tier3は空)"}';
+    const raw = await generateText(prompt, { responseMimeType: 'application/json', maxTokens: 900, thinkingBudget: 0 });
+    const j = JSON.parse(raw);
+    const tier = [1, 2, 3].includes(j.tier) ? j.tier : 1;
+    const draft = tier === 3 ? '' : String(j.draft || '').trim();
+    return { tier, draft };
+  } catch (e) {
+    return { tier: 1, draft: '(AI下書き生成に失敗: ' + e.message + ')\nお手数ですが内容を読んで対応をお願いします。' };
+  }
+}
+
+// 相談投稿 → Tier分類 → 推進グループへ記録 + Tier別つなぐ先へpush (非同期・投稿成立を妨げない)
 async function notifyConsultToPromoters(app, post) {
   try {
     const db = getDb();
     const content = String(post.content || '').trim();
     if (!content) return;
-    const serious = CONSULT_SERIOUS_RE.test(content);
     const nick = post.is_anonymous
       ? (post.author_nickname ? '🎭 ' + post.author_nickname : '🎭 匿名')
       : (post.author_name || '社員');
 
-    let draft;
-    if (serious) {
-      draft = '🚨 要注意ワードを検知したため、AIの助言は控えます。\n保健師・管理者が直接フォローし、本人の安全確認を最優先に。必要に応じて外部相談窓口を案内してください。';
+    const { tier, draft } = await classifyConsult(content);
+
+    let head, bodyAction, pushTitle, urgent, targets;
+    if (tier === 3) {
+      head = '🚨 悩み相談【Tier3 / 危機】';
+      bodyAction = '─ 対応 ─\nAIの助言は控えます。本人の安全確認を最優先に。\n→ 西村さんが産業医を紹介し、管理者がフォローしてください(必要なら外部相談窓口)。';
+      pushTitle = '🚨 悩み相談【Tier3 危機】';
+      urgent = true;
+      const gw = consultUidByLogin(db, CONSULT_SANGYOI_GW_LOGIN);
+      const admins = db.prepare("SELECT id FROM users WHERE role='admin' AND employee_type='admin'").all().map(r => r.id);
+      targets = [gw, ...admins];
+    } else if (tier === 2) {
+      head = '🟡 悩み相談【Tier2 / 要観察】→ 安島さん(NPO法人ヘルスケアネットワーク)へ';
+      bodyAction = '─ AI下書き ─\n' + draft;
+      pushTitle = '🟡 悩み相談【Tier2】NPO対応案件';
+      urgent = false;
+      targets = [consultUidByLogin(db, CONSULT_NPO_LOGIN)];
     } else {
-      try {
-        const prompt =
-          'あなたは運送会社の健康推進担当を補佐するアシスタントです。以下は社員が匿名で投稿した「悩み相談」。' +
-          '実際に回答するのは人間の推進メンバーで、あなたはその"下書き"を作るだけです。\n\n' +
-          '相談内容:\n「' + content.slice(0, 1500) + '」\n\n' +
-          '推進メンバーがそのまま手直しして使える日本語の下書きを、次の形式で作成してください。' +
-          '専門外の断定や医療診断はしない。共感だけで終わらせず必ず具体的な次の一歩を1つ添える。深刻なら産業医/保健師への相談を促す。\n\n' +
-          '【共感の一言】(1文)\n【一般的なアドバイス】(2〜3点・箇条書き)\n【次の一歩】(今日からできる具体的な1つ)\n【回答者向けメモ】(確認したい点・注意点を1〜2行)';
-        draft = await generateText(prompt, { temperature: 0.5, maxTokens: 700 });
-      } catch (e) {
-        draft = '(AI下書き生成に失敗: ' + e.message + ')\nお手数ですが内容を読んで対応をお願いします。';
-      }
+      head = '🆘 悩み相談【Tier1】推進メンバーがピア対応 (AI下書き / 返信は人がお願いします)';
+      bodyAction = '─ AI下書き ─\n' + draft;
+      pushTitle = '🆘 悩み相談【Tier1】';
+      urgent = false;
+      targets = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(CONSULT_PROMOTER_GROUP).map(r => r.user_id);
     }
 
-    const head = (serious ? '🚨 悩み相談 一次対応【緊急】' : '🆘 悩み相談 一次対応')
-      + '  (AI下書き / 返信は人がお願いします)';
     const msgContent = [
       head,
       '投稿者: ' + nick + '　#' + post.id,
       '─ 相談内容 ─',
       content.slice(0, 600),
-      '─ AI下書き ─',
-      draft,
+      bodyAction,
       '→ 「悩み相談」を開いて、あなたの言葉で返信してください: /plaza.html?tab=相談',
     ].join('\n');
 
+    // g_field_voice に記録 (全推進メンバーが見える) — Tierに関わらず投稿
     const roomCode = 'grp_' + CONSULT_PROMOTER_GROUP;
     const msgIns = db.prepare(`INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_health', NULL, ?, ?)`).run(msgContent, roomCode);
-
-    const payload = {
-      id: msgIns.lastInsertRowid,
-      from: 'bot_health',
-      group_id: CONSULT_PROMOTER_GROUP,
-      content: msgContent,
-      at: new Date().toISOString(),
-      attach: null,
-    };
+    const payload = { id: msgIns.lastInsertRowid, from: 'bot_health', group_id: CONSULT_PROMOTER_GROUP, content: msgContent, at: new Date().toISOString(), attach: null };
     const emitG = app && app.locals && app.locals.emitToGroupMembers;
     if (emitG) emitG(CONSULT_PROMOTER_GROUP, 'group:msg', payload);
 
+    // push: Tier別のつなぐ先へ (重複排除)
     const sendPush = app && app.locals && app.locals.sendPushToUser;
     if (sendPush) {
-      const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id = ?').all(CONSULT_PROMOTER_GROUP);
-      for (const m of members) {
-        sendPush(m.user_id, {
-          title: serious ? '🚨 悩み相談【緊急】' : '🆘 悩み相談 一次対応',
+      const seen = new Set();
+      for (const uid of targets) {
+        if (!uid || seen.has(uid)) continue;
+        seen.add(uid);
+        sendPush(uid, {
+          title: pushTitle,
           body: content.slice(0, 100),
           tag: 'consult-' + post.id,
           url: '/?g=' + CONSULT_PROMOTER_GROUP,
-          requireInteraction: serious,
+          requireInteraction: urgent,
         }).catch(() => {});
       }
     }
