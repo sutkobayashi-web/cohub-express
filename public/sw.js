@@ -1,6 +1,6 @@
 // CoWell Service Worker (PWA Push通知)
 // v4 (2026-05-18): 旧 lobby/葵版が残存する PWA を強制的に /home に飛ばすため cache全削除＋controlled clientsをnavigate。
-const CACHE = 'cohub-v4';
+const CACHE = "cohub-v6";
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -40,8 +40,11 @@ self.addEventListener('push', (event) => {
     // SW push 通知は出さない。タブが完全に閉じている時のみここで OS 通知を出す。
     // (両方発火による DM/メンション通知の二重表示を防止)
     try {
-      const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (list && list.length > 0) return;
+      // data.alwaysShow=true なら開いてても出す (plaza:new等の全員向け重要通知)
+      if (!data.alwaysShow) {
+        const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        if (list && list.length > 0) return;
+      }
     } catch (e) {}
     const title = data.title || 'CoWell';
     const options = {
@@ -50,9 +53,9 @@ self.addEventListener('push', (event) => {
       badge: '/img/favicon-32.png',
       tag: data.tag || 'cohub-push',
       renotify: true,
-      requireInteraction: !!data.mention,
+      requireInteraction: data.requireInteraction !== undefined ? !!data.requireInteraction : !!data.mention,
       data: { url: data.url || '/' },
-      vibrate: data.mention ? [200, 80, 200] : [100],
+      vibrate: data.vibrate || (data.mention ? [200, 80, 200] : [100]),
     };
     return self.registration.showNotification(title, options);
   })());

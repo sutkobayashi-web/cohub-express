@@ -132,23 +132,40 @@
   try { if (localStorage.getItem('cohub_plaza_tts_on') === '0') _ttsOn = false; } catch (e) {}
   var _ttsBlobCache = new Map(); // text -> blobURL
   var _ttsCurrentAudio = null;
-  function _fallbackSpeak(text) {
+  function _fallbackSpeak(text, opts) {
     if (!('speechSynthesis' in window)) return;
+    opts = opts || {};
     try {
       var u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ja-JP'; u.rate = 1.05; u.pitch = 1.0; u.volume = 0.9;
+      u.lang = 'ja-JP';
+      u.rate = opts.fbRate != null ? opts.fbRate : 1.05;
+      u.pitch = opts.fbPitch != null ? opts.fbPitch : 1.0;  // 低め=シリアス
+      u.volume = 1.0;
+      // 男性声があれば優先 (アラート用)
+      if (opts.male) {
+        try {
+          var vs = window.speechSynthesis.getVoices() || [];
+          var jp = vs.filter(function (v) { return /ja|JP/i.test(v.lang); });
+          var m = jp.find(function (v) { return /male|男|otoya|Ichiro|Hattori|Daichi/i.test(v.name); });
+          if (m) u.voice = m;
+        } catch (e) {}
+      }
       try { window.speechSynthesis.cancel(); } catch (e) {}
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
-  async function speak(text) {
-    if (!_ttsOn || !text) return;
+  async function speak(text, opts) {
+    opts = opts || {};
+    if ((!_ttsOn && !opts.force) || !text) return;  // アラートは force:true で TTS-OFF でも鳴らす
     // 進行中の読み上げを止める (連投時の重なり防止)
     try {
       if (_ttsCurrentAudio) { _ttsCurrentAudio.pause(); _ttsCurrentAudio = null; }
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     } catch (e) {}
-    var voice = 'ja-JP-Neural2-B', speed = 1.00, pitch = 5; // 少しゆっくり+ピッチUPで元気よく
+    // 既定は葵(ひろば)。アラートは opts で男性シリアス声を指定
+    var voice = opts.voice || 'ja-JP-Neural2-B';
+    var speed = opts.speed != null ? opts.speed : 1.10;
+    var pitch = opts.pitch != null ? opts.pitch : 4;
     var key = text + '|' + voice + '|' + speed + '|' + pitch;
     try {
       var url = _ttsBlobCache.get(key);
@@ -158,7 +175,7 @@
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify({ text: text, voice: voice, speed: speed, pitch: pitch }),
         });
-        if (!res.ok) { console.warn('[gn] tts http', res.status); _fallbackSpeak(text); return; }
+        if (!res.ok) { console.warn('[gn] tts http', res.status); _fallbackSpeak(text, opts); return; }
         var blob = await res.blob();
         url = URL.createObjectURL(blob);
         _ttsBlobCache.set(key, url);
@@ -172,14 +189,169 @@
       audio.volume = 1.0;
       _ttsCurrentAudio = audio;
       audio.addEventListener('ended', function () { if (_ttsCurrentAudio === audio) _ttsCurrentAudio = null; });
-      try { await audio.play(); } catch (e) { console.warn('[gn] tts play', e && e.message); _fallbackSpeak(text); }
-    } catch (e) { console.warn('[gn] tts fail', e && e.message); _fallbackSpeak(text); }
+      try { await audio.play(); } catch (e) { console.warn('[gn] tts play', e && e.message); _fallbackSpeak(text, opts); }
+    } catch (e) { console.warn('[gn] tts fail', e && e.message); _fallbackSpeak(text, opts); }
   }
   // 公開: 設定UIから ON/OFF
   window.cohubPlazaTtsToggle = function (on) {
     _ttsOn = !!on;
     try { localStorage.setItem('cohub_plaza_tts_on', on ? '1' : '0'); } catch (e) {}
   };
+
+  // ===== 運転アラート: 通知音 (やわらかいベルチャイム / 2026-05-25 音色刷新) =====
+  // 安全系の重要通知だが 20秒ごとにループするため、精神衛生に配慮し
+  // 正弦波のベル風2音 (高→低の施設アナウンス風) に変更。気づくが急かさない・耳に痛くない。
+  // チャット用チャイムON/OFFとは独立。常に鳴らす。
+  function playAlarm() {
+    try {
+      if (!_unlockCtx) _unlockCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var ctx = _unlockCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+      var t = ctx.currentTime;
+      // 1音 = 正弦波 + ベル風の自然な減衰 (やわらかい立ち上がり→ゆっくり消える)。倍音を僅かに重ね温かみを出す。
+      function note(freq, at, dur, peak) {
+        [[freq, peak], [freq * 2, peak * 0.18]].forEach(function (p) {
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(p[0], at);
+          g.gain.setValueAtTime(0.0001, at);
+          g.gain.exponentialRampToValueAtTime(p[1], at + 0.05);    // ふわっと立ち上げ
+          g.gain.exponentialRampToValueAtTime(0.0001, at + dur);   // ゆっくり減衰
+          o.connect(g); g.connect(ctx.destination);
+          o.start(at); o.stop(at + dur + 0.05);
+        });
+      }
+      // 高→低の落ち着いた2音 (C6→G5)。駅・空港のアナウンス前チャイム風で「気づくが穏やか」。
+      note(1047, t,        0.85, 0.20);   // ピーン
+      note(784,  t + 0.45, 1.35, 0.22);   // ポーン
+      return 1.7; // 鳴動秒数 (音声読み上げ開始の目安)
+    } catch (e) { console.warn('[alert] chime fail', e); try { playChime(); } catch (_) {} return 1.0; }
+  }
+
+  function _esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  // ========== 運転アラート: 対応済みになるまで警報をループ (2026-05-25 ユーザー要望) ==========
+  // 未対応の間は派手な音+音声を ALERT_LOOP_MS ごとに繰り返す。管理者が一覧で「対応済み」に
+  // すると停止。リロード/再ログイン時も未対応が残っていれば自動で鳴り続ける(見逃し防止)。
+  var _alertPending = new Map();          // id -> alert
+  var _alertLoopTimer = null;
+  var _onAlertsPage = /^\/alerts(\.html|\/|$|\?)/.test(path);
+  var ALERT_LOOP_MS = 20000;
+  // 男性のシリアスな声 (ユーザー要望 2026-05-25): Neural2-D=低め男性、pitch下げ・やや遅め。
+  // force:true で「ひろばTTS OFF」でも安全アラートは鳴らす。fallbackも男性/低ピッチ指定。
+  var ALERT_VOICE = { voice: 'ja-JP-Neural2-D', speed: 0.98, pitch: -3.5, force: true, male: true, fbPitch: 0.7, fbRate: 0.98 };
+
+  function _alertWhere(a) { return a.branch || a.vehicle_name || a.vehicle_number || ''; }
+
+  // 数字を1桁ずつ読点区切りに ("9999"→"9、9、9、9")。ハイフンは除去
+  function _digits(s) { return String(s).replace(/[-－\s]/g, '').split('').join('、'); }
+
+  // 読み上げ用にナンバーを分解してポーズを入れる: "相模800て9999" → "相模、8、0、0、て、9、9、9、9"
+  // (表示には使わない。地域名/分類番号/かな/一連番号 を読点で区切り、数字は1桁ずつ読ませる)
+  function speakableVehicle(a) {
+    if (a.branch) return a.branch;
+    var name = (a.vehicle_name || '').trim();
+    if (name) {
+      var m = name.match(/^([^\d０-９ぁ-んァ-ヶ\s]+)?\s*([\d０-９]+)?\s*([ぁ-んァ-ヶ]+)?\s*([\d０-９\-－]+)?\s*$/);
+      if (m && (m[1] || m[2] || m[3] || m[4])) {
+        var out = [];
+        if (m[1]) out.push(m[1].trim());                                     // 地域名
+        if (m[2]) out.push(_digits(m[2]));                                   // 分類番号: 1桁ずつ
+        if (m[3]) out.push(m[3].trim());                                     // かな
+        if (m[4]) out.push(_digits(m[4]));                                   // 一連番号: 1桁ずつ
+        return out.join('、');
+      }
+      return name;
+    }
+    var num = (a.vehicle_number || '').trim();   // 内部車番しか無い時も1桁ずつ
+    return num ? _digits(num) : '';
+  }
+
+  var ALERT_CLOSING = '。だいしきゅう、所属の管理者は対応すること。';  // TTS誤読(おおしきゅう)対策でかな表記
+  function buildAnnounce() {
+    if (_alertPending.size === 0) return '';
+    if (_alertPending.size === 1) {
+      var a = _alertPending.values().next().value;
+      var parts = [];
+      var v = speakableVehicle(a);
+      if (v) parts.push(v);
+      if (a.driver_name) parts.push('運転者、' + a.driver_name + 'さん');
+      if (a.notice) parts.push(a.notice);
+      return parts.join('、') + ALERT_CLOSING;
+    }
+    return '未対応の運転アラートが' + _alertPending.size + '件あります' + ALERT_CLOSING;
+  }
+
+  // 赤フラッシュ常駐トースト (タップで一覧へ)。未対応が無くなれば消える
+  function renderAlertToast() {
+    if (_onAlertsPage) return;            // 一覧表示中は被るので出さない(音はループ)
+    var t = document.getElementById('gn-alert-toast');
+    if (_alertPending.size === 0) { if (t) t.style.opacity = '0'; return; }
+    if (!document.getElementById('gn-alert-style')) {
+      var st = document.createElement('style'); st.id = 'gn-alert-style';
+      st.textContent = '@keyframes gnAlertFlash{0%,100%{box-shadow:0 14px 40px rgba(220,38,38,.55);}50%{box-shadow:0 16px 56px rgba(255,90,90,.98);}}';
+      document.head.appendChild(st);
+    }
+    if (!t) {
+      t = document.createElement('div'); t.id = 'gn-alert-toast';
+      t.style.cssText = 'position:fixed;left:50%;top:24px;transform:translateX(-50%);background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;padding:18px 30px;border-radius:18px;font-size:18px;font-weight:800;z-index:100000;max-width:94vw;text-align:center;opacity:0;transition:opacity .2s;pointer-events:auto;cursor:pointer;border:3px solid rgba(255,255,255,.55);animation:gnAlertFlash .6s ease-in-out infinite;';
+      t.onclick = function () { location.href = '/alerts.html'; };
+      document.body.appendChild(t);
+    }
+    var last = Array.from(_alertPending.values()).pop();
+    var detail = [_alertWhere(last), last.driver_name ? ('運転者 ' + last.driver_name) : '', last.notice].filter(Boolean).map(_esc).join('　/　');
+    var head = _alertPending.size > 1 ? ('⚠️ 未対応の運転アラート ' + _alertPending.size + '件') : '⚠️ 運転アラート（未対応）';
+    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">' + head + '</div><div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで一覧へ → 「対応済み」で停止</div>';
+    t.style.opacity = '1';
+  }
+
+  // 1回鳴らす (派手な音 → 鳴り終わってから音声読み上げ)
+  function fireAlert() {
+    var dur = playAlarm() || 2.0;
+    var ann = buildAnnounce();
+    if (ann) setTimeout(function () { speak(ann, ALERT_VOICE); }, Math.round(dur * 1000) + 250);
+  }
+
+  function startAlertLoop() {
+    renderAlertToast();
+    if (_alertLoopTimer) return;
+    _alertLoopTimer = setInterval(function () {
+      if (_alertPending.size === 0) { stopAlertLoop(); return; }
+      fireAlert();
+      renderAlertToast();
+    }, ALERT_LOOP_MS);
+  }
+  function stopAlertLoop() {
+    if (_alertLoopTimer) { clearInterval(_alertLoopTimer); _alertLoopTimer = null; }
+    var t = document.getElementById('gn-alert-toast'); if (t) t.style.opacity = '0';
+  }
+
+  function addPendingAlert(a, fireNow) {
+    if (!a) return;
+    var id = (a.id != null) ? a.id : ('k' + (a.vehicle_number || '') + (a.occurred_at || '') + (a.notice || ''));
+    var isNew = !_alertPending.has(id);
+    _alertPending.set(id, a);
+    if (fireNow && isNew) fireAlert();
+    startAlertLoop();
+    try { window.dispatchEvent(new CustomEvent('cohub:alert-new', { detail: a })); } catch (e) {}
+  }
+  function removePendingAlert(id) {
+    _alertPending['delete'](id);
+    if (_alertPending.size === 0) stopAlertLoop(); else renderAlertToast();
+  }
+
+  // 起動時ブートストラップ: 未対応が残っていれば鳴らし続ける (管理職のみ; 非管理職は403で無反応)
+  function bootstrapAlerts() {
+    fetch('/api/alert/unhandled', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.success || !j.alerts || !j.alerts.length) return;
+        j.alerts.forEach(function (a) { addPendingAlert(a, false); });
+        fireAlert();   // まとめて1回鳴らしてループ開始
+      }).catch(function () {});
+  }
+  // 一覧ページ側から「対応済み化」されたら即停止できるよう公開
+  window.cohubAlertHandled = function (id) { removePendingAlert(id); };
 
   // ===== Socket.IO 接続 =====
   function connect() {
@@ -214,6 +386,12 @@
           showToast('💬 グループ: ' + ((p.content || '').slice(0, 40) || '📎 添付'));
         });
       }
+
+      // ⚠️ 運転アラート — 管理職のみサーバーから配信。未対応の間ループ、対応済みで停止
+      socket.on('alert:new', function (a) { addPendingAlert(a, true); });
+      socket.on('alert:handled', function (p) { if (p && p.handled) removePendingAlert(p.id); });
+      // 未対応の積み残しがあれば鳴らし始める
+      bootstrapAlerts();
 
       // 🟢 みんなの声 plaza:new — 全ページで発火 (plaza自身は除く=リアルタイム描画と二重になる)
       // 設計思想: 「どんな投稿も反応してあげて無碍にしたくない」

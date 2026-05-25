@@ -77,6 +77,7 @@ router.post('/login', (req, res) => {
       job_role: user.job_role || null,
       is_field_promoter: !!user.is_field_promoter,
       is_warehouse_promoter: !!user.is_warehouse_promoter,
+      is_manager: !!user.is_manager,
       is_guest_reviewer: !!user.is_guest_reviewer,
       guest_org: user.guest_org || null,
       birth_date: user.birth_date || null,
@@ -92,7 +93,7 @@ router.post('/login', (req, res) => {
 
 // 自分の最新ユーザー情報 (フラグ追加時に既存ログイン中ユーザーが再取得できるよう)
 router.get('/me', authUser, (req, res) => {
-  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, dm_group, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at, research_consent, research_consent_at FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT id, login_id, display_name, company_code, dm_group, role, employee_type, job_role, avatar_url, is_field_promoter, is_warehouse_promoter, is_manager, is_guest_reviewer, guest_org, birth_date, nickname, consent_version, consent_accepted_at, research_consent, research_consent_at FROM users WHERE id = ?').get(req.uid);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
   const needsConsent = u.role !== 'bot' && u.consent_version !== CONSENT_VERSION;
   res.json({
@@ -108,6 +109,7 @@ router.get('/me', authUser, (req, res) => {
       job_role: u.job_role || null,
       is_field_promoter: !!u.is_field_promoter,
       is_warehouse_promoter: !!u.is_warehouse_promoter,
+      is_manager: !!u.is_manager,
       is_guest_reviewer: !!u.is_guest_reviewer,
       guest_org: u.guest_org || null,
       birth_date: u.birth_date || null,
@@ -354,6 +356,24 @@ router.post('/logout', (req, res) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     getDb().prepare("UPDATE users SET session_token = NULL WHERE id = ?").run(payload.uid);
     getDb().prepare("UPDATE positions SET status='offline', updated_at=datetime('now') WHERE user_id = ?").run(payload.uid);
+    // 該当uidの全socketを切断 (plaza:new等の継続通知を止める)
+    const io = req.app && req.app.locals && req.app.locals.io;
+    if (io) {
+      let kicked = 0;
+      for (const [sid, s] of io.sockets.sockets) {
+        try {
+          const t = (s.handshake && s.handshake.auth && s.handshake.auth.token) || '';
+          if (!t) continue;
+          const p = jwt.verify(t, process.env.JWT_SECRET);
+          if (p && p.uid === payload.uid) {
+            try { s.emit('session:loggedout'); } catch (_) {}
+            s.disconnect(true);
+            kicked++;
+          }
+        } catch (_) {}
+      }
+      if (kicked) console.log('[auth] logout: kicked', kicked, 'sockets for', payload.uid);
+    }
   } catch (e) {}
   res.json({ success: true });
 });

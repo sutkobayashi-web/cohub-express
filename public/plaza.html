@@ -190,7 +190,7 @@ body { padding-bottom: 80px !important; }
 .pcmts .pcmt-author { font-size: 10px; color: #be185d; font-weight: 700; }
 .pcmts .pcmt-input { display: flex; gap: 6px; margin-top: 6px; }
 .pcmts .pcmt-input input { flex: 1; padding: 6px 10px; border: 1px solid #fbcfe8; border-radius: 8px; font-size: 12px; background: #fff; }
-.pcmts .pcmt-input button { background: linear-gradient(135deg,#f472b6,#ec4899); color: #fff; border: none; border-radius: 8px; padding: 4px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pcmts .pcmt-input button { background: linear-gradient(135deg,#f472b6,#ec4899); color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; padding: 0; font-size: 14px; line-height: 1; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .cmt { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
 .cmt:last-child { border-bottom: 0; }
 .cmt .avatar, .cmt .avatar-fallback { width: 28px; height: 28px; font-size: 11px; }
@@ -200,7 +200,7 @@ body { padding-bottom: 80px !important; }
 .cmt-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
 .cmt-form { display: flex; gap: 6px; margin-top: 8px; }
 .cmt-form input { flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 18px; font-size: 13px; outline: none; }
-.cmt-form button { padding: 7px 14px; background: #0d9488; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 12px; font-weight: 700; }
+.cmt-form button { padding: 0; width: 36px; height: 36px; flex-shrink: 0; background: #0d9488; color: #fff; border: none; border-radius: 50%; cursor: pointer; font-size: 16px; line-height: 1; }
 
 .section-ttl { font-size: 11px; font-weight: 800; color: #475569; padding: 4px 4px; margin-top: 14px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 .empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
@@ -1072,7 +1072,7 @@ async function togglePromoterComments(id) {
       ${list || '<div style="font-size:11px;color:#a78bfa;padding:6px;">まだコメントはありません</div>'}
       <form class="pcmt-input" onsubmit="postPromoterComment(event, ${id});return false;">
         <input type="text" placeholder="この投稿への気付きを書く…" maxlength="1000" id="pcmt-input-${id}">
-        <button type="submit">送信</button>
+        <button type="submit" title="送信"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
       </form>`;
     const cnt = (d.comments || []).length;
     const ct = document.getElementById('pcmt-ct-' + id);
@@ -1109,7 +1109,7 @@ async function toggleComments(id) {
   </div>`).join('');
   box.innerHTML = list + `<form class="cmt-form" onsubmit="postComment(event, ${id});return false;">
     <input type="text" placeholder="コメント…" maxlength="500" id="cmt-input-${id}">
-    <button type="submit">送信</button>
+    <button type="submit" title="送信"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
   </form>`;
   document.getElementById('cmt-input-' + id).focus();
 }

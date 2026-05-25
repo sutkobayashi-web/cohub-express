@@ -21,6 +21,12 @@ function safeAuthor(db, uid, isAnon) {
   } catch (e) { return isAnon ? '🎭 匿名' : '社員'; }
 }
 
+// サムネ用: 投稿写真のみ (匿名性のためアバター・人物は出さない)。JSON配列(media_paths)の先頭を返す
+function firstMedia(s) {
+  if (!s) return null;
+  try { const a = JSON.parse(s); return (Array.isArray(a) && a.length) ? a[0] : null; } catch (e) { return null; }
+}
+
 router.get('/', authUser, (req, res) => {
   const db = getDb();
   const limit = Math.min(parseInt(req.query.limit, 10) || 8, 20);
@@ -30,7 +36,7 @@ router.get('/', authUser, (req, res) => {
   // plaza_posts (カテゴリ別にラベル切替)
   try {
     const rows = db.prepare(`
-      SELECT id, author_id, category, content, is_anonymous, created_at
+      SELECT id, author_id, category, content, is_anonymous, image_url, created_at
       FROM plaza_posts
       WHERE deleted_at IS NULL
         AND created_at >= datetime('now', '-' || ? || ' days')
@@ -51,6 +57,7 @@ router.get('/', authUser, (req, res) => {
         summary: trunc(r.content, 36),
         link: m.link,
         author: safeAuthor(db, r.author_id, r.is_anonymous),
+        thumb: r.image_url || null,
         created_at: r.created_at,
       });
     }
@@ -59,7 +66,7 @@ router.get('/', authUser, (req, res) => {
   // board_posts (掲示板)
   try {
     const rows = db.prepare(`
-      SELECT id, author_id, content, created_at
+      SELECT id, author_id, content, image_url, created_at
       FROM board_posts
       WHERE deleted_at IS NULL
         AND created_at >= datetime('now', '-' || ? || ' days')
@@ -73,6 +80,7 @@ router.get('/', authUser, (req, res) => {
         summary: trunc(r.content, 36),
         link: '/board.html',
         author: safeAuthor(db, r.author_id, 0),
+        thumb: r.image_url || null,
         created_at: r.created_at,
       });
     }
@@ -95,6 +103,7 @@ router.get('/', authUser, (req, res) => {
         summary: trunc(r.title, 36),
         link: '/announcements.html',
         author: safeAuthor(db, r.author_id, 0),
+        thumb: null,
         created_at: r.created_at,
       });
     }
@@ -103,7 +112,7 @@ router.get('/', authUser, (req, res) => {
   // vehicle_accident_reports (車両事故)
   try {
     const rows = db.prepare(`
-      SELECT id, reporter_id, reporter_name, accident_type, location, created_at
+      SELECT id, reporter_id, reporter_name, accident_type, location, media_paths, created_at
       FROM vehicle_accident_reports
       WHERE created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at DESC LIMIT 3
@@ -116,6 +125,7 @@ router.get('/', authUser, (req, res) => {
         summary: trunc([r.accident_type, r.location].filter(Boolean).join(' / '), 36),
         link: '/accident.html',
         author: r.reporter_name || safeAuthor(db, r.reporter_id, 0),
+        thumb: firstMedia(r.media_paths),
         created_at: r.created_at,
       });
     }
@@ -124,7 +134,7 @@ router.get('/', authUser, (req, res) => {
   // kbc_accident_reports (製品事故)
   try {
     const rows = db.prepare(`
-      SELECT id, reporter_name, accident_type, location_area, created_at
+      SELECT id, reporter_name, accident_type, location_area, media_paths, label_photo_path, created_at
       FROM kbc_accident_reports
       WHERE created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at DESC LIMIT 3
@@ -137,6 +147,7 @@ router.get('/', authUser, (req, res) => {
         summary: trunc([r.accident_type, r.location_area].filter(Boolean).join(' / '), 36),
         link: '/accident.html',
         author: r.reporter_name || '報告者',
+        thumb: r.label_photo_path || firstMedia(r.media_paths),
         created_at: r.created_at,
       });
     }
@@ -160,6 +171,7 @@ router.get('/', authUser, (req, res) => {
         summary: trunc([r.title, when].filter(Boolean).join(' / '), 36),
         link: '/circles.html',
         author: safeAuthor(db, r.created_by, 0),
+        thumb: null,
         created_at: r.created_at,
       });
     }
@@ -182,8 +194,52 @@ router.get('/', authUser, (req, res) => {
         summary: trunc(r.memo, 36),
         link: '/wellness.html',
         author: safeAuthor(db, r.poster_id, isAnon),
+        thumb: null,
         created_at: r.created_at,
       });
+    }
+  } catch (e) {}
+
+  // 業務週報 (管理職が見ている時のみ。機密のため内容は出さず「営業所＋提出」だけ)
+  try {
+    const mgr = db.prepare('SELECT is_manager FROM users WHERE id = ?').get(req.uid);
+    if (mgr && mgr.is_manager) {
+      const rows = db.prepare(`SELECT office, period_to, created_by, created_at
+        FROM weekly_reports
+        WHERE deleted_at IS NULL AND created_at >= datetime('now', '-' || ? || ' days')
+        ORDER BY created_at DESC LIMIT 5`).all(days);
+      for (const r of rows) {
+        events.push({
+          type: 'weekly', icon: '📊', label: '業務週報',
+          summary: (r.office || '営業所') + ' 提出' + (r.period_to ? `（〜${r.period_to}）` : ''),
+          link: '/weekly-report.html',
+          author: safeAuthor(db, r.created_by, 0),
+          thumb: null,
+          created_at: r.created_at,
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 運転アラート (管理職が見ている時のみ。違反通知をテロップにも流して見逃し防止)
+  try {
+    const mgrA = db.prepare('SELECT is_manager FROM users WHERE id = ?').get(req.uid);
+    if (mgrA && mgrA.is_manager) {
+      const rows = db.prepare(`SELECT id, vehicle_name, vehicle_number, driver_name, notice, handled, received_at
+        FROM driving_alerts
+        WHERE received_at >= datetime('now', '-' || ? || ' days')
+        ORDER BY received_at DESC LIMIT 5`).all(days);
+      for (const r of rows) {
+        const where = r.vehicle_name || r.vehicle_number || '';
+        events.push({
+          type: 'alert', icon: '⚠️', label: '運転アラート',
+          summary: (r.handled ? '' : '【未対応】') + [r.driver_name, r.notice].filter(Boolean).join('・') + (where ? `（${where}）` : ''),
+          link: '/alerts.html',
+          author: null,
+          thumb: null,
+          created_at: r.received_at,
+        });
+      }
     }
   } catch (e) {}
 

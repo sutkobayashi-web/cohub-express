@@ -45,14 +45,14 @@
   function injectStyle() {
     if (document.getElementById('cohub-lang-style')) return;
     const css = `
-.cohub-lang-switch{position:fixed;top:8px;right:8px;z-index:99998;display:flex;align-items:center;gap:2px;background:rgba(15,23,42,0.78);color:#fff;border-radius:18px;padding:3px 6px 3px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.25);backdrop-filter:blur(6px);user-select:none}
+.cohub-lang-switch{position:fixed;top:2px;right:8px;z-index:99998;display:flex;align-items:center;gap:2px;background:rgba(15,23,42,0.78);color:#fff;border-radius:18px;padding:3px 6px 3px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.25);backdrop-filter:blur(6px);user-select:none}
 .cohub-lang-switch .cohub-lang-icon{margin-right:2px;font-size:12px;opacity:0.9}
 .cohub-lang-switch button{background:transparent;color:#cbd5e1;border:none;padding:3px 6px;margin:0;border-radius:12px;font-size:11px;font-weight:700;cursor:pointer;line-height:1;font-family:inherit}
 .cohub-lang-switch button:hover{background:rgba(255,255,255,0.12);color:#fff}
 .cohub-lang-switch button.active{background:#0ea5e9;color:#fff}
 .cohub-lang-switch.busy::after{content:'';width:8px;height:8px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:cohubLangSpin 0.8s linear infinite;margin-left:4px}
 @keyframes cohubLangSpin{to{transform:rotate(360deg)}}
-@media (max-width: 480px){.cohub-lang-switch{top:4px;right:4px;padding:2px 5px 2px 6px;font-size:10px}.cohub-lang-switch button{padding:2px 5px;font-size:10px}}
+@media (max-width: 480px){.cohub-lang-switch{top:2px;right:4px;padding:2px 5px 2px 6px;font-size:10px}.cohub-lang-switch button{padding:2px 5px;font-size:10px}}
 @media print{.cohub-lang-switch{display:none!important}}
 `;
     const st = document.createElement('style');

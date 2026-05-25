@@ -39,33 +39,80 @@
   }
   function mountFab() {
     if (document.getElementById('fz-fab')) return;
-    var fab = document.createElement('button');
-    fab.id = 'fz-fab';
-    fab.type = 'button';
-    fab.setAttribute('aria-label', '文字サイズ切替');
-    fab.title = '文字サイズ切替';
-    fab.innerHTML = '<span style="font-size:11px;line-height:1;">A</span>·<span style="font-size:16px;line-height:1;">A</span><span id="fz-fab-lvl" style="font-size:10px;color:#fff;background:#1e3a8a;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:900;">M</span>';
-    // 右下 FAB (親指操作しやすい位置、ヘッダーの「閉じる」ボタン+ボトムナビと重ならない)
-    fab.style.cssText = [
-      'position:fixed',
-      'bottom:calc(env(safe-area-inset-bottom) + 90px)',
-      'right:12px',
-      'z-index:99500',
-      'background:linear-gradient(135deg,#eff6ff,#dbeafe)',
-      'color:#1e3a8a',
-      'border:1.5px solid #93c5fd',
-      'border-radius:24px',
-      'height:44px',
-      'padding:0 12px',
-      'font-weight:800',
-      'cursor:pointer',
-      'display:inline-flex',
-      'align-items:center',
-      'gap:0',
-      'box-shadow:0 4px 12px rgba(15,23,42,0.25), 0 2px 4px rgba(15,23,42,0.10)'
-    ].join(';');
-    fab.onclick = cycle;
-    document.body.appendChild(fab);
+    var slot = document.getElementById('fz-slot');
+    // 明示的なスロットがなくても、ページ最初の <header> があればそこに自動マウント
+    // (右下FABが入力欄やボトムナビと被るのを避けるため、タイトルバー優先)
+    var inlineMode = !!slot;
+    if (!slot) {
+      var headers = document.getElementsByTagName('header');
+      if (headers && headers.length > 0) {
+        slot = headers[0];
+        inlineMode = true;
+      }
+    }
+    var btn = document.createElement('button');
+    btn.id = 'fz-fab';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '文字サイズ切替');
+    btn.title = '文字サイズ切替';
+    btn.onclick = cycle;
+    if (inlineMode) {
+      // インラインモード: ページ側ヘッダー (または明示スロット) に埋め込む
+      // 入力欄やボトムナビと被らないよう、タイトルバーへ優先配置
+      btn.innerHTML = '<span style="font-size:11px;line-height:1;">A</span>·<span style="font-size:15px;line-height:1;">A</span><span id="fz-fab-lvl" style="font-size:10px;color:#1e3a8a;background:#fff;padding:1px 5px;border-radius:5px;margin-left:4px;font-weight:900;">M</span>';
+      btn.style.cssText = [
+        'background:rgba(255,255,255,0.22)',
+        'color:#fff',
+        'border:none',
+        'border-radius:6px',
+        'padding:5px 8px',
+        'font-weight:800',
+        'cursor:pointer',
+        'display:inline-flex',
+        'align-items:center',
+        'gap:0',
+        'flex-shrink:0',
+        'margin:0 6px'
+      ].join(';');
+      // 右端の「閉じる/✕」系ボタンが末尾にあれば、その手前に挿入。
+      // 「戻る/ホーム」は左ナビなのでスキップ (それを anchor にすると A·A が左端に行ってしまう)。
+      var anchor = null;
+      if (!document.getElementById('fz-slot')) {
+        var kids = slot.children;
+        // 末尾から最大3要素までだけ検査 — 中間の要素を anchor にしない
+        var scanMax = Math.min(3, kids.length);
+        for (var i = kids.length - 1; i >= kids.length - scanMax; i--) {
+          var c = kids[i];
+          if (c.tagName !== 'BUTTON' && c.tagName !== 'A') continue;
+          var txt = (c.textContent || '').trim();
+          if (/閉じる|✕|×|✖/.test(txt)) { anchor = c; break; }
+        }
+      }
+      if (anchor) slot.insertBefore(btn, anchor);
+      else slot.appendChild(btn);
+    } else {
+      // 既存 FAB モード: 右下フローティング
+      btn.innerHTML = '<span style="font-size:11px;line-height:1;">A</span>·<span style="font-size:16px;line-height:1;">A</span><span id="fz-fab-lvl" style="font-size:10px;color:#fff;background:#1e3a8a;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:900;">M</span>';
+      btn.style.cssText = [
+        'position:fixed',
+        'bottom:calc(env(safe-area-inset-bottom) + 90px)',
+        'right:12px',
+        'z-index:99500',
+        'background:linear-gradient(135deg,#eff6ff,#dbeafe)',
+        'color:#1e3a8a',
+        'border:1.5px solid #93c5fd',
+        'border-radius:24px',
+        'height:44px',
+        'padding:0 12px',
+        'font-weight:800',
+        'cursor:pointer',
+        'display:inline-flex',
+        'align-items:center',
+        'gap:0',
+        'box-shadow:0 4px 12px rgba(15,23,42,0.25), 0 2px 4px rgba(15,23,42,0.10)'
+      ].join(';');
+      document.body.appendChild(btn);
+    }
     var lv = getLevel();
     var lblEl = document.getElementById('fz-fab-lvl');
     if (lblEl) lblEl.textContent = LBL[lv] || 'M';

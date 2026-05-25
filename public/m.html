@@ -414,7 +414,7 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   #m-float-help .mfh-sos { background: linear-gradient(135deg,#f97316,#ea580c); }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js?v=20260521b" defer></script>
+<script src="/global-notif.js?v=20260525g" defer></script>
 </head>
 <body>
 
@@ -500,9 +500,10 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
         </a>
         <div class="qa-grid">
           <!-- 2026-05-20: 総合案内/健康案内/安全太郎 3カード抹消 (チャットタブから利用) -->
-          <div class="qa-item" onclick="location.href='/timecard.html'" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;">
-            <div class="i">⏰</div>
-            <div>打刻</div>
+          <!-- 共有カレンダー: 役員・管理職 (is_manager) のみ表示 -->
+          <div class="qa-item" id="qa-shared-cal" onclick="location.href='/calendar.html'" style="display:none;background:linear-gradient(135deg,#ccfbf1,#5eead4);color:#0f766e;">
+            <div class="i">🗓</div>
+            <div>共有カレンダー</div>
           </div>
           <div class="qa-item" onclick="location.href='/chat-simple.html'" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af;position:relative;">
             <div class="i">💬</div>
@@ -719,11 +720,12 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
   </div>
   <div id="chat-input-wrap">
     <button id="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()">📎</button>
+    <button id="chat-matomeru-btn" onclick="openMatomeruM()" title="まとめる君: 報告をAIで5W1Hに整える" style="display:none;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;flex-shrink:0;padding:0;overflow:hidden;background:#fff;"><img src="/assets/matomeru-owl.png" alt="まとめる君" style="width:100%;height:100%;object-fit:cover;"></button>
     <input type="file" id="chat-file-input" style="display:none" onchange="onAttachFile(this)">
     <button id="chat-mode-btn" onclick="toggleDmSendMode()" title="送信モード切替" style="background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">💬</button>
     <button id="chat-mic-btn" onclick="toggleVoiceConv()" title="音声会話 (総合案内・ヘルス専用)" style="display:none;background:transparent;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;font-size:15px;color:#64748b;flex-shrink:0;">🎤</button>
     <textarea id="chat-input" placeholder="メッセージを入力…" rows="1"></textarea>
-    <button id="chat-send-btn" onclick="sendChatMessage()">➤</button>
+    <button id="chat-send-btn" onclick="sendChatMessage()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
   </div>
 </div>
 
@@ -854,6 +856,28 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
     </div>
     <div id="av-err" class="av-err"></div>
     <a class="av-remove" href="javascript:avRemove()">アバターを削除</a>
+  </div>
+</div>
+
+<!-- まとめる君 (報告整形アシスト) -->
+<div id="matomeru-ov" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:400;align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:18px 16px calc(16px + env(safe-area-inset-bottom));">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <img src="/assets/matomeru-owl.png" alt="まとめる君" style="width:46px;height:46px;object-fit:contain;flex-shrink:0;"><h2 style="margin:0;font-size:17px;">まとめる君</h2>
+    </div>
+    <p style="margin:0 0 12px;font-size:12px;color:#64748b;">報告したいことを思いつくまま書いてください。AIが5W1Hに整えます。</p>
+    <label style="font-size:12px;font-weight:700;color:#334155;">① メモ（自由に書く）</label>
+    <textarea id="mtm-input" maxlength="2000" placeholder="例：さっき三郷で荷下ろし中にパレット1枚割れてた。中身は無事。田中さんには伝えた。代替は明日朝持っていく" style="width:100%;min-height:84px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;font-family:inherit;resize:vertical;margin:4px 0 10px;box-sizing:border-box;"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+      <button id="mtm-format-btn" onclick="matomeruFormatM()" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;">✨ 整える</button>
+      <span id="mtm-status" style="font-size:12px;color:#64748b;"></span>
+    </div>
+    <label style="font-size:12px;font-weight:700;color:#334155;">② 整えた報告（確認・修正できます）</label>
+    <textarea id="mtm-output" placeholder="「整える」を押すとここに整形された報告が入ります" style="width:100%;min-height:150px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;font-family:inherit;resize:vertical;margin:4px 0 0;line-height:1.6;box-sizing:border-box;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="closeMatomeruM()" style="background:#e2e8f0;color:#334155;border:none;border-radius:8px;padding:12px 20px;font-size:14px;font-weight:600;flex:0 0 auto;">閉じる</button>
+      <button onclick="matomeruSendM()" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;flex:1;">この内容で送信</button>
+    </div>
   </div>
 </div>
 
@@ -1750,6 +1774,9 @@ function renderMe() {
   // 現場スタッフはカレンダー連携項目を隠す
   const calItem = document.getElementById('set-calendar');
   if (calItem) calItem.style.display = (user.employee_type === 'field') ? 'none' : 'flex';
+  // 共有カレンダー: 役員・管理職 (is_manager) のみホームに表示
+  const sharedCal = document.getElementById('qa-shared-cal');
+  if (sharedCal) sharedCal.style.display = user.is_manager ? 'flex' : 'none';
 }
 
 // ============================================================
@@ -2135,6 +2162,7 @@ function showSafetyReportPrompt(kind) {
 async function openDM(peerId, name, avatar, isBot) {
   openPeerUid = peerId;
   openGroupId = null;
+  if (typeof updateMatomeruBtnM === 'function') updateMatomeruBtnM();
   dmUnread[peerId] = 0;
   updateChatBadge();
   loadChatLists();
@@ -2170,6 +2198,7 @@ async function openGroup(gid, name, icon) {
   openGroupId = gid;
   openPeerUid = null;
   dmSendMode = 'text';
+  if (typeof updateMatomeruBtnM === 'function') updateMatomeruBtnM();
   applyDmModeUi();
   if (typeof updateMicBtn === 'function') updateMicBtn();
   groupUnread[gid] = 0;
@@ -2315,6 +2344,47 @@ async function sendChatMessage() {
     clearAttach();
     input.style.height = 'auto';
   }
+}
+
+// ===== まとめる君 (報告整形アシスト。事業本部チャット限定) =====
+const MATOMERU_ROOMS_M = new Set(['g_jigyo_honbu']);
+function updateMatomeruBtnM(){
+  const b = document.getElementById('chat-matomeru-btn');
+  if (!b) return;
+  b.style.display = (openGroupId && MATOMERU_ROOMS_M.has(openGroupId)) ? '' : 'none';
+}
+function openMatomeruM(){
+  document.getElementById('mtm-input').value = '';
+  document.getElementById('mtm-output').value = '';
+  document.getElementById('mtm-status').textContent = '';
+  document.getElementById('matomeru-ov').style.display = 'flex';
+  setTimeout(() => document.getElementById('mtm-input').focus(), 50);
+}
+function closeMatomeruM(){ document.getElementById('matomeru-ov').style.display = 'none'; }
+async function matomeruFormatM(){
+  const text = document.getElementById('mtm-input').value.trim();
+  const status = document.getElementById('mtm-status');
+  if (!text){ status.textContent = 'メモを入力してください'; return; }
+  const btn = document.getElementById('mtm-format-btn');
+  btn.disabled = true; status.style.color = '#64748b'; status.textContent = '整えています…';
+  try {
+    const r = await fetch('/api/report/format', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ text })
+    });
+    const j = await r.json();
+    if (!j.success){ status.style.color = '#dc2626'; status.textContent = j.msg || '整形に失敗しました'; return; }
+    document.getElementById('mtm-output').value = j.formatted || '';
+    status.style.color = '#0f766e'; status.textContent = '✓ 整えました。確認して送信してください';
+  } catch(e){ status.style.color = '#dc2626'; status.textContent = '通信エラー'; }
+  finally { btn.disabled = false; }
+}
+function matomeruSendM(){
+  const out = document.getElementById('mtm-output').value.trim();
+  if (!out){ document.getElementById('mtm-status').style.color = '#dc2626'; document.getElementById('mtm-status').textContent = '先に「整える」を押すか、内容を入力してください'; return; }
+  document.getElementById('chat-input').value = out;
+  sendChatMessage();
+  closeMatomeruM();
 }
 
 // ===== 🎤 音声会話モード (海の冒険方式) =====

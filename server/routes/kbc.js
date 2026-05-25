@@ -10,9 +10,27 @@ function isManager(uid) {
   return !!(r && (r.employee_type === 'admin' || r.role === 'admin'));
 }
 
+router.post('/_debug', authUser, express.json({ limit: '32kb' }), (req, res) => {
+  try {
+    const b = req.body || {};
+    console.log('[kbc][_debug]', JSON.stringify({ uid: req.uid, ...b }).slice(0, 2000));
+  } catch (e) {}
+  res.json({ ok: true });
+});
+
 // ============================================================
 // 日報 (kbc_daily_reports) — 1464件のXLS履歴を含む
 // ============================================================
+// 直前の日報 (本人 or 指定担当者の最新1件、新規入力のデフォルト値用)
+router.get('/daily/last', authUser, (req, res) => {
+  const userName = String(req.query.user_name || '').trim();
+  const db = getDb();
+  const row = userName
+    ? db.prepare('SELECT * FROM kbc_daily_reports WHERE user_name = ? ORDER BY report_date DESC, id DESC LIMIT 1').get(userName)
+    : db.prepare('SELECT * FROM kbc_daily_reports ORDER BY report_date DESC, id DESC LIMIT 1').get();
+  res.json({ success: true, report: row || null });
+});
+
 // 月別件数 (タブ切替用)
 router.get('/daily/months', authUser, (req, res) => {
   const rows = getDb().prepare(`SELECT substr(report_date, 1, 7) AS month, COUNT(*) AS cnt
@@ -51,7 +69,8 @@ router.get('/daily/:id', authUser, (req, res) => {
 
 router.post('/daily', authUser, express.json(), (req, res) => {
   const b = req.body || {};
-  if (!b.report_date) return res.status(400).json({ success: false, msg: '日付必須' });
+  console.log('[kbc][debug] POST /daily uid=', req.uid, 'user_name=', b.user_name, 'date=', b.report_date, 'bodyKeys=', Object.keys(b||{}).join(','));
+  if (!b.report_date) { console.log('[kbc][debug] 400 日付必須'); return res.status(400).json({ success: false, msg: '日付必須' }); }
   const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
   const userName = b.user_name || (u && u.display_name) || '不明';
   try {
@@ -80,6 +99,7 @@ router.post('/daily', authUser, express.json(), (req, res) => {
 
 router.put('/daily/:id', authUser, express.json(), (req, res) => {
   const id = parseInt(req.params.id);
+  console.log('[kbc][debug] PUT /daily/:id uid=', req.uid, 'id=', id, 'bodyKeys=', Object.keys(req.body||{}).join(','));
   const r = getDb().prepare('SELECT id FROM kbc_daily_reports WHERE id = ?').get(id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
   const b = req.body || {};
@@ -97,8 +117,13 @@ router.put('/daily/:id', authUser, express.json(), (req, res) => {
 });
 
 router.delete('/daily/:id', authUser, (req, res) => {
-  if (!isManager(req.uid)) return res.status(403).json({ success: false, msg: '管理職のみ削除可' });
-  getDb().prepare('DELETE FROM kbc_daily_reports WHERE id = ?').run(parseInt(req.params.id));
+  const id = parseInt(req.params.id);
+  const r = getDb().prepare('SELECT user_name FROM kbc_daily_reports WHERE id = ?').get(id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+  const isOwn = u && r.user_name === u.display_name;
+  if (!isManager(req.uid) && !isOwn) return res.status(403).json({ success: false, msg: '本人または管理職のみ削除可' });
+  getDb().prepare('DELETE FROM kbc_daily_reports WHERE id = ?').run(id);
   res.json({ success: true });
 });
 

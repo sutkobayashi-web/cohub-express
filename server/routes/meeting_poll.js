@@ -78,7 +78,8 @@ router.get('/timetable', authUser, (req, res) => {
            (SELECT COUNT(*) FROM meeting_poll_slots WHERE poll_id = p.id) AS slot_count,
            (SELECT COUNT(*) FROM meeting_poll_invitees WHERE poll_id = p.id) AS invitee_count,
            (SELECT COUNT(DISTINCT user_id) FROM meeting_poll_votes WHERE poll_id = p.id) AS voted_count,
-           (SELECT MIN(starts_at) FROM meeting_poll_slots WHERE poll_id = p.id) AS earliest_candidate
+           (SELECT MIN(starts_at) FROM meeting_poll_slots WHERE poll_id = p.id) AS earliest_candidate,
+           (SELECT MAX(starts_at) FROM meeting_poll_slots WHERE poll_id = p.id) AS latest_candidate
     FROM meeting_polls p
     LEFT JOIN users u ON u.id = p.organizer_id
     WHERE p.status = 'open'
@@ -377,17 +378,45 @@ function tickReminders(app) {
   }
 }
 
+// 終了した (decided かつ 開始+所要時間を過ぎた) ミーティングを子テーブル含め物理削除
+function tickPurgeFinished() {
+  const db = getDb();
+  const finished = db.prepare(`
+    SELECT p.id FROM meeting_polls p
+    JOIN meeting_poll_slots s ON s.id = p.decided_slot_id
+    WHERE p.status = 'decided'
+      AND datetime(s.starts_at, '+' || COALESCE(p.duration_minutes, 30) || ' minutes') < datetime('now')
+  `).all();
+  if (!finished.length) return;
+  const ids = finished.map(r => r.id);
+  const ph = ids.map(() => '?').join(',');
+  const delVotes = db.prepare(`DELETE FROM meeting_poll_votes WHERE poll_id IN (${ph})`);
+  const delInv = db.prepare(`DELETE FROM meeting_poll_invitees WHERE poll_id IN (${ph})`);
+  const delSlots = db.prepare(`DELETE FROM meeting_poll_slots WHERE poll_id IN (${ph})`);
+  const delPolls = db.prepare(`DELETE FROM meeting_polls WHERE id IN (${ph})`);
+  db.transaction(() => {
+    delVotes.run(...ids);
+    delInv.run(...ids);
+    delSlots.run(...ids);
+    delPolls.run(...ids);
+  })();
+  console.log('[meeting_poll] purged finished polls:', ids.join(','));
+}
+
 let _reminderTimer = null;
 function startReminderScheduler(app) {
   ensureNotifyColumns();
   if (_reminderTimer) return;
-  // 60秒ごとにチェック
+  // 60秒ごとにチェック (リマインダー + 終了済purge)
   _reminderTimer = setInterval(() => {
-    try { tickReminders(app); }
-    catch (e) { console.warn('[meeting_poll reminder]', e.message); }
+    try { tickReminders(app); } catch (e) { console.warn('[meeting_poll reminder]', e.message); }
+    try { tickPurgeFinished(); } catch (e) { console.warn('[meeting_poll purge]', e.message); }
   }, 60 * 1000);
   // 起動直後にも1回実行
-  setTimeout(() => { try { tickReminders(app); } catch (e) {} }, 5000);
+  setTimeout(() => {
+    try { tickReminders(app); } catch (e) {}
+    try { tickPurgeFinished(); } catch (e) {}
+  }, 5000);
 }
 
 // モジュールロード時に即座にスキーマ移行 (route呼び出しで未定義カラム参照を避ける)

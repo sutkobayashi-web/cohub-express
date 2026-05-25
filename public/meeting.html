@@ -540,6 +540,7 @@ async function loadTimetable() {
       const start = new Date(d.starts_at.length === 16 ? d.starts_at + ':00' : d.starts_at);
       const dur = (d.duration_minutes || 30) * 60000;
       const end = new Date(start.getTime() + dur);
+      if (now >= end) continue;  // 終了済み(過去)の会議は表示しない
       const minsUntil = Math.round((start - now) / 60000);
       const dayKey = (() => { const x = new Date(start); x.setHours(0,0,0,0); return x.getTime(); })();
       if (now >= start && now < end) live.push(d);
@@ -547,13 +548,19 @@ async function loadTimetable() {
       else if (dayKey === todayKey) today.push(d);
       else later.push(d);
     }
+    // 日程調整中: 候補日時がすべて過去のポール(過ぎた週)は表示しない
+    const openLive = open.filter(p => {
+      if (!p.latest_candidate) return true;  // 候補未設定は残す
+      const last = new Date(p.latest_candidate.length === 16 ? p.latest_candidate + ':00' : p.latest_candidate);
+      return last >= now;
+    });
     let html = '';
     const currentRoom = r.current_room || [];
     if (live.length) html += '<div class="tt-group"><div class="tt-group-title">🔴 会議中</div>' + live.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
     if (soon.length) html += '<div class="tt-group"><div class="tt-group-title">⏰ もうすぐ (30分以内)</div>' + soon.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
     if (today.length) html += '<div class="tt-group"><div class="tt-group-title">📅 本日この後</div>' + today.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
     if (later.length) html += '<div class="tt-group"><div class="tt-group-title">📆 今後の予定</div>' + later.map(d => _ttDecidedCard(d, serverNow, currentRoom)).join('') + '</div>';
-    if (open.length) html += '<div class="tt-group"><div class="tt-group-title">📋 日程調整中</div>' + open.map(p => _ttOpenCard(p)).join('') + '</div>';
+    if (openLive.length) html += '<div class="tt-group"><div class="tt-group-title">📋 日程調整中</div>' + openLive.map(p => _ttOpenCard(p)).join('') + '</div>';
     if (!html) html = '<div class="tt-empty">予定はまだありません。「+ 日程調整一覧 / 新規予約」から作成できます。</div>';
     root.innerHTML = html;
   } catch (e) {
