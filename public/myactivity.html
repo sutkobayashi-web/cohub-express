@@ -71,6 +71,12 @@ textarea.comment-input:focus { outline: none; border-color: #ea580c; }
 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Heatmap */
+.date-row { display:flex; align-items:center; gap:8px; margin:2px 0 4px; }
+.date-row label { font-size:13px; font-weight:700; color:#334155; white-space:nowrap; }
+.date-row input[type=date] { flex:1 1 auto; min-width:0; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; }
+.date-row .date-today-btn { flex:0 0 auto; padding:7px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#f1f5f9; font-size:12px; font-weight:700; color:#475569; cursor:pointer; }
+.date-row.past input[type=date] { border-color:#f59e0b; background:#fffbeb; }
+.hm-cell.clickable { cursor:pointer; }
 .heatmap-wrap { overflow-x: auto; padding: 4px 0 6px; }
 .heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 2px; padding: 6px 2px; }
 .hm-cell { width: 11px; height: 11px; border-radius: 2px; background: #f1f5f9; cursor: pointer; }
@@ -167,7 +173,15 @@ textarea.comment-input:focus { outline: none; border-color: #ea580c; }
 
   <!-- 入力フォーム -->
   <div class="card">
-    <h3>📝 今日の運動を記録</h3>
+    <h3>📝 運動を記録</h3>
+
+    <!-- 日付選択 (過去日も入力可: カレンダーで選ぶ / 下の「365日の記録」のマスをタップ) -->
+    <div class="date-row" id="date-row">
+      <label for="in-date">📅 日付</label>
+      <input type="date" id="in-date" onchange="onDateChange()">
+      <button type="button" class="date-today-btn" onclick="setRecordDate(todayStr())">今日</button>
+    </div>
+    <div class="hint" id="date-hint" style="margin:-2px 2px 8px; font-size:11px; color:#64748b;">過去の記録も入力できます。日付を選ぶか、下の「365日の記録」のマスをタップ。</div>
 
     <div class="type-grid">
       <button class="type-btn active" data-type="walk" onclick="setType('walk')">
@@ -440,9 +454,40 @@ async function onOcrImage(ev) {
   }
 }
 
+// ── 日付選択 (過去日の記録に対応。サーバは date を受理) ──
+function todayStr() { return new Date().toLocaleDateString('sv-SE'); } // YYYY-MM-DD (ローカルTZ)
+function initDateField() {
+  const el = document.getElementById('in-date'); if (!el) return;
+  const t = todayStr();
+  const min = new Date(); min.setDate(min.getDate() - 365);
+  el.max = t; el.min = min.toLocaleDateString('sv-SE');
+  if (!el.value) el.value = t;
+  onDateChange();
+}
+function setRecordDate(ds) {
+  const el = document.getElementById('in-date'); if (!el || !ds) return;
+  el.value = ds; onDateChange();
+}
+function onDateChange() {
+  const el = document.getElementById('in-date'); if (!el) return;
+  const t = todayStr();
+  const isPast = el.value && el.value !== t;
+  const row = document.getElementById('date-row'); if (row) row.classList.toggle('past', !!isPast);
+  const btn = document.getElementById('submit-btn');
+  if (btn && !btn.disabled) btn.textContent = isPast ? (el.value.slice(5).replace('-', '/') + ' に記録する') : '記録する';
+}
+// 草カレンダーのマスをタップ → その日付を選択しフォームへ
+function selectHeatmapDate(ds) {
+  setRecordDate(ds);
+  const el = document.getElementById('in-date');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('📅 ' + ds.slice(5).replace('-', '/') + ' を選択。種別と値を入力して記録してください');
+}
+
 async function submitRecord() {
   const body = {
     activity_type: state.type,
+    date: document.getElementById('in-date').value || null,
     steps: parseInt(document.getElementById('in-steps').value) || null,
     distance_km: parseFloat(document.getElementById('in-distance').value) || null,
     duration_min: parseInt(document.getElementById('in-duration').value) || null,
@@ -461,8 +506,9 @@ async function submitRecord() {
   try {
     const r = await api('/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if (!r.success) { toast(r.msg || '記録失敗', true); return; }
-    toast('🔥 ' + r.kcal + ' kcal を記録しました');
-    // 入力リセット
+    const dlabel = (body.date && body.date !== todayStr()) ? (body.date.slice(5).replace('-', '/') + ' に') : '';
+    toast('🔥 ' + dlabel + r.kcal + ' kcal を記録しました');
+    // 入力リセット (日付は連続入力のため保持)
     ['in-steps','in-distance','in-duration','in-kcal','in-comment'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('ocr-preview').style.display = 'none';
     document.getElementById('ocr-msg').innerHTML = '';
@@ -473,7 +519,7 @@ async function submitRecord() {
   } catch (e) {
     toast('通信エラー: ' + e.message, true);
   } finally {
-    btn.disabled = false; btn.textContent = '記録する';
+    btn.disabled = false; onDateChange();
   }
 }
 
@@ -577,8 +623,9 @@ function renderHeatmap(points) {
   for (const c of cellsByCol) {
     for (const cell of c) {
       const div = document.createElement('div');
-      div.className = 'hm-cell ' + kcalLevel(cell.kcal);
-      div.title = cell.date + ' — ' + (cell.kcal || 0).toLocaleString() + ' kcal';
+      div.className = 'hm-cell clickable ' + kcalLevel(cell.kcal);
+      div.title = cell.date + ' — ' + (cell.kcal || 0).toLocaleString() + ' kcal (タップで入力)';
+      div.onclick = () => selectHeatmapDate(cell.date);
       hm.appendChild(div);
     }
     // パディング
@@ -702,6 +749,7 @@ async function saveSettings() {
   } else { alert(r.msg || '保存失敗'); }
 }
 
+initDateField();
 ensureWeightAndStart();
 </script>
 <script src="/translate.js" defer></script>
