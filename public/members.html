@@ -87,6 +87,12 @@ let currentFilter = '';
 // 組織ツリー: 事業本部(親)の配下にスタンダード運輸の各営業所(子)をぶら下げる
 const HQ_GROUP = '🏛 事業本部';
 const HQ_CHILDREN = ['スタンダード運輸 海老名','スタンダード運輸 埼玉','スタンダード運輸 座間','スタンダード運輸 南関東'];
+// 事業本部所属だが営業所に勤務する人は、所属(事業本部)ラベルのままその営業所セクション末尾に表示 (company_code=勤務地)
+// 例: 濱道(事業本部長)は座間勤務 → 座間セクションの池邊の右隣に出る
+const COMPANY_TO_BRANCH = {
+  'SU_HQ':'スタンダード運輸 海老名', 'SU_SAITAMA':'スタンダード運輸 埼玉',
+  'SU_ZAMA':'スタンダード運輸 座間', 'SU_MKANTO':'スタンダード運輸 南関東',
+};
 
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
@@ -123,7 +129,14 @@ function renderList(){
   }
 
   const byGroup = {};
-  list.forEach(m => { const g = m.group || '(未設定)'; (byGroup[g] = byGroup[g] || []).push(m); });
+  const relocate = [];
+  list.forEach(m => {
+    const g = m.group || '(未設定)';
+    // 事業本部所属で営業所勤務(company_code)の人は、その営業所セクション末尾へ移して表示 (例: 濱道=事業本部/座間勤務)
+    if (g === HQ_GROUP && COMPANY_TO_BRANCH[m.company]) { relocate.push(m); return; }
+    (byGroup[g] = byGroup[g] || []).push(m);
+  });
+  relocate.forEach(m => { const g = COMPANY_TO_BRANCH[m.company]; (byGroup[g] = byGroup[g] || []).push(m); });
 
   // 事業本部の下に各営業所をぶら下げる入れ子ツリー (営業所は主所属=事業本部配下であり兼務ではない)
   const childSet = new Set(HQ_CHILDREN);
