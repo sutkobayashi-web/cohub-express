@@ -1,4 +1,4 @@
-// 仮払精算システム (2026-05-25 GAS移植)
+// 経費精算システム (2026-05-25 GAS移植。旧称: 仮払精算)
 // 領収書画像 → Gemini OCR で自動抽出 → 申請 → 管理職が承認/差戻し → 承認済CSV出力。
 // 営業所は companies を流用。承認は単純1段 (申請済/承認済/差戻し)。
 const express = require('express');
@@ -189,7 +189,7 @@ router.get('/export-csv', requireManager, (req, res) => {
     const s = String(v == null ? '' : v);
     return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }).join(',')).join('\r\n');
-  const filename = '仮払精算_承認済_' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '.csv';
+  const filename = '経費精算_承認済_' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '.csv';
   res.json({ success: true, csv, count: items.length, filename });
 });
 
