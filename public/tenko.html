@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>点呼・朝礼 - CoWell</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;--ink:#0f172a;--sub:#64748b;--accent:#0d9488;--accent2:#0f766e}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Hiragino Sans,system-ui,sans-serif}
+header{position:sticky;top:0;z-index:10;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 3px 12px rgba(15,118,110,.25)}
+header .back{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:20px;cursor:pointer;border-radius:10px;padding:6px 12px}
+header h1{font-size:19px;font-weight:800;margin:0;flex:1}
+.toolbar{max-width:1100px;margin:0 auto;padding:14px 16px 4px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.sel{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.sel select{border:none;outline:none;font-size:16px;font-weight:700;background:transparent;color:var(--ink)}
+.prog{margin-left:auto;font-size:15px;font-weight:800;color:var(--accent2);background:#ccfbf1;padding:8px 16px;border-radius:999px}
+.brief{max-width:1100px;margin:8px auto 0;padding:0 16px}
+.brief .box{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px 14px}
+.brief .ttl{font-size:13px;font-weight:800;color:#92400e;margin-bottom:6px}
+.brief textarea{width:100%;border:1px solid #fcd34d;border-radius:10px;padding:9px 11px;font-size:15px;min-height:48px;resize:vertical;font-family:inherit}
+.brief .save{margin-top:8px;background:#d97706;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer}
+main{max-width:1100px;margin:0 auto;padding:12px 16px 60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.mem{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px 10px 14px;text-align:center;cursor:pointer;position:relative;transition:transform .1s,border-color .15s}
+.mem:active{transform:scale(.97)}
+.mem.done{border-color:var(--accent);background:linear-gradient(180deg,#f0fdfa,#fff)}
+.mem.urgent{border-color:#f59e0b}
+.mem.urgent-hi{border-color:#dc2626}
+.mem .ava{width:74px;height:74px;border-radius:50%;margin:0 auto 8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#64748b;overflow:hidden;border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.1)}
+.mem .ava img{width:100%;height:100%;object-fit:cover}
+.mem .nm{font-size:15px;font-weight:800;line-height:1.25;word-break:break-all}
+.mem .mode{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px}
+.mode.tenko{background:#dbeafe;color:#1d4ed8}.mode.chorei{background:#dcfce7;color:#15803d}
+.mem .status{position:absolute;top:8px;right:8px;font-size:18px}
+.mem .ubadge{position:absolute;top:7px;left:7px;font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;color:#fff}
+.empty{padding:60px 20px;text-align:center;color:var(--sub)}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.ov.show{display:flex}
+.modal{background:#fff;width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 18px 26px;max-height:92vh;overflow:auto}
+@media(min-width:560px){.ov{align-items:center}.modal{border-radius:20px}}
+.modal h2{margin:0 0 4px;font-size:20px}
+.modal .who{color:var(--sub);font-size:13px;font-weight:700;margin-bottom:14px}
+.fld{margin-bottom:16px}
+.fld>label{display:block;font-size:14px;font-weight:800;color:#334155;margin-bottom:8px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{flex:1;min-width:80px;border:2px solid var(--line);background:#fff;border-radius:12px;padding:12px 8px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+.opt.on{border-color:var(--accent);background:#ccfbf1;color:var(--accent2)}
+.opt.warn.on{border-color:#dc2626;background:#fee2e2;color:#b91c1c}
+.chk{display:flex;align-items:center;gap:12px;border:2px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:14px;cursor:pointer}
+.chk.on{border-color:#2563eb;background:#dbeafe}
+.chk .bx{width:28px;height:28px;border-radius:8px;border:2px solid #2563eb;display:flex;align-items:center;justify-content:center;font-size:18px;color:#2563eb;flex:none}
+.chk .tx{font-size:14px;font-weight:800;color:#1e3a8a;line-height:1.35}
+.note{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;font-size:15px;min-height:54px;resize:vertical;font-family:inherit}
+.submit{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:16px;font-size:18px;font-weight:800;cursor:pointer;margin-top:6px}
+.cancel{width:100%;background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:12px;padding:11px;font-weight:700;cursor:pointer;margin-top:10px}
+.note-ttl{font-size:14px;font-weight:800;color:#334155;margin-bottom:8px}
+.deny{max-width:560px;margin:40px auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px;text-align:center;color:var(--sub)}
+.briefshow{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;font-size:14px;color:#92400e;font-weight:700;margin-bottom:16px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <button class="back" onclick="location.href='/home'">←</button>
+  <h1>🚦 点呼・朝礼</h1>
+  <span id="today" style="font-size:13px;opacity:.9"></span>
+</header>
+
+<div id="denyBox" class="deny" style="display:none"></div>
+
+<div id="appWrap" style="display:none">
+  <div class="toolbar">
+    <div class="sel">🏢 <select id="companySel" onchange="reload()"></select></div>
+    <div class="prog" id="prog">0 / 0</div>
+  </div>
+  <div class="brief">
+    <div class="box">
+      <div class="ttl">📢 今日の連絡・安全一言（この営業所の全員に表示）</div>
+      <textarea id="briefText" placeholder="例：本日強風注意。横転事故防止のため空車時は特に減速を。"></textarea>
+      <button class="save" onclick="saveBrief()">連絡を保存</button>
+    </div>
+  </div>
+  <main>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">この営業所に対象メンバーがいません</div>
+  </main>
+</div>
+
+<!-- 記録モーダル -->
+<div class="ov" id="ov">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) { location.href = '/'; }
+let state = { date:'', company:'', items:[], me:null };
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function api(path, opt){
+  const r = await fetch('/api/tenko'+path, Object.assign({ headers:{ Authorization:'Bearer '+token } }, opt||{}));
+  if (r.status === 401){ localStorage.removeItem('cohub_token'); location.href='/'; return null; }
+  return r;
+}
+
+async function init(){
+  const r = await api('/roster');
+  if (!r) return;
+  if (r.status === 403){
+    document.getElementById('denyBox').style.display='block';
+    document.getElementById('denyBox').innerHTML='🔒 点呼・朝礼は<b>点呼者・管理者</b>のみ利用できます。<br>担当に設定が必要な場合は管理者にご連絡ください。';
+    return;
+  }
+  const j = await r.json();
+  if (!j.success) return;
+  state.me = j.me;
+  document.getElementById('appWrap').style.display='block';
+  const sel = document.getElementById('companySel');
+  sel.innerHTML = j.companies.map(c=>`<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('');
+  // 操作者の所属が営業所(branch)ならそれを既定に、ADMIN等なら先頭の営業所に
+  const codes = j.companies.map(c=>c.code);
+  const eff = codes.includes(j.company) ? j.company : (codes[0] || j.company);
+  sel.value = eff;
+  if (eff !== j.company) { reload(); } else { applyData(j); loadBrief(); }
+}
+
+function applyData(j){
+  state.date = j.date; state.company = j.company; state.items = j.items;
+  document.getElementById('today').textContent = j.date;
+  document.getElementById('prog').textContent = j.done + ' / ' + j.total + ' 完了';
+  const grid = document.getElementById('grid');
+  document.getElementById('empty').style.display = j.items.length ? 'none' : 'block';
+  grid.innerHTML = j.items.map(m=>{
+    const initial = (m.name||'?').trim().charAt(0);
+    const ava = m.avatar ? `<img src="${esc(m.avatar)}" onerror="this.replaceWith(document.createTextNode('${esc(initial)}'))">` : esc(initial);
+    const uCls = m.done && m.urgency==='高' ? 'urgent-hi' : (m.done && m.urgency==='中' ? 'urgent' : '');
+    const ub = m.done && (m.urgency==='高'||m.urgency==='中') ? `<span class="ubadge" style="background:${m.urgency==='高'?'#dc2626':'#f59e0b'}">${m.urgency==='高'?'要対応':'注意'}</span>` : '';
+    return `<div class="mem ${m.done?'done':''} ${uCls}" onclick='openCard(${JSON.stringify(m)})'>
+      ${m.done?'<span class="status">✅</span>':''}${ub}
+      <div class="ava">${ava}</div>
+      <div class="nm">${esc(m.name)}</div>
+      <span class="mode ${m.mode}">${m.mode==='tenko'?'点呼':'朝礼'}</span>
+    </div>`;
+  }).join('');
+}
+
+async function reload(){
+  const company = document.getElementById('companySel').value;
+  const r = await api('/roster?company='+encodeURIComponent(company));
+  if (!r) return; const j = await r.json(); if (j.success) applyData(j);
+  loadBrief();
+}
+async function loadBrief(){
+  const company = document.getElementById('companySel').value;
+  const r = await api('/brief?company='+encodeURIComponent(company));
+  if (!r) return; const j = await r.json();
+  if (j.success) document.getElementById('briefText').value = j.message || '';
+}
+async function saveBrief(){
+  const company = document.getElementById('companySel').value;
+  const message = document.getElementById('briefText').value;
+  const r = await api('/brief', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ company, message }) });
+  if (r && (await r.json()).success){ const b=event.target; b.textContent='保存しました ✓'; setTimeout(()=>b.textContent='連絡を保存',1500); }
+}
+
+// ---- 記録モーダル ----
+let form = {};
+function openCard(m){
+  form = { target_id:m.id, mode:m.mode, tokai_done:false, condition:null, health:{}, note:'' };
+  const brief = document.getElementById('briefText').value.trim();
+  const briefHtml = brief ? `<div class="briefshow">📢 ${esc(brief)}</div>` : '';
+  const body = m.mode==='tenko' ? tenkoForm() : choreiForm();
+  document.getElementById('modal').innerHTML =
+    `<h2>${m.mode==='tenko'?'🚦 点呼':'📣 朝礼'}</h2>
+     <div class="who">${esc(m.name)} さん</div>
+     ${briefHtml}${body}
+     <div class="fld"><div class="note-ttl">📝 メモ（任意）</div><textarea class="note" id="f_note" placeholder="気づいたことがあれば記入"></textarea></div>
+     <button class="submit" onclick="submitCard()">${m.mode==='tenko'?'点呼を記録':'記録（出席）'}</button>
+     <button class="cancel" onclick="closeOv()">キャンセル</button>`;
+  document.getElementById('ov').classList.add('show');
+}
+function tenkoForm(){
+  return `
+  <div class="fld">
+    <div class="chk" id="chk_tokai" onclick="toggleTokai()"><div class="bx" id="bx_tokai"></div>
+      <div class="tx">東海電子で点呼・アルコール・免許証・血圧チェックを実施済み<br><span style="font-weight:600;color:#3b82f6">（数値はこちらに入力不要）</span></div></div>
+  </div>
+  ${optFld('顔色・表情','facial',[['普通','normal'],['疲れ気味','tired',1],['すぐれない','bad',1]])}
+  ${optFld('睡眠','sleep',[['取れた','ok'],['やや不足','short',1],['ほぼ寝てない','none',1]])}
+  ${optFld('疲労','fatigue',[['なし','no'],['あり','yes',1]])}
+  ${optFld('気になること','concern',[['なし','no'],['あり','yes',1]])}`;
+}
+function choreiForm(){
+  return `
+  ${optFld('体調','condition',[['良い','good'],['普通','normal'],['不調','bad',1]],true)}
+  ${optFld('気になること','concern',[['なし','no'],['あり','yes',1]])}`;
+}
+function optFld(label,key,opts,isCondition){
+  const btns = opts.map(o=>`<button class="opt ${o[2]?'warn':''}" data-k="${key}" data-v="${o[1]}" data-cond="${isCondition?1:0}" onclick="pick(this)">${o[0]}</button>`).join('');
+  return `<div class="fld"><label>${label}</label><div class="opts">${btns}</div></div>`;
+}
+function pick(el){
+  const k=el.dataset.k, v=el.dataset.v;
+  el.parentElement.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  if (el.dataset.cond==='1') form.condition=v; else form.health[k]=v;
+}
+function toggleTokai(){ form.tokai_done=!form.tokai_done;
+  document.getElementById('chk_tokai').classList.toggle('on',form.tokai_done);
+  document.getElementById('bx_tokai').textContent=form.tokai_done?'✓':''; }
+function closeOv(){ document.getElementById('ov').classList.remove('show'); }
+document.getElementById('ov').addEventListener('click',e=>{ if(e.target.id==='ov') closeOv(); });
+
+async function submitCard(){
+  form.note = document.getElementById('f_note').value;
+  const r = await api('/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
+  if (!r) return; const j = await r.json();
+  if (!j.success){ alert(j.msg||'記録に失敗しました'); return; }
+  closeOv();
+  if (j.escalated) { /* 不調を現場の声へ連携した旨は静かに */ }
+  reload();
+}
+init();
+</script>
+</body>
+</html>

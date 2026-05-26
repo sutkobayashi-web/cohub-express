@@ -259,6 +259,9 @@ function getDb() {
   // ゲスト (大学・NPO等の外部レビュアー) フラグ — 施策ボードレビュー権限
   ensureColumn(_db, 'users', 'is_guest_reviewer', 'is_guest_reviewer INTEGER DEFAULT 0');
   ensureColumn(_db, 'users', 'guest_org', 'guest_org TEXT');
+  // 点呼・朝礼 操作者(点呼者/管理者) フラグ — タブレットで点呼・朝礼を記録できる (2026-05-27)
+  // 権限は (このフラグ OR 管理職 OR manager OR 推進メンバー運管/倉庫) のいずれかで付与
+  ensureColumn(_db, 'users', 'is_tenko_operator', 'is_tenko_operator INTEGER DEFAULT 0');
   // 会社マスタ表示名を実社名へ正規化 (2026-05-25: 旧 SU本社/IBA鹿島/スズエ 等 → 正式社名)
   // 本番では 支店チャットグループ名 と users.dm_group が旧社名そのもの (companies.name と連動)。
   // 表示だけ変えると次回登録時に新社名グループが別途作られ既存グループと分断するため、
@@ -454,6 +457,38 @@ function getDb() {
   // 聞き取りカード方式 (2026-05-08): 被聞き取り者と構造化回答JSON
   ensureColumn(_db, 'wellness_posts', 'subject_user_id', "subject_user_id TEXT");
   ensureColumn(_db, 'wellness_posts', 'structured_json', "structured_json TEXT");
+  // ============================================================
+  // 点呼・朝礼 (2026-05-27): タブレットキオスクで運行管理者が営業所メンバーを1人ずつ記録
+  // 点呼=ドライバー(東海電子で点呼/アルコール/免許/血圧 実施済み確認 + 体調聞き取り)
+  // 朝礼=倉庫・製造ほか(安全一言 + 体調ひとこと)。1日1回(rec_date×target_idでユニーク=上書き)。
+  // ⚠️アルコール/免許/血圧の数値は東海電子が正。CoHubは二重入力せず体調観察+連絡に特化。
+  // ============================================================
+  _db.exec(`CREATE TABLE IF NOT EXISTS tenko_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rec_date TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    operator_id TEXT NOT NULL,
+    company_code TEXT,
+    mode TEXT NOT NULL,
+    tokai_done INTEGER DEFAULT 0,
+    condition TEXT,
+    health_json TEXT,
+    urgency TEXT,
+    note TEXT,
+    wellness_post_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_tenko_uniq ON tenko_records(rec_date, target_id);
+  CREATE INDEX IF NOT EXISTS idx_tenko_day ON tenko_records(rec_date, company_code);
+  CREATE TABLE IF NOT EXISTS tenko_briefs (
+    rec_date TEXT NOT NULL,
+    company_code TEXT NOT NULL,
+    message TEXT,
+    set_by TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (rec_date, company_code)
+  );`);
   // 健康管理室 月次施策ボード
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

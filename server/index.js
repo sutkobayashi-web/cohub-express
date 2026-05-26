@@ -293,6 +293,7 @@ app.use('/api/branch-wifi', require('./routes/branch_wifi'));
 app.use('/api/translate', require('./routes/translate'));
 app.use('/api/expense', require('./routes/expense'));
 app.use('/api/approval', require('./routes/approval'));
+app.use('/api/tenko', require('./routes/tenko'));
 // 2026-05-24〜25 機能 (誤って未mount化していたため復旧 2026-05-25): 共有カレンダー/業務週報/まとめる君/運転アラート
 app.use('/api/shared-calendar', require('./routes/shared_calendar'));
 app.use('/api/weekly-report', require('./routes/weekly_report'));

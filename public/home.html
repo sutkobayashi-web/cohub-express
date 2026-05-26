@@ -813,6 +813,11 @@
       <span class="desc">推進メンバー・管理職のみに表示</span>
     </div>
     <div class="grid">
+      <a id="p-card-tenko" class="card p-rollcall" href="/tenko.html" style="display:none;">
+        <div class="icon-pill">🚦</div>
+        <div class="label">点呼・朝礼</div>
+        <div class="desc">タブレットで営業所メンバーを1人ずつタップ。ドライバーは<b>点呼</b>（東海電子で実施済み確認＋体調）、倉庫・製造は<b>朝礼</b>。不調は現場の声へ自動連携。</div>
+      </a>
       <a class="card p-guide" href="/promoter-guide.html">
         <div class="icon-pill">📘</div>
         <div class="label">推進メンバーガイド</div>
@@ -1272,7 +1277,9 @@ async function init() {
   const isGuest = !!me.is_guest_reviewer;
   // 管理者のみヘッダーに「管理画面」ボタン表示 (inline-flex でアイコン中央寄せ)
   if (isAdmin) $('hd-admin-btn').style.display = 'inline-flex';
-  if (isPromoter || isWarehousePromoter || isAdmin || isGuest) {
+  // 点呼者・管理者 (点呼・朝礼を実施する人): 推進メンバー(運管/倉庫) / 管理職 / manager / systemadmin
+  const isTenkoOp = isPromoter || isWarehousePromoter || isAdmin || me.employee_type === 'admin' || me.job_role === 'manager';
+  if (isPromoter || isWarehousePromoter || isAdmin || isGuest || isTenkoOp) {
     $('promoter-section').style.display = 'block';
     if (isAdmin) {
       $('promoter-title').textContent = '🩺 推進メンバー / 管理職 専用';
@@ -1281,6 +1288,8 @@ async function init() {
     } else {
       $('promoter-title').textContent = '🩺 推進メンバー専用';
     }
+    // 点呼・朝礼: 点呼者・管理者に表示
+    if (isTenkoOp) { const t = $('p-card-tenko'); if (t) t.style.display = ''; }
     // 推進メンバー (運管/倉庫いずれか) または管理職: 聞き取りカードPOST (HL5問も同梱)
     if (isPromoter || isWarehousePromoter || isAdmin) {
       const c = $('p-card-listening');
