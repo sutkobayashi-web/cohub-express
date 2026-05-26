@@ -1108,9 +1108,9 @@ function getDb() {
   for (const r of opsAdminRows) {
     memInsert.run(OPS_GROUP_ID, r.id);
   }
-  // 事業本部GC: 主所属が事業本部のメンバーのみ (login_idで列挙、未在席ユーザは無視)
-  // 2026-05-26 再編: 事業本部は濱道(ts_hamamichi)のみ。兼務(taketake/y_okada/chikara/e_sugai等)は解除。
-  const HQ_LOGIN_IDS = ['ts_hamamichi'];
+  // 事業本部GC: 事業本部所属メンバーのみ (login_idで列挙、未在席ユーザは無視)
+  // 2026-05-27: 池邊(t_ikebe)が事業本部所属。濱道と入れ替え(濱道は座間のみに)。
+  const HQ_LOGIN_IDS = ['t_ikebe'];
   const hqUserRows = _db.prepare(
     `SELECT id FROM users WHERE login_id IN (${HQ_LOGIN_IDS.map(() => '?').join(',')})`
   ).all(...HQ_LOGIN_IDS);
