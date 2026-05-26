@@ -1107,7 +1107,8 @@ function getDb() {
     memInsert.run(OPS_GROUP_ID, r.id);
   }
   // 事業本部GC: 経営層+事業推進中核 (login_idで列挙、未在席ユーザは無視)
-  const HQ_LOGIN_IDS = ['taketake', 'y_gotoh', 'y_okada', 'chikara', 'e_sugai', 'y_yoshizawa', 'ts_hamamichi'];
+  // 2026-05-26 人事異動: 後藤(y_gotoh)→経営管理部 / 吉沢(y_yoshizawa)→座間+管理部 のため事業本部から除外
+  const HQ_LOGIN_IDS = ['taketake', 'y_okada', 'chikara', 'e_sugai', 'ts_hamamichi'];
   const hqUserRows = _db.prepare(
     `SELECT id FROM users WHERE login_id IN (${HQ_LOGIN_IDS.map(() => '?').join(',')})`
   ).all(...HQ_LOGIN_IDS);
