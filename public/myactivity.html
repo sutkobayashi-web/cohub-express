@@ -315,10 +315,13 @@ textarea.comment-input:focus { outline: none; border-color: #ea580c; }
 <div class="modal-overlay" id="weight-modal" style="display:none;">
   <div class="modal">
     <h2>🔥 はじめに体重を教えてください</h2>
-    <p>消費カロリーを正確に計算するため、体重を1度だけ入力します。<br>あとから ⚙設定 でいつでも変更できます。</p>
+    <p>消費カロリーを計算するために使います。<br>あとから ⚙設定 でいつでも変更できます。</p>
     <input type="number" id="weight-input" placeholder="例: 65" min="25" max="250" step="0.1">
     <div style="margin-top:6px;font-size:11px;color:#9a3412;text-align:center;">単位: kg</div>
+    <div style="margin-top:10px;font-size:12px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:8px 10px;text-align:center;font-weight:700;">🔒 この数値はあなたにしか見えません</div>
     <button class="submit-btn" style="margin-top:14px;" onclick="saveWeight()">保存して始める</button>
+    <button type="button" style="width:100%;margin-top:8px;padding:10px;background:#fff;color:#7c2d12;border:1px solid #fed7aa;border-radius:10px;font-weight:700;cursor:pointer;" onclick="skipWeight()">あとで入力する</button>
+    <div style="margin-top:8px;font-size:10px;color:#9a3412;text-align:center;">※「あとで」でも歩数・距離・時間は記録できます（カロリーは概算表示）</div>
   </div>
 </div>
 
@@ -386,7 +389,8 @@ const METS = { walk: 3.0, jog: 7.0, run: 10.0, bike: 6.0, gym: 5.0 };
 let kcalManual = false;
 function recalcKcal() {
   if (kcalManual) return;
-  const w = (state.prefs && state.prefs.weight_kg) || 65;
+  const hasW = !!(state.prefs && state.prefs.weight_kg);
+  const w = (state.prefs && state.prefs.weight_kg) || 60;
   const steps = parseInt(document.getElementById('in-steps').value) || 0;
   const dist = parseFloat(document.getElementById('in-distance').value) || 0;
   const dur = parseInt(document.getElementById('in-duration').value) || 0;
@@ -401,7 +405,9 @@ function recalcKcal() {
     kcal = Math.round(3 * w * (km / 4));
   }
   document.getElementById('in-kcal').placeholder = kcal > 0 ? kcal : '自動計算';
-  document.getElementById('kcal-hint').textContent = kcal > 0 ? `推定 ${kcal} kcal (体重${w}kg×${met}METs)` : '歩数 / 距離 / 時間から推定';
+  document.getElementById('kcal-hint').textContent = kcal > 0
+    ? (hasW ? `推定 ${kcal} kcal (体重${w}kg×${met}METs)` : `概算 ${kcal} kcal (標準体重${w}kg。⚙設定で体重を入れると正確に)`)
+    : '歩数 / 距離 / 時間から推定';
 }
 function onKcalManual() {
   const v = document.getElementById('in-kcal').value;
@@ -695,7 +701,8 @@ function escapeHtml(s) {
 async function ensureWeightAndStart() {
   const r = await api('/prefs');
   state.prefs = r.prefs || {};
-  if (!state.prefs.weight_kg) {
+  // 体重未入力でも「あとで入力」を選べば記録可能 (女性職員等の心理的ハードル配慮)。スキップ済みは再表示しない
+  if (!state.prefs.weight_kg && !localStorage.getItem('myact_weight_skipped')) {
     document.getElementById('weight-modal').style.display = 'flex';
     return;
   }
@@ -708,10 +715,19 @@ async function saveWeight() {
   if (!w || w < 25 || w > 250) { alert('体重は25-250kgで入力してください'); return; }
   const r = await api('/prefs', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ weight_kg: w }) });
   if (r.success) {
+    localStorage.removeItem('myact_weight_skipped');
     document.getElementById('weight-modal').style.display = 'none';
     state.prefs.weight_kg = w;
     refresh();
   } else { alert(r.msg || '保存失敗'); }
+}
+// 体重をあとで入力 — スキップして記録画面へ。歩数・距離は記録でき、kcalは標準体重で概算表示
+function skipWeight() {
+  localStorage.setItem('myact_weight_skipped', '1');
+  document.getElementById('weight-modal').style.display = 'none';
+  state.vis = state.prefs.default_visibility || 'private';
+  document.querySelectorAll('.vis-row:not(#setting-vis-row) .vis-btn').forEach(b => b.classList.toggle('active', b.dataset.vis === state.vis));
+  refresh();
 }
 function openSettings() {
   document.getElementById('setting-weight').value = state.prefs.weight_kg || '';
@@ -738,7 +754,7 @@ async function saveSettings() {
     default_visibility: vis,
   }) });
   if (r.success) {
-    if (w) state.prefs.weight_kg = w;
+    if (w) { state.prefs.weight_kg = w; localStorage.removeItem('myact_weight_skipped'); }
     state.prefs.monthly_goal_kcal = goal;
     state.prefs.default_visibility = vis;
     state.vis = vis;
