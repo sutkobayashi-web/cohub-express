@@ -1109,8 +1109,8 @@ function getDb() {
     memInsert.run(OPS_GROUP_ID, r.id);
   }
   // 事業本部GC: 事業本部所属メンバーのみ (login_idで列挙、未在席ユーザは無視)
-  // 2026-05-27: 池邊(t_ikebe)が事業本部所属。濱道と入れ替え(濱道は座間のみに)。
-  const HQ_LOGIN_IDS = ['t_ikebe'];
+  // 2026-05-27: 濱道(ts_hamamichi)が事業本部所属。池邊と入れ替え(池邊は座間のみに)。
+  const HQ_LOGIN_IDS = ['ts_hamamichi'];
   const hqUserRows = _db.prepare(
     `SELECT id FROM users WHERE login_id IN (${HQ_LOGIN_IDS.map(() => '?').join(',')})`
   ).all(...HQ_LOGIN_IDS);
