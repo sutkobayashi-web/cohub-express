@@ -489,6 +489,10 @@ function getDb() {
     updated_at TEXT,
     PRIMARY KEY (rec_date, company_code)
   );`);
+  // 血圧は東海電子の点呼システムに連動していないため CoHubで管理者が点呼時に記入 (2026-05-27)
+  ensureColumn(_db, 'tenko_records', 'bp_systolic', 'bp_systolic INTEGER');
+  ensureColumn(_db, 'tenko_records', 'bp_diastolic', 'bp_diastolic INTEGER');
+  ensureColumn(_db, 'tenko_records', 'pulse', 'pulse INTEGER');
   // 健康管理室 月次施策ボード
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

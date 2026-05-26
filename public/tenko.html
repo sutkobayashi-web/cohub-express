@@ -55,6 +55,10 @@ main{max-width:1100px;margin:0 auto;padding:12px 16px 60px}
 .chk .bx{width:28px;height:28px;border-radius:8px;border:2px solid #2563eb;display:flex;align-items:center;justify-content:center;font-size:18px;color:#2563eb;flex:none}
 .chk .tx{font-size:14px;font-weight:800;color:#1e3a8a;line-height:1.35}
 .note{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;font-size:15px;min-height:54px;resize:vertical;font-family:inherit}
+.bprow{display:flex;gap:10px;align-items:center}
+.bp{flex:1;min-width:0;border:2px solid var(--line);border-radius:12px;padding:13px 8px;font-size:20px;font-weight:800;text-align:center;font-family:inherit}
+.bp:focus{outline:none;border-color:var(--accent)}
+.bpslash{font-size:22px;font-weight:800;color:#94a3b8}
 .submit{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:16px;font-size:18px;font-weight:800;cursor:pointer;margin-top:6px}
 .cancel{width:100%;background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:12px;padding:11px;font-weight:700;cursor:pointer;margin-top:10px}
 .note-ttl{font-size:14px;font-weight:800;color:#334155;margin-bottom:8px}
@@ -186,7 +190,17 @@ function tenkoForm(){
   return `
   <div class="fld">
     <div class="chk" id="chk_tokai" onclick="toggleTokai()"><div class="bx" id="bx_tokai"></div>
-      <div class="tx">東海電子で点呼・アルコール・免許証・血圧チェックを実施済み<br><span style="font-weight:600;color:#3b82f6">（数値はこちらに入力不要）</span></div></div>
+      <div class="tx">東海電子で点呼・アルコール・免許証チェックを実施済み<br><span style="font-weight:600;color:#3b82f6">（アルコール・免許の数値はこちらに入力不要）</span></div></div>
+  </div>
+  <div class="fld">
+    <label>血圧の記入 <span style="font-weight:600;color:#94a3b8">※点呼システム非連動・管理者が測定値を記入</span></label>
+    <div class="bprow">
+      <input class="bp" id="f_bp_sys" type="number" inputmode="numeric" placeholder="上" min="50" max="300" oninput="bpCheck()">
+      <span class="bpslash">/</span>
+      <input class="bp" id="f_bp_dia" type="number" inputmode="numeric" placeholder="下" min="30" max="200" oninput="bpCheck()">
+      <input class="bp" id="f_pulse" type="number" inputmode="numeric" placeholder="脈拍(任意)" min="20" max="250">
+    </div>
+    <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:10px;padding:8px 10px">⚠️ 血圧が高めです。運行可否を確認してください。</div>
   </div>
   ${optFld('顔色・表情','facial',[['普通','normal'],['疲れ気味','tired',1],['すぐれない','bad',1]])}
   ${optFld('睡眠','sleep',[['取れた','ok'],['やや不足','short',1],['ほぼ寝てない','none',1]])}
@@ -214,8 +228,20 @@ function toggleTokai(){ form.tokai_done=!form.tokai_done;
 function closeOv(){ document.getElementById('ov').classList.remove('show'); }
 document.getElementById('ov').addEventListener('click',e=>{ if(e.target.id==='ov') closeOv(); });
 
+function bpCheck(){
+  const sys = parseInt((document.getElementById('f_bp_sys')||{}).value)||0;
+  const dia = parseInt((document.getElementById('f_bp_dia')||{}).value)||0;
+  const w = document.getElementById('bp_warn');
+  if (w) w.style.display = (sys>=160||dia>=100) ? 'block' : 'none';
+}
 async function submitCard(){
   form.note = document.getElementById('f_note').value;
+  const sys = document.getElementById('f_bp_sys');
+  if (sys) {
+    form.bp_systolic = sys.value || null;
+    form.bp_diastolic = (document.getElementById('f_bp_dia')||{}).value || null;
+    form.pulse = (document.getElementById('f_pulse')||{}).value || null;
+  }
   const r = await api('/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
   if (!r) return; const j = await r.json();
   if (!j.success){ alert(j.msg||'記録に失敗しました'); return; }

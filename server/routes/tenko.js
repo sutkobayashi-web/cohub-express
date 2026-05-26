@@ -27,16 +27,24 @@ const SEV = {
   fatigue: { no: 0, yes: 1 },
   concern: { no: 0, yes: 1 },
 };
-function deriveUrgency(mode, health, condition) {
-  if (mode === 'chorei') {
-    if (condition === 'bad') return '高';
-    if (health && health.concern === 'yes') return '中';
-    return '低';
-  }
+// 血圧の重み (管理者記入)。160/100以上=高(運行要注意), 140/90以上=中
+function bpSeverity(sys, dia) {
+  if ((sys && sys >= 160) || (dia && dia >= 100)) return 2;
+  if ((sys && sys >= 140) || (dia && dia >= 90)) return 1;
+  return 0;
+}
+function deriveUrgency(mode, health, condition, bp) {
   let max = 0;
-  if (health) for (const k of Object.keys(SEV)) {
-    const s = (SEV[k] && SEV[k][health[k]] != null) ? SEV[k][health[k]] : 0;
-    if (s > max) max = s;
+  if (mode === 'chorei') {
+    if (condition === 'bad') max = 2;
+    else if (health && health.concern === 'yes') max = 1;
+  } else {
+    if (health) for (const k of Object.keys(SEV)) {
+      const s = (SEV[k] && SEV[k][health[k]] != null) ? SEV[k][health[k]] : 0;
+      if (s > max) max = s;
+    }
+    const bs = bpSeverity(bp && bp.sys, bp && bp.dia);
+    if (bs > max) max = bs;
   }
   return max >= 2 ? '高' : max >= 1 ? '中' : '低';
 }
@@ -111,23 +119,30 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
   const condition = b.condition ? String(b.condition).slice(0, 16) : null;
   const health = (b.health && typeof b.health === 'object') ? b.health : null;
   const note = String(b.note || '').slice(0, 300);
-  const urgency = deriveUrgency(mode, health, condition);
+  // 血圧 (管理者が点呼時に記入。東海電子非連動)
+  const toInt = (v) => { const n = parseInt(v, 10); return (Number.isFinite(n) && n > 0 && n < 400) ? n : null; };
+  const bpSys = toInt(b.bp_systolic), bpDia = toInt(b.bp_diastolic), pulse = toInt(b.pulse);
+  const urgency = deriveUrgency(mode, health, condition, { sys: bpSys, dia: bpDia });
   const date = jstDate();
+
+  const bpText = (bpSys || bpDia) ? `血圧 ${bpSys || '-'}/${bpDia || '-'}${pulse ? ` 脈${pulse}` : ''}` : '';
+  const bpHigh = bpSeverity(bpSys, bpDia) >= 2;
 
   // 不調 → 現場の声(運管/倉庫POST)へ連携
   let wpId = null;
   if (urgency === '中' || urgency === '高') {
     try {
       const sourceType = mode === 'tenko' ? '運管' : '倉庫';
-      const memo = `【${mode === 'tenko' ? '点呼' : '朝礼'}】${target.display_name}さんの体調確認: ${note || '(メモなし)'}`;
+      const detail = [bpHigh ? `⚠️${bpText}(高血圧)` : bpText, note].filter(Boolean).join(' / ') || '(メモなし)';
+      const memo = `【${mode === 'tenko' ? '点呼' : '朝礼'}】${target.display_name}さんの体調確認: ${detail}`;
       const ins = db.prepare(`INSERT INTO wellness_posts
         (poster_id, company_code, category, urgency, identity_mode, memo, source_type, subject_user_id, structured_json)
         VALUES (?,?,?,?,?,?,?,?,?)`)
         .run(op.id, target.company_code || '', '体調', urgency, '本人特定可', memo, sourceType,
-             target.id, JSON.stringify(health || { condition }));
+             target.id, JSON.stringify({ health, condition, bp: { sys: bpSys, dia: bpDia, pulse } }));
       wpId = ins.lastInsertRowid;
       const mark = urgency === '高' ? '🔴' : '🟡';
-      const content = `📝 #${wpId} 【体調】 ${mark}${urgency}\n営業所: ${target.company_code || '-'}　/　${mode === 'tenko' ? '点呼' : '朝礼'}: ${target.display_name}\n─\n${note || '(メモなし)'}`;
+      const content = `📝 #${wpId} 【体調】 ${mark}${urgency}\n営業所: ${target.company_code || '-'}　/　${mode === 'tenko' ? '点呼' : '朝礼'}: ${target.display_name}\n─\n${detail}`;
       const msgIns = db.prepare('INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, NULL, ?, ?)')
         .run(op.id, content, 'grp_' + FIELD_VOICE_GROUP);
       if (req.app && req.app.locals && req.app.locals.emitToGroupMembers) {
@@ -140,18 +155,19 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
   }
 
   db.prepare(`INSERT INTO tenko_records
-    (rec_date, target_id, operator_id, company_code, mode, tokai_done, condition, health_json, urgency, note, wellness_post_id, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+    (rec_date, target_id, operator_id, company_code, mode, tokai_done, condition, health_json, urgency, note,
+     bp_systolic, bp_diastolic, pulse, wellness_post_id, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
     ON CONFLICT(rec_date, target_id) DO UPDATE SET
       operator_id = excluded.operator_id, mode = excluded.mode, tokai_done = excluded.tokai_done,
       condition = excluded.condition, health_json = excluded.health_json, urgency = excluded.urgency,
-      note = excluded.note,
+      note = excluded.note, bp_systolic = excluded.bp_systolic, bp_diastolic = excluded.bp_diastolic, pulse = excluded.pulse,
       wellness_post_id = COALESCE(excluded.wellness_post_id, tenko_records.wellness_post_id),
       updated_at = datetime('now')`)
     .run(date, target.id, op.id, target.company_code || '', mode, tokaiDone, condition,
-         health ? JSON.stringify(health) : null, urgency, note, wpId);
+         health ? JSON.stringify(health) : null, urgency, note, bpSys, bpDia, pulse, wpId);
 
-  res.json({ success: true, urgency, escalated: !!wpId });
+  res.json({ success: true, urgency, escalated: !!wpId, bp_high: bpHigh });
 });
 
 module.exports = router;

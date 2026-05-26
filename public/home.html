@@ -1199,6 +1199,9 @@ function renderNewFeatures(isManager) {
   const box = document.getElementById('new-features'), list = document.getElementById('nf-list');
   if (!box || !list) return;
   const items = [];
+  // 点呼・朝礼 (操作者=点呼者/管理者向け新機能のお知らせ)
+  const isOp = isManager || (me && (me.is_field_promoter || me.is_warehouse_promoter || me.employee_type === 'admin' || me.job_role === 'manager'));
+  if (isOp) items.push({ ic: '🚦', t: '点呼・朝礼', d: 'タブレットで点呼/朝礼を記録（アルコール等は東海電子で実施済み確認のみ）', href: '/tenko.html' });
   if (isManager) items.push({ ic: '🗓', t: '共有カレンダー', d: '役員・管理職の予定を社内で共有', href: '/calendar.html' });
   items.push({ ic: '🦉', t: 'まとめる君', d: '報告メモをAIが5W1Hに整形（事業本部チャット）', href: '/chat' });
   items.push({ ic: '🔥', t: 'マイ運動記録', d: '運動をkcalで記録・月間ランキング', href: '/myactivity.html' });
