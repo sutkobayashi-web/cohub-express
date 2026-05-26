@@ -64,7 +64,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <input type="text" id="new-login" placeholder="ログインID">
       <input type="text" id="new-name" placeholder="表示名">
       <select id="new-company">
-        <option value="SU_HQ">スタンダード運輸 本社</option>
+        <option value="SU_HQ">スタンダード運輸 海老名</option>
         <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
         <option value="SU_MKANTO">スタンダード運輸 南関東</option>
         <option value="SU_ZAMA">スタンダード運輸 座間</option>
@@ -120,12 +120,12 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       • <b>login_id</b>: 半角小文字英数・<code>_ . -</code>・3〜30文字・全社員で一意。<b>社内標準は「名前の頭文字_苗字」</b>(例: 山田太郎=<code>t_yamada</code>)<br>
       • <b>company_code</b> (会社コード。子会社も下表のコードで指定):<br>
       <span style="display:inline-block;background:#fff;padding:6px 10px;border-radius:4px;border:1px solid #fcd34d;margin:4px 0;line-height:1.9;">
-        スタンダード運輸 本社=<code>SU_HQ</code> / 埼玉=<code>SU_SAITAMA</code> / 南関東=<code>SU_MKANTO</code> / 座間=<code>SU_ZAMA</code><br>
+        スタンダード運輸 海老名=<code>SU_HQ</code> / 埼玉=<code>SU_SAITAMA</code> / 南関東=<code>SU_MKANTO</code> / 座間=<code>SU_ZAMA</code><br>
         <b>茨運(鹿島)</b>=<code>IBA_KASHIMA</code> / <b>茨運(三和)</b>=<code>IBA_SANWA</code> ・ <b>スズエ電機</b>=<code>SUZUE</code> ・ 管理職=<code>ADMIN</code>
       </span><br>
       • <b>job_role</b>: driver / warehouse / office / construction / manufacturing<br>
       • <b>birth_date</b>: YYYY-MM-DD (例: 1975-04-15)<br>
-      • <b>dm_group</b>: 所属DMグループ名。<b>空欄推奨</b>(空欄なら上表の会社名で支店グループに自動所属)。指定する場合は既存グループ名と完全一致させること(例: <code>スタンダード運輸 本社</code>)。新名で勝手に作ると別グループに分かれます<br>
+      • <b>dm_group</b>: 所属DMグループ名。<b>空欄推奨</b>(空欄なら上表の会社名で支店グループに自動所属)。指定する場合は既存グループ名と完全一致させること(例: <code>スタンダード運輸 海老名</code>)。新名で勝手に作ると別グループに分かれます<br>
       • <b>nickname</b>: 2-20文字、大小無視で全社員一意<br>
       • 1行でもエラーがあれば <b>全件中止</b>。修正してから本登録してください。<br>
       <span style="color:#92400e;">⚠ 初期パスワードは本登録時に1回だけ表示されます (DLボタンで保存)。</span>
@@ -364,7 +364,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div><label style="font-size:12px;font-weight:600;color:#475569;">所属会社</label>
           <select id="edit-company" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
-            <option value="SU_HQ">スタンダード運輸 本社</option>
+            <option value="SU_HQ">スタンダード運輸 海老名</option>
             <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
             <option value="SU_MKANTO">スタンダード運輸 南関東</option>
             <option value="SU_ZAMA">スタンダード運輸 座間</option>
@@ -514,7 +514,7 @@ let token = localStorage.getItem('cohub_admin_token') || localStorage.getItem('c
 })();
 
 const COMPANY_MAP = {
-  'SU_HQ':       { name: 'SU本社',   color: '#1f2937' },
+  'SU_HQ':       { name: 'SU海老名', color: '#1f2937' },
   'SU_SAITAMA':  { name: 'SU埼玉',   color: '#dc2626' },
   'SU_MKANTO':   { name: 'SU南関東', color: '#7c3aed' },
   'SU_ZAMA':     { name: 'SU座間',   color: '#ea580c' },
@@ -1349,7 +1349,7 @@ let bulkParsedRows = null;
 function downloadBulkTemplate() {
   const csv = [
     'login_id,display_name,nickname,company_code,job_role,dm_group,birth_date',
-    't_yamada,山田太郎,たろう,SU_HQ,office,スタンダード運輸 本社,1980-04-15',
+    't_yamada,山田太郎,たろう,SU_HQ,office,スタンダード運輸 海老名,1980-04-15',
     'h_sato,佐藤花子,はなこ,SU_SAITAMA,driver,スタンダード運輸 埼玉,1992-11-03',
     'k_takahashi,高橋健一,けんいち,SU_MKANTO,driver,スタンダード運輸 南関東,1987-06-22',
     'm_tanaka,田中美咲,みさき,SU_ZAMA,warehouse,スタンダード運輸 座間,1995-09-10',
@@ -1808,7 +1808,7 @@ async function loadUnmappedCw() {
           </div>
           <div style="display:flex;gap:3px;">
             <select id="mig-co-${i}" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
-              <option value="SU_HQ">スタンダード運輸 本社</option><option value="SU_SAITAMA">スタンダード運輸 埼玉</option><option value="SU_MKANTO">スタンダード運輸 南関東</option>
+              <option value="SU_HQ">スタンダード運輸 海老名</option><option value="SU_SAITAMA">スタンダード運輸 埼玉</option><option value="SU_MKANTO">スタンダード運輸 南関東</option>
               <option value="SU_ZAMA">スタンダード運輸 座間</option><option value="IBA_KASHIMA">茨運(鹿島)</option><option value="IBA_SANWA">茨運(三和)</option>
               <option value="SUZUE">スズエ電機</option><option value="ADMIN">管理職</option>
             </select>

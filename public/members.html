@@ -27,6 +27,10 @@ header .count{font-size:12px;background:#e0f2fe;color:#0369a1;padding:3px 10px;b
 main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
 .section{margin-top:16px}
 .section h2{font-size:13px;font-weight:800;color:var(--sub);margin:0 0 10px;padding-left:8px;border-left:3px solid var(--accent);letter-spacing:0.3px}
+.section.hq-parent h2{font-size:15px;color:var(--ink);border-left-width:4px}
+.section.hq-child{margin-left:16px;padding-left:12px;border-left:2px dashed var(--line)}
+.section.hq-child h2{font-size:12px;border-left-color:#94a3b8}
+.section.hq-child::before{content:'└';color:#94a3b8;font-weight:700;margin-right:2px;font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .member{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 10px 12px;text-align:center;cursor:default;position:relative}
 .member.role-admin{background:linear-gradient(180deg,#fef3c7 0%,#fff 35%)}
@@ -80,6 +84,10 @@ if (!token) { location.href = '/'; }
 let allMembers = [];
 let currentFilter = '';
 
+// 組織ツリー: 事業本部(親)の配下にスタンダード運輸の各営業所(子)をぶら下げる
+const HQ_GROUP = '🏛 事業本部';
+const HQ_CHILDREN = ['スタンダード運輸 海老名','スタンダード運輸 埼玉','スタンダード運輸 座間','スタンダード運輸 南関東'];
+
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 function renderChips(){
@@ -116,29 +124,49 @@ function renderList(){
 
   const byGroup = {};
   list.forEach(m => { const g = m.group || '(未設定)'; (byGroup[g] = byGroup[g] || []).push(m); });
-  const groupOrder = Object.keys(byGroup).sort((a,b)=>{
+
+  // 事業本部の下に各営業所をぶら下げる入れ子ツリー (営業所は主所属=事業本部配下であり兼務ではない)
+  const childSet = new Set(HQ_CHILDREN);
+  let topGroups = Object.keys(byGroup).filter(g => !childSet.has(g));
+  // 子(営業所)だけが該当する絞り込み時でも、親=事業本部の見出しを文脈として表示
+  if (HQ_CHILDREN.some(c => byGroup[c]) && !topGroups.includes(HQ_GROUP)) topGroups.push(HQ_GROUP);
+  topGroups.sort((a,b)=>{
     if (a==='管理職') return -1;
     if (b==='管理職') return 1;
-    return byGroup[b].length - byGroup[a].length;
+    if (a===HQ_GROUP) return -1;
+    if (b===HQ_GROUP) return 1;
+    return (byGroup[b]||[]).length - (byGroup[a]||[]).length;
   });
 
+  function cardHtml(m){
+    const initial = (m.name||'?').trim().charAt(0);
+    const ava = m.avatar
+      ? '<img src="'+escapeHtml(m.avatar)+'" alt="" onerror="this.replaceWith(document.createTextNode(\''+escapeHtml(initial)+'\'))">'
+      : escapeHtml(initial);
+    return '<div class="member com-'+escapeHtml(m.company)+' role-'+escapeHtml(m.role)+'">'
+      + (m.promoter ? '<span class="pro-badge">推進</span>' : '')
+      + '<div class="ava">'+ava+'</div>'
+      + '<div class="nm">'+escapeHtml(m.name)+'</div>'
+      + (m.group ? '<div class="gp">'+escapeHtml(m.group)+'</div>' : '')
+      + ((m.concurrent||[]).map(c => '<div class="gp kenmu">兼務 '+escapeHtml(c)+'</div>').join(''))
+      + '</div>';
+  }
+  function sectionHtml(label, members, cls){
+    members = members || [];
+    let h = '<section class="section'+(cls?' '+cls:'')+'"><h2>'+escapeHtml(label)+' ('+members.length+')</h2>';
+    if (members.length) h += '<div class="grid">' + members.map(cardHtml).join('') + '</div>';
+    h += '</section>';
+    return h;
+  }
+
   let html = '';
-  groupOrder.forEach(g => {
-    html += '<section class="section"><h2>'+escapeHtml(g)+' ('+byGroup[g].length+')</h2><div class="grid">';
-    byGroup[g].forEach(m => {
-      const initial = (m.name||'?').trim().charAt(0);
-      const ava = m.avatar
-        ? '<img src="'+escapeHtml(m.avatar)+'" alt="" onerror="this.replaceWith(document.createTextNode(\''+escapeHtml(initial)+'\'))">'
-        : escapeHtml(initial);
-      html += '<div class="member com-'+escapeHtml(m.company)+' role-'+escapeHtml(m.role)+'">'
-        + (m.promoter ? '<span class="pro-badge">推進</span>' : '')
-        + '<div class="ava">'+ava+'</div>'
-        + '<div class="nm">'+escapeHtml(m.name)+'</div>'
-        + (m.group ? '<div class="gp">'+escapeHtml(m.group)+'</div>' : '')
-        + ((m.concurrent||[]).map(c => '<div class="gp kenmu">兼務 '+escapeHtml(c)+'</div>').join(''))
-        + '</div>';
-    });
-    html += '</div></section>';
+  topGroups.forEach(g => {
+    if (g === HQ_GROUP) {
+      html += sectionHtml(g, byGroup[g], 'hq-parent');
+      HQ_CHILDREN.forEach(c => { if ((byGroup[c]||[]).length) html += sectionHtml(c, byGroup[c], 'hq-child'); });
+    } else {
+      html += sectionHtml(g, byGroup[g], '');
+    }
   });
   document.getElementById('app').innerHTML = html;
 }

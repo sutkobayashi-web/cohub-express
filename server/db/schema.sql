@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS companies (
   ring_color TEXT DEFAULT '#000000'
 );
 INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES
-  ('SU_HQ',       'スタンダード運輸 本社',   '#1f2937'),
+  ('SU_HQ',       'スタンダード運輸 海老名', '#1f2937'),
   ('SU_SAITAMA',  'スタンダード運輸 埼玉',   '#dc2626'),
   ('SU_MKANTO',   'スタンダード運輸 南関東', '#7c3aed'),
   ('SU_ZAMA',     'スタンダード運輸 座間',   '#ea580c'),
