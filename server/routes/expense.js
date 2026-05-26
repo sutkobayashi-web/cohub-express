@@ -56,6 +56,22 @@ function normAmount(v) {
   return isNaN(n) ? 0 : Math.round(n);
 }
 function nowStr() { return new Date().toISOString().slice(0, 19).replace('T', ' '); }
+// アップロード済み領収書画像の安全削除 (/uploads/ 配下のファイル名のみ。パストラバーサル防止)
+function safeUnlinkUpload(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('/uploads/')) return;
+  const base = path.basename(url);
+  if (!base || base.indexOf('..') !== -1) return;
+  const fp = path.join(uploadDir, base);
+  if (!fp.startsWith(uploadDir)) return;
+  try { if (fs.existsSync(fp)) fs.unlinkSync(fp); } catch (e) { console.warn('[expense unlink]', e.message); }
+}
+// 削除可否: 管理職=全件 / 一般=自分or自営業所(承認済を除く)
+function canDeleteExpense(uid, r) {
+  if (isManagerUid(uid)) return true;
+  if (r.status === '承認済') return false;
+  const me = getDb().prepare('SELECT company_code FROM users WHERE id = ?').get(uid) || {};
+  return r.created_by === uid || r.request_office === (me.company_code || '');
+}
 
 function mapRow(r, cmap) {
   return {
@@ -169,6 +185,8 @@ router.get('/list', authUser, (req, res) => {
   if (vendor) items = items.filter(x => (x.vendor || '').indexOf(vendor) >= 0);
   if (dateFrom) items = items.filter(x => x.apply_date && x.apply_date >= dateFrom);
   if (dateTo) items = items.filter(x => x.apply_date && x.apply_date <= dateTo);
+  // 削除可否 (一覧は自分/自営業所に絞られているため、一般は承認済以外を削除可)
+  items.forEach(x => { x.can_delete = admin || x.status !== '承認済'; });
   res.json({ success: true, items, isAdmin: admin });
 });
 
@@ -249,7 +267,9 @@ router.get('/:id', authUser, (req, res) => {
   const db = getDb();
   const r = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
-  res.json({ success: true, item: mapRow(r, companyMap()) });
+  const item = mapRow(r, companyMap());
+  item.can_delete = canDeleteExpense(req.uid, r);
+  res.json({ success: true, item });
 });
 
 // ===== 修正 (自営業所のみ / 管理職は全社) =====
@@ -293,6 +313,20 @@ router.post('/:id/return', requireManager, express.json(), (req, res) => {
   db.prepare("UPDATE expenses SET status='差戻し', checker=?, checked_at=?, return_reason=?, updated_at=? WHERE id=?")
     .run(checker, now, String((req.body && req.body.reason) || ''), now, req.params.id);
   res.json({ success: true, msg: '差戻ししました' });
+});
+
+// ===== 削除 (管理職=全件 / 一般=自分or自営業所・承認済を除く)。領収書画像も一掃 =====
+router.delete('/:id', authUser, (req, res) => {
+  const db = getDb();
+  const r = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (!canDeleteExpense(req.uid, r)) {
+    const locked = !isManagerUid(req.uid) && r.status === '承認済';
+    return res.status(403).json({ success: false, msg: locked ? '承認済みの申請は削除できません (管理職にご依頼ください)' : '削除権限がありません' });
+  }
+  safeUnlinkUpload(r.image_url);
+  db.prepare('DELETE FROM expenses WHERE id = ?').run(req.params.id);
+  res.json({ success: true, msg: '削除しました' });
 });
 
 module.exports = router;
