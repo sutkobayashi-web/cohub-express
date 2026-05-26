@@ -39,6 +39,15 @@ function companyMap() {
   return m;
 }
 function nowStr() { return new Date().toISOString().slice(0, 19).replace('T', ' '); }
+// アップロード済み添付の安全削除 (/uploads/ 配下のファイル名のみ。パストラバーサル防止)
+function safeUnlinkUpload(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('/uploads/')) return;
+  const base = path.basename(url);
+  if (!base || base.indexOf('..') !== -1) return;
+  const fp = path.join(uploadDir, base);
+  if (!fp.startsWith(uploadDir)) return;
+  try { if (fs.existsSync(fp)) fs.unlinkSync(fp); } catch (e) { console.warn('[approval unlink]', e.message); }
+}
 function genId() {
   const d = new Date(), p = n => String(n).padStart(2, '0');
   return 'APP-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '-' + Math.random().toString(36).slice(2, 5);
@@ -171,6 +180,9 @@ router.get('/list', authUser, (req, res) => {
     if (admin) return true;
     if (a.applicant_id === req.uid) return true;
     return (a._chain || []).some(s => s.uid === req.uid);
+  }).map(a => {
+    a.can_delete = admin || (a.applicant_id === req.uid && a.status !== '承認済');
+    return a;
   });
   res.json({ success: true, items, isAdmin: admin });
 });
@@ -181,10 +193,10 @@ router.get('/pending', authUser, (req, res) => {
   const admin = isManagerUid(req.uid);
   const rows = db.prepare("SELECT * FROM approval_apps WHERE status='申請中' ORDER BY created_at DESC").all();
   const cmap = companyMap();
+  // 「承認待ち」= 自分が現段階の承認者である案件のみ (管理職でも自分の番だけ。代理承認は一覧→詳細から)
   const items = rows.map(r => mapApp(r, cmap)).filter(a => {
     const cur = (a._chain || [])[a.cur_step];
-    if (!cur) return false;
-    return admin || cur.uid === req.uid;
+    return !!cur && cur.uid === req.uid;
   });
   res.json({ success: true, items, isAdmin: admin });
 });
@@ -218,6 +230,7 @@ router.get('/:id', authUser, (req, res) => {
   const cur = item._chain[item.cur_step] || null;
   item.can_act = (r.status === '申請中') && (isManagerUid(req.uid) || (cur && cur.uid === req.uid));
   item.is_applicant = r.applicant_id === req.uid;
+  item.can_delete = isManagerUid(req.uid) || (item.is_applicant && r.status !== '承認済');
   const history = db.prepare('SELECT action, role, actor_name, note, created_at FROM approval_history WHERE app_id=? ORDER BY id').all(req.params.id);
   res.json({ success: true, item, history });
 });
@@ -302,6 +315,30 @@ router.post('/:id/resubmit', authUser, express.json(), (req, res) => {
     .run(app.id, '再申請', '', me.display_name || '', String((req.body && req.body.note) || ''));
   notifyDM(req, chain[0].uid, '【承認依頼(再申請)】' + chain[0].role_name + ' 宛: ' + app.subject + ' — 再申請されました。');
   res.json({ success: true, msg: '再申請しました' });
+});
+
+// ===== 申請の削除 (申請者本人=承認済以外 / 管理職=全件)。添付ファイル・履歴も一掃 =====
+router.delete('/:id', authUser, (req, res) => {
+  const db = getDb();
+  const app = db.prepare('SELECT * FROM approval_apps WHERE id = ?').get(req.params.id);
+  if (!app) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const isMgr = isManagerUid(req.uid);
+  const isApplicant = app.applicant_id === req.uid;
+  if (!isMgr && !isApplicant) return res.status(403).json({ success: false, msg: '削除権限がありません (申請者本人または管理職のみ)' });
+  if (!isMgr && app.status === '承認済') return res.status(403).json({ success: false, msg: '承認済みの申請は削除できません (管理職にご依頼ください)' });
+  // 申請中の取消は、現在の承認者へ通知 (承認不要の旨)
+  if (app.status === '申請中') {
+    let chain = []; try { chain = JSON.parse(app.chain || '[]'); } catch (e) {}
+    const cur = chain[app.cur_step];
+    if (cur && cur.uid && cur.uid !== req.uid) {
+      notifyDM(req, cur.uid, '【申請取消】申請「' + app.subject + '」が取り消されました（承認は不要です）。');
+    }
+  }
+  // 添付ファイルを削除
+  [app.attach1_url, app.attach2_url, app.attach3_url].forEach(safeUnlinkUpload);
+  db.prepare('DELETE FROM approval_history WHERE app_id=?').run(app.id);
+  db.prepare('DELETE FROM approval_apps WHERE id=?').run(app.id);
+  res.json({ success: true, msg: '削除しました' });
 });
 
 // ============================================================
