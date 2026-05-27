@@ -850,7 +850,7 @@ router.get('/insights/:id/threads', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
   const id = parseInt(req.params.id);
   const threads = getDb().prepare(`SELECT t.id, t.candidate_idx, t.author_id, t.type, t.content, t.registered_action_id, t.created_at,
-    u.display_name AS author_name FROM wellness_insight_threads t LEFT JOIN users u ON u.id = t.author_id
+    ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name FROM wellness_insight_threads t LEFT JOIN users u ON u.id = t.author_id
     WHERE t.insight_id = ? AND t.deleted_at IS NULL ORDER BY t.id ASC`).all(id);
   res.json({ success: true, threads });
 });
@@ -916,7 +916,7 @@ router.get('/posts/:id/reactions', authUser, (req, res) => {
 
 router.get('/posts/:id/discussions', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
-  const rows = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+  const rows = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
     FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id
     WHERE d.post_id = ? AND d.deleted_at IS NULL ORDER BY d.id ASC LIMIT 200`).all(parseInt(req.params.id));
   res.json({ success: true, discussions: rows });
@@ -928,7 +928,7 @@ router.post('/posts/:id/discussions', authUser, express.json(), (req, res) => {
   const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
   if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
   const ins = getDb().prepare('INSERT INTO wellness_post_discussions (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
-  const c = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+  const c = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
     FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id WHERE d.id = ?`).get(ins.lastInsertRowid);
   res.json({ success: true, discussion: c });
 });
@@ -948,7 +948,7 @@ router.delete('/posts/discussions/:id', authUser, (req, res) => {
 // ============================================================
 router.get('/actions/:id/discussions', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
-  const rows = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+  const rows = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
     FROM wellness_action_discussions d LEFT JOIN users u ON u.id = d.author_id
     WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id ASC LIMIT 200`).all(parseInt(req.params.id));
   res.json({ success: true, discussions: rows });
@@ -960,7 +960,7 @@ router.post('/actions/:id/discussions', authUser, express.json(), (req, res) => 
   const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
   if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
   const ins = getDb().prepare('INSERT INTO wellness_action_discussions (action_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
-  const c = getDb().prepare(`SELECT d.*, u.display_name AS author_name, u.avatar_url AS author_avatar
+  const c = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
     FROM wellness_action_discussions d LEFT JOIN users u ON u.id = d.author_id WHERE d.id = ?`).get(ins.lastInsertRowid);
   res.json({ success: true, discussion: c });
 });
@@ -974,7 +974,7 @@ router.post('/actions/:id/ai-council', authUser, async (req, res) => {
   if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
 
   // 議論文脈も含める
-  const discussions = db.prepare(`SELECT d.content, u.display_name AS name FROM wellness_action_discussions d
+  const discussions = db.prepare(`SELECT d.content, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS name FROM wellness_action_discussions d
     LEFT JOIN users u ON u.id = d.author_id WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(id);
   const discText = discussions.length ? discussions.map(d => `${d.name||'匿名'}: ${d.content}`).join('\n') : '(議論なし)';
 
@@ -1137,7 +1137,7 @@ router.get('/post-detail/:source/:id', authUser, (req, res) => {
       post = db.prepare(`SELECT wp.*, u.display_name AS poster_name FROM wellness_posts wp
         LEFT JOIN users u ON u.id = wp.poster_id WHERE wp.id = ?`).get(parseInt(id));
       if (post) {
-        discussions = db.prepare(`SELECT d.id, d.content, d.created_at, u.display_name AS author_name
+        discussions = db.prepare(`SELECT d.id, d.content, d.created_at, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
           FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id
           WHERE d.post_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(parseInt(id));
       }
@@ -1145,10 +1145,10 @@ router.get('/post-detail/:source/:id', authUser, (req, res) => {
       post = db.prepare(`SELECT pp.*, u.display_name AS author_name FROM plaza_posts pp
         LEFT JOIN users u ON u.id = pp.author_id WHERE pp.id = ? AND pp.deleted_at IS NULL`).get(parseInt(id));
       if (post) {
-        comments = db.prepare(`SELECT c.id, c.content, c.created_at, u.display_name AS author_name
+        comments = db.prepare(`SELECT c.id, c.content, c.created_at, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
           FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id
           WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id`).all(parseInt(id));
-        promoter_comments = db.prepare(`SELECT c.id, c.content, c.created_at, u.display_name AS author_name
+        promoter_comments = db.prepare(`SELECT c.id, c.content, c.created_at, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
           FROM plaza_post_promoter_comments c LEFT JOIN users u ON u.id = c.author_id
           WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id`).all(parseInt(id));
       }
@@ -1295,7 +1295,7 @@ router.post('/actions/:id/final-draft', authUser, express.json(), async (req, re
   const a = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
   if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
   const council = db.prepare('SELECT role, message FROM wellness_action_council WHERE action_id = ? ORDER BY id').all(id);
-  const discs = db.prepare(`SELECT u.display_name AS name, d.content FROM wellness_action_discussions d
+  const discs = db.prepare(`SELECT ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS name, d.content FROM wellness_action_discussions d
     LEFT JOIN users u ON u.id = d.author_id WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(id);
   const prompt = `中小運送業の健康推進施策を、関係者の議論を踏まえて最終的な素案にまとめてください。
 
@@ -1568,7 +1568,7 @@ router.get('/voting-actions', authUser, (req, res) => {
 router.get('/plaza-comments/:postId', authUser, (req, res) => {
   if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
   const postId = parseInt(req.params.postId);
-  const rows = getDb().prepare(`SELECT c.id, c.content, c.created_at, c.author_id, u.display_name AS author_name
+  const rows = getDb().prepare(`SELECT c.id, c.content, c.created_at, c.author_id, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
     FROM plaza_post_promoter_comments c LEFT JOIN users u ON u.id = c.author_id
     WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id ASC LIMIT 100`).all(postId);
   res.json({ success: true, comments: rows });

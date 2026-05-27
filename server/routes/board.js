@@ -141,7 +141,7 @@ router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
 router.get('/posts/:id/comments', authUser, (req, res) => {
   const id = parseInt(req.params.id);
   const rows = getDb().prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                       u.display_name AS author_name, u.avatar_url AS author_avatar
+                                       ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
                                 FROM board_comments c LEFT JOIN users u ON u.id = c.author_id
                                 WHERE c.post_id = ? AND c.deleted_at IS NULL
                                 ORDER BY c.id ASC LIMIT 200`).all(id);
@@ -158,7 +158,7 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
   const ins = db.prepare('INSERT INTO board_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
   const comment = db.prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                     u.display_name AS author_name, u.avatar_url AS author_avatar
+                                     ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
                               FROM board_comments c LEFT JOIN users u ON u.id = c.author_id WHERE c.id = ?`).get(ins.lastInsertRowid);
   // 投稿者通知
   if (post.author_id !== req.uid) {
