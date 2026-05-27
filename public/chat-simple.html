@@ -1003,7 +1003,26 @@
     border-top: 1px solid #e2e8f0; background: #fff;
     display: flex; gap: 6px; align-items: flex-end; flex-shrink: 0;
     box-shadow: 0 -2px 8px rgba(15,23,42,0.04);
+    position: relative;
   }
+  /* 絵文字ピッカー */
+  #emoji-panel {
+    position: absolute; left: 10px; bottom: calc(100% + 4px);
+    width: min(344px, calc(100vw - 24px)); max-height: 264px; overflow-y: auto;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(15,23,42,0.20); padding: 8px 10px; z-index: 60;
+    display: none; -webkit-overflow-scrolling: touch;
+  }
+  #emoji-panel.open { display: block; }
+  #emoji-panel .ep-cat { font-size: 10px; color: #94a3b8; font-weight: 800; margin: 8px 2px 3px; letter-spacing: .05em; }
+  #emoji-panel .ep-cat:first-child { margin-top: 2px; }
+  #emoji-panel .ep-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; }
+  #emoji-panel .ep-grid button {
+    border: 0; background: none; cursor: pointer; font-size: 22px; line-height: 1;
+    padding: 5px 0; border-radius: 8px; transition: background .1s;
+  }
+  #emoji-panel .ep-grid button:hover { background: #f1f5f9; }
+  #input #btn-emoji:disabled { opacity: .4; cursor: default; }
   /* 旧 me-av (撤去済) */
   #input textarea {
     flex: 1; min-width: 0;
@@ -1139,8 +1158,10 @@
     <div id="input">
       <button class="attach-btn" type="button" id="btn-attach" title="ファイル添付">📎</button>
       <button type="button" id="btn-matomeru" onclick="openMatomeru()" title="まとめる君: 報告をAIで5W1Hに整える" style="display:none;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;flex-shrink:0;padding:0;overflow:hidden;background:#fff;cursor:pointer;"><img src="/assets/matomeru-owl.png" alt="まとめる君" style="width:100%;height:100%;object-fit:cover;"></button>
+      <button class="attach-btn" type="button" id="btn-emoji" title="絵文字" disabled>😊</button>
       <textarea id="input-text" rows="1" placeholder="メッセージを入力" disabled></textarea>
       <button id="send-btn" disabled title="送信 (Enter)">➤</button>
+      <div id="emoji-panel" aria-hidden="true"></div>
     </div>
 
     <!-- メンバー一覧 (パネル内インライン表示。← で元のチャット画面に戻る) -->
@@ -2288,6 +2309,7 @@ async function selectGroup(gid) {
   $('panel-members').textContent = g.member_count + '名';
   $('select-bar').classList.add('group-mode');
   $('input-text').disabled = false;
+  $('btn-emoji').disabled = false;
   $('send-btn').disabled = false;
   updateSelectionUI();
   if (window.innerWidth <= 720) $('side').classList.add('collapsed');
@@ -2347,6 +2369,7 @@ async function selectDmPeer(peerId) {
   $('panel-title').innerHTML = '💬 <span style="color:#0ea5e9;">' + escapeHtml(currentDmPeer.display_name || '...') + '</span> <span style="font-size:11px;color:#94a3b8;font-weight:500;">との個別チャット</span>';
   $('panel-members').textContent = '1対1';
   $('input-text').disabled = false;
+  $('btn-emoji').disabled = false;
   $('input-text').placeholder = (currentDmPeer.display_name || '相手') + 'さんに個別メッセージ';
   $('send-btn').disabled = false;
   if (window.innerWidth <= 720) $('side').classList.add('collapsed');
@@ -3040,6 +3063,55 @@ function fmtSize(n) {
   return (n / 1024 / 1024).toFixed(1) + 'MB';
 }
 $('btn-attach').addEventListener('click', () => $('file-input').click());
+
+// ===== 絵文字ピッカー =====
+const EMOJI_GROUPS = [
+  ['よく使う', '👍 🙏 😊 😂 🎉 ✨ 🔥 💪 👏 🙇 ❤️ ✅ 🆗 ⭐ 😅 😭'],
+  ['顔・表情', '😀 😄 😁 😆 🙂 😉 😊 😍 😘 😋 😎 🤩 🥰 🤔 😐 😑 🙄 😴 😪 😮 😢 😭 😅 😓 😤 😡 🤗 🤭 😇 🥳 😈 🤤'],
+  ['手・人', '👍 👎 👏 🙌 🙏 👌 ✌️ 🤝 💪 👋 ✋ 👆 👇 ☝️ 🙇 🙆 🙅 🤷 🙋 🫡'],
+  ['ハート・記号', '❤️ 🧡 💛 💚 💙 💜 🖤 💯 ✨ ⭐ 🌟 🔥 ⚡ ✅ ❌ ⭕ ❗ ❓ ⚠️ 🆗 🆖 🉑 ♻️ 🈵'],
+  ['仕事・もの', '📌 📝 📣 📢 📅 ⏰ ☎️ 📞 💻 📱 ✉️ 📦 🚗 🚚 🏢 🏭 🍱 ☕ 🍺 🩺 🚸 🎌'],
+];
+(function buildEmojiPanel() {
+  const p = $('emoji-panel'); if (!p) return;
+  let html = '';
+  for (const [cat, str] of EMOJI_GROUPS) {
+    html += '<div class="ep-cat">' + cat + '</div><div class="ep-grid">';
+    for (const e of str.split(/\s+/).filter(Boolean)) {
+      html += '<button type="button" data-emo="' + e + '" tabindex="-1">' + e + '</button>';
+    }
+    html += '</div>';
+  }
+  p.innerHTML = html;
+  function insertAtCursor(ta, text) {
+    const s = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+    const eP = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
+    ta.value = ta.value.slice(0, s) + text + ta.value.slice(eP);
+    const pos = s + text.length;
+    try { ta.selectionStart = ta.selectionEnd = pos; } catch (e) {}
+  }
+  // パネル内クリックで挿入 (パネルは開いたまま=連続で選べる)
+  p.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-emo]'); if (!b) return;
+    ev.stopPropagation();
+    const ta = $('input-text'); if (ta.disabled) return;
+    insertAtCursor(ta, b.getAttribute('data-emo'));
+    ta.dispatchEvent(new Event('input'));   // 自動リサイズ+送信ボタン有効化+タイピング通知を再利用
+    ta.focus();
+  });
+  // 絵文字ボタンで開閉
+  $('btn-emoji').addEventListener('click', ev => {
+    ev.stopPropagation();
+    if ($('btn-emoji').disabled) return;
+    p.classList.toggle('open');
+  });
+  // 外側クリックで閉じる
+  document.addEventListener('click', ev => {
+    if (!p.classList.contains('open')) return;
+    if (p.contains(ev.target) || ev.target === $('btn-emoji')) return;
+    p.classList.remove('open');
+  });
+})();
 $('file-input').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
