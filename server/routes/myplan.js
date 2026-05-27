@@ -331,9 +331,9 @@ router.get('/admin/list', authPromoter, (req, res) => {
 });
 
 // 推進メンバーから個人へ励ましDM (黒子型 — 2026-05-27 個人特定事故を受け改修)
-// ・ヘルスアドバイザー(bot_health)名義でリレー配信し、送り主(推進メンバー)の実名は相手に一切出さない。
-//   → 利用者は他のAI返信と区別できず「特定の同僚に見られている」感を抱かない。
-// ・宛先は user_id(=login_id) ではなく plan_id で受け取り、login_id をクライアントへ出さない。
+// ・送り主(推進メンバー)の実名は相手に一切出さず「推進メンバー」名義(bot_promoter)でリレー配信。
+//   → 利用者は誰が励ましたか分からず「特定の同僚に見られている」感を抱かない。
+// ・宛先は user_id(=UUID) ではなく plan_id で受け取り、個人IDをクライアントへ出さない。
 // ・誰が送ったかの監査はサーバログ(journald)にのみ残す。
 router.post('/admin/encourage', authPromoter, (req, res) => {
   const planId = parseInt((req.body && req.body.plan_id) || 0);
@@ -342,9 +342,16 @@ router.post('/admin/encourage', authPromoter, (req, res) => {
   const db = getDb();
   const plan = db.prepare("SELECT user_id FROM myplan_active_plans WHERE id = ?").get(planId);
   if (!plan) return res.status(404).json({ success: false, msg: '宛先が見つかりません' });
-  const ok = sendHealthAdvisorDm(req, plan.user_id, `🩺 ${message}`);
-  if (!ok) return res.status(500).json({ success: false, msg: '送信に失敗しました' });
-  console.log(`[myplan/encourage] promoter=${req.uid} -> plan=${planId} (bot_health名義でリレー)`);
+  const toUid = plan.user_id;
+  const content = `🩺 [健康管理室 推進メンバーより] ${message}`;
+  const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_promoter', ?, ?, 'dm')")
+    .run(toUid, content);
+  const payload = { id: ins.lastInsertRowid, from: 'bot_promoter', to: toUid, content, at: new Date().toISOString(), attach: null };
+  const emit = req.app && req.app.locals && req.app.locals.emitToUser;
+  if (emit) emit(toUid, 'dm:msg', payload);
+  const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
+  if (push) push(toUid, { title: '🩺 健康管理室から', body: message.slice(0, 80), tag: 'wellness-dm', url: '/myplan.html' }).catch(() => {});
+  console.log(`[myplan/encourage] promoter=${req.uid} -> plan=${planId} (推進メンバー名義でリレー)`);
   res.json({ success: true });
 });
 

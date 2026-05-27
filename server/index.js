@@ -41,6 +41,18 @@ function ensureConciergeBots() {
       db.prepare(`UPDATE users SET display_name=?, avatar_url=?, role='bot', company_code='ADMIN' WHERE id = ?`).run(b.name, b.avatar, b.id);
     }
   }
+  // 健康管理室の励まし匿名リレー用システム送信者 (2026-05-27 個人特定事故対応)。
+  // フロアには常駐しない (CONCIERGE_BOTS未登録)。role='bot' のためメンバー一覧/DM相手選択から自動除外。
+  // 推進メンバーが個人を励ます際、送り主の実名を伏せ「推進メンバー」名義でDM配信するために使う。
+  {
+    const exists = db.prepare('SELECT id FROM users WHERE id = ?').get('bot_promoter');
+    if (!exists) {
+      db.prepare(`INSERT INTO users (id, login_id, password_hash, display_name, company_code, role, avatar_url, employee_type)
+                  VALUES ('bot_promoter', 'bot_promoter', '!disabled', '推進メンバー', 'ADMIN', 'bot', '', 'office')`).run();
+    } else {
+      db.prepare(`UPDATE users SET display_name='推進メンバー', role='bot', company_code='ADMIN' WHERE id='bot_promoter'`).run();
+    }
+  }
 }
 
 // TURN サーバー認証情報を起動時に読み込み
