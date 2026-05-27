@@ -549,12 +549,27 @@ router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
 // コメント一覧
 router.get('/posts/:id/comments', authUser, (req, res) => {
   const id = parseInt(req.params.id);
+  const me = req.uid;
   const rows = getDb().prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                       u.display_name AS author_name, u.avatar_url AS author_avatar
+                                       u.nickname AS author_nickname, u.avatar_url AS author_avatar
                                 FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id
                                 WHERE c.post_id = ? AND c.deleted_at IS NULL
                                 ORDER BY c.id ASC LIMIT 200`).all(id);
-  res.json({ success: true, comments: rows });
+  // 匿名性維持(2026-05-27): 返信も🎭ニックネームで統一。実名(display_name)は出さない。
+  // 本人以外にはアバター/author_id も隠す (実名・顔写真との紐付け防止)。投稿本体と同方針。
+  const comments = rows.map(r => {
+    const isSelf = r.author_id === me;
+    return {
+      id: r.id,
+      author_id: isSelf ? r.author_id : null,
+      content: r.content,
+      created_at: r.created_at,
+      author_name: r.author_nickname ? '🎭 ' + r.author_nickname : '🎭 匿名',
+      author_avatar: isSelf ? r.author_avatar : null,
+      is_mine: isSelf,
+    };
+  });
+  res.json({ success: true, comments });
 });
 
 router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
@@ -569,20 +584,29 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
     return res.status(403).json({ success: false, msg: '食事投稿にはコメントできません (👍のみ)' });
   }
   const ins = db.prepare('INSERT INTO plaza_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
-  const c = db.prepare(`SELECT c.*, u.display_name AS author_name, u.avatar_url AS author_avatar
-                        FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id WHERE c.id = ?`).get(ins.lastInsertRowid);
+  const raw = db.prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
+                                 u.nickname AS author_nickname, u.avatar_url AS author_avatar
+                          FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id WHERE c.id = ?`).get(ins.lastInsertRowid);
+  // 匿名性維持(2026-05-27): 返信は🎭ニックネームで統一。実名は出さない。
+  const anonName = raw.author_nickname ? '🎭 ' + raw.author_nickname : '🎭 匿名';
+  // 本人向けレスポンス: 自分のコメントなのでアバター/idは残す
+  const mine = { id: raw.id, author_id: raw.author_id, content: raw.content, created_at: raw.created_at,
+                 author_name: anonName, author_avatar: raw.author_avatar, is_mine: true };
+  // 全員ブロードキャスト用: 実名・顔写真・author_id を伏せた匿名版
+  const pub = { id: raw.id, author_id: null, content: raw.content, created_at: raw.created_at,
+                author_name: anonName, author_avatar: null, is_mine: false };
   if (post.author_id !== req.uid) {
     const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
     if (sendPush) sendPush(post.author_id, {
       title: '💬 ひろば',
-      body: (c.author_name || '誰か') + ': ' + content.slice(0, 80),
+      body: anonName + ': ' + content.slice(0, 80),
       tag: 'plaza-cmt-' + id,
       url: '/plaza.html#post-' + id,
     }).catch(() => {});
   }
   const io = req.app && req.app.locals && req.app.locals.io;
-  if (io) io.emit('plaza:comment', { post_id: id, comment: c });
-  res.json({ success: true, comment: c });
+  if (io) io.emit('plaza:comment', { post_id: id, comment: pub });
+  res.json({ success: true, comment: mine });
 });
 
 // 未読件数 (新着バッジ用、軽量)
