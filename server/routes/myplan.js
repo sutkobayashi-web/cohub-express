@@ -309,10 +309,8 @@ router.get('/admin/list', authPromoter, (req, res) => {
     success: true,
     plans: rows.map(r => ({
       id: r.id,
-      user_id: r.user_id,
-      display_name: r.display_name,
-      nickname: r.nickname,
-      company_code: r.company_code,
+      // 黒子型: 実名・所属・login_id は返さない。表示名は nickname のみ。
+      name: r.nickname || '匿名',
       category: r.category_top,
       category_label: categoryLabel(r.category_top),
       movement_priority: !!r.movement_priority,
@@ -332,25 +330,21 @@ router.get('/admin/list', authPromoter, (req, res) => {
   });
 });
 
-// 推進メンバーから個人へ励ましDM送信 (推進メンバー本人として)
+// 推進メンバーから個人へ励ましDM (黒子型 — 2026-05-27 個人特定事故を受け改修)
+// ・ヘルスアドバイザー(bot_health)名義でリレー配信し、送り主(推進メンバー)の実名は相手に一切出さない。
+//   → 利用者は他のAI返信と区別できず「特定の同僚に見られている」感を抱かない。
+// ・宛先は user_id(=login_id) ではなく plan_id で受け取り、login_id をクライアントへ出さない。
+// ・誰が送ったかの監査はサーバログ(journald)にのみ残す。
 router.post('/admin/encourage', authPromoter, (req, res) => {
-  const targetUid = String((req.body && req.body.user_id) || '').trim();
+  const planId = parseInt((req.body && req.body.plan_id) || 0);
   const message = String((req.body && req.body.message) || '').slice(0, 500).trim();
-  if (!targetUid || !message) return res.status(400).json({ success: false, msg: '宛先と本文が必要' });
+  if (!planId || !message) return res.status(400).json({ success: false, msg: '宛先と本文が必要' });
   const db = getDb();
-  const target = db.prepare("SELECT id FROM users WHERE id = ?").get(targetUid);
-  if (!target) return res.status(404).json({ success: false, msg: '宛先が見つかりません' });
-  // 推進メンバー本人の display_name で送信
-  const me = db.prepare("SELECT display_name FROM users WHERE id = ?").get(req.uid);
-  const fromName = (me && me.display_name) || '推進メンバー';
-  const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')")
-    .run(req.uid, targetUid, `🩺 [健康管理室 ${fromName}より] ${message}`);
-  const payload = { id: ins.lastInsertRowid, from: req.uid, to: targetUid,
-    content: `🩺 [健康管理室 ${fromName}より] ${message}`, at: new Date().toISOString(), attach: null };
-  const emit = req.app && req.app.locals && req.app.locals.emitToUser;
-  if (emit) emit(targetUid, 'dm:msg', payload);
-  const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
-  if (push) push(targetUid, { title: '🩺 健康管理室から', body: message.slice(0, 80), tag: 'wellness-dm', mention: true, url: '/myplan.html' }).catch(() => {});
+  const plan = db.prepare("SELECT user_id FROM myplan_active_plans WHERE id = ?").get(planId);
+  if (!plan) return res.status(404).json({ success: false, msg: '宛先が見つかりません' });
+  const ok = sendHealthAdvisorDm(req, plan.user_id, `🩺 ${message}`);
+  if (!ok) return res.status(500).json({ success: false, msg: '送信に失敗しました' });
+  console.log(`[myplan/encourage] promoter=${req.uid} -> plan=${planId} (bot_health名義でリレー)`);
   res.json({ success: true });
 });
 
@@ -711,7 +705,7 @@ router.get('/admin/dashboard', authPromoter, (req, res) => {
   ).all();
   // 完走者リスト
   const completers = db.prepare(
-    `SELECT m.user_id, m.plan_title, m.period_days, m.completed_at,
+    `SELECT m.id AS plan_id, m.user_id, m.plan_title, m.period_days, m.completed_at,
        u.display_name, u.nickname, u.company_code
      FROM myplan_active_plans m JOIN users u ON u.id=m.user_id
      WHERE m.status='completed' ORDER BY m.completed_at DESC LIMIT 30`
@@ -738,12 +732,34 @@ router.get('/admin/dashboard', authPromoter, (req, res) => {
     popularity: popularity.map(p => ({ ...p, category_label: (CATEGORY_META[p.plan_category] || {}).label || p.plan_category })),
     by_category: byCategory.map(c => ({ key: c.cat, label: (CATEGORY_META[c.cat] || {}).label || c.cat, count: c.n })),
     abandon_day_hist: ['0-2日', '3-6日', '7-13日', '14-29日', '30日+'].map(k => ({ bucket: k, count: abandonDayHist[k] || 0 })),
+    // 黒子型: 実名(display_name)・所属(company_code)・login_id(user_id)はクライアントへ返さない。
+    // 表示名は nickname のみ (未設定なら'匿名'。実名へのフォールバックは禁止)。励ましは plan_id 経由。
     active_users: activeUsers.map(u => ({
-      ...u,
+      plan_id: u.plan_id,
+      name: u.nickname || '匿名',
+      plan_title: u.plan_title,
+      plan_category: u.plan_category,
+      period_days: u.period_days,
+      started_at: u.started_at,
+      last_status: u.last_status,
+      last_log_date: u.last_log_date,
+      positive_n: u.positive_n,
       day_index: Math.min(u.period_days, daysBetween((u.started_at || '').slice(0, 10), todayLocal()) + 1),
     })),
-    completers,
-    recent_comments: recentComments,
+    completers: completers.map(c => ({
+      plan_id: c.plan_id,
+      name: c.nickname || '匿名',
+      plan_title: c.plan_title,
+      period_days: c.period_days,
+      completed_at: c.completed_at,
+    })),
+    recent_comments: recentComments.map(c => ({
+      name: c.nickname || '匿名',
+      log_date: c.log_date,
+      status: c.status,
+      comment: c.comment,
+      plan_title: c.plan_title,
+    })),
   });
 });
 
