@@ -22,6 +22,19 @@ function canAccessGroup(uid, gid) {
 // チャット添付ファイル保存
 const chatDir = path.join(__dirname, '..', '..', 'uploads', 'chat');
 if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
+
+// multer(busboy)はファイル名を latin1 として渡すため、UTF-8の日本語ファイル名が文字化けする。
+// latin1のバイト列が正当なUTF-8として往復一致する場合のみ utf8 で再解釈して復元する
+// (ASCIIや既に正しい文字列はそのまま。二重デコード/不正バイトを避ける)。
+function decodeFilename(name) {
+  if (!name) return name;
+  try {
+    const buf = Buffer.from(name, 'latin1');
+    const utf8 = buf.toString('utf8');
+    if (Buffer.from(utf8, 'utf8').equals(buf)) return utf8;
+  } catch (e) {}
+  return name;
+}
 const chatUpload = multer({
   storage: multer.diskStorage({
     destination: chatDir,
@@ -38,7 +51,7 @@ router.post('/upload', authUser, chatUpload.single('file'), (req, res) => {
   res.json({
     success: true,
     url: '/uploads/chat/' + req.file.filename,
-    name: req.file.originalname,
+    name: decodeFilename(req.file.originalname),
     size: req.file.size,
     type: req.file.mimetype,
   });
