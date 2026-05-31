@@ -741,6 +741,7 @@
   .head-btn.members:hover { background: #e2e8f0; }
   .call-btn.voice, .head-btn.voice { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 3px 10px rgba(16,185,129,0.30); }
   .call-btn.video, .head-btn.video { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; box-shadow: 0 3px 10px rgba(99,102,241,0.30); }
+  .head-btn.ping { width: auto; min-width: 48px; padding: 0 12px; border-radius: 16px; font-size: 13px; font-weight: 700; letter-spacing: 1px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 3px 10px rgba(245,158,11,0.32); }
   .call-btn:hover { transform: translateY(-1px); }
   .head-btn.disabled { opacity: 0.40; cursor: not-allowed; }
   .head-btn.disabled:hover { transform: none; }
@@ -1121,6 +1122,7 @@
       <button class="head-btn" type="button" id="btn-back-list" title="一覧へ戻る" onclick="backToList()" style="background:transparent;color:#0f172a;font-size:22px;width:32px;height:32px;flex-shrink:0;border:none;">←</button>
       <div class="ttl" id="panel-title">チャットを選択してください</div>
       <button class="head-btn members" type="button" id="btn-members" title="メンバー一覧" onclick="openMembersModal()" style="display:none;">👥</button>
+      <button class="head-btn ping" type="button" id="btn-call-ping" title="呼出: 相手にチャイムを鳴らして気づかせる" onclick="pingPeer()">呼出</button>
       <button class="head-btn voice" type="button" id="btn-call-voice" title="音声通話" onclick="startCall('voice')">📞</button>
       <button class="head-btn video" type="button" id="btn-call-video" title="ビデオ通話" onclick="startCall('video')">📹</button>
       <div class="members" id="panel-members"></div>
@@ -1472,6 +1474,86 @@ async function playChatChime() {
   }
 }
 
+// ===== 呼出 (DM相手を気づかせる) =====
+// 呼出専用の強いチャイム。通常の通知OFF設定(chatNotifOn)に関係なく鳴らす(明示的な呼び出しのため)
+async function playSummonChime() {
+  try {
+    if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _chatAudioCtx;
+    if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
+    if (ctx.state !== 'running') {
+      const a = ensureNotifAudio(); a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); return;
+    }
+    const now = ctx.currentTime;
+    const master = ctx.createGain(); master.gain.value = 2.4;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500;
+    master.connect(lp); lp.connect(ctx.destination);
+    const beep = (freq, off, dur, vol) => {
+      const t0 = now + off;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      env.connect(master);
+      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(freq, t0); o.connect(env); o.start(t0); o.stop(t0 + dur + 0.02);
+      const o2 = ctx.createOscillator(); o2.type = 'square'; o2.frequency.setValueAtTime(freq * 2, t0);
+      const g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2); g2.connect(env); o2.start(t0); o2.stop(t0 + dur + 0.02);
+    };
+    // 呼び鈴「リリリン」を3セット (約1.5秒) — 高めG6↔C7で注意喚起
+    for (let r = 0; r < 3; r++) {
+      const b = r * 0.5;
+      beep(1568, b + 0.00, 0.12, 0.6);
+      beep(2093, b + 0.12, 0.12, 0.6);
+      beep(1568, b + 0.24, 0.18, 0.6);
+    }
+  } catch (e) {
+    try { const a = ensureNotifAudio(); a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e2) {}
+  }
+}
+
+// 呼出を受けた時の中央オーバーレイ
+function showSummonAlert(name, fromId) {
+  let ov = document.getElementById('summon-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'summon-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(8,20,40,0.55);backdrop-filter:blur(4px);padding:20px;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:18px;padding:30px 26px;max-width:340px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.4);animation:summonPulse 0.8s ease-in-out infinite alternate;">'
+      + '<div style="font-size:54px;line-height:1;margin-bottom:14px;">🛎️</div>'
+      + '<div id="summon-name" style="font-size:19px;font-weight:800;color:#0f172a;margin-bottom:4px;"></div>'
+      + '<div style="font-size:14px;color:#475569;margin-bottom:22px;">があなたを呼んでいます</div>'
+      + '<button id="summon-open" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2f80ed;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;">チャットを開く</button>'
+      + '<button id="summon-close" style="width:100%;padding:11px;border:none;border-radius:10px;background:#eef2f7;color:#475569;font-size:14px;cursor:pointer;">閉じる</button>'
+      + '</div>';
+    document.body.appendChild(ov);
+    if (!document.getElementById('summon-style')) {
+      const st = document.createElement('style'); st.id = 'summon-style';
+      st.textContent = '@keyframes summonPulse{from{transform:scale(1)}to{transform:scale(1.045)}}';
+      document.head.appendChild(st);
+    }
+  }
+  document.getElementById('summon-name').textContent = (name || '誰か') + 'さん';
+  ov.style.display = 'flex';
+  ov.querySelector('#summon-open').onclick = () => { ov.style.display = 'none'; try { selectDmPeer(fromId); } catch (e) {} };
+  ov.querySelector('#summon-close').onclick = () => { ov.style.display = 'none'; };
+  clearTimeout(window._summonTimer);
+  window._summonTimer = setTimeout(() => { if (ov) ov.style.display = 'none'; }, 12000);
+}
+
+// 呼出を送る (送信側)
+let _lastPingAt = 0;
+function pingPeer() {
+  if (currentMode !== 'dm' || !currentDmPeer) { showToastMsg('呼出はDMの相手を選んでからです'); return; }
+  const now = Date.now();
+  if (now - _lastPingAt < 20000) { showToastMsg('🛎️ 呼出は20秒に1回までです'); return; }
+  _lastPingAt = now;
+  unlockAudio();
+  socket.emit('dm:call', { to: currentDmPeer.id });
+  const btn = document.getElementById('btn-call-ping');
+  if (btn) { btn.classList.add('disabled'); setTimeout(() => { if (currentMode === 'dm') btn.classList.remove('disabled'); }, 20000); }
+  showToastMsg('🛎️ ' + (currentDmPeer.display_name || '相手') + 'さんを呼び出しました');
+}
+
 const NAME_READINGS = {
   '小林 猛': 'コバヤシ タケシ', '小林　猛': 'コバヤシ タケシ', '小林猛': 'コバヤシ タケシ',
   '金子 力': 'カネコ チカラ', '金子　力': 'カネコ チカラ', '金子力': 'カネコ チカラ',
@@ -1732,6 +1814,9 @@ async function init() {
   if (gid && groups.find(g => g.id === gid)) {
     selectGroup(gid);
   }
+  // 横断検索からのDM直接オープン (?dm=<uid>)
+  const dmId = params.get('dm');
+  if (dmId) { try { selectDmPeer(dmId); } catch (e) {} }
 }
 
 async function loadGroups() {
@@ -2300,6 +2385,7 @@ async function selectGroup(gid) {
   document.body.classList.remove('dm-mode');
   document.body.classList.add('chat-active');
   $('btn-members').style.display = 'flex';
+  $('btn-call-ping').classList.add('disabled');
   $('btn-call-voice').classList.add('disabled');
   $('btn-call-video').classList.add('disabled');
   const g = groups.find(x => x.id === gid);
@@ -2354,6 +2440,7 @@ async function selectDmPeer(peerId) {
   document.body.classList.add('dm-mode');
   document.body.classList.add('chat-active');
   $('btn-members').style.display = 'none';
+  $('btn-call-ping').classList.remove('disabled');
   $('btn-call-voice').classList.remove('disabled');
   $('btn-call-video').classList.remove('disabled');
   $('select-bar').classList.remove('group-mode');
@@ -2753,6 +2840,35 @@ function setupSocket() {
   // DMがブロックされた時の通知
   socket.on('dm:blocked', (payload) => {
     if (payload && payload.msg) alert(payload.msg);
+  });
+
+  // 呼出を受けた (相手がチャイムで気づかせようとしている)
+  socket.on('dm:call', (payload) => {
+    if (!payload || payload.from === me.uid) return;
+    let name = payload.fromName || '';
+    if (!name) {
+      for (const arr of groupMembers.values()) {
+        const m = arr.find(x => x.id === payload.from);
+        if (m) { name = m.display_name || ''; break; }
+      }
+    }
+    showSummonAlert(name, payload.from);
+    playSummonChime();
+    try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+    try { speakViaTTS((name || '') + 'さんが呼んでいます', { speed: 1.1 }); } catch (e) {}
+    fireOSNotif('🛎️ ' + (name || '呼び出し'), (name || '') + 'さんが呼び出しています', () => { try { selectDmPeer(payload.from); } catch (e) {} });
+  });
+
+  // 呼出の送信結果 (送信側へのフィードバック)
+  socket.on('dm:call-sent', (p) => {
+    if (!p) return;
+    if (!p.ok) {
+      if (p.reason === 'cooldown') showToastMsg('🛎️ 呼出は20秒に1回までです');
+      else if (p.reason === 'blocked') showToastMsg('呼び出せませんでした (相手の設定による)');
+      else if (p.reason === 'hierarchy') showToastMsg('この相手は呼び出せません');
+      return;
+    }
+    if (!p.online) showToastMsg('🛎️ 相手はオフラインです。通知を送りました');
   });
 
   socket.on('group:msg', (payload) => {
@@ -3228,38 +3344,58 @@ async function checkSafetyBeforeSend(text) {
   }
 }
 
+// 再入ガード: 安全チェック(await fetch)の遅延中にEnterを連打しても二重送信しない (2026-05-29 再発修正)
+let _sendBusy = false;
 window.send = async function() {
-  const t = $('input-text').value.trim();
+  if (_sendBusy) return;  // 送信処理中(安全チェック待ち含む)は無視 → 連打しても1回だけ
+  const inputEl = $('input-text');
+  const t = inputEl.value.trim();
   if (!t && !pendingAttach) return;
   if (!socket) return;
-  // 送信前安全チェック
-  const sc = await checkSafetyBeforeSend(t);
-  if (!sc.ok) return;
-  // 添付ありの選択送信は1人ずつ chat:dm で送る (既存ロジックに合流)
-  const attach = pendingAttach;
-  if (currentMode === 'group' && selectedPeers.size > 0) {
-    if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) return;
-    let sent = 0;
-    selectedPeers.forEach(uid => {
-      if (uid === me.uid) return;
-      socket.emit('chat:dm', { to: uid, content: t, attach });
-      sent++;
-    });
-    showToastMsg(`✓ ${sent}人にDMで送信しました`);
-  } else if (currentMode === 'group' && currentGid) {
-    socket.emit('chat:group', { group_id: currentGid, content: t, attach });
-    appendMessage(buildLocalMsg(t, attach));
-  } else if (currentMode === 'dm' && currentDmPeer) {
-    socket.emit('chat:dm', { to: currentDmPeer.id, content: t, attach });
-    appendMessage(buildLocalMsg(t, attach));
-  } else {
-    return;
+  // 宛先が無ければ何もしない
+  const hasTarget = (currentMode === 'group' && (currentGid || selectedPeers.size > 0)) || (currentMode === 'dm' && currentDmPeer);
+  if (!hasTarget) return;
+  _sendBusy = true;
+  // ★ 入力欄を即クリア (安全チェックのネット往復で反応が鈍くても空にして誤連打を防ぐ)
+  const savedHeight = inputEl.style.height;
+  inputEl.value = '';
+  inputEl.style.height = '40px';
+  try {
+    stopTypingNow();
+    // 送信前安全チェック
+    const sc = await checkSafetyBeforeSend(t);
+    if (!sc.ok) {
+      // 「書き直す」を選択 → 入力を復元
+      inputEl.value = t;
+      inputEl.style.height = savedHeight || '40px';
+      return;
+    }
+    const attach = pendingAttach;
+    if (currentMode === 'group' && selectedPeers.size > 0) {
+      if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) { inputEl.value = t; return; }
+      let sent = 0;
+      selectedPeers.forEach(uid => {
+        if (uid === me.uid) return;
+        socket.emit('chat:dm', { to: uid, content: t, attach });
+        sent++;
+      });
+      showToastMsg(`✓ ${sent}人にDMで送信しました`);
+    } else if (currentMode === 'group' && currentGid) {
+      socket.emit('chat:group', { group_id: currentGid, content: t, attach });
+      appendMessage(buildLocalMsg(t, attach));
+    } else if (currentMode === 'dm' && currentDmPeer) {
+      socket.emit('chat:dm', { to: currentDmPeer.id, content: t, attach });
+      appendMessage(buildLocalMsg(t, attach));
+    } else {
+      inputEl.value = t;  // 想定外: 復元
+      return;
+    }
+    pendingAttach = null;
+    $('attach-preview').classList.remove('show');
+    if (currentMode === 'group') updateSelectionUI();
+  } finally {
+    _sendBusy = false;
   }
-  $('input-text').value = '';
-  $('input-text').style.height = '40px';
-  pendingAttach = null;
-  $('attach-preview').classList.remove('show');
-  if (currentMode === 'group') updateSelectionUI();
 };
 function buildLocalMsg(t, attach) {
   return {

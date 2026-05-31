@@ -701,6 +701,7 @@ try { if (screen && screen.orientation && screen.orientation.unlock) screen.orie
       <div class="h-name" id="chat-h-name">-</div>
       <div class="h-sub" id="chat-h-sub">-</div>
     </div>
+    <button id="chat-ping-btn" onclick="pingPeerM()" title="呼出: チャイムを鳴らして気づかせる" style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#fff;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;height:34px;padding:0 12px;border-radius:16px;flex-shrink:0;align-items:center;justify-content:center;">呼出</button>
     <button id="chat-menu-btn" onclick="openChatPeerMenu()" title="メニュー" style="display:none;background:transparent;border:none;color:#475569;font-size:22px;cursor:pointer;width:34px;height:34px;flex-shrink:0;">⋮</button>
   </div>
   <div id="chat-body"></div>
@@ -1201,6 +1202,83 @@ async function playDmChime() {
     note(1319, 0.78, 0.42, 0.50);
     console.log('[cohub-m] DM chime played');
   } catch (e) { console.warn('[cohub-m] DM chime failed', e); }
+}
+
+// ===== 呼出 (DM相手を気づかせる) =====
+// 呼出専用の強いチャイム。chimeOn設定に関係なく鳴らす(明示的な呼び出しのため)
+async function playSummonChimeM() {
+  try {
+    if (!_mAudioCtx) _mAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _mAudioCtx;
+    if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
+    const now = ctx.currentTime;
+    const master = ctx.createGain(); master.gain.value = 1.6;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500;
+    master.connect(lp); lp.connect(ctx.destination);
+    const beep = (freq, off, dur, vol) => {
+      const t0 = now + off;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      env.connect(master);
+      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = freq; o.connect(env); o.start(t0); o.stop(t0 + dur + 0.02);
+      const o2 = ctx.createOscillator(); o2.type = 'square'; o2.frequency.value = freq * 2;
+      const g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2); g2.connect(env); o2.start(t0); o2.stop(t0 + dur + 0.02);
+    };
+    for (let r = 0; r < 3; r++) {
+      const b = r * 0.5;
+      beep(1568, b + 0.00, 0.12, 0.6);
+      beep(2093, b + 0.12, 0.12, 0.6);
+      beep(1568, b + 0.24, 0.18, 0.6);
+    }
+  } catch (e) {
+    try { if (typeof playMp3Notif === 'function') playMp3Notif(); } catch (e2) {}
+  }
+}
+
+function showSummonAlertM(name, fromId) {
+  let ov = document.getElementById('summon-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'summon-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(8,20,40,0.55);backdrop-filter:blur(4px);padding:24px;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:18px;padding:30px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.4);animation:summonPulse 0.8s ease-in-out infinite alternate;">'
+      + '<div style="font-size:54px;line-height:1;margin-bottom:14px;">🛎️</div>'
+      + '<div id="summon-name" style="font-size:19px;font-weight:800;color:#0f172a;margin-bottom:4px;"></div>'
+      + '<div style="font-size:14px;color:#475569;margin-bottom:22px;">があなたを呼んでいます</div>'
+      + '<button id="summon-open" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2f80ed;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;">チャットを開く</button>'
+      + '<button id="summon-close" style="width:100%;padding:11px;border:none;border-radius:10px;background:#eef2f7;color:#475569;font-size:14px;cursor:pointer;">閉じる</button>'
+      + '</div>';
+    document.body.appendChild(ov);
+    if (!document.getElementById('summon-style')) {
+      const st = document.createElement('style'); st.id = 'summon-style';
+      st.textContent = '@keyframes summonPulse{from{transform:scale(1)}to{transform:scale(1.045)}}';
+      document.head.appendChild(st);
+    }
+  }
+  document.getElementById('summon-name').textContent = (name || '誰か') + 'さん';
+  ov.style.display = 'flex';
+  ov.querySelector('#summon-open').onclick = () => {
+    ov.style.display = 'none';
+    const u = users[fromId] || {};
+    try { openDM(fromId, u.name || name || '', u.avatar || '', false); } catch (e) {}
+  };
+  ov.querySelector('#summon-close').onclick = () => { ov.style.display = 'none'; };
+  clearTimeout(window._summonTimer);
+  window._summonTimer = setTimeout(() => { if (ov) ov.style.display = 'none'; }, 12000);
+}
+
+let _lastPingAtM = 0;
+function pingPeerM() {
+  if (!openPeerUid || (typeof isBotUid === 'function' && isBotUid(openPeerUid))) { showToast('呼出はDMの相手を選んでからです'); return; }
+  const now = Date.now();
+  if (now - _lastPingAtM < 20000) { showToast('🛎️ 呼出は20秒に1回までです'); return; }
+  _lastPingAtM = now;
+  try { if (_mAudioCtx && _mAudioCtx.state === 'suspended') _mAudioCtx.resume(); } catch (e) {}
+  socket.emit('dm:call', { to: openPeerUid });
+  const u = users[openPeerUid] || {};
+  showToast('🛎️ ' + (u.name || '相手') + 'さんを呼び出しました');
 }
 
 function announceDmSender(senderUid, name) {
@@ -1881,6 +1959,28 @@ function connectSocket() {
   socket.on('dm:blocked', (r) => {
     showToast('🔒 ' + (r.msg || 'この相手にはDMできません'));
   });
+  // 🛎️ 呼出を受けた (相手がチャイムで気づかせようとしている)
+  socket.on('dm:call', (payload) => {
+    if (!payload || payload.from === user.uid) return;
+    const u = users[payload.from] || {};
+    const name = payload.fromName || u.name || '';
+    showSummonAlertM(name, payload.from);
+    playSummonChimeM();
+    try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+    try { speakViaTTS((name || '') + 'さんが呼んでいます', { force: true, speed: 1.1 }); } catch (e) {}
+    showToast('🛎️ ' + (name || '誰か') + 'さんが呼び出しています');
+  });
+  // 呼出の送信結果 (送信側へのフィードバック)
+  socket.on('dm:call-sent', (p) => {
+    if (!p) return;
+    if (!p.ok) {
+      if (p.reason === 'cooldown') showToast('🛎️ 呼出は20秒に1回までです');
+      else if (p.reason === 'blocked') showToast('呼び出せませんでした (相手の設定による)');
+      else if (p.reason === 'hierarchy') showToast('この相手は呼び出せません');
+      return;
+    }
+    if (!p.online) showToast('🛎️ 相手はオフラインです。通知を送りました');
+  });
   socket.on('groups:changed', () => {
     loadChatLists();
   });
@@ -2181,6 +2281,8 @@ async function openDM(peerId, name, avatar, isBot) {
   // bot 以外の DM 時のみ ⋮ メニューボタンを表示 (ブロック導線)
   const menuBtn = document.getElementById('chat-menu-btn');
   if (menuBtn) menuBtn.style.display = (isBot || !peerId) ? 'none' : 'inline-block';
+  const pingBtn = document.getElementById('chat-ping-btn');
+  if (pingBtn) pingBtn.style.display = (isBot || !peerId) ? 'none' : 'inline-flex';
   const hav = document.getElementById('chat-h-av');
   if (avatar) hav.innerHTML = '<img src="' + escapeHtml(avatar) + '">';
   else hav.textContent = (name || '?').slice(0, 2);
@@ -2212,6 +2314,7 @@ async function openGroup(gid, name, icon) {
   if (window.Overlay) Overlay.open('chat-modal', closeChatModal);
   document.getElementById('chat-h-name').textContent = name;
   document.getElementById('chat-h-sub').textContent = 'グループ';
+  { const pb = document.getElementById('chat-ping-btn'); if (pb) pb.style.display = 'none'; }
   document.getElementById('chat-h-av').innerHTML = escapeHtml(icon || '💬');
   document.getElementById('chat-body').innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px;">読み込み中…</div>';
   try {
@@ -2336,10 +2439,14 @@ function applyDmModeUi() {
     input.placeholder = 'メッセージを入力…';
   }
 }
+let _sendBusyM = false;
 async function sendChatMessage() {
+  if (_sendBusyM) return;  // 再入ガード: 連打による二重送信を防ぐ (2026-05-29)
   const input = document.getElementById('chat-input');
   const content = input.value.trim();
   if (!content && !_pendingAttach) return;
+  _sendBusyM = true;
+  try {
   if (openPeerUid) {
     const payload = { to: openPeerUid, content };
     if (_pendingAttach) payload.attach = _pendingAttach;
@@ -2349,13 +2456,14 @@ async function sendChatMessage() {
     clearAttach();
     input.style.height = 'auto';
   } else if (openGroupId) {
-    const payload = { gid: openGroupId, content };
+    const payload = { group_id: openGroupId, content };
     if (_pendingAttach) payload.attach = _pendingAttach;
     socket.emit('chat:group', payload);
     input.value = '';
     clearAttach();
     input.style.height = 'auto';
   }
+  } finally { _sendBusyM = false; }
 }
 
 // ===== まとめる君 (報告整形アシスト。事業本部チャット限定) =====

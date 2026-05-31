@@ -190,6 +190,13 @@ router.get('/list', authUser, (req, res) => {
   res.json({ success: true, items, isAdmin: admin });
 });
 
+// ===== 承認待ち件数 (ホーム新着バッジ用): 管理職のみ。未承認(申請済)の経費精算件数 =====
+router.get('/pending-count', authUser, (req, res) => {
+  if (!isManagerUid(req.uid)) return res.json({ success: true, count: 0 });
+  const row = getDb().prepare("SELECT COUNT(*) AS c FROM expenses WHERE status = '申請済'").get();
+  res.json({ success: true, count: (row && row.c) || 0 });
+});
+
 // ===== 承認済CSV出力 (管理職) =====
 router.get('/export-csv', requireManager, (req, res) => {
   const db = getDb();

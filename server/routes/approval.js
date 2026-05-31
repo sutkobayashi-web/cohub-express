@@ -201,6 +201,20 @@ router.get('/pending', authUser, (req, res) => {
   res.json({ success: true, items, isAdmin: admin });
 });
 
+// ===== 承認待ち件数 (ホーム新着バッジ用): 自分が現段階の承認者である案件数 =====
+router.get('/pending-count', authUser, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare("SELECT chain, cur_step FROM approval_apps WHERE status='申請中'").all();
+  let count = 0;
+  for (const r of rows) {
+    let chain = [];
+    try { chain = JSON.parse(r.chain || '[]'); } catch (e) {}
+    const cur = chain[r.cur_step];
+    if (cur && cur.uid === req.uid) count++;
+  }
+  res.json({ success: true, count });
+});
+
 function mapApp(r, cmap) {
   let chain = [];
   try { chain = JSON.parse(r.chain || '[]'); } catch (e) {}

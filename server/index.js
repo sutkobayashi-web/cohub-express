@@ -267,6 +267,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/avatar', require('./routes/avatar'));
 app.use('/api/enroll', require('./routes/enroll'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/search', require('./routes/search'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/voice', require('./routes/tts'));
 app.use('/api/wellness', require('./routes/wellness'));
@@ -678,6 +679,7 @@ io.use((socket, next) => {
 
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
+const callTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (DM呼出レート制限)
 const lastLogoutAt = new Map(); // uid → ts: 真の離脱時刻 (ナビゲーション再接続のアナウンス抑止用)
 const LOGIN_ANNOUNCE_COOLDOWN_MS = 5 * 60 * 1000; // 5分以内の再接続はログインアナウンスしない (ページ遷移対応)
 
@@ -1470,6 +1472,46 @@ io.on('connection', (socket) => {
         io.to('user:' + m.user_id).emit('chat:typing', { from: uid, group_id: data.group_id, typing: isTyping });
       }
     }
+  });
+
+  // 呼出 (DMの相手にチャイムを鳴らして気づかせる。メッセージは保存しない軽量ping)
+  socket.on('dm:call', (data) => {
+    const to = (data && data.to || '').toString();
+    if (!to || to === uid) return;
+    const target = getDb().prepare('SELECT id, role, dm_group, dm_rank, dm_restricted, job_role, is_field_promoter, is_warehouse_promoter FROM users WHERE id = ?').get(to);
+    if (!target || target.role === 'bot') return;
+    // DM権限・ブロック判定 (DM送信と同じルール)
+    const sender = loadUserForDm(uid);
+    if (!canDm(sender, target)) { socket.emit('dm:call-sent', { to, ok: false, reason: 'hierarchy' }); return; }
+    if (isBlocked(to, uid) || isBlocked(uid, to)) { socket.emit('dm:call-sent', { to, ok: false, reason: 'blocked' }); return; }
+    // レート制限: 同じ相手へは20秒に1回まで
+    const key = uid + ':' + to;
+    const now = Date.now();
+    if ((callTimestamps.get(key) || 0) > now - 20000) { socket.emit('dm:call-sent', { to, ok: false, reason: 'cooldown' }); return; }
+    callTimestamps.set(key, now);
+    const senderName = (getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+    // オンラインなら全タブ(PC/モバイル)へ即時チャイム配信
+    const tp = presence.get(to);
+    let online = false;
+    if (tp && !tp.isBot) {
+      io.to('user:' + to).emit('dm:call', { from: uid, fromName: senderName, at: new Date().toISOString() });
+      online = true;
+    }
+    // OS通知を必ず出す: alwaysShow=true でSWの「タブが開いてたら出さない」抑制を回避。
+    // 呼出は明示的な緊急ページなので、相手がチャット以外のページを開いていても確実に通知。
+    const pushSubs = getDb().prepare('SELECT COUNT(*) c FROM push_subscriptions WHERE user_id = ?').get(to);
+    sendPushToUser(to, {
+      title: '🔔 ' + (senderName || '呼び出し') + 'さんが呼び出しています',
+      body: 'タップしてチャットを開く',
+      tag: 'dm-call-' + uid,
+      mention: true,
+      requireInteraction: true,
+      alwaysShow: true,
+      vibrate: [300, 120, 300, 120, 500],
+      url: '/chat',
+    }).catch(() => {});
+    console.log('[dm:call] from=' + uid + '(' + senderName + ') to=' + to + ' online=' + online + ' pushSubs=' + ((pushSubs && pushSubs.c) || 0));
+    socket.emit('dm:call-sent', { to, ok: true, online });
   });
 
   // DM (1対1ダイレクトメッセージ、添付対応)
