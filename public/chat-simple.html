@@ -1289,6 +1289,8 @@ function presenceDot(uid) {
   if (onlineUids.has(uid)) return { cls: 'online-dot online', title: 'オンライン' };
   return { cls: 'online-dot', title: 'オフライン' };
 }
+// 在席扱い (オンライン or 離席中) — 離席中も「オンラインメンバー」グループに含める
+function isPresent(uid) { return onlineUids.has(uid) || awayUids.has(uid); }
 
 function onlineDotHtml(uid) {
   if (!uid || isBot(uid)) return '';
@@ -1344,9 +1346,9 @@ function renderMemberStrip() {
   if (!members.length) { strip.classList.remove('show'); strip.innerHTML = ''; return; }
   // オンライン → 自分 → 他の順にソート
   const sorted = [...members].sort((a, b) => {
-    const ao = onlineUids.has(a.id) ? 1 : 0;
-    const bo = onlineUids.has(b.id) ? 1 : 0;
-    if (ao !== bo) return bo - ao;  // online先
+    const ao = isPresent(a.id) ? 1 : 0;
+    const bo = isPresent(b.id) ? 1 : 0;
+    if (ao !== bo) return bo - ao;  // 在席(オンライン/離席中)先
     if (a.id === me.uid) return -1;
     if (b.id === me.uid) return 1;
     return (a.display_name || '').localeCompare(b.display_name || '', 'ja');
@@ -1985,7 +1987,7 @@ function renderGroupList() {
     if (rows.length === 0) return;
     const collapsed = isCollapsed('dm');
     // ボット除外は既に dmRows 構築時に済んでいる前提
-    const isOn = (uid) => onlineUids.has(uid);
+    const isOn = (uid) => isPresent(uid); // 離席中もオンライン側に含める
     const onlineRows  = rows.filter(r => isOn(r.id));
     const offlineRows = rows.filter(r => !isOn(r.id));
     // ソート (履歴あり優先→last_at降順→五十音)
