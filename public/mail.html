@@ -52,8 +52,14 @@
   .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: none; z-index: 50; }
   .overlay.show { display: block; }
   .sheet { position: absolute; inset: 0; background: #fff; max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; }
-  .sheet .shead { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
+  .sheet .shead { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
   .sheet .shead button { background: #eef2f7; border: 1px solid #cbd5e1; border-radius: 18px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .shead-actions { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .shead-actions::-webkit-scrollbar { height: 0; }
+  .sheet .shead .act { white-space: nowrap; flex-shrink: 0; font-size: 12px; font-weight: 700; }
+  .sheet .shead .act-primary { background: #0d9488; color: #fff; border-color: #0d9488; }
+  .mtrans { margin: 12px 16px; padding: 12px 14px; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .mtrans .mtrans-hd { font-size: 11px; font-weight: 800; color: #0f766e; margin-bottom: 6px; }
   .sheet .meta { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
   .sheet .meta .s { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
   .sheet .meta .row { font-size: 12px; color: #475569; margin: 2px 0; }
@@ -119,10 +125,13 @@
 <!-- 本文オーバーレイ -->
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeMsg()">
   <div class="sheet">
-    <div class="shead">
-      <button onclick="closeMsg()">← 一覧</button>
-      <button onclick="openReply()" style="background:#0d9488;color:#fff;border-color:#0d9488;">↩ 返信</button>
-      <b style="font-size:13px;color:#64748b;margin-left:auto;">メール本文</b>
+    <div class="shead shead-actions">
+      <button onclick="closeMsg()" title="一覧へ">←</button>
+      <button class="act act-primary" onclick="openReply()">↩ 返信</button>
+      <button class="act" onclick="replyAll()">👥 全員に返信</button>
+      <button class="act" onclick="openForward()">↪ 転送</button>
+      <button class="act" onclick="translateBody()">🌐 翻訳</button>
+      <button class="act" onclick="copyLink()">🔗 リンク</button>
     </div>
     <div id="msgArea"><div class="loading">読み込み中…</div></div>
   </div>
@@ -174,12 +183,14 @@ function fmtDate(s) {
 
 let mailSig = '';   // 署名
 let mailName = '';  // 差出人名
+let myEmail = '';   // 自分のメール (全員に返信で自分を除外)
 async function init() {
   const s = await api('/api/mail/status');
   if (!s) return;
   if (s.configured) {
     mailSig = s.signature || '';
     mailName = s.display_name || '';
+    myEmail = (s.email || '').toLowerCase();
     $('addr').textContent = s.email;
     $('gear').style.display = '';
     $('mailUi').style.display = '';
@@ -304,7 +315,7 @@ async function openMsg(uid) {
   const r = await api('/api/mail/message/' + uid);
   if (!r) return;
   if (!r.success) { $('msgArea').innerHTML = '<div class="empty">' + esc(r.msg || '取得失敗') + '</div>'; curMsg = null; return; }
-  curMsg = { uid, from_addr: r.from_addr, from: r.from, subject: r.subject, message_id: r.message_id, references: r.references, text: r.text, date: r.date };
+  curMsg = { uid, from_addr: r.from_addr, from: r.from, subject: r.subject, message_id: r.message_id, references: r.references, text: r.text, date: r.date, to_addrs: r.to_addrs || [], cc_addrs: r.cc_addrs || [] };
   let bodyHtml;
   if (r.html) {
     // HTMLメールはサンドボックスiframeで安全に表示 (スクリプト無効)
@@ -353,7 +364,7 @@ async function dlAttach(uid, idx, filename) {
 let composeCtx = {};
 function openCompose(pre) {
   pre = pre || {};
-  composeCtx = { in_reply_to: pre.in_reply_to || '', references: pre.references || '' };
+  composeCtx = { in_reply_to: pre.in_reply_to || '', references: pre.references || '', forward_uid: pre.forward_uid || '' };
   $('c-title').textContent = pre.title || 'メール作成';
   $('c-to').value = pre.to || '';
   $('c-cc').value = pre.cc || '';
@@ -379,6 +390,68 @@ function openReply() {
     references: ((orig.references ? (Array.isArray(orig.references) ? orig.references.join(' ') : orig.references) + ' ' : '') + (orig.message_id || '')).trim(),
   });
 }
+// 👥 全員に返信: 差出人 + 他の宛先(To/Cc)から自分を除外して Cc に
+function replyAll() {
+  if (!curMsg) return;
+  const orig = curMsg;
+  const others = [].concat(orig.to_addrs || [], orig.cc_addrs || [])
+    .map(a => (a || '').toLowerCase())
+    .filter(a => a && a !== myEmail && a !== (orig.from_addr || '').toLowerCase());
+  const ccList = Array.from(new Set(others)).join(', ');
+  const quoted = '\n\n--------------------\n'
+    + (orig.date ? new Date(orig.date).toLocaleString('ja-JP') + ' ' : '') + (orig.from || '') + ' wrote:\n'
+    + String(orig.text || '').split('\n').map(l => '> ' + l).join('\n');
+  openCompose({
+    title: '全員に返信',
+    to: orig.from_addr || '',
+    cc: ccList,
+    subject: /^re:/i.test(orig.subject || '') ? orig.subject : ('Re: ' + (orig.subject || '')),
+    body: (mailSig ? '\n\n' + mailSig : '') + quoted,
+    in_reply_to: orig.message_id || '',
+    references: ((orig.references ? (Array.isArray(orig.references) ? orig.references.join(' ') : orig.references) + ' ' : '') + (orig.message_id || '')).trim(),
+  });
+}
+// ↪ 転送: 件名Fwd: + 元本文を引用、元メールの添付も自動で付く(forward_uid)
+function openForward() {
+  if (!curMsg) return;
+  const orig = curMsg;
+  const head = '\n\n---------- 転送メッセージ ----------\n'
+    + 'From: ' + (orig.from || '') + '\n'
+    + (orig.date ? 'Date: ' + new Date(orig.date).toLocaleString('ja-JP') + '\n' : '')
+    + 'Subject: ' + (orig.subject || '') + '\n\n'
+    + String(orig.text || '');
+  openCompose({
+    title: '転送',
+    to: '',
+    subject: /^fwd:/i.test(orig.subject || '') ? orig.subject : ('Fwd: ' + (orig.subject || '')),
+    body: (mailSig ? '\n\n' + mailSig : '') + head,
+    forward_uid: orig.uid,
+  });
+}
+// 🔗 このメールを開くリンクをコピー
+function copyLink() {
+  if (!curMsg) return;
+  const url = location.origin + '/mail.html?uid=' + curMsg.uid;
+  const done = () => { const b = event && event.target; if (b) { const t = b.textContent; b.textContent = '✓ コピー'; setTimeout(() => b.textContent = t, 1500); } };
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt('コピーしてください', url));
+  else prompt('コピーしてください', url);
+}
+// 🌐 翻訳: 本文を日本語へ(既に日本語なら英語へ)。本文の下に表示
+async function translateBody() {
+  if (!curMsg) return;
+  const src = String(curMsg.text || '').trim();
+  if (!src) { alert('翻訳できる本文がありません'); return; }
+  let box = document.getElementById('mtrans');
+  if (!box) { box = document.createElement('div'); box.id = 'mtrans'; box.className = 'mtrans'; $('msgArea').appendChild(box); }
+  box.innerHTML = '<div class="mtrans-hd">🌐 翻訳</div>翻訳中…';
+  const target = /[ぁ-んァ-ヶ一-龠]/.test(src) ? 'en' : 'ja'; // 日本語が含まれれば英訳、なければ和訳
+  const r = await api('/api/translate/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target, text: src.slice(0, 8000) }) });
+  if (r && (r.translation || r.translation === '')) {
+    box.innerHTML = '<div class="mtrans-hd">🌐 翻訳（' + (target === 'ja' ? '日本語' : 'English') + '）</div>' + esc(r.translation || '(訳出なし)');
+  } else {
+    box.innerHTML = '<div class="mtrans-hd">🌐 翻訳</div>翻訳に失敗しました' + (r && r.detail ? '（' + esc(r.detail) + '）' : '');
+  }
+}
 function closeCompose() { $('composeOverlay').classList.remove('show'); }
 async function sendMail() {
   const to = $('c-to').value.trim();
@@ -391,6 +464,7 @@ async function sendMail() {
   fd.append('body', $('c-body').value);
   fd.append('in_reply_to', composeCtx.in_reply_to || '');
   fd.append('references', composeCtx.references || '');
+  if (composeCtx.forward_uid) fd.append('forward_uid', composeCtx.forward_uid);
   const files = $('c-files').files;
   for (let i = 0; i < files.length; i++) fd.append('files', files[i]);
   const r = await api('/api/mail/send', { method: 'POST', body: fd });
@@ -403,7 +477,14 @@ async function sendMail() {
     $('c-msg').textContent = ((r && r.msg) || '送信に失敗しました') + (r && r.detail ? '  ［' + r.detail + '］' : '');
   }
 }
-init();
+// 🔗 リンクから来た場合: ?uid= のメールを直接開く
+(async () => {
+  await init();
+  try {
+    const u = parseInt(new URLSearchParams(location.search).get('uid'));
+    if (u) openMsg(u);
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>

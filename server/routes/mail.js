@@ -214,6 +214,8 @@ router.get('/message/:uid', authUser, async (req, res) => {
         from_addr: fromAddr,
         to: parsed.to ? parsed.to.text : '',
         cc: parsed.cc ? parsed.cc.text : '',
+        to_addrs: (parsed.to && parsed.to.value || []).map(v => v.address).filter(Boolean),
+        cc_addrs: (parsed.cc && parsed.cc.value || []).map(v => v.address).filter(Boolean),
         date: parsed.date || null,
         text: parsed.text || '',
         html: parsed.html || '',
@@ -272,6 +274,25 @@ router.post('/send', authUser, (req, res) => {
     const text = String(b.body || '').slice(0, 100000);
     const cc = b.cc ? String(b.cc).trim().slice(0, 1000) : undefined;
     const attachments = (req.files || []).map(f => ({ filename: decodeFilename(f.originalname), content: f.buffer, contentType: f.mimetype || undefined }));
+    // 転送: 元メール(forward_uid)の添付を取り込んで一緒に送る
+    const fwdUid = parseInt(b.forward_uid);
+    if (fwdUid) {
+      let ic;
+      try {
+        ic = await imapClient(cred);
+        const lk = await ic.getMailboxLock('INBOX');
+        try {
+          const om = await ic.fetchOne(String(fwdUid), { source: true }, { uid: true });
+          if (om && om.source) {
+            const op = await simpleParser(om.source);
+            for (const a of (op.attachments || [])) {
+              if (a.content) attachments.push({ filename: a.filename || 'attachment', content: a.content, contentType: a.contentType || undefined });
+            }
+          }
+        } finally { lk.release(); }
+      } catch (e) { console.warn('[mail-send] forward attach fail', (e.message || '').slice(0, 100)); }
+      finally { try { if (ic) await ic.logout(); } catch (_) {} }
+    }
     try {
       const transporter = nodemailer.createTransport({
         host: cred.smtp_host, port: cred.smtp_port, secure: true,
