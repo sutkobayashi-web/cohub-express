@@ -137,6 +137,8 @@
       <input id="c-subj" type="text">
       <label>本文</label>
       <textarea id="c-body" rows="12"></textarea>
+      <label>添付ファイル <span style="color:#94a3b8;font-weight:400;">(任意・複数可・1件20MBまで)</span></label>
+      <input id="c-files" type="file" multiple style="font-size:13px;padding:6px 0;border:none;">
       <div class="err" id="c-msg"></div>
       <button class="btn" id="c-send" onclick="sendMail()">送信</button>
     </div>
@@ -337,6 +339,7 @@ function openCompose(pre) {
   $('c-subj').value = pre.subject || '';
   // 本文未指定(新規作成)なら署名を入れる。返信時はpre.bodyに署名+引用を渡す
   $('c-body').value = (pre.body !== undefined && pre.body !== null) ? pre.body : (mailSig ? '\n\n' + mailSig : '');
+  try { $('c-files').value = ''; } catch (e) {}
   $('c-msg').textContent = '';
   $('composeOverlay').classList.add('show');
 }
@@ -360,10 +363,16 @@ async function sendMail() {
   const to = $('c-to').value.trim();
   if (!to) { $('c-msg').className = 'err'; $('c-msg').textContent = '宛先を入力してください'; return; }
   $('c-send').disabled = true; $('c-msg').className = 'ok'; $('c-msg').textContent = '送信中…';
-  const r = await api('/api/mail/send', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, cc: $('c-cc').value.trim(), subject: $('c-subj').value, body: $('c-body').value, in_reply_to: composeCtx.in_reply_to, references: composeCtx.references }),
-  });
+  const fd = new FormData();
+  fd.append('to', to);
+  fd.append('cc', $('c-cc').value.trim());
+  fd.append('subject', $('c-subj').value);
+  fd.append('body', $('c-body').value);
+  fd.append('in_reply_to', composeCtx.in_reply_to || '');
+  fd.append('references', composeCtx.references || '');
+  const files = $('c-files').files;
+  for (let i = 0; i < files.length; i++) fd.append('files', files[i]);
+  const r = await api('/api/mail/send', { method: 'POST', body: fd });
   $('c-send').disabled = false;
   if (r && r.success) {
     $('c-msg').className = 'ok'; $('c-msg').textContent = '送信しました';

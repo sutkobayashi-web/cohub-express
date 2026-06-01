@@ -2,11 +2,25 @@
 // パスワードは AES-256-GCM で暗号化保存。接続時のみ復号。
 const express = require('express');
 const crypto = require('crypto');
+const multer = require('multer');
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
+
+// multer(busboy)はファイル名をlatin1で渡すため日本語が文字化け→往復一致時のみutf8復元
+function decodeFilename(name) {
+  if (!name) return name;
+  try {
+    const buf = Buffer.from(name, 'latin1');
+    const utf8 = buf.toString('utf8');
+    if (Buffer.from(utf8, 'utf8').equals(buf)) return utf8;
+  } catch (e) {}
+  return name;
+}
+// 送信添付: メモリ保存(nodemailerへbufferで渡す)。1ファイル20MB・最大10件
+const mailUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 10 } });
 
 const router = express.Router();
 
@@ -236,34 +250,39 @@ router.get('/message/:uid/attachment/:idx', authUser, async (req, res) => {
   }
 });
 
-// ===== 送信 / 返信 (SMTP) =====
-router.post('/send', authUser, express.json({ limit: '2mb' }), async (req, res) => {
-  const cred = getCred(req.uid);
-  if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です' });
-  const b = req.body || {};
-  const to = String(b.to || '').trim().slice(0, 1000);
-  if (!to) return res.status(400).json({ success: false, msg: '宛先(To)は必須です' });
-  const subject = String(b.subject || '').slice(0, 300);
-  const text = String(b.body || '').slice(0, 100000);
-  const cc = b.cc ? String(b.cc).trim().slice(0, 1000) : undefined;
-  try {
-    const transporter = nodemailer.createTransport({
-      host: cred.smtp_host, port: cred.smtp_port, secure: true,
-      auth: { user: cred.email, pass: decrypt(cred.enc_password) },
-      tls: MAIL_TLS,
-    });
-    const info = await transporter.sendMail({
-      from: cred.display_name ? { name: cred.display_name, address: cred.email } : cred.email,
-      to, cc, subject, text,
-      inReplyTo: b.in_reply_to || undefined,
-      references: b.references || undefined,
-    });
-    res.json({ success: true, message_id: info.messageId });
-  } catch (e) {
-    console.error('[mail-send] fail user=%s -> %s', cred.email, (e.message || ''));
-    // 422で返す (401はクライアントがログアウト誤作動するため)
-    res.status(422).json({ success: false, msg: '送信に失敗しました', detail: (e.message || '').slice(0, 160) });
-  }
+// ===== 送信 / 返信 (SMTP・添付対応) =====
+router.post('/send', authUser, (req, res) => {
+  mailUpload.array('files', 10)(req, res, async (uerr) => {
+    if (uerr) return res.status(422).json({ success: false, msg: (uerr.code === 'LIMIT_FILE_SIZE') ? '添付は1ファイル20MBまでです' : '添付の処理に失敗しました' });
+    const cred = getCred(req.uid);
+    if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です' });
+    const b = req.body || {};
+    const to = String(b.to || '').trim().slice(0, 1000);
+    if (!to) return res.status(400).json({ success: false, msg: '宛先(To)は必須です' });
+    const subject = String(b.subject || '').slice(0, 300);
+    const text = String(b.body || '').slice(0, 100000);
+    const cc = b.cc ? String(b.cc).trim().slice(0, 1000) : undefined;
+    const attachments = (req.files || []).map(f => ({ filename: decodeFilename(f.originalname), content: f.buffer, contentType: f.mimetype || undefined }));
+    try {
+      const transporter = nodemailer.createTransport({
+        host: cred.smtp_host, port: cred.smtp_port, secure: true,
+        auth: { user: cred.email, pass: decrypt(cred.enc_password) },
+        tls: MAIL_TLS,
+      });
+      const info = await transporter.sendMail({
+        from: cred.display_name ? { name: cred.display_name, address: cred.email } : cred.email,
+        to, cc, subject, text,
+        inReplyTo: b.in_reply_to || undefined,
+        references: b.references || undefined,
+        attachments: attachments.length ? attachments : undefined,
+      });
+      res.json({ success: true, message_id: info.messageId });
+    } catch (e) {
+      console.error('[mail-send] fail user=%s -> %s', cred.email, (e.message || ''));
+      // 422で返す (401はクライアントがログアウト誤作動するため)
+      res.status(422).json({ success: false, msg: '送信に失敗しました', detail: (e.message || '').slice(0, 160) });
+    }
+  });
 });
 
 module.exports = router;
