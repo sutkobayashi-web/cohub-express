@@ -601,9 +601,10 @@
   /* 1メッセージ単位 */
   .msg { display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start; position: relative; }
   /* Teams風 ホバー操作バー */
-  .msg-actions { position: absolute; top: -13px; right: 10px; display: none; gap: 1px; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; box-shadow: 0 3px 10px rgba(15,23,42,0.14); padding: 2px; z-index: 6; }
+  .msg-actions { position: absolute; top: -12px; display: none; gap: 1px; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; box-shadow: 0 3px 10px rgba(15,23,42,0.16); padding: 2px; z-index: 6; }
   .msg:hover .msg-actions { display: flex; }
-  .msg.me .msg-actions { right: auto; left: 10px; }
+  .msg:not(.me) .msg-actions { left: 46px; right: auto; }   /* 受信: アバターの右=バブル付近の上 */
+  .msg.me .msg-actions { right: 4px; left: auto; }           /* 送信: 右上 */
   .msg-actions button { background: transparent; border: none; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 6px; line-height: 1; }
   .msg-actions button:hover { background: #f1f5f9; }
   .msg.flash-target > .body > .bub { animation: msgFlash 1.6s ease; }
@@ -2656,7 +2657,7 @@ function renderMessages() {
 
     // バブル本文 + 添付
     const attach = m.attach_url ? `<a class="attach-link" href="${escapeHtml(m.attach_url)}" target="_blank">📎 ${escapeHtml(m.attach_name || 'attach')}</a>` : '';
-    const bubble = `<div class="bub${consultTierClass(m.content)}">${escapeHtml(m.content || '')}${bubbleTranslateBtn(m.content || '')}${attach}</div>`;
+    const bubble = `<div class="bub${consultTierClass(m.content)}">${escapeHtml(m.content || '')}${attach}</div>`;
 
     // 自分の連続でないメッセージは右下に時刻 + 既読/未読
     let tsBottom = '';
@@ -2735,11 +2736,30 @@ let _pendingScrollMsg = null;
 function findCurMsg(id) { return (messageCache.get(ctxKey()) || []).find(m => m.id === id); }
 function msgActionsHtml(id) {
   return '<div class="msg-actions">'
+    + '<button title="翻訳" onclick="msgTranslate(' + id + ');event.stopPropagation();">🌐</button>'
     + '<button title="引用して返信" onclick="msgQuoteReply(' + id + ');event.stopPropagation();">💬</button>'
     + '<button title="転送" onclick="msgForward(' + id + ');event.stopPropagation();">↪</button>'
     + '<button title="リンクをコピー" onclick="msgCopyLink(' + id + ');event.stopPropagation();">🔗</button>'
     + '<button title="本文をコピー" onclick="msgCopy(' + id + ');event.stopPropagation();">📋</button>'
     + '</div>';
+}
+// 翻訳: そのメッセージのバブル下に訳を表示/再押下で消す
+async function msgTranslate(id) {
+  const row = document.querySelector('.msg[data-mid="' + id + '"]');
+  if (!row) return;
+  const bubble = row.querySelector('.bub');
+  if (!bubble) return;
+  const existing = bubble.querySelector('.tr-result');
+  if (existing) { existing.remove(); return; }
+  const m = findCurMsg(id);
+  const decoded = String((m && m.content) || '');
+  if (!decoded) return;
+  const ph = document.createElement('div'); ph.className = 'tr-result'; ph.textContent = '🌐 翻訳中…';
+  bubble.appendChild(ph);
+  try {
+    const r = await api('/api/translate/message', { method: 'POST', body: { text: decoded, target: viewerLang() } });
+    ph.textContent = '🌐 ' + ((r && r.translation) || '(訳出なし)');
+  } catch (e) { ph.textContent = '🌐 翻訳に失敗しました'; }
 }
 function msgQuoteReply(id) {
   const m = findCurMsg(id); if (!m) return;
