@@ -1615,6 +1615,20 @@ function getDb() {
     message_id TEXT NOT NULL,
     seen_at TEXT DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, message_id)
+  );
+  -- 迷惑メール(送信者ブロック): このアドレスからのメールをCoHub受信箱に表示しない(サーバーは触らない)
+  CREATE TABLE IF NOT EXISTS user_mail_blocklist (
+    user_id TEXT NOT NULL,
+    address TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, address)
+  );
+  -- 個別メールの非表示(削除): このmessage_idをCoHub受信箱に表示しない(サーバーは触らない)
+  CREATE TABLE IF NOT EXISTS user_mail_hidden (
+    user_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, message_id)
   );`);
 
   // 既存DB向け: 会社メールの差出人名・署名 列を追加

@@ -47,6 +47,9 @@
   .mrow .subj { font-size: 13px; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
   .mrow .pin { color: #0d9488; font-size: 11px; }
   .m-badge { font-size: 9px; background: #0d9488; color: #fff; border-radius: 4px; padding: 1px 5px; font-weight: 700; vertical-align: middle; margin-left: 4px; }
+  .m-act { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; align-self: center; }
+  .m-act button { background: transparent; border: none; cursor: pointer; font-size: 15px; padding: 3px 5px; border-radius: 6px; opacity: 0.5; line-height: 1; }
+  .m-act button:hover { opacity: 1; background: #fee2e2; }
   .empty { padding: 40px 16px; text-align: center; color: #94a3b8; font-size: 14px; }
   /* detail overlay */
   .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: none; z-index: 50; }
@@ -108,6 +111,12 @@
     <div class="err" id="setMsg"></div>
     <button class="btn" id="setSaveBtn" onclick="saveSettings()">保存</button>
     <button class="btn btn-sec" onclick="hideSettings()">閉じる</button>
+
+    <div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">
+      <label>🚫 迷惑メール（ブロック中のアドレス）</label>
+      <div class="hint">解除すると、そのアドレスのメールが再びCoWellに表示されます。</div>
+      <div id="blocklist" style="margin-top:8px;"></div>
+    </div>
     <div style="margin-top:14px;text-align:center;"><a href="#" onclick="showSetup();return false;" style="font-size:12px;color:#64748b;">メールアドレス／パスワードを再設定する</a></div>
   </div>
 
@@ -216,8 +225,26 @@ function showSettings() {
   $('mailSettings').style.display = '';
   $('setup').style.display = 'none';
   $('mailUi').style.display = 'none';
+  loadBlocklist();
 }
 function hideSettings() { $('mailSettings').style.display = 'none'; $('mailUi').style.display = ''; }
+async function loadBlocklist() {
+  const box = $('blocklist'); if (!box) return;
+  box.innerHTML = '<span style="font-size:12px;color:#94a3b8;">読み込み中…</span>';
+  const r = await api('/api/mail/blocklist');
+  if (!r || !r.success) { box.innerHTML = ''; return; }
+  if (!r.blocked.length) { box.innerHTML = '<span style="font-size:12px;color:#94a3b8;">ブロック中のアドレスはありません</span>'; return; }
+  box.innerHTML = r.blocked.map(b =>
+    '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">'
+    + '<span style="flex:1;font-size:13px;word-break:break-all;">' + esc(b.address) + '</span>'
+    + '<button onclick="unblock(\'' + esc(b.address).replace(/'/g, "\\'") + '\')" style="background:#eef2f7;border:1px solid #cbd5e1;border-radius:14px;padding:4px 12px;font-size:12px;cursor:pointer;">解除</button>'
+    + '</div>'
+  ).join('');
+}
+async function unblock(address) {
+  const r = await api('/api/mail/block', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) });
+  if (r && r.success) loadBlocklist();
+}
 async function saveSettings() {
   $('setSaveBtn').disabled = true; $('setMsg').className = 'ok'; $('setMsg').textContent = '保存中…';
   const r = await api('/api/mail/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -273,7 +300,30 @@ function rowHtml(m) {
     + '<div class="m-main">'
     +   '<div class="m-top"><span class="who">' + (m.seen ? '' : '● ') + who + (m.is_member ? '<span class="m-badge">社内</span>' : '') + '</span><span class="dt">' + fmtDate(m.date) + '</span></div>'
     +   '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
-    + '</div></div>';
+    + '</div>'
+    + '<div class="m-act">'
+    +   '<button title="迷惑メール（このアドレスを今後非表示）" onclick="blockSender(' + m.uid + ');event.stopPropagation();">🚫</button>'
+    +   '<button title="削除（CoHubで非表示）" onclick="hideMail(' + m.uid + ');event.stopPropagation();">🗑</button>'
+    + '</div>'
+    + '</div>';
+}
+function findMailItem(uid) { return mailItems.find(m => m.uid === uid); }
+async function blockSender(uid) {
+  const m = findMailItem(uid); if (!m || !m.from_addr) { alert('送信者アドレスが取得できませんでした'); return; }
+  if (!confirm('「' + m.from_addr + '」を迷惑メールにしますか？\n今後このアドレスからのメールはCoWellに表示されません。\n（実際のメールボックスからは削除しません）')) return;
+  const r = await api('/api/mail/block', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: m.from_addr }) });
+  if (r && r.success) {
+    const addr = (m.from_addr || '').toLowerCase();
+    mailItems = mailItems.filter(x => (x.from_addr || '').toLowerCase() !== addr);
+    renderInbox();
+  } else { alert('登録に失敗しました'); }
+}
+async function hideMail(uid) {
+  const m = findMailItem(uid); if (!m) return;
+  if (!m.message_id) { alert('このメールはCoWellで非表示にできません（識別子がありません）'); return; }
+  const r = await api('/api/mail/hide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message_id: m.message_id }) });
+  if (r && r.success) { mailItems = mailItems.filter(x => x.uid !== uid); renderInbox(); }
+  else { alert('削除に失敗しました'); }
 }
 function renderInbox() {
   $('cnt').textContent = '全 ' + mailTotal + ' 件中 ' + mailItems.length + ' 件';

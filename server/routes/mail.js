@@ -158,16 +158,23 @@ router.get('/inbox', authUser, async (req, res) => {
         FROM user_mail_credentials mc JOIN users u ON u.id = mc.user_id`).all()) {
         if (r.email) memberMap[r.email] = { avatar: r.avatar || null, name: r.name || '' };
       }
+      // 迷惑メール(送信者ブロック)・個別非表示(削除) — CoHub側で非表示にする集合
+      const blockSet = new Set(getDb().prepare('SELECT address FROM user_mail_blocklist WHERE user_id = ?').all(req.uid).map(r => (r.address || '').toLowerCase()));
+      const hiddenSet = new Set(getDb().prepare('SELECT message_id FROM user_mail_hidden WHERE user_id = ?').all(req.uid).map(r => r.message_id));
       const end = total - offset;            // このページの最新側シーケンス番号
       if (total > 0 && end >= 1) {
         const start = Math.max(1, end - limit + 1);
         for await (const msg of client.fetch(`${start}:${end}`, { uid: true, envelope: true, flags: true, internalDate: true, bodyStructure: true })) {
           const f = fromText(msg.envelope && msg.envelope.from);
           const mid = (msg.envelope && msg.envelope.messageId) || '';
+          // 迷惑メール送信者 or 個別非表示は受信箱に出さない
+          if (f.address && blockSet.has(f.address.toLowerCase())) continue;
+          if (mid && hiddenSet.has(mid)) continue;
           const serverSeen = msg.flags ? msg.flags.has('\\Seen') : true;
           const mem = f.address ? memberMap[f.address.toLowerCase()] : null;
           items.push({
             uid: msg.uid,
+            message_id: mid,
             subject: (msg.envelope && msg.envelope.subject) || '(件名なし)',
             from_name: f.name, from_addr: f.address,
             avatar_url: mem ? mem.avatar : null,   // CoHubメンバーなら同じアバター
@@ -313,6 +320,31 @@ router.post('/send', authUser, (req, res) => {
       res.status(422).json({ success: false, msg: '送信に失敗しました', detail: (e.message || '').slice(0, 160) });
     }
   });
+});
+
+// ===== 迷惑メール(送信者ブロック): 以後このアドレスをCoHub受信箱に表示しない =====
+router.post('/block', authUser, express.json(), (req, res) => {
+  const address = String((req.body && req.body.address) || '').trim().toLowerCase().slice(0, 200);
+  if (!address) return res.status(400).json({ success: false, msg: 'アドレスが必要です' });
+  getDb().prepare('INSERT OR IGNORE INTO user_mail_blocklist (user_id, address) VALUES (?, ?)').run(req.uid, address);
+  res.json({ success: true });
+});
+router.delete('/block', authUser, express.json(), (req, res) => {
+  const address = String((req.body && req.body.address) || (req.query && req.query.address) || '').trim().toLowerCase().slice(0, 200);
+  getDb().prepare('DELETE FROM user_mail_blocklist WHERE user_id = ? AND address = ?').run(req.uid, address);
+  res.json({ success: true });
+});
+router.get('/blocklist', authUser, (req, res) => {
+  const rows = getDb().prepare('SELECT address, created_at FROM user_mail_blocklist WHERE user_id = ? ORDER BY created_at DESC').all(req.uid);
+  res.json({ success: true, blocked: rows });
+});
+
+// ===== 個別メールの非表示(削除): CoHub受信箱から消す(サーバーのメールは残す) =====
+router.post('/hide', authUser, express.json(), (req, res) => {
+  const mid = String((req.body && req.body.message_id) || '').trim().slice(0, 500);
+  if (!mid) return res.status(400).json({ success: false, msg: 'message_idが必要です' });
+  getDb().prepare('INSERT OR IGNORE INTO user_mail_hidden (user_id, message_id) VALUES (?, ?)').run(req.uid, mid);
+  res.json({ success: true });
 });
 
 module.exports = router;
