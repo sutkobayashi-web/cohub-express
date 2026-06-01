@@ -320,7 +320,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-05-26-activity-date-backfill"
+const APP_VERSION = "2026-06-01-presence-idle-away"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -476,11 +476,12 @@ app.get('/api/floor-presence/:code', authUser, (req, res) => {
   res.json({ success: true, floor: code, members: inFloor.filter(u => u.uid !== req.uid) });
 });
 
-// オンラインユーザー一覧 (presence.statusがoffline以外、bot除く)
+// オンラインユーザー一覧 (offline と 退席中 を除く、bot除く)
+// ※退席中(スリープ離脱/5分無操作の自動退席)は「在席」に含めない → /chat で離席が分かる
 app.get('/api/online-users', authUser, (req, res) => {
   const ids = [];
   for (const [uid, p] of presence) {
-    if (!p || p.status === 'offline') continue;
+    if (!p || p.status === 'offline' || p.status === '退席中') continue;
     if (p.isBot) continue;
     ids.push(uid);
   }

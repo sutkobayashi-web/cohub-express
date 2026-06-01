@@ -1307,6 +1307,16 @@ function setUserOnline(uid, on) {
   try { renderMemberStrip(); } catch (e) {}
 }
 
+// 在席状態を定期再取得 (退席中→離席をライブ反映。45秒間隔、非表示タブはスキップ)
+setInterval(function(){
+  if (document.hidden) return;
+  loadOnlineUsers().then(function(){
+    try { renderGroupList(); } catch (e) {}
+    try { renderMemberStrip(); } catch (e) {}
+    try { const mm = document.getElementById('members-modal'); if (mm && mm.classList.contains('show')) renderMpList(); } catch (e) {}
+  });
+}, 45000);
+
 // グループ選択中ならメンバーアバター帯を描画 (DM/未選択なら隠す)
 function renderMemberStrip() {
   const strip = document.getElementById('member-strip');
