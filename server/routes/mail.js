@@ -6,8 +6,34 @@ const multer = require('multer');
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
+const { Readable } = require('stream');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
+
+// ===== ウイルススキャン (ClamAV / clamd) =====
+let _clamPromise = null;
+function getClam() {
+  if (!_clamPromise) {
+    const NodeClam = require('clamscan');
+    _clamPromise = new NodeClam().init({
+      removeInfected: false,
+      clamdscan: { socket: '/run/clamav/clamd.ctl', localFallback: false, timeout: 30000 },
+      preference: 'clamdscan',
+    }).catch(e => { console.warn('[clam] init fail:', e.message); return null; });
+  }
+  return _clamPromise;
+}
+// 戻り: { ok:true } 安全 / { infected:true, virus } 検出 / { error } スキャン不能(=フェイルオープン: 端末AVが最後の砦)
+async function scanBuffer(buf) {
+  try {
+    if (!buf || !buf.length) return { ok: true };
+    const clam = await getClam();
+    if (!clam) return { error: 'clamd未初期化' };
+    const res = await clam.scanStream(Readable.from(buf));
+    if (res && res.isInfected) return { infected: true, virus: (res.viruses && res.viruses[0]) || 'Unknown' };
+    return { ok: true };
+  } catch (e) { return { error: (e && e.message) || 'scan error' }; }
+}
 
 // multer(busboy)はファイル名をlatin1で渡すため日本語が文字化け→往復一致時のみutf8復元
 function decodeFilename(name) {
@@ -214,6 +240,12 @@ router.get('/message/:uid', authUser, async (req, res) => {
       //   既読管理はCoHub内だけで行う(message_idを記録)。
       try { if (parsed.messageId) getDb().prepare('INSERT OR IGNORE INTO cohub_mail_seen (user_id, message_id) VALUES (?, ?)').run(req.uid, parsed.messageId); } catch (_) {}
       const fromAddr = (parsed.from && parsed.from.value && parsed.from.value[0]) ? parsed.from.value[0].address : '';
+      // 添付をウイルススキャン(ClamAV)して感染フラグを付ける
+      const attachments = await Promise.all((parsed.attachments || []).map(async (a, i) => {
+        const sc = await scanBuffer(a.content);
+        return { index: i, filename: a.filename || ('添付' + (i + 1)), contentType: a.contentType, size: a.size,
+          infected: !!sc.infected, virus: sc.virus || null, scanned: !sc.error };
+      }));
       res.json({
         success: true,
         subject: parsed.subject || '(件名なし)',
@@ -228,7 +260,7 @@ router.get('/message/:uid', authUser, async (req, res) => {
         html: parsed.html || '',
         message_id: parsed.messageId || '',
         references: parsed.references || '',
-        attachments: (parsed.attachments || []).map((a, i) => ({ index: i, filename: a.filename || ('添付' + (i + 1)), contentType: a.contentType, size: a.size })),
+        attachments,
       });
     } finally { lock.release(); }
   } catch (e) {
@@ -256,6 +288,12 @@ router.get('/message/:uid/attachment/:idx', authUser, async (req, res) => {
       const parsed = await simpleParser(msg.source);
       const att = (parsed.attachments || [])[idx];
       if (!att) return res.status(404).json({ success: false, msg: '添付が見つかりません' });
+      // ★ダウンロード前にウイルススキャン。検出したら配信せずブロック
+      const sc = await scanBuffer(att.content);
+      if (sc.infected) {
+        console.warn('[mail-virus] blocked download user=%s virus=%s file=%s', cred.email, sc.virus, att.filename);
+        return res.status(422).json({ success: false, msg: 'ウイルスを検出したためダウンロードをブロックしました', virus: sc.virus, blocked: true });
+      }
       const fn = encodeURIComponent(att.filename || ('attachment-' + idx));
       res.set('Content-Type', att.contentType || 'application/octet-stream');
       res.set('Content-Disposition', "attachment; filename*=UTF-8''" + fn);

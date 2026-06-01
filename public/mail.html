@@ -368,13 +368,17 @@ async function openMsg(uid) {
   curMsg = { uid, from_addr: r.from_addr, from: r.from, subject: r.subject, message_id: r.message_id, references: r.references, text: r.text, date: r.date, to_addrs: r.to_addrs || [], cc_addrs: r.cc_addrs || [] };
   let bodyHtml;
   if (r.html) {
-    // HTMLメールはサンドボックスiframeで安全に表示 (スクリプト無効)
-    bodyHtml = '<iframe sandbox="allow-same-origin" id="mbody"></iframe>';
+    // HTMLメールはサンドボックスiframeで安全に表示 (スクリプト無効)。外部画像は既定でブロック
+    bodyHtml = '<div id="imgBanner" style="display:none;align-items:center;gap:8px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:6px 10px;border-radius:8px;font-size:12px;margin-bottom:6px;">🖼 外部画像をブロックしました（迷惑メール業者に開封を知られないため）<button onclick="setIframe(true)" style="margin-left:auto;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;white-space:nowrap;">画像を表示</button></div><iframe sandbox="allow-same-origin" id="mbody"></iframe>';
   } else {
     bodyHtml = '<div class="body"><pre>' + esc(r.text || '(本文なし)') + '</pre></div>';
   }
   const att = (r.attachments && r.attachments.length)
-    ? '<div class="att">📎 添付: ' + r.attachments.map(a => '<span class="a" style="cursor:pointer;" onclick="dlAttach(' + uid + ',' + a.index + ',\'' + esc(a.filename).replace(/'/g, "\\'") + '\')">⬇ ' + esc(a.filename) + ' <span style="color:#94a3b8;">(' + Math.max(1, Math.round((a.size || 0) / 1024)) + 'KB)</span></span>').join('') + '</div>' : '';
+    ? '<div class="att">📎 添付: ' + r.attachments.map(a => {
+        if (a.infected) return '<span class="a" style="color:#dc2626;font-weight:700;cursor:not-allowed;background:#fee2e2;border-color:#fca5a5;" title="検出名: ' + esc(a.virus || 'ウイルス') + '">🛑 ' + esc(a.filename) + '（ウイルス検出・DL不可）</span>';
+        const warn = (a.scanned === false) ? ' ⚠未スキャン' : '';
+        return '<span class="a" style="cursor:pointer;" onclick="dlAttach(' + uid + ',' + a.index + ',\'' + esc(a.filename).replace(/'/g, "\\'") + '\')">⬇ ' + esc(a.filename) + ' <span style="color:#94a3b8;">(' + Math.max(1, Math.round((a.size || 0) / 1024)) + 'KB)' + warn + '</span></span>';
+      }).join('') + '</div>' : '';
   $('msgArea').innerHTML =
     '<div class="meta"><div class="s">' + esc(r.subject) + '</div>'
     + '<div class="row">From: ' + esc(r.from) + '</div>'
@@ -382,10 +386,27 @@ async function openMsg(uid) {
     + '<div class="row">' + (r.date ? new Date(r.date).toLocaleString('ja-JP') : '') + '</div></div>'
     + bodyHtml + att;
   if (r.html) {
-    const ifr = $('mbody');
-    ifr.srcdoc = '<base target="_blank"><div style="font-family:sans-serif;font-size:14px;padding:8px;">' + r.html + '</div>';
-    ifr.onload = () => { try { ifr.style.height = Math.min(ifr.contentWindow.document.body.scrollHeight + 24, 4000) + 'px'; } catch (e) { ifr.style.height = '70vh'; } };
+    curHtmlRaw = r.html;
+    setIframe(false); // 既定は外部画像ブロック
   }
+}
+let curHtmlRaw = '';
+// 外部(http)画像をブロック。img src と CSS url() を無効化し件数を返す
+function blockRemoteImages(html) {
+  let count = 0;
+  const out = String(html || '')
+    .replace(/(<img\b[^>]*?)\bsrc\s*=\s*(['"])\s*(https?:\/\/[^'"]*)\2/gi, (m, p, q, u) => { count++; return p + ' src=' + q + q + ' data-bsrc=' + q + u + q; })
+    .replace(/\burl\(\s*(['"]?)(https?:\/\/[^)'"]*)\1\s*\)/gi, () => { count++; return 'url()'; });
+  return { html: out, count };
+}
+function setIframe(showImages) {
+  const ifr = $('mbody'); if (!ifr) return;
+  let html = curHtmlRaw, blocked = 0;
+  if (!showImages) { const b = blockRemoteImages(curHtmlRaw); html = b.html; blocked = b.count; }
+  ifr.srcdoc = '<base target="_blank"><div style="font-family:sans-serif;font-size:14px;padding:8px;">' + html + '</div>';
+  ifr.onload = () => { try { ifr.style.height = Math.min(ifr.contentWindow.document.body.scrollHeight + 24, 4000) + 'px'; } catch (e) { ifr.style.height = '70vh'; } };
+  const ban = $('imgBanner');
+  if (ban) ban.style.display = (!showImages && blocked > 0) ? 'flex' : 'none';
 }
 function closeMsg() {
   $('overlay').classList.remove('show');
@@ -400,7 +421,12 @@ function closeMsg() {
 async function dlAttach(uid, idx, filename) {
   try {
     const r = await fetch('/api/mail/message/' + uid + '/attachment/' + idx, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (!r.ok) { alert('添付の取得に失敗しました'); return; }
+    if (!r.ok) {
+      let msg = '添付の取得に失敗しました';
+      try { const j = await r.json(); if (j && j.blocked) msg = '🛑 ' + (j.msg || 'ウイルスを検出しました') + (j.virus ? '\n（検出名: ' + j.virus + '）' : ''); else if (j && j.msg) msg = j.msg; } catch (e) {}
+      alert(msg);
+      return;
+    }
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
