@@ -1609,6 +1609,9 @@ function hShowToast(msg) {
         }
       });
       socket.on('dm:msg', (p) => {
+        if (!p) return;
+        // AIボットからのDMはチャット一覧に表示されず開けないので、新着通知しない
+        if (p.from && String(p.from).indexOf('bot_') === 0) return;
         // 自分発の echo は無視
         const meRaw = localStorage.getItem('cohub_user');
         let myUid = null;

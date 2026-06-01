@@ -2863,8 +2863,8 @@ function setupSocket() {
         markVisibleMessagesRead();
         if (isAdmin && chatNotifOn) playChatChime();
       } else {
-        // 別スレッド or タブ背面: 未読+1 + 通知
-        if (!viewingThisDm) {
+        // 別スレッド or タブ背面: 未読+1 + 通知 (botはDM一覧に出ないので未読カウントしない)
+        if (!viewingThisDm && !isBot(payload.from)) {
           unreadDms.set(payload.from, (unreadDms.get(payload.from) || 0) + 1);
           renderGroupList();
         }
