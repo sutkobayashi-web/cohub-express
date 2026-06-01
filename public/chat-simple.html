@@ -2679,6 +2679,25 @@ function appendMessage(m, key) {
   if (k === ctxKey()) renderMessages();
 }
 
+// 無操作検知: 5分間 操作が無ければ自動で退席中、操作再開でオンライン (端末は接続のまま席を外したケース)
+(function setupIdleAway(){
+  var IDLE_MS = 5 * 60 * 1000;
+  var lastActivity = Date.now();
+  var idle = false;
+  function markActive(){
+    lastActivity = Date.now();
+    if (idle) { idle = false; try { if (typeof socket !== 'undefined' && socket && socket.connected) socket.emit('presence:active'); } catch(e){} }
+  }
+  ['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(function(ev){ window.addEventListener(ev, markActive, { passive: true }); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) markActive(); });
+  setInterval(function(){
+    if (!idle && Date.now() - lastActivity > IDLE_MS) {
+      idle = true;
+      try { if (typeof socket !== 'undefined' && socket && socket.connected) socket.emit('presence:idle'); } catch(e){}
+    }
+  }, 30000);
+})();
+
 function setupSocket() {
   socket = io({ auth: { token } });
   socket.on('connect', () => {

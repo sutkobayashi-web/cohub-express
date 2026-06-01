@@ -1222,10 +1222,30 @@ io.on('connection', (socket) => {
     const text = (data && typeof data.text === 'string') ? data.text.slice(0, 50) : undefined;
     const p = presence.get(uid); if (!p) return;
     p.status = s;
-    p.autoAway = false; // 手動でステータスを設定したらスイープの自動退席扱いを解除
+    p.autoAway = false;  // 手動設定したらスイープの自動退席扱いを解除
+    p.idleAway = false;  // 無操作自動退席も解除
     if (text !== undefined) p.statusText = text;
     db.prepare(`UPDATE positions SET status=?, status_text=?, updated_at=datetime('now') WHERE user_id=?`).run(s, p.statusText || '', uid);
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: s, status_text: p.statusText || '' });
+  });
+
+  // 無操作による自動退席 (クライアントのidle検知。端末は接続中だが本人が席を外したケース)
+  // ※ pong は流れ続けるので heartbeat 復帰では戻さない。実際の操作(presence:active)でのみ復帰
+  socket.on('presence:idle', () => {
+    const p = presence.get(uid);
+    if (!p || p.status !== 'online') return; // 手動ステータス(会議中/集中中/退席中)は尊重
+    p.status = '退席中';
+    p.idleAway = true;
+    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: '退席中' });
+  });
+  socket.on('presence:active', () => {
+    const p = presence.get(uid);
+    if (!p) return;
+    if (p.idleAway && p.status === '退席中') {
+      p.status = 'online';
+      p.idleAway = false;
+      io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'online' });
+    }
   });
 
   // 👋 肩たたき: 同フロア+440px以内の相手に通知 (PWA Push連動、30秒レート制限)

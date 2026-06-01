@@ -1587,6 +1587,15 @@ function hShowToast(msg) {
     try {
       const socket = io({ auth: { token } });
       socket.on('connect', () => console.log('[home] socket connected'));
+      // 無操作検知: 5分間 操作が無ければ自動で退席中、操作再開でオンライン (端末は接続のまま席を外したケース)
+      if (!window.__homeIdleSetup) {
+        window.__homeIdleSetup = true;
+        var __idleMs = 5 * 60 * 1000, __lastAct = Date.now(), __idle = false;
+        var __markActive = function(){ __lastAct = Date.now(); if (__idle){ __idle = false; try { if (socket && socket.connected) socket.emit('presence:active'); } catch(e){} } };
+        ['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(function(ev){ window.addEventListener(ev, __markActive, { passive: true }); });
+        document.addEventListener('visibilitychange', function(){ if (!document.hidden) __markActive(); });
+        setInterval(function(){ if (!__idle && Date.now() - __lastAct > __idleMs){ __idle = true; try { if (socket && socket.connected) socket.emit('presence:idle'); } catch(e){} } }, 30000);
+      }
       socket.on('session:kicked', () => {
         try { localStorage.removeItem('cohub_token'); } catch (e) {}
         alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
