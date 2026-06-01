@@ -968,7 +968,7 @@ function postHtml(p) {
   const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 ニックネームで投稿中</span>' : '') : '';
   const author = p.author_name || (isArchive ? '(過去ユーザー)' : '不明');
   // 匿名投稿は他人にはアバター隠す (本人には自分のアバター見える)
-  const showAvatar = !(p.is_anonymous && !p.is_mine);
+  const showAvatar = !p.is_anonymous; // ★匿名投稿は本人にも実アバターを出さない (#4)。本人は下の「🎭 ニックネームで投稿中」バッジで判別
   const avatarBlock = showAvatar ? avatarHtml(p.author_avatar, author) : `<div class="avatar-fallback" style="background:linear-gradient(135deg,#94a3b8,#64748b);">🎭</div>`;
   const cat = p.category || '雑談';
   // 推進メンバー専用: 健康管理室向けコメント (柱への注釈、AI凝縮の補強材料)

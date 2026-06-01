@@ -325,9 +325,9 @@ router.get('/posts', authUser, (req, res) => {
     //   (本人にはアバター/編集権を残す → is_mine/can_delete は上で設定済み)。
     if (p.is_anonymous) {
       enr.author_name = p.author_nickname ? '🎭 ' + p.author_nickname : '🎭 匿名';
+      enr.author_avatar = null; // ★本人にも実アバターを出さない (#4: 自分の顔が公開されている不安の払拭)。本人判別は is_mine で
       if (!isAuthor) {
         enr.author_id = null;
-        enr.author_avatar = null;
         enr.author_company = null;
       }
     }
@@ -453,6 +453,11 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   post.can_delete = true;
   post.is_mine = true;
   post.extra_alcohol_g = 0;
+  // ★匿名カテゴリは本人にも🎭・アバターNULLで返す (#4: 自分の顔が公開されている不安の払拭)。本人判別は is_mine
+  if (isAnonymous) {
+    post.author_avatar = null;
+    post.author_name = post.author_nickname ? '🎭 ' + post.author_nickname : '🎭 匿名';
+  }
 
   // 全員配信用の匿名化版 (本人以外向け、ニックネームがあれば表示)
   const anonymizedPost = isAnonymous ? {
@@ -565,7 +570,7 @@ router.get('/posts/:id/comments', authUser, (req, res) => {
       content: r.content,
       created_at: r.created_at,
       author_name: r.author_nickname ? '🎭 ' + r.author_nickname : '🎭 匿名',
-      author_avatar: isSelf ? r.author_avatar : null,
+      author_avatar: null, // ★本人にも実アバターを出さない (#4)。本人判別は is_mine
       is_mine: isSelf,
     };
   });
@@ -591,7 +596,7 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const anonName = raw.author_nickname ? '🎭 ' + raw.author_nickname : '🎭 匿名';
   // 本人向けレスポンス: 自分のコメントなのでアバター/idは残す
   const mine = { id: raw.id, author_id: raw.author_id, content: raw.content, created_at: raw.created_at,
-                 author_name: anonName, author_avatar: raw.author_avatar, is_mine: true };
+                 author_name: anonName, author_avatar: null, is_mine: true };
   // 全員ブロードキャスト用: 実名・顔写真・author_id を伏せた匿名版
   const pub = { id: raw.id, author_id: null, content: raw.content, created_at: raw.created_at,
                 author_name: anonName, author_avatar: null, is_mine: false };

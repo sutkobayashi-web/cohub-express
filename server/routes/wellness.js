@@ -198,14 +198,15 @@ router.get('/posts', authUser, (req, res) => {
   let sql = `
     SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code,
            wp.source_type, wp.subject_user_id, wp.structured_json, wp.created_at,
-           u.display_name as poster_name,
-           u.avatar_url   as poster_avatar,
+           ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) as poster_name,
+           NULL as poster_avatar,
+           CASE WHEN wp.poster_id = ? THEN 1 ELSE 0 END as is_mine,
            s.display_name as subject_name,
            s.avatar_url   as subject_avatar
     FROM wellness_posts wp
     LEFT JOIN users u ON u.id = wp.poster_id
     LEFT JOIN users s ON s.id = wp.subject_user_id`;
-  const params = [];
+  const params = [req.uid];
   if (sourceFilter && SOURCE_TYPES.includes(sourceFilter)) {
     sql += ' WHERE wp.source_type = ?';
     params.push(sourceFilter);
@@ -521,7 +522,11 @@ router.get('/promoter-board', authUser, (req, res) => {
     WHERE status IN ('承認待ち','承認済','実行中') ORDER BY id DESC LIMIT 5`).all();
 
   // 推進メンバー貢献 (POST数+議論数+コメント数+ひろば貢献) — 全員返す
-  const promoters = db.prepare(`SELECT u.id, u.display_name, u.company_code, u.avatar_url,
+  // ★匿名化(#2): 実名・アバター・会社は出さない(反応数からの本人特定を防ぐ)。🎭ニックネーム+is_mineのみ
+  const promoters = db.prepare(`SELECT
+    CASE WHEN u.id = ? THEN 1 ELSE 0 END AS is_mine,
+    ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS display_name,
+    NULL AS avatar_url, NULL AS company_code,
     (SELECT COUNT(*) FROM wellness_posts WHERE poster_id = u.id AND created_at >= ?) AS post_count,
     (SELECT COUNT(*) FROM wellness_post_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS post_disc_count,
     (SELECT COUNT(*) FROM wellness_action_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS action_disc_count,
@@ -529,8 +534,8 @@ router.get('/promoter-board', authUser, (req, res) => {
     (SELECT COUNT(*) FROM plaza_post_promoter_comments WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS plaza_comment_count,
     (SELECT COUNT(*) FROM plaza_reactions WHERE user_id = u.id AND created_at >= ?) AS plaza_react_count
     FROM users u WHERE u.is_field_promoter = 1 AND u.role != 'bot'
-    ORDER BY (post_count*3 + (post_disc_count + action_disc_count + plaza_comment_count)*2 + react_count + plaza_react_count) DESC, u.display_name ASC`)
-    .all(sinceISO, sinceISO, sinceISO, sinceISO, sinceISO, sinceISO);
+    ORDER BY (post_count*3 + (post_disc_count + action_disc_count + plaza_comment_count)*2 + react_count + plaza_react_count) DESC, u.id ASC`)
+    .all(req.uid, sinceISO, sinceISO, sinceISO, sinceISO, sinceISO, sinceISO);
 
   // 最近完了した施策 (成果として見せる)
   const recentCompleted = db.prepare(`SELECT id, title, completed_at, announce_message FROM wellness_actions
