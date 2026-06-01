@@ -10,14 +10,15 @@ const jstDate = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice
 function getOperator(uid) {
   return getDb().prepare(
     `SELECT id, display_name, company_code, employee_type, job_role,
-            is_field_promoter, is_warehouse_promoter, is_tenko_operator
+            is_field_promoter, is_warehouse_promoter, is_tenko_operator,
+            is_ops_manager, is_branch_head
      FROM users WHERE id = ?`
   ).get(uid);
 }
-// 点呼者/管理者か (予め選出: フラグ or 管理職 or manager or 推進メンバー)
+// 点呼者/管理者か (予め選出: フラグ or 管理職 or manager or 推進 or 運行管理者 or 所長副所長)
 function isOperator(u) {
   return !!(u && (u.is_tenko_operator || u.employee_type === 'admin' || u.job_role === 'manager'
-    || u.is_field_promoter || u.is_warehouse_promoter));
+    || u.is_field_promoter || u.is_warehouse_promoter || u.is_ops_manager || u.is_branch_head));
 }
 
 // 体調回答の重み付け (点呼)。wellness聞き取りカードと整合する severity 0/1/2 方式

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>点呼・朝礼 - CoWell</title>
+<title>点呼・健康点検 - CoWell</title>
 <link rel="icon" href="/favicon.ico">
 <link rel="manifest" href="/manifest.json">
 <style>
@@ -69,7 +69,7 @@ main{max-width:1100px;margin:0 auto;padding:12px 16px 60px}
 <body>
 <header>
   <button class="back" onclick="location.href='/home'">←</button>
-  <h1>🚦 点呼・朝礼</h1>
+  <h1>🚦 点呼・健康点検</h1>
   <span id="today" style="font-size:13px;opacity:.9"></span>
 </header>
 
@@ -173,20 +173,30 @@ async function saveBrief(){
 // ---- 記録モーダル ----
 let form = {};
 function openCard(m){
-  form = { target_id:m.id, mode:m.mode, tokai_done:false, condition:null, health:{}, note:'' };
+  form = { target_id:m.id, mode:m.mode, tokai_done:false, condition:(m.mode==='chorei'?'good':null), health:{}, note:'', health_state:'good' };
   const brief = document.getElementById('briefText').value.trim();
   const briefHtml = brief ? `<div class="briefshow">📢 ${esc(brief)}</div>` : '';
-  const body = m.mode==='tenko' ? tenkoForm() : choreiForm();
+  const legal = m.mode==='tenko' ? tenkoLegal() : '';            // 点呼の法定部(東海電子+血圧)は常時表示
+  const detail = m.mode==='tenko' ? tenkoDetail() : choreiDetail(); // 「気になる」時だけ展開
   document.getElementById('modal').innerHTML =
-    `<h2>${m.mode==='tenko'?'🚦 点呼':'📣 朝礼'}</h2>
+    `<h2>${m.mode==='tenko'?'🚦 点呼・健康点検':'📣 朝礼・健康点検'}</h2>
      <div class="who">${esc(m.name)} さん</div>
-     ${briefHtml}${body}
+     ${briefHtml}${legal}
+     <div class="fld">
+       <label>体調点検</label>
+       <div class="opts hstate">
+         <button class="opt hs on" data-s="good" onclick="pickHealth(this)">😊 良好</button>
+         <button class="opt hs warn" data-s="concern" onclick="pickHealth(this)">🤔 気になる</button>
+       </div>
+       <div style="font-size:11px;color:#94a3b8;margin-top:6px;">いつもどおりなら「良好」で完了。気になる様子があれば「気になる」で詳細を記録。</div>
+     </div>
+     <div id="healthDetail" style="display:none;">${detail}</div>
      <div class="fld"><div class="note-ttl">📝 メモ（任意）</div><textarea class="note" id="f_note" placeholder="気づいたことがあれば記入"></textarea></div>
-     <button class="submit" onclick="submitCard()">${m.mode==='tenko'?'点呼を記録':'記録（出席）'}</button>
+     <button class="submit" onclick="submitCard()">${m.mode==='tenko'?'点呼・点検を記録':'記録（出席・点検）'}</button>
      <button class="cancel" onclick="closeOv()">キャンセル</button>`;
   document.getElementById('ov').classList.add('show');
 }
-function tenkoForm(){
+function tenkoLegal(){
   return `
   <div class="fld">
     <div class="chk" id="chk_tokai" onclick="toggleTokai()"><div class="bx" id="bx_tokai"></div>
@@ -201,16 +211,28 @@ function tenkoForm(){
       <input class="bp" id="f_pulse" type="number" inputmode="numeric" placeholder="脈拍(任意)" min="20" max="250">
     </div>
     <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:10px;padding:8px 10px">⚠️ 血圧が高めです。運行可否を確認してください。</div>
-  </div>
+  </div>`;
+}
+function tenkoDetail(){
+  return `
   ${optFld('顔色・表情','facial',[['普通','normal'],['疲れ気味','tired',1],['すぐれない','bad',1]])}
   ${optFld('睡眠','sleep',[['取れた','ok'],['やや不足','short',1],['ほぼ寝てない','none',1]])}
   ${optFld('疲労','fatigue',[['なし','no'],['あり','yes',1]])}
   ${optFld('気になること','concern',[['なし','no'],['あり','yes',1]])}`;
 }
-function choreiForm(){
+function choreiDetail(){
   return `
   ${optFld('体調','condition',[['良い','good'],['普通','normal'],['不調','bad',1]],true)}
   ${optFld('気になること','concern',[['なし','no'],['あり','yes',1]])}`;
+}
+// C方式: 良好=詳細スキップ / 気になる=詳細展開
+function pickHealth(el){
+  el.parentElement.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  const s = el.dataset.s; form.health_state = s;
+  const d = document.getElementById('healthDetail');
+  if (d) d.style.display = (s==='concern') ? 'block' : 'none';
+  if (s==='good'){ form.health={}; form.condition = (form.mode==='chorei') ? 'good' : null; }
 }
 function optFld(label,key,opts,isCondition){
   const btns = opts.map(o=>`<button class="opt ${o[2]?'warn':''}" data-k="${key}" data-v="${o[1]}" data-cond="${isCondition?1:0}" onclick="pick(this)">${o[0]}</button>`).join('');
