@@ -602,11 +602,23 @@
   .msg { display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start; position: relative; }
   /* Teams風 ホバー操作バー */
   .msg-actions { position: absolute; top: -12px; display: none; gap: 1px; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; box-shadow: 0 3px 10px rgba(15,23,42,0.16); padding: 2px; z-index: 6; }
-  .msg:hover .msg-actions { display: flex; }
+  /* ホバーバーはマウス端末のみ。タッチ端末は下部バー(下記)を使う */
+  @media (hover: hover) and (pointer: fine) { .msg:hover .msg-actions { display: flex; } }
   .msg:not(.me) .msg-actions { left: 46px; right: auto; }   /* 受信: アバターの右=バブル付近の上 */
   .msg.me .msg-actions { right: 4px; left: auto; }           /* 送信: 右上 */
   .msg-actions button { background: transparent; border: none; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 6px; line-height: 1; }
   .msg-actions button:hover { background: #f1f5f9; }
+  /* 選択中メッセージの強調 (下部バー表示時) */
+  .msg.sel-target .bub { box-shadow: 0 0 0 2px #0d9488; }
+  /* 下部固定アクションバー (mailと同じデザイン) */
+  #chat-actionbar { position: absolute; left: 0; right: 0; bottom: 0; display: none; gap: 4px; background: #fff; border-top: 1px solid #e2e8f0; box-shadow: 0 -3px 14px rgba(15,23,42,0.14); padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); z-index: 40; animation: barUp 0.16s ease; }
+  #chat-actionbar.show { display: flex; }
+  @keyframes barUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  #chat-actionbar .fact { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: #fff; border: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; color: #334155; cursor: pointer; line-height: 1.1; }
+  #chat-actionbar .fact .i { font-size: 19px; line-height: 1; }
+  #chat-actionbar .fact:active { background: #f0fdfa; }
+  #chat-actionbar .fact.primary { color: #0d9488; }
+  #chat-actionbar .fact.close { color: #94a3b8; }
   .msg.flash-target > .body > .bub { animation: msgFlash 1.6s ease; }
   @keyframes msgFlash { 0%,100% { box-shadow: none; } 25% { box-shadow: 0 0 0 3px rgba(14,165,233,0.5); } }
   /* 転送ピッカー */
@@ -1193,6 +1205,16 @@
       <textarea id="input-text" rows="1" placeholder="メッセージを入力" disabled></textarea>
       <button id="send-btn" disabled title="送信 (Enter)">➤</button>
       <div id="emoji-panel" aria-hidden="true"></div>
+    </div>
+
+    <!-- メッセージ操作: 下部固定バー (タッチ端末。メールと同じデザイン) -->
+    <div id="chat-actionbar">
+      <button class="fact primary" type="button" onclick="chatAct(msgQuoteReply)"><span class="i">💬</span>引用返信</button>
+      <button class="fact" type="button" onclick="chatAct(msgForward)"><span class="i">↪</span>転送</button>
+      <button class="fact" type="button" onclick="chatAct(msgTranslate)"><span class="i">🌐</span>翻訳</button>
+      <button class="fact" type="button" onclick="chatAct(msgCopyLink)"><span class="i">🔗</span>リンク</button>
+      <button class="fact" type="button" onclick="chatAct(msgCopy)"><span class="i">📋</span>コピー</button>
+      <button class="fact close" type="button" onclick="hideChatActions()"><span class="i">✕</span>閉じる</button>
     </div>
 
     <!-- メンバー一覧 (パネル内インライン表示。← で元のチャット画面に戻る) -->
@@ -2729,6 +2751,8 @@ $('msgs').addEventListener('scroll', () => {
     const b = document.getElementById('new-msg-badge');
     if (b) b.remove();
   }
+  // スクロールしたら下部アクションバーは閉じる (選択コンテキストがずれるため)
+  if (_selMsgId != null) hideChatActions();
 });
 
 // ===== Teams風 メッセージ操作 (ホバーバー) =====
@@ -2743,6 +2767,38 @@ function msgActionsHtml(id) {
     + '<button title="本文をコピー" onclick="msgCopy(' + id + ');event.stopPropagation();">📋</button>'
     + '</div>';
 }
+
+// ===== タッチ端末: メッセージをタップ → 下部固定バー (メールと同じデザイン) =====
+const _touchUI = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+let _selMsgId = null;
+function showChatActions(id, row) {
+  _selMsgId = id;
+  document.querySelectorAll('.msg.sel-target').forEach(el => el.classList.remove('sel-target'));
+  if (row) row.classList.add('sel-target');
+  const b = document.getElementById('chat-actionbar');
+  if (b) b.classList.add('show');
+}
+function hideChatActions() {
+  _selMsgId = null;
+  document.querySelectorAll('.msg.sel-target').forEach(el => el.classList.remove('sel-target'));
+  const b = document.getElementById('chat-actionbar');
+  if (b) b.classList.remove('show');
+}
+// バーのボタンから呼ぶ: 選択中メッセージへ既存アクションを実行してバーを閉じる
+function chatAct(fn) { const id = _selMsgId; hideChatActions(); if (id != null && typeof fn === 'function') fn(id); }
+if (_touchUI) {
+  $('msgs').addEventListener('click', (e) => {
+    // リンク/添付画像/操作ボタンのタップは本来の動作を優先
+    if (e.target.closest('a, img, button, audio, video, .msg-actions, input, textarea')) return;
+    const row = e.target.closest('.msg[data-mid]');
+    if (!row) { hideChatActions(); return; }
+    const id = parseInt(row.getAttribute('data-mid'), 10);
+    if (!Number.isFinite(id)) { hideChatActions(); return; }
+    if (_selMsgId === id) { hideChatActions(); return; } // 同じメッセージ再タップで閉じる
+    showChatActions(id, row);
+  });
+}
+
 // 翻訳: そのメッセージのバブル下に訳を表示/再押下で消す
 async function msgTranslate(id) {
   const row = document.querySelector('.msg[data-mid="' + id + '"]');
