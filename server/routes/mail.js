@@ -152,6 +152,12 @@ router.get('/inbox', authUser, async (req, res) => {
       const items = [];
       // CoHub内で開いたメール(message_id)の集合。サーバー\\Seenとは別管理
       const cohubSeen = new Set(getDb().prepare('SELECT message_id FROM cohub_mail_seen WHERE user_id = ?').all(req.uid).map(r => r.message_id));
+      // 送信者メール → CoHubアバター(チャットと同期)。メール設定済みメンバーのemailで照合
+      const memberMap = {};
+      for (const r of getDb().prepare(`SELECT LOWER(mc.email) AS email, u.avatar_url AS avatar, u.display_name AS name
+        FROM user_mail_credentials mc JOIN users u ON u.id = mc.user_id`).all()) {
+        if (r.email) memberMap[r.email] = { avatar: r.avatar || null, name: r.name || '' };
+      }
       const end = total - offset;            // このページの最新側シーケンス番号
       if (total > 0 && end >= 1) {
         const start = Math.max(1, end - limit + 1);
@@ -159,10 +165,13 @@ router.get('/inbox', authUser, async (req, res) => {
           const f = fromText(msg.envelope && msg.envelope.from);
           const mid = (msg.envelope && msg.envelope.messageId) || '';
           const serverSeen = msg.flags ? msg.flags.has('\\Seen') : true;
+          const mem = f.address ? memberMap[f.address.toLowerCase()] : null;
           items.push({
             uid: msg.uid,
             subject: (msg.envelope && msg.envelope.subject) || '(件名なし)',
             from_name: f.name, from_addr: f.address,
+            avatar_url: mem ? mem.avatar : null,   // CoHubメンバーなら同じアバター
+            is_member: !!mem,
             date: (msg.envelope && msg.envelope.date) || msg.internalDate,
             seen: serverSeen || (!!mid && cohubSeen.has(mid)),
             attach: hasAttachments(msg.bodyStructure),
