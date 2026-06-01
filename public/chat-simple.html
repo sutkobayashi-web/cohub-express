@@ -2746,7 +2746,8 @@ $('msgs').addEventListener('scroll', () => {
     if (b) b.remove();
   }
   // スクロールしたら下部アクションバーは閉じる (選択コンテキストがずれるため)
-  if (_selMsgId != null) hideChatActions();
+  // ただしバー表示直後の「選択メッセージを見せるための自動スクロール」では閉じない
+  if (_selMsgId != null && !_suppressScrollHide) hideChatActions();
 });
 
 // ===== Teams風 メッセージ操作 (ホバーバー) =====
@@ -2764,12 +2765,21 @@ function msgActionsHtml(id) {
 
 // ===== メッセージをクリック/タップ → 下部固定バー (メールと同じデザイン) =====
 let _selMsgId = null;
+let _suppressScrollHide = false;
 function showChatActions(id, row) {
   _selMsgId = id;
   document.querySelectorAll('.msg.sel-target').forEach(el => el.classList.remove('sel-target'));
   if (row) row.classList.add('sel-target');
   const b = document.getElementById('chat-actionbar');
   if (b) b.classList.add('show');
+  // バーが入力欄の上に積まれて選択メッセージが隠れる場合があるので、見える位置へスクロール
+  if (row) {
+    _suppressScrollHide = true;
+    requestAnimationFrame(() => {
+      try { row.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      setTimeout(() => { _suppressScrollHide = false; }, 350);
+    });
+  }
 }
 function hideChatActions() {
   _selMsgId = null;
