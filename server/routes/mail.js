@@ -4,6 +4,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
+const nodemailer = require('nodemailer');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 
@@ -162,22 +163,85 @@ router.get('/message/:uid', authUser, async (req, res) => {
       if (!msg || !msg.source) return res.status(404).json({ success: false, msg: 'メッセージが見つかりません' });
       const parsed = await simpleParser(msg.source);
       try { await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true }); } catch (_) {}
+      const fromAddr = (parsed.from && parsed.from.value && parsed.from.value[0]) ? parsed.from.value[0].address : '';
       res.json({
         success: true,
         subject: parsed.subject || '(件名なし)',
         from: parsed.from ? parsed.from.text : '',
+        from_addr: fromAddr,
         to: parsed.to ? parsed.to.text : '',
         cc: parsed.cc ? parsed.cc.text : '',
         date: parsed.date || null,
         text: parsed.text || '',
         html: parsed.html || '',
-        attachments: (parsed.attachments || []).map(a => ({ filename: a.filename || '添付', contentType: a.contentType, size: a.size })),
+        message_id: parsed.messageId || '',
+        references: parsed.references || '',
+        attachments: (parsed.attachments || []).map((a, i) => ({ index: i, filename: a.filename || ('添付' + (i + 1)), contentType: a.contentType, size: a.size })),
       });
     } finally { lock.release(); }
   } catch (e) {
     res.status(500).json({ success: false, msg: '本文の取得に失敗しました', detail: (e.message || '').slice(0, 150) });
   } finally {
     try { if (client) await client.logout(); } catch (_) {}
+  }
+});
+
+// ===== 添付ダウンロード =====
+router.get('/message/:uid/attachment/:idx', authUser, async (req, res) => {
+  const cred = getCred(req.uid);
+  if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です' });
+  const uid = parseInt(req.params.uid);
+  const idx = parseInt(req.params.idx);
+  if (!uid || isNaN(idx)) return res.status(400).json({ success: false, msg: 'パラメータ不正' });
+  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 60);
+  let client;
+  try {
+    client = await imapClient(cred);
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
+      if (!msg || !msg.source) return res.status(404).json({ success: false, msg: 'メッセージが見つかりません' });
+      const parsed = await simpleParser(msg.source);
+      const att = (parsed.attachments || [])[idx];
+      if (!att) return res.status(404).json({ success: false, msg: '添付が見つかりません' });
+      const fn = encodeURIComponent(att.filename || ('attachment-' + idx));
+      res.set('Content-Type', att.contentType || 'application/octet-stream');
+      res.set('Content-Disposition', "attachment; filename*=UTF-8''" + fn);
+      res.send(att.content);
+    } finally { lock.release(); }
+  } catch (e) {
+    res.status(500).json({ success: false, msg: '添付の取得に失敗しました', detail: (e.message || '').slice(0, 150) });
+  } finally {
+    try { if (client) await client.logout(); } catch (_) {}
+  }
+});
+
+// ===== 送信 / 返信 (SMTP) =====
+router.post('/send', authUser, express.json({ limit: '2mb' }), async (req, res) => {
+  const cred = getCred(req.uid);
+  if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です' });
+  const b = req.body || {};
+  const to = String(b.to || '').trim().slice(0, 1000);
+  if (!to) return res.status(400).json({ success: false, msg: '宛先(To)は必須です' });
+  const subject = String(b.subject || '').slice(0, 300);
+  const text = String(b.body || '').slice(0, 100000);
+  const cc = b.cc ? String(b.cc).trim().slice(0, 1000) : undefined;
+  try {
+    const transporter = nodemailer.createTransport({
+      host: cred.smtp_host, port: cred.smtp_port, secure: true,
+      auth: { user: cred.email, pass: decrypt(cred.enc_password) },
+      tls: MAIL_TLS,
+    });
+    const info = await transporter.sendMail({
+      from: cred.email, to, cc, subject, text,
+      inReplyTo: b.in_reply_to || undefined,
+      references: b.references || undefined,
+    });
+    res.json({ success: true, message_id: info.messageId });
+  } catch (e) {
+    console.error('[mail-send] fail user=%s -> %s', cred.email, (e.message || ''));
+    // 422で返す (401はクライアントがログアウト誤作動するため)
+    res.status(422).json({ success: false, msg: '送信に失敗しました', detail: (e.message || '').slice(0, 160) });
   }
 });
 

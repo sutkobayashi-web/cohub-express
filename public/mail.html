@@ -24,6 +24,9 @@
   .btn { background: #0d9488; color: #fff; border: none; border-radius: 8px; padding: 11px 16px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 16px; }
   .btn:disabled { opacity: 0.6; }
   .btn-sec { background: #eef2f7; color: #475569; }
+  .compose label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin: 10px 0 4px; }
+  .compose input, .compose textarea { width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .compose textarea { resize: vertical; line-height: 1.5; }
   .err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 16px; }
   .ok { color: #047857; font-size: 12px; margin-top: 8px; }
   .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -86,6 +89,7 @@
   <div id="mailUi" style="display:none;">
     <div class="toolbar">
       <button onclick="loadInbox()">🔄 更新</button>
+      <button onclick="openCompose()" style="background:#0d9488;color:#fff;border-color:#0d9488;">✏️ 新規作成</button>
       <span class="cnt" id="cnt"></span>
     </div>
     <div class="mlist" id="mlist"><div class="loading">読み込み中…</div></div>
@@ -95,8 +99,31 @@
 <!-- 本文オーバーレイ -->
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeMsg()">
   <div class="sheet">
-    <div class="shead"><button onclick="closeMsg()">← 一覧</button><b style="font-size:13px;color:#64748b;">メール本文</b></div>
+    <div class="shead">
+      <button onclick="closeMsg()">← 一覧</button>
+      <button onclick="openReply()" style="background:#0d9488;color:#fff;border-color:#0d9488;">↩ 返信</button>
+      <b style="font-size:13px;color:#64748b;margin-left:auto;">メール本文</b>
+    </div>
     <div id="msgArea"><div class="loading">読み込み中…</div></div>
+  </div>
+</div>
+
+<!-- 作成/返信オーバーレイ -->
+<div class="overlay" id="composeOverlay" onclick="if(event.target===this)closeCompose()">
+  <div class="sheet">
+    <div class="shead"><button onclick="closeCompose()">✕ 閉じる</button><b id="c-title" style="font-size:13px;color:#64748b;">メール作成</b></div>
+    <div class="compose" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:14px 16px;">
+      <label>宛先 (To)</label>
+      <input id="c-to" type="text" placeholder="someone@example.com（複数はカンマ区切り）">
+      <label>Cc <span style="color:#94a3b8;font-weight:400;">(任意)</span></label>
+      <input id="c-cc" type="text">
+      <label>件名</label>
+      <input id="c-subj" type="text">
+      <label>本文</label>
+      <textarea id="c-body" rows="12"></textarea>
+      <div class="err" id="c-msg"></div>
+      <button class="btn" id="c-send" onclick="sendMail()">送信</button>
+    </div>
   </div>
 </div>
 
@@ -182,12 +209,14 @@ async function loadInbox() {
   }).join('');
 }
 
+let curMsg = null; // 表示中メール (返信用)
 async function openMsg(uid) {
   $('overlay').classList.add('show');
   $('msgArea').innerHTML = '<div class="loading">読み込み中…</div>';
   const r = await api('/api/mail/message/' + uid);
   if (!r) return;
-  if (!r.success) { $('msgArea').innerHTML = '<div class="empty">' + esc(r.msg || '取得失敗') + '</div>'; return; }
+  if (!r.success) { $('msgArea').innerHTML = '<div class="empty">' + esc(r.msg || '取得失敗') + '</div>'; curMsg = null; return; }
+  curMsg = { uid, from_addr: r.from_addr, from: r.from, subject: r.subject, message_id: r.message_id, references: r.references, text: r.text, date: r.date };
   let bodyHtml;
   if (r.html) {
     // HTMLメールはサンドボックスiframeで安全に表示 (スクリプト無効)
@@ -196,7 +225,7 @@ async function openMsg(uid) {
     bodyHtml = '<div class="body"><pre>' + esc(r.text || '(本文なし)') + '</pre></div>';
   }
   const att = (r.attachments && r.attachments.length)
-    ? '<div class="att">📎 添付: ' + r.attachments.map(a => '<span class="a">' + esc(a.filename) + '</span>').join('') + '</div>' : '';
+    ? '<div class="att">📎 添付: ' + r.attachments.map(a => '<span class="a" style="cursor:pointer;" onclick="dlAttach(' + uid + ',' + a.index + ',\'' + esc(a.filename).replace(/'/g, "\\'") + '\')">⬇ ' + esc(a.filename) + ' <span style="color:#94a3b8;">(' + Math.max(1, Math.round((a.size || 0) / 1024)) + 'KB)</span></span>').join('') + '</div>' : '';
   $('msgArea').innerHTML =
     '<div class="meta"><div class="s">' + esc(r.subject) + '</div>'
     + '<div class="row">From: ' + esc(r.from) + '</div>'
@@ -210,6 +239,67 @@ async function openMsg(uid) {
   }
 }
 function closeMsg() { $('overlay').classList.remove('show'); loadInboxQuiet(); }
+
+// 添付ダウンロード (Bearer認証のためfetch→blob→保存)
+async function dlAttach(uid, idx, filename) {
+  try {
+    const r = await fetch('/api/mail/message/' + uid + '/attachment/' + idx, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!r.ok) { alert('添付の取得に失敗しました'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename || 'attachment';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) { alert('ダウンロードに失敗しました'); }
+}
+
+// ===== 作成 / 返信 / 送信 =====
+let composeCtx = {};
+function openCompose(pre) {
+  pre = pre || {};
+  composeCtx = { in_reply_to: pre.in_reply_to || '', references: pre.references || '' };
+  $('c-title').textContent = pre.title || 'メール作成';
+  $('c-to').value = pre.to || '';
+  $('c-cc').value = pre.cc || '';
+  $('c-subj').value = pre.subject || '';
+  $('c-body').value = pre.body || '';
+  $('c-msg').textContent = '';
+  $('composeOverlay').classList.add('show');
+}
+function openReply() {
+  if (!curMsg) return;
+  const orig = curMsg;
+  const quoted = '\n\n--------------------\n'
+    + (orig.date ? new Date(orig.date).toLocaleString('ja-JP') + ' ' : '') + (orig.from || '') + ' wrote:\n'
+    + String(orig.text || '').split('\n').map(l => '> ' + l).join('\n');
+  openCompose({
+    title: '返信',
+    to: orig.from_addr || '',
+    subject: /^re:/i.test(orig.subject || '') ? orig.subject : ('Re: ' + (orig.subject || '')),
+    body: quoted,
+    in_reply_to: orig.message_id || '',
+    references: ((orig.references ? (Array.isArray(orig.references) ? orig.references.join(' ') : orig.references) + ' ' : '') + (orig.message_id || '')).trim(),
+  });
+}
+function closeCompose() { $('composeOverlay').classList.remove('show'); }
+async function sendMail() {
+  const to = $('c-to').value.trim();
+  if (!to) { $('c-msg').className = 'err'; $('c-msg').textContent = '宛先を入力してください'; return; }
+  $('c-send').disabled = true; $('c-msg').className = 'ok'; $('c-msg').textContent = '送信中…';
+  const r = await api('/api/mail/send', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to, cc: $('c-cc').value.trim(), subject: $('c-subj').value, body: $('c-body').value, in_reply_to: composeCtx.in_reply_to, references: composeCtx.references }),
+  });
+  $('c-send').disabled = false;
+  if (r && r.success) {
+    $('c-msg').className = 'ok'; $('c-msg').textContent = '送信しました';
+    setTimeout(() => closeCompose(), 800);
+  } else {
+    $('c-msg').className = 'err';
+    $('c-msg').textContent = ((r && r.msg) || '送信に失敗しました') + (r && r.detail ? '  ［' + r.detail + '］' : '');
+  }
+}
 async function loadInboxQuiet() {
   // 既読化を反映するため静かに再取得
   const r = await api('/api/mail/inbox?limit=30');
