@@ -77,8 +77,13 @@ router.post('/credentials', authUser, express.json(), async (req, res) => {
     await client.logout();
   } catch (e) {
     try { if (client) await client.close(); } catch (_) {}
+    const authFail = !!e.authenticationFailed;
+    const resp = e.responseText || e.serverResponseCode || (e.response && (e.response.text || e.response)) || '';
+    console.error('[mail-cred] login fail user=%s host=%s:%s authFailed=%s code=%s msg=%s resp=%s',
+      email, imap_host, imap_port, authFail, e.code || '', e.message || '', String(resp).slice(0, 200));
+    const detail = authFail ? '認証失敗（パスワード違いの可能性）' : ((e.message || '接続エラー') + (resp ? ' / ' + String(resp).slice(0, 120) : ''));
     // 422で返す: 401だとクライアントが「CoWellセッション切れ」と誤認してログアウトしてしまうため
-    return res.status(422).json({ success: false, msg: 'メールにログインできませんでした（アドレス/パスワードをご確認ください）', detail: (e.message || '').slice(0, 160) });
+    return res.status(422).json({ success: false, msg: 'メールにログインできませんでした（アドレス/パスワードをご確認ください）', detail: String(detail).slice(0, 180), auth_failed: authFail });
   }
   const enc = encrypt(password);
   getDb().prepare(`INSERT INTO user_mail_credentials (user_id, email, enc_password, imap_host, imap_port, smtp_host, smtp_port, updated_at)

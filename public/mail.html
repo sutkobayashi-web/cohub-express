@@ -156,7 +156,7 @@ async function saveCred() {
     hideSetup(); loadInbox();
   } else {
     $('setupMsg').className = 'err';
-    $('setupMsg').textContent = (r && r.msg) || '保存に失敗しました';
+    $('setupMsg').textContent = ((r && r.msg) || '保存に失敗しました') + (r && r.detail ? '  ［' + r.detail + '］' : '');
   }
 }
 
