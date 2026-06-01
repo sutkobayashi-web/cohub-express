@@ -8,7 +8,10 @@
 <meta name="theme-color" content="#0d9488">
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior-y: contain; }
+html { height: 100%; margin: 0; padding: 0; }
+  /* ★body は height:100% で固定するとスティッキーヘッダーの張り付き範囲が1画面に制限され、
+     スクロールで途中からヘッダーが消える。min-height にして内容ぶん伸ばす */
+  body { min-height: 100%; margin: 0; padding: 0; overscroll-behavior-y: contain; }
 body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f0fdfa; color: #0f172a; }
 header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 header h1 { margin: 0; font-size: 16px; font-weight: 800; }
