@@ -638,6 +638,10 @@ app.get('*', (req, res) => {
 const io = new Server(server, {
   cors: { origin: [process.env.WEB_APP_URL || 'https://cohub.biz-terrace.org', 'http://localhost:3005'], credentials: true },
   maxHttpBufferSize: 1024 * 1024,
+  // pong途絶でのオフライン化をスイープ主導にするため、engine.ioのタイムアウトを緩める
+  // (背景タブの誤切断も低減。実際の生存判定は下のプレゼンス・スイープが担う)
+  pingInterval: 20000,
+  pingTimeout: 40000,
 });
 // ルート側からioを使えるようlocalsに共有
 app.locals.io = io;
@@ -970,11 +974,26 @@ io.on('connection', (socket) => {
   const lastOff = lastLogoutAt.get(uid) || 0;
   const isReconnect = wasConnected || (lastOff && (Date.now() - lastOff) < LOGIN_ANNOUNCE_COOLDOWN_MS);
   lastLogoutAt.delete(uid);
-  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile });
+  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile, lastHb: Date.now() });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
   db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
   socket.join('floor:' + floor.code);
   socket.join('user:' + uid); // ユーザー個別のroomに参加 (既読通知用)
+
+  // 生存ハートビート: engine.ioのpong受信ごとに lastHb を更新 (PCスリープ/タブ凍結で自然に途絶)
+  socket.conn.on('heartbeat', () => {
+    const pp = presence.get(uid);
+    if (!pp) return;
+    pp.lastHb = Date.now();
+    // スリープ復帰など: 自動退席/オフラインだったら自動でオンラインに戻す (手動ステータスは維持)
+    if (pp.status === 'offline' || (pp.autoAway && pp.status === '退席中')) {
+      pp.status = 'online';
+      pp.autoAway = false;
+      io.to('floor:' + pp.floor).emit('user:update', { uid, x: pp.x, y: pp.y, status: 'online' });
+      io.emit('user:floor', { uid, floor: pp.floor });
+      io.emit('floor:counts', floorCountMap());
+    }
+  });
 
   // 初期スナップショット
   const sendSnapshot = () => {
@@ -1202,6 +1221,7 @@ io.on('connection', (socket) => {
     const text = (data && typeof data.text === 'string') ? data.text.slice(0, 50) : undefined;
     const p = presence.get(uid); if (!p) return;
     p.status = s;
+    p.autoAway = false; // 手動でステータスを設定したらスイープの自動退席扱いを解除
     if (text !== undefined) p.statusText = text;
     db.prepare(`UPDATE positions SET status=?, status_text=?, updated_at=datetime('now') WHERE user_id=?`).run(s, p.statusText || '', uid);
     io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: s, status_text: p.statusText || '' });
@@ -2180,6 +2200,30 @@ ${latestReport.summary}
     }, 2000);
   });
 });
+
+// プレゼンス生存スイープ: ハートビート途絶を検知して 自動退席→オフライン化
+// (PCスリープ/タブ凍結/半開き接続で disconnect が発火しないケースの保険。10秒間隔)
+const PRESENCE_AWAY_MS = 35000;     // 約35秒 pong途絶 → 退席中(自動)
+const PRESENCE_OFFLINE_MS = 70000;  // 約70秒 pong途絶 → オフライン
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, p] of presence) {
+    if (!p || p.isBot) continue;          // botはsocket無しなので対象外
+    if (p.lastHb == null) { p.lastHb = now; continue; } // 未設定はグレース
+    if (p.status === 'offline') continue;
+    const age = now - p.lastHb;
+    if (age > PRESENCE_OFFLINE_MS) {
+      p.status = 'offline';
+      io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
+      io.emit('user:floor', { uid, floor: null, offline: true });
+      io.emit('floor:counts', floorCountMap());
+    } else if (age > PRESENCE_AWAY_MS && p.status === 'online') {
+      p.status = '退席中';
+      p.autoAway = true;
+      io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: '退席中' });
+    }
+  }
+}, 10000);
 
 // 60日より古いメッセージの自動削除（毎時）
 setInterval(() => {
