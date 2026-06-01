@@ -459,6 +459,19 @@
   .card.p-wifi       { --c1: #67e8f9; --c2: #0e7490; }  /* Wi-Fi設定: シアン */
   .card.p-warehouse  { --c1: #93c5fd; --c2: #1d4ed8; }
 
+  /* ── 各メニュー(セクション)ごとにカード配色を統一 (sec-titleの色に合わせる) ── */
+  /* 個別 .card.xxx より詳細度が高い(.grid.sec-x .card = クラス3つ)ので確実に上書き */
+  .grid.sec-msg      .card { --c1: #2dd4bf; --c2: #0f766e; }  /* ✉️ Message: teal */
+  .grid.sec-comm     .card { --c1: #60a5fa; --c2: #0369a1; }  /* 💬 Communication: blue */
+  .grid.sec-report   .card { --c1: #f87171; --c2: #b91c1c; }  /* 🚨 Report: red */
+  .grid.sec-appl     .card { --c1: #94a3b8; --c2: #334155; }  /* 📝 Application: slate */
+  .grid.sec-health   .card { --c1: #6ee7b7; --c2: #047857; }  /* 🏥 Health: green */
+  .grid.sec-consult  .card { --c1: #fb7185; --c2: #be123c; }  /* 🆘 Consult: rose */
+  .grid.sec-meeting  .card { --c1: #a78bfa; --c2: #5b21b6; }  /* 📅 Meeting: violet */
+  .grid.sec-welfare  .card { --c1: #fcd34d; --c2: #b45309; }  /* 🎁 Welfare & Help: amber */
+  .grid.sec-promoter .card { --c1: #c084fc; --c2: #5b21b6; }  /* 🩺 推進: purple */
+  .grid.sec-logihub  .card { --c1: #5eead4; --c2: #0f766e; }  /* 🚛 LogiHub: teal */
+
   /* notice 帯 */
   .notice {
     margin: 0 4px 16px; padding: 11px 16px;
@@ -638,10 +651,10 @@
   <!-- ⭐ 主役カード: 今日の一歩、明日の自分 (最上段) -->
   <!-- ✉️ メッセージ: 連絡手段 (社内チャット + 会社メール) -->
   <div class="sec-title" style="border-left-color:#0d9488;">
-    <span class="lbl" style="color:#0f766e;">✉️ メッセージ</span>
+    <span class="lbl" style="color:#0f766e;">✉️ Message</span>
     <span class="desc">社内チャットと会社メール</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-msg">
     <a class="card chat" href="/chat" id="card-chat">
       <span class="badge" id="b-chat" style="display:none;">0</span>
       <div class="icon-pill">💬</div>
@@ -660,7 +673,7 @@
     <span class="lbl" style="color:#0369a1;">💬 Communication</span>
     <span class="desc">社内のつながり・連絡</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-comm">
     <a class="card board" href="/board.html">
       <span class="badge" id="b-board" style="display:none;">0</span>
       <div class="icon-pill">📋</div>
@@ -685,7 +698,7 @@
     <span class="lbl" style="color:#b91c1c;">🚨 Report</span>
     <span class="desc">報告・通達・記録</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-report">
     <a class="card announce" href="/announcements.html">
       <span class="badge" id="b-announce-card" style="display:none;">0</span>
       <div class="icon-pill">📢</div>
@@ -714,7 +727,7 @@
     <span class="lbl" style="color:#334155;">📝 Application</span>
     <span class="desc">承認・申請ワークフロー</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-appl">
     <a class="card appl" href="/expense.html">
       <span class="badge" id="b-expense" style="display:none;">0</span>
       <div class="icon-pill">💰</div>
@@ -734,7 +747,7 @@
     <span class="lbl" style="color:#047857;">🏥 Health</span>
     <span class="desc">健康・食事・チャレンジ</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-health">
     <a class="card myplan" href="/myplan.html" id="card-myplan">
       <div class="icon-pill">🩺</div>
       <div class="label">今日の一歩、明日の自分</div>
@@ -774,7 +787,7 @@
     <span class="lbl" style="color:#be123c;">🆘 Consult</span>
     <span class="desc">気になることを相談</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-consult">
     <a class="card consult" href="/plaza.html?tab=相談">
       <div class="icon-pill">🆘</div>
       <div class="label">悩み相談</div>
@@ -797,7 +810,7 @@
     <span class="lbl" style="color:#5b21b6;">📅 Meeting</span>
     <span class="desc">予定・会議</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-meeting">
     <a class="card meeting" href="/meeting">
       <div class="icon-pill">🎙</div>
       <div class="label">ミーティング</div>
@@ -821,7 +834,7 @@
     <span class="lbl" style="color:#b45309;">🎁 Welfare &amp; Help</span>
     <span class="desc">福利厚生・サポート</span>
   </div>
-  <div class="grid">
+  <div class="grid sec-welfare">
     <a class="card yba" href="https://www.fukuri.co/" target="_blank" rel="noopener" onclick="return openFukuriHint(event)">
       <div class="icon-pill">🎁</div>
       <div class="label">福利厚生 (fukuri)</div>
@@ -845,7 +858,7 @@
       <span class="lbl" id="promoter-title" style="color:#5b21b6;">🩺 推進メンバー専用</span>
       <span class="desc">推進メンバー・管理職のみに表示</span>
     </div>
-    <div class="grid">
+    <div class="grid sec-promoter">
       <a id="p-card-tenko" class="card p-rollcall" href="/tenko.html" style="display:none;">
         <div class="icon-pill">🚦</div>
         <div class="label">点呼・健康点検</div>
@@ -905,7 +918,7 @@
       <span class="lbl" style="color:#0f766e;">🚛 LogiHub</span>
       <span class="desc">物流オペレーションは別ハブに集約</span>
     </div>
-    <div class="grid">
+    <div class="grid sec-logihub">
       <a id="p-card-logihub-entry" class="card logihub-entry" href="/logihub.html">
         <div class="icon-pill" style="background:#fff;padding:0;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 12px rgba(13,148,136,0.18);">
           <img src="/img/logihub-icon-192.png?v=1" alt="LogiHub" style="width:100%;height:100%;object-fit:cover;display:block;">
