@@ -306,6 +306,7 @@ app.use('/api/branch-wifi', require('./routes/branch_wifi'));
 app.use('/api/translate', require('./routes/translate'));
 app.use('/api/expense', require('./routes/expense'));
 app.use('/api/approval', require('./routes/approval'));
+app.use('/api/mail', require('./routes/mail'));
 app.use('/api/tenko', require('./routes/tenko'));
 // 2026-05-24〜25 機能 (誤って未mount化していたため復旧 2026-05-25): 共有カレンダー/業務週報/まとめる君/運転アラート
 app.use('/api/shared-calendar', require('./routes/shared_calendar'));
@@ -320,7 +321,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-06-01-dm-away-inline"
+const APP_VERSION = "2026-06-01-company-mail-p1"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });

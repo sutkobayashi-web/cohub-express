@@ -1593,7 +1593,20 @@ function getDb() {
     PRIMARY KEY (message_id, user_id)
   );
   CREATE INDEX IF NOT EXISTS idx_mr_user ON message_reads(user_id);
-  CREATE INDEX IF NOT EXISTS idx_mr_msg ON message_reads(message_id);`);
+  CREATE INDEX IF NOT EXISTS idx_mr_msg ON message_reads(message_id);
+
+  -- 会社メール(IMAP/SMTP)連携の資格情報 (2026-06-01): パスワードはAES-256-GCM暗号化で保存
+  CREATE TABLE IF NOT EXISTS user_mail_credentials (
+    user_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    enc_password TEXT NOT NULL,
+    imap_host TEXT DEFAULT 'z114.secure.ne.jp',
+    imap_port INTEGER DEFAULT 993,
+    smtp_host TEXT DEFAULT 'z114.secure.ne.jp',
+    smtp_port INTEGER DEFAULT 465,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );`);
 
   return _db;
 }
