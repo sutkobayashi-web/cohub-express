@@ -123,16 +123,20 @@ router.get('/inbox', authUser, async (req, res) => {
     try {
       const total = client.mailbox.exists || 0;
       const items = [];
+      // CoHub内で開いたメール(message_id)の集合。サーバー\\Seenとは別管理
+      const cohubSeen = new Set(getDb().prepare('SELECT message_id FROM cohub_mail_seen WHERE user_id = ?').all(req.uid).map(r => r.message_id));
       if (total > 0) {
         const start = Math.max(1, total - limit + 1);
         for await (const msg of client.fetch(`${start}:*`, { uid: true, envelope: true, flags: true, internalDate: true, bodyStructure: true })) {
           const f = fromText(msg.envelope && msg.envelope.from);
+          const mid = (msg.envelope && msg.envelope.messageId) || '';
+          const serverSeen = msg.flags ? msg.flags.has('\\Seen') : true;
           items.push({
             uid: msg.uid,
             subject: (msg.envelope && msg.envelope.subject) || '(件名なし)',
             from_name: f.name, from_addr: f.address,
             date: (msg.envelope && msg.envelope.date) || msg.internalDate,
-            seen: msg.flags ? msg.flags.has('\\Seen') : true,
+            seen: serverSeen || (!!mid && cohubSeen.has(mid)),
             attach: hasAttachments(msg.bodyStructure),
           });
         }
@@ -162,7 +166,9 @@ router.get('/message/:uid', authUser, async (req, res) => {
       const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
       if (!msg || !msg.source) return res.status(404).json({ success: false, msg: 'メッセージが見つかりません' });
       const parsed = await simpleParser(msg.source);
-      try { await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true }); } catch (_) {}
+      // ★サーバーの\\Seenは付けない: 元のメールソフトで「新着(未読)」のまま残すため(削除・移動もしない)。
+      //   既読管理はCoHub内だけで行う(message_idを記録)。
+      try { if (parsed.messageId) getDb().prepare('INSERT OR IGNORE INTO cohub_mail_seen (user_id, message_id) VALUES (?, ?)').run(req.uid, parsed.messageId); } catch (_) {}
       const fromAddr = (parsed.from && parsed.from.value && parsed.from.value[0]) ? parsed.from.value[0].address : '';
       res.json({
         success: true,

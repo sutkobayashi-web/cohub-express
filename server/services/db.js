@@ -1606,6 +1606,13 @@ function getDb() {
     smtp_port INTEGER DEFAULT 465,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
+  );
+  -- CoHub内でのメール既読(サーバーの\\Seenは変更せず、CoHub側だけで既読管理。元メーラーに影響させない)
+  CREATE TABLE IF NOT EXISTS cohub_mail_seen (
+    user_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    seen_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, message_id)
   );`);
 
   return _db;
