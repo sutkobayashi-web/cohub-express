@@ -2012,18 +2012,18 @@ function renderGroupList() {
     html.push(`</div>`);
     // 既読行を二分割表示
     html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
-    // 既読行を オンライン / 離席中 / オフライン の3分割表示
+    // 既読行: 在席(オンライン+離席中)を1グループに、見出しに緑(オンライン)の横へ黄(離席中)を並べる
     const readRows = rows.filter(r => rowUnread(r) === 0);
-    const onlineG  = readRows.filter(r => onlineUids.has(r.id) && !awayUids.has(r.id)).sort(dmSort);
-    const awayG    = readRows.filter(r => awayUids.has(r.id)).sort(dmSort);
-    const offlineG = readRows.filter(r => !onlineUids.has(r.id) && !awayUids.has(r.id)).sort(dmSort);
-    if (onlineG.length > 0) {
-      html.push(`<div class="dm-substatus dm-sub-online"><span class="ss-dot ss-dot-on"></span> オンライン <span class="ss-cnt">${onlineG.length}</span></div>`);
-      html.push(onlineG.map(r => chatRowHtml(r)).join(''));
-    }
-    if (awayG.length > 0) {
-      html.push(`<div class="dm-substatus dm-sub-away"><span class="ss-dot ss-dot-away"></span> 離席中 <span class="ss-cnt">${awayG.length}</span></div>`);
-      html.push(awayG.map(r => chatRowHtml(r)).join(''));
+    const presentG = readRows.filter(r => isPresent(r.id)).sort(dmSort);
+    const offlineG = readRows.filter(r => !isPresent(r.id)).sort(dmSort);
+    const onlineN = presentG.filter(r => !awayUids.has(r.id)).length;
+    const awayN   = presentG.filter(r => awayUids.has(r.id)).length;
+    if (presentG.length > 0) {
+      let head = `<div class="dm-substatus dm-sub-online"><span class="ss-dot ss-dot-on"></span> オンライン ${onlineN}`;
+      if (awayN > 0) head += ` <span class="ss-dot ss-dot-away" style="margin-left:12px;"></span> 離席中 ${awayN}`;
+      head += `</div>`;
+      html.push(head);
+      html.push(presentG.map(r => chatRowHtml(r)).join(''));
     }
     if (offlineG.length > 0) {
       html.push(`<div class="dm-substatus dm-sub-offline"><span class="ss-dot ss-dot-off"></span> オフライン <span class="ss-cnt">${offlineG.length}</span></div>`);
