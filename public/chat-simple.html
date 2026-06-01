@@ -599,7 +599,27 @@
   #msgs { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 18px 8px; background: #f8fafc; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
   /* 1メッセージ単位 */
-  .msg { display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start; }
+  .msg { display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start; position: relative; }
+  /* Teams風 ホバー操作バー */
+  .msg-actions { position: absolute; top: -13px; right: 10px; display: none; gap: 1px; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; box-shadow: 0 3px 10px rgba(15,23,42,0.14); padding: 2px; z-index: 6; }
+  .msg:hover .msg-actions { display: flex; }
+  .msg.me .msg-actions { right: auto; left: 10px; }
+  .msg-actions button { background: transparent; border: none; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 6px; line-height: 1; }
+  .msg-actions button:hover { background: #f1f5f9; }
+  .msg.flash-target > .body > .bub { animation: msgFlash 1.6s ease; }
+  @keyframes msgFlash { 0%,100% { box-shadow: none; } 25% { box-shadow: 0 0 0 3px rgba(14,165,233,0.5); } }
+  /* 転送ピッカー */
+  #fwd-modal { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px; }
+  #fwd-modal.show { display: flex; }
+  #fwd-modal .box { background: #fff; border-radius: 14px; width: 100%; max-width: 380px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
+  #fwd-modal .hd { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  #fwd-modal .hd button { margin-left: auto; background: #eef2f7; border: 1px solid #cbd5e1; border-radius: 16px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  #fwd-modal .lst { overflow-y: auto; padding: 6px; }
+  #fwd-modal .fwd-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+  #fwd-modal .fwd-row:hover { background: #f1f5f9; }
+  #fwd-modal .fwd-row .ic { width: 30px; height: 30px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: hidden; }
+  #fwd-modal .fwd-row img { width: 100%; height: 100%; object-fit: cover; }
+  #fwd-modal .fwd-prev { padding: 8px 16px; font-size: 12px; color: #64748b; border-bottom: 1px solid #f1f5f9; background: #f8fafc; max-height: 60px; overflow: hidden; }
   .msg.me { flex-direction: row-reverse; }
   /* 連続発言: 余白だけ詰める (アバター/名前は描画されない) */
   .msg.cont { margin-bottom: 4px; }
@@ -1846,6 +1866,9 @@ async function init() {
   // 横断検索からのDM直接オープン (?dm=<uid>)
   const dmId = params.get('dm');
   if (dmId) { try { selectDmPeer(dmId); } catch (e) {} }
+  // 🔗 メッセージリンク (?msg=) があれば、ルーム表示後にそのメッセージへスクロール
+  const mp = parseInt(params.get('msg'));
+  if (mp) _pendingScrollMsg = mp;
 }
 
 async function loadGroups() {
@@ -2657,9 +2680,15 @@ function renderMessages() {
       tsBottom = `<div class="ts">${readMark}<span>${fmtTime(m.created_at)}</span></div>`;
     }
 
-    parts.push(`<div class="${cls.join(' ')}">${avatar}<div class="body">${header}${bubble}${tsBottom}</div></div>`);
+    const acts = (typeof m.id === 'number') ? msgActionsHtml(m.id) : '';
+    parts.push(`<div class="${cls.join(' ')}" data-mid="${m.id}">${avatar}<div class="body">${header}${bubble}${tsBottom}</div>${acts}</div>`);
   }
   msgsEl.innerHTML = parts.join('');
+  // 🔗 リンクで指定されたメッセージへスクロール+ハイライト
+  if (_pendingScrollMsg != null) {
+    const tgt = msgsEl.querySelector('[data-mid="' + _pendingScrollMsg + '"]');
+    if (tgt) { requestAnimationFrame(() => { tgt.scrollIntoView({ block: 'center' }); tgt.classList.add('flash-target'); setTimeout(() => tgt.classList.remove('flash-target'), 1800); }); _pendingScrollMsg = null; return; }
+  }
   // 初期表示 = 即時jump、新着 = スムーズスクロール (下端付近を見ていた場合のみ)
   if (isInitialLoad) {
     // チャット切替時は瞬時に下端へ (アニメーション無し)
@@ -2700,6 +2729,71 @@ $('msgs').addEventListener('scroll', () => {
     if (b) b.remove();
   }
 });
+
+// ===== Teams風 メッセージ操作 (ホバーバー) =====
+let _pendingScrollMsg = null;
+function findCurMsg(id) { return (messageCache.get(ctxKey()) || []).find(m => m.id === id); }
+function msgActionsHtml(id) {
+  return '<div class="msg-actions">'
+    + '<button title="引用して返信" onclick="msgQuoteReply(' + id + ');event.stopPropagation();">💬</button>'
+    + '<button title="転送" onclick="msgForward(' + id + ');event.stopPropagation();">↪</button>'
+    + '<button title="リンクをコピー" onclick="msgCopyLink(' + id + ');event.stopPropagation();">🔗</button>'
+    + '<button title="本文をコピー" onclick="msgCopy(' + id + ');event.stopPropagation();">📋</button>'
+    + '</div>';
+}
+function msgQuoteReply(id) {
+  const m = findCurMsg(id); if (!m) return;
+  const inp = $('input-text'); if (!inp) return;
+  const quote = String(m.content || '').split('\n').map(l => '> ' + l).join('\n');
+  inp.value = (quote ? quote + '\n' : '') + (inp.value || '');
+  inp.focus();
+  try { inp.dispatchEvent(new Event('input')); } catch (e) {}
+}
+function msgCopy(id) {
+  const m = findCurMsg(id); if (!m) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(String(m.content || '')).then(() => showToastMsg('📋 コピーしました')).catch(() => {});
+}
+function msgCopyLink(id) {
+  let url = location.origin + '/chat?msg=' + id;
+  if (currentMode === 'group' && currentGid) url += '&g=' + encodeURIComponent(currentGid);
+  else if (currentMode === 'dm' && currentDmPeer) url += '&dm=' + encodeURIComponent(currentDmPeer.id);
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => showToastMsg('🔗 リンクをコピーしました')).catch(() => {});
+  else prompt('リンク', url);
+}
+let _fwdContent = '';
+function msgForward(id) { const m = findCurMsg(id); if (!m) return; _fwdContent = String(m.content || ''); openForwardPicker(); }
+function nameOfUid(uid) { for (const arr of groupMembers.values()) { const f = arr.find(x => x.id === uid); if (f) return f; } return null; }
+function openForwardPicker() {
+  let mod = document.getElementById('fwd-modal');
+  if (!mod) {
+    mod = document.createElement('div'); mod.id = 'fwd-modal';
+    mod.innerHTML = '<div class="box"><div class="hd">↪ 転送先を選択<button onclick="closeForwardPicker()">✕</button></div><div class="fwd-prev" id="fwd-prev"></div><div class="lst" id="fwd-lst"></div></div>';
+    mod.onclick = (e) => { if (e.target === mod) closeForwardPicker(); };
+    document.body.appendChild(mod);
+  }
+  document.getElementById('fwd-prev').textContent = _fwdContent.slice(0, 100);
+  let html = '';
+  (groups || []).forEach(g => {
+    html += '<div class="fwd-row" onclick="doForward(\'group\',\'' + escapeHtml(g.id) + '\')"><div class="ic">👥</div><div>' + escapeHtml(g.name || 'グループ') + '</div></div>';
+  });
+  for (const peerId of dmPeerInfo.keys()) {
+    if (typeof isBot === 'function' && isBot(peerId)) continue;
+    const mem = nameOfUid(peerId);
+    const nm = mem ? (mem.display_name || '') : '';
+    const av = (mem && mem.avatar_url) ? '<img src="' + escapeHtml(mem.avatar_url) + '">' : escapeHtml(avatarInitial(nm));
+    html += '<div class="fwd-row" onclick="doForward(\'dm\',\'' + escapeHtml(peerId) + '\')"><div class="ic">' + av + '</div><div>' + escapeHtml(nm || '相手') + '</div></div>';
+  }
+  document.getElementById('fwd-lst').innerHTML = html || '<div style="padding:20px;text-align:center;color:#94a3b8;">転送先がありません</div>';
+  mod.classList.add('show');
+}
+function closeForwardPicker() { const m = document.getElementById('fwd-modal'); if (m) m.classList.remove('show'); }
+function doForward(type, id) {
+  if (!_fwdContent) return;
+  if (type === 'group') socket.emit('chat:group', { group_id: id, content: _fwdContent });
+  else socket.emit('chat:dm', { to: id, content: _fwdContent });
+  showToastMsg('↪ 転送しました');
+  closeForwardPicker();
+}
 
 function appendMessage(m, key) {
   const k = key || ctxKey();
