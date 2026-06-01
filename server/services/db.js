@@ -1604,6 +1604,8 @@ function getDb() {
     imap_port INTEGER DEFAULT 993,
     smtp_host TEXT DEFAULT 'z114.secure.ne.jp',
     smtp_port INTEGER DEFAULT 465,
+    display_name TEXT,
+    signature TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -1614,6 +1616,10 @@ function getDb() {
     seen_at TEXT DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, message_id)
   );`);
+
+  // 既存DB向け: 会社メールの差出人名・署名 列を追加
+  ensureColumn(_db, 'user_mail_credentials', 'display_name', 'display_name TEXT');
+  ensureColumn(_db, 'user_mail_credentials', 'signature', 'signature TEXT');
 
   return _db;
 }

@@ -65,7 +65,19 @@ function hasAttachments(bs) {
 // ===== 設定状況 =====
 router.get('/status', authUser, (req, res) => {
   const c = getCred(req.uid);
-  res.json({ success: true, configured: !!c, email: c ? c.email : '', imap_host: c ? c.imap_host : 'z114.secure.ne.jp', smtp_port: c ? c.smtp_port : 465 });
+  res.json({ success: true, configured: !!c, email: c ? c.email : '', imap_host: c ? c.imap_host : 'z114.secure.ne.jp', smtp_port: c ? c.smtp_port : 465,
+    display_name: c ? (c.display_name || '') : '', signature: c ? (c.signature || '') : '' });
+});
+
+// ===== 差出人名・署名の保存 (パスワード再入力不要) =====
+router.post('/settings', authUser, express.json(), (req, res) => {
+  const c = getCred(req.uid);
+  if (!c) return res.status(400).json({ success: false, msg: '先にメール設定（アドレス/パスワード）が必要です' });
+  const display_name = String((req.body && req.body.display_name) || '').slice(0, 100);
+  const signature = String((req.body && req.body.signature) || '').slice(0, 2000);
+  getDb().prepare("UPDATE user_mail_credentials SET display_name=?, signature=?, updated_at=datetime('now') WHERE user_id=?")
+    .run(display_name, signature, req.uid);
+  res.json({ success: true });
 });
 
 // ===== 資格情報の保存 (保存前にIMAPログイン検証) =====
@@ -239,7 +251,8 @@ router.post('/send', authUser, express.json({ limit: '2mb' }), async (req, res) 
       tls: MAIL_TLS,
     });
     const info = await transporter.sendMail({
-      from: cred.email, to, cc, subject, text,
+      from: cred.display_name ? { name: cred.display_name, address: cred.email } : cred.email,
+      to, cc, subject, text,
       inReplyTo: b.in_reply_to || undefined,
       references: b.references || undefined,
     });

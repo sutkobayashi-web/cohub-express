@@ -67,7 +67,7 @@
   <button class="back" onclick="location.href='/home'">← 戻る</button>
   <span class="title">📧 会社メール</span>
   <span class="addr" id="addr"></span>
-  <button class="gear" id="gear" title="メール設定" onclick="showSetup()" style="display:none;">⚙️</button>
+  <button class="gear" id="gear" title="差出人名・署名の設定" onclick="showSettings()" style="display:none;">⚙️</button>
 </header>
 
 <div class="wrap">
@@ -83,6 +83,22 @@
     <div class="err" id="setupMsg"></div>
     <button class="btn" id="saveBtn" onclick="saveCred()">接続して保存</button>
     <button class="btn btn-sec" id="cancelBtn" onclick="hideSetup()" style="display:none;">キャンセル</button>
+  </div>
+
+  <!-- 差出人名・署名 -->
+  <div class="card setup compose" id="mailSettings" style="display:none;">
+    <h2>差出人名・署名</h2>
+    <p>送信時の差出人名（送付名）と、本文へ自動挿入する署名を設定します。</p>
+    <label>差出人名（送付名）</label>
+    <input id="set-name" type="text" placeholder="例: 小林 猛（スタンダード運輸）">
+    <div class="hint">空欄ならメールアドレスのみが差出人になります。</div>
+    <label style="margin-top:12px;">署名</label>
+    <textarea id="set-sig" rows="6" placeholder="例:&#10;──────────&#10;スタンダード運輸株式会社　小林 猛&#10;TEL: 000-000-0000 / t_kobayashi@stdun.co.jp"></textarea>
+    <div class="hint">新規作成・返信のとき本文末尾へ自動で入ります（その場で編集可）。</div>
+    <div class="err" id="setMsg"></div>
+    <button class="btn" id="setSaveBtn" onclick="saveSettings()">保存</button>
+    <button class="btn btn-sec" onclick="hideSettings()">閉じる</button>
+    <div style="margin-top:14px;text-align:center;"><a href="#" onclick="showSetup();return false;" style="font-size:12px;color:#64748b;">メールアドレス／パスワードを再設定する</a></div>
   </div>
 
   <!-- 受信箱 -->
@@ -150,10 +166,14 @@ function fmtDate(s) {
   } catch (e) { return ''; }
 }
 
+let mailSig = '';   // 署名
+let mailName = '';  // 差出人名
 async function init() {
   const s = await api('/api/mail/status');
   if (!s) return;
   if (s.configured) {
+    mailSig = s.signature || '';
+    mailName = s.display_name || '';
     $('addr').textContent = s.email;
     $('gear').style.display = '';
     $('mailUi').style.display = '';
@@ -165,11 +185,33 @@ async function init() {
 }
 function showSetup(first) {
   $('setup').style.display = '';
+  $('mailSettings').style.display = 'none';
   $('mailUi').style.display = 'none';
   $('cancelBtn').style.display = first ? 'none' : '';
   $('setupMsg').textContent = '';
 }
 function hideSetup() { $('setup').style.display = 'none'; $('mailUi').style.display = ''; }
+
+function showSettings() {
+  $('set-name').value = mailName;
+  $('set-sig').value = mailSig;
+  $('setMsg').textContent = '';
+  $('mailSettings').style.display = '';
+  $('setup').style.display = 'none';
+  $('mailUi').style.display = 'none';
+}
+function hideSettings() { $('mailSettings').style.display = 'none'; $('mailUi').style.display = ''; }
+async function saveSettings() {
+  $('setSaveBtn').disabled = true; $('setMsg').className = 'ok'; $('setMsg').textContent = '保存中…';
+  const r = await api('/api/mail/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ display_name: $('set-name').value, signature: $('set-sig').value }) });
+  $('setSaveBtn').disabled = false;
+  if (r && r.success) {
+    mailName = $('set-name').value; mailSig = $('set-sig').value;
+    $('setMsg').className = 'ok'; $('setMsg').textContent = '保存しました';
+    setTimeout(() => hideSettings(), 700);
+  } else { $('setMsg').className = 'err'; $('setMsg').textContent = (r && r.msg) || '保存に失敗しました'; }
+}
 
 async function saveCred() {
   const email = $('email').value.trim();
@@ -263,7 +305,8 @@ function openCompose(pre) {
   $('c-to').value = pre.to || '';
   $('c-cc').value = pre.cc || '';
   $('c-subj').value = pre.subject || '';
-  $('c-body').value = pre.body || '';
+  // 本文未指定(新規作成)なら署名を入れる。返信時はpre.bodyに署名+引用を渡す
+  $('c-body').value = (pre.body !== undefined && pre.body !== null) ? pre.body : (mailSig ? '\n\n' + mailSig : '');
   $('c-msg').textContent = '';
   $('composeOverlay').classList.add('show');
 }
@@ -277,7 +320,7 @@ function openReply() {
     title: '返信',
     to: orig.from_addr || '',
     subject: /^re:/i.test(orig.subject || '') ? orig.subject : ('Re: ' + (orig.subject || '')),
-    body: quoted,
+    body: (mailSig ? '\n\n' + mailSig : '') + quoted,
     in_reply_to: orig.message_id || '',
     references: ((orig.references ? (Array.isArray(orig.references) ? orig.references.join(' ') : orig.references) + ' ' : '') + (orig.message_id || '')).trim(),
   });
