@@ -278,9 +278,11 @@
     user-select: none;
   }
   .dm-sub-online  { color: #047857; background: rgba(16,185,129,0.10); border-top: 1px solid rgba(16,185,129,0.18); border-bottom: 1px solid rgba(16,185,129,0.18); }
+  .dm-sub-away    { color: #b45309; background: rgba(245,158,11,0.10); border-top: 1px solid rgba(245,158,11,0.20); border-bottom: 1px solid rgba(245,158,11,0.20); }
   .dm-sub-offline { color: #64748b; background: rgba(148,163,184,0.10); border-top: 1px solid rgba(148,163,184,0.20); border-bottom: 1px solid rgba(148,163,184,0.20); }
   .dm-substatus .ss-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .dm-substatus .ss-dot-on  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.20); }
+  .dm-substatus .ss-dot-away { background: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.20); }
   .dm-substatus .ss-dot-off { background: #cbd5e1; }
   .dm-substatus .ss-cnt { margin-left: auto; font-weight: 700; font-size: 10px; color: inherit; opacity: 0.75; }
   /* オフライン側の行はうっすら透過 */
@@ -1987,9 +1989,6 @@ function renderGroupList() {
     if (rows.length === 0) return;
     const collapsed = isCollapsed('dm');
     // ボット除外は既に dmRows 構築時に済んでいる前提
-    const isOn = (uid) => isPresent(uid); // 離席中もオンライン側に含める
-    const onlineRows  = rows.filter(r => isOn(r.id));
-    const offlineRows = rows.filter(r => !isOn(r.id));
     // ソート (履歴あり優先→last_at降順→五十音)
     const dmSort = (a, b) => {
       const aHas = !!a.last_at, bHas = !!b.last_at;
@@ -1998,8 +1997,6 @@ function renderGroupList() {
       if (aHas && bHas) return (b.last_at || '').localeCompare(a.last_at || '');
       return (a.name || '').localeCompare(b.name || '', 'ja');
     };
-    onlineRows.sort(dmSort);
-    offlineRows.sort(dmSort);
 
     html.push(`<div class="section-dm${collapsed ? ' collapsed' : ''}" data-sec="dm">`);
     html.push(`<div class="list-sec-label" onclick="toggleChatSection('dm')">`
@@ -2015,15 +2012,22 @@ function renderGroupList() {
     html.push(`</div>`);
     // 既読行を二分割表示
     html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
-    const onlineUnread  = onlineRows.filter(r => rowUnread(r) === 0);
-    const offlineUnread = offlineRows.filter(r => rowUnread(r) === 0);
-    if (onlineUnread.length > 0) {
-      html.push(`<div class="dm-substatus dm-sub-online"><span class="ss-dot ss-dot-on"></span> オンライン <span class="ss-cnt">${onlineUnread.length}</span></div>`);
-      html.push(onlineUnread.map(r => chatRowHtml(r)).join(''));
+    // 既読行を オンライン / 離席中 / オフライン の3分割表示
+    const readRows = rows.filter(r => rowUnread(r) === 0);
+    const onlineG  = readRows.filter(r => onlineUids.has(r.id) && !awayUids.has(r.id)).sort(dmSort);
+    const awayG    = readRows.filter(r => awayUids.has(r.id)).sort(dmSort);
+    const offlineG = readRows.filter(r => !onlineUids.has(r.id) && !awayUids.has(r.id)).sort(dmSort);
+    if (onlineG.length > 0) {
+      html.push(`<div class="dm-substatus dm-sub-online"><span class="ss-dot ss-dot-on"></span> オンライン <span class="ss-cnt">${onlineG.length}</span></div>`);
+      html.push(onlineG.map(r => chatRowHtml(r)).join(''));
     }
-    if (offlineUnread.length > 0) {
-      html.push(`<div class="dm-substatus dm-sub-offline"><span class="ss-dot ss-dot-off"></span> オフライン <span class="ss-cnt">${offlineUnread.length}</span></div>`);
-      html.push(offlineUnread.map(r => chatRowHtml(r)).join(''));
+    if (awayG.length > 0) {
+      html.push(`<div class="dm-substatus dm-sub-away"><span class="ss-dot ss-dot-away"></span> 離席中 <span class="ss-cnt">${awayG.length}</span></div>`);
+      html.push(awayG.map(r => chatRowHtml(r)).join(''));
+    }
+    if (offlineG.length > 0) {
+      html.push(`<div class="dm-substatus dm-sub-offline"><span class="ss-dot ss-dot-off"></span> オフライン <span class="ss-cnt">${offlineG.length}</span></div>`);
+      html.push(offlineG.map(r => chatRowHtml(r)).join(''));
     }
     html.push(`</div>`);
     html.push(`</div>`);
