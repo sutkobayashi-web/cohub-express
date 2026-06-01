@@ -320,7 +320,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-06-01-presence-idle-away"
+const APP_VERSION = "2026-06-01-presence-away-v2"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -480,12 +480,13 @@ app.get('/api/floor-presence/:code', authUser, (req, res) => {
 // ※退席中(スリープ離脱/5分無操作の自動退席)は「在席」に含めない → /chat で離席が分かる
 app.get('/api/online-users', authUser, (req, res) => {
   const ids = [];
+  const away = [];
   for (const [uid, p] of presence) {
-    if (!p || p.status === 'offline' || p.status === '退席中') continue;
-    if (p.isBot) continue;
+    if (!p || p.isBot || p.status === 'offline') continue;
+    if (p.status === '退席中') { away.push(uid); continue; } // 離席(スリープ/5分無操作)
     ids.push(uid);
   }
-  res.json({ success: true, online: ids });
+  res.json({ success: true, online: ids, away });
 });
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）

@@ -151,6 +151,11 @@
     background: #22c55e;
     box-shadow: 0 0 0 2px rgba(34,197,94,0.18), 0 0 8px rgba(34,197,94,0.65);
   }
+  .chat-row .row-av .online-dot.away,
+  .mem-row .av-mini .online-dot.away {
+    background: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245,158,11,0.18), 0 0 8px rgba(245,158,11,0.55);
+  }
   .mem-row .av-mini .online-dot { width: 12px; height: 12px; right: -2px; top: -2px; }
   .chat-row .row-meta {
     flex: 1; min-width: 0;
@@ -572,6 +577,7 @@
     border: 2px solid #fff; background: #94a3b8;
   }
   .ms-av .online-dot.online { background: #22c55e; box-shadow: 0 0 0 1px rgba(34,197,94,0.18), 0 0 4px rgba(34,197,94,0.6); }
+  .ms-av .online-dot.away { background: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,0.18), 0 0 4px rgba(245,158,11,0.55); }
   .ms-av-name {
     font-size: 10px; color: #475569;
     width: 100%;
@@ -1274,13 +1280,20 @@ function persistCollapsed() {
 // 選択送信 (常時有効)
 let selectedPeers = new Set(); // user_id Set
 let onlineUids = new Set();    // 現在オンラインのuid集合 (presence ベース)
+let awayUids = new Set();      // 離席中(退席中)のuid集合
 const $ = (id) => document.getElementById(id);
+
+// 在席ドットのクラスとタイトル (online=緑 / away=黄(離席中) / それ以外=灰(オフライン))
+function presenceDot(uid) {
+  if (awayUids.has(uid)) return { cls: 'online-dot away', title: '離席中' };
+  if (onlineUids.has(uid)) return { cls: 'online-dot online', title: 'オンライン' };
+  return { cls: 'online-dot', title: 'オフライン' };
+}
 
 function onlineDotHtml(uid) {
   if (!uid || isBot(uid)) return '';
-  const cls = onlineUids.has(uid) ? 'online-dot online' : 'online-dot';
-  const title = onlineUids.has(uid) ? 'オンライン' : 'オフライン';
-  return `<span class="${cls}" title="${title}"></span>`;
+  const d = presenceDot(uid);
+  return `<span class="${d.cls}" title="${d.title}"></span>`;
 }
 
 async function loadOnlineUsers() {
@@ -1288,15 +1301,16 @@ async function loadOnlineUsers() {
     const r = await api('/api/online-users');
     if (r && r.success) {
       onlineUids = new Set(r.online || []);
-      // 自分自身もオンライン扱い
-      if (me && me.uid) onlineUids.add(me.uid);
+      awayUids = new Set(r.away || []);
+      // 自分自身はオンライン扱い (離席集合からは外す)
+      if (me && me.uid) { onlineUids.add(me.uid); awayUids.delete(me.uid); }
     }
   } catch (e) {}
 }
 
 function setUserOnline(uid, on) {
   if (!uid) return;
-  if (on) onlineUids.add(uid); else onlineUids.delete(uid);
+  if (on) { onlineUids.add(uid); awayUids.delete(uid); } else { onlineUids.delete(uid); awayUids.delete(uid); }
   // サイドバー一覧+メンバーモーダル+選択中DMヘッダーを更新
   try { renderGroupList(); } catch (e) {}
   try {
@@ -1344,7 +1358,7 @@ function renderMemberStrip() {
     const inner = m.avatar_url
       ? `<img src="${escapeHtml(m.avatar_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createTextNode('${escapeHtml(initial)}'), {}))">`
       : escapeHtml(initial);
-    const onlineCls = onlineUids.has(m.id) ? 'online-dot online' : 'online-dot';
+    const onlineCls = presenceDot(m.id).cls;
     const onclick = isSelf ? '' : `onclick="onMemberClick('${escapeHtml(m.id)}')"`;
     const cls = 'ms-av' + (isSelf ? ' self' : '');
     const fullName = m.display_name || '';
