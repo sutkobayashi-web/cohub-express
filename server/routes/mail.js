@@ -127,6 +127,7 @@ router.get('/inbox', authUser, async (req, res) => {
   const cred = getCred(req.uid);
   if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です', need_setup: true });
   const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+  const offset = Math.max(0, parseInt(req.query.offset) || 0); // 新しい方からの開始位置(0=最新)
   const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 60);
   let client;
   try {
@@ -137,9 +138,10 @@ router.get('/inbox', authUser, async (req, res) => {
       const items = [];
       // CoHub内で開いたメール(message_id)の集合。サーバー\\Seenとは別管理
       const cohubSeen = new Set(getDb().prepare('SELECT message_id FROM cohub_mail_seen WHERE user_id = ?').all(req.uid).map(r => r.message_id));
-      if (total > 0) {
-        const start = Math.max(1, total - limit + 1);
-        for await (const msg of client.fetch(`${start}:*`, { uid: true, envelope: true, flags: true, internalDate: true, bodyStructure: true })) {
+      const end = total - offset;            // このページの最新側シーケンス番号
+      if (total > 0 && end >= 1) {
+        const start = Math.max(1, end - limit + 1);
+        for await (const msg of client.fetch(`${start}:${end}`, { uid: true, envelope: true, flags: true, internalDate: true, bodyStructure: true })) {
           const f = fromText(msg.envelope && msg.envelope.from);
           const mid = (msg.envelope && msg.envelope.messageId) || '';
           const serverSeen = msg.flags ? msg.flags.has('\\Seen') : true;
@@ -153,8 +155,8 @@ router.get('/inbox', authUser, async (req, res) => {
           });
         }
       }
-      items.reverse(); // 新しい順
-      res.json({ success: true, total, items });
+      items.reverse(); // ページ内で新しい順
+      res.json({ success: true, total, offset, items, has_more: (offset + limit) < total });
     } finally { lock.release(); }
   } catch (e) {
     res.status(500).json({ success: false, msg: '受信箱の取得に失敗しました', detail: (e.message || '').slice(0, 150) });

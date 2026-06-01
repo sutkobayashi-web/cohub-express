@@ -230,25 +230,48 @@ async function saveCred() {
   }
 }
 
+const PAGE = 30;
+let mailItems = [];
+let mailTotal = 0;
+let mailHasMore = false;
+function rowHtml(m) {
+  const who = esc(m.from_name || m.from_addr || '');
+  return '<div class="mrow' + (m.seen ? '' : ' unseen') + '" id="mrow-' + m.uid + '" onclick="openMsg(' + m.uid + ')">'
+    + '<div class="who">' + (m.seen ? '' : '● ') + who + '</div>'
+    + '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
+    + '<div class="dt">' + fmtDate(m.date) + '</div></div>';
+}
+function renderInbox() {
+  $('cnt').textContent = '全 ' + mailTotal + ' 件中 ' + mailItems.length + ' 件';
+  if (!mailItems.length) { $('mlist').innerHTML = '<div class="empty">受信メールはありません</div>'; return; }
+  let html = mailItems.map(rowHtml).join('');
+  if (mailHasMore) html += '<div style="padding:12px;text-align:center;"><button id="moreBtn" onclick="loadMore()" style="background:#eef2f7;border:1px solid #cbd5e1;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">🔽 もっと見る（古いメール）</button></div>';
+  $('mlist').innerHTML = html;
+}
 async function loadInbox() {
   $('mlist').innerHTML = '<div class="loading">読み込み中…</div>';
-  const r = await api('/api/mail/inbox?limit=30');
+  mailItems = [];
+  const r = await api('/api/mail/inbox?limit=' + PAGE + '&offset=0');
   if (!r) return;
   if (!r.success) {
     if (r.need_setup) { showSetup(true); return; }
     $('mlist').innerHTML = '<div class="empty">取得に失敗しました<br><span style="font-size:11px;">' + esc(r.detail || r.msg || '') + '</span></div>';
     return;
   }
-  $('cnt').textContent = '全 ' + r.total + ' 件';
-  if (!r.items.length) { $('mlist').innerHTML = '<div class="empty">受信メールはありません</div>'; return; }
-  $('mlist').innerHTML = r.items.map(m => {
-    const who = esc(m.from_name || m.from_addr || '');
-    return '<div class="mrow' + (m.seen ? '' : ' unseen') + '" onclick="openMsg(' + m.uid + ')">'
-      + '<div class="who">' + (m.seen ? '' : '● ') + who + '</div>'
-      + '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
-      + '<div class="dt">' + fmtDate(m.date) + '</div>'
-      + '</div>';
-  }).join('');
+  mailItems = r.items || [];
+  mailTotal = r.total || 0;
+  mailHasMore = !!r.has_more;
+  renderInbox();
+}
+async function loadMore() {
+  const btn = $('moreBtn'); if (btn) { btn.disabled = true; btn.textContent = '読み込み中…'; }
+  const r = await api('/api/mail/inbox?limit=' + PAGE + '&offset=' + mailItems.length);
+  if (r && r.success) {
+    mailItems = mailItems.concat(r.items || []);
+    mailTotal = r.total || mailTotal;
+    mailHasMore = !!r.has_more;
+    renderInbox();
+  } else if (btn) { btn.disabled = false; btn.textContent = '🔽 もっと見る（古いメール）'; }
 }
 
 let curMsg = null; // 表示中メール (返信用)
@@ -280,7 +303,14 @@ async function openMsg(uid) {
     ifr.onload = () => { try { ifr.style.height = Math.min(ifr.contentWindow.document.body.scrollHeight + 24, 4000) + 'px'; } catch (e) { ifr.style.height = '70vh'; } };
   }
 }
-function closeMsg() { $('overlay').classList.remove('show'); loadInboxQuiet(); }
+function closeMsg() {
+  $('overlay').classList.remove('show');
+  // 開いたメールを既読表示に（再取得せずページ状態を保持）
+  if (curMsg && curMsg.uid != null) {
+    const it = mailItems.find(x => x.uid === curMsg.uid);
+    if (it && !it.seen) { it.seen = true; renderInbox(); }
+  }
+}
 
 // 添付ダウンロード (Bearer認証のためfetch→blob→保存)
 async function dlAttach(uid, idx, filename) {
@@ -343,21 +373,6 @@ async function sendMail() {
     $('c-msg').textContent = ((r && r.msg) || '送信に失敗しました') + (r && r.detail ? '  ［' + r.detail + '］' : '');
   }
 }
-async function loadInboxQuiet() {
-  // 既読化を反映するため静かに再取得
-  const r = await api('/api/mail/inbox?limit=30');
-  if (r && r.success) {
-    $('cnt').textContent = '全 ' + r.total + ' 件';
-    if (r.items.length) $('mlist').innerHTML = r.items.map(m => {
-      const who = esc(m.from_name || m.from_addr || '');
-      return '<div class="mrow' + (m.seen ? '' : ' unseen') + '" onclick="openMsg(' + m.uid + ')">'
-        + '<div class="who">' + (m.seen ? '' : '● ') + who + '</div>'
-        + '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
-        + '<div class="dt">' + fmtDate(m.date) + '</div></div>';
-    }).join('');
-  }
-}
-
 init();
 </script>
 </body>
