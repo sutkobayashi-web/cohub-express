@@ -989,6 +989,7 @@ io.on('connection', (socket) => {
     if (pp.status === 'offline' || (pp.autoAway && pp.status === '退席中')) {
       pp.status = 'online';
       pp.autoAway = false;
+      pp.disconnectedAt = null;
       io.to('floor:' + pp.floor).emit('user:update', { uid, x: pp.x, y: pp.y, status: 'online' });
       io.emit('user:floor', { uid, floor: pp.floor });
       io.emit('floor:counts', floorCountMap());
@@ -2183,19 +2184,16 @@ ${latestReport.summary}
       io.to('floor:' + p.floor).emit('hand', { uid, up: false });
     }
     db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'logout')").run(uid, p.floor);
-    p.status = 'offline';
-    io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
-    io.emit('user:floor', { uid, floor: null, offline: true });
-    io.emit('floor:counts', floorCountMap());
-    // ログアウトアナウンス (全クライアント対象、ただし再接続を待って2秒後に発火)
-    const leaverName = (db.prepare('SELECT display_name FROM users WHERE id=?').get(uid) || {}).display_name || '';
+    // 2段階プレゼンス: 即オフラインにせず、ナビ再接続の猶予(2秒)後に「退席中(自動)」へ。
+    // オフライン昇格＋ログアウト通知は presence スイープが切断猶予(PRESENCE_DISCONNECT_OFFLINE_MS)経過後に実施。
     setTimeout(() => {
       const cur = presence.get(uid);
-      if (cur && cur.socketId === socket.id) {
-        io.emit('user:logout', { uid, name: leaverName });
-        console.log('[cohub] emit user:logout', uid, leaverName);
-        presence.delete(uid);
-        lastLogoutAt.set(uid, Date.now()); // 5分間は再接続のアナウンスを抑止
+      if (cur && cur.socketId === socket.id && !cur.disconnectedAt) {
+        cur.status = '退席中';
+        cur.autoAway = true;
+        cur.disconnectedAt = Date.now();
+        io.to('floor:' + cur.floor).emit('user:update', { uid, x: cur.x, y: cur.y, status: '退席中' });
+        io.emit('floor:counts', floorCountMap());
       }
     }, 2000);
   });
@@ -2203,14 +2201,31 @@ ${latestReport.summary}
 
 // プレゼンス生存スイープ: ハートビート途絶を検知して 自動退席→オフライン化
 // (PCスリープ/タブ凍結/半開き接続で disconnect が発火しないケースの保険。10秒間隔)
-const PRESENCE_AWAY_MS = 35000;     // 約35秒 pong途絶 → 退席中(自動)
-const PRESENCE_OFFLINE_MS = 70000;  // 約70秒 pong途絶 → オフライン
+const PRESENCE_AWAY_MS = 35000;              // 接続中だがpong途絶 約35秒 → 退席中(自動)
+const PRESENCE_OFFLINE_MS = 70000;          // 接続中だがpong途絶 約70秒 → オフライン (半開き接続の保険)
+const PRESENCE_DISCONNECT_OFFLINE_MS = 45000; // 切断(退席中)後 約45秒 → オフライン+ログアウト通知
 setInterval(() => {
   const now = Date.now();
+  const sdb = getDb();
   for (const [uid, p] of presence) {
     if (!p || p.isBot) continue;          // botはsocket無しなので対象外
-    if (p.lastHb == null) { p.lastHb = now; continue; } // 未設定はグレース
     if (p.status === 'offline') continue;
+    // (1) 切断済みで退席中 → 猶予経過でオフライン+ログアウト+presence削除
+    if (p.disconnectedAt) {
+      if (now - p.disconnectedAt > PRESENCE_DISCONNECT_OFFLINE_MS) {
+        const leaverName = (sdb.prepare('SELECT display_name FROM users WHERE id=?').get(uid) || {}).display_name || '';
+        p.status = 'offline';
+        io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'offline' });
+        io.emit('user:floor', { uid, floor: null, offline: true });
+        io.emit('floor:counts', floorCountMap());
+        io.emit('user:logout', { uid, name: leaverName });
+        presence.delete(uid);
+        lastLogoutAt.set(uid, Date.now()); // 一定時間は再接続アナウンスを抑止
+      }
+      continue;
+    }
+    // (2) 接続中だが pong 途絶 (半開き/フリーズ) → lastHb ベースで 退席中→オフライン
+    if (p.lastHb == null) { p.lastHb = now; continue; }
     const age = now - p.lastHb;
     if (age > PRESENCE_OFFLINE_MS) {
       p.status = 'offline';
