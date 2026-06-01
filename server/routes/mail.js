@@ -28,6 +28,14 @@ function decrypt(b64) {
   return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
 }
 
+// z114.secure.ne.jp は古いメールサーバーで TLS1.0 のみ・レガシー再ネゴシエーション必須。
+// Nodeの既定では接続できないため、レガシーTLSを明示的に許可する (実測で確定した組み合わせ)。
+const MAIL_TLS = {
+  minVersion: 'TLSv1',
+  ciphers: 'DEFAULT@SECLEVEL=0',
+  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+};
+
 function getCred(uid) {
   return getDb().prepare('SELECT * FROM user_mail_credentials WHERE user_id = ?').get(uid);
 }
@@ -35,6 +43,7 @@ async function imapClient(cred) {
   const client = new ImapFlow({
     host: cred.imap_host, port: cred.imap_port, secure: true,
     auth: { user: cred.email, pass: decrypt(cred.enc_password) },
+    tls: MAIL_TLS,
     logger: false,
     emitLogs: false,
   });
@@ -72,7 +81,7 @@ router.post('/credentials', authUser, express.json(), async (req, res) => {
   // 検証: 実際にIMAPログインできるか
   let client;
   try {
-    client = new ImapFlow({ host: imap_host, port: imap_port, secure: true, auth: { user: email, pass: password }, logger: false, emitLogs: false });
+    client = new ImapFlow({ host: imap_host, port: imap_port, secure: true, auth: { user: email, pass: password }, tls: MAIL_TLS, logger: false, emitLogs: false });
     await client.connect();
     await client.logout();
   } catch (e) {
