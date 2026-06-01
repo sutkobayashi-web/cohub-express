@@ -1219,6 +1219,9 @@ function renderNewFeatures(isManager) {
   const box = document.getElementById('new-features'), list = document.getElementById('nf-list');
   if (!box || !list) return;
   const items = [];
+  // ★本日の新機能 (全員向け・最新を先頭に)
+  items.push({ ic: '📧', t: '会社メール', d: '会社メール(@stdun.co.jp)をCoWell内で 受信・返信・送信。送信者アバター・翻訳・添付も', href: '/mail.html' });
+  items.push({ ic: '💬', t: 'チャットの新操作', d: 'メッセージにカーソルを合わせて 引用返信・転送・リンクコピー（Teams風）', href: '/chat' });
   // 点呼・朝礼 (操作者=点呼者/管理者向け新機能のお知らせ)
   const isOp = isManager || (me && (me.is_field_promoter || me.is_warehouse_promoter || me.employee_type === 'admin' || me.job_role === 'manager'));
   if (isOp) items.push({ ic: '🚦', t: '点呼・朝礼', d: 'タブレットで点呼/朝礼を記録（アルコール等は東海電子で実施済み確認のみ）', href: '/tenko.html' });
