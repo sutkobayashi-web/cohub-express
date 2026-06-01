@@ -601,13 +601,8 @@
   /* 1メッセージ単位 */
   .msg { display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start; position: relative; }
   /* Teams風 ホバー操作バー */
-  .msg-actions { position: absolute; top: -12px; display: none; gap: 1px; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; box-shadow: 0 3px 10px rgba(15,23,42,0.16); padding: 2px; z-index: 6; }
-  /* ホバーバーはマウス端末のみ。タッチ端末は下部バー(下記)を使う */
-  @media (hover: hover) and (pointer: fine) { .msg:hover .msg-actions { display: flex; } }
-  .msg:not(.me) .msg-actions { left: 46px; right: auto; }   /* 受信: アバターの右=バブル付近の上 */
-  .msg.me .msg-actions { right: 4px; left: auto; }           /* 送信: 右上 */
-  .msg-actions button { background: transparent; border: none; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 6px; line-height: 1; }
-  .msg-actions button:hover { background: #f1f5f9; }
+  /* 旧ホバーバーは廃止 → クリック/タップで下部固定バー(mailと同デザイン)に統一 */
+  .msg-actions { display: none !important; }
   /* 選択中メッセージの強調 (下部バー表示時) */
   .msg.sel-target .bub { box-shadow: 0 0 0 2px #0d9488; }
   /* 下部固定アクションバー (mailと同じデザイン) */
@@ -2768,8 +2763,7 @@ function msgActionsHtml(id) {
     + '</div>';
 }
 
-// ===== タッチ端末: メッセージをタップ → 下部固定バー (メールと同じデザイン) =====
-const _touchUI = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+// ===== メッセージをクリック/タップ → 下部固定バー (メールと同じデザイン) =====
 let _selMsgId = null;
 function showChatActions(id, row) {
   _selMsgId = id;
@@ -2786,18 +2780,19 @@ function hideChatActions() {
 }
 // バーのボタンから呼ぶ: 選択中メッセージへ既存アクションを実行してバーを閉じる
 function chatAct(fn) { const id = _selMsgId; hideChatActions(); if (id != null && typeof fn === 'function') fn(id); }
-if (_touchUI) {
-  $('msgs').addEventListener('click', (e) => {
-    // リンク/添付画像/操作ボタンのタップは本来の動作を優先
-    if (e.target.closest('a, img, button, audio, video, .msg-actions, input, textarea')) return;
-    const row = e.target.closest('.msg[data-mid]');
-    if (!row) { hideChatActions(); return; }
-    const id = parseInt(row.getAttribute('data-mid'), 10);
-    if (!Number.isFinite(id)) { hideChatActions(); return; }
-    if (_selMsgId === id) { hideChatActions(); return; } // 同じメッセージ再タップで閉じる
-    showChatActions(id, row);
-  });
-}
+// 全端末: メッセージをクリック/タップ → 下部バー (mailと同じデザイン)
+$('msgs').addEventListener('click', (e) => {
+  // リンク/添付画像/操作ボタンのタップは本来の動作を優先
+  if (e.target.closest('a, img, button, audio, video, .msg-actions, input, textarea')) return;
+  // PCでテキスト選択(ドラッグ)中はバーを出さない
+  try { if (window.getSelection && String(window.getSelection()).length > 0) return; } catch (_) {}
+  const row = e.target.closest('.msg[data-mid]');
+  if (!row) { hideChatActions(); return; }
+  const id = parseInt(row.getAttribute('data-mid'), 10);
+  if (!Number.isFinite(id)) { hideChatActions(); return; }
+  if (_selMsgId === id) { hideChatActions(); return; } // 同じメッセージ再クリックで閉じる
+  showChatActions(id, row);
+});
 
 // 翻訳: そのメッセージのバブル下に訳を表示/再押下で消す
 async function msgTranslate(id) {
