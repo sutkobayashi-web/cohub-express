@@ -608,6 +608,8 @@
   /* メッセージ操作バー: 入力欄の真上に積む(入力欄を覆わない) (mailと同じデザイン) */
   #chat-actionbar { flex-shrink: 0; display: none; gap: 4px; background: #fff; border-top: 1px solid #e2e8f0; box-shadow: 0 -3px 14px rgba(15,23,42,0.10); padding: 6px 6px; z-index: 8; animation: barUp 0.16s ease; }
   #chat-actionbar.show { display: flex; }
+  /* バー表示中は入力欄の上境界線を消して一体のパネルに見せる */
+  #chat-actionbar.show + #input { border-top: none; box-shadow: none; }
   @keyframes barUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   #chat-actionbar .fact { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: #fff; border: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; color: #334155; cursor: pointer; line-height: 1.1; }
   #chat-actionbar .fact .i { font-size: 19px; line-height: 1; }
@@ -1070,8 +1072,8 @@
     background: #f8fafc; box-sizing: border-box;
   }
   #input textarea:focus {
-    background: #fff; border-color: #0ea5e9;
-    box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+    background: #fff; border-color: #0d9488;
+    box-shadow: 0 0 0 3px rgba(13,148,136,0.15);
   }
   /* 入力欄左の📎ボタンと送信ボタンを同じ40x40の円形で統一 */
   #input .attach-btn,
@@ -1091,12 +1093,12 @@
   }
   #input .attach-btn:hover { background: #e2e8f0; color: #0f172a; }
   #input #send-btn {
-    background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: #fff;
+    background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff;
     border: none;
-    box-shadow: 0 3px 10px rgba(14,165,233,0.30);
+    box-shadow: 0 3px 10px rgba(13,148,136,0.30);
     font-size: 16px;
   }
-  #input #send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(14,165,233,0.40); }
+  #input #send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(13,148,136,0.40); }
   #input #send-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 
   /* スマホ用: 一覧↔チャットの全画面切替 (Teamsモバイル方式) */
