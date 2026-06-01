@@ -431,11 +431,21 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <div style="font-size:10px;color:#64748b;line-height:1.6;">ONなら同じチャットグループに所属するメンバーまたは管理者/推進メンバーとしかDMできません。OFFは全員と自由DM可。新規一般社員はONで登録 + 部署グループへの所属を忘れずに。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
-        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🩺 推進メンバー (聞き取りカードPOST + 健康戦略室)</div>
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🩺 推進メンバー (聞き取り統括 + 健康戦略室)</div>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
           <input type="checkbox" id="edit-field-promoter"> 推進メンバー権限を付与
         </label>
-        <div style="font-size:10px;color:#64748b;line-height:1.6;">推進メンバーは点呼・朝礼・昼礼で同拠点全員に聞き取りカードを記録できます。健康戦略室の閲覧権限が付与され、🩺 現場の声 GC に自動加入します。<br>※ 原則は社員自身の投稿で吸い上げ、聞き取りはバックアップ用途です。</div>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;">推進メンバーは<b>全拠点を横断</b>して誰でも聞き取りを代行記録でき、統括ダッシュボードで進捗を監視します。主担当は事務・管理職。健康戦略室の閲覧権限が付与され、🩺 現場の声 GC に自動加入します。<br>※ 原則は社員自身の投稿で吸い上げ、聞き取りはバックアップ用途です。</div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🚚 聞き取り担当 (現場・自拠点のみ)</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-ops-manager"> 運行管理者 (is_ops_manager)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
+          <input type="checkbox" id="edit-branch-head"> 所長・副所長 (is_branch_head)
+        </label>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;"><b>運行管理者</b>は自拠点のドライバーを点呼時に点検（自拠点なら他職種も代行可）。<b>所長・副所長</b>は自拠点全員（倉庫・ドライバー・事務）を点検できます。いずれも<b>自拠点のメンバーのみ</b>が対象です。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🗓 管理職 (共有カレンダー・業務週報・運転アラート)</div>
@@ -1582,6 +1592,8 @@ function openEditModal(id) {
   document.getElementById('edit-guest-rev').checked = !!u.is_guest_reviewer;
   document.getElementById('edit-field-promoter').checked = !!(u.is_field_promoter || u.is_warehouse_promoter);
   document.getElementById('edit-manager').checked = !!u.is_manager;
+  document.getElementById('edit-ops-manager').checked = !!u.is_ops_manager;
+  document.getElementById('edit-branch-head').checked = !!u.is_branch_head;
   document.getElementById('edit-dm-restricted').checked = !!u.dm_restricted;
   document.getElementById('edit-guest-org').value = u.guest_org || '';
   document.getElementById('edit-new-password').value = '';
@@ -1650,6 +1662,8 @@ async function submitEdit() {
     is_guest_reviewer: document.getElementById('edit-guest-rev').checked,
     is_field_promoter: document.getElementById('edit-field-promoter').checked,
     is_manager: document.getElementById('edit-manager').checked,
+    is_ops_manager: document.getElementById('edit-ops-manager').checked,
+    is_branch_head: document.getElementById('edit-branch-head').checked,
     dm_restricted: document.getElementById('edit-dm-restricted').checked,
     guest_org: document.getElementById('edit-guest-org').value.trim(),
   };

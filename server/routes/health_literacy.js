@@ -25,6 +25,16 @@ function isWellnessManager(uid) {
   return r.employee_type === 'admin' || r.role === 'admin' || !!r.is_field_promoter || !!r.is_warehouse_promoter;
 }
 
+// 聞き取り記録スコープ (2026-06-02。wellness.js の getListeningScope と同等)
+function getScope(uid) {
+  const u = getDb().prepare(`SELECT company_code, employee_type, role,
+      is_field_promoter, is_warehouse_promoter, is_ops_manager, is_branch_head FROM users WHERE id = ?`).get(uid);
+  if (!u) return { allowed: false };
+  const crossSite = !!u.is_field_promoter || !!u.is_warehouse_promoter || u.employee_type === 'admin' || u.role === 'admin';
+  const onSite = !!u.is_ops_manager || !!u.is_branch_head;
+  return { allowed: crossSite || onSite, crossSite, companyCode: u.company_code || '' };
+}
+
 // 質問項目+選択肢+説明
 router.get('/meta', authUser, (req, res) => {
   res.json({ success: true, questions: QUESTIONS, scale: SCALE });
@@ -58,11 +68,11 @@ router.post('/submit', authUser, express.json(), (req, res) => {
 
 // 聞き取り対象メンバー一覧 (PCがない社員向け代理入力。推進メンバー/管理職のみ)
 router.get('/subjects', authUser, (req, res) => {
-  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const scope = getScope(req.uid);
+  if (!scope.allowed) return res.status(403).json({ success: false, msg: '聞き取り記録の権限がありません' });
   const db = getDb();
-  const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
-  const companyCode = me && me.company_code;
-  // 登録されている全員を対象に返す (拠点フィルタなし)
+  const companyCode = scope.companyCode;
+  const siteFilter = scope.crossSite ? '' : ' AND u.company_code = @cc ';
   const rows = db.prepare(`
     SELECT u.id, u.login_id, u.display_name, u.company_code, u.job_role, u.avatar_url,
            h.created_at AS last_answered_at, h.avg_score AS last_avg_score
@@ -71,19 +81,27 @@ router.get('/subjects', authUser, (req, res) => {
       ON mx.user_id = u.id
     LEFT JOIN health_literacy h ON h.id = mx.max_id
     WHERE u.role != 'bot'
-      AND u.id != ?
+      AND u.id != @uid
       AND u.is_guest_reviewer = 0
+      ${siteFilter}
     ORDER BY u.company_code, u.display_name
-  `).all(req.uid);
+  `).all({ uid: req.uid, cc: companyCode });
   res.json({ success: true, subjects: rows, company_code: companyCode });
 });
 
 // 代理入力(聞き取り)で他メンバーの回答を保存。推進メンバー/管理職のみ
 router.post('/proxy-submit', authUser, express.json(), (req, res) => {
-  if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const scope = getScope(req.uid);
+  if (!scope.allowed) return res.status(403).json({ success: false, msg: '聞き取り記録の権限がありません' });
   const b = req.body || {};
   const subjectUserId = String(b.subject_user_id || '').trim();
   if (!subjectUserId) return res.status(400).json({ success: false, msg: '対象者を選択してください' });
+  if (!scope.crossSite) {
+    const subj = getDb().prepare('SELECT company_code FROM users WHERE id = ?').get(subjectUserId);
+    if (!subj || (subj.company_code || '') !== scope.companyCode) {
+      return res.status(403).json({ success: false, msg: '自拠点のメンバーのみ記録できます' });
+    }
+  }
   const ans = [b.q1, b.q2, b.q3, b.q4, b.q5].map(v => parseInt(v));
   if (ans.some(v => !Number.isInteger(v) || v < 1 || v > 4)) {
     return res.status(400).json({ success: false, msg: '全5問に1〜4で回答してください' });

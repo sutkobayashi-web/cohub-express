@@ -50,7 +50,7 @@ const recUpload = multer({
 
 // ユーザー一覧 (AIボットはインフラなので非表示。削除しても ensureConciergeBots が再生成するため、UIに出さない)
 router.get('/users', authAdmin, (req, res) => {
-  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.job_role, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter, u.is_manager,
+  const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.job_role, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter, u.is_manager, u.is_ops_manager, u.is_branch_head,
     CASE WHEN u.tablet_pin_hash IS NOT NULL AND u.tablet_pin_hash <> '' THEN 1 ELSE 0 END AS has_tablet_pin,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id WHERE u.role != 'bot' ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
@@ -109,7 +109,7 @@ router.post('/users', authAdmin, (req, res) => {
 
 // ユーザー更新 (dm_group, dm_rank 等の編集)
 router.patch('/users/:id', authAdmin, (req, res) => {
-  const { display_name, company_code, role, employee_type, job_role, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org, is_field_promoter, is_warehouse_promoter, is_manager } = req.body;
+  const { display_name, company_code, role, employee_type, job_role, dm_group, dm_rank, dm_restricted, birth_date, is_guest_reviewer, guest_org, is_field_promoter, is_warehouse_promoter, is_manager, is_ops_manager, is_branch_head } = req.body;
   const db = getDb();
   const u = db.prepare('SELECT id, dm_group FROM users WHERE id = ?').get(req.params.id);
   if (!u) return res.status(404).json({ success: false, msg: 'ユーザーが見つかりません' });
@@ -154,6 +154,12 @@ router.patch('/users/:id', authAdmin, (req, res) => {
   }
   if (is_warehouse_promoter !== undefined) {
     updates.push('is_warehouse_promoter = ?'); params.push(is_warehouse_promoter ? 1 : 0);
+  }
+  if (is_ops_manager !== undefined) {
+    updates.push('is_ops_manager = ?'); params.push(is_ops_manager ? 1 : 0);
+  }
+  if (is_branch_head !== undefined) {
+    updates.push('is_branch_head = ?'); params.push(is_branch_head ? 1 : 0);
   }
   if (updates.length === 0) return res.json({ success: true });
   params.push(req.params.id);

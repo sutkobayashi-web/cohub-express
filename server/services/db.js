@@ -30,6 +30,10 @@ function getDb() {
   ensureColumn(_db, 'users', 'is_field_promoter', 'is_field_promoter INTEGER DEFAULT 0');
   // 推進メンバー(倉庫型) フラグ — 朝礼・昼礼カードPOST権限 (2026-05-08)
   ensureColumn(_db, 'users', 'is_warehouse_promoter', 'is_warehouse_promoter INTEGER DEFAULT 0');
+  // 運行管理者 フラグ — 自拠点ドライバーの聞き取り点検担当(点呼で代行)。自拠点全員に代行可 (2026-06-02)
+  ensureColumn(_db, 'users', 'is_ops_manager', 'is_ops_manager INTEGER DEFAULT 0');
+  // 所長/副所長 フラグ — 自拠点全員(倉庫/ドライバー/事務)の聞き取り点検担当 (2026-06-02)
+  ensureColumn(_db, 'users', 'is_branch_head', 'is_branch_head INTEGER DEFAULT 0');
   // 職種 (driver/warehouse/office/construction/manufacturing) — enroll登録時の細分化 (2026-05-08)
   // employee_type(office/field/admin) は権限軸として温存し、職種は別軸で管理
   ensureColumn(_db, 'users', 'job_role', 'job_role TEXT');

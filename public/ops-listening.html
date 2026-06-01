@@ -189,8 +189,8 @@ async function init() {
   const meR = await api('/api/auth/me');
   if (!meR || !meR.success) { location.replace('/'); return; }
   me = meR.user;
-  if (!me.is_field_promoter && !me.is_warehouse_promoter && me.role !== 'admin') {
-    document.getElementById('list').innerHTML = '<div class="empty">推進メンバー権限がありません。</div>';
+  if (!me.is_field_promoter && !me.is_warehouse_promoter && !me.is_ops_manager && !me.is_branch_head && me.employee_type !== 'admin' && me.role !== 'admin') {
+    document.getElementById('list').innerHTML = '<div class="empty">聞き取り記録の権限がありません。</div>';
     return;
   }
   document.getElementById('hd-co').textContent = me.display_name + 'さん / ' + (me.company_code || '-');

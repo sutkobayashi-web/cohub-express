@@ -103,6 +103,46 @@ function isWarehousePromoter(uid) {
   return !!(r && r.is_warehouse_promoter);
 }
 
+// 運行管理者 / 所長・副所長 判定 (2026-06-02 聞き取り担当分担)
+function isOpsManager(uid) {
+  const r = getDb().prepare('SELECT is_ops_manager FROM users WHERE id = ?').get(uid);
+  return !!(r && r.is_ops_manager);
+}
+function isBranchHead(uid) {
+  const r = getDb().prepare('SELECT is_branch_head FROM users WHERE id = ?').get(uid);
+  return !!(r && r.is_branch_head);
+}
+
+// 聞き取り記録の権限・スコープ判定 (2026-06-02)
+// 戻り: { allowed, crossSite, companyCode, primaryRole }
+//  - 推進(field/warehouse)・管理職(wellness)・admin → crossSite=true (全拠点全員 横断代行)
+//  - 運行管理者・所長/副所長 → crossSite=false (自拠点全員のみ。代行可)
+//  - いずれでもなければ allowed=false
+function getListeningScope(uid) {
+  const u = getDb().prepare(`SELECT company_code, employee_type, role,
+      is_field_promoter, is_warehouse_promoter, is_ops_manager, is_branch_head
+    FROM users WHERE id = ?`).get(uid);
+  if (!u) return { allowed: false };
+  const isPromoter = !!u.is_field_promoter || !!u.is_warehouse_promoter;
+  const isManager = u.employee_type === 'admin';
+  const isAdmin = u.role === 'admin';
+  const crossSite = isPromoter || isManager || isAdmin;
+  let primaryRole = null;
+  if (u.is_field_promoter) primaryRole = '推進(運管)';
+  else if (u.is_warehouse_promoter) primaryRole = '推進(倉庫)';
+  else if (u.is_branch_head) primaryRole = '所長/副所長';
+  else if (u.is_ops_manager) primaryRole = '運行管理者';
+  else if (isManager) primaryRole = '管理職';
+  else if (isAdmin) primaryRole = 'admin';
+  const onSite = !!u.is_ops_manager || !!u.is_branch_head;
+  return {
+    allowed: crossSite || onSite,
+    crossSite,
+    companyCode: u.company_code || '',
+    primaryRole,
+  };
+}
+
 // 管理職 (employee_type='admin') 判定 — システムadmin (role='admin') とは別物
 function isWellnessManager(uid) {
   const r = getDb().prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
@@ -1607,16 +1647,18 @@ router.delete('/plaza-comments/:id', authUser, (req, res) => {
 // GET /api/wellness/subjects
 // 聞き取り対象のメンバー一覧 (同じ会社コード、bot/ゲスト/自分は除外)
 router.get('/subjects', authUser, (req, res) => {
-  // 推進メンバー or 管理職のみ
-  if (!(isFieldPromoter(req.uid) || isWellnessManager(req.uid) || isWarehousePromoter(req.uid))) {
-    return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  // 記録権限(推進/管理職/admin/運行管理者/所長副所長)を判定
+  const scope = getListeningScope(req.uid);
+  if (!scope.allowed) {
+    return res.status(403).json({ success: false, msg: '聞き取り記録の権限がありません' });
   }
   const db = getDb();
-  const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid);
-  const companyCode = me && me.company_code;
-  // 登録されている全員を対象に返す (拠点フィルタなし)。各対象者の最新聞き取り結果も併せて返す
+  const companyCode = scope.companyCode;
+  // 横断担当(推進/管理職/admin)=全拠点、現場担当(運行管理者/所長副所長)=自拠点のみ
+  const siteFilter = scope.crossSite ? '' : ' AND u.company_code = @cc ';
   const rows = db.prepare(`
-    SELECT u.id, u.login_id, u.display_name, u.company_code, u.employee_type, u.avatar_url,
+    SELECT u.id, u.login_id, u.display_name, u.company_code, u.employee_type,
+           u.job_role, u.is_manager, u.avatar_url,
            wp.created_at AS last_post_at,
            wp.urgency AS last_urgency,
            wp.category AS last_category
@@ -1629,19 +1671,21 @@ router.get('/subjects', authUser, (req, res) => {
     ) mx ON mx.subject_user_id = u.id
     LEFT JOIN wellness_posts wp ON wp.id = mx.max_id
     WHERE u.role != 'bot'
-      AND u.id != ?
+      AND u.id != @uid
       AND u.is_guest_reviewer = 0
+      ${siteFilter}
     ORDER BY u.company_code, u.display_name
-  `).all(req.uid);
-  res.json({ success: true, subjects: rows, company_code: companyCode });
+  `).all({ uid: req.uid, cc: companyCode });
+  res.json({ success: true, subjects: rows, company_code: companyCode, cross_site: scope.crossSite, primary_role: scope.primaryRole });
 });
 
 // POST /api/wellness/post-card  聞き取りカードPOST (統合版: 職種区別なし)
 // body: { subject_user_id, answers: {...}, memo, source_type? }
 router.post('/post-card', authUser, express.json(), (req, res) => {
-  // 推進メンバー or 管理職のみ
-  if (!(isFieldPromoter(req.uid) || isWellnessManager(req.uid) || isWarehousePromoter(req.uid))) {
-    return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  // 記録権限(推進/管理職/admin/運行管理者/所長副所長)を判定
+  const scope = getListeningScope(req.uid);
+  if (!scope.allowed) {
+    return res.status(403).json({ success: false, msg: '聞き取り記録の権限がありません' });
   }
   const body = req.body || {};
   const sourceType = '聞き取り';  // 統合後は固定値
@@ -1653,6 +1697,10 @@ router.post('/post-card', authUser, express.json(), (req, res) => {
   const db = getDb();
   const subject = db.prepare('SELECT id, display_name, company_code FROM users WHERE id = ?').get(subjectUserId);
   if (!subject) return res.status(404).json({ success: false, msg: '対象者が見つかりません' });
+  // 自拠点担当(運行管理者/所長副所長)は自拠点メンバーのみ記録可
+  if (!scope.crossSite && (subject.company_code || '') !== scope.companyCode) {
+    return res.status(403).json({ success: false, msg: '自拠点のメンバーのみ記録できます' });
+  }
   const poster = db.prepare('SELECT id, display_name, company_code FROM users WHERE id = ?').get(req.uid);
 
   // カード回答の値検証

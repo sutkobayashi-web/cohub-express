@@ -41,6 +41,79 @@ function isManager(uid) {
   return !!(r && (r.employee_type === 'admin' || r.role === 'admin'));
 }
 
+// ===== 事故報告「一報」通知 (2026-05-27) =====
+// 違反警告(運転アラート)と同じ「感じ」で、新規事故報告を is_manager 全員へ即通知。
+// クライアント(global-notif.js)の accident:new ハンドラが派手な音+音声+赤トーストを1回鳴らす。
+// 違反警告のような無限ループはしない(停止不能を避ける安全設計)。未承認の間は起動時ブートストラップで再掲。
+function notifyManagersOfAccident(req, payload) {
+  try {
+    const db = getDb();
+    const io = req.app && req.app.locals && req.app.locals.io;
+    const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
+    const mgrs = db.prepare('SELECT id FROM users WHERE is_manager = 1').all();
+    const body = [payload.location, payload.accident_type, payload.summary].filter(Boolean).join(' / ').slice(0, 120)
+      || '新しい事故報告が登録されました';
+    for (const m of mgrs) {
+      if (io) io.to('user:' + m.id).emit('accident:new', payload);
+      if (push) push(m.id, {
+        title: '🚨 事故報告（一報）',
+        body,
+        tag: 'accident-' + payload.kind + '-' + payload.id,
+        mention: true, alwaysShow: true,
+        url: payload.url || '/accident.html',
+      }).catch(() => {});
+    }
+  } catch (e) { console.warn('[accident notify]', e.message); }
+}
+function emitAccidentCleared(req, id, kind) {
+  try {
+    const io = req.app && req.app.locals && req.app.locals.io;
+    if (!io) return;
+    const mgrs = getDb().prepare('SELECT id FROM users WHERE is_manager = 1').all();
+    for (const m of mgrs) io.to('user:' + m.id).emit('accident:cleared', { id, kind });
+  } catch (e) {}
+}
+function vehicleAlertPayload(r) {
+  return {
+    id: r.id, kind: 'vehicle',
+    location: r.location || '',
+    accident_type: r.accident_type || '車両事故',
+    reporter_name: r.reporter_name || '',
+    summary: (r.cause_summary || r.description || '').slice(0, 80),
+    at: r.created_at || r.accident_date || '',
+    url: '/accident.html',
+  };
+}
+function productAlertPayload(r) {
+  return {
+    id: r.id, kind: 'product',
+    location: [r.location_floor, r.location_area].filter(Boolean).join('/') || '',
+    accident_type: r.accident_type || '製品破損',
+    reporter_name: r.reporter_name || '',
+    summary: (r.damage_description || r.cause_detail || r.product_name || '').slice(0, 80),
+    at: r.created_at || r.accident_date || '',
+    url: '/accident.html',
+  };
+}
+
+// 未承認(status='submitted')の事故一報を返す (起動時ブートストラップ用・管理職のみ)。
+// status が approved になると一覧から外れる = 違反警告の「対応済みで止まる」に相当。
+router.get('/pending-alerts', authUser, (req, res) => {
+  if (!isManager(req.uid)) return res.json({ success: true, alerts: [] });
+  const db = getDb();
+  const veh = db.prepare(`SELECT id, location, accident_type, reporter_name, cause_summary, description, accident_date, created_at
+    FROM vehicle_accident_reports WHERE status = 'submitted'
+      AND COALESCE(created_at, accident_date) >= datetime('now','-7 days')
+    ORDER BY id DESC LIMIT 20`).all();
+  const prod = db.prepare(`SELECT id, location_floor, location_area, accident_type, reporter_name, damage_description, cause_detail, product_name, accident_date, created_at
+    FROM kbc_accident_reports WHERE status = 'submitted'
+      AND COALESCE(created_at, accident_date) >= datetime('now','-7 days')
+    ORDER BY id DESC LIMIT 20`).all();
+  const alerts = [...veh.map(vehicleAlertPayload), ...prod.map(productAlertPayload)]
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  res.json({ success: true, alerts });
+});
+
 // ============================================================
 // 事故対策室スクリーン (動画/写真を流し続ける)
 // ============================================================

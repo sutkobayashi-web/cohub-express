@@ -1307,25 +1307,32 @@ async function init() {
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;
   const isWarehousePromoter = !!me.is_warehouse_promoter;
+  const isOpsManager = !!me.is_ops_manager;
+  const isBranchHead = !!me.is_branch_head;
+  const isListeningRecorder = isPromoter || isWarehousePromoter || isOpsManager || isBranchHead;
   const isAdmin = me.role === 'admin';
   const isGuest = !!me.is_guest_reviewer;
   // 管理者のみヘッダーに「管理画面」ボタン表示 (inline-flex でアイコン中央寄せ)
   if (isAdmin) $('hd-admin-btn').style.display = 'inline-flex';
   // 点呼者・管理者 (点呼・朝礼を実施する人): 推進メンバー(運管/倉庫) / 管理職 / manager / systemadmin
-  const isTenkoOp = isPromoter || isWarehousePromoter || isAdmin || me.employee_type === 'admin' || me.job_role === 'manager';
-  if (isPromoter || isWarehousePromoter || isAdmin || isGuest || isTenkoOp) {
+  const isTenkoOp = isListeningRecorder || isAdmin || me.employee_type === 'admin' || me.job_role === 'manager';
+  if (isListeningRecorder || isAdmin || isGuest || isTenkoOp) {
     $('promoter-section').style.display = 'block';
     if (isAdmin) {
       $('promoter-title').textContent = '🩺 推進メンバー / 管理職 専用';
     } else if (isGuest) {
       $('promoter-title').textContent = '🎓 ゲストレビュアー専用 (' + escapeHtml(me.guest_org || '外部') + ')';
-    } else {
+    } else if (isPromoter || isWarehousePromoter) {
       $('promoter-title').textContent = '🩺 推進メンバー専用';
+    } else if (isOpsManager || isBranchHead) {
+      $('promoter-title').textContent = '🚚 聞き取り担当 専用';
+    } else {
+      $('promoter-title').textContent = '🩺 健康管理 専用';
     }
     // 点呼・朝礼: 点呼者・管理者に表示
     if (isTenkoOp) { const t = $('p-card-tenko'); if (t) t.style.display = ''; }
-    // 推進メンバー (運管/倉庫いずれか) または管理職: 聞き取りカードPOST (HL5問も同梱)
-    if (isPromoter || isWarehousePromoter || isAdmin) {
+    // 聞き取り記録者 (推進/運行管理者/所長副所長) または管理職: 聞き取りカードPOST (HL5問も同梱)
+    if (isListeningRecorder || isAdmin || me.employee_type === 'admin') {
       const c = $('p-card-listening');
       if (c) c.style.display = '';
     }
