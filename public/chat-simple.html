@@ -237,7 +237,7 @@
     cursor: pointer; user-select: none;
   }
   .list-sec-label:hover { filter: brightness(0.96); }
-  .sec-caret { display: inline-block; font-size: 9px; transition: transform 0.15s; margin-right: 2px; }
+  .sec-caret { display: inline-block; font-size: 15px; font-weight: 900; color: #0f172a; transition: transform 0.15s; margin-right: 5px; vertical-align: middle; }
   /* セクションラベル横の未読バッジ (個人チャット行のバッジと完全同一デザイン) */
   .sec-unread-badge { margin-left: 8px; vertical-align: middle; }
   /* タップ操作を明示するヒント (ボタン風ピル。閲覧セクションなど) */
@@ -2133,7 +2133,7 @@ function renderGroupList() {
   renderSection('branch', '🏢 営業所グループ',   branchUnread, shownBranchRows, { rowAction: 'hide' });
   renderSection('circle', '🎯 サークル活動',     cirUnread,    shownCircleRows, { rowAction: 'hide' });
   // 自分が「非表示」に選んだGC。既定で折りたたみ・完全に隠す。各行から「表示に戻す」可能
-  renderSection('hidden', '🙈 非表示中のグループ', hiddenUnread, hiddenRows, { defaultCollapsed: true, keepUnreadVisible: false, showToggleHint: true, rowAction: 'show' });
+  renderSection('hidden', '🙈 非表示中のグループ', hiddenUnread, hiddenRows, { defaultCollapsed: true, keepUnreadVisible: false, rowAction: 'show' });
   renderDmSplitSection(dmUnread, dmRows);
   list.innerHTML = html.join('');
 }
