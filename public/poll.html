@@ -111,6 +111,10 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .form .group-chip.full { background: var(--teal); border-color: var(--teal); color: #fff; }
 .form .group-chip.partial { background: #ecfeff; border-color: var(--teal); color: #0f766e; }
 .form .group-chip .gc-cnt { font-size: 10px; opacity: .8; font-weight: 600; }
+.form .group-chip.cross { border-color: #86efac; background: #f0fdf4; color: #15803d; }
+.form .group-chip.cross:hover { border-color: #22c55e; background: #dcfce7; }
+.form .group-chip.cross.full { background: #16a34a; border-color: #16a34a; color: #fff; }
+.form .group-chip.cross.partial { background: #dcfce7; border-color: #22c55e; color: #15803d; }
 .form .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 .form .format-pick { display: flex; gap: 8px; margin-top: 4px; }
 .form .fmt-opt { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; cursor: pointer; background: #fafafa; transition: border-color 0.15s, background 0.15s; }
@@ -438,36 +442,40 @@ function eligibleMembers() {
 function groupMembers(g) {
   return eligibleMembers().filter(m => (m.group || '') === g);
 }
-// 出現順を保った、重複なしのグループ名一覧
-function distinctGroups() {
+// チップ定義一覧。先頭に部署横断の特別グループ(健康推進メンバー)、
+// 続いて所属(dm_group)を出現順で。各 def は { label, members } を持つ。
+function chipDefs() {
+  const defs = [];
+  // 健康推進メンバー: 部署をまたぐ横断グループ (1名以上いる時のみ表示)
+  const promoters = eligibleMembers().filter(m => m.promoter);
+  if (promoters.length) defs.push({ label: '🌱 健康推進メンバー', cls: 'cross', members: promoters });
+  // 所属グループ (出現順・重複なし)
   const seen = new Set();
-  const out = [];
   eligibleMembers().forEach(m => {
     const g = m.group || '';
-    if (!seen.has(g)) { seen.add(g); out.push(g); }
+    if (seen.has(g)) return;
+    seen.add(g);
+    defs.push({ label: g || '（グループ未設定）', cls: '', members: groupMembers(g) });
   });
-  return out;
+  return defs;
 }
 function renderGroupChips() {
   const wrap = document.getElementById('group-chips');
   if (!wrap) return;
-  const groups = distinctGroups();
-  wrap.innerHTML = groups.map((g, idx) => {
-    const mems = groupMembers(g);
-    const selN = mems.filter(m => selectedInvitees.has(m.id)).length;
-    const state = selN === 0 ? '' : (selN === mems.length ? 'full' : 'partial');
-    const label = g || '（グループ未設定）';
-    return '<span class="group-chip ' + state + '" onclick="toggleGroup(' + idx + ')">'
-      + escapeHtml(label)
-      + '<span class="gc-cnt">' + selN + '/' + mems.length + '</span>'
+  wrap.innerHTML = chipDefs().map((d, idx) => {
+    const selN = d.members.filter(m => selectedInvitees.has(m.id)).length;
+    const state = selN === 0 ? '' : (selN === d.members.length ? 'full' : 'partial');
+    return '<span class="group-chip ' + d.cls + ' ' + state + '" onclick="toggleGroup(' + idx + ')">'
+      + escapeHtml(d.label)
+      + '<span class="gc-cnt">' + selN + '/' + d.members.length + '</span>'
       + '</span>';
   }).join('');
 }
 // グループ全員をまとめて追加／解除 (全員選択済みなら解除、それ以外は全追加)
 function toggleGroup(idx) {
-  const g = distinctGroups()[idx];
-  if (g === undefined) return;
-  const mems = groupMembers(g);
+  const d = chipDefs()[idx];
+  if (!d) return;
+  const mems = d.members;
   const allSelected = mems.length > 0 && mems.every(m => selectedInvitees.has(m.id));
   mems.forEach(m => { if (allSelected) selectedInvitees.delete(m.id); else selectedInvitees.add(m.id); });
   renderGroupChips();
