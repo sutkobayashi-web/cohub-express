@@ -285,6 +285,7 @@ app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
 app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
+app.use('/api/beach', require('./routes/beach'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/help', require('./routes/help'));
 // 出退勤打刻機能は完全削除 (2026-05-25)。/api/timecard 廃止 → 自動打刻(scanAutoPunchOut/PC起動in)も停止
