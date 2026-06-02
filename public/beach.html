@@ -8,80 +8,50 @@
   :root { --teal: #0d9488; --ink: #0f172a; --sub: #64748b; --line: #e2e8f0; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; overflow: hidden; font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; color: var(--ink); }
-  body { display: flex; flex-direction: column; }
+  body { display: flex; flex-direction: column; background: #0b1220; }
 
-  header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,255,255,.82); backdrop-filter: blur(6px); z-index: 30; box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,255,255,.78); backdrop-filter: blur(8px); z-index: 30; box-shadow: 0 1px 0 rgba(0,0,0,.05); }
   header .back { text-decoration: none; color: var(--ink); font-size: 20px; font-weight: 800; }
   header h1 { margin: 0; font-size: 16px; font-weight: 800; }
-  header .hint { margin-left: auto; font-size: 11px; color: var(--sub); }
+  header .times { margin-left: auto; display: flex; gap: 4px; }
+  header .times button { border: none; background: #f1f5f9; color: #475569; font-size: 15px; width: 32px; height: 32px; border-radius: 9px; cursor: pointer; }
+  header .times button.on { background: var(--teal); color: #fff; }
 
-  /* ===== 風景 ===== */
+  /* ===== 風景 (一人称POV・生成背景画像) ===== */
   .scene { position: relative; flex: 1; overflow: hidden; }
-  .sky { position: absolute; inset: 0; background: linear-gradient(#bdeafe 0%, #d8f1ff 38%, #fef6e4 62%, #fde9cf 72%); }
-  .sun { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); width: 84px; height: 84px; border-radius: 50%;
-         background: radial-gradient(circle at 50% 50%, #fff7e0, #ffd877 60%, #ffc24d 100%);
-         box-shadow: 0 0 60px 24px rgba(255,210,120,.55); }
-  .cloud { position: absolute; background: rgba(255,255,255,.85); border-radius: 999px; filter: blur(2px); opacity: .9; }
-  .cloud::before, .cloud::after { content: ''; position: absolute; background: inherit; border-radius: 999px; }
-  .c1 { top: 16%; width: 120px; height: 26px; left: -140px; animation: drift 48s linear infinite; }
-  .c1::before { width: 60px; height: 50px; top: -22px; left: 22px; }
-  .c1::after  { width: 46px; height: 38px; top: -14px; left: 64px; }
-  .c2 { top: 28%; width: 90px; height: 20px; left: -120px; animation: drift 70s linear infinite; animation-delay: -20s; opacity: .7; }
-  .c2::before { width: 44px; height: 38px; top: -16px; left: 18px; }
-  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(140vw); } }
+  .bg { position: absolute; inset: -4%; background-size: cover; background-position: center bottom;
+        transition: background-image .6s ease, transform .7s cubic-bezier(.4,0,.2,1);
+        animation: kenburns 38s ease-in-out infinite alternate; will-change: transform; }
+  @keyframes kenburns { from { transform: scale(1.04); } to { transform: scale(1.12); } }
+  .scene.stepping .bg { transform: scale(1.16); }   /* 歩く＝前へ一歩ぶん寄る */
+  /* 水面の光のゆらぎ (静止画の上に重ねて生命感) */
+  .sheen { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; opacity: .5;
+           background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.5) 50%, transparent 70%);
+           background-size: 220% 100%; animation: sheen 9s linear infinite; }
+  @keyframes sheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+  /* 周辺減光で写真的な締まり */
+  .vignette { position: absolute; inset: 0; pointer-events: none;
+              box-shadow: inset 0 0 120px 30px rgba(0,0,0,.18), inset 0 -40px 80px rgba(0,0,0,.12); }
 
-  /* 海 */
-  .sea { position: absolute; left: 0; right: 0; top: 46%; bottom: 22%;
-         background: linear-gradient(#2dd4bf 0%, #14b8a6 45%, #0d9488 100%); }
-  .sea .shimmer { position: absolute; inset: 0; opacity: .25;
-         background: repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,.6) 18px 20px); animation: shimmer 6s linear infinite; }
-  @keyframes shimmer { from { background-position: 0 0; } to { background-position: 40px 0; } }
-  .wave { position: absolute; left: -10%; right: -10%; height: 24px; border-radius: 50%;
-          background: rgba(255,255,255,.55); }
-  .wave.w1 { bottom: 6px;  animation: roll 4.2s ease-in-out infinite; }
-  .wave.w2 { bottom: 18px; height: 18px; opacity: .6; animation: roll 5.6s ease-in-out infinite reverse; }
-  @keyframes roll { 0%,100% { transform: translateX(-12px) scaleY(1); } 50% { transform: translateX(12px) scaleY(.7); } }
+  /* 流れ着くボトル (手前=自分の足元側に寄ってくる) */
+  .bottle-drift { position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); font-size: 44px; z-index: 12; cursor: pointer;
+                  filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); animation: bottleBob 2.4s ease-in-out infinite; }
+  @keyframes bottleBob { 0%,100% { transform: translateX(-50%) translateY(0) rotate(-7deg); } 50% { transform: translateX(-50%) translateY(-8px) rotate(7deg); } }
 
-  /* 砂浜 */
-  .sand { position: absolute; left: 0; right: 0; bottom: 0; height: 22%;
-          background: linear-gradient(#fbe7c6 0%, #f3d9a8 100%); }
-  .foam { position: absolute; left: 0; right: 0; top: -10px; height: 22px; background: rgba(255,255,255,.7);
-          border-radius: 50%; filter: blur(3px); animation: foam 5s ease-in-out infinite; }
-  @keyframes foam { 0%,100% { transform: translateY(0); opacity: .7; } 50% { transform: translateY(6px); opacity: .4; } }
-
-  /* 灯台守(BOT) */
-  .lighthouse { position: absolute; right: 16px; bottom: 22%; z-index: 8; cursor: pointer; text-align: center; user-select: none; }
-  .lighthouse .lh { font-size: 46px; line-height: 1; filter: drop-shadow(0 4px 6px rgba(0,0,0,.18)); }
-  .lighthouse .tag { font-size: 10px; color: #fff; background: rgba(15,23,42,.45); padding: 1px 7px; border-radius: 999px; margin-top: 2px; display: inline-block; }
-
-  /* 散歩する人 */
-  .walker { position: absolute; bottom: 11%; left: 38%; z-index: 9; transition: left .6s cubic-bezier(.4,0,.2,1); }
-  .walker .av { width: 54px; height: 54px; border-radius: 50%; overflow: hidden; border: 3px solid #fff; box-shadow: 0 6px 14px rgba(0,0,0,.2);
-                background: #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; }
-  .walker .av img { width: 100%; height: 100%; object-fit: cover; }
-  .walker.walking { animation: bob .5s ease-in-out infinite; }
-  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-  .walker .shadow { width: 44px; height: 9px; margin: 2px auto 0; background: rgba(0,0,0,.16); border-radius: 50%; filter: blur(2px); }
-
-  /* 流れ着くボトル */
-  .bottle-drift { position: absolute; bottom: 19%; font-size: 30px; z-index: 9; cursor: pointer;
-                  filter: drop-shadow(0 3px 5px rgba(0,0,0,.25)); animation: bottleBob 2.2s ease-in-out infinite; }
-  @keyframes bottleBob { 0%,100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-6px) rotate(6deg); } }
-
-  /* 吹き出し (BOT/環境メッセージ) */
-  .speech { position: absolute; left: 50%; bottom: calc(22% + 80px); transform: translateX(-50%); z-index: 20;
-            background: #fff; color: var(--ink); padding: 10px 16px; border-radius: 14px; font-size: 13px; font-weight: 600;
-            box-shadow: 0 8px 24px rgba(0,0,0,.18); max-width: 78%; text-align: center; opacity: 0; pointer-events: none; transition: opacity .3s; }
+  /* 吹き出し */
+  .speech { position: absolute; left: 50%; bottom: 26%; transform: translateX(-50%); z-index: 20;
+            background: rgba(255,255,255,.96); color: var(--ink); padding: 11px 18px; border-radius: 16px; font-size: 13.5px; font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0,0,0,.22); max-width: 80%; text-align: center; opacity: 0; pointer-events: none; transition: opacity .35s; }
   .speech.show { opacity: 1; }
-  .speech::after { content: ''; position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); border: 8px solid transparent; border-top-color: #fff; border-bottom: 0; }
 
   /* ===== 操作バー ===== */
-  .controls { display: flex; gap: 8px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.92); backdrop-filter: blur(6px); z-index: 30; box-shadow: 0 -1px 0 rgba(0,0,0,.05); }
-  .controls .btn { flex: 1; border: none; border-radius: 12px; padding: 13px 8px; font-size: 14px; font-weight: 800; cursor: pointer; }
-  .btn.walk { background: var(--teal); color: #fff; flex: 1.4; }
+  .controls { display: flex; gap: 8px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.92); backdrop-filter: blur(8px); z-index: 30; box-shadow: 0 -1px 0 rgba(0,0,0,.05); }
+  .controls .btn { border: none; border-radius: 12px; padding: 13px 8px; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .btn.walk { background: var(--teal); color: #fff; flex: 1.5; }
   .btn.walk:active { background: #0f766e; }
-  .btn.sub { background: #f1f5f9; color: #334155; }
+  .btn.sub { background: #f1f5f9; color: #334155; flex: 1; }
   .btn.sub:active { background: #e2e8f0; }
+  .btn.icon { background: #f1f5f9; color: #334155; flex: 0 0 46px; font-size: 18px; }
 
   /* ===== モーダル ===== */
   .ov { position: fixed; inset: 0; background: rgba(8,20,40,.5); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 22px; }
@@ -111,33 +81,25 @@
 <header>
   <a href="/home" class="back">←</a>
   <h1>🌊 浜辺さんぽ</h1>
-  <span class="hint">ひとりで、ゆっくり</span>
+  <div class="times">
+    <button id="t-dawn"   onclick="setTime('dawn')"   title="朝">🌅</button>
+    <button id="t-calm"   onclick="setTime('calm')"   title="昼">☀️</button>
+    <button id="t-golden" onclick="setTime('golden')" title="夕">🌇</button>
+  </div>
 </header>
 
 <div class="scene" id="scene">
-  <div class="sky"></div>
-  <div class="sun"></div>
-  <div class="cloud c1"></div>
-  <div class="cloud c2"></div>
-  <div class="sea"><div class="shimmer"></div><div class="wave w2"></div><div class="wave w1"></div></div>
-  <div class="sand"><div class="foam"></div></div>
-
-  <div class="lighthouse" id="lighthouse" onclick="keeperSpeak()">
-    <div class="lh">🗼</div><div class="tag">灯台守</div>
-  </div>
-
-  <div class="walker" id="walker">
-    <div class="av" id="walker-av">🚶</div>
-    <div class="shadow"></div>
-  </div>
-
+  <div class="bg" id="bg"></div>
+  <div class="sheen"></div>
+  <div class="vignette"></div>
   <div class="speech" id="speech"></div>
 </div>
 
 <div class="controls">
   <button class="btn walk" id="walk-btn" onclick="walk()">🚶 歩く</button>
-  <button class="btn sub" onclick="openCompose()">✉️ ボトルを流す</button>
-  <button class="btn sub" onclick="openMine()">🧴 流したボトル</button>
+  <button class="btn sub" onclick="openCompose()">✉️ 流す</button>
+  <button class="btn sub" onclick="openMine()">🧴 自分</button>
+  <button class="btn icon" onclick="keeperSpeak()" title="灯台守に話す">🗼</button>
 </div>
 
 <!-- ボトルを読む -->
@@ -181,8 +143,8 @@ const token = localStorage.getItem('cohub_token');
 if (!token) location.replace('/');
 let me = null;
 let steps = 0;
-let currentBottle = null;   // 今読んでいるボトル
-let driftEl = null;         // 流れ着いているボトル要素
+let currentBottle = null;
+let driftEl = null;
 
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 async function api(path, opts = {}) {
@@ -194,7 +156,16 @@ async function api(path, opts = {}) {
   return r.json();
 }
 
-// 灯台守(BOT)の静かな一言 (低頻度・押した時だけ)
+// 時間帯(背景)切替。本人の気分で選べる
+const TIMES = ['dawn', 'calm', 'golden'];
+function setTime(key) {
+  if (!TIMES.includes(key)) key = 'golden';
+  document.getElementById('bg').style.backgroundImage = "url('/assets/beach/bg_" + key + ".png')";
+  TIMES.forEach(t => document.getElementById('t-' + t).classList.toggle('on', t === key));
+  try { localStorage.setItem('beach_time', key); } catch (e) {}
+}
+
+// 灯台守(BOT)の静かな一言
 const KEEPER_LINES = [
   'やあ。今日もよく来たね。',
   'のんびりでいい。波の音でも聞いていきなさい。',
@@ -206,10 +177,8 @@ const KEEPER_LINES = [
   '焦らなくていい。波は、いつも戻ってくる。',
 ];
 let keeperIdx = 0;
-function keeperSpeak() {
-  showSpeech('🗼 ' + KEEPER_LINES[keeperIdx % KEEPER_LINES.length]);
-  keeperIdx++;
-}
+function keeperSpeak() { showSpeech('🗼 ' + KEEPER_LINES[keeperIdx++ % KEEPER_LINES.length], 5000); }
+
 let speechTimer = null;
 function showSpeech(text, ms) {
   const el = document.getElementById('speech');
@@ -226,48 +195,37 @@ const AMBIENT = [
   '遠くの水平線が、きらきら光っている。',
 ];
 
-// 歩く: 人を少し動かし、たまにボトルが流れ着く
+// 歩く: 一人称で一歩ぶん前へ寄り、たまにボトルが流れ着く
 async function walk() {
   steps++;
-  const walker = document.getElementById('walker');
-  walker.classList.add('walking');
-  // 砂浜の上を行ったり来たり
-  const positions = [30, 42, 55, 46, 36, 50];
-  walker.style.left = positions[steps % positions.length] + '%';
-  setTimeout(() => walker.classList.remove('walking'), 1400);
+  const scene = document.getElementById('scene');
+  scene.classList.add('stepping');
+  setTimeout(() => scene.classList.remove('stepping'), 700);
 
-  // 既にボトルが流れ着いていれば、それを開ける誘導
-  if (driftEl) { showSpeech('🍾 ボトルが流れ着いている。タップして開けてみよう。'); return; }
-
-  // 40%でボトルを探す
+  if (driftEl) { showSpeech('🍾 足元にボトルが流れ着いている。タップして開けてみよう。'); return; }
   if (Math.random() < 0.4) {
     const r = await api('/api/beach/bottles/pick');
     if (r && r.success && r.bottle) { washUpBottle(r.bottle); return; }
   }
-  // 何もなければ環境メッセージ
   showSpeech(AMBIENT[Math.floor(Math.random() * AMBIENT.length)]);
 }
 
-// ボトルが波打ち際に流れ着くアニメ
 function washUpBottle(bottle) {
   currentBottle = bottle;
   if (driftEl) driftEl.remove();
   driftEl = document.createElement('div');
   driftEl.className = 'bottle-drift';
   driftEl.textContent = '🍾';
-  driftEl.style.left = (28 + Math.random() * 44) + '%';
   driftEl.onclick = () => openRead();
   document.getElementById('scene').appendChild(driftEl);
-  showSpeech('🍾 何かが流れ着いた…');
+  showSpeech('🍾 足元に、何かが流れ着いた…');
 }
 
 function openRead() {
   if (!currentBottle) return;
   const b = currentBottle;
   const initial = (b.author_name || '?').trim().charAt(0);
-  const av = b.author_avatar
-    ? '<img src="' + escapeHtml(b.author_avatar) + '" alt="">'
-    : escapeHtml(initial);
+  const av = b.author_avatar ? '<img src="' + escapeHtml(b.author_avatar) + '" alt="">' : escapeHtml(initial);
   document.getElementById('read-who').innerHTML =
     '<div class="av">' + av + '</div><div><div class="nm">' + escapeHtml(b.author_name || '名もなき誰か') + '</div>'
     + '<div class="tm">' + fmtTime(b.created_at) + ' に流された</div></div>';
@@ -275,20 +233,15 @@ function openRead() {
   openOv('ov-read');
 }
 
-function replyToBottle() {
-  closeOv('ov-read');
-  openCompose('🌊 返事のボトルを流す');
-}
+function replyToBottle() { closeOv('ov-read'); openCompose('🌊 返事のボトルを流す'); }
 
 function fmtTime(s) {
   if (!s) return '';
-  // SQLiteのdatetime('now')はUTC。JSTに直して表示
   const d = new Date(String(s).replace(' ', 'T') + 'Z');
   if (isNaN(d)) return '';
   return (d.getMonth()+1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
 }
 
-// 流す
 function openCompose(title) {
   document.getElementById('compose-title').textContent = title || '✉️ ボトルメールを流す';
   document.getElementById('compose-text').value = '';
@@ -307,26 +260,23 @@ async function sendBottle() {
   btn.disabled = false;
   if (!r || !r.success) { alert('流せませんでした: ' + ((r && r.msg) || '通信エラー')); return; }
   closeOv('ov-compose');
-  // 流したボトルが沖へ消えていく演出
   const fly = document.createElement('div');
   fly.className = 'bottle-drift'; fly.textContent = '🍾';
-  fly.style.left = '46%'; fly.style.bottom = '20%'; fly.style.transition = 'all 2.2s ease-in';
+  fly.style.transition = 'all 2.4s ease-in';
   document.getElementById('scene').appendChild(fly);
-  requestAnimationFrame(() => { fly.style.bottom = '46%'; fly.style.left = '50%'; fly.style.opacity = '0'; });
-  setTimeout(() => fly.remove(), 2300);
+  requestAnimationFrame(() => { fly.style.bottom = '52%'; fly.style.opacity = '0'; fly.style.fontSize = '16px'; });
+  setTimeout(() => fly.remove(), 2500);
   showSpeech('🌊 ボトルを流した。いつか、誰かが拾うよ。');
-  // 読んでいたボトルがあれば片付ける
   if (driftEl) { driftEl.remove(); driftEl = null; currentBottle = null; }
 }
 
-// 流したボトル一覧
 async function openMine() {
   openOv('ov-mine');
   const list = document.getElementById('mine-list');
   list.innerHTML = '読み込み中...';
   const r = await api('/api/beach/mine');
   if (!r || !r.success) { list.innerHTML = '<div class="empty">読み込めませんでした</div>'; return; }
-  if (!r.bottles.length) { list.innerHTML = '<div class="empty">まだ流したボトルはありません。<br>「✉️ ボトルを流す」から、一言どうぞ。</div>'; return; }
+  if (!r.bottles.length) { list.innerHTML = '<div class="empty">まだ流したボトルはありません。<br>「✉️ 流す」から、一言どうぞ。</div>'; return; }
   list.innerHTML = r.bottles.map(b =>
     '<div class="mine-item"><div class="mc">' + escapeHtml(b.content) + '</div>'
     + '<div class="mf">' + (b.found_count > 0 ? '🍾 ' + b.found_count + '人が拾いました' : 'まだ漂流中…') + '</div></div>'
@@ -338,15 +288,12 @@ function closeOv(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.ov').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('show'); }));
 
 async function init() {
+  let saved = 'golden';
+  try { saved = localStorage.getItem('beach_time') || 'golden'; } catch (e) {}
+  setTime(saved);
   const r = await api('/api/auth/me');
-  if (!r || !r.success) return;
-  me = r.user;
-  if (me && me.avatar_url) {
-    document.getElementById('walker-av').innerHTML = '<img src="' + escapeHtml(me.avatar_url) + '" alt="">';
-  } else if (me && me.display_name) {
-    document.getElementById('walker-av').textContent = me.display_name.trim().charAt(0);
-  }
-  setTimeout(() => showSpeech('誰もいない、静かな浜辺です。ゆっくり歩いてみましょう。', 5000), 600);
+  if (r && r.success) me = r.user;
+  setTimeout(() => showSpeech('誰もいない、静かな浜辺です。ゆっくり歩いてみましょう。', 5000), 700);
 }
 init();
 </script>
