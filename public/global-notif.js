@@ -353,6 +353,73 @@
   // 一覧ページ側から「対応済み化」されたら即停止できるよう公開
   window.cohubAlertHandled = function (id) { removePendingAlert(id); };
 
+  // ========== 事故報告「一報」アラート (2026-06-02) ==========
+  // 違反警告と同じ「感じ」(派手な音+男性シリアス声+赤トースト) だが、20秒ループはしない
+  // = 1回だけ鳴らす安全設計。未承認(submitted)の間は起動時ブートストラップで再掲、承認で消える。
+  var _accidentPending = new Map();     // 'kind:id' -> payload
+  var _onAccidentPage = /^\/accident(\.html|\/|$|\?)/.test(path);
+  function _accKey(p) { return (p && p.kind || '') + ':' + (p && p.id != null ? p.id : ''); }
+  function buildAccidentAnnounce(p) {
+    var parts = ['事故報告の一報です'];
+    if (p.location) parts.push(p.location);
+    if (p.accident_type) parts.push(p.accident_type);
+    if (p.reporter_name) parts.push('報告者、' + p.reporter_name + 'さん');
+    return parts.join('、') + '。所属の管理者は確認してください。';
+  }
+  function renderAccidentToast() {
+    if (_onAccidentPage) return;          // 事故対応画面では被るので出さない
+    var t = document.getElementById('gn-accident-toast');
+    if (_accidentPending.size === 0) { if (t) t.style.opacity = '0'; return; }
+    if (!document.getElementById('gn-accident-style')) {
+      var st = document.createElement('style'); st.id = 'gn-accident-style';
+      st.textContent = '@keyframes gnAccFlash{0%,100%{box-shadow:0 14px 40px rgba(217,70,30,.55);}50%{box-shadow:0 16px 56px rgba(255,120,60,.98);}}';
+      document.head.appendChild(st);
+    }
+    if (!t) {
+      t = document.createElement('div'); t.id = 'gn-accident-toast';
+      t.style.cssText = 'position:fixed;left:50%;top:96px;transform:translateX(-50%);background:linear-gradient(135deg,#ea580c,#b91c1c);color:#fff;padding:18px 30px;border-radius:18px;font-size:18px;font-weight:800;z-index:100000;max-width:94vw;text-align:center;opacity:0;transition:opacity .2s;pointer-events:auto;cursor:pointer;border:3px solid rgba(255,255,255,.55);animation:gnAccFlash .7s ease-in-out infinite;';
+      t.onclick = function () { location.href = '/accident.html'; };
+      document.body.appendChild(t);
+    }
+    var last = Array.from(_accidentPending.values()).pop();
+    var detail = [_esc(last.location), _esc(last.accident_type), last.reporter_name ? ('報告者 ' + _esc(last.reporter_name)) : '', _esc(last.summary)].filter(Boolean).join('　/　');
+    var head = _accidentPending.size > 1 ? ('🚨 未確認の事故報告 ' + _accidentPending.size + '件') : '🚨 事故報告（一報）';
+    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">' + head + '</div><div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで事故報告へ → 承認で停止</div>';
+    t.style.opacity = '1';
+  }
+  function fireAccidentAlert(p) {
+    var dur = playAlarm() || 2.0;
+    var src = p || (_accidentPending.size ? Array.from(_accidentPending.values()).pop() : null);
+    if (!src) return;
+    var ann = (_accidentPending.size > 1 && !p)
+      ? ('未確認の事故報告が' + _accidentPending.size + '件あります。所属の管理者は確認してください。')
+      : buildAccidentAnnounce(src);
+    setTimeout(function () { speak(ann, ALERT_VOICE); }, Math.round(dur * 1000) + 250);
+  }
+  function addAccident(p, fireNow) {
+    if (!p) return;
+    var k = _accKey(p); var isNew = !_accidentPending.has(k);
+    _accidentPending.set(k, p);
+    renderAccidentToast();
+    if (fireNow && isNew) fireAccidentAlert(p);   // ループせず1回だけ
+  }
+  function removeAccident(id, kind) {
+    _accidentPending['delete']((kind || '') + ':' + (id != null ? id : ''));
+    renderAccidentToast();
+  }
+  // 起動時ブートストラップ: 未承認(submitted)が残っていれば再掲 (管理職のみ; 非管理職は空配列)
+  function bootstrapAccidents() {
+    fetch('/api/accident/pending-alerts', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.success || !j.alerts || !j.alerts.length) return;
+        j.alerts.forEach(function (a) { addAccident(a, false); });
+        fireAccidentAlert();   // まとめて1回鳴らす(ループなし)
+      }).catch(function () {});
+  }
+  // 事故対応画面側から承認したら即消せるよう公開
+  window.cohubAccidentCleared = function (id, kind) { removeAccident(id, kind); };
+
   // ===== Socket.IO 接続 =====
   function connect() {
     try {
@@ -392,6 +459,11 @@
       socket.on('alert:handled', function (p) { if (p && p.handled) removePendingAlert(p.id); });
       // 未対応の積み残しがあれば鳴らし始める
       bootstrapAlerts();
+
+      // 🚨 事故報告「一報」 — 管理職のみ配信。1回鳴らす(ループなし)、承認で消える
+      socket.on('accident:new', function (p) { addAccident(p, true); });
+      socket.on('accident:cleared', function (p) { if (p) removeAccident(p.id, p.kind); });
+      bootstrapAccidents();
 
       // 🟢 みんなの声 plaza:new — 全ページで発火 (plaza自身は除く=リアルタイム描画と二重になる)
       // 設計思想: 「どんな投稿も反応してあげて無碍にしたくない」
