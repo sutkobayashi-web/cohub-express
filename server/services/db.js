@@ -1633,7 +1633,30 @@ function getDb() {
     message_id TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, message_id)
-  );`);
+  );
+  -- メールのラベル(フォルダ): 個人ごと。ルール一致メールは受信箱から外しこのフォルダに表示(skip inbox)
+  CREATE TABLE IF NOT EXISTS mail_labels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#0d9488',
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  -- 自動振り分けルール: from/subject/to を contains/equals/starts で判定し label を付与
+  CREATE TABLE IF NOT EXISTS mail_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    label_id INTEGER NOT NULL,
+    field TEXT NOT NULL DEFAULT 'from',
+    op TEXT NOT NULL DEFAULT 'contains',
+    value TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_mail_labels_user ON mail_labels(user_id, sort_order);
+  CREATE INDEX IF NOT EXISTS idx_mail_rules_user ON mail_rules(user_id, sort_order);`);
 
   // 既存DB向け: 会社メールの差出人名・署名 列を追加
   ensureColumn(_db, 'user_mail_credentials', 'display_name', 'display_name TEXT');

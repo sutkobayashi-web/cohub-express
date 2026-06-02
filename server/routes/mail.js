@@ -101,6 +101,22 @@ function hasAttachments(bs) {
   if (Array.isArray(bs.childNodes)) return bs.childNodes.some(hasAttachments);
   return false;
 }
+// 自動振り分け: ルール(優先度順)を評価し最初に一致した label_id を返す。無ければ null。
+// fields = { from, subject, to } (いずれも小文字化前の文字列)
+function classifyLabel(fields, rules) {
+  for (const r of rules) {
+    if (!r.enabled) continue;
+    const hay = String(fields[r.field] != null ? fields[r.field] : '').toLowerCase();
+    const needle = String(r.value || '').toLowerCase().trim();
+    if (!needle) continue;
+    let hit;
+    if (r.op === 'equals') hit = (hay === needle);
+    else if (r.op === 'starts') hit = hay.startsWith(needle);
+    else hit = hay.includes(needle); // contains (既定)
+    if (hit) return r.label_id;
+  }
+  return null;
+}
 
 // ===== 設定状況 =====
 router.get('/status', authUser, (req, res) => {
@@ -166,53 +182,82 @@ router.delete('/credentials', authUser, (req, res) => {
 router.get('/inbox', authUser, async (req, res) => {
   const cred = getCred(req.uid);
   if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です', need_setup: true });
-  const limit = Math.min(parseInt(req.query.limit) || 30, 100);
-  const offset = Math.max(0, parseInt(req.query.offset) || 0); // 新しい方からの開始位置(0=最新)
   const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 60);
+  // folder: 'inbox'(既定/未ラベル) | 'all'(全件) | '<labelId>'(そのフォルダ)
+  const folder = String(req.query.folder || 'inbox');
+  // 最新から scan 件のヘッダを取得対象にする(ローカル蓄積なしのためルールはこの範囲に適用)
+  const scan = Math.min(Math.max(parseInt(req.query.scan) || 120, 30), 400);
   let client;
   try {
+    // 個人のラベルと有効ルール(優先度順)
+    const labels = getDb().prepare('SELECT id, name, color FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
+    const rules = getDb().prepare('SELECT id, label_id, field, op, value, enabled FROM mail_rules WHERE user_id = ? AND enabled = 1 ORDER BY sort_order, id').all(req.uid);
+
     client = await imapClient(cred);
     const lock = await client.getMailboxLock(mailbox);
     try {
       const total = client.mailbox.exists || 0;
-      const items = [];
-      // CoHub内で開いたメール(message_id)の集合。サーバー\\Seenとは別管理
+      const all = [];
       const cohubSeen = new Set(getDb().prepare('SELECT message_id FROM cohub_mail_seen WHERE user_id = ?').all(req.uid).map(r => r.message_id));
-      // 送信者メール → CoHubアバター(チャットと同期)。メール設定済みメンバーのemailで照合
       const memberMap = {};
       for (const r of getDb().prepare(`SELECT LOWER(mc.email) AS email, u.avatar_url AS avatar, u.display_name AS name
         FROM user_mail_credentials mc JOIN users u ON u.id = mc.user_id`).all()) {
         if (r.email) memberMap[r.email] = { avatar: r.avatar || null, name: r.name || '' };
       }
-      // 迷惑メール(送信者ブロック)・個別非表示(削除) — CoHub側で非表示にする集合
       const blockSet = new Set(getDb().prepare('SELECT address FROM user_mail_blocklist WHERE user_id = ?').all(req.uid).map(r => (r.address || '').toLowerCase()));
       const hiddenSet = new Set(getDb().prepare('SELECT message_id FROM user_mail_hidden WHERE user_id = ?').all(req.uid).map(r => r.message_id));
-      const end = total - offset;            // このページの最新側シーケンス番号
-      if (total > 0 && end >= 1) {
-        const start = Math.max(1, end - limit + 1);
+      const end = total;
+      if (total > 0) {
+        const start = Math.max(1, end - scan + 1);
         for await (const msg of client.fetch(`${start}:${end}`, { uid: true, envelope: true, flags: true, internalDate: true, bodyStructure: true })) {
           const f = fromText(msg.envelope && msg.envelope.from);
+          const t = fromText(msg.envelope && msg.envelope.to);
           const mid = (msg.envelope && msg.envelope.messageId) || '';
-          // 迷惑メール送信者 or 個別非表示は受信箱に出さない
           if (f.address && blockSet.has(f.address.toLowerCase())) continue;
           if (mid && hiddenSet.has(mid)) continue;
           const serverSeen = msg.flags ? msg.flags.has('\\Seen') : true;
           const mem = f.address ? memberMap[f.address.toLowerCase()] : null;
-          items.push({
+          const subject = (msg.envelope && msg.envelope.subject) || '(件名なし)';
+          // 自動振り分け: 一致ラベルを判定
+          const labelId = classifyLabel(
+            { from: (f.address || '') + ' ' + (f.name || ''), subject, to: t.address || '' },
+            rules
+          );
+          all.push({
             uid: msg.uid,
             message_id: mid,
-            subject: (msg.envelope && msg.envelope.subject) || '(件名なし)',
+            subject,
             from_name: f.name, from_addr: f.address,
-            avatar_url: mem ? mem.avatar : null,   // CoHubメンバーなら同じアバター
+            avatar_url: mem ? mem.avatar : null,
             is_member: !!mem,
             date: (msg.envelope && msg.envelope.date) || msg.internalDate,
             seen: serverSeen || (!!mid && cohubSeen.has(mid)),
             attach: hasAttachments(msg.bodyStructure),
+            label_id: labelId,
           });
         }
       }
-      items.reverse(); // ページ内で新しい順
-      res.json({ success: true, total, offset, items, has_more: (offset + limit) < total });
+      all.reverse(); // 新しい順
+
+      // フォルダ別カウント (scan範囲内)。inbox=未ラベル
+      const counts = { inbox: 0 };
+      for (const l of labels) counts[l.id] = 0;
+      for (const m of all) {
+        if (m.label_id == null) counts.inbox++;
+        else if (counts[m.label_id] != null) counts[m.label_id]++;
+        else counts.inbox++; // ラベル削除済みは受信箱扱い
+      }
+
+      // 要求フォルダで絞り込み
+      let items;
+      if (folder === 'all') items = all;
+      else if (folder === 'inbox') items = all.filter(m => m.label_id == null || counts[m.label_id] == null);
+      else {
+        const fid = parseInt(folder);
+        items = all.filter(m => m.label_id === fid);
+      }
+
+      res.json({ success: true, total, scanned: scan, folder, items, labels, counts });
     } finally { lock.release(); }
   } catch (e) {
     res.status(500).json({ success: false, msg: '受信箱の取得に失敗しました', detail: (e.message || '').slice(0, 150) });
@@ -382,6 +427,76 @@ router.post('/hide', authUser, express.json(), (req, res) => {
   const mid = String((req.body && req.body.message_id) || '').trim().slice(0, 500);
   if (!mid) return res.status(400).json({ success: false, msg: 'message_idが必要です' });
   getDb().prepare('INSERT OR IGNORE INTO user_mail_hidden (user_id, message_id) VALUES (?, ?)').run(req.uid, mid);
+  res.json({ success: true });
+});
+
+// ===== ラベル(フォルダ) + 自動振り分けルール (個人ごと) =====
+const RULE_FIELDS = ['from', 'subject', 'to'];
+const RULE_OPS = ['contains', 'equals', 'starts'];
+
+// ラベル一覧 + 各ラベルのルールを同梱
+router.get('/labels', authUser, (req, res) => {
+  const db = getDb();
+  const labels = db.prepare('SELECT id, name, color, sort_order FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
+  const rules = db.prepare('SELECT id, label_id, field, op, value, enabled, sort_order FROM mail_rules WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
+  const byLabel = {};
+  for (const r of rules) { (byLabel[r.label_id] = byLabel[r.label_id] || []).push(r); }
+  res.json({ success: true, labels: labels.map(l => ({ ...l, rules: byLabel[l.id] || [] })) });
+});
+
+// ラベル作成
+router.post('/labels', authUser, express.json(), (req, res) => {
+  const name = String((req.body && req.body.name) || '').trim().slice(0, 40);
+  const color = String((req.body && req.body.color) || '#0d9488').trim().slice(0, 20);
+  if (!name) return res.status(400).json({ success: false, msg: 'フォルダ名が必要です' });
+  const n = getDb().prepare('SELECT COUNT(*) AS c FROM mail_labels WHERE user_id = ?').get(req.uid).c;
+  if (n >= 50) return res.status(400).json({ success: false, msg: 'フォルダは最大50個までです' });
+  const ins = getDb().prepare('INSERT INTO mail_labels (user_id, name, color, sort_order) VALUES (?, ?, ?, ?)').run(req.uid, name, color, n);
+  res.json({ success: true, id: ins.lastInsertRowid });
+});
+
+// ラベル編集 (名前/色)
+router.put('/labels/:id', authUser, express.json(), (req, res) => {
+  const id = parseInt(req.params.id);
+  const own = getDb().prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(id, req.uid);
+  if (!own) return res.status(404).json({ success: false });
+  const name = String((req.body && req.body.name) || '').trim().slice(0, 40);
+  const color = String((req.body && req.body.color) || '').trim().slice(0, 20);
+  if (name) getDb().prepare('UPDATE mail_labels SET name = ? WHERE id = ?').run(name, id);
+  if (color) getDb().prepare('UPDATE mail_labels SET color = ? WHERE id = ?').run(color, id);
+  res.json({ success: true });
+});
+
+// ラベル削除 (紐づくルールも削除)
+router.delete('/labels/:id', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const own = db.prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(id, req.uid);
+  if (!own) return res.json({ success: true, already: true });
+  db.prepare('DELETE FROM mail_rules WHERE label_id = ? AND user_id = ?').run(id, req.uid);
+  db.prepare('DELETE FROM mail_labels WHERE id = ? AND user_id = ?').run(id, req.uid);
+  res.json({ success: true });
+});
+
+// ルール追加
+router.post('/rules', authUser, express.json(), (req, res) => {
+  const labelId = parseInt(req.body && req.body.label_id);
+  const field = String((req.body && req.body.field) || 'from');
+  const op = String((req.body && req.body.op) || 'contains');
+  const value = String((req.body && req.body.value) || '').trim().slice(0, 200);
+  if (!RULE_FIELDS.includes(field) || !RULE_OPS.includes(op)) return res.status(400).json({ success: false, msg: '条件が不正です' });
+  if (!value) return res.status(400).json({ success: false, msg: '一致する文字列が必要です' });
+  const own = getDb().prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(labelId, req.uid);
+  if (!own) return res.status(400).json({ success: false, msg: 'フォルダが見つかりません' });
+  const n = getDb().prepare('SELECT COUNT(*) AS c FROM mail_rules WHERE user_id = ?').get(req.uid).c;
+  const ins = getDb().prepare('INSERT INTO mail_rules (user_id, label_id, field, op, value, sort_order) VALUES (?, ?, ?, ?, ?, ?)').run(req.uid, labelId, field, op, value, n);
+  res.json({ success: true, id: ins.lastInsertRowid });
+});
+
+// ルール削除
+router.delete('/rules/:id', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  getDb().prepare('DELETE FROM mail_rules WHERE id = ? AND user_id = ?').run(id, req.uid);
   res.json({ success: true });
 });
 

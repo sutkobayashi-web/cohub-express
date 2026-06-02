@@ -115,6 +115,16 @@
     <button class="btn btn-sec" onclick="hideSettings()">閉じる</button>
 
     <div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">
+      <label>📁 フォルダと自動振り分け</label>
+      <div class="hint">フォルダを作り、差出人や件名のルールを設定すると、一致したメールは受信箱から外れて自動でそのフォルダに振り分けられます。</div>
+      <div id="folderSettings" style="margin-top:10px;"></div>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <input id="new-folder-name" type="text" placeholder="新しいフォルダ名（例: 請求書）" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        <input id="new-folder-color" type="color" value="#0d9488" title="色" style="width:40px;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:2px;cursor:pointer;">
+        <button onclick="addLabel()" style="background:#0d9488;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">追加</button>
+      </div>
+    </div>
+    <div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">
       <label>🚫 迷惑メール（ブロック中のアドレス）</label>
       <div class="hint">解除すると、そのアドレスのメールが再びCoWellに表示されます。</div>
       <div id="blocklist" style="margin-top:8px;"></div>
@@ -129,6 +139,8 @@
       <button onclick="openCompose()" style="background:#0d9488;color:#fff;border-color:#0d9488;">✏️ 新規作成</button>
       <span class="cnt" id="cnt"></span>
     </div>
+    <!-- フォルダ(ラベル)バー: 受信箱 + 自動振り分けフォルダ。横スクロール -->
+    <div id="folderbar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 2px;border-bottom:1px solid #e2e8f0;-webkit-overflow-scrolling:touch;"></div>
     <div class="mlist" id="mlist"><div class="loading">読み込み中…</div></div>
   </div>
 </div>
@@ -232,8 +244,9 @@ function showSettings() {
   $('setup').style.display = 'none';
   $('mailUi').style.display = 'none';
   loadBlocklist();
+  loadFolderSettings();
 }
-function hideSettings() { $('mailSettings').style.display = 'none'; $('mailUi').style.display = ''; }
+function hideSettings() { $('mailSettings').style.display = 'none'; $('mailUi').style.display = ''; loadInbox(); }
 async function loadBlocklist() {
   const box = $('blocklist'); if (!box) return;
   box.innerHTML = '<span style="font-size:12px;color:#94a3b8;">読み込み中…</span>';
@@ -280,10 +293,12 @@ async function saveCred() {
   }
 }
 
-const PAGE = 30;
 let mailItems = [];
 let mailTotal = 0;
-let mailHasMore = false;
+let currentFolder = 'inbox';   // 'inbox' | 'all' | '<labelId>'
+let scanCount = 120;           // 直近何件を振り分け対象にするか (サーバ上限400)
+let mailLabels = [];           // [{id,name,color}]
+let mailCounts = {};           // {inbox:n, <labelId>:n}
 // 送信者アバター: CoHubメンバーは同じアバター、それ以外はメール由来の色+頭文字を生成
 function avColor(key) {
   key = String(key || ''); let h = 0;
@@ -331,17 +346,41 @@ async function hideMail(uid) {
   if (r && r.success) { mailItems = mailItems.filter(x => x.uid !== uid); renderInbox(); }
   else { alert('削除に失敗しました'); }
 }
+// フォルダ(ラベル)バー描画
+function renderFolderBar() {
+  const bar = $('folderbar'); if (!bar) return;
+  const tab = (key, label, color, count) => {
+    const active = (String(currentFolder) === String(key));
+    const dot = color ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + color + ';margin-right:5px;"></span>' : '';
+    const badge = count ? '<span style="margin-left:5px;font-size:11px;opacity:.8;">' + count + '</span>' : '';
+    return '<button onclick="switchFolder(\'' + key + '\')" style="flex:0 0 auto;white-space:nowrap;border:1px solid ' + (active ? '#0d9488' : '#cbd5e1') + ';background:' + (active ? '#0d9488' : '#fff') + ';color:' + (active ? '#fff' : '#334155') + ';border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">' + dot + esc(label) + badge + '</button>';
+  };
+  let html = tab('inbox', '受信箱', '', mailCounts.inbox || 0);
+  for (const l of mailLabels) html += tab(String(l.id), l.name, l.color, mailCounts[l.id] || 0);
+  html += '<button onclick="showSettings()" title="フォルダ・振り分け設定" style="flex:0 0 auto;border:1px dashed #cbd5e1;background:#fff;color:#64748b;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;">＋ 設定</button>';
+  bar.innerHTML = html;
+}
+function switchFolder(key) {
+  currentFolder = key;
+  scanCount = 120;
+  loadInbox();
+}
 function renderInbox() {
-  $('cnt').textContent = '全 ' + mailTotal + ' 件中 ' + mailItems.length + ' 件';
-  if (!mailItems.length) { $('mlist').innerHTML = '<div class="empty">受信メールはありません</div>'; return; }
+  const scanned = Math.min(scanCount, mailTotal);
+  $('cnt').textContent = '最新 ' + scanned + ' 件を対象（全 ' + mailTotal + ' 件）';
+  renderFolderBar();
+  if (!mailItems.length) { $('mlist').innerHTML = '<div class="empty">このフォルダにメールはありません</div>'; return; }
   let html = mailItems.map(rowHtml).join('');
-  if (mailHasMore) html += '<div style="padding:12px;text-align:center;"><button id="moreBtn" onclick="loadMore()" style="background:#eef2f7;border:1px solid #cbd5e1;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">🔽 もっと見る（古いメール）</button></div>';
+  // さらに過去のメールも振り分け対象に含める (scanを拡大)
+  if (scanCount < mailTotal && scanCount < 400) {
+    html += '<div style="padding:12px;text-align:center;"><button id="moreBtn" onclick="loadMore()" style="background:#eef2f7;border:1px solid #cbd5e1;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">🔽 もっと過去のメールも読み込む</button></div>';
+  }
   $('mlist').innerHTML = html;
 }
 async function loadInbox() {
   $('mlist').innerHTML = '<div class="loading">読み込み中…</div>';
   mailItems = [];
-  const r = await api('/api/mail/inbox?limit=' + PAGE + '&offset=0');
+  const r = await api('/api/mail/inbox?folder=' + encodeURIComponent(currentFolder) + '&scan=' + scanCount);
   if (!r) return;
   if (!r.success) {
     if (r.need_setup) { showSetup(true); return; }
@@ -350,18 +389,79 @@ async function loadInbox() {
   }
   mailItems = r.items || [];
   mailTotal = r.total || 0;
-  mailHasMore = !!r.has_more;
+  mailLabels = r.labels || [];
+  mailCounts = r.counts || {};
   renderInbox();
 }
 async function loadMore() {
   const btn = $('moreBtn'); if (btn) { btn.disabled = true; btn.textContent = '読み込み中…'; }
-  const r = await api('/api/mail/inbox?limit=' + PAGE + '&offset=' + mailItems.length);
-  if (r && r.success) {
-    mailItems = mailItems.concat(r.items || []);
-    mailTotal = r.total || mailTotal;
-    mailHasMore = !!r.has_more;
-    renderInbox();
-  } else if (btn) { btn.disabled = false; btn.textContent = '🔽 もっと見る（古いメール）'; }
+  scanCount = Math.min(scanCount + 120, 400);
+  await loadInbox();
+}
+
+// ===== フォルダ(ラベル)・振り分けルール 管理 =====
+let folderData = []; // [{id,name,color,rules:[...]}]
+const FIELD_LABEL = { from: '差出人', subject: '件名', to: '宛先' };
+const OP_LABEL = { contains: 'を含む', equals: 'と完全一致', starts: 'で始まる' };
+async function loadFolderSettings() {
+  const box = $('folderSettings'); if (!box) return;
+  box.innerHTML = '<span style="font-size:12px;color:#94a3b8;">読み込み中…</span>';
+  const r = await api('/api/mail/labels');
+  if (!r || !r.success) { box.innerHTML = ''; return; }
+  folderData = r.labels || [];
+  renderFolderSettings();
+}
+function renderFolderSettings() {
+  const box = $('folderSettings'); if (!box) return;
+  if (!folderData.length) { box.innerHTML = '<span style="font-size:12px;color:#94a3b8;">フォルダはまだありません。下で追加してください。</span>'; return; }
+  box.innerHTML = folderData.map(l => {
+    const rulesHtml = (l.rules || []).map(rule =>
+      '<div style="display:flex;align-items:center;gap:6px;padding:4px 0 4px 14px;font-size:12px;color:#475569;">'
+      + '<span style="flex:1;">' + esc(FIELD_LABEL[rule.field] || rule.field) + ' が「<b>' + esc(rule.value) + '</b>」' + esc(OP_LABEL[rule.op] || rule.op) + '</span>'
+      + '<button onclick="deleteRule(' + rule.id + ')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;">削除</button>'
+      + '</div>'
+    ).join('') || '<div style="padding:4px 0 4px 14px;font-size:12px;color:#94a3b8;">ルール未設定（このフォルダには自動で振り分けられません）</div>';
+    return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:10px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+      +   '<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:' + (l.color || '#0d9488') + ';"></span>'
+      +   '<b style="flex:1;font-size:14px;">' + esc(l.name) + '</b>'
+      +   '<button onclick="deleteLabel(' + l.id + ')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;">フォルダ削除</button>'
+      + '</div>'
+      + '<div style="margin-top:6px;">' + rulesHtml + '</div>'
+      + '<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center;">'
+      +   '<select id="rf-field-' + l.id + '" style="padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"><option value="from">差出人</option><option value="subject">件名</option><option value="to">宛先</option></select>'
+      +   '<select id="rf-op-' + l.id + '" style="padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"><option value="contains">を含む</option><option value="equals">と完全一致</option><option value="starts">で始まる</option></select>'
+      +   '<input id="rf-val-' + l.id + '" type="text" placeholder="例: @torihiki.co.jp / 請求" style="flex:1;min-width:120px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">'
+      +   '<button onclick="addRule(' + l.id + ')" style="background:#0d9488;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">ルール追加</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+async function addLabel() {
+  const name = ($('new-folder-name').value || '').trim();
+  const color = $('new-folder-color').value || '#0d9488';
+  if (!name) { alert('フォルダ名を入力してください'); return; }
+  const r = await api('/api/mail/labels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }) });
+  if (r && r.success) { $('new-folder-name').value = ''; loadFolderSettings(); }
+  else { alert((r && r.msg) || '追加に失敗しました'); }
+}
+async function deleteLabel(id) {
+  if (!confirm('このフォルダと振り分けルールを削除しますか？\n（メール自体は削除されず、受信箱に戻ります）')) return;
+  const r = await api('/api/mail/labels/' + id, { method: 'DELETE' });
+  if (r && r.success) loadFolderSettings();
+}
+async function addRule(labelId) {
+  const field = $('rf-field-' + labelId).value;
+  const op = $('rf-op-' + labelId).value;
+  const value = ($('rf-val-' + labelId).value || '').trim();
+  if (!value) { alert('一致する文字列を入力してください'); return; }
+  const r = await api('/api/mail/rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label_id: labelId, field, op, value }) });
+  if (r && r.success) loadFolderSettings();
+  else { alert((r && r.msg) || 'ルール追加に失敗しました'); }
+}
+async function deleteRule(id) {
+  const r = await api('/api/mail/rules/' + id, { method: 'DELETE' });
+  if (r && r.success) loadFolderSettings();
 }
 
 let curMsg = null; // 表示中メール (返信用)
