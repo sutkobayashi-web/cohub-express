@@ -138,8 +138,9 @@
       <label>📁 フォルダと自動振り分け</label>
       <div class="hint">フォルダを作り、差出人や件名のルールを設定すると、一致したメールは受信箱から外れて自動でそのフォルダに振り分けられます。</div>
       <div id="folderSettings" style="margin-top:10px;"></div>
-      <div style="display:flex;gap:6px;margin-top:10px;">
-        <input id="new-folder-name" type="text" placeholder="新しいフォルダ名（例: 請求書）" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        <input id="new-folder-name" type="text" placeholder="新しいフォルダ名（例: 請求書）" style="flex:1;min-width:140px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+        <select id="new-folder-parent" title="親フォルダ（入れ子にする場合）" style="padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;max-width:160px;"><option value="">（最上位フォルダ）</option></select>
         <input id="new-folder-color" type="color" value="#0d9488" title="色" style="width:40px;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:2px;cursor:pointer;">
         <button onclick="addLabel()" style="background:#0d9488;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">追加</button>
       </div>
@@ -331,8 +332,9 @@ let mailItems = [];
 let mailTotal = 0;
 let currentFolder = 'inbox';   // 'inbox' | 'all' | '<labelId>'
 let scanCount = 120;           // 直近何件を振り分け対象にするか (サーバ上限400)
-let mailLabels = [];           // [{id,name,color}]
+let mailLabels = [];           // [{id,name,color,parent_id}]
 let mailCounts = {};           // {inbox:n, <labelId>:n}
+let collapsedFolders = new Set(); // 折りたたみ中の親フォルダID
 // 送信者アバター: CoHubメンバーは同じアバター、それ以外はメール由来の色+頭文字を生成
 function avColor(key) {
   key = String(key || ''); let h = 0;
@@ -380,23 +382,50 @@ async function hideMail(uid) {
   if (r && r.success) { mailItems = mailItems.filter(x => x.uid !== uid); renderInbox(); }
   else { alert('削除に失敗しました'); }
 }
-// フォルダ(ラベル)縦一覧描画 (Gmail風サイドバー)
+// 親IDごとの子配列マップ (最上位は parent_id 無し → キー0)
+function buildChildrenMap(labels) {
+  const m = {};
+  for (const l of labels) { const p = l.parent_id || 0; (m[p] = m[p] || []).push(l); }
+  return m;
+}
+// そのフォルダ + 子孫すべての件数合計 (親フォルダ選択時は配下も表示するため)
+function aggregateCount(id, cmap) {
+  let n = mailCounts[id] || 0;
+  for (const c of (cmap[id] || [])) n += aggregateCount(c.id, cmap);
+  return n;
+}
+// フォルダ(ラベル)縦ツリー描画 (Gmail風サイドバー・多層階)
 function renderFolderBar() {
   const bar = $('folderbar'); if (!bar) return;
-  const row = (key, iconHtml, name, count, active) =>
-    '<button class="fld-row' + (active ? ' active' : '') + '" onclick="switchFolder(\'' + key + '\')">'
+  const cmap = buildChildrenMap(mailLabels);
+  const rowHtml = (key, iconHtml, name, count, active, depth, caret) =>
+    '<button class="fld-row' + (active ? ' active' : '') + '" style="padding-left:' + (10 + depth * 16) + 'px;" onclick="switchFolder(\'' + key + '\')">'
+    + (caret || (depth > 0 ? '<span style="flex-shrink:0;width:16px;"></span>' : ''))
     + iconHtml
     + '<span class="fld-name">' + esc(name) + '</span>'
     + (count ? '<span class="fld-count">' + count + '</span>' : '')
     + '</button>';
-  let html = row('inbox', '<span style="flex-shrink:0;">📥</span>', '受信箱', mailCounts.inbox || 0, currentFolder === 'inbox');
-  for (const l of mailLabels) {
-    const dot = '<span class="fld-dot" style="background:' + (l.color || '#0d9488') + ';"></span>';
-    html += row(String(l.id), dot, l.name, mailCounts[l.id] || 0, String(currentFolder) === String(l.id));
-  }
+  let html = rowHtml('inbox', '<span style="flex-shrink:0;">📥</span>', '受信箱', mailCounts.inbox || 0, currentFolder === 'inbox', 0, '');
+  const walk = (pid, depth) => {
+    for (const l of (cmap[pid] || [])) {
+      const kids = cmap[l.id] || [];
+      const collapsed = collapsedFolders.has(l.id);
+      const caret = kids.length
+        ? '<span onclick="event.stopPropagation();toggleCollapse(' + l.id + ')" style="flex-shrink:0;width:16px;text-align:center;cursor:pointer;">' + (collapsed ? '▸' : '▾') + '</span>'
+        : null;
+      const dot = '<span class="fld-dot" style="background:' + (l.color || '#0d9488') + ';"></span>';
+      html += rowHtml(String(l.id), dot, l.name, aggregateCount(l.id, cmap), String(currentFolder) === String(l.id), depth, caret);
+      if (kids.length && !collapsed) walk(l.id, depth + 1);
+    }
+  };
+  walk(0, 1);
   html += '<div class="fld-sep"></div>';
   html += '<button class="fld-row fld-settings" onclick="showSettings()"><span style="flex-shrink:0;">⚙️</span><span class="fld-name">フォルダ設定</span></button>';
   bar.innerHTML = html;
+}
+function toggleCollapse(id) {
+  if (collapsedFolders.has(id)) collapsedFolders.delete(id); else collapsedFolders.add(id);
+  renderFolderBar();
 }
 function switchFolder(key) {
   currentFolder = key;
@@ -453,37 +482,55 @@ async function loadFolderSettings() {
   folderData = r.labels || [];
   renderFolderSettings();
 }
+function folderCardHtml(l, depth) {
+  const rulesHtml = (l.rules || []).map(rule =>
+    '<div style="display:flex;align-items:center;gap:6px;padding:4px 0 4px 14px;font-size:12px;color:#475569;">'
+    + '<span style="flex:1;">' + esc(FIELD_LABEL[rule.field] || rule.field) + ' が「<b>' + esc(rule.value) + '</b>」' + esc(OP_LABEL[rule.op] || rule.op) + '</span>'
+    + '<button onclick="deleteRule(' + rule.id + ')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;">削除</button>'
+    + '</div>'
+  ).join('') || '<div style="padding:4px 0 4px 14px;font-size:12px;color:#94a3b8;">ルール未設定（このフォルダには自動で振り分けられません）</div>';
+  return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:10px;margin-left:' + (depth * 18) + 'px;">'
+    + '<div style="display:flex;align-items:center;gap:8px;">'
+    +   (depth > 0 ? '<span style="color:#cbd5e1;flex-shrink:0;">↳</span>' : '')
+    +   '<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:' + (l.color || '#0d9488') + ';flex-shrink:0;"></span>'
+    +   '<b style="flex:1;font-size:14px;">' + esc(l.name) + '</b>'
+    +   '<button onclick="deleteLabel(' + l.id + ')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;">フォルダ削除</button>'
+    + '</div>'
+    + '<div style="margin-top:6px;">' + rulesHtml + '</div>'
+    + '<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center;">'
+    +   '<select id="rf-field-' + l.id + '" style="padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"><option value="from">差出人</option><option value="subject">件名</option><option value="to">宛先</option></select>'
+    +   '<select id="rf-op-' + l.id + '" style="padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"><option value="contains">を含む</option><option value="equals">と完全一致</option><option value="starts">で始まる</option></select>'
+    +   '<input id="rf-val-' + l.id + '" type="text" placeholder="例: @torihiki.co.jp / 請求" style="flex:1;min-width:120px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">'
+    +   '<button onclick="addRule(' + l.id + ')" style="background:#0d9488;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">ルール追加</button>'
+    + '</div>'
+    + '</div>';
+}
 function renderFolderSettings() {
   const box = $('folderSettings'); if (!box) return;
+  const cmap = buildChildrenMap(folderData);
+  // 親フォルダ選択肢を更新 (入れ子の深さを全角空白でインデント表示)
+  const sel = $('new-folder-parent');
+  if (sel) {
+    const cur = sel.value;
+    const opts = ['<option value="">（最上位フォルダ）</option>'];
+    const walkOpt = (pid, depth) => { for (const l of (cmap[pid] || [])) { opts.push('<option value="' + l.id + '">' + '　'.repeat(depth) + esc(l.name) + '</option>'); walkOpt(l.id, depth + 1); } };
+    walkOpt(0, 0);
+    sel.innerHTML = opts.join('');
+    if (cur) sel.value = cur;
+  }
   if (!folderData.length) { box.innerHTML = '<span style="font-size:12px;color:#94a3b8;">フォルダはまだありません。下で追加してください。</span>'; return; }
-  box.innerHTML = folderData.map(l => {
-    const rulesHtml = (l.rules || []).map(rule =>
-      '<div style="display:flex;align-items:center;gap:6px;padding:4px 0 4px 14px;font-size:12px;color:#475569;">'
-      + '<span style="flex:1;">' + esc(FIELD_LABEL[rule.field] || rule.field) + ' が「<b>' + esc(rule.value) + '</b>」' + esc(OP_LABEL[rule.op] || rule.op) + '</span>'
-      + '<button onclick="deleteRule(' + rule.id + ')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;">削除</button>'
-      + '</div>'
-    ).join('') || '<div style="padding:4px 0 4px 14px;font-size:12px;color:#94a3b8;">ルール未設定（このフォルダには自動で振り分けられません）</div>';
-    return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:10px;">'
-      + '<div style="display:flex;align-items:center;gap:8px;">'
-      +   '<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:' + (l.color || '#0d9488') + ';"></span>'
-      +   '<b style="flex:1;font-size:14px;">' + esc(l.name) + '</b>'
-      +   '<button onclick="deleteLabel(' + l.id + ')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;">フォルダ削除</button>'
-      + '</div>'
-      + '<div style="margin-top:6px;">' + rulesHtml + '</div>'
-      + '<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center;">'
-      +   '<select id="rf-field-' + l.id + '" style="padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"><option value="from">差出人</option><option value="subject">件名</option><option value="to">宛先</option></select>'
-      +   '<select id="rf-op-' + l.id + '" style="padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"><option value="contains">を含む</option><option value="equals">と完全一致</option><option value="starts">で始まる</option></select>'
-      +   '<input id="rf-val-' + l.id + '" type="text" placeholder="例: @torihiki.co.jp / 請求" style="flex:1;min-width:120px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">'
-      +   '<button onclick="addRule(' + l.id + ')" style="background:#0d9488;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">ルール追加</button>'
-      + '</div>'
-      + '</div>';
-  }).join('');
+  let html = '';
+  const walk = (pid, depth) => { for (const l of (cmap[pid] || [])) { html += folderCardHtml(l, depth); walk(l.id, depth + 1); } };
+  walk(0, 0);
+  box.innerHTML = html;
 }
 async function addLabel() {
   const name = ($('new-folder-name').value || '').trim();
   const color = $('new-folder-color').value || '#0d9488';
+  const parentSel = $('new-folder-parent');
+  const parent_id = parentSel && parentSel.value ? parseInt(parentSel.value) : null;
   if (!name) { alert('フォルダ名を入力してください'); return; }
-  const r = await api('/api/mail/labels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }) });
+  const r = await api('/api/mail/labels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color, parent_id }) });
   if (r && r.success) { $('new-folder-name').value = ''; loadFolderSettings(); }
   else { alert((r && r.msg) || '追加に失敗しました'); }
 }

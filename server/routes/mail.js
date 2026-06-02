@@ -117,6 +117,18 @@ function classifyLabel(fields, rules) {
   }
   return null;
 }
+// rootId とその子孫すべてのラベルIDの集合 (多層階フォルダの親選択時に配下も含めるため)
+function descendantIds(rootId, labels) {
+  const childrenOf = {};
+  for (const l of labels) { const p = l.parent_id || 0; (childrenOf[p] = childrenOf[p] || []).push(l.id); }
+  const out = new Set([rootId]);
+  const stack = [rootId];
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const c of (childrenOf[cur] || [])) { if (!out.has(c)) { out.add(c); stack.push(c); } }
+  }
+  return out;
+}
 
 // ===== 設定状況 =====
 router.get('/status', authUser, (req, res) => {
@@ -190,7 +202,7 @@ router.get('/inbox', authUser, async (req, res) => {
   let client;
   try {
     // 個人のラベルと有効ルール(優先度順)
-    const labels = getDb().prepare('SELECT id, name, color FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
+    const labels = getDb().prepare('SELECT id, name, color, parent_id FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
     const rules = getDb().prepare('SELECT id, label_id, field, op, value, enabled FROM mail_rules WHERE user_id = ? AND enabled = 1 ORDER BY sort_order, id').all(req.uid);
 
     client = await imapClient(cred);
@@ -248,13 +260,14 @@ router.get('/inbox', authUser, async (req, res) => {
         else counts.inbox++; // ラベル削除済みは受信箱扱い
       }
 
-      // 要求フォルダで絞り込み
+      // 要求フォルダで絞り込み (親フォルダ選択時は子孫フォルダのメールも含める)
       let items;
       if (folder === 'all') items = all;
       else if (folder === 'inbox') items = all.filter(m => m.label_id == null || counts[m.label_id] == null);
       else {
         const fid = parseInt(folder);
-        items = all.filter(m => m.label_id === fid);
+        const set = descendantIds(fid, labels);
+        items = all.filter(m => m.label_id != null && set.has(m.label_id));
       }
 
       res.json({ success: true, total, scanned: scan, folder, items, labels, counts });
@@ -434,48 +447,72 @@ router.post('/hide', authUser, express.json(), (req, res) => {
 const RULE_FIELDS = ['from', 'subject', 'to'];
 const RULE_OPS = ['contains', 'equals', 'starts'];
 
-// ラベル一覧 + 各ラベルのルールを同梱
+// ラベル一覧 + 各ラベルのルールを同梱 (parent_id で多層階)
 router.get('/labels', authUser, (req, res) => {
   const db = getDb();
-  const labels = db.prepare('SELECT id, name, color, sort_order FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
+  const labels = db.prepare('SELECT id, name, color, parent_id, sort_order FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
   const rules = db.prepare('SELECT id, label_id, field, op, value, enabled, sort_order FROM mail_rules WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
   const byLabel = {};
   for (const r of rules) { (byLabel[r.label_id] = byLabel[r.label_id] || []).push(r); }
   res.json({ success: true, labels: labels.map(l => ({ ...l, rules: byLabel[l.id] || [] })) });
 });
 
-// ラベル作成
+// ラベル作成 (parent_id 指定で子フォルダ)
 router.post('/labels', authUser, express.json(), (req, res) => {
   const name = String((req.body && req.body.name) || '').trim().slice(0, 40);
   const color = String((req.body && req.body.color) || '#0d9488').trim().slice(0, 20);
+  let parentId = parseInt(req.body && req.body.parent_id);
   if (!name) return res.status(400).json({ success: false, msg: 'フォルダ名が必要です' });
+  if (!parentId || isNaN(parentId)) parentId = null;
+  else {
+    const p = getDb().prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(parentId, req.uid);
+    if (!p) return res.status(400).json({ success: false, msg: '親フォルダが見つかりません' });
+  }
   const n = getDb().prepare('SELECT COUNT(*) AS c FROM mail_labels WHERE user_id = ?').get(req.uid).c;
-  if (n >= 50) return res.status(400).json({ success: false, msg: 'フォルダは最大50個までです' });
-  const ins = getDb().prepare('INSERT INTO mail_labels (user_id, name, color, sort_order) VALUES (?, ?, ?, ?)').run(req.uid, name, color, n);
+  if (n >= 100) return res.status(400).json({ success: false, msg: 'フォルダは最大100個までです' });
+  const ins = getDb().prepare('INSERT INTO mail_labels (user_id, name, color, parent_id, sort_order) VALUES (?, ?, ?, ?, ?)').run(req.uid, name, color, parentId, n);
   res.json({ success: true, id: ins.lastInsertRowid });
 });
 
-// ラベル編集 (名前/色)
+// ラベル編集 (名前/色/親フォルダ移動)
 router.put('/labels/:id', authUser, express.json(), (req, res) => {
   const id = parseInt(req.params.id);
-  const own = getDb().prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(id, req.uid);
+  const db = getDb();
+  const own = db.prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(id, req.uid);
   if (!own) return res.status(404).json({ success: false });
   const name = String((req.body && req.body.name) || '').trim().slice(0, 40);
   const color = String((req.body && req.body.color) || '').trim().slice(0, 20);
-  if (name) getDb().prepare('UPDATE mail_labels SET name = ? WHERE id = ?').run(name, id);
-  if (color) getDb().prepare('UPDATE mail_labels SET color = ? WHERE id = ?').run(color, id);
+  if (name) db.prepare('UPDATE mail_labels SET name = ? WHERE id = ?').run(name, id);
+  if (color) db.prepare('UPDATE mail_labels SET color = ? WHERE id = ?').run(color, id);
+  // 親フォルダの変更 (循環防止: 自分自身や自分の子孫を親にできない)
+  if (Object.prototype.hasOwnProperty.call(req.body || {}, 'parent_id')) {
+    let pid = parseInt(req.body.parent_id);
+    if (!pid || isNaN(pid)) pid = null;
+    if (pid != null) {
+      if (pid === id) return res.status(400).json({ success: false, msg: '自分自身を親にできません' });
+      const labels = db.prepare('SELECT id, parent_id FROM mail_labels WHERE user_id = ?').all(req.uid);
+      const set = descendantIds(id, labels);
+      if (set.has(pid)) return res.status(400).json({ success: false, msg: '配下のフォルダを親にできません' });
+      const p = db.prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(pid, req.uid);
+      if (!p) return res.status(400).json({ success: false, msg: '親フォルダが見つかりません' });
+    }
+    db.prepare('UPDATE mail_labels SET parent_id = ? WHERE id = ?').run(pid, id);
+  }
   res.json({ success: true });
 });
 
-// ラベル削除 (紐づくルールも削除)
+// ラベル削除 (子孫フォルダと全ルールもまとめて削除。メール自体は残り受信箱へ戻る)
 router.delete('/labels/:id', authUser, (req, res) => {
   const id = parseInt(req.params.id);
   const db = getDb();
   const own = db.prepare('SELECT id FROM mail_labels WHERE id = ? AND user_id = ?').get(id, req.uid);
   if (!own) return res.json({ success: true, already: true });
-  db.prepare('DELETE FROM mail_rules WHERE label_id = ? AND user_id = ?').run(id, req.uid);
-  db.prepare('DELETE FROM mail_labels WHERE id = ? AND user_id = ?').run(id, req.uid);
-  res.json({ success: true });
+  const labels = db.prepare('SELECT id, parent_id FROM mail_labels WHERE user_id = ?').all(req.uid);
+  const ids = Array.from(descendantIds(id, labels)); // 自分+子孫
+  const ph = ids.map(() => '?').join(',');
+  db.prepare(`DELETE FROM mail_rules WHERE user_id = ? AND label_id IN (${ph})`).run(req.uid, ...ids);
+  db.prepare(`DELETE FROM mail_labels WHERE user_id = ? AND id IN (${ph})`).run(req.uid, ...ids);
+  res.json({ success: true, deleted: ids.length });
 });
 
 // ルール追加

@@ -1661,6 +1661,8 @@ function getDb() {
   // 既存DB向け: 会社メールの差出人名・署名 列を追加
   ensureColumn(_db, 'user_mail_credentials', 'display_name', 'display_name TEXT');
   ensureColumn(_db, 'user_mail_credentials', 'signature', 'signature TEXT');
+  // メールフォルダの多層階(入れ子)対応: 親フォルダID (NULL=最上位)
+  ensureColumn(_db, 'mail_labels', 'parent_id', 'parent_id INTEGER');
 
   return _db;
 }
