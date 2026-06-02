@@ -18,6 +18,16 @@ function canAccessGroup(uid, gid) {
   return isManager(uid);
 }
 
+// 起動時マイグレーション: 個人ごとのグループ非表示リスト (本人の一覧表示だけに影響。権限は不変)
+try {
+  getDb().prepare(`CREATE TABLE IF NOT EXISTS user_hidden_groups (
+    user_id TEXT NOT NULL,
+    group_id TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, group_id)
+  )`).run();
+} catch (e) { console.warn('[chat] user_hidden_groups migration skipped:', e.message); }
+
 
 // チャット添付ファイル保存
 const chatDir = path.join(__dirname, '..', '..', 'uploads', 'chat');
@@ -195,24 +205,44 @@ router.get('/groups', authUser, (req, res) => {
         (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
         (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
         (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
-        EXISTS(SELECT 1 FROM chat_group_members WHERE group_id = g.id AND user_id = ?) AS is_member
+        EXISTS(SELECT 1 FROM chat_group_members WHERE group_id = g.id AND user_id = ?) AS is_member,
+        EXISTS(SELECT 1 FROM user_hidden_groups WHERE group_id = g.id AND user_id = ?) AS is_hidden
       FROM chat_groups g
       ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
-    `).all(req.uid);
+    `).all(req.uid, req.uid);
   } else {
     rows = getDb().prepare(`
       SELECT g.id, g.name, g.icon, g.created_at, g.is_circle, g.category,
         (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
         (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
         (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
-        1 AS is_member
+        1 AS is_member,
+        EXISTS(SELECT 1 FROM user_hidden_groups WHERE group_id = g.id AND user_id = ?) AS is_hidden
       FROM chat_groups g
       JOIN chat_group_members m ON m.group_id = g.id
       WHERE m.user_id = ?
       ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
-    `).all(req.uid);
+    `).all(req.uid, req.uid);
   }
   res.json({ success: true, groups: rows, is_manager_view: admin });
+});
+
+// グループの「自分の一覧での表示/非表示」を切り替え (本人の表示だけに影響。閲覧/参加権限は不変)
+// body: { group_id, hidden: true|false }
+router.post('/groups/hidden', authUser, express.json(), (req, res) => {
+  const gid = String((req.body && req.body.group_id) || '').trim();
+  if (!gid) return res.status(400).json({ success: false, msg: 'group_id必須' });
+  const hidden = !!(req.body && req.body.hidden);
+  const db = getDb();
+  // 存在チェック (不正IDの混入防止)
+  const g = db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(gid);
+  if (!g) return res.status(404).json({ success: false, msg: 'グループが見つかりません' });
+  if (hidden) {
+    db.prepare('INSERT OR IGNORE INTO user_hidden_groups (user_id, group_id) VALUES (?, ?)').run(req.uid, gid);
+  } else {
+    db.prepare('DELETE FROM user_hidden_groups WHERE user_id = ? AND group_id = ?').run(req.uid, gid);
+  }
+  res.json({ success: true, group_id: gid, hidden });
 });
 
 // グループのメッセージ履歴 (参加者のみ)
