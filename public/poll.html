@@ -111,6 +111,16 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .form .group-chip.full { background: var(--teal); border-color: var(--teal); color: #fff; }
 .form .group-chip.partial { background: #ecfeff; border-color: var(--teal); color: #0f766e; }
 .form .group-chip .gc-cnt { font-size: 10px; opacity: .8; font-weight: 600; }
+.cal-ref-tgl { margin-left: auto; font-size: 11px; font-weight: 600; color: #0f766e; background: #ecfeff; border: 1px solid #99f6e4; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.cal-ref { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-top: 4px; background: #fafafa; }
+.cal-ref .cal-day { padding: 5px 2px; border-bottom: 1px dashed var(--line); }
+.cal-ref .cal-day:last-child { border-bottom: none; }
+.cal-ref .cal-date { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.cal-ref .cal-date.we { color: #dc2626; }
+.cal-ref .cal-ev { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 0; margin-right: 12px; white-space: nowrap; }
+.cal-ref .cal-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cal-ref .cal-ev .t { font-weight: 700; color: var(--sub); font-variant-numeric: tabular-nums; }
+.cal-ref .cal-empty { font-size: 12px; color: #94a3b8; padding: 8px 2px; text-align: center; }
 .form .group-chip.cross { border-color: #86efac; background: #f0fdf4; color: #15803d; }
 .form .group-chip.cross:hover { border-color: #22c55e; background: #dcfce7; }
 .form .group-chip.cross.full { background: #16a34a; border-color: #16a34a; color: #fff; }
@@ -235,6 +245,14 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
         <input type="text" id="f-location" maxlength="200" placeholder="例: 海老名本社 2F 会議室A">
       </div>
 
+      <div id="cal-ref-wrap" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;">🗓 共有カレンダー（参考）
+          <span style="font-size:11px;font-weight:400;color:#64748b;">— 既存の予定を見ながら候補日を決められます</span>
+          <button type="button" id="cal-ref-toggle" class="cal-ref-tgl" onclick="togglePollCalendar()">隠す</button>
+        </label>
+        <div id="cal-ref" class="cal-ref">読み込み中...</div>
+      </div>
+
       <label>候補日時 <span style="color:#dc2626;">*</span> (1〜30件)</label>
       <div id="slot-list"></div>
       <button type="button" class="add-slot" onclick="addSlotRow()">＋ 候補を追加</button>
@@ -262,6 +280,11 @@ if (!token) location.replace('/');
 let me = null;
 let allMembers = [];
 let selectedInvitees = new Set();
+let calRefShown = true;
+const CAL_CATS = {
+  meeting: '#6d28d9', visitor: '#b45309', trip: '#075985', outing: '#ea580c',
+  event: '#047857', leave: '#475569', other: '#0f766e',
+};
 
 // 出太郎フローティング表示トグル (localStorage 永続)
 function hideDetarou() {
@@ -412,6 +435,7 @@ async function showCreate() {
     allMembers = r.items || [];
     renderGroupChips();
     renderMembersPick();
+    loadPollCalendar();
   } else {
     document.getElementById('invitees-pick').innerHTML = '<div style="padding:10px;color:#dc2626;">メンバー読み込み失敗</div>';
   }
@@ -515,6 +539,71 @@ function updateInviteeCount() {
   document.querySelectorAll('#invitees-pick .invitee-item').forEach(el => {
     el.classList.toggle('checked', el.querySelector('input').checked);
   });
+}
+
+// ===== 共有カレンダー参考表示 (読み取り専用) =====
+function togglePollCalendar() {
+  calRefShown = !calRefShown;
+  document.getElementById('cal-ref').style.display = calRefShown ? '' : 'none';
+  document.getElementById('cal-ref-toggle').textContent = calRefShown ? '隠す' : '表示';
+}
+function ymdLocal(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+async function loadPollCalendar() {
+  const wrap = document.getElementById('cal-ref-wrap');
+  const box = document.getElementById('cal-ref');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const to = new Date(today); to.setDate(today.getDate() + 20);  // 今日から3週間先まで
+  let j;
+  try {
+    j = await api('/api/shared-calendar?from=' + ymdLocal(today) + '&to=' + ymdLocal(to));
+  } catch (e) { j = null; }
+  // 権限なし(管理職以外)・失敗時はセクションごと非表示にして邪魔しない
+  if (!j || !j.success) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  // 通常予定 + 確定会議をまとめて { date, time, title, color } 形式に正規化
+  const items = [];
+  (j.events || []).forEach(e => {
+    const date = (e.start_at || '').slice(0, 10);
+    if (!date) return;
+    const time = (e.all_day || !/\d{2}:\d{2}/.test(e.start_at || '')) ? '' : (e.start_at || '').slice(11, 16);
+    items.push({ date, time, title: e.title || '(無題)', color: CAL_CATS[e.category] || CAL_CATS.other, allday: !!e.all_day });
+  });
+  (j.meetings || []).forEach(m => {
+    const sa = (m.starts_at || '').replace('T', ' ');
+    const date = sa.slice(0, 10);
+    if (!date) return;
+    items.push({ date, time: sa.slice(11, 16), title: '🎙 ' + (m.title || '(無題)'), color: CAL_CATS.meeting, allday: false });
+  });
+
+  if (!items.length) {
+    box.innerHTML = '<div class="cal-empty">今後3週間に登録された予定はありません</div>';
+    return;
+  }
+  // 日付ごとにまとめる
+  const byDate = {};
+  items.forEach(it => { (byDate[it.date] = byDate[it.date] || []).push(it); });
+  const dates = Object.keys(byDate).sort();
+  const wd = ['日', '月', '火', '水', '木', '金', '土'];
+  box.innerHTML = dates.map(ds => {
+    const d = new Date(ds + 'T00:00:00');
+    const dow = d.getDay();
+    const evs = byDate[ds].sort((a, b) => {
+      if (a.allday !== b.allday) return a.allday ? -1 : 1;
+      return (a.time || '').localeCompare(b.time || '');
+    });
+    return '<div class="cal-day">'
+      + '<div class="cal-date' + (dow === 0 || dow === 6 ? ' we' : '') + '">'
+        + (d.getMonth() + 1) + '/' + d.getDate() + '(' + wd[dow] + ')</div>'
+      + evs.map(it => '<span class="cal-ev">'
+          + '<span class="cal-dot" style="background:' + it.color + '"></span>'
+          + (it.allday ? '<span class="t">終日</span>' : (it.time ? '<span class="t">' + it.time + '</span>' : ''))
+          + escapeHtml(it.title) + '</span>').join('')
+      + '</div>';
+  }).join('');
 }
 async function submitCreate() {
   const title = document.getElementById('f-title').value.trim();
