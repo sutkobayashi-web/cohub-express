@@ -97,7 +97,7 @@
   /* ====== Teams風フラット チャット一覧 ====== */
   .chat-row {
     display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px;
+    padding: 9px 14px;
     border-bottom: 1px solid #e2e8f0;
     cursor: pointer; text-decoration: none; color: inherit;
     transition: background 0.12s, box-shadow 0.12s;
@@ -175,6 +175,11 @@
     flex-shrink: 0; font-size: 11px; color: #64748b; font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
+  /* 3行目: 投稿時間(左) + 隠す/表示ボタン(右) */
+  .chat-row .row-foot {
+    display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 1px;
+  }
+  .chat-row .row-foot .row-time { margin-right: auto; }
   .chat-row .row-preview {
     font-size: 12px; color: #475569;
     line-height: 1.4; min-width: 0;
@@ -2229,13 +2234,15 @@ function chatRowHtml(r, rowAction) {
     <div class="row-meta">
       <div class="row-top">
         <span class="row-name">${escapeHtml(displayName)}${r.type === 'group' && r.is_member === false ? ' <span style="font-size:9px;background:#fde68a;color:#92400e;padding:1px 6px;border-radius:6px;margin-left:4px;font-weight:700;vertical-align:middle;">閲覧</span>' : ''}</span>
-        <span class="row-time">${escapeHtml(timeStr)}</span>
         ${unreadBadge}
       </div>
       <div class="row-preview">
         <span class="preview-text">${escapeHtml(preview)}</span>
-        ${actionBtn}
       </div>
+      ${(timeStr || actionBtn) ? `<div class="row-foot">
+        <span class="row-time">${escapeHtml(timeStr)}</span>
+        ${actionBtn}
+      </div>` : ''}
     </div>
   </a>`;
 }
