@@ -14,10 +14,29 @@
   var BANNER_ID = 'cohub-version-update-banner';
 
   function isUserBusy() {
+    // 1) 入力欄フォーカス中
     var ae = document.activeElement;
-    if (!ae) return false;
-    var tag = (ae.tagName || '').toLowerCase();
-    if (tag === 'textarea' || tag === 'input' || ae.isContentEditable) return true;
+    if (ae) {
+      var tag = (ae.tagName || '').toLowerCase();
+      if (tag === 'textarea' || tag === 'input' || ae.isContentEditable) return true;
+    }
+    // 2) 写真投稿の作成中: file input に選択済みファイルがある
+    //    (カメラ/写真ピッカーから戻った直後にリロードすると、撮った写真と投稿内容が消える)
+    try {
+      var fileInputs = document.querySelectorAll('input[type="file"]');
+      for (var i = 0; i < fileInputs.length; i++) {
+        if (fileInputs[i].files && fileInputs[i].files.length > 0) return true;
+      }
+    } catch (e) {}
+    // 3) 送信中: 投稿/AI分析/送信/アップロード中の disabled ボタンがある
+    try {
+      var busyBtns = document.querySelectorAll('button[disabled], button.is-busy, [data-uploading="1"]');
+      for (var j = 0; j < busyBtns.length; j++) {
+        var t = (busyBtns[j].textContent || '');
+        if (/投稿中|分析中|送信中|アップロード|処理中|保存中/.test(t)) return true;
+      }
+      if (document.querySelector('[data-uploading="1"]')) return true;
+    } catch (e) {}
     return false;
   }
 
@@ -74,7 +93,9 @@
   // 定期チェック
   setInterval(check, CHECK_INTERVAL_MS);
   // ページ可視復帰時にもチェック
+  // 1.2秒待ってから: カメラ/写真ピッカー復帰時に onchange でファイルが input に入るのを待ち、
+  // isUserBusy() が作成中を検知してリロードを保留できるようにする
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') setTimeout(check, 500);
+    if (document.visibilityState === 'visible') setTimeout(check, 1200);
   });
 })();
