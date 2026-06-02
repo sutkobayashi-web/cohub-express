@@ -147,6 +147,7 @@
       <button class="fact" onclick="openForward()"><span class="i">↪</span>転送</button>
       <button class="fact" onclick="translateBody()"><span class="i">🌐</span>翻訳</button>
       <button class="fact" onclick="copyLink()"><span class="i">🔗</span>リンク</button>
+      <button class="fact" style="color:#dc2626;" onclick="hideCurMsg()"><span class="i">🗑</span>削除</button>
     </div>
   </div>
 </div>
@@ -412,6 +413,19 @@ function setIframe(showImages) {
   ifr.onload = () => { try { ifr.style.height = Math.min(ifr.contentWindow.document.body.scrollHeight + 24, 4000) + 'px'; } catch (e) { ifr.style.height = '70vh'; } };
   const ban = $('imgBanner');
   if (ban) ban.style.display = (!showImages && blocked > 0) ? 'flex' : 'none';
+}
+// 読書画面から表示中メールを削除（CoHub受信箱で非表示。実メールボックスは変更しない）
+async function hideCurMsg() {
+  if (!curMsg) return;
+  if (!curMsg.message_id) { alert('このメールは削除（非表示）できません（識別子がありません）'); return; }
+  if (!confirm('このメールをCoHubの受信箱から削除しますか？\n（実際のメールボックスからは削除されません）')) return;
+  const r = await api('/api/mail/hide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message_id: curMsg.message_id }) });
+  if (r && r.success) {
+    const uid = curMsg.uid;
+    mailItems = mailItems.filter(x => x.uid !== uid);
+    closeMsg();
+    renderInbox();
+  } else { alert('削除に失敗しました'); }
 }
 function closeMsg() {
   $('overlay').classList.remove('show');

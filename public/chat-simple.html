@@ -1202,6 +1202,7 @@
       <button class="fact" type="button" onclick="chatAct(msgTranslate)"><span class="i">🌐</span>翻訳</button>
       <button class="fact" type="button" onclick="chatAct(msgCopyLink)"><span class="i">🔗</span>リンク</button>
       <button class="fact" type="button" onclick="chatAct(msgCopy)"><span class="i">📋</span>コピー</button>
+      <button class="fact" id="cab-del" type="button" style="color:#dc2626;display:none;" onclick="chatAct(msgDelete)"><span class="i">🗑</span>削除</button>
       <button class="fact close" type="button" onclick="hideChatActions()"><span class="i">✕</span>閉じる</button>
     </div>
     <div id="input">
@@ -2699,7 +2700,7 @@ function renderMessages() {
       tsBottom = `<div class="ts">${readMark}<span>${fmtTime(m.created_at)}</span></div>`;
     }
 
-    const acts = (typeof m.id === 'number') ? msgActionsHtml(m.id) : '';
+    const acts = (typeof m.id === 'number') ? msgActionsHtml(m.id, canDeleteMsg(m)) : '';
     parts.push(`<div class="${cls.join(' ')}" data-mid="${m.id}">${avatar}<div class="body">${header}${bubble}${tsBottom}</div>${acts}</div>`);
   }
   msgsEl.innerHTML = parts.join('');
@@ -2755,14 +2756,22 @@ $('msgs').addEventListener('scroll', () => {
 // ===== Teams風 メッセージ操作 (ホバーバー) =====
 let _pendingScrollMsg = null;
 function findCurMsg(id) { return (messageCache.get(ctxKey()) || []).find(m => m.id === id); }
-function msgActionsHtml(id) {
+function msgActionsHtml(id, canDel) {
   return '<div class="msg-actions">'
     + '<button title="翻訳" onclick="msgTranslate(' + id + ');event.stopPropagation();">🌐</button>'
     + '<button title="引用して返信" onclick="msgQuoteReply(' + id + ');event.stopPropagation();">💬</button>'
     + '<button title="転送" onclick="msgForward(' + id + ');event.stopPropagation();">↪</button>'
     + '<button title="リンクをコピー" onclick="msgCopyLink(' + id + ');event.stopPropagation();">🔗</button>'
     + '<button title="本文をコピー" onclick="msgCopy(' + id + ');event.stopPropagation();">📋</button>'
+    + (canDel ? '<button title="削除" style="color:#dc2626;" onclick="msgDelete(' + id + ');event.stopPropagation();">🗑</button>' : '')
     + '</div>';
+}
+// 削除可否: 自分の発言は常に可。グループは管理者なら他人の発言もモデレーション削除可。DM相手の発言は不可。
+function canDeleteMsg(m) {
+  if (!m || !me) return false;
+  if (m.sender_id === me.uid) return true;
+  if (currentMode === 'group' && me.role === 'admin') return true;
+  return false;
 }
 
 // ===== メッセージをクリック/タップ → 下部固定バー (メールと同じデザイン) =====
@@ -2774,6 +2783,9 @@ function showChatActions(id, row) {
   if (row) row.classList.add('sel-target');
   const b = document.getElementById('chat-actionbar');
   if (b) b.classList.add('show');
+  // 削除ボタンは削除可能なメッセージのときだけ表示
+  const delBtn = document.getElementById('cab-del');
+  if (delBtn) delBtn.style.display = canDeleteMsg(findCurMsg(id)) ? '' : 'none';
   // バーが入力欄の上に積まれて選択メッセージが隠れる場合があるので、見える位置へスクロール
   if (row) {
     _suppressScrollHide = true;
@@ -2841,6 +2853,29 @@ function msgCopyLink(id) {
   else if (currentMode === 'dm' && currentDmPeer) url += '&dm=' + encodeURIComponent(currentDmPeer.id);
   if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => showToastMsg('🔗 リンクをコピーしました')).catch(() => {});
   else prompt('リンク', url);
+}
+// メッセージ削除: 確認 → DELETE → キャッシュ/DOMから即除去 (相手側は socket 'msg:deleted' で反映)
+async function msgDelete(id) {
+  const m = findCurMsg(id);
+  if (!canDeleteMsg(m)) { showToastMsg('このメッセージは削除できません'); return; }
+  if (!confirm('このメッセージを削除しますか？\n(取り消せません)')) return;
+  try {
+    const r = await api('/api/chat/messages/' + id, { method: 'DELETE' });
+    if (r && r.success) { removeMsgFromView(id); showToastMsg('🗑 削除しました'); }
+    else { showToastMsg((r && r.msg) || '削除できませんでした'); }
+  } catch (e) { showToastMsg('削除に失敗しました'); }
+}
+// 全コンテキストのキャッシュとDOMから指定メッセージを除去
+function removeMsgFromView(id) {
+  try {
+    for (const [k, arr] of messageCache) {
+      const i = arr.findIndex(x => x.id === id);
+      if (i >= 0) { arr.splice(i, 1); messageCache.set(k, arr); }
+    }
+  } catch (e) {}
+  const row = document.querySelector('.msg[data-mid="' + id + '"]');
+  if (row) row.remove();
+  if (_selMsgId === id) hideChatActions();
 }
 let _fwdContent = '';
 function msgForward(id) { const m = findCurMsg(id); if (!m) return; _fwdContent = String(m.content || ''); openForwardPicker(); }
@@ -3095,6 +3130,12 @@ function setupSocket() {
       return;
     }
     if (!p.online) showToastMsg('🛎️ 相手はオフラインです。通知を送りました');
+  });
+
+  // 他端末/相手によるメッセージ削除をリアルタイム反映
+  socket.on('msg:deleted', (p) => {
+    if (!p || p.id == null) return;
+    removeMsgFromView(p.id);
   });
 
   socket.on('group:msg', (payload) => {

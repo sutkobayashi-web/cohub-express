@@ -425,4 +425,39 @@ router.get('/wb/:room', authUser, (req, res) => {
   });
 });
 
+// ===== メッセージ削除 (DM/グループ共通) =====
+// 権限: 自分の発言は常に削除可。グループは管理者なら他人の発言も削除可(モデレーション)。
+//       DMの相手の発言は削除不可。削除後は全端末へ socket 'msg:deleted' を配信して即時反映。
+router.delete('/messages/:mid', authUser, (req, res) => {
+  const mid = parseInt(req.params.mid);
+  if (isNaN(mid)) return res.status(400).json({ success: false, msg: 'IDが不正です' });
+  const db = getDb();
+  const msg = db.prepare('SELECT id, room_code, sender_id, receiver_id FROM messages WHERE id = ?').get(mid);
+  if (!msg) return res.json({ success: true, already: true }); // 既に無い場合も成功扱い
+
+  const isOwn = msg.sender_id === req.uid;
+  const isGroup = (msg.room_code || '').startsWith('grp_');
+  const gid = isGroup ? msg.room_code.slice(4) : null;
+  // 権限判定
+  let allowed = isOwn;
+  if (!allowed && isGroup && isManager(req.uid)) allowed = true; // グループは管理者がモデレーション可
+  if (!allowed) return res.status(403).json({ success: false, msg: 'このメッセージは削除できません' });
+
+  db.prepare('DELETE FROM messages WHERE id = ?').run(mid);
+  db.prepare('DELETE FROM message_reads WHERE message_id = ?').run(mid);
+
+  // 配信: グループはメンバー全員、DMは送受信者の双方の全端末へ
+  const payload = { id: mid, room_code: msg.room_code, group_id: gid, by: req.uid };
+  try {
+    if (isGroup && req.app.locals.emitToGroupMembers) {
+      req.app.locals.emitToGroupMembers(gid, 'msg:deleted', payload);
+    } else if (req.app.locals.emitToUser) {
+      req.app.locals.emitToUser(msg.sender_id, 'msg:deleted', payload);
+      if (msg.receiver_id) req.app.locals.emitToUser(msg.receiver_id, 'msg:deleted', payload);
+    }
+  } catch (e) { /* 配信失敗は無視 (DB削除は成立済み) */ }
+
+  res.json({ success: true });
+});
+
 module.exports = router;
