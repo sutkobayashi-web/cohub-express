@@ -235,6 +235,15 @@
   .sec-caret { display: inline-block; font-size: 9px; transition: transform 0.15s; margin-right: 2px; }
   /* セクションラベル横の未読バッジ (個人チャット行のバッジと完全同一デザイン) */
   .sec-unread-badge { margin-left: 8px; vertical-align: middle; }
+  /* タップ操作を明示するヒント (ボタン風ピル。閲覧セクションなど) */
+  .list-sec-label.has-toggle-hint { display: flex; align-items: center; }
+  .sec-toggle-hint {
+    margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0;
+    text-transform: none; color: #475569; background: #fff;
+    border: 1px solid #cbd5e1; border-radius: 999px; padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .list-sec-label.has-toggle-hint:hover .sec-toggle-hint { background: #475569; color: #fff; border-color: #475569; }
   /* セクション別背景色 (グループ=青 / サークル=橙 / 個人=緑) */
   .section-group { background: linear-gradient(180deg, #eff6ff 0%, #f0f9ff 100%); border-left: 3px solid #3b82f6; }
   .section-group .list-sec-label {
@@ -2037,11 +2046,14 @@ function renderGroupList() {
     const unreadRows = keepUnread ? rows.filter(r => rowUnread(r) > 0) : [];
     const readRows = keepUnread ? rows.filter(r => rowUnread(r) === 0) : rows;
     html.push(`<div class="section-${key}${collapsed ? ' collapsed' : ''}" data-sec="${key}">`);
-    html.push(`<div class="list-sec-label" onclick="toggleChatSection('${key}')">`
+    const toggleHint = opts.showToggleHint
+      ? `<span class="sec-toggle-hint">${collapsed ? '＋ タップで表示' : '－ タップで隠す'}</span>` : '';
+    html.push(`<div class="list-sec-label${opts.showToggleHint ? ' has-toggle-hint' : ''}" onclick="toggleChatSection('${key}')">`
       + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
       + `${label}`
       + `<span style="color:#94a3b8;font-weight:500;margin-left:6px;font-size:11px;">(${rows.length})</span>`
       + (unread > 0 ? `<span class="unread-badge sec-unread-badge">${unread > 99 ? '99+' : unread}</span>` : '')
+      + toggleHint
       + `</div>`);
     // 未読行: 常に表示 (折りたたみ中も見える)
     html.push(`<div class="sec-unread-rows">`);
@@ -2106,7 +2118,7 @@ function renderGroupList() {
   renderSection('branch', '🏢 営業所グループ',   branchUnread, memberBranchRows);
   renderSection('circle', '🎯 サークル活動',     cirUnread,    memberCircleRows);
   // 自分が参加していない閲覧専用GC (管理職ビューのみ非空)。既定で折りたたみ・完全に隠す
-  renderSection('viewonly', '👁 閲覧できるグループ', viewOnlyUnread, viewOnlyRows, { defaultCollapsed: true, keepUnreadVisible: false });
+  renderSection('viewonly', '👁 閲覧できるグループ', viewOnlyUnread, viewOnlyRows, { defaultCollapsed: true, keepUnreadVisible: false, showToggleHint: true });
   renderDmSplitSection(dmUnread, dmRows);
   list.innerHTML = html.join('');
 }
@@ -2126,6 +2138,8 @@ function toggleChatSection(key) {
   if (body) body.style.display = collapsed ? 'none' : '';
   const caret = sec.querySelector('.sec-caret');
   if (caret) caret.textContent = collapsed ? '▶' : '▼';
+  const hint = sec.querySelector('.sec-toggle-hint');
+  if (hint) hint.textContent = collapsed ? '＋ タップで表示' : '－ タップで隠す';
 }
 
 // グループ名の先頭にあるアイコン絵文字を取り除く ('👔 管理職グループ' → '管理職グループ')
