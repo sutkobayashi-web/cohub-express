@@ -105,6 +105,12 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .form .invitee-item .ava img { width: 100%; height: 100%; object-fit: cover; }
 .form .invitee-item .nm { font-size: 13px; }
 .form .invitee-item .grp { font-size: 11px; color: var(--sub); margin-left: auto; }
+.form .group-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.form .group-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--ink); user-select: none; }
+.form .group-chip:hover { border-color: #0d9488; background: #f0fdfa; }
+.form .group-chip.full { background: var(--teal); border-color: var(--teal); color: #fff; }
+.form .group-chip.partial { background: #ecfeff; border-color: var(--teal); color: #0f766e; }
+.form .group-chip .gc-cnt { font-size: 10px; opacity: .8; font-weight: 600; }
 .form .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 .form .format-pick { display: flex; gap: 8px; margin-top: 4px; }
 .form .fmt-opt { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; cursor: pointer; background: #fafafa; transition: border-color 0.15s, background 0.15s; }
@@ -230,7 +236,9 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
       <button type="button" class="add-slot" onclick="addSlotRow()">＋ 候補を追加</button>
 
       <label>出席者 <span style="color:#dc2626;">*</span></label>
-      <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()">
+      <div style="font-size:11px;color:#64748b;margin-bottom:2px;">グループ名をタップすると、そのグループの全員をまとめて追加／解除できます</div>
+      <div class="group-chips" id="group-chips"></div>
+      <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()" style="margin-top:6px;">
       <div class="invitees-pick" id="invitees-pick">読み込み中...</div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;" id="invitees-count">0名選択中</div>
 
@@ -249,6 +257,7 @@ const token = localStorage.getItem('cohub_token');
 if (!token) location.replace('/');
 let me = null;
 let allMembers = [];
+let selectedInvitees = new Set();
 
 // 出太郎フローティング表示トグル (localStorage 永続)
 function hideDetarou() {
@@ -378,6 +387,8 @@ async function showList() {
 async function showCreate() {
   history.replaceState({}, '', '/poll.html?new=1');
   setView('create');
+  selectedInvitees = new Set();
+  document.getElementById('f-members-search').value = '';
   document.getElementById('slot-list').innerHTML = '';
   // 開催形式をオンラインで初期化
   const fmtOnline = document.querySelector('input[name=fmt][value=online]');
@@ -395,6 +406,7 @@ async function showCreate() {
   const r = await api('/api/members');
   if (r && r.success) {
     allMembers = r.items || [];
+    renderGroupChips();
     renderMembersPick();
   } else {
     document.getElementById('invitees-pick').innerHTML = '<div style="padding:10px;color:#dc2626;">メンバー読み込み失敗</div>';
@@ -418,20 +430,62 @@ function addSlotRow(initial) {
   div.innerHTML = '<input type="datetime-local" value="' + (initial || '') + '" /><button type="button" onclick="this.parentNode.remove()">削除</button>';
   wrap.appendChild(div);
 }
+// 自分以外の選択対象メンバー
+function eligibleMembers() {
+  return allMembers.filter(m => m.id !== me.id);
+}
+// グループ名(未設定は '') ごとのメンバー配列
+function groupMembers(g) {
+  return eligibleMembers().filter(m => (m.group || '') === g);
+}
+// 出現順を保った、重複なしのグループ名一覧
+function distinctGroups() {
+  const seen = new Set();
+  const out = [];
+  eligibleMembers().forEach(m => {
+    const g = m.group || '';
+    if (!seen.has(g)) { seen.add(g); out.push(g); }
+  });
+  return out;
+}
+function renderGroupChips() {
+  const wrap = document.getElementById('group-chips');
+  if (!wrap) return;
+  const groups = distinctGroups();
+  wrap.innerHTML = groups.map((g, idx) => {
+    const mems = groupMembers(g);
+    const selN = mems.filter(m => selectedInvitees.has(m.id)).length;
+    const state = selN === 0 ? '' : (selN === mems.length ? 'full' : 'partial');
+    const label = g || '（グループ未設定）';
+    return '<span class="group-chip ' + state + '" onclick="toggleGroup(' + idx + ')">'
+      + escapeHtml(label)
+      + '<span class="gc-cnt">' + selN + '/' + mems.length + '</span>'
+      + '</span>';
+  }).join('');
+}
+// グループ全員をまとめて追加／解除 (全員選択済みなら解除、それ以外は全追加)
+function toggleGroup(idx) {
+  const g = distinctGroups()[idx];
+  if (g === undefined) return;
+  const mems = groupMembers(g);
+  const allSelected = mems.length > 0 && mems.every(m => selectedInvitees.has(m.id));
+  mems.forEach(m => { if (allSelected) selectedInvitees.delete(m.id); else selectedInvitees.add(m.id); });
+  renderGroupChips();
+  renderMembersPick();
+}
 function renderMembersPick() {
   const q = (document.getElementById('f-members-search').value || '').toLowerCase().trim();
-  const list = allMembers.filter(m =>
-    m.id !== me.id && (!q || (m.name || '').toLowerCase().includes(q) || (m.group || '').toLowerCase().includes(q))
+  const list = eligibleMembers().filter(m =>
+    (!q || (m.name || '').toLowerCase().includes(q) || (m.group || '').toLowerCase().includes(q))
   ).slice(0, 200);
-  const checked = getSelectedInvitees();
   document.getElementById('invitees-pick').innerHTML = list.map(m => {
-    const isChecked = checked.has(m.id);
+    const isChecked = selectedInvitees.has(m.id);
     const initial = (m.name || '?').trim().charAt(0);
     const ava = m.avatar
       ? '<img src="' + escapeHtml(m.avatar) + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initial) + '\'))">'
       : escapeHtml(initial);
     return '<label class="invitee-item' + (isChecked ? ' checked' : '') + '">'
-      + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="updateInviteeCount()">'
+      + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="onInviteeToggle(this)">'
       + '<div class="ava">' + ava + '</div>'
       + '<div class="nm">' + escapeHtml(m.name) + '</div>'
       + (m.group ? '<div class="grp">' + escapeHtml(m.group) + '</div>' : '')
@@ -439,14 +493,17 @@ function renderMembersPick() {
   }).join('');
   updateInviteeCount();
 }
+function onInviteeToggle(cb) {
+  if (cb.checked) selectedInvitees.add(cb.dataset.uid);
+  else selectedInvitees.delete(cb.dataset.uid);
+  renderGroupChips();
+  updateInviteeCount();
+}
 function getSelectedInvitees() {
-  const s = new Set();
-  document.querySelectorAll('#invitees-pick input[type=checkbox]:checked').forEach(c => s.add(c.dataset.uid));
-  return s;
+  return new Set(selectedInvitees);
 }
 function updateInviteeCount() {
-  const n = document.querySelectorAll('#invitees-pick input[type=checkbox]:checked').length;
-  document.getElementById('invitees-count').textContent = n + '名選択中';
+  document.getElementById('invitees-count').textContent = selectedInvitees.size + '名選択中';
   document.querySelectorAll('#invitees-pick .invitee-item').forEach(el => {
     el.classList.toggle('checked', el.querySelector('input').checked);
   });
