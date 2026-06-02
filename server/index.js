@@ -321,7 +321,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-06-02-home-en-colors"
+const APP_VERSION = "2026-06-02-dm-fieldstaff-only"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -772,41 +772,27 @@ function getVoiceGroup(p) {
   return p.floor + ':open';
 }
 
-// DM権限判定: true=許可 / false=拒否 (レポートライン保護)
-// 5/19以降: 役員(EXECUTIVE_GROUP_ID メンバー)宛DMは共通chat_group所属必須
-//          - 一般→部長/管理職 (役員以外の admin) は引き続き許可
-//          - 一般→役員 は同じchat_groupに居る場合のみ許可
+// DM権限判定: true=許可 / false=拒否
+// 6/2改定: 現状の登録社員はほぼ管理職・推進メンバーのため双方の制限を撤廃。
+//   制限対象は「現場職の一般社員(driver/warehouse、推進・管理者を除く)」のみとし、
+//   その者は所属グループ(共通chat_group)内の相手にのみDM可とする。
+//   - 管理者/役員/管理職/事務職員/未設定/推進メンバー → 送受信とも完全無制限
+//   - 判定は送信者基準: 現場職一般社員が"外へ"送る時だけグループ所属を確認
+//   - bot宛・推進メンバー宛は相談窓口として常に許可 (旧 dm_restricted フラグは判定に未使用)
+function isFieldStaff(u) {
+  if (!u) return false;
+  if (u.role === 'admin' || u.role === 'bot') return false;
+  if (u.is_field_promoter || u.is_warehouse_promoter) return false;
+  return u.job_role === 'driver' || u.job_role === 'warehouse';
+}
 function canDm(sender, receiver) {
   if (!sender || !receiver) return false;
-  if (sender.role === 'admin' || sender.role === 'bot') return true;
   if (receiver.role === 'bot') return true;
-  // 推進メンバー(現場/倉庫)は横断的に全員へDM可 (5/19、役員宛も含む)
-  if (sender.is_field_promoter || sender.is_warehouse_promoter) return true;
-  // 推進メンバー宛も誰からでも受信可 (5/20、現場相談窓口として機能させるため)
+  // 現場職一般社員でなければ送受信とも無制限
+  if (!isFieldStaff(sender)) return true;
+  // 以降、送信者は現場職一般社員。推進メンバー宛は相談窓口として常に可
   if (receiver.is_field_promoter || receiver.is_warehouse_promoter) return true;
-
-  const recvIsExec = isExecutive(receiver.id);
-  // 役員以外の管理者は引き続き自由に許可
-  if (receiver.role === 'admin' && !recvIsExec) return true;
-
-  // 役員宛のDMは職種で分岐 (5/19レポートライン保護 + 個別許可リスト)
-  if (recvIsExec) {
-    const allowed = getDb().prepare(
-      `SELECT 1 FROM dm_executive_allow WHERE executive_uid = ? AND user_uid = ? LIMIT 1`
-    ).get(receiver.id, sender.id);
-    if (allowed) return true;
-    // 現場職 (ドライバー/荷役) は許可リストなしならブロック
-    if (sender.job_role === 'driver' || sender.job_role === 'warehouse') return false;
-    // 事務職員・管理部門・未設定は役員宛もフリーDM
-    return true;
-  }
-
-  const sr = sender.dm_restricted | 0;
-  const rr = receiver.dm_restricted | 0;
-  // 双方制限なし → OK
-  if (!sr && !rr) return true;
-
-  // 制限あり: 共通chat_group所属が必要
+  // 現場職一般社員は共通chat_group所属の相手にのみDM可 (レポートライン保護)
   const shared = getDb().prepare(`SELECT 1 FROM chat_group_members a
     JOIN chat_group_members b ON a.group_id = b.group_id
     WHERE a.user_id = ? AND b.user_id = ? LIMIT 1`).get(sender.id, receiver.id);
