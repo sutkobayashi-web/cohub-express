@@ -258,9 +258,15 @@ async function init() {
     $('mailUi').style.display = '';
     $('setup').style.display = 'none';
     loadInbox();
+    loadMailboxes();
   } else {
     showSetup(true);
   }
+}
+// 標準フォルダ(送信済み/下書き/迷惑メール/ゴミ箱)の一覧を取得 → サイドバーに反映
+async function loadMailboxes() {
+  const r = await api('/api/mail/mailboxes');
+  if (r && r.success) { stdMailboxes = r.mailboxes || []; renderFolderBar(); }
 }
 function showSetup(first) {
   $('setup').style.display = '';
@@ -335,6 +341,9 @@ let scanCount = 120;           // 直近何件を振り分け対象にするか 
 let mailLabels = [];           // [{id,name,color,parent_id}]
 let mailCounts = {};           // {inbox:n, <labelId>:n}
 let collapsedFolders = new Set(); // 折りたたみ中の親フォルダID
+let currentMailbox = 'INBOX';  // 表示中のIMAPメールボックス (INBOX or 標準フォルダのpath)
+let currentRole = 'inbox';     // inbox|sent|drafts|junk|trash
+let stdMailboxes = [];         // 標準フォルダ [{path,role,name}]
 // 送信者アバター: CoHubメンバーは同じアバター、それ以外はメール由来の色+頭文字を生成
 function avColor(key) {
   key = String(key || ''); let h = 0;
@@ -351,7 +360,8 @@ function mailAvatarHtml(m) {
   return '<div class="m-av m-av-gen" style="background:' + avColor(m.from_addr || m.from_name) + ';">' + esc(avInitial(m.from_name, m.from_addr)) + '</div>';
 }
 function rowHtml(m) {
-  const who = esc(m.from_name || m.from_addr || '');
+  // 送信系フォルダ(送信済み/下書き)は宛先を表示
+  const who = (m.outgoing ? '宛先: ' : '') + esc(m.from_name || m.from_addr || '(不明)');
   return '<div class="mrow' + (m.seen ? '' : ' unseen') + '" id="mrow-' + m.uid + '" onclick="openMsg(' + m.uid + ')">'
     + mailAvatarHtml(m)
     + '<div class="m-main">'
@@ -359,7 +369,7 @@ function rowHtml(m) {
     +   '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
     + '</div>'
     + '<div class="m-act">'
-    +   '<button title="迷惑メール（このアドレスを今後非表示）" onclick="blockSender(' + m.uid + ');event.stopPropagation();">🚫</button>'
+    +   (m.outgoing ? '' : '<button title="迷惑メール（このアドレスを今後非表示）" onclick="blockSender(' + m.uid + ');event.stopPropagation();">🚫</button>')
     +   '<button title="削除（CoHubで非表示）" onclick="hideMail(' + m.uid + ');event.stopPropagation();">🗑</button>'
     + '</div>'
     + '</div>';
@@ -405,7 +415,8 @@ function renderFolderBar() {
     + '<span class="fld-name">' + esc(name) + '</span>'
     + (count ? '<span class="fld-count">' + count + '</span>' : '')
     + '</button>';
-  let html = rowHtml('inbox', '<span style="flex-shrink:0;">📥</span>', '受信箱', mailCounts.inbox || 0, currentFolder === 'inbox', 0, '');
+  const onInbox = (currentMailbox === 'INBOX');
+  let html = rowHtml('inbox', '<span style="flex-shrink:0;">📥</span>', '受信箱', mailCounts.inbox || 0, onInbox && currentFolder === 'inbox', 0, '');
   const walk = (pid, depth) => {
     for (const l of (cmap[pid] || [])) {
       const kids = cmap[l.id] || [];
@@ -414,20 +425,40 @@ function renderFolderBar() {
         ? '<span onclick="event.stopPropagation();toggleCollapse(' + l.id + ')" style="flex-shrink:0;width:16px;text-align:center;cursor:pointer;">' + (collapsed ? '▸' : '▾') + '</span>'
         : null;
       const dot = '<span class="fld-dot" style="background:' + (l.color || '#0d9488') + ';"></span>';
-      html += rowHtml(String(l.id), dot, l.name, aggregateCount(l.id, cmap), String(currentFolder) === String(l.id), depth, caret);
+      html += rowHtml(String(l.id), dot, l.name, aggregateCount(l.id, cmap), onInbox && String(currentFolder) === String(l.id), depth, caret);
       if (kids.length && !collapsed) walk(l.id, depth + 1);
     }
   };
   walk(0, 1);
+  // 標準フォルダ (送信済み/下書き/迷惑メール/ゴミ箱) — IMAPの実フォルダを閲覧
+  if (stdMailboxes.length) {
+    const ROLE_ICON = { sent: '📤', drafts: '📝', junk: '🚫', trash: '🗑' };
+    html += '<div class="fld-sep"></div>';
+    for (const mb of stdMailboxes) {
+      const icon = '<span style="flex-shrink:0;">' + (ROLE_ICON[mb.role] || '📁') + '</span>';
+      const active = (currentMailbox === mb.path);
+      html += '<button class="fld-row' + (active ? ' active' : '') + '" style="padding-left:10px;" onclick="switchMailbox(\'' + encodeURIComponent(mb.path) + '\',\'' + mb.role + '\')">' + icon + '<span class="fld-name">' + esc(mb.name) + '</span></button>';
+    }
+  }
   html += '<div class="fld-sep"></div>';
   html += '<button class="fld-row fld-settings" onclick="showSettings()"><span style="flex-shrink:0;">⚙️</span><span class="fld-name">フォルダ設定</span></button>';
   bar.innerHTML = html;
+}
+// 標準フォルダ(実IMAPフォルダ)へ切替
+function switchMailbox(pathEnc, role) {
+  currentMailbox = decodeURIComponent(pathEnc);
+  currentRole = role;
+  currentFolder = 'all';
+  scanCount = 120;
+  const bar = $('folderbar'); if (bar) bar.classList.remove('show');
+  loadInbox();
 }
 function toggleCollapse(id) {
   if (collapsedFolders.has(id)) collapsedFolders.delete(id); else collapsedFolders.add(id);
   renderFolderBar();
 }
 function switchFolder(key) {
+  currentMailbox = 'INBOX'; currentRole = 'inbox'; // 受信箱系へ戻す
   currentFolder = key;
   scanCount = 120;
   const bar = $('folderbar'); if (bar) bar.classList.remove('show'); // スマホ: 選択したらフォルダ一覧を閉じる
@@ -451,7 +482,11 @@ function renderInbox() {
 async function loadInbox() {
   $('mlist').innerHTML = '<div class="loading">読み込み中…</div>';
   mailItems = [];
-  const r = await api('/api/mail/inbox?folder=' + encodeURIComponent(currentFolder) + '&scan=' + scanCount);
+  const onInbox = (currentMailbox === 'INBOX');
+  const url = onInbox
+    ? '/api/mail/inbox?folder=' + encodeURIComponent(currentFolder) + '&scan=' + scanCount
+    : '/api/mail/inbox?mailbox=' + encodeURIComponent(currentMailbox) + '&role=' + encodeURIComponent(currentRole) + '&scan=' + scanCount;
+  const r = await api(url);
   if (!r) return;
   if (!r.success) {
     if (r.need_setup) { showSetup(true); return; }
@@ -460,8 +495,8 @@ async function loadInbox() {
   }
   mailItems = r.items || [];
   mailTotal = r.total || 0;
-  mailLabels = r.labels || [];
-  mailCounts = r.counts || {};
+  // ラベル/件数は受信箱(INBOX)表示時のみ更新 (標準フォルダ表示中はサイドバーの件数を維持)
+  if (onInbox) { mailLabels = r.labels || []; mailCounts = r.counts || {}; }
   renderInbox();
 }
 async function loadMore() {
@@ -557,7 +592,8 @@ let curMsg = null; // 表示中メール (返信用)
 async function openMsg(uid) {
   $('overlay').classList.add('show');
   $('msgArea').innerHTML = '<div class="loading">読み込み中…</div>';
-  const r = await api('/api/mail/message/' + uid);
+  const mbq = (currentMailbox !== 'INBOX') ? ('?mailbox=' + encodeURIComponent(currentMailbox)) : '';
+  const r = await api('/api/mail/message/' + uid + mbq);
   if (!r) return;
   if (!r.success) { $('msgArea').innerHTML = '<div class="empty">' + esc(r.msg || '取得失敗') + '</div>'; curMsg = null; return; }
   curMsg = { uid, from_addr: r.from_addr, from: r.from, subject: r.subject, message_id: r.message_id, references: r.references, text: r.text, date: r.date, to_addrs: r.to_addrs || [], cc_addrs: r.cc_addrs || [] };
@@ -628,7 +664,8 @@ function closeMsg() {
 // 添付ダウンロード (Bearer認証のためfetch→blob→保存)
 async function dlAttach(uid, idx, filename) {
   try {
-    const r = await fetch('/api/mail/message/' + uid + '/attachment/' + idx, { headers: { 'Authorization': 'Bearer ' + token } });
+    const mbq = (currentMailbox !== 'INBOX') ? ('?mailbox=' + encodeURIComponent(currentMailbox)) : '';
+    const r = await fetch('/api/mail/message/' + uid + '/attachment/' + idx + mbq, { headers: { 'Authorization': 'Bearer ' + token } });
     if (!r.ok) {
       let msg = '添付の取得に失敗しました';
       try { const j = await r.json(); if (j && j.blocked) msg = '🛑 ' + (j.msg || 'ウイルスを検出しました') + (j.virus ? '\n（検出名: ' + j.virus + '）' : ''); else if (j && j.msg) msg = j.msg; } catch (e) {}

@@ -6,6 +6,7 @@ const multer = require('multer');
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
+const MailComposer = require('nodemailer/lib/mail-composer');
 const { Readable } = require('stream');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
@@ -117,6 +118,33 @@ function classifyLabel(fields, rules) {
   }
   return null;
 }
+// IMAPメールボックスの役割を判定 (special-use優先、無ければ名前で推定)
+function mailboxRole(box) {
+  const su = String(box.specialUse || '').toLowerCase();
+  if (su.includes('sent')) return 'sent';
+  if (su.includes('draft')) return 'drafts';
+  if (su.includes('trash')) return 'trash';
+  if (su.includes('junk')) return 'junk';
+  if ((box.path || '').toUpperCase() === 'INBOX') return 'inbox';
+  const n = (box.name || box.path || '').toLowerCase();
+  if (/sent|送信/.test(n)) return 'sent';
+  if (/draft|下書|草稿/.test(n)) return 'drafts';
+  if (/trash|deleted|ゴミ|ごみ|削除/.test(n)) return 'trash';
+  if (/junk|spam|迷惑/.test(n)) return 'junk';
+  return 'other';
+}
+// 指定役割のメールボックスのパスを返す (見つからなければ null)
+async function findMailboxPath(client, role) {
+  try {
+    const list = await client.list();
+    for (const b of list) {
+      const flags = b.flags || new Set();
+      if (flags.has && flags.has('\\Noselect')) continue;
+      if (mailboxRole(b) === role) return b.path;
+    }
+  } catch (_) {}
+  return null;
+}
 // rootId とその子孫すべてのラベルIDの集合 (多層階フォルダの親選択時に配下も含めるため)
 function descendantIds(rootId, labels) {
   const childrenOf = {};
@@ -194,16 +222,20 @@ router.delete('/credentials', authUser, (req, res) => {
 router.get('/inbox', authUser, async (req, res) => {
   const cred = getCred(req.uid);
   if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です', need_setup: true });
-  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 60);
-  // folder: 'inbox'(既定/未ラベル) | 'all'(全件) | '<labelId>'(そのフォルダ)
+  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 200);
+  const isInbox = (mailbox === 'INBOX');
+  // role: 標準フォルダ種別。sent/drafts は「宛先(To)」を相手として表示
+  const role = String(req.query.role || '').slice(0, 20);
+  const outgoing = (role === 'sent' || role === 'drafts');
+  // folder: 'inbox'(既定/未ラベル) | 'all'(全件) | '<labelId>'(そのフォルダ)  ※INBOX時のみ有効
   const folder = String(req.query.folder || 'inbox');
   // 最新から scan 件のヘッダを取得対象にする(ローカル蓄積なしのためルールはこの範囲に適用)
   const scan = Math.min(Math.max(parseInt(req.query.scan) || 120, 30), 400);
   let client;
   try {
-    // 個人のラベルと有効ルール(優先度順)
-    const labels = getDb().prepare('SELECT id, name, color, parent_id FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid);
-    const rules = getDb().prepare('SELECT id, label_id, field, op, value, enabled FROM mail_rules WHERE user_id = ? AND enabled = 1 ORDER BY sort_order, id').all(req.uid);
+    // 個人のラベルと有効ルール(優先度順) ※振り分けはINBOXのみ
+    const labels = isInbox ? getDb().prepare('SELECT id, name, color, parent_id FROM mail_labels WHERE user_id = ? ORDER BY sort_order, id').all(req.uid) : [];
+    const rules = isInbox ? getDb().prepare('SELECT id, label_id, field, op, value, enabled FROM mail_rules WHERE user_id = ? AND enabled = 1 ORDER BY sort_order, id').all(req.uid) : [];
 
     client = await imapClient(cred);
     const lock = await client.getMailboxLock(mailbox);
@@ -224,32 +256,39 @@ router.get('/inbox', authUser, async (req, res) => {
         for await (const msg of client.fetch(`${start}:${end}`, { uid: true, envelope: true, flags: true, internalDate: true, bodyStructure: true })) {
           const f = fromText(msg.envelope && msg.envelope.from);
           const t = fromText(msg.envelope && msg.envelope.to);
+          const peer = outgoing ? t : f; // 送信系は宛先、それ以外は差出人を「相手」として表示
           const mid = (msg.envelope && msg.envelope.messageId) || '';
-          if (f.address && blockSet.has(f.address.toLowerCase())) continue;
+          if (!outgoing && f.address && blockSet.has(f.address.toLowerCase())) continue; // 迷惑メール除外は受信系のみ
           if (mid && hiddenSet.has(mid)) continue;
           const serverSeen = msg.flags ? msg.flags.has('\\Seen') : true;
-          const mem = f.address ? memberMap[f.address.toLowerCase()] : null;
+          const mem = peer.address ? memberMap[peer.address.toLowerCase()] : null;
           const subject = (msg.envelope && msg.envelope.subject) || '(件名なし)';
-          // 自動振り分け: 一致ラベルを判定
-          const labelId = classifyLabel(
+          // 自動振り分け: 一致ラベルを判定 (INBOXのみ)
+          const labelId = isInbox ? classifyLabel(
             { from: (f.address || '') + ' ' + (f.name || ''), subject, to: t.address || '' },
             rules
-          );
+          ) : null;
           all.push({
             uid: msg.uid,
             message_id: mid,
             subject,
-            from_name: f.name, from_addr: f.address,
+            from_name: peer.name, from_addr: peer.address,
             avatar_url: mem ? mem.avatar : null,
             is_member: !!mem,
             date: (msg.envelope && msg.envelope.date) || msg.internalDate,
             seen: serverSeen || (!!mid && cohubSeen.has(mid)),
             attach: hasAttachments(msg.bodyStructure),
             label_id: labelId,
+            outgoing,
           });
         }
       }
       all.reverse(); // 新しい順
+
+      // INBOX以外(標準フォルダ)はルール非適用で全件そのまま返す
+      if (!isInbox) {
+        return res.json({ success: true, total, scanned: scan, mailbox, role, outgoing, items: all, labels: [], counts: {} });
+      }
 
       // フォルダ別カウント (scan範囲内)。inbox=未ラベル
       const counts = { inbox: 0 };
@@ -270,10 +309,37 @@ router.get('/inbox', authUser, async (req, res) => {
         items = all.filter(m => m.label_id != null && set.has(m.label_id));
       }
 
-      res.json({ success: true, total, scanned: scan, folder, items, labels, counts });
+      res.json({ success: true, total, scanned: scan, folder, mailbox, items, labels, counts });
     } finally { lock.release(); }
   } catch (e) {
     res.status(500).json({ success: false, msg: '受信箱の取得に失敗しました', detail: (e.message || '').slice(0, 150) });
+  } finally {
+    try { if (client) await client.logout(); } catch (_) {}
+  }
+});
+
+// ===== 標準フォルダ(送信済み/下書き/ゴミ箱/迷惑メール)の一覧 =====
+router.get('/mailboxes', authUser, async (req, res) => {
+  const cred = getCred(req.uid);
+  if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です', need_setup: true });
+  const ROLE_NAME = { sent: '送信済み', drafts: '下書き', junk: '迷惑メール', trash: 'ゴミ箱' };
+  const ORDER = ['sent', 'drafts', 'junk', 'trash'];
+  let client;
+  try {
+    client = await imapClient(cred);
+    const list = await client.list();
+    const seen = {};
+    const std = [];
+    for (const b of list) {
+      const flags = b.flags || new Set();
+      if (flags.has && flags.has('\\Noselect')) continue;
+      const role = mailboxRole(b);
+      if (ROLE_NAME[role] && !seen[role]) { seen[role] = true; std.push({ path: b.path, role, name: ROLE_NAME[role] }); }
+    }
+    std.sort((a, b) => ORDER.indexOf(a.role) - ORDER.indexOf(b.role));
+    res.json({ success: true, mailboxes: std });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: 'フォルダ一覧の取得に失敗しました', detail: (e.message || '').slice(0, 150) });
   } finally {
     try { if (client) await client.logout(); } catch (_) {}
   }
@@ -285,7 +351,7 @@ router.get('/message/:uid', authUser, async (req, res) => {
   if (!cred) return res.status(400).json({ success: false, msg: 'メール未設定です' });
   const uid = parseInt(req.params.uid);
   if (!uid) return res.status(400).json({ success: false, msg: 'uid不正' });
-  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 60);
+  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 200);
   let client;
   try {
     client = await imapClient(cred);
@@ -335,7 +401,7 @@ router.get('/message/:uid/attachment/:idx', authUser, async (req, res) => {
   const uid = parseInt(req.params.uid);
   const idx = parseInt(req.params.idx);
   if (!uid || isNaN(idx)) return res.status(400).json({ success: false, msg: 'パラメータ不正' });
-  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 60);
+  const mailbox = String(req.query.mailbox || 'INBOX').slice(0, 200);
   let client;
   try {
     client = await imapClient(cred);
@@ -402,14 +468,26 @@ router.post('/send', authUser, (req, res) => {
         auth: { user: cred.email, pass: decrypt(cred.enc_password) },
         tls: MAIL_TLS,
       });
-      const info = await transporter.sendMail({
+      const mailOptions = {
         from: cred.display_name ? { name: cred.display_name, address: cred.email } : cred.email,
         to, cc, subject, text,
         inReplyTo: b.in_reply_to || undefined,
         references: b.references || undefined,
         attachments: attachments.length ? attachments : undefined,
-      });
+      };
+      const info = await transporter.sendMail(mailOptions);
       res.json({ success: true, message_id: info.messageId });
+      // 送信控えを「送信済み」フォルダへ保存 (IMAP APPEND)。失敗しても送信は成立済みなので無視
+      try {
+        const raw = await new Promise((resolve, reject) =>
+          new MailComposer(mailOptions).compile().build((err, m) => err ? reject(err) : resolve(m)));
+        let ic;
+        try {
+          ic = await imapClient(cred);
+          const sentPath = await findMailboxPath(ic, 'sent');
+          if (sentPath) await ic.append(sentPath, raw, ['\\Seen']);
+        } finally { try { if (ic) await ic.logout(); } catch (_) {} }
+      } catch (e2) { console.warn('[mail-send] 送信済みへの保存に失敗:', (e2.message || '').slice(0, 120)); }
     } catch (e) {
       console.error('[mail-send] fail user=%s -> %s', cred.email, (e.message || ''));
       // 422で返す (401はクライアントがログアウト誤作動するため)
