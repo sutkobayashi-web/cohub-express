@@ -75,6 +75,26 @@
   .att { padding: 8px 16px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #475569; }
   .att .a { display: inline-block; background: #eef2f7; border-radius: 6px; padding: 3px 8px; margin: 2px 4px 2px 0; }
   .loading { padding: 30px; text-align: center; color: #94a3b8; }
+  /* Gmail風: 左にフォルダ縦一覧 + 右にメール一覧 */
+  .mailsplit { display: flex; gap: 12px; align-items: flex-start; }
+  .mailsplit .mlist { flex: 1 1 auto; min-width: 0; }
+  #folderbar { flex: 0 0 190px; display: flex; flex-direction: column; gap: 2px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; max-height: calc(100vh - 170px); overflow-y: auto; }
+  .fld-row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: none; background: transparent; border-radius: 8px; padding: 9px 10px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; }
+  .fld-row:hover { background: #f1f5f9; }
+  .fld-row.active { background: #0d9488; color: #fff; }
+  .fld-row .fld-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .fld-row .fld-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fld-row .fld-count { font-size: 11px; opacity: 0.8; flex-shrink: 0; }
+  .fld-row.active .fld-count { opacity: 1; }
+  .fld-sep { height: 1px; background: #e2e8f0; margin: 6px 4px; }
+  .fld-settings { color: #64748b; font-weight: 600; }
+  .fld-toggle { display: none; }
+  @media (max-width: 640px) {
+    .mailsplit { flex-direction: column; }
+    #folderbar { flex: none; width: 100%; max-height: 45vh; display: none; margin-bottom: 8px; }
+    #folderbar.show { display: flex; }
+    .fld-toggle { display: inline-block; }
+  }
 </style>
 </head>
 <body>
@@ -135,13 +155,16 @@
   <!-- 受信箱 -->
   <div id="mailUi" style="display:none;">
     <div class="toolbar">
+      <button class="fld-toggle" onclick="toggleFolders()">📁 フォルダ</button>
       <button onclick="loadInbox()">🔄 更新</button>
       <button onclick="openCompose()" style="background:#0d9488;color:#fff;border-color:#0d9488;">✏️ 新規作成</button>
       <span class="cnt" id="cnt"></span>
     </div>
-    <!-- フォルダ(ラベル)バー: 受信箱 + 自動振り分けフォルダ。横スクロール -->
-    <div id="folderbar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 2px;border-bottom:1px solid #e2e8f0;-webkit-overflow-scrolling:touch;"></div>
-    <div class="mlist" id="mlist"><div class="loading">読み込み中…</div></div>
+    <!-- Gmail風: 左フォルダ縦一覧 + 右メール一覧 (スマホはフォルダボタンで開閉) -->
+    <div class="mailsplit">
+      <div id="folderbar"></div>
+      <div class="mlist" id="mlist"><div class="loading">読み込み中…</div></div>
+    </div>
   </div>
 </div>
 
@@ -357,24 +380,32 @@ async function hideMail(uid) {
   if (r && r.success) { mailItems = mailItems.filter(x => x.uid !== uid); renderInbox(); }
   else { alert('削除に失敗しました'); }
 }
-// フォルダ(ラベル)バー描画
+// フォルダ(ラベル)縦一覧描画 (Gmail風サイドバー)
 function renderFolderBar() {
   const bar = $('folderbar'); if (!bar) return;
-  const tab = (key, label, color, count) => {
-    const active = (String(currentFolder) === String(key));
-    const dot = color ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + color + ';margin-right:5px;"></span>' : '';
-    const badge = count ? '<span style="margin-left:5px;font-size:11px;opacity:.8;">' + count + '</span>' : '';
-    return '<button onclick="switchFolder(\'' + key + '\')" style="flex:0 0 auto;white-space:nowrap;border:1px solid ' + (active ? '#0d9488' : '#cbd5e1') + ';background:' + (active ? '#0d9488' : '#fff') + ';color:' + (active ? '#fff' : '#334155') + ';border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">' + dot + esc(label) + badge + '</button>';
-  };
-  let html = tab('inbox', '受信箱', '', mailCounts.inbox || 0);
-  for (const l of mailLabels) html += tab(String(l.id), l.name, l.color, mailCounts[l.id] || 0);
-  html += '<button onclick="showSettings()" title="フォルダ・振り分け設定" style="flex:0 0 auto;border:1px dashed #cbd5e1;background:#fff;color:#64748b;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;">＋ 設定</button>';
+  const row = (key, iconHtml, name, count, active) =>
+    '<button class="fld-row' + (active ? ' active' : '') + '" onclick="switchFolder(\'' + key + '\')">'
+    + iconHtml
+    + '<span class="fld-name">' + esc(name) + '</span>'
+    + (count ? '<span class="fld-count">' + count + '</span>' : '')
+    + '</button>';
+  let html = row('inbox', '<span style="flex-shrink:0;">📥</span>', '受信箱', mailCounts.inbox || 0, currentFolder === 'inbox');
+  for (const l of mailLabels) {
+    const dot = '<span class="fld-dot" style="background:' + (l.color || '#0d9488') + ';"></span>';
+    html += row(String(l.id), dot, l.name, mailCounts[l.id] || 0, String(currentFolder) === String(l.id));
+  }
+  html += '<div class="fld-sep"></div>';
+  html += '<button class="fld-row fld-settings" onclick="showSettings()"><span style="flex-shrink:0;">⚙️</span><span class="fld-name">フォルダ設定</span></button>';
   bar.innerHTML = html;
 }
 function switchFolder(key) {
   currentFolder = key;
   scanCount = 120;
+  const bar = $('folderbar'); if (bar) bar.classList.remove('show'); // スマホ: 選択したらフォルダ一覧を閉じる
   loadInbox();
+}
+function toggleFolders() {
+  const bar = $('folderbar'); if (bar) bar.classList.toggle('show'); // スマホ用フォルダ開閉
 }
 function renderInbox() {
   const scanned = Math.min(scanCount, mailTotal);
