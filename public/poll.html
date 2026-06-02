@@ -120,6 +120,8 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .cal-ref .cal-ev { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 0; margin-right: 12px; white-space: nowrap; }
 .cal-ref .cal-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .cal-ref .cal-ev .t { font-weight: 700; color: var(--sub); font-variant-numeric: tabular-nums; }
+.cal-ref .cal-ava { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #cbd5e1; }
+.cal-ref .cal-ava-ph { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; background: #cbd5e1; color: #fff; font-size: 9px; line-height: 16px; text-align: center; font-weight: 700; }
 .cal-ref .cal-empty { font-size: 12px; color: #94a3b8; padding: 8px 2px; text-align: center; }
 .form .group-chip.cross { border-color: #86efac; background: #f0fdf4; color: #15803d; }
 .form .group-chip.cross:hover { border-color: #22c55e; background: #dcfce7; }
@@ -570,13 +572,15 @@ async function loadPollCalendar() {
     const date = (e.start_at || '').slice(0, 10);
     if (!date) return;
     const time = (e.all_day || !/\d{2}:\d{2}/.test(e.start_at || '')) ? '' : (e.start_at || '').slice(11, 16);
-    items.push({ date, time, title: e.title || '(無題)', color: CAL_CATS[e.category] || CAL_CATS.other, allday: !!e.all_day });
+    items.push({ date, time, title: e.title || '(無題)', color: CAL_CATS[e.category] || CAL_CATS.other,
+      allday: !!e.all_day, avatar: e.created_by_avatar || '', who: e.created_by_name || '' });
   });
   (j.meetings || []).forEach(m => {
     const sa = (m.starts_at || '').replace('T', ' ');
     const date = sa.slice(0, 10);
     if (!date) return;
-    items.push({ date, time: sa.slice(11, 16), title: '🎙 ' + (m.title || '(無題)'), color: CAL_CATS.meeting, allday: false });
+    items.push({ date, time: sa.slice(11, 16), title: '🎙 ' + (m.title || '(無題)'), color: CAL_CATS.meeting,
+      allday: false, avatar: m.organizer_avatar || '', who: m.organizer_name || '' });
   });
 
   if (!items.length) {
@@ -598,10 +602,18 @@ async function loadPollCalendar() {
     return '<div class="cal-day">'
       + '<div class="cal-date' + (dow === 0 || dow === 6 ? ' we' : '') + '">'
         + (d.getMonth() + 1) + '/' + d.getDate() + '(' + wd[dow] + ')</div>'
-      + evs.map(it => '<span class="cal-ev">'
-          + '<span class="cal-dot" style="background:' + it.color + '"></span>'
-          + (it.allday ? '<span class="t">終日</span>' : (it.time ? '<span class="t">' + it.time + '</span>' : ''))
-          + escapeHtml(it.title) + '</span>').join('')
+      + evs.map(it => {
+          const ttl = it.who ? ' title="登録: ' + escapeHtml(it.who) + '"' : '';
+          const initial = (it.who || '?').trim().charAt(0);
+          const ava = it.avatar
+            ? '<img class="cal-ava" src="' + escapeHtml(it.avatar) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;cal-ava-ph&quot;>' + escapeHtml(initial) + '</span>\'">'
+            : '<span class="cal-ava-ph">' + escapeHtml(initial) + '</span>';
+          return '<span class="cal-ev"' + ttl + '>'
+            + '<span class="cal-dot" style="background:' + it.color + '"></span>'
+            + ava
+            + (it.allday ? '<span class="t">終日</span>' : (it.time ? '<span class="t">' + it.time + '</span>' : ''))
+            + escapeHtml(it.title) + '</span>';
+        }).join('')
       + '</div>';
   }).join('');
 }
