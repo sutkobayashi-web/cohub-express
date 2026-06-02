@@ -240,6 +240,14 @@
   .sec-caret { display: inline-block; font-size: 15px; font-weight: 900; color: #0f172a; transition: transform 0.15s; margin-right: 5px; vertical-align: middle; }
   /* セクションラベル横の未読バッジ (個人チャット行のバッジと完全同一デザイン) */
   .sec-unread-badge { margin-left: 8px; vertical-align: middle; }
+  /* 折りたたみ中のセクションに新着がある時: バッジを脈動させて気づかせる */
+  .sec-unread-badge.collapsed-new {
+    animation: secNewPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes secNewPulse {
+    0%, 100% { box-shadow: 0 3px 8px rgba(220,38,38,0.30), 0 0 0 0 rgba(239,68,68,0.55); }
+    50%      { box-shadow: 0 3px 8px rgba(220,38,38,0.30), 0 0 0 6px rgba(239,68,68,0); }
+  }
   /* タップ操作を明示するヒント (ボタン風ピル。閲覧セクションなど) */
   .list-sec-label.has-toggle-hint { display: flex; align-items: center; }
   .sec-toggle-hint {
@@ -2067,7 +2075,7 @@ function renderGroupList() {
       + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
       + `${label}`
       + `<span style="color:#94a3b8;font-weight:500;margin-left:6px;font-size:11px;">(${rows.length})</span>`
-      + (unread > 0 ? `<span class="unread-badge sec-unread-badge">${unread > 99 ? '99+' : unread}</span>` : '')
+      + (unread > 0 ? `<span class="unread-badge sec-unread-badge${collapsed ? ' collapsed-new' : ''}">${unread > 99 ? '99+' : unread}</span>` : '')
       + toggleHint
       + `</div>`);
     // 未読行: 常に表示 (折りたたみ中も見える)
@@ -2155,6 +2163,9 @@ function toggleChatSection(key) {
   if (caret) caret.textContent = collapsed ? '▶' : '▼';
   const hint = sec.querySelector('.sec-toggle-hint');
   if (hint) hint.textContent = collapsed ? '＋ タップで表示' : '－ タップで隠す';
+  // 折りたたみ中だけ未読バッジを脈動 (新着を強調)
+  const secBadge = sec.querySelector('.sec-unread-badge');
+  if (secBadge) secBadge.classList.toggle('collapsed-new', collapsed);
 }
 
 // グループを自分の一覧で表示/非表示に切り替え (サーバー保存=端末間で同期。権限は不変)
