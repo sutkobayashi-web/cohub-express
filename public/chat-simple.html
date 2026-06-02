@@ -265,6 +265,17 @@
   .section-dm .chat-row { background: transparent; }
   .section-dm .chat-row:hover { background: rgba(16,185,129,0.10); }
   .section-dm .chat-row.active { background: rgba(16,185,129,0.18); }
+
+  /* 閲覧できるグループ (自分が非メンバー・管理職の監督用)。控えめなグレーで二次的扱い */
+  .section-viewonly { background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-left: 3px solid #94a3b8; }
+  .section-viewonly .list-sec-label {
+    background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 100%);
+    color: #475569;
+    border-bottom: 1px solid #cbd5e1;
+  }
+  .section-viewonly .chat-row { background: transparent; }
+  .section-viewonly .chat-row:hover { background: rgba(100,116,139,0.10); }
+  .section-viewonly .chat-row.active { background: rgba(100,116,139,0.18); }
   /* DM内オンライン/オフライン サブヘッダー */
   .dm-substatus {
     padding: 6px 14px 4px;
@@ -1979,6 +1990,13 @@ function renderGroupList() {
   groupRows.sort(byActivity);
   branchRows.sort(byActivity);
   circleRows.sort(byActivity);
+  // 管理職ビュー: 自分が非メンバーのGC(閲覧バッジ付き)は「閲覧できるグループ」へ集約し既定で折りたたみ。
+  // 一般メンバーは所属GCしか返らないため viewOnlyRows は常に空 (現状の表示は不変)。
+  const isViewOnly = r => r.is_member === false;
+  const viewOnlyRows = [...groupRows, ...branchRows, ...circleRows].filter(isViewOnly).sort(byActivity);
+  const memberGroupRows  = groupRows.filter(r => !isViewOnly(r));
+  const memberBranchRows = branchRows.filter(r => !isViewOnly(r));
+  const memberCircleRows = circleRows.filter(r => !isViewOnly(r));
   // DM: 履歴ありを上 (last_at 降順) → 履歴なしを下 (display_name 昇順 五十音)
   dmRows.sort((a, b) => {
     const aHas = !!a.last_at, bHas = !!b.last_at;
@@ -1993,24 +2011,31 @@ function renderGroupList() {
     return;
   }
   const html = [];
-  const grpUnread = groupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
-  const branchUnread = branchRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
-  const cirUnread = circleRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const grpUnread = memberGroupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const branchUnread = memberBranchRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const cirUnread = memberCircleRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
+  const viewOnlyUnread = viewOnlyRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const dmUnread = dmRows.reduce((a, r) => a + (unreadDms.get(r.id) || 0), 0);
 
   // セクションの折りたたみ状態を localStorage に保存・復元
-  function isCollapsed(key) {
-    try { return localStorage.getItem('chat_sec_' + key) === '1'; } catch (e) { return false; }
+  function isCollapsed(key, defCollapsed) {
+    try {
+      const v = localStorage.getItem('chat_sec_' + key);
+      if (v === null) return !!defCollapsed;   // 未設定時の既定 (閲覧セクションは折りたたみ)
+      return v === '1';
+    } catch (e) { return !!defCollapsed; }
   }
   function rowUnread(r) {
     return (r.type === 'group' ? unreadGroups.get(r.id) : unreadDms.get(r.id)) || 0;
   }
-  function renderSection(key, label, unread, rows) {
+  function renderSection(key, label, unread, rows, opts) {
     if (rows.length === 0) return;
-    const collapsed = isCollapsed(key);
-    // 折りたたみ中でも未読のある行だけは表示し続ける
-    const unreadRows = rows.filter(r => rowUnread(r) > 0);
-    const readRows = rows.filter(r => rowUnread(r) === 0);
+    opts = opts || {};
+    const collapsed = isCollapsed(key, opts.defaultCollapsed);
+    // 折りたたみ中でも未読のある行だけは表示し続ける (閲覧セクションは keepUnreadVisible=false で完全に隠す)
+    const keepUnread = opts.keepUnreadVisible !== false;
+    const unreadRows = keepUnread ? rows.filter(r => rowUnread(r) > 0) : [];
+    const readRows = keepUnread ? rows.filter(r => rowUnread(r) === 0) : rows;
     html.push(`<div class="section-${key}${collapsed ? ' collapsed' : ''}" data-sec="${key}">`);
     html.push(`<div class="list-sec-label" onclick="toggleChatSection('${key}')">`
       + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
@@ -2077,9 +2102,11 @@ function renderGroupList() {
     html.push(`</div>`);
   }
 
-  renderSection('group',  '👥 グループ',         grpUnread,    groupRows);
-  renderSection('branch', '🏢 営業所グループ',   branchUnread, branchRows);
-  renderSection('circle', '🎯 サークル活動',     cirUnread,    circleRows);
+  renderSection('group',  '👥 グループ',         grpUnread,    memberGroupRows);
+  renderSection('branch', '🏢 営業所グループ',   branchUnread, memberBranchRows);
+  renderSection('circle', '🎯 サークル活動',     cirUnread,    memberCircleRows);
+  // 自分が参加していない閲覧専用GC (管理職ビューのみ非空)。既定で折りたたみ・完全に隠す
+  renderSection('viewonly', '👁 閲覧できるグループ', viewOnlyUnread, viewOnlyRows, { defaultCollapsed: true, keepUnreadVisible: false });
   renderDmSplitSection(dmUnread, dmRows);
   list.innerHTML = html.join('');
 }
