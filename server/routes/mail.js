@@ -522,6 +522,26 @@ router.post('/hide', authUser, express.json(), (req, res) => {
   res.json({ success: true });
 });
 
+// ===== 一括処理: 複数メールをまとめて 非表示/既読/送信者ブロック (ジャンク一掃用) =====
+// body: { hide_ids:[message_id], seen_ids:[message_id], block_addresses:[addr] }
+router.post('/bulk', authUser, express.json({ limit: '256kb' }), (req, res) => {
+  const b = req.body || {};
+  const arr = (v) => Array.isArray(v) ? v : [];
+  const hideIds = arr(b.hide_ids).map(x => String(x || '').trim().slice(0, 500)).filter(Boolean).slice(0, 500);
+  const seenIds = arr(b.seen_ids).map(x => String(x || '').trim().slice(0, 500)).filter(Boolean).slice(0, 500);
+  const addrs = arr(b.block_addresses).map(a => String(a || '').trim().toLowerCase().slice(0, 200)).filter(Boolean).slice(0, 200);
+  const db = getDb();
+  const hideStmt = db.prepare('INSERT OR IGNORE INTO user_mail_hidden (user_id, message_id) VALUES (?, ?)');
+  const seenStmt = db.prepare('INSERT OR IGNORE INTO cohub_mail_seen (user_id, message_id) VALUES (?, ?)');
+  const blockStmt = db.prepare('INSERT OR IGNORE INTO user_mail_blocklist (user_id, address) VALUES (?, ?)');
+  db.transaction(() => {
+    for (const id of hideIds) hideStmt.run(req.uid, id);
+    for (const id of seenIds) seenStmt.run(req.uid, id);
+    for (const a of addrs) blockStmt.run(req.uid, a);
+  })();
+  res.json({ success: true, hidden: hideIds.length, seen: seenIds.length, blocked: addrs.length });
+});
+
 // ===== ラベル(フォルダ) + 自動振り分けルール (個人ごと) =====
 const RULE_FIELDS = ['from', 'subject', 'to'];
 const RULE_OPS = ['contains', 'equals', 'starts'];

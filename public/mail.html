@@ -29,7 +29,13 @@
   .compose textarea { resize: vertical; line-height: 1.5; }
   .err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 16px; }
   .ok { color: #047857; font-size: 12px; margin-top: 8px; }
-  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  #bulkbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; padding: 8px 10px; background: #ecfeff; border: 1px solid #99f6e4; border-radius: 10px; }
+  #bulkbar button { font-size: 12px; font-weight: 700; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
+  #bulkbar button:active { background: #e2e8f0; }
+  .m-check { width: 20px; height: 20px; flex-shrink: 0; accent-color: #0d9488; margin: 0; }
+  .mrow.selected { background: #ccfbf1 !important; }
+  #selBtn.on { background: #0d9488; color: #fff; border-color: #0d9488; }
   .toolbar button { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
   .toolbar .cnt { margin-left: auto; font-size: 12px; color: #64748b; }
   .mlist { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
@@ -159,7 +165,17 @@
       <button class="fld-toggle" onclick="toggleFolders()">📁 フォルダ</button>
       <button onclick="loadInbox()">🔄 更新</button>
       <button onclick="openCompose()" style="background:#0d9488;color:#fff;border-color:#0d9488;">✏️ 新規作成</button>
+      <button id="selBtn" onclick="toggleSelectMode()">☑️ 選択</button>
       <span class="cnt" id="cnt"></span>
+    </div>
+    <!-- 一括処理バー（選択モード時のみ表示） -->
+    <div id="bulkbar" style="display:none;">
+      <span id="bulkcount" style="font-weight:800;flex-shrink:0;">0件</span>
+      <button onclick="bulkSelectAll()">全選択</button>
+      <button onclick="bulkMarkSeen()">✓ 既読</button>
+      <button onclick="bulkHide()" style="color:#dc2626;">🗑 削除</button>
+      <button onclick="bulkBlock()" style="color:#b45309;">🚫 迷惑メール</button>
+      <button onclick="exitSelectMode()" style="margin-left:auto;">キャンセル</button>
     </div>
     <!-- Gmail風: 左フォルダ縦一覧 + 右メール一覧 (スマホはフォルダボタンで開閉) -->
     <div class="mailsplit">
@@ -363,16 +379,24 @@ function mailAvatarHtml(m) {
 function rowHtml(m) {
   // 送信系フォルダ(送信済み/下書き)は宛先を表示
   const who = (m.outgoing ? '宛先: ' : '') + esc(m.from_name || m.from_addr || '(不明)');
-  return '<div class="mrow' + (m.seen ? '' : ' unseen') + '" id="mrow-' + m.uid + '" onclick="openMsg(' + m.uid + ')">'
+  const checked = selectedUids.has(m.uid);
+  const onclick = selectMode ? 'toggleSelect(' + m.uid + ')' : 'openMsg(' + m.uid + ')';
+  const check = selectMode
+    ? '<input type="checkbox" class="m-check" ' + (checked ? 'checked' : '') + ' onclick="event.stopPropagation();toggleSelect(' + m.uid + ')">'
+    : '';
+  const act = selectMode ? '' :
+    '<div class="m-act">'
+    +   (m.outgoing ? '' : '<button title="迷惑メール（このアドレスを今後非表示）" onclick="blockSender(' + m.uid + ');event.stopPropagation();">🚫</button>')
+    +   '<button title="削除（CoHubで非表示）" onclick="hideMail(' + m.uid + ');event.stopPropagation();">🗑</button>'
+    + '</div>';
+  return '<div class="mrow' + (m.seen ? '' : ' unseen') + (checked ? ' selected' : '') + '" id="mrow-' + m.uid + '" onclick="' + onclick + '">'
+    + check
     + mailAvatarHtml(m)
     + '<div class="m-main">'
     +   '<div class="m-top"><span class="who">' + (m.seen ? '' : '● ') + who + (m.is_member ? '<span class="m-badge">社内</span>' : '') + '</span><span class="dt">' + fmtDate(m.date) + '</span></div>'
     +   '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
     + '</div>'
-    + '<div class="m-act">'
-    +   (m.outgoing ? '' : '<button title="迷惑メール（このアドレスを今後非表示）" onclick="blockSender(' + m.uid + ');event.stopPropagation();">🚫</button>')
-    +   '<button title="削除（CoHubで非表示）" onclick="hideMail(' + m.uid + ');event.stopPropagation();">🗑</button>'
-    + '</div>'
+    + act
     + '</div>';
 }
 function findMailItem(uid) { return mailItems.find(m => m.uid === uid); }
@@ -390,8 +414,82 @@ async function hideMail(uid) {
   const m = findMailItem(uid); if (!m) return;
   if (!m.message_id) { alert('このメールはCoWellで非表示にできません（識別子がありません）'); return; }
   const r = await api('/api/mail/hide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message_id: m.message_id }) });
-  if (r && r.success) { mailItems = mailItems.filter(x => x.uid !== uid); renderInbox(); }
+  if (r && r.success) { decCountFor(m); mailItems = mailItems.filter(x => x.uid !== uid); renderInbox(); }
   else { alert('削除に失敗しました'); }
+}
+
+// ===== 複数選択 + 一括処理 (ジャンク一掃用) =====
+let selectMode = false;
+const selectedUids = new Set();
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  if (!selectMode) selectedUids.clear();
+  const b = $('selBtn'); if (b) b.classList.toggle('on', selectMode);
+  $('bulkbar').style.display = selectMode ? 'flex' : 'none';
+  updateBulkBar();
+  renderInbox();
+}
+function exitSelectMode() {
+  selectMode = false; selectedUids.clear();
+  const b = $('selBtn'); if (b) b.classList.remove('on');
+  $('bulkbar').style.display = 'none';
+  renderInbox();
+}
+function toggleSelect(uid) {
+  if (selectedUids.has(uid)) selectedUids.delete(uid); else selectedUids.add(uid);
+  const row = $('mrow-' + uid);
+  if (row) {
+    const on = selectedUids.has(uid);
+    row.classList.toggle('selected', on);
+    const cb = row.querySelector('.m-check'); if (cb) cb.checked = on;
+  }
+  updateBulkBar();
+}
+function updateBulkBar() { const el = $('bulkcount'); if (el) el.textContent = selectedUids.size + '件'; }
+function bulkSelectAll() {
+  const allSel = mailItems.length > 0 && mailItems.every(m => selectedUids.has(m.uid));
+  selectedUids.clear();
+  if (!allSel) mailItems.forEach(m => selectedUids.add(m.uid));
+  updateBulkBar();
+  renderInbox();
+}
+function selectedItems() { return mailItems.filter(m => selectedUids.has(m.uid)); }
+// 未読アイテムを処理した時、該当フォルダの未読バッジを1減らす (親は集計で自動反映)
+function decCountFor(m) {
+  if (!m || m.seen) return;
+  const key = (m.label_id == null) ? 'inbox' : m.label_id;
+  if (mailCounts && mailCounts[key] != null && mailCounts[key] > 0) mailCounts[key]--;
+}
+async function bulkMarkSeen() {
+  const items = selectedItems().filter(m => !m.seen && m.message_id);
+  if (!items.length) { exitSelectMode(); return; }
+  const r = await api('/api/mail/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen_ids: items.map(m => m.message_id) }) });
+  if (!r || !r.success) { alert('既読化に失敗しました'); return; }
+  items.forEach(m => { decCountFor(m); m.seen = true; });
+  exitSelectMode();
+}
+async function bulkHide() {
+  const items = selectedItems().filter(m => m.message_id);
+  if (!items.length) { alert('削除できるメールが選択されていません'); return; }
+  if (!confirm(items.length + '件をCoHubの受信箱から削除しますか？\n（実際のメールボックスからは削除されません）')) return;
+  const r = await api('/api/mail/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hide_ids: items.map(m => m.message_id) }) });
+  if (!r || !r.success) { alert('削除に失敗しました'); return; }
+  const uids = new Set(items.map(m => m.uid));
+  items.forEach(decCountFor);
+  mailItems = mailItems.filter(m => !uids.has(m.uid));
+  exitSelectMode();
+}
+async function bulkBlock() {
+  const items = selectedItems();
+  const addrs = [...new Set(items.map(m => (m.from_addr || '').toLowerCase()).filter(Boolean))];
+  if (!addrs.length) { alert('送信者アドレスが取得できませんでした'); return; }
+  if (!confirm(addrs.length + '件の送信者を迷惑メールにし、選択した' + items.length + '件を削除しますか？\n今後これらのアドレスからのメールはCoHubに表示されません。\n（実際のメールボックスからは削除しません）')) return;
+  const r = await api('/api/mail/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ block_addresses: addrs, hide_ids: items.map(m => m.message_id).filter(Boolean) }) });
+  if (!r || !r.success) { alert('処理に失敗しました'); return; }
+  const addrSet = new Set(addrs);
+  mailItems.filter(m => addrSet.has((m.from_addr || '').toLowerCase())).forEach(decCountFor);
+  mailItems = mailItems.filter(m => !addrSet.has((m.from_addr || '').toLowerCase()));
+  exitSelectMode();
 }
 // 親IDごとの子配列マップ (最上位は parent_id 無し → キー0)
 function buildChildrenMap(labels) {
@@ -482,6 +580,7 @@ function renderInbox() {
 }
 async function loadInbox() {
   $('mlist').innerHTML = '<div class="loading">読み込み中…</div>';
+  if (selectMode) { selectedUids.clear(); updateBulkBar(); }  // フォルダ切替/更新で選択をリセット
   mailItems = [];
   const onInbox = (currentMailbox === 'INBOX');
   const url = onInbox
