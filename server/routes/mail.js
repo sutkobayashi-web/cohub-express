@@ -290,10 +290,11 @@ router.get('/inbox', authUser, async (req, res) => {
         return res.json({ success: true, total, scanned: scan, mailbox, role, outgoing, items: all, labels: [], counts: {} });
       }
 
-      // フォルダ別カウント (scan範囲内)。inbox=未ラベル
+      // フォルダ別「未読」カウント (scan範囲内)。inbox=未ラベル。既読(cohub_mail_seen/サーバ\Seen)は数えない
       const counts = { inbox: 0 };
       for (const l of labels) counts[l.id] = 0;
       for (const m of all) {
+        if (m.seen) continue; // 既読は未読バッジに含めない
         if (m.label_id == null) counts.inbox++;
         else if (counts[m.label_id] != null) counts[m.label_id]++;
         else counts.inbox++; // ラベル削除済みは受信箱扱い

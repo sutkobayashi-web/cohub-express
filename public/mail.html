@@ -178,6 +178,7 @@
     <div id="msgArea"><div class="loading">読み込み中…</div></div>
     <!-- アクションは下部固定バー（スマホで押しやすく） -->
     <div class="sfoot">
+      <button class="fact" onclick="closeMsg()"><span class="i">✕</span>閉じる</button>
       <button class="fact primary" onclick="openReply()"><span class="i">↩</span>返信</button>
       <button class="fact" onclick="replyAll()"><span class="i">👥</span>全員に返信</button>
       <button class="fact" onclick="openForward()"><span class="i">↪</span>転送</button>
@@ -657,7 +658,13 @@ function closeMsg() {
   // 開いたメールを既読表示に（再取得せずページ状態を保持）
   if (curMsg && curMsg.uid != null) {
     const it = mailItems.find(x => x.uid === curMsg.uid);
-    if (it && !it.seen) { it.seen = true; renderInbox(); }
+    if (it && !it.seen) {
+      it.seen = true;
+      // フォルダの未読バッジを即座に1減らす (該当フォルダ。親は集計で自動反映)
+      const key = (it.label_id == null) ? 'inbox' : it.label_id;
+      if (mailCounts && mailCounts[key] != null && mailCounts[key] > 0) mailCounts[key]--;
+      renderInbox();
+    }
   }
 }
 
