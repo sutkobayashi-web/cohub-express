@@ -450,6 +450,7 @@ async function openActionForm(id) {
 function closeForm() {
   document.getElementById('form-modal').classList.remove('open');
   _formMode = null;
+  const sb = document.getElementById('form-submit'); if (sb) sb.disabled = false;  // 次回開いた時に押せるよう保険
 }
 
 async function submitForm() {
@@ -522,6 +523,7 @@ async function submitForm() {
     const method = _formMode.id ? 'PUT' : 'POST';
     const d = await api(path, { method, body });
     if (!d || !d.success) { errEl.textContent = (d && d.msg) || '保存失敗'; btn.disabled = false; return; }
+    btn.disabled = false;   // ★成功時もボタンを再有効化（連続入力できない不具合の修正）
     closeForm();
     loadCurrent();
   } catch (e) {
