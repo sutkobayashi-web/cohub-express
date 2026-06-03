@@ -1367,6 +1367,32 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_var_date ON vehicle_accident_reports(accident_date DESC);
   CREATE INDEX IF NOT EXISTS idx_var_reporter ON vehicle_accident_reports(reporter_id);`);
 
+  // ===== 事故報告 承認ルート + 構造化対策 + AI見解 + コメント (2026-06-03) =====
+  // フロー: 現場責任者が報告 → 所属所長(同 company_code の管理職 / 本社ADMINはフォールバック)が承認 → 全社公開
+  // 承認まで非公開 (報告者本人・所属所長・本社管理職のみ閲覧)。
+  // 「報告/コメントの形骸化」対策として 直接原因/根本原因/再発防止策/組織的歯止め を構造化必須化し、提出時にAI見解で採点。
+  for (const _t of ['vehicle_accident_reports', 'kbc_accident_reports']) {
+    ensureColumn(_db, _t, 'branch_code', 'branch_code TEXT');                         // 報告者の所属拠点 (承認スコープ)
+    ensureColumn(_db, _t, 'direct_cause', 'direct_cause TEXT');                       // 直接原因 (何が起きたか)
+    ensureColumn(_db, _t, 'root_cause', 'root_cause TEXT');                           // 根本原因 (なぜ起きたか/なぜなぜ)
+    ensureColumn(_db, _t, 'recurrence_prevention', 'recurrence_prevention TEXT');     // 再発防止策 (本人/現場)
+    ensureColumn(_db, _t, 'org_measure', 'org_measure TEXT');                         // 組織的歯止め (仕組みで止める)
+    ensureColumn(_db, _t, 'ai_review', 'ai_review TEXT');                             // AI見解 (markdown)
+    ensureColumn(_db, _t, 'ai_review_at', 'ai_review_at TEXT');
+  }
+  _db.exec(`CREATE TABLE IF NOT EXISTS accident_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_kind TEXT NOT NULL,            -- 'vehicle' | 'product'
+    report_id INTEGER NOT NULL,
+    user_id TEXT,
+    user_name TEXT,
+    role_label TEXT,                      -- 所長 / 管理職 / 役員 等の表示ラベル
+    body TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_accident_comments ON accident_comments(report_kind, report_id, created_at);`);
+
   // 健康管理室 個人アクションプラン (社員ごとの相談履歴+AI生成プラン)
   _db.exec(`CREATE TABLE IF NOT EXISTS myplan_consultations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

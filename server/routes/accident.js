@@ -22,23 +22,148 @@ const accidentUpload = multer({
       cb(null, 'accident_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10) + ext);
     },
   }),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 60 * 1024 * 1024 },   // 動画も添付可にしたため拡大 (写真は実質数MB / 動画 最大60MB)
   fileFilter: (req, file, cb) => {
-    if (!/^image\//.test(file.mimetype || '')) return cb(new Error('画像のみアップロード可'));
+    if (!/^(image|video)\//.test(file.mimetype || '')) return cb(new Error('画像または動画のみアップロード可'));
     cb(null, true);
   },
 });
 
-// 写真アップロード (複数ファイル対応、最大10枚)
-router.post('/upload', authUser, accidentUpload.array('photos', 10), (req, res) => {
-  const urls = (req.files || []).map(f => '/uploads/' + f.filename);
-  res.json({ success: true, urls });
+// 写真・動画アップロード (複数ファイル対応、最大10件) — multer エラーを JSON で返す
+router.post('/upload', authUser, (req, res) => {
+  accidentUpload.array('photos', 10)(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, msg: err.message || 'アップロード失敗' });
+    const urls = (req.files || []).map(f => '/uploads/' + f.filename);
+    res.json({ success: true, urls });
+  });
 });
 
-// 管理職判定 (employee_type='admin' または role='admin')
+// 管理職判定 (is_manager=1 / employee_type='admin' / role='admin' のいずれか)
 function isManager(uid) {
-  const r = getDb().prepare('SELECT employee_type, role FROM users WHERE id = ?').get(uid);
-  return !!(r && (r.employee_type === 'admin' || r.role === 'admin'));
+  const r = getDb().prepare('SELECT employee_type, role, is_manager FROM users WHERE id = ?').get(uid);
+  return !!(r && (r.is_manager === 1 || r.employee_type === 'admin' || r.role === 'admin'));
+}
+
+// ===== 承認ルート: 所属所長判定 (2026-06-03) =====
+// 承認できるのは「報告と同じ拠点(company_code)の管理職」。本社(company_code='ADMIN')の管理職はどの拠点も承認可(フォールバック)。
+function userCtx(uid) {
+  const r = getDb().prepare('SELECT id, display_name, company_code, employee_type, role, is_manager, is_branch_head FROM users WHERE id = ?').get(uid);
+  if (!r) return null;
+  r.is_mgr = (r.is_manager === 1 || r.employee_type === 'admin' || r.role === 'admin');
+  r.is_hq = (r.company_code === 'ADMIN');   // 本社管理職 = どの拠点も承認可
+  return r;
+}
+function canApproveBranch(ctx, branchCode) {
+  if (!ctx || !ctx.is_mgr) return false;
+  if (ctx.is_hq) return true;                          // 本社管理職フォールバック
+  if (!branchCode) return false;                       // 拠点不明の報告は本社のみ承認可
+  return ctx.company_code === branchCode;              // 同拠点の管理職 = 所属所長
+}
+// 承認前(未公開)報告の閲覧可否: 承認済は全社公開 / 未承認は 報告者本人・所属所長・本社管理職のみ
+function canViewReport(ctx, r, kind) {
+  if (!r) return false;
+  if (r.status === 'approved') return true;            // 公開済
+  if (!ctx) return false;
+  if (kind === 'vehicle' && r.reporter_id && r.reporter_id === ctx.id) return true;  // 本人
+  if (kind === 'product' && r.reporter_name && r.reporter_name === ctx.display_name) return true;
+  return canApproveBranch(ctx, r.branch_code);         // 所属所長 / 本社管理職
+}
+// 役職ラベル (コメント表示用)
+function roleLabel(ctx) {
+  if (!ctx) return '';
+  if (ctx.is_hq) return ctx.role === 'admin' ? '本社管理職' : '本社';
+  if (ctx.is_branch_head === 1) return '所長';
+  if (ctx.is_mgr) return '管理職';
+  return '';
+}
+
+// ===== 個別事故報告のAI見解 (2026-06-03) =====
+// 「報告すること自体が目的化」「役員コメントの形骸化」への対策。
+// 提出時に自動生成し、対策・歯止めが具体的か / 形骸化していないかを採点してツッコミを入れる。
+async function geminiReviewReport(promptText) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+  const body = {
+    contents: [{ parts: [{ text: promptText }] }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 2200, thinkingConfig: { thinkingBudget: 0 } },
+  };
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) throw new Error('Gemini ' + resp.status + ': ' + (await resp.text()).slice(0, 200));
+  const data = await resp.json();
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  if (!parts) throw new Error('Gemini応答parts無し');
+  let text = '';
+  for (const p of parts) if (p.text) text += p.text;
+  return text.trim();
+}
+function buildReviewPrompt(kind, r) {
+  const lines = [];
+  if (kind === 'vehicle') {
+    lines.push('種別: 車両事故 / ' + (r.accident_type || '不明'));
+    lines.push('発生: ' + (r.accident_date || '') + ' ' + (r.accident_time || '') + ' / 天候: ' + (r.weather || '不明') + ' / 場所: ' + (r.location || '不明'));
+    lines.push('負傷: ' + (r.injury_status || '無し') + ' / 相手: ' + (r.counter_party || '無し'));
+    lines.push('状況: ' + (r.description || '記載なし'));
+  } else {
+    lines.push('種別: 製品事故 / ' + (r.accident_type || '製品破損'));
+    lines.push('発生: ' + (r.accident_date || '') + ' ' + (r.accident_time || '') + ' / 場所: ' + [r.location_floor, r.location_area].filter(Boolean).join(' '));
+    lines.push('商品: ' + [r.product_category, r.product_name].filter(Boolean).join(' / '));
+    lines.push('損害: ' + (r.damage_description || '記載なし') + ' / 状況: ' + (r.situation_detail || ''));
+  }
+  lines.push('【現場が書いた対策】');
+  lines.push('直接原因: ' + (r.direct_cause || r.cause_summary || '未記入'));
+  lines.push('根本原因(なぜ): ' + (r.root_cause || '未記入'));
+  lines.push('再発防止策(本人/現場): ' + (r.recurrence_prevention || r.reporter_reflection || '未記入'));
+  lines.push('組織的歯止め(仕組み): ' + (r.org_measure || '未記入'));
+  return `あなたは中小運送会社(スタンダード運輸グループ)の厳しいが信頼される安全管理責任者AIです。
+以下の事故報告について「報告して終わり・対策が形だけになっていないか」を厳格にチェックし、現場と所長に向けた短い見解を返してください。
+
+# 観点
+- 根本原因が「不注意」「確認不足」等の言葉で止まっていないか(なぜなぜが浅い)。浅ければ深掘りの問いを具体的に投げる。
+- 再発防止策・歯止めが「気をつける」「徹底する」等の精神論で終わっていないか。仕組み(手順・チェック・治具・配置・教育の具体)に落ちているか。
+- 当社の安全三箇条「速度」「車間距離」「バック走行時目視確認」のどれが守られていれば防げたかを必ず1つ以上指摘する。
+- 形骸化リスクを 低/中/高 で判定する。
+
+# 出力 (マークダウン・全体600字以内・簡潔に)
+## 形骸化リスク: (低|中|高) — 一言理由
+## 深掘りすべき点
+- (根本原因の弱さを突く問いを2〜3個)
+## 歯止めの具体化提案
+- (仕組みで止める具体策を2〜3個。精神論禁止)
+## 安全三箇条との関係
+- (該当する箇条と、それを守れば防げた理由を1〜2行)
+
+# 事故データ
+${lines.join('\n')}`;
+}
+async function generateAndSaveReview(kind, id, req) {
+  const table = kind === 'vehicle' ? 'vehicle_accident_reports' : 'kbc_accident_reports';
+  try {
+    const db = getDb();
+    const r = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+    if (!r) return;
+    const text = await geminiReviewReport(buildReviewPrompt(kind, r));
+    db.prepare(`UPDATE ${table} SET ai_review = ?, ai_review_at = datetime('now','localtime') WHERE id = ?`)
+      .run(text.slice(0, 6000), id);
+    // 詳細を開いている管理職へ更新通知 (任意)
+    try {
+      const io = req && req.app && req.app.locals && req.app.locals.io;
+      if (io) io.emit('accident:ai-review', { kind, id });
+    } catch (e) {}
+  } catch (e) {
+    console.warn('[accident ai-review fail]', kind, id, e.message);
+    try {
+      getDb().prepare(`UPDATE ${table} SET ai_review = ?, ai_review_at = datetime('now','localtime') WHERE id = ?`)
+        .run('(AI見解の生成に失敗しました: ' + e.message.slice(0, 100) + ')\n\n再生成ボタンからやり直せます。', id);
+    } catch (e2) {}
+  }
+}
+
+// コメント取得 (削除済除外)
+function getComments(kind, id) {
+  return getDb().prepare(`SELECT id, user_id, user_name, role_label, body, created_at
+    FROM accident_comments WHERE report_kind = ? AND report_id = ? AND deleted_at IS NULL
+    ORDER BY created_at ASC, id ASC`).all(kind, id);
 }
 
 // ===== 事故報告「一報」通知 (2026-05-27 / 2026-06-02 完成) =====
@@ -894,35 +1019,52 @@ router.get('/product', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
   const status = req.query.status;
   const db = getDb();
+  const ctx = userCtx(req.uid);
   let sql = `SELECT * FROM kbc_accident_reports`;
   const params = [];
   if (status) { sql += ' WHERE status = ?'; params.push(status); }
   sql += ' ORDER BY accident_date DESC, id DESC LIMIT ?';
   params.push(limit);
-  res.json({ success: true, reports: db.prepare(sql).all(...params) });
+  const rows = db.prepare(sql).all(...params).filter(r => canViewReport(ctx, r, 'product'));
+  res.json({ success: true, reports: rows });
 });
 
 // 製品事故 詳細
 router.get('/product/:id', authUser, (req, res) => {
   const r = getDb().prepare('SELECT * FROM kbc_accident_reports WHERE id = ?').get(parseInt(req.params.id));
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const ctx = userCtx(req.uid);
+  if (!canViewReport(ctx, r, 'product')) return res.status(403).json({ success: false, msg: 'この報告は承認前のため閲覧できません' });
+  r.comments = getComments('product', r.id);
+  r.can_approve = canApproveBranch(ctx, r.branch_code);
+  r.can_comment = !!(ctx && ctx.is_mgr);
   res.json({ success: true, report: r });
 });
 
 // 製品事故 新規作成
 router.post('/product', authUser, express.json({ limit: '20mb' }), (req, res) => {
   const b = req.body || {};
-  const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+  const u = getDb().prepare('SELECT display_name, company_code FROM users WHERE id = ?').get(req.uid);
   const reporterName = b.reporter_name || (u && u.display_name) || '不明';
   if (!b.accident_date) return res.status(400).json({ success: false, msg: '事故発生日が必須です' });
+  const status = b.status || 'submitted';
+  // 形骸化対策: 提出時は 根本原因/再発防止策/組織的歯止め を必須
+  if (status === 'submitted') {
+    const miss = [];
+    if (!String(b.root_cause || '').trim()) miss.push('根本原因(なぜ)');
+    if (!String(b.recurrence_prevention || b.reporter_reflection || '').trim()) miss.push('再発防止策');
+    if (!String(b.org_measure || '').trim()) miss.push('組織的歯止め');
+    if (miss.length) return res.status(400).json({ success: false, msg: '次の対策欄が未記入です: ' + miss.join('・') + '（一旦保存する場合は「下書き保存」を使ってください）' });
+  }
   const ins = getDb().prepare(`INSERT INTO kbc_accident_reports
     (accident_date, accident_time, weather, timing, location_floor, location_area,
      reporter_name, accident_type, product_code, product_name, product_category, quantity,
      cause_category, cause_detail, situation_template, situation_detail, damage_description,
      media_paths, label_photo_path, reporter_reflection, similar_accident_known,
      handling, handling_instruction, cost_amount, cost_status, status,
-     reported_to, reported_where, police_contact)
-    VALUES (?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?)`).run(
+     reported_to, reported_where, police_contact, branch_code,
+     direct_cause, root_cause, recurrence_prevention, org_measure)
+    VALUES (?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?,?)`).run(
     b.accident_date, b.accident_time || null, b.weather || null, b.timing || null,
     b.location_floor || null, b.location_area || null,
     reporterName, b.accident_type || '製品破損', b.product_code || null, b.product_name || null,
@@ -932,12 +1074,14 @@ router.post('/product', authUser, express.json({ limit: '20mb' }), (req, res) =>
     JSON.stringify(b.media_paths || []), b.label_photo_path || null, b.reporter_reflection || null,
     b.similar_accident_known || '有',
     b.handling || '関東BCへ連絡済み・指示待ち', b.handling_instruction || null,
-    b.cost_amount || null, b.cost_status || '未定', b.status || 'submitted',
-    b.reported_to || null, b.reported_where || null, b.police_contact || '無し');
-  // 新規の一報(submitted)なら管理職へ即通知
-  if ((b.status || 'submitted') === 'submitted') {
+    b.cost_amount || null, b.cost_status || '未定', status,
+    b.reported_to || null, b.reported_where || null, b.police_contact || '無し', (u && u.company_code) || null,
+    b.direct_cause || null, b.root_cause || null, b.recurrence_prevention || null, b.org_measure || null);
+  // 新規の一報(submitted)なら管理職へ即通知 + AI見解を自動生成 (非同期)
+  if (status === 'submitted') {
     const row = getDb().prepare('SELECT * FROM kbc_accident_reports WHERE id = ?').get(ins.lastInsertRowid);
     notifyManagersOfAccident(req, productAlertPayload(row));
+    generateAndSaveReview('product', ins.lastInsertRowid, req);
   }
   res.json({ success: true, id: ins.lastInsertRowid });
 });
@@ -945,16 +1089,26 @@ router.post('/product', authUser, express.json({ limit: '20mb' }), (req, res) =>
 // 製品事故 更新
 router.put('/product/:id', authUser, express.json({ limit: '20mb' }), (req, res) => {
   const id = parseInt(req.params.id);
-  const r = getDb().prepare('SELECT id, status FROM kbc_accident_reports WHERE id = ?').get(id);
+  const r = getDb().prepare('SELECT * FROM kbc_accident_reports WHERE id = ?').get(id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
   const b = req.body || {};
+  const becomingSubmitted = b.status === 'submitted' && r.status !== 'submitted';
+  if (becomingSubmitted) {
+    const v = k => (b[k] !== undefined ? b[k] : r[k]);
+    const miss = [];
+    if (!String(v('root_cause') || '').trim()) miss.push('根本原因(なぜ)');
+    if (!String(v('recurrence_prevention') || v('reporter_reflection') || '').trim()) miss.push('再発防止策');
+    if (!String(v('org_measure') || '').trim()) miss.push('組織的歯止め');
+    if (miss.length) return res.status(400).json({ success: false, msg: '次の対策欄が未記入です: ' + miss.join('・') + '（下書きのまま保存もできます）' });
+  }
   const updates = [];
   const params = [];
   const editable = ['accident_date','accident_time','weather','timing','location_floor','location_area',
     'accident_type','product_code','product_name','product_category','quantity',
     'cause_category','cause_detail','situation_template','situation_detail','damage_description',
     'reporter_reflection','similar_accident_known','handling','handling_instruction',
-    'cost_amount','cost_status','status','reported_to','reported_where','police_contact'];
+    'cost_amount','cost_status','status','reported_to','reported_where','police_contact',
+    'direct_cause','root_cause','recurrence_prevention','org_measure'];
   for (const k of editable) {
     if (b[k] !== undefined) { updates.push(`${k} = ?`); params.push(b[k]); }
   }
@@ -964,16 +1118,30 @@ router.put('/product/:id', authUser, express.json({ limit: '20mb' }), (req, res)
   updates.push("updated_at = datetime('now','localtime')");
   params.push(id);
   getDb().prepare(`UPDATE kbc_accident_reports SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  if (becomingSubmitted) {
+    const row = getDb().prepare('SELECT * FROM kbc_accident_reports WHERE id = ?').get(id);
+    notifyManagersOfAccident(req, productAlertPayload(row));
+    generateAndSaveReview('product', id, req);
+  }
   res.json({ success: true });
 });
 
-// 製品事故 承認
+// 製品事故 承認 (所属所長 = 同拠点管理職 / 本社管理職フォールバック)
 router.post('/product/:id/approve', authUser, (req, res) => {
-  if (!isManager(req.uid)) return res.status(403).json({ success: false, msg: '管理職のみ承認可' });
   const id = parseInt(req.params.id);
-  const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+  const r = getDb().prepare('SELECT * FROM kbc_accident_reports WHERE id = ?').get(id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const ctx = userCtx(req.uid);
+  if (!canApproveBranch(ctx, r.branch_code)) {
+    return res.status(403).json({ success: false, msg: 'この報告を承認できるのは所属所長(同じ拠点の管理職)または本社管理職のみです' });
+  }
+  const miss = [];
+  if (!String(r.root_cause || '').trim()) miss.push('根本原因');
+  if (!String(r.recurrence_prevention || r.reporter_reflection || '').trim()) miss.push('再発防止策');
+  if (!String(r.org_measure || '').trim()) miss.push('組織的歯止め');
+  if (miss.length) return res.status(400).json({ success: false, msg: '対策が未記入のため承認(公開)できません: ' + miss.join('・') + '。差し戻して記入を依頼してください' });
   getDb().prepare(`UPDATE kbc_accident_reports SET status = 'approved', approved_by = ?, approved_at = datetime('now','localtime') WHERE id = ?`)
-    .run((u && u.display_name) || req.uid, id);
+    .run((ctx && ctx.display_name) || req.uid, id);
   emitAccidentCleared(req, id, 'product');   // 各管理職のブートストラップ用アラートを消す
   res.json({ success: true });
 });
@@ -991,11 +1159,14 @@ router.delete('/product/:id', authUser, (req, res) => {
 router.get('/vehicle', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
   const db = getDb();
+  const ctx = userCtx(req.uid);
   const rows = db.prepare(`SELECT v.*, u.display_name AS reporter_display
                            FROM vehicle_accident_reports v
                            LEFT JOIN users u ON u.id = v.reporter_id
                            ORDER BY v.accident_date DESC, v.id DESC LIMIT ?`).all(limit);
-  res.json({ success: true, reports: rows });
+  // 承認まで非公開: 閲覧権のある報告だけ返す
+  const visible = rows.filter(r => canViewReport(ctx, r, 'vehicle'));
+  res.json({ success: true, reports: visible });
 });
 
 router.get('/vehicle/:id', authUser, (req, res) => {
@@ -1004,44 +1175,72 @@ router.get('/vehicle/:id', authUser, (req, res) => {
                              LEFT JOIN users u ON u.id = v.reporter_id
                              WHERE v.id = ?`).get(parseInt(req.params.id));
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const ctx = userCtx(req.uid);
+  if (!canViewReport(ctx, r, 'vehicle')) return res.status(403).json({ success: false, msg: 'この報告は承認前のため閲覧できません' });
+  r.comments = getComments('vehicle', r.id);
+  r.can_approve = canApproveBranch(ctx, r.branch_code);
+  r.can_comment = !!(ctx && ctx.is_mgr);
   res.json({ success: true, report: r });
 });
 
 router.post('/vehicle', authUser, express.json({ limit: '20mb' }), (req, res) => {
   const b = req.body || {};
   if (!b.accident_date) return res.status(400).json({ success: false, msg: '事故発生日が必須です' });
-  const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+  const status = b.status || 'submitted';
+  // 形骸化対策: 提出(submitted)時は 根本原因/再発防止策/組織的歯止め を必須。下書き(draft)は任意。
+  if (status === 'submitted') {
+    const miss = [];
+    if (!String(b.root_cause || '').trim()) miss.push('根本原因(なぜ)');
+    if (!String(b.recurrence_prevention || '').trim()) miss.push('再発防止策');
+    if (!String(b.org_measure || '').trim()) miss.push('組織的歯止め');
+    if (miss.length) return res.status(400).json({ success: false, msg: '次の対策欄が未記入です: ' + miss.join('・') + '（一旦保存する場合は「下書き保存」を使ってください）' });
+  }
+  const u = getDb().prepare('SELECT display_name, company_code FROM users WHERE id = ?').get(req.uid);
   const ins = getDb().prepare(`INSERT INTO vehicle_accident_reports
     (accident_date, accident_time, weather, location, reporter_id, reporter_name,
      vehicle_no, accident_type, counter_party, injury_status, police_contact,
      insurance_status, cause_summary, description, media_paths,
-     repair_status, cost_amount, status)
-    VALUES (?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?)`).run(
+     repair_status, cost_amount, status, branch_code,
+     direct_cause, root_cause, recurrence_prevention, org_measure)
+    VALUES (?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?,?,?)`).run(
     b.accident_date, b.accident_time || null, b.weather || null, b.location || null,
     req.uid, (u && u.display_name) || '',
     b.vehicle_no || null, b.accident_type || null, b.counter_party || null,
     b.injury_status || '無し', b.police_contact || '無し',
     b.insurance_status || null, b.cause_summary || null, b.description || null,
     JSON.stringify(b.media_paths || []),
-    b.repair_status || null, b.cost_amount || null, b.status || 'submitted');
-  // 新規の一報(submitted)なら管理職へ即通知
-  if ((b.status || 'submitted') === 'submitted') {
+    b.repair_status || null, b.cost_amount || null, status, (u && u.company_code) || null,
+    b.direct_cause || null, b.root_cause || null, b.recurrence_prevention || null, b.org_measure || null);
+  // 新規の一報(submitted)なら管理職へ即通知 + AI見解を自動生成 (非同期)
+  if (status === 'submitted') {
     const row = getDb().prepare('SELECT * FROM vehicle_accident_reports WHERE id = ?').get(ins.lastInsertRowid);
     notifyManagersOfAccident(req, vehicleAlertPayload(row));
+    generateAndSaveReview('vehicle', ins.lastInsertRowid, req);   // await しない (提出レスポンスをブロックしない)
   }
   res.json({ success: true, id: ins.lastInsertRowid });
 });
 
 router.put('/vehicle/:id', authUser, express.json({ limit: '20mb' }), (req, res) => {
   const id = parseInt(req.params.id);
-  const r = getDb().prepare('SELECT id FROM vehicle_accident_reports WHERE id = ?').get(id);
+  const r = getDb().prepare('SELECT * FROM vehicle_accident_reports WHERE id = ?').get(id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
   const b = req.body || {};
+  // 下書き→提出 への昇格時は対策欄を必須化 (形骸化対策)
+  const becomingSubmitted = b.status === 'submitted' && r.status !== 'submitted';
+  if (becomingSubmitted) {
+    const v = k => (b[k] !== undefined ? b[k] : r[k]);
+    const miss = [];
+    if (!String(v('root_cause') || '').trim()) miss.push('根本原因(なぜ)');
+    if (!String(v('recurrence_prevention') || '').trim()) miss.push('再発防止策');
+    if (!String(v('org_measure') || '').trim()) miss.push('組織的歯止め');
+    if (miss.length) return res.status(400).json({ success: false, msg: '次の対策欄が未記入です: ' + miss.join('・') + '（下書きのまま保存もできます）' });
+  }
   const updates = [];
   const params = [];
   const editable = ['accident_date','accident_time','weather','location','vehicle_no',
     'accident_type','counter_party','injury_status','police_contact','insurance_status',
-    'cause_summary','description','repair_status','cost_amount','status'];
+    'cause_summary','description','repair_status','cost_amount','status',
+    'direct_cause','root_cause','recurrence_prevention','org_measure'];
   for (const k of editable) {
     if (b[k] !== undefined) { updates.push(`${k} = ?`); params.push(b[k]); }
   }
@@ -1051,15 +1250,32 @@ router.put('/vehicle/:id', authUser, express.json({ limit: '20mb' }), (req, res)
   updates.push("updated_at = datetime('now','localtime')");
   params.push(id);
   getDb().prepare(`UPDATE vehicle_accident_reports SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  // 下書き→提出 になったら通知 + AI見解生成
+  if (becomingSubmitted) {
+    const row = getDb().prepare('SELECT * FROM vehicle_accident_reports WHERE id = ?').get(id);
+    notifyManagersOfAccident(req, vehicleAlertPayload(row));
+    generateAndSaveReview('vehicle', id, req);
+  }
   res.json({ success: true });
 });
 
 router.post('/vehicle/:id/approve', authUser, (req, res) => {
-  if (!isManager(req.uid)) return res.status(403).json({ success: false, msg: '管理職のみ承認可' });
   const id = parseInt(req.params.id);
-  const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+  const r = getDb().prepare('SELECT * FROM vehicle_accident_reports WHERE id = ?').get(id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const ctx = userCtx(req.uid);
+  // 承認できるのは所属所長(同拠点管理職)または本社管理職のみ
+  if (!canApproveBranch(ctx, r.branch_code)) {
+    return res.status(403).json({ success: false, msg: 'この報告を承認できるのは所属所長(同じ拠点の管理職)または本社管理職のみです' });
+  }
+  // 承認時チェック: 対策・歯止めが未記入のまま公開させない (形骸化対策)
+  const miss = [];
+  if (!String(r.root_cause || '').trim()) miss.push('根本原因');
+  if (!String(r.recurrence_prevention || '').trim()) miss.push('再発防止策');
+  if (!String(r.org_measure || '').trim()) miss.push('組織的歯止め');
+  if (miss.length) return res.status(400).json({ success: false, msg: '対策が未記入のため承認(公開)できません: ' + miss.join('・') + '。差し戻して記入を依頼してください' });
   getDb().prepare(`UPDATE vehicle_accident_reports SET status = 'approved', approved_by = ?, approved_at = datetime('now','localtime') WHERE id = ?`)
-    .run((u && u.display_name) || req.uid, id);
+    .run((ctx && ctx.display_name) || req.uid, id);
   emitAccidentCleared(req, id, 'vehicle');   // 各管理職のブートストラップ用アラートを消す
   res.json({ success: true });
 });
@@ -1085,6 +1301,84 @@ router.get('/summary', authUser, (req, res) => {
     product: { total: db.prepare('SELECT COUNT(*) AS c FROM kbc_accident_reports').get().c, byType: productByType, byCause: productByCause, byMonth: productByMonth },
     vehicle: { total: db.prepare('SELECT COUNT(*) AS c FROM vehicle_accident_reports').get().c, byType: vehicleByType, byMonth: vehicleByMonth },
   });
+});
+
+// ============================================================
+// 権限コンテキスト / コメント / AI見解再生成 / 差し戻し (2026-06-03)
+// ============================================================
+
+// ログイン中ユーザーの事故報告まわりの権限 (フロントの表示制御用)
+router.get('/whoami', authUser, (req, res) => {
+  const ctx = userCtx(req.uid);
+  if (!ctx) return res.status(401).json({ success: false });
+  res.json({ success: true, me: {
+    id: ctx.id, display_name: ctx.display_name, company_code: ctx.company_code,
+    is_manager: ctx.is_mgr, is_hq: ctx.is_hq, is_branch_head: ctx.is_branch_head === 1,
+    role_label: roleLabel(ctx),
+  }});
+});
+
+// コメント投稿 (管理職以上のみ) — kind: vehicle|product
+router.post('/:kind/:id/comment', authUser, express.json({ limit: '100kb' }), (req, res) => {
+  const kind = req.params.kind === 'product' ? 'product' : 'vehicle';
+  const id = parseInt(req.params.id);
+  const ctx = userCtx(req.uid);
+  if (!ctx || !ctx.is_mgr) return res.status(403).json({ success: false, msg: 'コメントは管理職以上のみ可能です' });
+  const body = String((req.body && req.body.body) || '').trim();
+  if (!body) return res.status(400).json({ success: false, msg: 'コメント本文が空です' });
+  const table = kind === 'vehicle' ? 'vehicle_accident_reports' : 'kbc_accident_reports';
+  const exists = getDb().prepare(`SELECT id FROM ${table} WHERE id = ?`).get(id);
+  if (!exists) return res.status(404).json({ success: false, msg: '対象の報告が見つかりません' });
+  const ins = getDb().prepare(`INSERT INTO accident_comments (report_kind, report_id, user_id, user_name, role_label, body)
+    VALUES (?,?,?,?,?,?)`).run(kind, id, ctx.id, ctx.display_name, roleLabel(ctx), body.slice(0, 2000));
+  res.json({ success: true, id: ins.lastInsertRowid, comments: getComments(kind, id) });
+});
+
+// コメント削除 (投稿者本人 または 本社管理職)
+router.delete('/comment/:cid', authUser, (req, res) => {
+  const cid = parseInt(req.params.cid);
+  const ctx = userCtx(req.uid);
+  const c = getDb().prepare('SELECT * FROM accident_comments WHERE id = ? AND deleted_at IS NULL').get(cid);
+  if (!c) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (c.user_id !== req.uid && !(ctx && ctx.is_hq)) return res.status(403).json({ success: false, msg: '削除権限がありません' });
+  getDb().prepare(`UPDATE accident_comments SET deleted_at = datetime('now','localtime') WHERE id = ?`).run(cid);
+  res.json({ success: true });
+});
+
+// AI見解の再生成 (管理職以上、AI失敗時のやり直し用)
+router.post('/:kind/:id/ai-review', authUser, async (req, res) => {
+  const kind = req.params.kind === 'product' ? 'product' : 'vehicle';
+  const id = parseInt(req.params.id);
+  const ctx = userCtx(req.uid);
+  if (!ctx || !ctx.is_mgr) return res.status(403).json({ success: false, msg: '管理職以上のみ可' });
+  const table = kind === 'vehicle' ? 'vehicle_accident_reports' : 'kbc_accident_reports';
+  const r = getDb().prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  try {
+    const text = await geminiReviewReport(buildReviewPrompt(kind, r));
+    getDb().prepare(`UPDATE ${table} SET ai_review = ?, ai_review_at = datetime('now','localtime') WHERE id = ?`).run(text.slice(0, 6000), id);
+    res.json({ success: true, ai_review: text });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
+  }
+});
+
+// 差し戻し (所属所長/本社管理職) — 対策不十分な報告を現場へ戻す
+router.post('/:kind/:id/reject', authUser, express.json({ limit: '50kb' }), (req, res) => {
+  const kind = req.params.kind === 'product' ? 'product' : 'vehicle';
+  const id = parseInt(req.params.id);
+  const table = kind === 'vehicle' ? 'vehicle_accident_reports' : 'kbc_accident_reports';
+  const r = getDb().prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  const ctx = userCtx(req.uid);
+  if (!canApproveBranch(ctx, r.branch_code)) return res.status(403).json({ success: false, msg: '差し戻しは所属所長または本社管理職のみ可' });
+  const reason = String((req.body && req.body.reason) || '').trim();
+  getDb().prepare(`UPDATE ${table} SET status = 'rejected', updated_at = datetime('now','localtime') WHERE id = ?`).run(id);
+  if (reason) {
+    getDb().prepare(`INSERT INTO accident_comments (report_kind, report_id, user_id, user_name, role_label, body)
+      VALUES (?,?,?,?,?,?)`).run(kind, id, ctx.id, ctx.display_name, roleLabel(ctx), '【差し戻し】' + reason.slice(0, 1500));
+  }
+  res.json({ success: true });
 });
 
 module.exports = router;

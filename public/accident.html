@@ -128,7 +128,8 @@ function goBackToCowell() {
     <div class="modal-content" id="form-content"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeForm()">キャンセル</button>
-      <button class="btn" id="form-submit" onclick="submitForm()">保存</button>
+      <button class="btn btn-ghost" id="form-draft" onclick="submitForm('draft')">下書き保存</button>
+      <button class="btn" id="form-submit" onclick="submitForm('submitted')">提出する</button>
     </div>
   </div>
 </div>
@@ -165,7 +166,9 @@ async function api(path, opts = {}) {
   return r.json();
 }
 
-const isManager = me && (me.employee_type === 'admin' || me.role === 'admin');
+let isManager = me && (me.employee_type === 'admin' || me.role === 'admin');
+let _who = null;          // /api/accident/whoami の結果 (拠点・承認権限)
+let _detail = null;       // 現在開いている詳細
 let currentTab = 'product';
 let _list = [];
 let _causes = [];
@@ -243,10 +246,10 @@ function renderList() {
         </div>
         <div class="meta">📍 ${escapeHtml(r.location_floor || '')} ${escapeHtml(r.location_area || '')} · 報告: ${escapeHtml(r.reporter_name)} · ${escapeHtml((r.created_at || '').slice(0,16))} ${photos.length ? `· 📷 ${photos.length}枚` : ''}</div>
         ${r.cause_detail ? `<div class="body">${escapeHtml(String(r.cause_detail).slice(0, 160))}${r.cause_detail.length > 160 ? '…' : ''}</div>` : ''}
-        ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => `<img class="photo-thumb" src="${escapeHtml(p)}" loading="lazy" onclick="openPhotoModal('${escapeHtml(p)}')" onerror="this.style.display='none'">`).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
+        ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => mediaThumbHtml(p)).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
-          ${(isManager || r.reporter_name === (me && me.display_name)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
+          ${(isManager || (_who && r.reporter_name === _who.display_name)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -263,10 +266,10 @@ function renderList() {
         <div class="meta">📍 ${escapeHtml(r.location || '')} · 報告: ${escapeHtml(r.reporter_display || r.reporter_name || '')} · ${escapeHtml((r.created_at || '').slice(0,16))} ${photos.length ? `· 📷 ${photos.length}枚` : ''}</div>
         ${r.injury_status && r.injury_status !== '無し' ? `<div class="body" style="color:#dc2626;font-weight:700;">⚠ 負傷: ${escapeHtml(r.injury_status)}</div>` : ''}
         ${r.description ? `<div class="body">${escapeHtml(String(r.description).slice(0, 160))}${r.description.length > 160 ? '…' : ''}</div>` : ''}
-        ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => `<img class="photo-thumb" src="${escapeHtml(p)}" loading="lazy" onclick="openPhotoModal('${escapeHtml(p)}')" onerror="this.style.display='none'">`).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
+        ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => mediaThumbHtml(p)).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
-          ${(isManager || r.reporter_id === (me && me.uid)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
+          ${(isManager || (_who && r.reporter_id === _who.id)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -347,9 +350,23 @@ function productFormHtml(d) {
         <select id="f-cost-status">${['未定','確定','請求済','支払済'].map(s => `<option ${d.cost_status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
       </div>
     </div>
+    ${countermeasureFieldsHtml(d)}
     ${photoFieldHtml(parseMedia(d.media_paths))}
     <div class="err" id="f-err"></div>
   `;
+}
+
+// 形骸化防止のための構造化「対策・歯止め」入力 (両事故共通)
+function countermeasureFieldsHtml(d) {
+  return `
+  <div style="margin-top:6px;padding:12px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff7f7;">
+    <div style="font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:2px;">🛑 対策・歯止め <span style="font-weight:400;color:#ef4444;">（提出には * を入力）</span></div>
+    <div class="hint" style="margin-bottom:10px;line-height:1.6;">「気をつける」「徹底する」等の精神論はNG。<b>仕組み（手順・チェック・配置・治具・教育）</b>で止める具体策を書いてください。提出時にAIが内容の具体性をチェックします。</div>
+    <div class="field"><label>① 直接原因（何が起きたか）</label><textarea id="f-direct" placeholder="例: バック時に後方の電柱支線を確認できず前バンパーが接触">${escapeHtml(d.direct_cause || '')}</textarea></div>
+    <div class="field"><label>② 根本原因（なぜ起きたか・なぜを繰り返す）*</label><textarea id="f-root" placeholder="例: 進入前に降車目視する手順が定まっておらず、急いでいたため省略した">${escapeHtml(d.root_cause || '')}</textarea></div>
+    <div class="field"><label>③ 再発防止策（本人・現場でやること）*</label><textarea id="f-prevent" placeholder="例: 後退前に必ず一旦停車し降車目視。誘導者がいれば声掛け合図を取り決める">${escapeHtml(d.recurrence_prevention || '')}</textarea></div>
+    <div class="field"><label>④ 組織的歯止め（仕組みで止める）*</label><textarea id="f-org" placeholder="例: 当該荷主宅の進入手順書を作成し点呼時に読み合わせ／構内バック注意箇所マップを全車配布">${escapeHtml(d.org_measure || '')}</textarea></div>
+  </div>`;
 }
 
 function vehicleFormHtml(d) {
@@ -392,6 +409,7 @@ function vehicleFormHtml(d) {
       <div class="field"><label>修理状況</label><input type="text" id="f-repair" placeholder="例: 工場入庫済み・5/2納車予定" value="${escapeHtml(d.repair_status || '')}"></div>
       <div class="field"><label>費用見込み (円)</label><input type="number" id="f-cost" value="${escapeHtml(d.cost_amount || '')}"></div>
     </div>
+    ${countermeasureFieldsHtml(d)}
     ${photoFieldHtml(parseMedia(d.media_paths))}
     <div class="err" id="f-err"></div>
   `;
@@ -404,15 +422,16 @@ function parseMedia(s) {
   if (Array.isArray(s)) return s;
   try { const a = JSON.parse(s); return Array.isArray(a) ? a : []; } catch (e) { return []; }
 }
+function isVideoUrl(u) { return /\.(mp4|mov|webm|m4v|avi|3gp|mkv)$/i.test(String(u || '')); }
 function photoFieldHtml(initialUrls) {
   _photoUrls = (initialUrls || []).slice();
   return `
     <div class="field">
-      <label>📷 事故写真 <span style="font-weight:400;color:#94a3b8;">(複数可、各10MBまで)</span></label>
+      <label>📷 事故写真・動画 <span style="font-weight:400;color:#94a3b8;">(複数可、動画は各60MBまで)</span></label>
       <label class="photo-upload" id="f-photo-drop">
-        <div style="font-size:24px;">📷</div>
-        <div>タップして写真を追加 (撮影 or 選択)</div>
-        <input type="file" id="f-photo-input" accept="image/*" capture="environment" multiple onchange="onPhotoPick(event)">
+        <div style="font-size:24px;">📷🎥</div>
+        <div>タップして写真・動画を追加 (撮影 or 選択)</div>
+        <input type="file" id="f-photo-input" accept="image/*,video/*" capture="environment" multiple onchange="onPhotoPick(event)">
       </label>
       <div id="f-photo-list">${renderPhotoList()}</div>
     </div>`;
@@ -421,8 +440,10 @@ function renderPhotoList() {
   if (!_photoUrls.length) return '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">未登録</div>';
   return _photoUrls.map((u, i) => `
     <div class="photo-list-row">
-      <img src="${escapeHtml(u)}" alt="" onerror="this.style.display='none'">
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(u.split('/').pop())}</span>
+      ${isVideoUrl(u)
+        ? `<video src="${escapeHtml(u)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;background:#000;" muted></video>`
+        : `<img src="${escapeHtml(u)}" alt="" onerror="this.style.display='none'">`}
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${isVideoUrl(u) ? '🎥 ' : ''}${escapeHtml(u.split('/').pop())}</span>
       <button class="rm" type="button" onclick="removePhoto(${i})">削除</button>
     </div>`).join('');
 }
@@ -460,65 +481,66 @@ async function onPhotoPick(ev) {
   }
 }
 
-async function submitForm() {
+async function submitForm(statusArg) {
+  const status = statusArg || 'submitted';
   const errEl = document.getElementById('f-err');
   errEl.textContent = '';
-  const btn = document.getElementById('form-submit');
-  btn.disabled = true;
+  const btnS = document.getElementById('form-submit');
+  const btnD = document.getElementById('form-draft');
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  // 構造化「対策・歯止め」(両事故共通)
+  const cm = {
+    direct_cause: val('f-direct'),
+    root_cause: val('f-root'),
+    recurrence_prevention: val('f-prevent'),
+    org_measure: val('f-org'),
+  };
+  // 提出時は根本原因・再発防止策・組織的歯止めを必須 (形骸化防止)
+  if (status === 'submitted') {
+    const miss = [];
+    if (!cm.root_cause.trim()) miss.push('根本原因');
+    if (!cm.recurrence_prevention.trim()) miss.push('再発防止策');
+    if (!cm.org_measure.trim()) miss.push('組織的歯止め');
+    if (miss.length) { errEl.textContent = '提出には対策欄の入力が必要です: ' + miss.join('・') + '（下書き保存は可）'; return; }
+  }
+  btnS.disabled = true; if (btnD) btnD.disabled = true;
   let body = {};
   if (currentTab === 'product') {
     body = {
-      accident_date: document.getElementById('f-date').value,
-      accident_time: document.getElementById('f-time').value,
-      weather: document.getElementById('f-weather').value,
-      location_floor: document.getElementById('f-floor').value,
-      location_area: document.getElementById('f-area').value,
-      product_category: document.getElementById('f-prod-cat').value,
-      product_name: document.getElementById('f-prod-name').value,
-      product_code: document.getElementById('f-prod-code').value,
-      quantity: parseInt(document.getElementById('f-qty').value) || 1,
-      cause_category: document.getElementById('f-cause-cat').value,
-      cause_detail: document.getElementById('f-cause-detail').value,
-      situation_detail: document.getElementById('f-situation').value,
-      damage_description: document.getElementById('f-damage').value,
-      similar_accident_known: document.getElementById('f-similar').value,
-      police_contact: document.getElementById('f-police').value,
-      reporter_reflection: document.getElementById('f-reflect').value,
-      handling: document.getElementById('f-handling').value,
-      cost_amount: parseInt(document.getElementById('f-cost').value) || null,
-      cost_status: document.getElementById('f-cost-status').value,
+      accident_date: val('f-date'), accident_time: val('f-time'), weather: val('f-weather'),
+      location_floor: val('f-floor'), location_area: val('f-area'),
+      product_category: val('f-prod-cat'), product_name: val('f-prod-name'), product_code: val('f-prod-code'),
+      quantity: parseInt(val('f-qty')) || 1,
+      cause_category: val('f-cause-cat'), cause_detail: val('f-cause-detail'),
+      situation_detail: val('f-situation'), damage_description: val('f-damage'),
+      similar_accident_known: val('f-similar'), police_contact: val('f-police'),
+      reporter_reflection: val('f-reflect'), handling: val('f-handling'),
+      cost_amount: parseInt(val('f-cost')) || null, cost_status: val('f-cost-status'),
       media_paths: _photoUrls,
     };
   } else {
     body = {
-      accident_date: document.getElementById('f-date').value,
-      accident_time: document.getElementById('f-time').value,
-      weather: document.getElementById('f-weather').value,
-      location: document.getElementById('f-loc').value,
-      vehicle_no: document.getElementById('f-vehicle').value,
-      accident_type: document.getElementById('f-type').value,
-      counter_party: document.getElementById('f-counter').value,
-      injury_status: document.getElementById('f-injury').value,
-      police_contact: document.getElementById('f-police').value,
-      insurance_status: document.getElementById('f-insurance').value,
-      cause_summary: document.getElementById('f-cause').value,
-      description: document.getElementById('f-desc').value,
-      repair_status: document.getElementById('f-repair').value,
-      cost_amount: parseInt(document.getElementById('f-cost').value) || null,
+      accident_date: val('f-date'), accident_time: val('f-time'), weather: val('f-weather'),
+      location: val('f-loc'), vehicle_no: val('f-vehicle'), accident_type: val('f-type'),
+      counter_party: val('f-counter'), injury_status: val('f-injury'), police_contact: val('f-police'),
+      insurance_status: val('f-insurance'), cause_summary: val('f-cause'), description: val('f-desc'),
+      repair_status: val('f-repair'), cost_amount: parseInt(val('f-cost')) || null,
       media_paths: _photoUrls,
     };
   }
-  if (!body.accident_date) { errEl.textContent = '事故発生日が必須です'; btn.disabled = false; return; }
+  Object.assign(body, cm, { status });
+  if (!body.accident_date) { errEl.textContent = '事故発生日が必須です'; btnS.disabled = false; if (btnD) btnD.disabled = false; return; }
   const path = (currentTab === 'product' ? '/api/accident/product' : '/api/accident/vehicle') + (_editingId ? '/' + _editingId : '');
   const method = _editingId ? 'PUT' : 'POST';
   try {
     const d = await api(path, { method, body });
-    if (!d || !d.success) { errEl.textContent = (d && d.msg) || '保存失敗'; btn.disabled = false; return; }
+    if (!d || !d.success) { errEl.textContent = (d && d.msg) || '保存失敗'; btnS.disabled = false; if (btnD) btnD.disabled = false; return; }
     closeForm();
     loadList();
+    if (status === 'submitted') setTimeout(() => alert('提出しました。所属所長の承認後に全社公開されます。AI見解はまもなく自動生成されます。'), 50);
   } catch (e) {
     errEl.textContent = '通信エラー: ' + e.message;
-    btn.disabled = false;
+    btnS.disabled = false; if (btnD) btnD.disabled = false;
   }
 }
 
@@ -526,31 +548,110 @@ async function submitForm() {
 // 詳細表示
 // ============================================================
 async function openDetail(id) {
-  const path = currentTab === 'product' ? `/api/accident/product/${id}` : `/api/accident/vehicle/${id}`;
+  const kind = currentTab;
+  const path = kind === 'product' ? `/api/accident/product/${id}` : `/api/accident/vehicle/${id}`;
   const d = await api(path);
-  if (!d || !d.success) { alert('読み込みに失敗しました'); return; }
+  if (!d || !d.success) { alert(d && d.msg ? d.msg : '読み込みに失敗しました'); return; }
   const r = d.report;
-  document.getElementById('detail-title').textContent = (currentTab === 'product' ? '📦 製品事故' : '🚗 車両事故') + ' #' + r.id;
-  document.getElementById('detail-content').innerHTML = currentTab === 'product' ? productDetailHtml(r) : vehicleDetailHtml(r);
-  // フッター: 管理職なら承認/差し戻し
+  _detail = r; _detail._kind = kind;
+  document.getElementById('detail-title').textContent = (kind === 'product' ? '📦 製品事故' : '🚗 車両事故') + ' #' + r.id;
+  const base = kind === 'product' ? productDetailHtml(r) : vehicleDetailHtml(r);
+  document.getElementById('detail-content').innerHTML = base + aiReviewHtml(r, kind) + commentsHtml(r, kind);
+  // フッター: 所属所長/本社管理職なら 承認・差し戻し
   let footer = `<button class="btn btn-ghost" onclick="closeDetail()">閉じる</button>`;
-  if (isManager && r.status !== 'approved') {
-    footer = `<button class="btn" onclick="approveOne(${r.id})">✅ 承認</button>` + footer;
+  if (r.can_approve && r.status !== 'approved') {
+    footer = `<button class="btn" onclick="approveOne(${r.id})">✅ 承認して公開</button>`
+           + `<button class="btn btn-ghost" onclick="rejectOne(${r.id})">↩ 差し戻し</button>` + footer;
   }
   document.getElementById('detail-footer').innerHTML = footer;
   document.getElementById('detail-modal').classList.add('open');
 }
 function closeDetail() {
   document.getElementById('detail-modal').classList.remove('open');
+  _detail = null;
+}
+async function refreshDetail() {
+  if (_detail) await openDetail(_detail.id);
 }
 
+// 軽量Markdown整形 (AI見解用)
+function renderLightMd(s) {
+  let h = escapeHtml(s);
+  h = h.replace(/^\s*#{2,3}\s*(.+)$/gm, '<b style="color:#1d4ed8;">$1</b>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  h = h.replace(/^\s*[-・]\s*(.+)$/gm, '• $1');
+  return h;
+}
+function aiReviewHtml(r, kind) {
+  const canMgr = _who && _who.is_manager;
+  if (!r.ai_review) {
+    return `<div style="margin-top:14px;padding:12px 14px;border-radius:10px;background:#f8fafc;border:1px dashed #cbd5e1;font-size:12px;color:#64748b;line-height:1.6;">
+      🤖 AI見解は提出後まもなく自動生成されます。${canMgr ? `<br><button class="btn btn-sm btn-ghost" style="margin-top:6px;" onclick="regenReview(${r.id},'${kind}')">今すぐ生成</button>` : '少し待って🔄更新で再読み込みしてください。'}</div>`;
+  }
+  return `<div style="margin-top:14px;padding:12px 14px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;">
+    <div style="font-size:13px;font-weight:800;color:#1d4ed8;margin-bottom:6px;">🤖 安全管理AIの見解 <span style="font-weight:400;color:#94a3b8;font-size:11px;">${escapeHtml((r.ai_review_at||'').slice(0,16))}</span></div>
+    <div style="font-size:13px;line-height:1.75;color:#1e3a8a;white-space:pre-wrap;">${renderLightMd(r.ai_review)}</div>
+    ${canMgr ? `<div style="margin-top:8px;"><button class="btn btn-sm btn-ghost" onclick="regenReview(${r.id},'${kind}')">🔄 再生成</button></div>` : ''}
+  </div>`;
+}
+function commentsHtml(r, kind) {
+  const cs = r.comments || [];
+  const items = cs.length ? cs.map(c => `
+    <div style="padding:8px 10px;border-radius:8px;background:#f8fafc;margin-bottom:6px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:3px;"><b style="color:#0f172a;">${escapeHtml(c.user_name||'')}</b> ${c.role_label?`<span style="background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:6px;font-size:10px;">${escapeHtml(c.role_label)}</span>`:''} · ${escapeHtml((c.created_at||'').slice(0,16))}
+        ${(_who && (c.user_id===_who.id || _who.is_hq)) ? `<button class="rm" style="float:right;border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;" onclick="delComment(${c.id})">削除</button>`:''}
+      </div>
+      <div style="font-size:13px;color:#334155;white-space:pre-wrap;line-height:1.6;">${escapeHtml(c.body)}</div>
+    </div>`).join('') : '<div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">コメントはまだありません</div>';
+  const input = r.can_comment ? `
+    <div style="margin-top:8px;display:flex;gap:6px;align-items:flex-start;">
+      <textarea id="cmt-input" placeholder="管理職コメント（対策・歯止めへの具体指示や所見を）" style="flex:1;min-height:48px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;"></textarea>
+      <button class="btn btn-sm" onclick="postComment(${r.id},'${kind}')">送信</button>
+    </div>` : '';
+  return `<div style="margin-top:14px;">
+    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">💬 管理職コメント (${cs.length})</div>
+    ${items}${input}
+  </div>`;
+}
+async function postComment(id, kind) {
+  const el = document.getElementById('cmt-input');
+  const body = (el && el.value || '').trim();
+  if (!body) return;
+  const d = await api(`/api/accident/${kind}/${id}/comment`, { method: 'POST', body: { body } });
+  if (!d || !d.success) { alert(d && d.msg ? d.msg : 'コメント失敗'); return; }
+  await refreshDetail();
+}
+async function delComment(cid) {
+  if (!confirm('このコメントを削除しますか?')) return;
+  const d = await api(`/api/accident/comment/${cid}`, { method: 'DELETE' });
+  if (!d || !d.success) { alert('削除失敗'); return; }
+  await refreshDetail();
+}
+async function regenReview(id, kind) {
+  const d = await api(`/api/accident/${kind}/${id}/ai-review`, { method: 'POST' });
+  if (!d || !d.success) { alert(d && d.msg ? d.msg : 'AI見解の生成に失敗しました'); return; }
+  await refreshDetail();
+}
+async function rejectOne(id) {
+  const reason = prompt('差し戻しの理由（対策・歯止めのどこが不十分か具体的に）を入力してください:');
+  if (reason === null) return;
+  const d = await api(`/api/accident/${currentTab}/${id}/reject`, { method: 'POST', body: { reason } });
+  if (!d || !d.success) { alert(d && d.msg ? d.msg : '差し戻し失敗'); return; }
+  closeDetail();
+  loadList();
+}
+
+function mediaThumbHtml(u) {
+  if (isVideoUrl(u)) return `<span style="position:relative;display:inline-block;cursor:pointer;" onclick="openMediaModal('${escapeHtml(u)}')"><video class="photo-thumb" src="${escapeHtml(u)}#t=0.1" muted playsinline preload="metadata" style="background:#000;pointer-events:none;"></video><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;text-shadow:0 1px 4px #000;pointer-events:none;">▶</span></span>`;
+  return `<img class="photo-thumb" src="${escapeHtml(u)}" loading="lazy" onclick="openMediaModal('${escapeHtml(u)}')" onerror="this.style.display='none'">`;
+}
 function detailPhotosHtml(r) {
   const photos = parseMedia(r.media_paths);
   if (!photos.length) return '';
   return `<div style="margin-top:14px;">
-    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📷 事故写真 (${photos.length}枚)</div>
+    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📷🎥 事故写真・動画 (${photos.length}件)</div>
     <div class="photo-grid">
-      ${photos.map(p => `<img class="photo-thumb" src="${escapeHtml(p)}" loading="lazy" onclick="openPhotoModal('${escapeHtml(p)}')" onerror="this.style.display='none'">`).join('')}
+      ${photos.map(p => mediaThumbHtml(p)).join('')}
     </div>
   </div>`;
 }
@@ -568,21 +669,28 @@ function productDetailHtml(r) {
     ['状況', r.situation_detail],
     ['損害', r.damage_description],
     ['振り返り', r.reporter_reflection],
+    ['① 直接原因', r.direct_cause],
+    ['② 根本原因(なぜ)', r.root_cause],
+    ['③ 再発防止策', r.recurrence_prevention],
+    ['④ 組織的歯止め', r.org_measure],
     ['対応', r.handling],
     ['費用', r.cost_amount ? r.cost_amount.toLocaleString() + '円 (' + (r.cost_status || '') + ')' : '-'],
     ['類似事故', r.similar_accident_known],
     ['警察連絡', r.police_contact],
     ['報告者', r.reporter_name],
-    ['ステータス', r.status],
+    ['公開状態', statusJp(r.status)],
     ['作成日時', r.created_at],
     ['承認者', r.approved_by],
-    ['管理者コメント', r.manager_comment],
   ];
   return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${detailPhotosHtml(r)}`;
 }
 
+function statusJp(s) {
+  return { draft: '下書き（未提出）', submitted: '提出済（承認待ち・非公開）', approved: '承認済（全社公開）', rejected: '差し戻し（要修正）' }[s] || s || '-';
+}
 function vehicleDetailHtml(r) {
   const rows = [
+    ['公開状態', statusJp(r.status)],
     ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
     ['天気', r.weather],
     ['場所', r.location],
@@ -592,21 +700,23 @@ function vehicleDetailHtml(r) {
     ['負傷状況', r.injury_status],
     ['警察連絡', r.police_contact],
     ['保険対応', r.insurance_status],
-    ['原因', r.cause_summary],
+    ['原因(概要)', r.cause_summary],
     ['状況詳細', r.description],
+    ['① 直接原因', r.direct_cause],
+    ['② 根本原因(なぜ)', r.root_cause],
+    ['③ 再発防止策', r.recurrence_prevention],
+    ['④ 組織的歯止め', r.org_measure],
     ['修理状況', r.repair_status],
     ['費用', r.cost_amount ? r.cost_amount.toLocaleString() + '円' : '-'],
     ['報告者', r.reporter_display || r.reporter_name],
-    ['ステータス', r.status],
     ['作成日時', r.created_at],
     ['承認者', r.approved_by],
-    ['管理者コメント', r.manager_comment],
   ];
   return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${detailPhotosHtml(r)}`;
 }
 
-// 写真拡大モーダル (詳細画面/一覧から開く)
-function openPhotoModal(url) {
+// 写真・動画 拡大モーダル (詳細画面/一覧から開く)
+function openMediaModal(url) {
   let m = document.getElementById('photo-modal');
   if (!m) {
     m = document.createElement('div');
@@ -615,21 +725,32 @@ function openPhotoModal(url) {
     m.onclick = () => m.remove();
     document.body.appendChild(m);
   }
-  m.innerHTML = `<img src="${escapeHtml(url)}" class="photo-thumb-large" onclick="event.stopPropagation()">
-    <button onclick="document.getElementById('photo-modal').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;">×</button>`;
+  const inner = isVideoUrl(url)
+    ? `<video src="${escapeHtml(url)}" class="photo-thumb-large" controls autoplay playsinline onclick="event.stopPropagation()"></video>`
+    : `<img src="${escapeHtml(url)}" class="photo-thumb-large" onclick="event.stopPropagation()">`;
+  m.innerHTML = inner +
+    `<button onclick="document.getElementById('photo-modal').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;">×</button>`;
 }
+// 後方互換
+function openPhotoModal(url) { return openMediaModal(url); }
 
 async function approveOne(id) {
-  if (!confirm('この事故報告を承認しますか?')) return;
+  if (!confirm('この報告を承認し、全社へ公開します。対策・歯止めの内容は十分ですか?')) return;
   const path = currentTab === 'product' ? `/api/accident/product/${id}/approve` : `/api/accident/vehicle/${id}/approve`;
   const d = await api(path, { method: 'POST' });
-  if (!d || !d.success) { alert('承認失敗'); return; }
+  if (!d || !d.success) { alert(d && d.msg ? d.msg : '承認失敗'); return; }
   closeDetail();
   loadList();
 }
 
-// 初期化
-loadList();
+// 初期化: 権限コンテキスト取得 → 一覧
+(async function init() {
+  try {
+    const w = await api('/api/accident/whoami');
+    if (w && w.success) { _who = w.me; isManager = !!w.me.is_manager; }
+  } catch (e) {}
+  loadList();
+})();
 </script>
 
   <script src="/translate.js" defer></script>
