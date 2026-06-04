@@ -788,16 +788,19 @@ function isFieldStaff(u) {
 }
 function canDm(sender, receiver) {
   if (!sender || !receiver) return false;
+  // 2026-06-04: DMレポートライン制限を撤廃。現メンバーは全員が管理職/事務職員で
+  // 制限対象(現場職の一般ドライバー/倉庫作業者)が居ないため、全員DM・呼出を自由化。
+  // ※ ブロック(isBlocked)判定は別途有効。制限を復活させる場合は下の return true を外す。
+  return true;
+  /* 旧: 現場職一般社員のみ共通chat_group内に限定 (レポートライン保護・復活用に保持)
   if (receiver.role === 'bot') return true;
-  // 現場職一般社員でなければ送受信とも無制限
   if (!isFieldStaff(sender)) return true;
-  // 以降、送信者は現場職一般社員。推進メンバー宛は相談窓口として常に可
   if (receiver.is_field_promoter || receiver.is_warehouse_promoter) return true;
-  // 現場職一般社員は共通chat_group所属の相手にのみDM可 (レポートライン保護)
   const shared = getDb().prepare(`SELECT 1 FROM chat_group_members a
     JOIN chat_group_members b ON a.group_id = b.group_id
     WHERE a.user_id = ? AND b.user_id = ? LIMIT 1`).get(sender.id, receiver.id);
   return !!shared;
+  */
 }
 
 // 役員判定: users.job_role === 'executive' に統一 (5/19整理)
