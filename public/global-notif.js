@@ -74,6 +74,53 @@
     } catch (e) { console.warn('[chime] play exception', e); }
   }
 
+  // 🔔 呼出専用: 通知OFFでも必ず鳴らす + 3回連続で確実に気づかせる
+  // (chat-simple の playSummonChime と同趣旨。明示的な人対人の呼び出しのため _chimeOn を無視)
+  function playSummon() {
+    var a = ensureAudio();
+    if (!a) return;
+    var n = 0;
+    function ring() {
+      try {
+        a.currentTime = 0; a.muted = false; a.volume = 1.0;
+        var p = a.play();
+        if (p && typeof p.catch === 'function') p.catch(function (e) { console.warn('[summon] play blocked', e.name || e); });
+      } catch (e) {}
+      n++;
+      if (n < 3) setTimeout(ring, 700);
+    }
+    ring();
+  }
+
+  // 呼出の中央オーバーレイ (どのページに居ても気づける)
+  function showSummonOverlay(name) {
+    var ov = document.getElementById('gn-summon-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'gn-summon-overlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(8,20,40,0.55);backdrop-filter:blur(4px);padding:20px;';
+      ov.innerHTML = '<div style="background:#fff;border-radius:18px;padding:30px 26px;max-width:340px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.4);animation:gnSummonPulse 0.8s ease-in-out infinite alternate;">'
+        + '<div style="font-size:54px;line-height:1;margin-bottom:14px;">🛎️</div>'
+        + '<div id="gn-summon-name" style="font-size:19px;font-weight:800;color:#0f172a;margin-bottom:4px;"></div>'
+        + '<div style="font-size:14px;color:#475569;margin-bottom:22px;">があなたを呼んでいます</div>'
+        + '<button id="gn-summon-open" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2f80ed;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;">チャットを開く</button>'
+        + '<button id="gn-summon-close" style="width:100%;padding:11px;border:none;border-radius:10px;background:#eef2f7;color:#475569;font-size:14px;cursor:pointer;">閉じる</button>'
+        + '</div>';
+      document.body.appendChild(ov);
+      if (!document.getElementById('gn-summon-style')) {
+        var st = document.createElement('style'); st.id = 'gn-summon-style';
+        st.textContent = '@keyframes gnSummonPulse{from{transform:scale(1)}to{transform:scale(1.045)}}';
+        document.head.appendChild(st);
+      }
+    }
+    document.getElementById('gn-summon-name').textContent = (name || '誰か') + 'さん';
+    ov.style.display = 'flex';
+    ov.querySelector('#gn-summon-open').onclick = function () { location.href = '/chat-simple.html'; };
+    ov.querySelector('#gn-summon-close').onclick = function () { ov.style.display = 'none'; };
+    clearTimeout(window._gnSummonTimer);
+    window._gnSummonTimer = setTimeout(function () { if (ov) ov.style.display = 'none'; }, 12000);
+  }
+
   // 外部からON/OFF切替できるよう公開 (home.html のヘッダー🔔ボタン用)
   window.cohubGetChimeOn = function () { return _chimeOn; };
   window.cohubSetChimeOn = function (on) {
@@ -451,6 +498,21 @@
           if (!p || p.from === myUid) return;
           playChime();
           showToast('💬 グループ: ' + ((p.content || '').slice(0, 40) || '📎 添付'));
+        });
+      }
+
+      // 🔔 呼出 (dm:call) — 明示的な人対人の呼び出し。chat-simple / m.html は自前ハンドラを
+      // 持つのでそこだけ抑制し、それ以外(home/メール/メンバー等)の全ページで確実に鳴らす。
+      // ⚠️ hasOwnChatHandler は /home も含むが home には dm:call ハンドラが無いので専用ゲートを使う。
+      var hasOwnSummonHandler = /^\/chat-simple|^\/m(\/|$|\?)/.test(path);
+      if (!hasOwnSummonHandler) {
+        socket.on('dm:call', function (p) {
+          if (!p || p.from === myUid) return;
+          var who = (p.fromName || '誰か');
+          try { playSummon(); } catch (e) {}
+          try { showSummonOverlay(who); } catch (e) {}
+          try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+          try { speak(who + 'さんが呼んでいます', { force: true }); } catch (e) {}
         });
       }
 
