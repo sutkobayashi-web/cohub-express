@@ -145,12 +145,12 @@
     <h1>🗓 共有カレンダー</h1>
     <div class="sub">役員・管理職の共有予定（個人カレンダーには影響しません）</div>
   </div>
-  <a href="/" class="home" title="閉じてトップへ戻る">閉じる</a>
+  <a href="/" id="closeLink" class="home" title="閉じてトップへ戻る">閉じる</a>
 </header>
 
 <div id="denied" class="denied hide">
   <h2>🔒 アクセス権限がありません</h2>
-  <p>この共有カレンダーは役員・管理職のみが利用できます。<br><a href="/">バーチャルオフィスへ戻る</a></p>
+  <p>この共有カレンダーは役員・管理職のみが利用できます。<br><a href="/" id="deniedBack">バーチャルオフィスへ戻る</a></p>
 </div>
 
 <div id="app" class="wrap hide">
@@ -235,6 +235,18 @@
 
 <script>
 const token = localStorage.getItem('cohub_token') || '';
+// チャットのドロワー内(iframe)に埋め込み表示されているか。埋め込み時は親画面(トップ)への遷移を抑止する
+const EMBED = new URLSearchParams(location.search).has('embed');
+// 埋め込み時: 「閉じる」はトップへ遷移せず、親のドロワーを閉じるよう通知する
+if (EMBED) {
+  const closeToParent = (ev) => { if (ev) ev.preventDefault(); try { parent.postMessage({ type: 'cohub-cal-close' }, '*'); } catch (e) {} };
+  ['closeLink', 'deniedBack'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.removeAttribute('href'); el.style.cursor = 'pointer'; el.addEventListener('click', closeToParent); }
+  });
+}
+// トップへ離脱: 埋め込み時はiframe内でトップを開かず、親にドロワーを閉じるよう通知する
+function leaveToTop(){ if (EMBED) { try { parent.postMessage({ type: 'cohub-cal-close' }, '*'); } catch (e) {} } else { location.href = '/'; } }
 let me = null;
 let events = [];
 let cur = new Date(); cur.setDate(1);
@@ -270,7 +282,7 @@ async function api(path, opts){
   opts.headers = opts.headers || {};
   opts.headers['Authorization'] = 'Bearer ' + token;
   const r = await fetch(path, opts);
-  if (r.status === 401) { location.href = '/'; throw new Error('401'); }
+  if (r.status === 401) { leaveToTop(); throw new Error('401'); }
   if (r.status === 403) { showDenied(); throw new Error('403'); }
   return r.json();
 }
@@ -281,11 +293,11 @@ function showDenied(){
 }
 
 async function init(){
-  if (!token) { location.href = '/'; return; }
+  if (!token) { leaveToTop(); return; }
   let j;
   try { j = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } }).then(r=>r.json()); }
-  catch(e){ location.href = '/'; return; }
-  if (!j || !j.success) { location.href = '/'; return; }
+  catch(e){ leaveToTop(); return; }
+  if (!j || !j.success) { leaveToTop(); return; }
   me = j.user;
   if (!me.is_manager) { showDenied(); return; }
   document.getElementById('app').classList.remove('hide');
@@ -379,7 +391,12 @@ function chipHtml(e){
 function openItem(id){
   const e = events.find(x => String(x.id) === String(id));
   if (!e) return;
-  if (e.kind === 'meeting') { location.href = '/poll.html?id=' + e.poll_id; return; }
+  if (e.kind === 'meeting') {
+    // 埋め込み時はiframe内遷移せず別タブで開く
+    if (EMBED) window.open('/poll.html?id=' + e.poll_id, '_blank');
+    else location.href = '/poll.html?id=' + e.poll_id;
+    return;
+  }
   openDet(id);
 }
 

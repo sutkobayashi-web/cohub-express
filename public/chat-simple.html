@@ -2512,7 +2512,7 @@ function closeMembersModal() {
 // 共有カレンダー ドロワー (チャットを見ながら予定組みできるよう、チャット画面内に重ねて表示)
 function openCalDrawer() {
   const fr = $('cal-frame');
-  if (fr && !fr.getAttribute('src')) fr.setAttribute('src', '/calendar.html');
+  if (fr && !fr.getAttribute('src')) fr.setAttribute('src', '/calendar.html?embed=1');
   $('cal-drawer').classList.add('open');
   $('cal-drawer').setAttribute('aria-hidden', 'false');
   $('cal-backdrop').classList.add('open');
@@ -2522,6 +2522,10 @@ function closeCalDrawer() {
   $('cal-drawer').setAttribute('aria-hidden', 'true');
   $('cal-backdrop').classList.remove('open');
 }
+// ドロワー内カレンダー(iframe)からの「閉じる」通知を受けてドロワーを閉じる
+window.addEventListener('message', (ev) => {
+  if (ev && ev.data && ev.data.type === 'cohub-cal-close') closeCalDrawer();
+});
 function renderMpList() {
   if (!currentGid) return;
   const members = groupMembers.get(currentGid) || [];
