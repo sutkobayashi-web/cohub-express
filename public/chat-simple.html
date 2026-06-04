@@ -18,6 +18,23 @@
   header a:hover, header button:hover { background: rgba(255,255,255,0.3); }
   #me-name { font-size: 11px; opacity: 0.9; }
 
+  /* 共有カレンダー ドロワー (タイトルバー📅から開く。PCは右に寄せてチャットを残す/スマホは全画面) */
+  #cal-drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(520px, 100%); background: #fff;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.18); transform: translateX(100%); transition: transform .25s ease;
+    z-index: 1200; display: flex; flex-direction: column; }
+  #cal-drawer.open { transform: translateX(0); }
+  #cal-drawer .cd-head { background: linear-gradient(180deg, #0f766e, #115e59); color: #fff;
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  #cal-drawer .cd-head .cd-ttl { flex: 1; font-size: 15px; font-weight: 800; }
+  #cal-drawer .cd-head button { color: #fff; background: rgba(255,255,255,0.2); border: none; cursor: pointer;
+    border-radius: 6px; font-size: 18px; line-height: 1; padding: 6px 10px; }
+  #cal-drawer .cd-head button:hover { background: rgba(255,255,255,0.32); }
+  #cal-drawer iframe { flex: 1; width: 100%; border: 0; }
+  #cal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.35); z-index: 1199;
+    opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  #cal-backdrop.open { opacity: 1; pointer-events: auto; }
+  @media (max-width: 720px) { #cal-backdrop { display: none; } }
+
   main { flex: 1; display: flex; min-height: 0; }
   /* グループ一覧 */
   #side {
@@ -820,6 +837,8 @@
   .call-btn { /* 後方互換 */ display: flex; }
   .head-btn.members { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; box-shadow: none; }
   .head-btn.members:hover { background: #e2e8f0; }
+  .head-btn.cal { background: #ecfdf5; color: #0f766e; border: 1px solid #a7f3d0; box-shadow: none; }
+  .head-btn.cal:hover { background: #d1fae5; }
   .call-btn.voice, .head-btn.voice { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 3px 10px rgba(16,185,129,0.30); }
   .call-btn.video, .head-btn.video { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; box-shadow: 0 3px 10px rgba(99,102,241,0.30); }
   .head-btn.ping { width: auto; min-width: 48px; padding: 0 12px; border-radius: 16px; font-size: 13px; font-weight: 700; letter-spacing: 1px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 3px 10px rgba(245,158,11,0.32); }
@@ -1203,6 +1222,7 @@
       <button class="head-btn" type="button" id="btn-back-list" title="一覧へ戻る" onclick="backToList()" style="background:transparent;color:#0f172a;font-size:22px;width:32px;height:32px;flex-shrink:0;border:none;">←</button>
       <div class="ttl" id="panel-title">チャットを選択してください</div>
       <button class="head-btn members" type="button" id="btn-members" title="メンバー一覧" onclick="openMembersModal()" style="display:none;">👥</button>
+      <button class="head-btn cal" type="button" id="btn-calendar" title="共有カレンダー: 予定を確認・登録" onclick="openCalDrawer()" style="display:none;">📅</button>
       <button class="head-btn ping" type="button" id="btn-call-ping" title="呼出: 相手にチャイムを鳴らして気づかせる" onclick="pingPeer()">呼出</button>
       <button class="head-btn voice" type="button" id="btn-call-voice" title="音声通話" onclick="startCall('voice')">📞</button>
       <button class="head-btn video" type="button" id="btn-call-video" title="ビデオ通話" onclick="startCall('video')">📹</button>
@@ -1337,6 +1357,17 @@
     <button class="ctl-btn" type="button" id="btn-camera-off" onclick="toggleCamera()" title="カメラON/OFF">📹</button>
     <button class="ctl-btn end" type="button" onclick="endCall()" title="終話">✕</button>
   </div>
+</div>
+
+<!-- 共有カレンダー ドロワー -->
+<div id="cal-backdrop" onclick="closeCalDrawer()"></div>
+<div id="cal-drawer" aria-hidden="true">
+  <div class="cd-head">
+    <span class="cd-ttl">📅 共有カレンダー</span>
+    <button type="button" title="別タブで開く" onclick="window.open('/calendar.html','_blank')">⤢</button>
+    <button type="button" title="閉じる" onclick="closeCalDrawer()">✕</button>
+  </div>
+  <iframe id="cal-frame" title="共有カレンダー" loading="lazy"></iframe>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -2478,6 +2509,19 @@ function closeMembersModal() {
   $('members-modal').classList.remove('show');
   if (window.Overlay) Overlay.close('members-modal');
 }
+// 共有カレンダー ドロワー (チャットを見ながら予定組みできるよう、チャット画面内に重ねて表示)
+function openCalDrawer() {
+  const fr = $('cal-frame');
+  if (fr && !fr.getAttribute('src')) fr.setAttribute('src', '/calendar.html');
+  $('cal-drawer').classList.add('open');
+  $('cal-drawer').setAttribute('aria-hidden', 'false');
+  $('cal-backdrop').classList.add('open');
+}
+function closeCalDrawer() {
+  $('cal-drawer').classList.remove('open');
+  $('cal-drawer').setAttribute('aria-hidden', 'true');
+  $('cal-backdrop').classList.remove('open');
+}
 function renderMpList() {
   if (!currentGid) return;
   const members = groupMembers.get(currentGid) || [];
@@ -2585,6 +2629,7 @@ async function selectGroup(gid) {
   document.body.classList.remove('dm-mode');
   document.body.classList.add('chat-active');
   $('btn-members').style.display = 'flex';
+  $('btn-calendar').style.display = (me && me.is_manager) ? 'flex' : 'none';
   $('btn-call-ping').classList.add('disabled');
   $('btn-call-voice').classList.add('disabled');
   $('btn-call-video').classList.add('disabled');
@@ -2640,6 +2685,7 @@ async function selectDmPeer(peerId) {
   document.body.classList.add('dm-mode');
   document.body.classList.add('chat-active');
   $('btn-members').style.display = 'none';
+  $('btn-calendar').style.display = 'none';
   $('btn-call-ping').classList.remove('disabled');
   $('btn-call-voice').classList.remove('disabled');
   $('btn-call-video').classList.remove('disabled');
