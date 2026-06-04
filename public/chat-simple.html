@@ -2689,7 +2689,7 @@ async function selectDmPeer(peerId) {
   document.body.classList.add('dm-mode');
   document.body.classList.add('chat-active');
   $('btn-members').style.display = 'none';
-  $('btn-calendar').style.display = 'none';
+  $('btn-calendar').style.display = (me && me.is_manager) ? 'flex' : 'none';
   $('btn-call-ping').classList.remove('disabled');
   $('btn-call-voice').classList.remove('disabled');
   $('btn-call-video').classList.remove('disabled');
