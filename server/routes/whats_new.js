@@ -1,5 +1,7 @@
 // What's new: ホーム画面に表示する全社活動の最新ダイジェスト
 // 直近の plaza/board/announcement/accident/circle/wellness を統合し時系列で返す
+// ⚠️ 事故(accident)は「承認(公開)済みの報告書」のみ掲載 (2026-06-04)。提出直後の一報は
+//   非公開＋管理職アラート(accident:new)で扱い、NEWSには承認後に承認時刻で流す。
 //
 // ⚠️ タイムゾーン注意 (2026-05-25):
 //   ソーステーブルで created_at の保存TZが混在している(歴史的経緯)。
@@ -119,14 +121,17 @@ router.get('/', authUser, (req, res) => {
     }
   } catch (e) {}
 
-  // vehicle_accident_reports (車両事故)
+  // vehicle_accident_reports (車両事故) — 承認(公開)済みの報告書のみNEWSへ。
+  // 提出直後の一報(submitted)は非公開かつ管理職アラート(accident:new)で扱うのでここには出さない。
+  // 掲載時刻は承認時刻(approved_at, JST保存→-9hでUTC正規化)。
   try {
     const rows = db.prepare(`
       SELECT id, reporter_id, reporter_name, accident_type, location, media_paths,
-             datetime(created_at, '-9 hours') AS created_at_utc
+             datetime(approved_at, '-9 hours') AS created_at_utc
       FROM vehicle_accident_reports
-      WHERE created_at >= datetime('now', '-' || ? || ' days')
-      ORDER BY created_at DESC LIMIT 3
+      WHERE status = 'approved' AND approved_at IS NOT NULL
+        AND approved_at >= datetime('now', '-' || ? || ' days')
+      ORDER BY approved_at DESC LIMIT 3
     `).all(days);
     for (const r of rows) {
       events.push({
@@ -142,14 +147,15 @@ router.get('/', authUser, (req, res) => {
     }
   } catch (e) {}
 
-  // kbc_accident_reports (製品事故)
+  // kbc_accident_reports (製品事故) — 承認(公開)済みの報告書のみNEWSへ (一報submittedは非公開で出さない)
   try {
     const rows = db.prepare(`
       SELECT id, reporter_name, accident_type, location_area, media_paths, label_photo_path,
-             datetime(created_at, '-9 hours') AS created_at_utc
+             datetime(approved_at, '-9 hours') AS created_at_utc
       FROM kbc_accident_reports
-      WHERE created_at >= datetime('now', '-' || ? || ' days')
-      ORDER BY created_at DESC LIMIT 3
+      WHERE status = 'approved' AND approved_at IS NOT NULL
+        AND approved_at >= datetime('now', '-' || ? || ' days')
+      ORDER BY approved_at DESC LIMIT 3
     `).all(days);
     for (const r of rows) {
       events.push({
