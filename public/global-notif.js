@@ -406,11 +406,28 @@
   var _accidentPending = new Map();     // 'kind:id' -> payload
   var _onAccidentPage = /^\/accident(\.html|\/|$|\?)/.test(path);
   function _accKey(p) { return (p && p.kind || '') + ':' + (p && p.id != null ? p.id : ''); }
+  // TTS氏名読み辞書 (chat-simple.html / m.html と同内容。Google TTSの誤読対策)。
+  // 一報読み上げで報告者名を素のまま渡すとオカダキョウジ等と誤読されるため変換する。
+  var NAME_READINGS = {
+    '小林 猛': 'コバヤシ タケシ', '小林　猛': 'コバヤシ タケシ', '小林猛': 'コバヤシ タケシ',
+    '金子 力': 'カネコ チカラ', '金子　力': 'カネコ チカラ', '金子力': 'カネコ チカラ',
+    '岡田 恭司': 'オカダ ヤスジ', '岡田　恭司': 'オカダ ヤスジ', '岡田恭司': 'オカダ ヤスジ',
+    '土古 辰雄': 'ツチコ タツオ', '土古　辰雄': 'ツチコ タツオ', '土古辰雄': 'ツチコ タツオ'
+  };
+  function readingOf(name) {
+    if (!name) return name;
+    if (NAME_READINGS[name]) return NAME_READINGS[name];
+    var norm = name.replace(/\s+/g, '').replace(/　/g, '');
+    for (var k in NAME_READINGS) {
+      if (NAME_READINGS.hasOwnProperty(k) && k.replace(/\s+/g, '').replace(/　/g, '') === norm) return NAME_READINGS[k];
+    }
+    return name;
+  }
   function buildAccidentAnnounce(p) {
     var parts = ['事故報告の一報です'];
     if (p.location) parts.push(p.location);
     if (p.accident_type) parts.push(p.accident_type);
-    if (p.reporter_name) parts.push('報告者、' + p.reporter_name + 'さん');
+    if (p.reporter_name) parts.push('報告者、' + readingOf(p.reporter_name) + 'さん');
     return parts.join('、') + '。所属の管理者は確認してください。';
   }
   function renderAccidentToast() {
