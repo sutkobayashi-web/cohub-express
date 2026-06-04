@@ -1351,6 +1351,7 @@ let currentMode = null;         // 'group' | 'dm' | null
 let groupMembers = new Map();   // gid → members[]
 let messageCache = new Map();   // 'grp_xxx' or 'dm_yyy' → message[]
 let dmPeerInfo = new Map();     // peer_id → { last_content, last_at, last_sender_id }
+let allMembersById = new Map(); // uid → { id, display_name, avatar_url, company_code, ring_color } 全登録メンバー (DM母集団)
 let unreadGroups = new Map();   // gid → 未読数
 let unreadDms = new Map();      // peer_id → 未読数
 let messageReaders = new Map(); // message_id → readers[]
@@ -1917,7 +1918,7 @@ async function init() {
   if (!me.avatar_url && localStorage.getItem('cohub_avatar_prompt_dismissed') !== '1') {
     $('avatar-prompt').classList.add('show');
   }
-  await Promise.all([loadGroups(), loadDmPeers(), loadUnread(), loadOnlineUsers()]);
+  await Promise.all([loadGroups(), loadDmPeers(), loadAllMembers(), loadUnread(), loadOnlineUsers()]);
   renderGroupList(); // DM最新メッセージが入ったので再描画
   setupSocket();
   // URLパラメータでグループ指定があればそれを開く (PCも自動選択しない: 業務報告などが勝手に開く問題回避)
@@ -1995,28 +1996,35 @@ function renderGroupList() {
     else if (row.category === 'branch') branchRows.push(row);
     else groupRows.push(row);
   }
-  // DM一覧: グループメンバー全員 (=DM可能な登録アバター全員) を表示
+  // DM一覧: 登録メンバー全員 (DM制限撤廃により全員DM可) を表示。
+  // 母集団 = グループ共有メンバー(ring_color等のリッチ情報あり) ∪ 全登録メンバー。
+  // これによりグループ非共有の相手からの受信DMも一覧に出て確認できる。
   // 過去DM履歴あれば last_at で先頭、なければ五十音で後段
-  const seenPeers = new Set();
+  const peerSrc = new Map();
+  // (1) グループ共有メンバーを優先 (avatar/ring_color等が新鮮)
   for (const arr of groupMembers.values()) {
     for (const peer of arr) {
-      if (!peer || !peer.id) continue;
-      if (peer.id === me.uid) continue;
-      if (isBot(peer.id)) continue;
-      if (seenPeers.has(peer.id)) continue;
-      seenPeers.add(peer.id);
-      const info = dmPeerInfo.get(peer.id) || {};
-      dmRows.push({
-        type: 'dm', id: peer.id,
-        name: peer.display_name || '...',
-        avatar_url: peer.avatar_url || '',
-        company_code: peer.company_code || '',
-        ring_color: peer.ring_color || '',
-        last_content: info.last_content || '',
-        last_at: info.last_at || '',
-        last_sender_id: info.last_sender_id || '',
-      });
+      if (!peer || !peer.id || peer.id === me.uid || isBot(peer.id)) continue;
+      if (!peerSrc.has(peer.id)) peerSrc.set(peer.id, peer);
     }
+  }
+  // (2) 全登録メンバーで補完 (グループ未共有の人を追加)
+  for (const [uid, m] of allMembersById) {
+    if (!uid || uid === me.uid || isBot(uid)) continue;
+    if (!peerSrc.has(uid)) peerSrc.set(uid, m);
+  }
+  for (const peer of peerSrc.values()) {
+    const info = dmPeerInfo.get(peer.id) || {};
+    dmRows.push({
+      type: 'dm', id: peer.id,
+      name: peer.display_name || '...',
+      avatar_url: peer.avatar_url || '',
+      company_code: peer.company_code || '',
+      ring_color: peer.ring_color || '',
+      last_content: info.last_content || '',
+      last_at: info.last_at || '',
+      last_sender_id: info.last_sender_id || '',
+    });
   }
   // グループ・サークルは最終アクティビティ降順
   const byActivity = (a, b) => (b.last_at || '0').localeCompare(a.last_at || '0');
@@ -2361,6 +2369,27 @@ async function loadDmPeers() {
   } catch (e) {}
 }
 
+// 全登録メンバーを取得 (DM制限撤廃により、グループ非共有の相手ともDM可能。
+// 受信DMを取りこぼさずDM一覧へ出すための母集団として /api/members 全件を読む)
+async function loadAllMembers() {
+  try {
+    const r = await api('/api/members');
+    if (r && r.success && Array.isArray(r.items)) {
+      allMembersById.clear();
+      for (const it of r.items) {
+        if (!it || !it.id) continue;
+        allMembersById.set(it.id, {
+          id: it.id,
+          display_name: it.name || '',
+          avatar_url: it.avatar || '',
+          company_code: it.company || '',
+          ring_color: '',
+        });
+      }
+    }
+  } catch (e) {}
+}
+
 // メンバー行タップ: グループモード = チェックON/OFF / DMモード = DM切替
 function onMemberClick(uid) {
   if (uid === me.uid) return;
@@ -2616,12 +2645,13 @@ async function selectDmPeer(peerId) {
   $('btn-call-video').classList.remove('disabled');
   $('select-bar').classList.remove('group-mode');
   $('select-bar').classList.remove('has-selection');
-  // メンバー情報を groupMembers から検索 (なければ後でAPI応答で埋める)
+  // メンバー情報を groupMembers → 全メンバー の順で検索 (なければ後でAPI応答で埋める)
   let peer = null;
   for (const arr of groupMembers.values()) {
     peer = arr.find(m => m.id === peerId);
     if (peer) break;
   }
+  if (!peer && allMembersById.has(peerId)) peer = allMembersById.get(peerId);
   currentDmPeer = peer || { id: peerId, display_name: '...', avatar_url: '', company_code: '', ring_color: '' };
   renderGroupList();
   $('panel-title').innerHTML = '💬 <span style="color:#0d9488;">' + escapeHtml(currentDmPeer.display_name || '...') + '</span> <span style="font-size:11px;color:#94a3b8;font-weight:500;">との個別チャット</span>';
@@ -2976,7 +3006,7 @@ function removeMsgFromView(id) {
 }
 let _fwdContent = '';
 function msgForward(id) { const m = findCurMsg(id); if (!m) return; _fwdContent = String(m.content || ''); openForwardPicker(); }
-function nameOfUid(uid) { for (const arr of groupMembers.values()) { const f = arr.find(x => x.id === uid); if (f) return f; } return null; }
+function nameOfUid(uid) { for (const arr of groupMembers.values()) { const f = arr.find(x => x.id === uid); if (f) return f; } if (allMembersById.has(uid)) return allMembersById.get(uid); return null; }
 function openForwardPicker() {
   let mod = document.getElementById('fwd-modal');
   if (!mod) {
