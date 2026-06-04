@@ -687,6 +687,7 @@ io.use((socket, next) => {
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
 const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
 const callTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (DM呼出レート制限)
+const pendingCalls = new Map(); // toUid → { from, fromName, at, expires } (オフライン相手への呼出保留: 再接続時に配信)
 const lastLogoutAt = new Map(); // uid → ts: 真の離脱時刻 (ナビゲーション再接続のアナウンス抑止用)
 const LOGIN_ANNOUNCE_COOLDOWN_MS = 5 * 60 * 1000; // 5分以内の再接続はログインアナウンスしない (ページ遷移対応)
 
@@ -968,6 +969,19 @@ io.on('connection', (socket) => {
   db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
   socket.join('floor:' + floor.code);
   socket.join('user:' + uid); // ユーザー個別のroomに参加 (既読通知用)
+
+  // 保留中の呼出があれば再接続直後に配信 (タブ凍結/スリープ復帰でも気づけるように)。
+  // 1.2秒待ってからにするのは、クライアント側の dm:call ハンドラ登録 & 復帰操作での
+  // 音声アンロックが整うのを待つため。
+  const _pendingCall = pendingCalls.get(uid);
+  if (_pendingCall) {
+    pendingCalls.delete(uid);
+    if (!_pendingCall.expires || _pendingCall.expires > Date.now()) {
+      setTimeout(() => {
+        io.to('user:' + uid).emit('dm:call', { from: _pendingCall.from, fromName: _pendingCall.fromName, at: _pendingCall.at });
+      }, 1200);
+    }
+  }
 
   // 生存ハートビート: engine.ioのpong受信ごとに lastHb を更新 (PCスリープ/タブ凍結で自然に途絶)
   socket.conn.on('heartbeat', () => {
@@ -1523,9 +1537,14 @@ io.on('connection', (socket) => {
     // オンラインなら全タブ(PC/モバイル)へ即時チャイム配信
     const tp = presence.get(to);
     let online = false;
+    const callPayload = { from: uid, fromName: senderName, at: new Date().toISOString() };
     if (tp && !tp.isBot) {
-      io.to('user:' + to).emit('dm:call', { from: uid, fromName: senderName, at: new Date().toISOString() });
+      io.to('user:' + to).emit('dm:call', callPayload);
       online = true;
+    } else {
+      // オフライン(presence削除済=socket切断/タブ凍結/スリープ)。
+      // ページは開いたままのことが多いので、再接続した瞬間に鳴らせるよう90秒保留。
+      pendingCalls.set(to, Object.assign({}, callPayload, { expires: Date.now() + 90000 }));
     }
     // OS通知を必ず出す: alwaysShow=true でSWの「タブが開いてたら出さない」抑制を回避。
     // 呼出は明示的な緊急ページなので、相手がチャット以外のページを開いていても確実に通知。
