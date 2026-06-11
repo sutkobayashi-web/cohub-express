@@ -446,6 +446,7 @@
   .card.literacy   { --c1: #2dd4bf; --c2: #0d9488; }
   .card.takara     { --c1: #f87171; --c2: #1e40af; }
   .card.safety     { --c1: #fca5a5; --c2: #dc2626; }  /* 安全衛生委員会 月報 (🚨Report赤系) */
+  .card.matomeru   { --c1: #fb923c; --c2: #c2410c; }  /* まとめる君: 暖色オレンジ (🦉) */
 
   /* 推進メンバー専用 */
   #promoter-section .grid { gap: 12px; }
@@ -752,6 +753,11 @@
       <div class="icon-pill">🚚</div>
       <div class="label">安全運転レポート</div>
       <div class="desc">デジタコの日次集計。安全運転ランキング・達成率・違反指導を自動表示。</div>
+    </a>
+    <a class="card matomeru" href="/matomeru.html">
+      <div class="icon-pill">🦉</div>
+      <div class="label">まとめる君</div>
+      <div class="desc">走り書きの報告メモをAIが5W1Hに整形。週報モードも。事故・トラブル報告の下書きに。</div>
     </a>
     <a class="card accident" href="/weekly-report.html" id="card-weekly" style="display:none;">
       <div class="icon-pill">📊</div>
@@ -1271,7 +1277,7 @@ function renderNewFeatures(isManager) {
   const isOp = isManager || (me && (me.is_field_promoter || me.is_warehouse_promoter || me.employee_type === 'admin' || me.job_role === 'manager'));
   if (isOp) items.push({ ic: '🚦', t: '点呼・朝礼', d: 'タブレットで点呼/朝礼を記録（アルコール等は東海電子で実施済み確認のみ）', href: '/tenko.html' });
   if (isManager) items.push({ ic: '🗓', t: '共有カレンダー', d: '役員・管理職の予定を社内で共有', href: '/calendar.html' });
-  items.push({ ic: '🦉', t: 'まとめる君', d: '報告メモをAIが5W1Hに整形（事業本部チャット）', href: '/chat' });
+  items.push({ ic: '🦉', t: 'まとめる君', d: '報告メモをAIが5W1Hに整形。Reportから誰でも使えます', href: '/matomeru.html' });
   items.push({ ic: '🔥', t: 'マイ運動記録', d: '運動をkcalで記録・月間ランキング', href: '/myactivity.html' });
   list.innerHTML = items.map(function (x) {
     return '<a class="nf-item" href="' + x.href + '"><span class="nf-ic">' + x.ic + '</span><span class="nf-tx"><b>' + escapeHtml(x.t) + '</b><small>' + escapeHtml(x.d) + '</small></span></a>';
