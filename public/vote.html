@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🗳️ 投票したろう — CoWell</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+:root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --sub:#64748b; --teal:#0d9488; --teal-d:#0f766e; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif; min-height: 100vh; }
+main { max-width: 960px; margin: 0 auto; padding: 16px; }
+/* 投票したろう (画面右下・全身固定表示、フローティング) */
+@keyframes detarouFloat {
+  0%   { transform: translateY(0) rotate(-0.6deg); }
+  50%  { transform: translateY(-10px) rotate(0.6deg); }
+  100% { transform: translateY(0) rotate(-0.6deg); }
+}
+@keyframes detarouBubblePop {
+  0%, 80%, 100% { transform: scale(1); }
+  85%           { transform: scale(1.08); }
+  90%           { transform: scale(0.97); }
+  95%           { transform: scale(1.03); }
+}
+.detarou-hero { position: fixed; right: 16px; left: auto; bottom: 8px; z-index: 50; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; animation: detarouFloat 4.5s ease-in-out infinite; transform-origin: 50% 100%; }
+.detarou-hero .ava-full { width: 168px; height: auto; display: block; filter: drop-shadow(0 8px 14px rgba(15,23,42,0.20)); pointer-events: auto; }
+.detarou-hero .bubble { position: relative; margin-bottom: 150px; background: #fff; border: 2px solid #0d9488; border-radius: 16px; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #0f766e; box-shadow: 0 4px 10px rgba(13,148,136,0.18); max-width: 240px; line-height: 1.5; pointer-events: auto; animation: detarouBubblePop 4.5s ease-in-out infinite; transform-origin: 100% 50%; }
+.detarou-hero .bubble .name { display: block; font-size: 10px; color: #0d9488; font-weight: 800; margin-bottom: 3px; letter-spacing: 0.5px; }
+.detarou-hero .bubble::after { content: ''; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid #0d9488; }
+.detarou-hero .bubble::before { content: ''; position: absolute; right: -7px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 8px solid #fff; z-index: 1; }
+@media (max-width: 480px) {
+  .detarou-hero { right: 8px; left: auto; bottom: 6px; gap: 6px; }
+  .detarou-hero .ava-full { width: 108px; }
+  .detarou-hero .bubble { font-size: 11px; padding: 6px 10px; margin-bottom: 95px; max-width: 160px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .detarou-hero, .detarou-hero .bubble { animation: none; }
+}
+.detarou-hero .close-btn { position: absolute; top: 4px; right: -4px; left: auto; width: 28px; height: 28px; border-radius: 50%; background: rgba(15,23,42,0.65); color: #fff; border: 2px solid #fff; font-size: 13px; font-weight: 900; cursor: pointer; pointer-events: auto; box-shadow: 0 3px 8px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; z-index: 2; }
+.detarou-hero .close-btn:hover { background: rgba(15,23,42,0.85); }
+.detarou-hero.hidden { display: none; }
+.detarou-restore { position: fixed; right: 12px; left: auto; bottom: 12px; z-index: 50; width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; border: 2px solid #fff; box-shadow: 0 4px 12px rgba(13,148,136,0.35); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 22px; pointer-events: auto; }
+.detarou-restore.show { display: flex; }
+.detarou-restore:hover { transform: scale(1.06); }
+@media (max-width: 480px) {
+  .detarou-hero .close-btn { width: 24px; height: 24px; font-size: 11px; right: -2px; left: auto; top: 2px; }
+  .detarou-restore { width: 42px; height: 42px; font-size: 20px; right: 8px; left: auto; bottom: 10px; }
+}
+.sec-title { font-size: 13px; font-weight: 800; color: var(--sub); margin: 20px 0 10px; padding-left: 8px; border-left: 3px solid var(--teal); letter-spacing: 0.3px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: none; border-radius: 8px; background: linear-gradient(135deg, var(--teal), var(--teal-d)); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.btn:hover { opacity: 0.9; }
+.btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.poll-list { display: grid; gap: 12px; }
+.poll-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; text-decoration: none; color: inherit; display: block; border-left: 5px solid #0d9488; }
+.poll-card:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); transform: translateY(-1px); }
+.poll-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.poll-card .title { font-size: 16px; font-weight: 800; flex: 1; }
+.poll-card .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.poll-card .badge.open { background: #dcfce7; color: #166534; }
+.poll-card .badge.closed { background: #dbeafe; color: #1d4ed8; }
+.poll-card .badge.cancelled { background: #f1f5f9; color: #64748b; }
+.poll-card .meta { font-size: 12px; color: var(--sub); display: flex; gap: 14px; flex-wrap: wrap; }
+.poll-card .role { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+.poll-card .role.org { background: #fef3c7; color: #92400e; }
+.poll-card .role.invited { background: #ede9fe; color: #6d28d9; }
+.poll-card .role.todo { background: #fee2e2; color: #b91c1c; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--sub); font-size: 13px; }
+.empty .em { font-size: 40px; margin-bottom: 8px; }
+
+/* 作成フォーム */
+.form { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-top: 12px; }
+.form label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px; margin-top: 14px; }
+.form label:first-child { margin-top: 0; }
+.form input[type=text], .form textarea, .form input[type=number] {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; outline: none;
+}
+.form input:focus, .form textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,148,136,0.15); }
+.form .opt-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.form .opt-row .num { width: 24px; text-align: center; font-weight: 800; color: var(--sub); flex-shrink: 0; }
+.form .opt-row input { flex: 1; }
+.form .opt-row button { background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; padding: 8px 10px; cursor: pointer; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+.form .add-opt { margin-top: 8px; background: #f1f5f9; color: #0f172a; border: 1px dashed #cbd5e1; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.form .add-opt:hover { background: #e2e8f0; }
+.form .bulk { margin-top: 6px; }
+.form .bulk summary { font-size: 11px; color: #0f766e; cursor: pointer; }
+.form .bulk textarea { margin-top: 6px; }
+.form .invitees-pick { max-height: 280px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px; margin-top: 4px; background: #fafafa; }
+.form .invitee-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.form .invitee-item:hover { background: #fff; }
+.form .invitee-item.checked { background: #ecfeff; }
+.form .invitee-item input { margin: 0; }
+.form .invitee-item .ava { width: 28px; height: 28px; border-radius: 50%; background: #cbd5e1; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.form .invitee-item .ava img { width: 100%; height: 100%; object-fit: cover; }
+.form .invitee-item .nm { font-size: 13px; }
+.form .invitee-item .grp { font-size: 11px; color: var(--sub); margin-left: auto; }
+.form .group-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.form .group-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--ink); user-select: none; }
+.form .group-chip:hover { border-color: #0d9488; background: #f0fdfa; }
+.form .group-chip.full { background: var(--teal); border-color: var(--teal); color: #fff; }
+.form .group-chip.partial { background: #ecfeff; border-color: var(--teal); color: #0f766e; }
+.form .group-chip .gc-cnt { font-size: 10px; opacity: .8; font-weight: 600; }
+.form .group-chip.cross { border-color: #86efac; background: #f0fdf4; color: #15803d; }
+.form .group-chip.cross.full { background: #16a34a; border-color: #16a34a; color: #fff; }
+.form .group-chip.cross.partial { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+.form .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+/* 詳細 */
+.poll-detail { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-top: 12px; }
+.poll-detail h2 { margin: 0 0 4px; font-size: 18px; }
+.poll-detail .ds { color: var(--sub); font-size: 12px; margin-bottom: 14px; }
+.poll-detail .closed-banner { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e3a8a; padding: 10px 14px; border-radius: 10px; font-weight: 700; margin-bottom: 14px; }
+.poll-detail .cancelled-banner { background: #f1f5f9; color: #64748b; padding: 10px 14px; border-radius: 10px; font-weight: 600; margin-bottom: 14px; }
+
+/* 投票UI (チェックボックス選択) */
+.vote-form { background: #fff; border: 2px solid var(--teal); border-radius: 14px; padding: 16px 18px; margin-top: 14px; }
+.vote-form h3 { margin: 0 0 4px; font-size: 15px; }
+.vote-form .rule { font-size: 12px; color: var(--sub); margin-bottom: 10px; }
+.vote-form .rule b { color: #0f766e; }
+.opt-pick { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 10px; cursor: pointer; margin-bottom: 8px; user-select: none; transition: border-color 0.12s, background 0.12s; }
+.opt-pick:hover { background: #f8fafc; }
+.opt-pick.sel { border-color: var(--teal); background: #ecfeff; }
+.opt-pick.disabled { opacity: 0.5; cursor: not-allowed; }
+.opt-pick input { margin: 3px 0 0; width: 18px; height: 18px; accent-color: #0d9488; flex-shrink: 0; }
+.opt-pick .lbl { font-size: 14px; font-weight: 600; line-height: 1.5; }
+
+/* 結果バー */
+.result-row { margin-bottom: 12px; }
+.result-row .rl-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.result-row .rl-label { font-size: 14px; font-weight: 700; flex: 1; }
+.result-row .rl-count { font-size: 13px; font-weight: 800; color: #0f766e; white-space: nowrap; }
+.result-row .rl-pct { font-size: 11px; color: var(--sub); white-space: nowrap; }
+.result-row .bar { height: 14px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+.result-row .bar > span { display: block; height: 100%; background: linear-gradient(90deg, #14b8a6, #0d9488); border-radius: 999px; transition: width 0.4s; }
+.result-row.top .bar > span { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.result-row .voters { font-size: 11px; color: var(--sub); margin-top: 4px; line-height: 1.6; }
+.result-row .voters .vn { display: inline-block; background: #f1f5f9; border-radius: 999px; padding: 1px 8px; margin: 2px 3px 0 0; }
+.result-row .voters .vn.me { background: #ccfbf1; color: #0f766e; font-weight: 700; }
+
+.who-status { font-size: 12px; color: var(--sub); margin: 10px 0; }
+.who-status .done { color: #16a34a; font-weight: 700; }
+.who-status .todo { color: #b91c1c; font-weight: 700; }
+</style>
+<script src="/unify-header.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+<header>
+  <a href="/home" class="back">←</a>
+  <h1>🗳️ 投票したろう</h1>
+</header>
+
+<main>
+  <div class="detarou-hero" id="detarou-hero">
+    <button class="close-btn" type="button" onclick="hideDetarou()" aria-label="投票したろうを非表示">✕</button>
+    <div class="bubble">
+      <span class="name">投票したろう</span>
+      <span id="detarou-line">よろしゅう。みんなの声、ワシが集計したるさかい。ポチッと投票してや。</span>
+    </div>
+    <img class="ava-full" src="/assets/kaigi_detarou_full.png?v=2" alt="投票したろう">
+  </div>
+  <button class="detarou-restore" id="detarou-restore" type="button" onclick="showDetarou()" aria-label="投票したろうを表示" title="投票したろうを呼ぶ">🗳️</button>
+
+  <div id="view-list" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="sec-title" style="margin:0;">投票一覧</div>
+      <button class="btn" onclick="showCreate()">＋ 新規作成</button>
+    </div>
+    <div id="poll-list" class="poll-list"></div>
+  </div>
+
+  <div id="view-create" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="sec-title" style="margin:0;">新規作成</div>
+      <button class="btn ghost" onclick="showList()">← 一覧へ</button>
+    </div>
+    <div class="form">
+      <label>タイトル <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="f-title" maxlength="120" placeholder="例: 会社として重要だと思う課題は?">
+
+      <label>説明 (任意)</label>
+      <textarea id="f-desc" rows="3" maxlength="4000" placeholder="投票の趣旨や補足説明"></textarea>
+
+      <label>1人あたり選べる数 <span style="color:#dc2626;">*</span></label>
+      <input type="number" id="f-max" min="1" max="50" value="1" style="max-width:120px;">
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">1 = ひとつだけ選択 / 2以上 = 複数選択(その数まで)。例: 5 にすると最大5つまで選べます。</div>
+
+      <label>選択肢 <span style="color:#dc2626;">*</span> (2〜50件)</label>
+      <div id="opt-list"></div>
+      <button type="button" class="add-opt" onclick="addOptRow()">＋ 選択肢を追加</button>
+      <details class="bulk">
+        <summary>📋 まとめて貼り付け (1行=1項目)</summary>
+        <textarea id="f-bulk" rows="5" placeholder="改行区切りで貼り付け。先頭の番号(1. や 1、)は自動で除去します。"></textarea>
+        <button type="button" class="add-opt" style="margin-top:6px;" onclick="applyBulk()">この内容を選択肢に反映</button>
+      </details>
+
+      <label>対象者 <span style="color:#dc2626;">*</span></label>
+      <div style="font-size:11px;color:#64748b;margin-bottom:2px;">グループ名をタップすると、そのグループの全員をまとめて追加／解除できます</div>
+      <div class="group-chips" id="group-chips"></div>
+      <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()" style="margin-top:6px;">
+      <div class="invitees-pick" id="invitees-pick">読み込み中...</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;" id="invitees-count">0名選択中</div>
+
+      <div class="actions">
+        <button class="btn ghost" onclick="showList()">キャンセル</button>
+        <button class="btn" id="btn-create-submit" onclick="submitCreate()">作成 → 依頼DM送信</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none;"></div>
+</main>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) location.replace('/');
+let me = null;
+let allMembers = [];
+let selectedInvitees = new Set();
+let voteSel = new Set();   // 詳細画面での自分の選択 (option_id)
+let voteMax = 1;
+
+function hideDetarou() {
+  document.getElementById('detarou-hero').classList.add('hidden');
+  document.getElementById('detarou-restore').classList.add('show');
+  try { localStorage.setItem('cohub_detarou_hidden', '1'); } catch (e) {}
+}
+function showDetarou() {
+  document.getElementById('detarou-hero').classList.remove('hidden');
+  document.getElementById('detarou-restore').classList.remove('show');
+  try { localStorage.setItem('cohub_detarou_hidden', '0'); } catch (e) {}
+}
+(function () {
+  try {
+    if (localStorage.getItem('cohub_detarou_hidden') === '1') {
+      document.addEventListener('DOMContentLoaded', function () {
+        const h = document.getElementById('detarou-hero');
+        const r = document.getElementById('detarou-restore');
+        if (h) h.classList.add('hidden');
+        if (r) r.classList.add('show');
+      });
+    }
+  } catch (e) {}
+})();
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function api(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object') {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+  return r.json();
+}
+
+async function init() {
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) return;
+  me = r.user;
+  const params = new URLSearchParams(location.search);
+  if (params.get('new') === '1') showCreate();
+  else if (params.get('id')) showDetail(parseInt(params.get('id')));
+  else showList();
+}
+
+function setView(v) {
+  document.getElementById('view-list').style.display = v === 'list' ? '' : 'none';
+  document.getElementById('view-create').style.display = v === 'create' ? '' : 'none';
+  document.getElementById('view-detail').style.display = v === 'detail' ? '' : 'none';
+  const lines = {
+    list: 'よろしゅう。みんなの声、ワシが集計したるさかい。気になる投票に答えてや。',
+    create: 'ほな投票つくりまひょ。選択肢と対象者を決めてくれたら、ワシが依頼DM飛ばしますんで。',
+    detail: '選んだら投票ボタンをポチッとな。あとで変えても大丈夫やで。',
+  };
+  const el = document.getElementById('detarou-line');
+  if (el && lines[v]) el.textContent = lines[v];
+}
+
+/* ===== 一覧 ===== */
+async function showList() {
+  history.replaceState({}, '', '/vote.html');
+  setView('list');
+  const r = await api('/api/vote');
+  if (!r || !r.success) { document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込み失敗</div>'; return; }
+  if (!r.polls.length) {
+    document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">🗳️</div>まだ投票はありません<br><span style="font-size:11px;">「＋ 新規作成」から始められます</span></div>';
+    return;
+  }
+  document.getElementById('poll-list').innerHTML = r.polls.map(p => {
+    const isOrg = p.organizer_id === r.me;
+    const role = isOrg ? '<span class="role org">主催</span>' : '<span class="role invited">対象</span>';
+    const badge = p.status === 'open' ? '<span class="badge open">受付中</span>'
+                : p.status === 'closed' ? '<span class="badge closed">締切</span>'
+                : '<span class="badge cancelled">中止</span>';
+    const ruleTxt = p.max_choices > 1 ? ('最大' + p.max_choices + 'つ選択') : '1つ選択';
+    return '<a class="poll-card" href="/vote.html?id=' + p.id + '">'
+      + '<div class="head"><div class="title">' + escapeHtml(p.title) + '</div>' + badge + role + '</div>'
+      + '<div class="meta">'
+      + '<span>主催: ' + escapeHtml(p.organizer_name || '') + '</span>'
+      + '<span>📋 ' + p.option_count + '項目 / ' + ruleTxt + '</span>'
+      + '<span>👥 ' + p.voted_count + '/' + p.invitee_count + '名 投票済</span>'
+      + '</div></a>';
+  }).join('');
+}
+
+/* ===== 作成 ===== */
+async function showCreate() {
+  history.replaceState({}, '', '/vote.html?new=1');
+  setView('create');
+  selectedInvitees = new Set();
+  document.getElementById('f-members-search').value = '';
+  document.getElementById('opt-list').innerHTML = '';
+  for (let i = 0; i < 3; i++) addOptRow('');
+  const r = await api('/api/members');
+  if (r && r.success) {
+    allMembers = r.items || [];
+    renderGroupChips();
+    renderMembersPick();
+  } else {
+    document.getElementById('invitees-pick').innerHTML = '<div style="padding:10px;color:#dc2626;">メンバー読み込み失敗</div>';
+  }
+}
+function renumberOpts() {
+  [...document.querySelectorAll('#opt-list .opt-row')].forEach((row, i) => {
+    const n = row.querySelector('.num');
+    if (n) n.textContent = (i + 1);
+  });
+}
+function addOptRow(initial) {
+  const wrap = document.getElementById('opt-list');
+  const div = document.createElement('div');
+  div.className = 'opt-row';
+  div.innerHTML = '<span class="num"></span><input type="text" maxlength="200" value="' + escapeHtml(initial || '') + '" placeholder="選択肢を入力" /><button type="button" onclick="this.parentNode.remove();renumberOpts();">削除</button>';
+  wrap.appendChild(div);
+  renumberOpts();
+}
+function applyBulk() {
+  const raw = document.getElementById('f-bulk').value || '';
+  const lines = raw.split(/\r?\n/).map(s => s.replace(/^\s*\d+[\.\)、．]?\s*/, '').trim()).filter(Boolean);
+  if (!lines.length) { alert('貼り付け内容が空です'); return; }
+  if (lines.length > 50) { alert('選択肢は50件までです (現在' + lines.length + '件)'); return; }
+  document.getElementById('opt-list').innerHTML = '';
+  lines.forEach(l => addOptRow(l));
+  document.getElementById('f-bulk').value = '';
+}
+
+function eligibleMembers() { return allMembers.filter(m => m.id !== me.id); }
+function groupMembers(g) { return eligibleMembers().filter(m => (m.group || '') === g); }
+function chipDefs() {
+  const defs = [];
+  const promoters = eligibleMembers().filter(m => m.promoter);
+  if (promoters.length) defs.push({ label: '🌱 健康推進メンバー', cls: 'cross', members: promoters });
+  const seen = new Set();
+  eligibleMembers().forEach(m => {
+    const g = m.group || '';
+    if (seen.has(g)) return;
+    seen.add(g);
+    defs.push({ label: g || '（グループ未設定）', cls: '', members: groupMembers(g) });
+  });
+  return defs;
+}
+function renderGroupChips() {
+  const wrap = document.getElementById('group-chips');
+  if (!wrap) return;
+  wrap.innerHTML = chipDefs().map((d, idx) => {
+    const selN = d.members.filter(m => selectedInvitees.has(m.id)).length;
+    const state = selN === 0 ? '' : (selN === d.members.length ? 'full' : 'partial');
+    return '<span class="group-chip ' + d.cls + ' ' + state + '" onclick="toggleGroup(' + idx + ')">'
+      + escapeHtml(d.label)
+      + '<span class="gc-cnt">' + selN + '/' + d.members.length + '</span>'
+      + '</span>';
+  }).join('');
+}
+function toggleGroup(idx) {
+  const d = chipDefs()[idx];
+  if (!d) return;
+  const mems = d.members;
+  const allSelected = mems.length > 0 && mems.every(m => selectedInvitees.has(m.id));
+  mems.forEach(m => { if (allSelected) selectedInvitees.delete(m.id); else selectedInvitees.add(m.id); });
+  renderGroupChips();
+  renderMembersPick();
+}
+function renderMembersPick() {
+  const q = (document.getElementById('f-members-search').value || '').toLowerCase().trim();
+  const list = eligibleMembers().filter(m =>
+    (!q || (m.name || '').toLowerCase().includes(q) || (m.group || '').toLowerCase().includes(q))
+  ).slice(0, 300);
+  document.getElementById('invitees-pick').innerHTML = list.map(m => {
+    const isChecked = selectedInvitees.has(m.id);
+    const initial = (m.name || '?').trim().charAt(0);
+    const ava = m.avatar
+      ? '<img src="' + escapeHtml(m.avatar) + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initial) + '\'))">'
+      : escapeHtml(initial);
+    return '<label class="invitee-item' + (isChecked ? ' checked' : '') + '">'
+      + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="onInviteeToggle(this)">'
+      + '<div class="ava">' + ava + '</div>'
+      + '<div class="nm">' + escapeHtml(m.name) + '</div>'
+      + (m.group ? '<div class="grp">' + escapeHtml(m.group) + '</div>' : '')
+      + '</label>';
+  }).join('');
+  updateInviteeCount();
+}
+function onInviteeToggle(cb) {
+  if (cb.checked) selectedInvitees.add(cb.dataset.uid);
+  else selectedInvitees.delete(cb.dataset.uid);
+  renderGroupChips();
+  updateInviteeCount();
+}
+function updateInviteeCount() {
+  document.getElementById('invitees-count').textContent = selectedInvitees.size + '名選択中';
+  document.querySelectorAll('#invitees-pick .invitee-item').forEach(el => {
+    el.classList.toggle('checked', el.querySelector('input').checked);
+  });
+}
+
+async function submitCreate() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { alert('タイトルを入力してください'); return; }
+  const desc = document.getElementById('f-desc').value.trim();
+  const options = [...document.querySelectorAll('#opt-list input[type=text]')]
+    .map(i => i.value.trim()).filter(v => v);
+  if (options.length < 2) { alert('選択肢を2つ以上入力してください'); return; }
+  let maxChoices = parseInt(document.getElementById('f-max').value) || 1;
+  if (maxChoices < 1) maxChoices = 1;
+  if (maxChoices > options.length) maxChoices = options.length;
+  const invitees = [...selectedInvitees];
+  if (invitees.length < 1) { alert('対象者を1人以上選んでください'); return; }
+  const btn = document.getElementById('btn-create-submit');
+  btn.disabled = true;
+  const r = await api('/api/vote', { method: 'POST', body: { title, description: desc, max_choices: maxChoices, options, invitees } });
+  btn.disabled = false;
+  if (r && r.success) location.href = '/vote.html?id=' + r.id;
+  else alert('作成失敗: ' + (r && r.msg || '通信エラー'));
+}
+
+/* ===== 詳細 ===== */
+async function showDetail(id) {
+  history.replaceState({}, '', '/vote.html?id=' + id);
+  setView('detail');
+  const wrap = document.getElementById('view-detail');
+  wrap.innerHTML = '<div class="empty"><div class="em">⏳</div>読み込み中...</div>';
+  const r = await api('/api/vote/' + id);
+  if (!r || !r.success) { wrap.innerHTML = '<div class="empty"><div class="em">⚠️</div>' + escapeHtml((r && r.msg) || '読み込み失敗') + '<br><a href="/vote.html">← 一覧へ</a></div>'; return; }
+
+  const { poll, options, invitees, votes, is_organizer, is_invited, voted } = r;
+  voteMax = poll.max_choices || 1;
+
+  // 集計
+  const countByOpt = {}; const votersByOpt = {};
+  options.forEach(o => { countByOpt[o.id] = 0; votersByOpt[o.id] = []; });
+  votes.forEach(v => {
+    if (countByOpt[v.option_id] == null) return;
+    countByOpt[v.option_id]++;
+    votersByOpt[v.option_id].push({ name: v.display_name || v.user_id, me: v.user_id === r.me });
+  });
+  const maxCount = Math.max(0, ...options.map(o => countByOpt[o.id]));
+  const totalVoters = new Set(votes.map(v => v.user_id)).size;
+  // 自分の選択
+  voteSel = new Set(votes.filter(v => v.user_id === r.me).map(v => v.option_id));
+
+  let html = '<div class="poll-detail">';
+  html += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">';
+  html += '<h2 style="margin:0;flex:1;">' + escapeHtml(poll.title) + '</h2>';
+  html += '<a class="btn ghost" href="/vote.html">← 一覧</a>';
+  html += '</div>';
+  const ruleTxt = voteMax > 1 ? ('最大' + voteMax + 'つ選択') : '1つ選択';
+  html += '<div class="ds">主催: ' + escapeHtml(poll.organizer_name || '') + ' / ' + ruleTxt + ' / 状態: '
+    + (poll.status === 'open' ? '<b style="color:#16a34a;">受付中</b>' : poll.status === 'closed' ? '<b style="color:#1d4ed8;">締切</b>' : '中止')
+    + '</div>';
+  if (poll.description) html += '<div style="background:#f8fafc;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;color:#334155;margin-bottom:14px;white-space:pre-wrap;">' + escapeHtml(poll.description) + '</div>';
+  if (poll.status === 'closed') html += '<div class="closed-banner">📊 この投票は締め切られました</div>';
+  if (poll.status === 'cancelled') html += '<div class="cancelled-banner">この投票は中止されました</div>';
+
+  // 投票UI (対象者、受付中)
+  if (is_invited && poll.status === 'open') {
+    html += '<div class="vote-form"><h3>👇 あなたの投票</h3>';
+    html += '<div class="rule">' + (voteMax > 1 ? ('<b>最大' + voteMax + 'つ</b>まで選べます') : '<b>1つ</b>選んでください') + ' <span id="sel-count" style="margin-left:8px;color:#0f766e;font-weight:700;"></span></div>';
+    options.forEach(o => {
+      const sel = voteSel.has(o.id);
+      const inputType = voteMax === 1 ? 'radio' : 'checkbox';
+      html += '<label class="opt-pick' + (sel ? ' sel' : '') + '" data-oid="' + o.id + '">'
+        + '<input type="' + inputType + '" name="voteopt"' + (sel ? ' checked' : '') + ' onchange="onOptToggle(' + o.id + ',this)">'
+        + '<span class="lbl">' + escapeHtml(o.label) + '</span></label>';
+    });
+    html += '<div style="text-align:right;margin-top:12px;"><button class="btn" id="btn-vote-submit" onclick="submitVote(' + poll.id + ')">' + (voted ? '投票を更新' : '投票する') + '</button></div></div>';
+  }
+
+  // 結果 (記名式)
+  html += '<div class="sec-title" style="margin-top:18px;">📊 投票結果</div>';
+  html += '<div class="who-status">投票済: <span class="done">' + totalVoters + '名</span> / 対象 ' + invitees.length + '名';
+  const notYet = invitees.filter(inv => !votes.some(v => v.user_id === inv.user_id));
+  if (notYet.length) html += ' ・ 未投票: <span class="todo">' + notYet.map(n => escapeHtml(n.display_name || n.user_id)).join('、') + '</span>';
+  html += '</div>';
+  // 得票数の多い順に並べる
+  const ordered = options.slice().sort((a, b) => countByOpt[b.id] - countByOpt[a.id] || a.ordinal - b.ordinal);
+  ordered.forEach(o => {
+    const c = countByOpt[o.id];
+    const pct = totalVoters ? Math.round(c / totalVoters * 100) : 0;
+    const barPct = maxCount ? Math.round(c / maxCount * 100) : 0;
+    const isTop = c > 0 && c === maxCount;
+    html += '<div class="result-row' + (isTop ? ' top' : '') + '">'
+      + '<div class="rl-head"><span class="rl-label">' + (isTop ? '👑 ' : '') + escapeHtml(o.label) + '</span>'
+      + '<span class="rl-count">' + c + '票</span><span class="rl-pct">(' + pct + '%)</span></div>'
+      + '<div class="bar"><span style="width:' + barPct + '%"></span></div>';
+    if (votersByOpt[o.id].length) {
+      html += '<div class="voters">' + votersByOpt[o.id].map(v => '<span class="vn' + (v.me ? ' me' : '') + '">' + escapeHtml(v.name) + '</span>').join('') + '</div>';
+    }
+    html += '</div>';
+  });
+
+  // 主催者向け操作
+  if (is_organizer && poll.status === 'open') {
+    html += '<div class="sec-title" style="margin-top:18px;">⚡ 主催者メニュー</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">';
+    html += '<button class="btn" onclick="closePoll(' + poll.id + ')">📊 投票を締め切る</button>';
+    html += '<button class="btn danger" onclick="cancelPoll(' + poll.id + ')">この投票を中止</button>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+  updateSelCount();
+}
+
+function onOptToggle(oid, input) {
+  if (voteMax === 1) {
+    voteSel = new Set([oid]);
+    document.querySelectorAll('#view-detail .opt-pick').forEach(el => el.classList.toggle('sel', parseInt(el.dataset.oid) === oid));
+    updateSelCount();
+    return;
+  }
+  if (input.checked) {
+    if (voteSel.size >= voteMax) {
+      input.checked = false;
+      alert('選べるのは最大' + voteMax + 'つまでです');
+      return;
+    }
+    voteSel.add(oid);
+  } else {
+    voteSel.delete(oid);
+  }
+  const lbl = input.closest('.opt-pick');
+  if (lbl) lbl.classList.toggle('sel', input.checked);
+  updateSelCount();
+}
+function updateSelCount() {
+  const el = document.getElementById('sel-count');
+  if (el) el.textContent = '(' + voteSel.size + (voteMax > 1 ? '/' + voteMax : '') + '選択中)';
+}
+async function submitVote(id) {
+  const ids = [...voteSel];
+  if (ids.length < 1) { alert('1つ以上選んでください'); return; }
+  const btn = document.getElementById('btn-vote-submit');
+  btn.disabled = true;
+  const r = await api('/api/vote/' + id + '/vote', { method: 'POST', body: { option_ids: ids } });
+  btn.disabled = false;
+  if (r && r.success) showDetail(id);
+  else alert('送信失敗: ' + (r && r.msg || '通信エラー'));
+}
+async function closePoll(id) {
+  if (!confirm('この投票を締め切りますか? 締切後は投票できなくなります (結果は残ります)。対象者全員にDM通知が送られます。')) return;
+  const r = await api('/api/vote/' + id + '/close', { method: 'POST' });
+  if (r && r.success) showDetail(id);
+  else alert('締切失敗: ' + (r && r.msg || '通信エラー'));
+}
+async function cancelPoll(id) {
+  if (!confirm('この投票を中止しますか? (履歴は残ります)')) return;
+  const r = await api('/api/vote/' + id, { method: 'DELETE' });
+  if (r && r.success) showList();
+  else alert('中止失敗: ' + (r && r.msg || '通信エラー'));
+}
+
+init();
+</script>
+  <script src="/translate.js" defer></script>
+</body>
+</html>

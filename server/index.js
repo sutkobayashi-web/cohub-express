@@ -296,6 +296,7 @@ app.use('/api/meeting', require('./routes/meeting'));
     setTimeout(() => mp.startReminderScheduler(app), 3000);
   }
 }
+app.use('/api/vote', require('./routes/vote'));
 app.use('/api/daily-message', require('./routes/daily_message'));
 app.use('/api/whats-new', require('./routes/whats_new'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
@@ -304,6 +305,8 @@ app.use('/api/takara', require('./routes/takara_demo'));
 app.use('/api/circles', require('./routes/circles'));
 app.use('/api/branch-wifi', require('./routes/branch_wifi'));
 app.use('/api/translate', require('./routes/translate'));
+app.use('/api/safety-report', require('./routes/safety-report'));
+app.use('/api/safe-driving', require('./routes/safe-driving'));
 app.use('/api/expense', require('./routes/expense'));
 app.use('/api/approval', require('./routes/approval'));
 app.use('/api/mail', require('./routes/mail'));
@@ -321,7 +324,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-06-03-accident-approval"
+const APP_VERSION = "2026-06-11-vote-shitarou"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });

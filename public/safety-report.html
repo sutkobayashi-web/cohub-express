@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🦺 安全衛生委員会 月報 — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100vh; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #ecfdf5 0%, #f1f5f9 100%); color: #0f172a; min-height: 100vh; }
+header { position: sticky; top: 0; z-index: 30; background: linear-gradient(135deg, #16a34a, #047857); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header button { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 7px 14px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 760px; margin: 0 auto; padding: 18px 14px 60px; }
+
+.intro { background: linear-gradient(135deg,#f0fdf4,#ecfdf5); border-left: 4px solid #22c55e; border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.7; color: #14532d; margin-bottom: 18px; }
+.intro b { color: #15803d; }
+
+.month-head { font-size: 13px; font-weight: 900; color: #15803d; margin: 22px 4px 10px; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+.month-head::before { content: ''; width: 6px; height: 18px; background: linear-gradient(180deg,#22c55e,#047857); border-radius: 3px; }
+
+.card { background: #fff; border-radius: 16px; padding: 16px 18px 14px; box-shadow: 0 4px 18px rgba(15,23,42,0.08); margin-bottom: 14px; border: 1px solid #e2e8f0; }
+.card.latest { border: 2px solid #22c55e; box-shadow: 0 6px 22px rgba(34,197,94,0.18); }
+.card .meta { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.card .badge-round { font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg,#16a34a,#047857); padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+.card .badge-latest { background: linear-gradient(135deg,#f59e0b,#dc2626); }
+.card .src { font-size: 11px; color: #64748b; font-weight: 700; }
+.card h2 { font-size: 16px; font-weight: 900; color: #0f172a; margin: 2px 0 4px; line-height: 1.45; }
+.card .note { font-size: 12px; color: #64748b; line-height: 1.6; margin: 0 0 12px; }
+.card .filemeta { font-size: 11px; color: #94a3b8; margin: 0 0 12px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-size: 13px; font-weight: 800; padding: 9px 15px; border-radius: 10px; cursor: pointer; border: none; }
+.btn.open { background: linear-gradient(135deg,#16a34a,#047857); color: #fff; box-shadow: 0 4px 12px rgba(22,163,74,.25); }
+.btn.open:hover { filter: brightness(1.08); }
+.btn.dl { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.btn.dl:hover { background: #e2e8f0; }
+.btn.del { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; margin-left: auto; }
+.btn.del:hover { background: #fee2e2; }
+
+/* アップロードパネル (担当者のみ) */
+.upload-panel { background: #fff; border-radius: 16px; padding: 16px 18px; box-shadow: 0 4px 18px rgba(15,23,42,0.08); margin-bottom: 22px; border: 1px dashed #86efac; }
+.upload-panel h3 { margin: 0 0 4px; font-size: 14px; font-weight: 900; color: #15803d; }
+.upload-panel .hint { font-size: 11px; color: #94a3b8; margin: 0 0 12px; }
+.upload-panel .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.upload-panel label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+.upload-panel input, .upload-panel select { width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 9px; font-size: 13px; font-family: inherit; }
+.upload-panel input:focus, .upload-panel select:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+.fld-year { width: 110px; } .fld-month { width: 90px; } .fld-title { flex: 1; min-width: 180px; }
+.upload-panel .btn-up { background: linear-gradient(135deg,#16a34a,#047857); color: #fff; padding: 11px 20px; border-radius: 10px; font-weight: 800; font-size: 14px; border: none; cursor: pointer; width: 100%; }
+.upload-panel .btn-up:disabled { opacity: 0.5; cursor: default; }
+.up-msg { font-size: 12px; font-weight: 700; margin-top: 8px; min-height: 16px; }
+
+.empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 40px 10px; }
+.gate { max-width: 420px; margin: 80px auto; background: #fff; border-radius: 14px; padding: 28px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.gate h2 { color: #b45309; }
+.gate p { color: #475569; font-size: 13px; line-height: 1.7; }
+.foot-note { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 22px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🦺 安全衛生委員会 月報</h1>
+  <div class="spacer"></div>
+  <button onclick="goBack()">✕ 閉じる</button>
+</header>
+
+<main>
+  <div id="gate" class="gate" style="display:none;">
+    <h2>⛔ ログインが必要です</h2>
+    <p>このページの閲覧にはログインが必要です。<br>トップからログインしてください。</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="intro">
+      安全衛生委員会から配信される <b>月報（安全ニュース・ヒヤリハット分析 等）</b> をいつでも確認できます。
+      新しい月報が掲載されると通知が届きます。
+    </div>
+
+    <div id="upload-panel" class="upload-panel" style="display:none;">
+      <h3>＋ 月報をアップロード（担当者）</h3>
+      <p class="hint">PDFファイル（最大25MB）。年・月・タイトルを入れて掲載すると、全社員に通知されます。</p>
+      <div class="row">
+        <div class="fld-year"><label>年</label><input type="number" id="up-year" min="2020" max="2100"></div>
+        <div class="fld-month"><label>月</label>
+          <select id="up-month">
+            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+            <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select>
+        </div>
+        <div class="fld-title"><label>種類</label>
+          <select id="up-type" onchange="onTypeChange()">
+            <option value="安全衛生ニュース">安全衛生ニュース</option>
+            <option value="安全ニュース">安全ニュース</option>
+            <option value="ヒヤリハット">ヒヤリハット</option>
+            <option value="デジタコ違反">デジタコ違反</option>
+            <option value="__other__">その他（自由入力）</option>
+          </select>
+          <input type="text" id="up-title-other" placeholder="種類名を入力" style="display:none; margin-top:6px;">
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1; min-width:180px;"><label>メモ（任意）</label><input type="text" id="up-note" placeholder="補足があれば"></div>
+      </div>
+      <div class="row">
+        <div style="flex:1;"><label>PDFファイル</label><input type="file" id="up-file" accept="application/pdf,.pdf"></div>
+      </div>
+      <button class="btn-up" id="up-btn" onclick="doUpload()">📤 掲載する</button>
+      <div class="up-msg" id="up-msg"></div>
+    </div>
+
+    <div id="list"></div>
+    <div class="foot-note">安全衛生委員会の月報を掲載しています。<br>掲載・差し替えは担当者（管理職）が行います。</div>
+  </div>
+</main>
+
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let canEdit = false;
+function goBack() {
+  if (history.length > 1 && document.referrer && document.referrer.includes(location.host)) history.back();
+  else location.href = '/';
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function fmtSize(b){ if(!b) return ''; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(0)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
+
+async function loadList() {
+  const r = await fetch('/api/safety-report/list', { headers: { 'Authorization': 'Bearer ' + token } });
+  const j = await r.json();
+  if (!j.success) { document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
+  canEdit = !!j.can_edit;
+  document.getElementById('upload-panel').style.display = canEdit ? 'block' : 'none';
+  render(j.reports || []);
+}
+
+function render(reports) {
+  const box = document.getElementById('list');
+  if (!reports.length) { box.innerHTML = '<div class="empty">まだ月報は掲載されていません。</div>'; return; }
+  // 最新の年月を特定
+  const latestKey = reports[0].year + '-' + reports[0].month;
+  let html = '', curKey = null;
+  reports.forEach(function(rp) {
+    const key = rp.year + '-' + rp.month;
+    if (key !== curKey) {
+      curKey = key;
+      html += '<div class="month-head">' + rp.year + '年 ' + rp.month + '月号</div>';
+    }
+    const isLatest = key === latestKey;
+    html += '<div class="card' + (isLatest ? ' latest' : '') + '">'
+      + '<div class="meta">'
+      + '<span class="badge-round' + (isLatest ? ' badge-latest' : '') + '">' + rp.month + '月号</span>'
+      + (rp.uploaded_by_name ? '<span class="src">' + esc(rp.uploaded_by_name) + '</span>' : '')
+      + '</div>'
+      + '<h2>' + esc(rp.title) + '</h2>'
+      + (rp.note ? '<p class="note">' + esc(rp.note) + '</p>' : '')
+      + '<p class="filemeta">📄 ' + esc(rp.file_name || 'PDF') + (rp.file_size ? ' ・ ' + fmtSize(rp.file_size) : '') + '</p>'
+      + '<div class="actions">'
+      + '<a class="btn open" href="' + esc(rp.file_path) + '" target="_blank" rel="noopener">▶ 開く</a>'
+      + '<a class="btn dl" href="' + esc(rp.file_path) + '" download="' + esc(rp.file_name || (rp.title + '.pdf')) + '">⬇ ダウンロード</a>'
+      + (canEdit ? '<button class="btn del" onclick="doDelete(' + rp.id + ')">削除</button>' : '')
+      + '</div></div>';
+  });
+  box.innerHTML = html;
+}
+
+function onTypeChange() {
+  const other = document.getElementById('up-type').value === '__other__';
+  document.getElementById('up-title-other').style.display = other ? 'block' : 'none';
+}
+
+async function doUpload() {
+  const msg = document.getElementById('up-msg');
+  const file = document.getElementById('up-file').files[0];
+  const year = document.getElementById('up-year').value;
+  const month = document.getElementById('up-month').value;
+  const typeSel = document.getElementById('up-type').value;
+  const title = typeSel === '__other__' ? document.getElementById('up-title-other').value.trim() : typeSel;
+  if (!file) { msg.style.color = '#dc2626'; msg.textContent = 'PDFファイルを選択してください'; return; }
+  if (!title) { msg.style.color = '#dc2626'; msg.textContent = '種類を選択してください'; return; }
+  const fd = new FormData();
+  fd.append('year', year); fd.append('month', month); fd.append('title', title);
+  fd.append('note', document.getElementById('up-note').value.trim());
+  fd.append('file', file);
+  const btn = document.getElementById('up-btn'); btn.disabled = true;
+  msg.style.color = '#64748b'; msg.textContent = 'アップロード中...';
+  try {
+    const r = await fetch('/api/safety-report/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const j = await r.json();
+    if (!j.success) { msg.style.color = '#dc2626'; msg.textContent = j.msg || 'アップロードに失敗しました'; btn.disabled = false; return; }
+    msg.style.color = '#16a34a'; msg.textContent = '✅ 掲載しました（全社員へ通知済み）';
+    document.getElementById('up-type').selectedIndex = 0; document.getElementById('up-title-other').value = ''; document.getElementById('up-title-other').style.display = 'none';
+    document.getElementById('up-note').value = ''; document.getElementById('up-file').value = '';
+    btn.disabled = false;
+    loadList();
+  } catch (e) { msg.style.color = '#dc2626'; msg.textContent = '通信エラー'; btn.disabled = false; }
+}
+
+async function doDelete(id) {
+  if (!confirm('この月報を削除しますか？（元に戻せません）')) return;
+  const r = await fetch('/api/safety-report/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+  const j = await r.json();
+  if (j.success) loadList(); else alert(j.msg || '削除に失敗しました');
+}
+
+(async function init() {
+  if (!token) { document.getElementById('gate').style.display = 'block'; return; }
+  try {
+    const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success || !j.user) { document.getElementById('gate').style.display = 'block'; return; }
+    document.getElementById('app').style.display = 'block';
+    // 年セレクトの初期値（今年）。月は現在月。
+    const now = new Date();
+    document.getElementById('up-year').value = now.getFullYear();
+    document.getElementById('up-month').value = String(now.getMonth() + 1);
+    loadList();
+  } catch (e) { document.getElementById('gate').style.display = 'block'; }
+})();
+</script>
+<script src="/translate.js" defer></script>
+</body>
+</html>
