@@ -1271,14 +1271,9 @@ function renderNewFeatures(isManager) {
   if (!box || !list) return;
   const items = [];
   // ★本日の新機能 (全員向け・最新を先頭に)
-  items.push({ ic: '📧', t: '会社メール', d: '会社メール(@stdun.co.jp)をCoWell内で 受信・返信・送信。送信者アバター・翻訳・添付も', href: '/mail.html' });
-  items.push({ ic: '💬', t: 'チャットの新操作', d: 'メッセージにカーソルを合わせて 引用返信・転送・リンクコピー（Teams風）', href: '/chat' });
-  // 点呼・朝礼 (操作者=点呼者/管理者向け新機能のお知らせ)
-  const isOp = isManager || (me && (me.is_field_promoter || me.is_warehouse_promoter || me.employee_type === 'admin' || me.job_role === 'manager'));
-  if (isOp) items.push({ ic: '🚦', t: '点呼・朝礼', d: 'タブレットで点呼/朝礼を記録（アルコール等は東海電子で実施済み確認のみ）', href: '/tenko.html' });
-  if (isManager) items.push({ ic: '🗓', t: '共有カレンダー', d: '役員・管理職の予定を社内で共有', href: '/calendar.html' });
-  items.push({ ic: '🦉', t: 'まとめる君', d: '報告メモをAIが5W1Hに整形。Reportから誰でも使えます', href: '/matomeru.html' });
-  items.push({ ic: '🔥', t: 'マイ運動記録', d: '運動をkcalで記録・月間ランキング', href: '/myactivity.html' });
+  items.push({ ic: '🗳️', t: '投票したろう', d: '選択肢を出して対象者が投票。アンケートや多数決の集計が一目で分かる', href: '/vote.html' });
+  items.push({ ic: '🏁', t: '決選投票', d: '投票で票が割れたら、上位候補だけでもう一度「決選投票」ができます', href: '/vote.html' });
+  items.push({ ic: '🦉', t: 'まとめる君', d: '走り書きの報告メモをAIが5W1Hに整形。「文章に翼をさずけよう」', href: '/matomeru.html' });
   list.innerHTML = items.map(function (x) {
     return '<a class="nf-item" href="' + x.href + '"><span class="nf-ic">' + x.ic + '</span><span class="nf-tx"><b>' + escapeHtml(x.t) + '</b><small>' + escapeHtml(x.d) + '</small></span></a>';
   }).join('');
