@@ -42,6 +42,12 @@ function ensureSchema() {
   )`).run();
   try { db.prepare('CREATE INDEX IF NOT EXISTS idx_vpo_poll ON vote_poll_options(poll_id)').run(); } catch (e) {}
   try { db.prepare('CREATE INDEX IF NOT EXISTS idx_vpv_poll ON vote_poll_votes(poll_id)').run(); } catch (e) {}
+  // 決選投票リンク用カラム (既存テーブルへ後付け)
+  try {
+    const cols = new Set(db.prepare('PRAGMA table_info(vote_polls)').all().map(c => c.name));
+    if (!cols.has('parent_poll_id')) db.prepare('ALTER TABLE vote_polls ADD COLUMN parent_poll_id INTEGER').run();
+    if (!cols.has('round')) db.prepare('ALTER TABLE vote_polls ADD COLUMN round INTEGER DEFAULT 1').run();
+  } catch (e) { console.warn('[vote] runoff cols skip:', e.message); }
 }
 try { ensureSchema(); } catch (e) { console.warn('[vote] ensureSchema skipped:', e.message); }
 
@@ -66,7 +72,7 @@ router.get('/', authUser, (req, res) => {
   const db = getDb();
   const polls = db.prepare(`
     SELECT p.id, p.title, p.description, p.organizer_id, p.status, p.max_choices,
-           p.created_at, p.closed_at,
+           p.created_at, p.closed_at, p.round, p.parent_poll_id,
            u.display_name AS organizer_name, u.avatar_url AS organizer_avatar,
            (SELECT COUNT(*) FROM vote_poll_options WHERE poll_id = p.id) AS option_count,
            (SELECT COUNT(*) FROM vote_poll_invitees WHERE poll_id = p.id) AS invitee_count,
@@ -110,6 +116,16 @@ router.get('/:id', authUser, (req, res) => {
   `).all(id);
 
   const myVoteCount = db.prepare(`SELECT COUNT(*) c FROM vote_poll_votes WHERE poll_id = ? AND user_id = ?`).get(id, req.uid).c;
+
+  // 決選投票リンク (親 / 子)
+  let parent = null;
+  if (poll.parent_poll_id) {
+    parent = db.prepare(`SELECT id, title, round FROM vote_polls WHERE id = ?`).get(poll.parent_poll_id) || null;
+  }
+  const runoff_child = db.prepare(
+    `SELECT id, title, status FROM vote_polls WHERE parent_poll_id = ? AND status != 'cancelled' ORDER BY id DESC LIMIT 1`
+  ).get(id) || null;
+
   res.json({
     success: true,
     poll,
@@ -120,6 +136,8 @@ router.get('/:id', authUser, (req, res) => {
     is_organizer: isOrganizer,
     is_invited: invited,
     voted: myVoteCount > 0,
+    parent,
+    runoff_child,
   });
 });
 
@@ -250,6 +268,66 @@ router.delete('/:id', authUser, (req, res) => {
   if (poll.status === 'cancelled') return res.json({ success: true });
   db.prepare(`UPDATE vote_polls SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?`).run(id);
   res.json({ success: true });
+});
+
+// 決選投票を作成 (締切済みの投票から、指定した候補・同じ対象者で第2回以降を起こす)
+router.post('/:id/runoff', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ success: false, msg: 'id不正' });
+  const db = getDb();
+  const parent = db.prepare(`SELECT * FROM vote_polls WHERE id = ?`).get(id);
+  if (!parent) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (parent.organizer_id !== req.uid) return res.status(403).json({ success: false, msg: '主催者のみ作成できます' });
+  if (parent.status !== 'closed') return res.status(400).json({ success: false, msg: 'まず投票を締め切ってから決選投票を作成してください' });
+
+  // 既に決選投票(未中止)があれば二重作成を防ぐ
+  const exist = db.prepare(`SELECT id FROM vote_polls WHERE parent_poll_id = ? AND status != 'cancelled' ORDER BY id DESC LIMIT 1`).get(id);
+  if (exist) return res.status(400).json({ success: false, msg: '既に決選投票があります', existing_id: exist.id });
+
+  const b = req.body || {};
+  // 引き継ぐ候補 (親の option_id)
+  const reqIds = Array.isArray(b.option_ids) ? b.option_ids.map(x => parseInt(x)).filter(Boolean) : [];
+  if (reqIds.length < 2) return res.status(400).json({ success: false, msg: '決選の候補を2つ以上選んでください' });
+  const ph = reqIds.map(() => '?').join(',');
+  const opts = db.prepare(`SELECT id, label FROM vote_poll_options WHERE poll_id = ? AND id IN (${ph}) ORDER BY ordinal, id`).all(id, ...reqIds);
+  if (opts.length < 2) return res.status(400).json({ success: false, msg: '候補が不正です' });
+
+  const title = (String(b.title || '').trim().slice(0, 120)) || (parent.title + ' 決選投票');
+  const description = b.description != null
+    ? String(b.description).trim().slice(0, 4000)
+    : `「${parent.title}」で票が割れたため、上位候補で決選投票を行います。`;
+  let maxChoices = parseInt(b.max_choices);
+  if (!Number.isFinite(maxChoices) || maxChoices < 1) maxChoices = 1;
+  if (maxChoices > opts.length) maxChoices = opts.length;
+  const round = (parent.round || 1) + 1;
+
+  const invitees = db.prepare(`SELECT user_id FROM vote_poll_invitees WHERE poll_id = ?`).all(id).map(r => r.user_id);
+  if (!invitees.length) return res.status(400).json({ success: false, msg: '対象者がいません' });
+
+  const ins = db.prepare(`INSERT INTO vote_polls (organizer_id, title, description, max_choices, parent_poll_id, round) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(req.uid, title, description, maxChoices, id, round);
+  const newId = ins.lastInsertRowid;
+  const optIns = db.prepare(`INSERT INTO vote_poll_options (poll_id, label, ordinal) VALUES (?, ?, ?)`);
+  const invIns = db.prepare(`INSERT OR IGNORE INTO vote_poll_invitees (poll_id, user_id) VALUES (?, ?)`);
+  db.transaction(() => {
+    opts.forEach((o, i) => optIns.run(newId, o.label, i));
+    invitees.forEach(u => invIns.run(newId, u));
+  })();
+
+  // 対象者全員にDM
+  const orgUser = db.prepare(`SELECT display_name FROM users WHERE id = ?`).get(req.uid);
+  const rule = maxChoices === 1 ? '1つ選んで' : `最大${maxChoices}つまで選んで`;
+  const preview = opts.slice(0, 4).map(o => '・' + o.label).join('\n');
+  const more = opts.length > 4 ? `\n…他${opts.length - 4}件` : '';
+  const msg = `🏁 ${(orgUser && orgUser.display_name) || ''}さんが「${parent.title}」の決選投票を開始しました。\n上位${opts.length}候補から${rule}投票してください\n${preview}${more}\n→ /vote.html?id=${newId} で投票`;
+  const emit = req.app && req.app.locals && req.app.locals.emitToUser;
+  const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
+  for (const uid of invitees) {
+    if (uid === req.uid) continue;
+    const r = dmIns.run(req.uid, uid, msg);
+    if (emit) emit(uid, 'dm:msg', { id: r.lastInsertRowid, from: req.uid, to: uid, content: msg, at: new Date().toISOString() });
+  }
+  res.json({ success: true, id: newId });
 });
 
 module.exports = router;
