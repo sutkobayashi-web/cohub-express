@@ -359,8 +359,71 @@
     if (ann) setTimeout(function () { speak(ann, ALERT_VOICE); }, Math.round(dur * 1000) + 250);
   }
 
+  // ===== 未対応アラート: タブ見出し点滅 + ファビコン赤バッジ (2026-06-11) =====
+  // 音声オートプレイ規制で無操作ページは警報音が鳴らない → 別画面の管理職が気づけない症状の対策。
+  // 音に頼らず「タブの見出し点滅」と「ファビコン赤バッジ」で視界の端でも気づけるようにする。
+  var _alertTitleTimer = null;
+  var _alertOrigTitle = null;
+  var _alertOrigFavicons = null;
+  var _faviconCreated = [];   // 元々faviconが無いページ用にこちらで作ったlink。解除時に削除する
+  function _setFaviconBadge(count) {
+    try {
+      var size = 64;
+      var c = document.createElement('canvas'); c.width = size; c.height = size;
+      var x = c.getContext('2d');
+      x.fillStyle = '#dc2626';
+      x.beginPath(); x.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#fff';
+      x.font = 'bold ' + (count > 1 ? 40 : 46) + 'px sans-serif';
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(count > 1 ? String(Math.min(count, 9)) : '!', size / 2, size / 2 + 3);
+      var url = c.toDataURL('image/png');
+      var links = document.querySelectorAll('link[rel~="icon"]');
+      if (_alertOrigFavicons === null) {
+        _alertOrigFavicons = [];
+        Array.prototype.forEach.call(links, function (l) { _alertOrigFavicons.push({ el: l, href: l.getAttribute('href') }); });
+      }
+      if (links.length === 0) {
+        var nl = document.createElement('link'); nl.rel = 'icon'; nl.setAttribute('data-gn-alert', '1');
+        document.head.appendChild(nl);
+        _faviconCreated.push(nl);
+        links = document.querySelectorAll('link[rel~="icon"]');
+      }
+      Array.prototype.forEach.call(links, function (l) { l.href = url; });
+    } catch (e) {}
+  }
+  // 透明1px (GIF)。faviconはlink削除では端末キャッシュで消えないため、透明画像へ張り替えて確実に「！」を消す
+  var _BLANK_ICON = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  function _restoreFavicon() {
+    try {
+      // 元々あったfaviconは元のhrefへ戻す (無href/元々無しは透明へ)
+      if (_alertOrigFavicons) {
+        _alertOrigFavicons.forEach(function (o) { try { o.el.setAttribute('href', o.href == null ? _BLANK_ICON : o.href); } catch (e) {} });
+      }
+      // 元々faviconが無くこちらで作ったlinkは、削除では消えない端末があるため透明画像へ張替え
+      _faviconCreated.forEach(function (l) { try { l.setAttribute('href', _BLANK_ICON); } catch (e) {} });
+    } catch (e) {}
+  }
+  function startAlertTitleFlash() {
+    _setFaviconBadge(_alertPending.size);
+    if (_alertTitleTimer) return;
+    if (_alertOrigTitle === null) _alertOrigTitle = document.title;
+    var on = false;
+    _alertTitleTimer = setInterval(function () {
+      on = !on;
+      var n = _alertPending.size;
+      document.title = on ? ('🚨未対応アラート' + (n > 1 ? ' ' + n + '件' : '') + ' ⚠') : (_alertOrigTitle || 'CoHub');
+    }, 1000);
+  }
+  function stopAlertTitleFlash() {
+    if (_alertTitleTimer) { clearInterval(_alertTitleTimer); _alertTitleTimer = null; }
+    if (_alertOrigTitle !== null) document.title = _alertOrigTitle;
+    _restoreFavicon();
+  }
+
   function startAlertLoop() {
     renderAlertToast();
+    startAlertTitleFlash();
     if (_alertLoopTimer) return;
     _alertLoopTimer = setInterval(function () {
       if (_alertPending.size === 0) { stopAlertLoop(); return; }
@@ -371,6 +434,7 @@
   function stopAlertLoop() {
     if (_alertLoopTimer) { clearInterval(_alertLoopTimer); _alertLoopTimer = null; }
     var t = document.getElementById('gn-alert-toast'); if (t) t.style.opacity = '0';
+    stopAlertTitleFlash();
   }
 
   function addPendingAlert(a, fireNow) {
@@ -397,8 +461,28 @@
         fireAlert();   // まとめて1回鳴らしてループ開始
       }).catch(function () {});
   }
+  // 取りこぼし対策 (2026-06-11): 背面/無操作タブは socket が切れている間に
+  // alert:handled を取りこぼし、タブの「！」が消えなくなる。再接続時とタブ復帰時に
+  // サーバーの未対応一覧と突き合わせ、対応済みになったものをローカルからも除去して
+  // タブ点滅とファビコン「！」を確実に解除する。
+  function reconcileAlerts() {
+    fetch('/api/alert/unhandled', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.success || !j.alerts) return;
+        var live = {};
+        j.alerts.forEach(function (a) { live[a.id] = 1; addPendingAlert(a, false); });
+        Array.from(_alertPending.keys()).forEach(function (id) {
+          if (!live.hasOwnProperty(id)) removePendingAlert(id);   // サーバー上は対応済み → ローカルからも消す
+        });
+      }).catch(function () {});
+  }
   // 一覧ページ側から「対応済み化」されたら即停止できるよう公開
   window.cohubAlertHandled = function (id) { removePendingAlert(id); };
+  // タブ復帰で即再同期 (socket 切断中に取りこぼした「対応済み」を反映)
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && _alertsWired) reconcileAlerts();
+  });
 
   // ========== 事故報告「一報」アラート (2026-06-02) ==========
   // 違反警告と同じ「感じ」(派手な音+男性シリアス声+赤トースト) だが、20秒ループはしない
@@ -484,11 +568,33 @@
   // 事故対応画面側から承認したら即消せるよう公開
   window.cohubAccidentCleared = function (id, kind) { removeAccident(id, kind); };
 
+  // ===== 運転アラート/事故 一報の配線 (自前socketページにも相乗りできるよう関数化) =====
+  // chat-simple.html 等は独自socketを張り global-notif.js を読まないため運転アラートを取りこぼす。
+  // それらのページは window.__cohubNoGnSocket=true を立て、自前socketに対し
+  // window.cohubWireAlerts(socket) を呼ぶことで、2本目socket(=attendance二重挿入)を作らず相乗りする。
+  var _alertsWired = false;
+  function wireAlerts(sock) {
+    if (!sock || _alertsWired) return;
+    _alertsWired = true;
+    // ⚠️ 運転アラート — 未対応の間ループ、対応済みで停止
+    sock.on('alert:new', function (a) { addPendingAlert(a, true); });
+    sock.on('alert:handled', function (p) { if (p && p.handled) removePendingAlert(p.id); });
+    bootstrapAlerts();
+    // 🚨 事故報告「一報」 — 1回鳴らす(ループなし)、承認で消える
+    sock.on('accident:new', function (p) { addAccident(p, true); });
+    sock.on('accident:cleared', function (p) { if (p) removeAccident(p.id, p.kind); });
+    bootstrapAccidents();
+  }
+  window.cohubWireAlerts = wireAlerts;
+
   // ===== Socket.IO 接続 =====
   function connect() {
     try {
       var socket = io({ auth: { token: token } });
-      socket.on('connect', function () { console.log('[gn] socket connected'); });
+      socket.on('connect', function () {
+        console.log('[gn] socket connected');
+        if (_alertsWired) reconcileAlerts();   // 再接続時に取りこぼした「対応済み」を反映して「！」を消す
+      });
       socket.on('session:kicked', function () {
         try { localStorage.removeItem('cohub_token'); } catch (e) {}
         alert('別の端末で同じアカウントがログインされたため、このセッションは終了します。');
@@ -533,16 +639,9 @@
         });
       }
 
-      // ⚠️ 運転アラート — 管理職のみサーバーから配信。未対応の間ループ、対応済みで停止
-      socket.on('alert:new', function (a) { addPendingAlert(a, true); });
-      socket.on('alert:handled', function (p) { if (p && p.handled) removePendingAlert(p.id); });
-      // 未対応の積み残しがあれば鳴らし始める
-      bootstrapAlerts();
-
-      // 🚨 事故報告「一報」 — 管理職のみ配信。1回鳴らす(ループなし)、承認で消える
-      socket.on('accident:new', function (p) { addAccident(p, true); });
-      socket.on('accident:cleared', function (p) { if (p) removeAccident(p.id, p.kind); });
-      bootstrapAccidents();
+      // ⚠️ 運転アラート + 🚨 事故報告 一報 (管理職のみ)。chat-simple 等の自前socketページにも
+      // window.cohubWireAlerts で相乗りできるよう関数化 (2026-06-11)。
+      wireAlerts(socket);
 
       // 🟢 みんなの声 plaza:new — 全ページで発火 (plaza自身は除く=リアルタイム描画と二重になる)
       // 設計思想: 「どんな投稿も反応してあげて無碍にしたくない」
@@ -587,13 +686,18 @@
     } catch (e) { console.warn('[gn] socket setup failed', e); }
   }
 
-  if (typeof io === 'function') {
-    connect();
-  } else {
-    var s = document.createElement('script');
-    s.src = '/socket.io/socket.io.js';
-    s.onload = connect;
-    s.onerror = function () { console.warn('[gn] socket.io client load failed'); };
-    document.head.appendChild(s);
+  // 自前socketを持つページ(chat-simple)は __cohubNoGnSocket=true で2本目を作らない。
+  // その場合でも window.cohubWireAlerts / 音声アンロック / 各ヘルパは定義済みなので、
+  // ページ側が既存socketに cohubWireAlerts(socket) を呼べば運転アラートを受けられる。
+  if (!window.__cohubNoGnSocket) {
+    if (typeof io === 'function') {
+      connect();
+    } else {
+      var s = document.createElement('script');
+      s.src = '/socket.io/socket.io.js';
+      s.onload = connect;
+      s.onerror = function () { console.warn('[gn] socket.io client load failed'); };
+      document.head.appendChild(s);
+    }
   }
 })();

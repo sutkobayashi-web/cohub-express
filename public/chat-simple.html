@@ -1193,6 +1193,10 @@
 <script src="/font-zoom.js" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
+<!-- 運転アラート/事故一報を受信するため global-notif.js を読み込む。ただし chat は自前socketを
+     張るので __cohubNoGnSocket で gn の2本目socketを抑止し、cohubWireAlerts で相乗りさせる(2026-06-11)。 -->
+<script>window.__cohubNoGnSocket = true;</script>
+<script src="/global-notif.js?v=20260611d" defer></script>
 </head>
 <body>
 
@@ -3119,6 +3123,11 @@ function appendMessage(m, key) {
 
 function setupSocket() {
   socket = io({ auth: { token } });
+  // 運転アラート/事故 一報を相乗り受信 (global-notif.js)。自前socketに乗せ2本目を作らない。
+  (function wireGnAlerts() {
+    if (window.cohubWireAlerts) { try { window.cohubWireAlerts(socket); } catch (e) {} }
+    else { setTimeout(wireGnAlerts, 200); }
+  })();
   socket.on('connect', () => {
     console.log('socket connected');
     // 再接続時のオンライン一覧再取得
