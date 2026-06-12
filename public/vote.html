@@ -459,7 +459,7 @@ async function showDetail(id) {
   const r = await api('/api/vote/' + id);
   if (!r || !r.success) { wrap.innerHTML = '<div class="empty"><div class="em">⚠️</div>' + escapeHtml((r && r.msg) || '読み込み失敗') + '<br><a href="/vote.html">← 一覧へ</a></div>'; return; }
 
-  const { poll, options, invitees, votes, is_organizer, is_invited, voted, parent, runoff_child } = r;
+  const { poll, options, invitees, votes, is_organizer, is_invited, is_observer, voted, parent, runoff_child } = r;
   voteMax = poll.max_choices || 1;
 
   // 集計
@@ -492,6 +492,7 @@ async function showDetail(id) {
   if (poll.description) html += '<div style="background:#f8fafc;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;color:#334155;margin-bottom:14px;white-space:pre-wrap;">' + escapeHtml(poll.description) + '</div>';
   if (poll.status === 'closed') html += '<div class="closed-banner">📊 この投票は締め切られました</div>';
   if (poll.status === 'cancelled') html += '<div class="cancelled-banner">この投票は中止されました</div>';
+  if (is_observer && !is_invited && !is_organizer) html += '<div class="closed-banner" style="background:#eef2ff;color:#3730a3;">👀 閲覧モード（大学関係者）— 結果の閲覧のみで、投票はできません。</div>';
 
   // 投票UI (対象者、受付中)
   if (is_invited && poll.status === 'open') {

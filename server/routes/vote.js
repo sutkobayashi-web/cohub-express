@@ -51,6 +51,13 @@ function ensureSchema() {
 }
 try { ensureSchema(); } catch (e) { console.warn('[vote] ensureSchema skipped:', e.message); }
 
+// 大学関係者(閲覧者): company_code='UNIVERSITY' は全投票を閲覧のみ可能。
+// 招待者ではないので投票はできず、未回答バッジ(unread-count)にも乗らない=投票義務なし。
+function isUniversityObserver(db, uid) {
+  const u = db.prepare(`SELECT company_code FROM users WHERE id = ?`).get(uid);
+  return !!(u && u.company_code === 'UNIVERSITY');
+}
+
 // 未回答の投票数 (招待されていてまだ未回答の open ポール、主催者本人は除く)
 router.get('/unread-count', authUser, (req, res) => {
   const db = getDb();
@@ -67,10 +74,11 @@ router.get('/unread-count', authUser, (req, res) => {
   res.json({ success: true, count: (r && r.count) || 0 });
 });
 
-// 一覧 (自分が主催 or 招待されているもの)
+// 一覧 (自分が主催 or 招待されているもの / 大学関係者は全件を閲覧)
 router.get('/', authUser, (req, res) => {
   const db = getDb();
-  const polls = db.prepare(`
+  const observer = isUniversityObserver(db, req.uid);
+  const SELECT = `
     SELECT p.id, p.title, p.description, p.organizer_id, p.status, p.max_choices,
            p.created_at, p.closed_at, p.round, p.parent_poll_id,
            u.display_name AS organizer_name, u.avatar_url AS organizer_avatar,
@@ -78,13 +86,18 @@ router.get('/', authUser, (req, res) => {
            (SELECT COUNT(*) FROM vote_poll_invitees WHERE poll_id = p.id) AS invitee_count,
            (SELECT COUNT(DISTINCT user_id) FROM vote_poll_votes WHERE poll_id = p.id) AS voted_count
     FROM vote_polls p
-    LEFT JOIN users u ON u.id = p.organizer_id
-    WHERE p.organizer_id = ?
-       OR EXISTS (SELECT 1 FROM vote_poll_invitees i WHERE i.poll_id = p.id AND i.user_id = ?)
-    ORDER BY (p.status = 'open') DESC, p.created_at DESC
-    LIMIT 100
-  `).all(req.uid, req.uid);
-  res.json({ success: true, polls, me: req.uid });
+    LEFT JOIN users u ON u.id = p.organizer_id `;
+  const ORDER = ` ORDER BY (p.status = 'open') DESC, p.created_at DESC LIMIT 100`;
+  let polls;
+  if (observer) {
+    // 大学関係者: 中止以外の全投票を閲覧 (招待不要)
+    polls = db.prepare(SELECT + ` WHERE p.status != 'cancelled'` + ORDER).all();
+  } else {
+    polls = db.prepare(SELECT + ` WHERE p.organizer_id = ?
+       OR EXISTS (SELECT 1 FROM vote_poll_invitees i WHERE i.poll_id = p.id AND i.user_id = ?)` + ORDER)
+      .all(req.uid, req.uid);
+  }
+  res.json({ success: true, polls, me: req.uid, is_observer: observer });
 });
 
 // 詳細
@@ -97,7 +110,8 @@ router.get('/:id', authUser, (req, res) => {
   if (!poll) return res.status(404).json({ success: false, msg: '見つかりません' });
   const isOrganizer = poll.organizer_id === req.uid;
   const invited = !!db.prepare(`SELECT 1 FROM vote_poll_invitees WHERE poll_id = ? AND user_id = ?`).get(id, req.uid);
-  if (!isOrganizer && !invited) return res.status(403).json({ success: false, msg: '権限がありません' });
+  const observer = isUniversityObserver(db, req.uid);
+  if (!isOrganizer && !invited && !observer) return res.status(403).json({ success: false, msg: '権限がありません' });
 
   const options = db.prepare(`SELECT id, label, ordinal FROM vote_poll_options WHERE poll_id = ? ORDER BY ordinal, id`).all(id);
   const invitees = db.prepare(`
@@ -135,6 +149,7 @@ router.get('/:id', authUser, (req, res) => {
     me: req.uid,
     is_organizer: isOrganizer,
     is_invited: invited,
+    is_observer: observer,
     voted: myVoteCount > 0,
     parent,
     runoff_child,
