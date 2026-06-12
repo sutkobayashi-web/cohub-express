@@ -238,7 +238,9 @@ router.get('/inbox', authUser, async (req, res) => {
     const rules = isInbox ? getDb().prepare('SELECT id, label_id, field, op, value, enabled FROM mail_rules WHERE user_id = ? AND enabled = 1 ORDER BY sort_order, id').all(req.uid) : [];
 
     client = await imapClient(cred);
-    const lock = await client.getMailboxLock(mailbox);
+    // 読み取り専用(EXAMINE)で開く: サーバーに\Seenを付けない/移動削除もしない=元メーラー(Gmail POP3取込等)に非干渉。
+    // ※書き込みSELECTで本文(BODY[])を取得するとサーバーが自動で\Seenを付け、Gmailの他アカ取込が既読を取り込まず取りこぼす問題への対処。
+    const lock = await client.getMailboxLock(mailbox, { readOnly: true });
     try {
       const total = client.mailbox.exists || 0;
       const all = [];
@@ -356,7 +358,9 @@ router.get('/message/:uid', authUser, async (req, res) => {
   let client;
   try {
     client = await imapClient(cred);
-    const lock = await client.getMailboxLock(mailbox);
+    // 読み取り専用(EXAMINE)で開く: サーバーに\Seenを付けない/移動削除もしない=元メーラー(Gmail POP3取込等)に非干渉。
+    // ※書き込みSELECTで本文(BODY[])を取得するとサーバーが自動で\Seenを付け、Gmailの他アカ取込が既読を取り込まず取りこぼす問題への対処。
+    const lock = await client.getMailboxLock(mailbox, { readOnly: true });
     try {
       const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
       if (!msg || !msg.source) return res.status(404).json({ success: false, msg: 'メッセージが見つかりません' });
@@ -406,7 +410,9 @@ router.get('/message/:uid/attachment/:idx', authUser, async (req, res) => {
   let client;
   try {
     client = await imapClient(cred);
-    const lock = await client.getMailboxLock(mailbox);
+    // 読み取り専用(EXAMINE)で開く: サーバーに\Seenを付けない/移動削除もしない=元メーラー(Gmail POP3取込等)に非干渉。
+    // ※書き込みSELECTで本文(BODY[])を取得するとサーバーが自動で\Seenを付け、Gmailの他アカ取込が既読を取り込まず取りこぼす問題への対処。
+    const lock = await client.getMailboxLock(mailbox, { readOnly: true });
     try {
       const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
       if (!msg || !msg.source) return res.status(404).json({ success: false, msg: 'メッセージが見つかりません' });
