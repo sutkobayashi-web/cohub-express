@@ -21,12 +21,12 @@ function isOperator(u) {
     || u.is_field_promoter || u.is_warehouse_promoter || u.is_ops_manager || u.is_branch_head));
 }
 
-// 体調回答の重み付け (点呼)。wellness聞き取りカードと整合する severity 0/1/2 方式
+// 体調回答の重み付け (点呼)。wellness聞き取りカード(8項目)と整合する severity 0/1/2 方式。
+// 投票決定5項目(hydration/breakfast/three_meals/sleep6h/wakeup=Yes/No)はセルフ点検でurgency非加算(s=0)。
 const SEV = {
-  facial:  { normal: 0, tired: 1, bad: 2 },
-  sleep:   { ok: 0, short: 1, none: 2 },
-  fatigue: { no: 0, yes: 1 },
-  concern: { no: 0, yes: 1 },
+  facial_color: { normal: 0, tired: 1, red: 2, pale: 2, unknown: 0 },
+  pain:         { no: 0, low_back: 1, shoulder: 1, joint: 1, severe: 2 },
+  concern:      { no: 0, health: 1, family: 1, work: 2, money: 1, other: 1 },
 };
 // 血圧の重み (管理者記入)。160/100以上=高(運行要注意), 140/90以上=中
 function bpSeverity(sys, dia) {
@@ -36,14 +36,15 @@ function bpSeverity(sys, dia) {
 }
 function deriveUrgency(mode, health, condition, bp) {
   let max = 0;
-  if (mode === 'chorei') {
-    if (condition === 'bad') max = 2;
-    else if (health && health.concern === 'yes') max = 1;
-  } else {
-    if (health) for (const k of Object.keys(SEV)) {
-      const s = (SEV[k] && SEV[k][health[k]] != null) ? SEV[k][health[k]] : 0;
-      if (s > max) max = s;
-    }
+  // 8項目の観察系(顔色/痛み/気になる)から severity を算出 (点呼・朝礼共通)
+  if (health) for (const k of Object.keys(SEV)) {
+    const s = (SEV[k] && SEV[k][health[k]] != null) ? SEV[k][health[k]] : 0;
+    if (s > max) max = s;
+  }
+  // 朝礼の体調(condition)後方互換
+  if (condition === 'bad') max = Math.max(max, 2);
+  // 点呼は血圧も加味 (管理者記入)
+  if (mode === 'tenko') {
     const bs = bpSeverity(bp && bp.sys, bp && bp.dia);
     if (bs > max) max = bs;
   }

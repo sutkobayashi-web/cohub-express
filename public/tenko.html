@@ -213,18 +213,20 @@ function tenkoLegal(){
     <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:10px;padding:8px 10px">⚠️ 血圧が高めです。運行可否を確認してください。</div>
   </div>`;
 }
-function tenkoDetail(){
+// 聞き取り8項目 (投票決定5項目[Yes/No] + 観察3項目) — 点呼・朝礼で共通
+function healthDetail(){
   return `
-  ${optFld('顔色・表情','facial',[['普通','normal'],['疲れ気味','tired',1],['すぐれない','bad',1]])}
-  ${optFld('睡眠','sleep',[['取れた','ok'],['やや不足','short',1],['ほぼ寝てない','none',1]])}
-  ${optFld('疲労','fatigue',[['なし','no'],['あり','yes',1]])}
-  ${optFld('気になること','concern',[['なし','no'],['あり','yes',1]])}`;
+  ${optFld('💧 こまめに水分補給','hydration',[['はい','yes'],['いいえ','no']])}
+  ${optFld('🍚 朝食を食べた','breakfast',[['はい','yes'],['いいえ','no']])}
+  ${optFld('🍽️ 3食きちんと食べた','three_meals',[['はい','yes'],['いいえ','no']])}
+  ${optFld('🛌 6時間以上寝た','sleep6h',[['はい','yes'],['いいえ','no']])}
+  ${optFld('🌅 朝の目覚めスッキリ','wakeup',[['はい','yes'],['いいえ','no']])}
+  ${optFld('🌡️ 顔色','facial_color',[['普通','normal'],['疲れ気味','tired',1],['赤い','red',1],['青白い','pale',1],['不明','unknown']])}
+  ${optFld('🦴 体の痛み','pain',[['なし','no'],['腰','low_back',1],['肩・首','shoulder',1],['関節','joint',1],['強い痛み','severe',1]])}
+  ${optFld('⚠️ 気になる','concern',[['なし','no'],['体調','health',1],['家族','family',1],['職場','work',1],['お金','money',1],['その他','other',1]])}`;
 }
-function choreiDetail(){
-  return `
-  ${optFld('体調','condition',[['良い','good'],['普通','normal'],['不調','bad',1]],true)}
-  ${optFld('気になること','concern',[['なし','no'],['あり','yes',1]])}`;
-}
+function tenkoDetail(){ return healthDetail(); }
+function choreiDetail(){ return healthDetail(); }
 // C方式: 良好=詳細スキップ / 気になる=詳細展開
 function pickHealth(el){
   el.parentElement.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
