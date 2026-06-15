@@ -15,22 +15,27 @@ const IDENTITY_MODES = ['本人特定可', '匿名', '集計のみ'];
 
 // 聞き取りカード選択肢 (統合版 2026-05-08): 職種を問わず使える共通8項目
 // severity 0(正常)|1(中)|2(高) → 最大severityを urgency、最初の severity>0 項目の category を採用
-// 食事関連3項目は健康アクションプランの元情報として追加 (いずれも任意選択)
+// 聞き取り8項目 (2026-06: 投票で決定した5項目[Yes/No] + 従来の観察3項目)
 const LISTENING_FIELDS = [
+  // --- 会社として投票で決定した5項目 (Yes/No・セルフ点検) ---
+  { key: 'hydration', label: '💧 こまめに水分補給', category: '食事', options: [
+    { v: 'はい', s: 0 }, { v: 'いいえ', s: 0 },
+  ]},
+  { key: 'breakfast', label: '🍚 朝食を食べた', category: '食事', options: [
+    { v: 'はい', s: 0 }, { v: 'いいえ', s: 0 },
+  ]},
+  { key: 'three_meals', label: '🍽️ 3食きちんと食べた', category: '食事', options: [
+    { v: 'はい', s: 0 }, { v: 'いいえ', s: 0 },
+  ]},
+  { key: 'sleep6h', label: '🛌 6時間以上寝た', category: '睡眠', options: [
+    { v: 'はい', s: 0 }, { v: 'いいえ', s: 0 },
+  ]},
+  { key: 'wakeup', label: '🌅 朝の目覚めスッキリ', category: '睡眠', options: [
+    { v: 'はい', s: 0 }, { v: 'いいえ', s: 0 },
+  ]},
+  // --- 観察・リスク系 (従来から継続) ---
   { key: 'facial_color', label: '🌡️ 顔色', category: '体調', options: [
     { v: '普通', s: 0 }, { v: '疲れ気味', s: 1 }, { v: '赤い', s: 2 }, { v: '青白い', s: 2 }, { v: '不明', s: 0 },
-  ]},
-  { key: 'sleep', label: '😴 睡眠', category: '睡眠', options: [
-    { v: 'しっかり', s: 0 }, { v: 'まあまあ', s: 0 }, { v: '不足', s: 1 }, { v: 'ほぼ寝てない', s: 2 }, { v: '不明', s: 0 },
-  ]},
-  { key: 'meal_count', label: '🍱 食事回数', category: '食事', options: [
-    { v: '3食', s: 0 }, { v: '2食', s: 1 }, { v: '1食以下', s: 2 }, { v: '不規則', s: 1 }, { v: 'わからず', s: 0 },
-  ]},
-  { key: 'meal_balance', label: '🥗 食事傾向', category: '食事', options: [
-    { v: 'バランスOK', s: 0 }, { v: '野菜不足', s: 1 }, { v: '脂っこい', s: 1 }, { v: '外食中心', s: 1 }, { v: '間食多い', s: 1 }, { v: 'わからず', s: 0 },
-  ]},
-  { key: 'food_pref', label: '🚫 偏食', category: '食事', options: [
-    { v: 'なし', s: 0 }, { v: '野菜嫌い', s: 1 }, { v: '魚嫌い', s: 1 }, { v: '甘い物中心', s: 1 }, { v: 'その他', s: 1 },
   ]},
   { key: 'pain', label: '🦴 体の痛み', category: '体調', options: [
     { v: 'なし', s: 0 }, { v: '腰', s: 1 }, { v: '肩・首', s: 1 }, { v: '関節', s: 1 }, { v: '強い痛み', s: 2 },
