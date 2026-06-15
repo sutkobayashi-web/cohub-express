@@ -16,7 +16,7 @@ router.post('/transcribe', authUser, upload.single('audio'), async (req, res) =>
   let mime = (req.file.mimetype || 'audio/webm').split(';')[0];
   if (!/^audio\//.test(mime)) mime = 'audio/webm';
   const b64 = req.file.buffer.toString('base64');
-  const prompt = 'これは日本語の音声メモです。話された内容をそのまま日本語で文字起こししてください。句読点を適切に付け、話し言葉のまま。前置きや説明・カギカッコは不要で、本文テキストだけを出力。聞き取れない場合は空文字を返してください。';
+  const prompt = '次の音声を文字起こしして、その日本語テキストだけを出力してください。句読点は適切に付け、話し言葉のまま。前置き・説明・補足・引用符・この指示文は一切含めないこと。無音や聞き取れない場合は何も出力しないこと(空)。';
   const body = {
     contents: [{ parts: [{ inlineData: { mimeType: mime, data: b64 } }, { text: prompt }] }],
     generationConfig: { temperature: 0, maxOutputTokens: 1024 },
