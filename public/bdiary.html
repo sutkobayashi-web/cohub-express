@@ -54,9 +54,11 @@ main { max-width:680px; margin:0 auto; padding:14px; }
 .cmt .cb { background:#fafafa; border-radius:12px; padding:8px 12px; flex:1; }
 .cmt .cb .cn { font-size:12px; font-weight:800; color:#374151; }
 .cmt .cb .ct { font-size:14px; line-height:1.6; white-space:pre-wrap; }
-.cinput { display:flex; gap:8px; margin-top:10px; }
+.cinput { display:flex; gap:8px; margin-top:10px; align-items:center; }
 .cinput input { flex:1; font-size:15px; padding:10px 12px; border:1px solid var(--line); border-radius:999px; outline:none; }
 .cinput button { background:var(--rose); color:#fff; border:none; border-radius:999px; padding:0 18px; font-weight:800; cursor:pointer; }
+.cinput button.cmic { background:#fff; color:var(--rose); border:2px solid var(--line); border-radius:50%; width:46px; height:46px; padding:0; flex-shrink:0; font-size:20px; }
+.cinput button.cmic.on { background:#1d4ed8; color:#fff; border-color:#1d4ed8; animation:pulse 1.2s infinite; }
 .empty { text-align:center; padding:40px 16px; color:#9ca3af; }
 .empty img { width:120px; height:auto; opacity:.95; }
 .note { font-size:12px; color:#9ca3af; text-align:center; margin:6px 0 16px; }
@@ -194,7 +196,7 @@ function renderFeed(){
       + '<button class="love'+(p.my_love?' on':'')+'" onclick="toggleLove('+p.id+',this)">❤️ 応援 <span>'+p.love_count+'</span></button>'
       + '</div>'
       + '<div class="comments">'+comments
-      + '<div class="cinput"><input type="text" id="ci'+p.id+'" placeholder="応援メッセージを送る…" maxlength="1000"><button onclick="sendComment('+p.id+')">送信</button></div>'
+      + '<div class="cinput"><button class="cmic" id="cm'+p.id+'" title="声で入力" onclick="cmicToggle('+p.id+')">🎤</button><input type="text" id="ci'+p.id+'" placeholder="応援メッセージ（🎤で声入力も）" maxlength="1000"><button onclick="sendComment('+p.id+')">送信</button></div>'
       + '</div>'
       + '</div>';
   }).join('');
@@ -203,7 +205,34 @@ async function toggleLove(id, btn){
   const r = await api('/api/bdiary/'+id+'/love', { method:'POST' });
   if (r && r.success) { btn.classList.toggle('on', r.my_love); btn.querySelector('span').textContent = r.love_count; }
 }
+// ===== コメントの音声入力(文字起こしのみ・まとめる君なし) =====
+let crecog = null, clistening = false, cTarget = null;
+function cmicToggle(id){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('この端末は音声入力に対応していません。キーボードで入力してください。'); return; }
+  if (clistening && cTarget === id) { try { crecog && crecog.stop(); } catch(e){} return; }
+  if (clistening) { try { crecog && crecog.stop(); } catch(e){} }
+  const inp = document.getElementById('ci'+id);
+  cTarget = id;
+  crecog = new SR(); crecog.lang='ja-JP'; crecog.interimResults=true; crecog.continuous=true;
+  let base = inp.value ? inp.value + ' ' : '';
+  crecog.onresult = (e) => {
+    let fin='', itm='';
+    for (let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i]; if(t.isFinal) fin+=t[0].transcript; else itm+=t[0].transcript; }
+    if (fin) base += fin;
+    inp.value = base + itm;
+  };
+  crecog.onend = () => { clistening=false; cmicUI(); };   // 自動再開しない
+  crecog.onerror = () => { clistening=false; cmicUI(); };
+  try { crecog.start(); clistening=true; cmicUI(); } catch(e){}
+}
+function cmicUI(){
+  document.querySelectorAll('.cmic').forEach(b => b.classList.remove('on'));
+  if (clistening && cTarget != null) { const b=document.getElementById('cm'+cTarget); if(b){ b.classList.add('on'); b.textContent='⏹'; } }
+  else document.querySelectorAll('.cmic').forEach(b => b.textContent='🎤');
+}
 async function sendComment(id){
+  try { crecog && crecog.stop(); } catch(e){}
   const inp = document.getElementById('ci'+id);
   const body = inp.value.trim(); if(!body) return;
   inp.disabled = true;
