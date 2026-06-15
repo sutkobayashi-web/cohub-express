@@ -361,6 +361,8 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
     margin-bottom: 5px;
   }
+  .card .icon-pill.img { background: #fff; padding: 0; overflow: hidden; }
+  .card .icon-pill.img img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
   .card .label { font-size: 12px; font-weight: 800; color: #0f172a; letter-spacing: 0.2px; line-height: 1.25; }
   .card .desc { display: none; }
   .card .badge {
@@ -448,6 +450,7 @@
   .card.takara     { --c1: #f87171; --c2: #1e40af; }
   .card.safety     { --c1: #fca5a5; --c2: #dc2626; }  /* 安全衛生委員会 月報 (🚨Report赤系) */
   .card.matomeru   { --c1: #5eead4; --c2: #0f766e; }  /* まとめる君: ティール (Communication青系・🦉ブランド色) */
+  .card.bdiary     { --c1: #fda4af; --c2: #e11d48; }  /* 元祖Ｂさんの愛の日記: rose (愛) */
 
   /* 推進メンバー専用 */
   #promoter-section .grid { gap: 12px; }
@@ -709,6 +712,12 @@
     <span class="desc">社内のつながり・連絡</span>
   </div>
   <div class="grid sec-comm">
+    <a class="card bdiary" href="/bdiary.html">
+      <span class="badge" id="b-bdiary" style="display:none;">0</span>
+      <div class="icon-pill img"><img src="/assets/bsan_avatar.png" alt="Bさん"></div>
+      <div class="label">元祖Ｂさんの愛の日記</div>
+      <div class="desc">Bさんの日々のひとこと。応援メッセージやリアクションで、みんなで励まそう。</div>
+    </a>
     <a class="card board" href="/board.html">
       <span class="badge" id="b-board" style="display:none;">0</span>
       <div class="icon-pill">📋</div>
@@ -1461,6 +1470,16 @@ async function fetchBadges() {
       $('b-boshu').style.display = '';
     } else if ($('b-boshu')) {
       $('b-boshu').style.display = 'none';
+    }
+  } catch(e) {}
+  // 元祖Ｂさんの愛の日記 (新着投稿数)
+  try {
+    const bd = await api('/api/bdiary/unread-count');
+    if (bd && bd.success && bd.count > 0) {
+      $('b-bdiary').textContent = bd.count;
+      $('b-bdiary').style.display = '';
+    } else if ($('b-bdiary')) {
+      $('b-bdiary').style.display = 'none';
     }
   } catch(e) {}
   // 投票したろう (未投票数)
