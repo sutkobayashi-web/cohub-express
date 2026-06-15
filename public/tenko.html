@@ -182,15 +182,11 @@ function openCard(m){
     `<h2>${m.mode==='tenko'?'🚦 点呼・健康点検':'📣 朝礼・健康点検'}</h2>
      <div class="who">${esc(m.name)} さん</div>
      ${briefHtml}${legal}
-     <div class="fld">
-       <label>体調点検</label>
-       <div class="opts hstate">
-         <button class="opt hs on" data-s="good" onclick="pickHealth(this)">😊 良好</button>
-         <button class="opt hs warn" data-s="concern" onclick="pickHealth(this)">🤔 気になる</button>
-       </div>
-       <div style="font-size:11px;color:#94a3b8;margin-top:6px;">いつもどおりなら「良好」で完了。気になる様子があれば「気になる」で詳細を記録。</div>
+     <div class="fld" style="margin-bottom:2px;">
+       <label>健康点検（8項目）</label>
+       <div style="font-size:11px;color:#94a3b8;margin-top:4px;">本日の状態をタップで選んでください。問題なければ「はい／なし」でOK。</div>
      </div>
-     <div id="healthDetail" style="display:none;">${detail}</div>
+     <div id="healthDetail">${detail}</div>
      <div class="fld"><div class="note-ttl">📝 メモ（任意）</div><textarea class="note" id="f_note" placeholder="気づいたことがあれば記入"></textarea></div>
      <button class="submit" onclick="submitCard()">${m.mode==='tenko'?'点呼・点検を記録':'記録（出席・点検）'}</button>
      <button class="cancel" onclick="closeOv()">キャンセル</button>`;
