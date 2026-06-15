@@ -394,6 +394,22 @@ const NUTRI_KEYS = ['protein', 'fat', 'carb', 'vitamin', 'mineral', 'salt'];
 const NUTRI_LABELS = { protein: 'タンパク', fat: '脂質', carb: '糖質', vitamin: 'ビタミン', mineral: 'ミネラル', salt: '塩分' };
 
 function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// URLを安全にハイパーリンク化 (エスケープ後にURLだけ<a>化・改行<br>)
+function linkify(s) {
+  s = (s == null ? '' : String(s));
+  const re = /(https?:\/\/[^\s<>"'）)】」』]+)/g;
+  let out = '', last = 0, m;
+  while ((m = re.exec(s)) !== null) {
+    out += escapeHtml(s.slice(last, m.index)).replace(/\n/g, '<br>');
+    let url = m[1].replace(/[.,!?、。：；]+$/, '');
+    const trail = m[1].slice(url.length);
+    const u = escapeHtml(url);
+    out += '<a href="' + u + '" target="_blank" rel="noopener noreferrer" style="color:#0d6efd;text-decoration:underline;word-break:break-all;">' + u + '</a>' + escapeHtml(trail);
+    last = m.index + m[1].length;
+  }
+  out += escapeHtml(s.slice(last)).replace(/\n/g, '<br>');
+  return out;
+}
 function avatarHtml(url, name) {
   if (url) return `<img class="avatar" src="${escapeHtml(url)}" alt="">`;
   const init = (name || '?').slice(0, 2);
@@ -988,7 +1004,7 @@ function postHtml(p) {
       </div>
       ${delBtn}
     </div>
-    ${p.content ? `<div class="post-content">${escapeHtml(p.content)}</div>` : ''}
+    ${p.content ? `<div class="post-content">${linkify(p.content)}</div>` : ''}
     ${img}
     ${nutri}
     ${alcExtraBlock}
@@ -1159,5 +1175,6 @@ function closeImgModal() { document.getElementById('img-modal').classList.remove
 </script>
 <script src="/overlay-history.js?v=3"></script>
   <script src="/translate.js" defer></script>
+  <script src="/voice-input.js" defer></script>
 </body>
 </html>
