@@ -259,12 +259,16 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
       <div id="slot-list"></div>
       <button type="button" class="add-slot" onclick="addSlotRow()">＋ 候補を追加</button>
 
-      <label>出席者 <span style="color:#dc2626;">*</span></label>
+      <label>出席者（登録メンバー）</label>
       <div style="font-size:11px;color:#64748b;margin-bottom:2px;">グループ名をタップすると、そのグループの全員をまとめて追加／解除できます</div>
       <div class="group-chips" id="group-chips"></div>
       <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()" style="margin-top:6px;">
       <div class="invitees-pick" id="invitees-pick">読み込み中...</div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;" id="invitees-count">0名選択中</div>
+
+      <label style="margin-top:14px;">🎫 ゲスト（登録外の方・名前のみ） <span style="font-size:11px;font-weight:400;color:#64748b;">— アカウント不要。回答用リンクを発行します</span></label>
+      <div id="guest-list"></div>
+      <button type="button" class="add-slot" onclick="addGuestRow()">＋ ゲストを追加</button>
 
       <div class="actions">
         <button class="btn ghost" onclick="showList()">キャンセル</button>
@@ -375,6 +379,8 @@ async function showList() {
   setView('list');
   const r = await api('/api/poll');
   if (!r || !r.success) { document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込み失敗</div>'; return; }
+  // スポット募集(event)は別ページ(/boshu.html)。日程調整一覧には日時型のみ表示
+  r.polls = (r.polls || []).filter(p => (p.poll_kind || 'schedule') !== 'event');
   if (!r.polls.length) {
     document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">📅</div>まだ日程調整はありません<br><span style="font-size:11px;">「＋ 新規作成」から始められます</span></div>';
     return;
@@ -419,6 +425,7 @@ async function showCreate() {
   selectedInvitees = new Set();
   document.getElementById('f-members-search').value = '';
   document.getElementById('slot-list').innerHTML = '';
+  document.getElementById('guest-list').innerHTML = '';
   // 開催形式をオンラインで初期化
   const fmtOnline = document.querySelector('input[name=fmt][value=online]');
   if (fmtOnline) fmtOnline.checked = true;
@@ -459,6 +466,21 @@ function addSlotRow(initial) {
   div.className = 'slot-row';
   div.innerHTML = '<input type="datetime-local" value="' + (initial || '') + '" /><button type="button" onclick="this.parentNode.remove()">削除</button>';
   wrap.appendChild(div);
+}
+function addGuestRow(initial) {
+  const wrap = document.getElementById('guest-list');
+  const div = document.createElement('div');
+  div.className = 'slot-row';
+  div.innerHTML = '<input type="text" maxlength="80" placeholder="ゲストの名前 (例: 山田太郎)" value="' + escapeHtml(initial || '') + '" /><button type="button" onclick="this.parentNode.remove()">削除</button>';
+  wrap.appendChild(div);
+}
+function getGuests() {
+  return [...document.querySelectorAll('#guest-list input[type=text]')].map(i => i.value.trim()).filter(Boolean);
+}
+function copyGuestLink(btn) {
+  const inp = btn.parentNode.querySelector('input');
+  const url = inp ? inp.value : '';
+  navigator.clipboard.writeText(url).then(() => { const t = btn.textContent; btn.textContent = '✓ コピー済'; setTimeout(() => { btn.textContent = t; }, 1200); }).catch(() => { if (inp) { inp.select(); } alert('コピーできませんでした。リンクを長押しでコピーしてください。'); });
 }
 // 自分以外の選択対象メンバー
 function eligibleMembers() {
@@ -626,7 +648,8 @@ async function submitCreate() {
     .map(i => i.value).filter(v => v);
   if (slots.length < 1) { alert('候補日時を1つ以上入力してください'); return; }
   const invitees = [...getSelectedInvitees()];
-  if (invitees.length < 1) { alert('出席者を1人以上選んでください'); return; }
+  const guests = getGuests();
+  if (invitees.length + guests.length < 1) { alert('出席者かゲストを1人以上指定してください'); return; }
   const format = (document.querySelector('input[name=fmt]:checked') || {}).value || 'online';
   let location_ = '';
   if (format === 'inperson') {
@@ -635,7 +658,7 @@ async function submitCreate() {
   }
   const btn = document.getElementById('btn-create-submit');
   btn.disabled = true;
-  const r = await api('/api/poll', { method: 'POST', body: { title, description: desc, duration_minutes: duration, slots, invitees, format, location: location_ } });
+  const r = await api('/api/poll', { method: 'POST', body: { title, description: desc, duration_minutes: duration, slots, invitees, guests, format, location: location_ } });
   btn.disabled = false;
   if (r && r.success) {
     location.href = '/poll.html?id=' + r.id;
@@ -653,11 +676,19 @@ async function showDetail(id) {
   if (!r || !r.success) { wrap.innerHTML = '<div class="empty"><div class="em">⚠️</div>' + escapeHtml((r && r.msg) || '読み込み失敗') + '<br><a href="/poll.html">← 一覧へ</a></div>'; return; }
 
   const { poll, slots, invitees, votes, is_organizer, is_invited, voted } = r;
+  const guests = r.guests || [];
+  const guestVotes = r.guest_votes || [];
 
   // スコア計算 (yes=2, maybe=1, no=0)
   const score = {};
   slots.forEach(s => { score[s.id] = { yes: 0, maybe: 0, no: 0, pts: 0 }; });
   votes.forEach(v => {
+    if (!score[v.slot_id]) return;
+    if (v.answer === 'yes') { score[v.slot_id].yes++; score[v.slot_id].pts += 2; }
+    else if (v.answer === 'maybe') { score[v.slot_id].maybe++; score[v.slot_id].pts += 1; }
+    else if (v.answer === 'no') { score[v.slot_id].no++; }
+  });
+  guestVotes.forEach(v => {
     if (!score[v.slot_id]) return;
     if (v.answer === 'yes') { score[v.slot_id].yes++; score[v.slot_id].pts += 2; }
     else if (v.answer === 'maybe') { score[v.slot_id].maybe++; score[v.slot_id].pts += 1; }
@@ -721,7 +752,31 @@ async function showDetail(id) {
     });
     html += '</tr>';
   });
+  guests.forEach(g => {
+    html += '<tr><th>' + escapeHtml(g.name) + '<span class="me-mark" style="background:#0891b2;">ゲスト</span></th>';
+    slots.forEach(s => {
+      const v = guestVotes.find(x => x.guest_id === g.guest_id && x.slot_id === s.id);
+      const sym = v ? (v.answer === 'yes' ? '○' : v.answer === 'maybe' ? '△' : '×') : '—';
+      const cls = v ? ('ans ' + v.answer) : 'ans none';
+      html += '<td class="' + cls + '">' + sym + '</td>';
+    });
+    html += '</tr>';
+  });
   html += '</tbody></table></div>';
+
+  // 主催者向け: ゲスト回答リンク発行
+  if (is_organizer && guests.length) {
+    html += '<div class="sec-title" style="margin-top:18px;">🎫 ゲスト回答リンク（登録外の方へ配布）</div>';
+    html += '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">ログイン不要。LINE等でリンクを送ってください。各リンクは個人別です。</div>';
+    guests.forEach(g => {
+      const url = location.origin + '/poll-guest.html?t=' + encodeURIComponent(g.token || '');
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">'
+        + '<span style="min-width:90px;font-weight:600;">' + escapeHtml(g.name) + '</span>'
+        + '<input type="text" readonly value="' + escapeHtml(url) + '" style="flex:1;min-width:180px;font-size:11px;padding:5px 7px;border:1px solid #cbd5e1;border-radius:6px;" onclick="this.select()">'
+        + '<button class="btn ghost" type="button" onclick="copyGuestLink(this)">コピー</button>'
+        + '</div>';
+    });
+  }
 
   // 主催者向け確定UI
   if (is_organizer && poll.status === 'open') {

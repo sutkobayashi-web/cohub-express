@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📋 スポット募集 — CoWell</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+:root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --sub:#64748b; --c:#ea580c; --c-d:#c2410c; --yes:#16a34a; --maybe:#f59e0b; --no:#dc2626; }
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:-apple-system,'Hiragino Sans','Yu Gothic UI','Meiryo',sans-serif; min-height:100vh; }
+main { max-width:960px; margin:0 auto; padding:16px; }
+.sec-title { font-size:13px; font-weight:800; color:var(--sub); margin:20px 0 10px; padding-left:8px; border-left:3px solid var(--c); letter-spacing:.3px; }
+.btn { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border:none; border-radius:8px; background:linear-gradient(135deg,var(--c),var(--c-d)); color:#fff; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; }
+.btn:hover { opacity:.9; }
+.btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+.btn.danger { background:linear-gradient(135deg,#ef4444,#dc2626); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+
+.poll-list { display:grid; gap:12px; }
+.poll-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; cursor:pointer; transition:box-shadow .15s,transform .15s; text-decoration:none; color:inherit; display:block; border-left:5px solid var(--c); }
+.poll-card:hover { box-shadow:0 6px 16px rgba(15,23,42,.08); transform:translateY(-1px); }
+.poll-card .head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.poll-card .title { font-size:16px; font-weight:800; flex:1; }
+.poll-card .badge { font-size:10px; font-weight:700; padding:3px 8px; border-radius:999px; }
+.poll-card .badge.open { background:#dcfce7; color:#166534; }
+.poll-card .badge.closed { background:#dbeafe; color:#1d4ed8; }
+.poll-card .badge.cancelled { background:#f1f5f9; color:#64748b; }
+.poll-card .meta { font-size:12px; color:var(--sub); display:flex; gap:14px; flex-wrap:wrap; }
+.poll-card .role { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; }
+.poll-card .role.org { background:#ffedd5; color:#9a3412; }
+.poll-card .role.invited { background:#ede9fe; color:#6d28d9; }
+.empty { text-align:center; padding:40px 20px; color:var(--sub); font-size:13px; }
+.empty .em { font-size:40px; margin-bottom:8px; }
+
+.intro { background:linear-gradient(135deg,#fff7ed,#ffedd5); border:1px solid #fed7aa; border-radius:12px; padding:12px 14px; font-size:12.5px; line-height:1.7; color:#7c2d12; margin-bottom:14px; }
+
+/* フォーム */
+.form { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-top:12px; }
+.form label { display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px; margin-top:14px; }
+.form label:first-child { margin-top:0; }
+.form input[type=text], .form textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; outline:none; }
+.form input:focus, .form textarea:focus { border-color:var(--c); box-shadow:0 0 0 3px rgba(234,88,12,.15); }
+.form .slot-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+.form .slot-row input { flex:1; }
+.form .slot-row button { background:#fee2e2; color:#991b1b; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-weight:700; font-size:12px; }
+.form .add-slot { margin-top:8px; background:#fff7ed; color:#9a3412; border:1px dashed #fdba74; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+.form .add-slot:hover { background:#ffedd5; }
+.form .members-pick { max-height:240px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:6px; margin-top:4px; background:#fafafa; }
+.form .member-item { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; }
+.form .member-item:hover { background:#fff; }
+.form .member-item.checked { background:#fff7ed; }
+.form .member-item .nm { font-size:13px; }
+.form .member-item .grp { font-size:11px; color:var(--sub); margin-left:auto; }
+.form .group-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.form .group-chip { display:inline-flex; align-items:center; gap:5px; padding:6px 11px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; color:var(--ink); user-select:none; }
+.form .group-chip:hover { border-color:var(--c); background:#fff7ed; }
+.form .group-chip.full { background:var(--c); border-color:var(--c); color:#fff; }
+.form .group-chip.partial { background:#fff7ed; border-color:var(--c); color:var(--c-d); }
+.form .group-chip .gc-cnt { font-size:10px; opacity:.8; font-weight:600; }
+.form .group-chip.cross { border-color:#86efac; background:#f0fdf4; color:#15803d; }
+.form .group-chip.cross.full { background:#16a34a; border-color:#16a34a; color:#fff; }
+.form .group-chip.cross.partial { background:#dcfce7; border-color:#22c55e; color:#15803d; }
+.form .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+details.adv summary { cursor:pointer; font-size:12px; font-weight:700; color:#9a3412; margin-top:14px; }
+
+/* 詳細 */
+.poll-detail { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-top:12px; }
+.status-banner { border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+.status-banner.open { background:linear-gradient(135deg,#dcfce7,#bbf7d0); color:#14532d; }
+.status-banner.closed { background:linear-gradient(135deg,#dbeafe,#bfdbfe); color:#1e3a8a; }
+.status-banner.cancelled { background:#f1f5f9; color:#475569; }
+.status-banner .big { font-size:16px; font-weight:800; }
+.status-banner .prog { font-size:13px; margin-top:6px; font-weight:700; }
+.status-banner .bar { height:8px; border-radius:999px; background:rgba(255,255,255,.6); margin-top:8px; overflow:hidden; }
+.status-banner .bar > i { display:block; height:100%; background:#16a34a; border-radius:999px; }
+
+.share-box { background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 14px; margin-bottom:14px; }
+.share-box .lbl { font-size:12px; font-weight:800; color:#9a3412; margin-bottom:6px; }
+.share-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.share-row input { flex:1; min-width:200px; font-size:12px; padding:8px 10px; border:1px solid #fdba74; border-radius:8px; }
+
+.matrix-wrap { overflow-x:auto; margin-bottom:14px; }
+.matrix { border-collapse:collapse; width:100%; min-width:480px; }
+.matrix th, .matrix td { border:1px solid var(--line); padding:8px; text-align:center; font-size:12px; }
+.matrix thead th { background:#f8fafc; font-weight:700; color:var(--ink); }
+.matrix thead th.slot-h { min-width:110px; }
+.matrix tbody th { text-align:left; font-weight:700; background:#f8fafc; min-width:110px; max-width:180px; }
+.matrix .ans { font-size:16px; font-weight:700; }
+.matrix .ans.yes { color:var(--yes); }
+.matrix .ans.maybe { color:var(--maybe); }
+.matrix .ans.no { color:var(--no); }
+.matrix .ans.none { color:#cbd5e1; }
+.matrix .tally { font-size:11px; color:var(--sub); }
+.matrix tbody th .gbadge { background:#0891b2; color:#fff; font-size:9px; padding:1px 5px; border-radius:999px; margin-left:5px; }
+.matrix tbody th .mbadge { background:#9a3412; color:#fff; font-size:9px; padding:1px 5px; border-radius:999px; margin-left:5px; }
+.glink-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.glink-row input { flex:1; min-width:180px; font-size:11px; padding:5px 7px; border:1px solid #cbd5e1; border-radius:6px; }
+@media (max-width:600px){ .matrix th, .matrix td { padding:5px; font-size:11px; } }
+
+/* メンバー(招待者)用 回答フォーム — 日程調整と同じ操作感 */
+.vote-form { background:#fff; border:2px solid var(--c); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+.vote-form h3 { margin:0 0 4px; font-size:15px; }
+.vote-form .vf-sub { font-size:12px; color:var(--sub); margin-bottom:10px; }
+.vrow { display:flex; align-items:center; gap:8px; padding:8px 6px; border-bottom:1px dashed var(--line); flex-wrap:wrap; }
+.vrow:last-of-type { border-bottom:none; }
+.vrow .slot { flex:1; font-size:14px; font-weight:700; min-width:140px; }
+.vrow .opts { display:flex; gap:6px; }
+.vrow .opts label { padding:8px 12px; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:14px; font-weight:700; user-select:none; min-width:50px; text-align:center; }
+.vrow .opts label input { display:none; }
+.vrow .opts label.yes.sel { background:#dcfce7; color:var(--yes); border-color:var(--yes); }
+.vrow .opts label.maybe.sel { background:#fef3c7; color:var(--maybe); border-color:var(--maybe); }
+.vrow .opts label.no.sel { background:#fee2e2; color:var(--no); border-color:var(--no); }
+@media (max-width:600px){ .vrow .opts label { min-width:44px; padding:8px; font-size:16px; } }
+</style>
+<script src="/unify-header.js" defer></script>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+<header>
+  <a href="/home" class="back">←</a>
+  <h1>📋 スポット募集</h1>
+</header>
+
+<main>
+  <div id="view-list" style="display:none;">
+    <div class="intro">🎫 <b>CoWell未登録の社員・社外の方</b>にも、ログイン不要で参加可否を募集できます。項目ごとに ○△× で回答してもらい、結果はこの画面に集約されます。日程の調整は <a href="/poll.html" style="color:#c2410c;font-weight:700;">日程調整</a> をどうぞ。</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="sec-title" style="margin:0;">募集一覧</div>
+      <button class="btn" onclick="showCreate()">＋ 新規募集</button>
+    </div>
+    <div id="poll-list" class="poll-list"></div>
+  </div>
+
+  <div id="view-create" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="sec-title" style="margin:0;">新規募集</div>
+      <button class="btn ghost" onclick="showList()">← 一覧へ</button>
+    </div>
+    <div class="form">
+      <label>タイトル <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="f-title" maxlength="120" placeholder="例: 夏の親睦会 参加募集">
+
+      <label>説明 (任意)</label>
+      <textarea id="f-desc" rows="3" maxlength="2000" placeholder="日時・場所・会費など、回答者に伝えたいこと"></textarea>
+
+      <label>募集項目 <span style="color:#dc2626;">*</span> <span style="font-size:11px;font-weight:400;color:#64748b;">— 各項目に ○△× で回答してもらいます (1〜30件)</span></label>
+      <div id="slot-list"></div>
+      <button type="button" class="add-slot" onclick="addItemRow()">＋ 項目を追加</button>
+
+      <label style="margin-top:14px;">🎫 ゲスト（登録外の方・名前のみ） <span style="font-size:11px;font-weight:400;color:#64748b;">— アカウント不要。回答リンク／共有QR用リンクを発行します</span></label>
+      <div id="guest-list"></div>
+      <button type="button" class="add-slot" onclick="addGuestRow()">＋ ゲストを追加</button>
+
+      <details class="adv">
+        <summary>＋ 登録メンバーも招待する（任意・QR不要でアプリ内回答可）</summary>
+        <div style="font-size:11px;color:#64748b;margin:8px 0 2px;">グループ名をタップすると、その全員をまとめて追加／解除できます（一括登録）</div>
+        <div class="group-chips" id="group-chips"></div>
+        <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()" style="margin-top:8px;">
+        <div class="members-pick" id="members-pick">読み込み中...</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px;" id="members-count">0名選択中</div>
+      </details>
+
+      <div class="actions">
+        <button class="btn ghost" onclick="showList()">キャンセル</button>
+        <button class="btn" id="btn-create-submit" onclick="submitCreate()">募集を作成</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none;"></div>
+</main>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) location.replace('/');
+let me = null;
+let allMembers = [];
+let selectedMembers = new Set();
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function api(path, opts={}){
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object') {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+  return r.json();
+}
+
+async function init(){
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) return;
+  me = r.user;
+  const params = new URLSearchParams(location.search);
+  if (params.get('new') === '1') showCreate();
+  else if (params.get('id')) showDetail(parseInt(params.get('id')));
+  else showList();
+}
+function setView(v){
+  document.getElementById('view-list').style.display = v==='list' ? '' : 'none';
+  document.getElementById('view-create').style.display = v==='create' ? '' : 'none';
+  document.getElementById('view-detail').style.display = v==='detail' ? '' : 'none';
+}
+
+// ===== 一覧 =====
+async function showList(){
+  history.replaceState({}, '', '/boshu.html');
+  setView('list');
+  const r = await api('/api/poll');
+  if (!r || !r.success) { document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込み失敗</div>'; return; }
+  const polls = (r.polls || []).filter(p => p.poll_kind === 'event');
+  if (!polls.length) {
+    document.getElementById('poll-list').innerHTML = '<div class="empty"><div class="em">📋</div>まだ募集はありません<br><span style="font-size:11px;">「＋ 新規募集」から始められます</span></div>';
+    return;
+  }
+  document.getElementById('poll-list').innerHTML = polls.map(p => {
+    const isOrg = p.organizer_id === r.me;
+    const role = isOrg ? '<span class="role org">主催</span>' : '<span class="role invited">招待</span>';
+    const st = p.status === 'open' ? '<span class="badge open">募集中</span>'
+             : (p.status === 'closed' || p.status === 'decided') ? '<span class="badge closed">締切</span>'
+             : '<span class="badge cancelled">中止</span>';
+    const responded = (p.voted_count || 0) + (p.guest_voted_count || 0);
+    const total = (p.invitee_count || 0) + (p.guest_count || 0);
+    return '<a class="poll-card" href="/boshu.html?id=' + p.id + '">'
+      + '<div class="head"><div class="title">' + escapeHtml(p.title) + '</div>' + st + role + '</div>'
+      + '<div class="meta">'
+      + '<span>主催: ' + escapeHtml(p.organizer_name || '') + '</span>'
+      + '<span>📋 項目 ' + (p.slot_count||0) + '件</span>'
+      + '<span>👥 回答 ' + responded + '/' + total + '名</span>'
+      + '</div></a>';
+  }).join('');
+}
+
+// ===== 作成 =====
+async function showCreate(){
+  history.replaceState({}, '', '/boshu.html?new=1');
+  setView('create');
+  selectedMembers = new Set();
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-members-search').value = '';
+  document.getElementById('slot-list').innerHTML = '';
+  document.getElementById('guest-list').innerHTML = '';
+  addItemRow('参加');
+  addGuestRow();
+  const r = await api('/api/members');
+  if (r && r.success) { allMembers = r.items || []; renderGroupChips(); renderMembersPick(); }
+  else document.getElementById('members-pick').innerHTML = '<div style="padding:10px;color:#dc2626;">メンバー読み込み失敗</div>';
+}
+function addItemRow(initial){
+  const wrap = document.getElementById('slot-list');
+  const div = document.createElement('div');
+  div.className = 'slot-row';
+  div.innerHTML = '<input type="text" maxlength="120" placeholder="例: 親睦会本会 / 二次会 / 8月8日(土)" value="' + escapeHtml(initial||'') + '" /><button type="button" onclick="this.parentNode.remove()">削除</button>';
+  wrap.appendChild(div);
+}
+function addGuestRow(initial){
+  const wrap = document.getElementById('guest-list');
+  const div = document.createElement('div');
+  div.className = 'slot-row';
+  div.innerHTML = '<input type="text" maxlength="80" placeholder="ゲストの名前 (例: 山田)" value="' + escapeHtml(initial||'') + '" /><button type="button" onclick="this.parentNode.remove()">削除</button>';
+  wrap.appendChild(div);
+}
+function getItems(){ return [...document.querySelectorAll('#slot-list input[type=text]')].map(i => i.value.trim()).filter(Boolean); }
+function getGuests(){ return [...document.querySelectorAll('#guest-list input[type=text]')].map(i => i.value.trim()).filter(Boolean); }
+function eligibleMembers(){ return allMembers.filter(m => m.id !== me.id); }
+function groupMembers(g){ return eligibleMembers().filter(m => (m.group||'') === g); }
+// グループ定義: 先頭に部署横断の健康推進メンバー、続いて所属(dm_group)を出現順
+function chipDefs(){
+  const defs = [];
+  const promoters = eligibleMembers().filter(m => m.promoter);
+  if (promoters.length) defs.push({ label:'🌱 健康推進メンバー', cls:'cross', members:promoters });
+  const seen = new Set();
+  eligibleMembers().forEach(m => { const g = m.group||''; if (seen.has(g)) return; seen.add(g); defs.push({ label:g||'（グループ未設定）', cls:'', members:groupMembers(g) }); });
+  return defs;
+}
+function renderGroupChips(){
+  const wrap = document.getElementById('group-chips'); if (!wrap) return;
+  wrap.innerHTML = chipDefs().map((d, idx) => {
+    const selN = d.members.filter(m => selectedMembers.has(m.id)).length;
+    const state = selN === 0 ? '' : (selN === d.members.length ? 'full' : 'partial');
+    return '<span class="group-chip ' + d.cls + ' ' + state + '" onclick="toggleGroup(' + idx + ')">' + escapeHtml(d.label) + '<span class="gc-cnt">' + selN + '/' + d.members.length + '</span></span>';
+  }).join('');
+}
+// グループ全員を一括追加／解除 (全員選択済みなら解除、それ以外は全追加)
+function toggleGroup(idx){
+  const d = chipDefs()[idx]; if (!d) return;
+  const allSel = d.members.length > 0 && d.members.every(m => selectedMembers.has(m.id));
+  d.members.forEach(m => { if (allSel) selectedMembers.delete(m.id); else selectedMembers.add(m.id); });
+  renderGroupChips(); renderMembersPick();
+}
+function renderMembersPick(){
+  const q = (document.getElementById('f-members-search').value || '').toLowerCase().trim();
+  const list = eligibleMembers().filter(m => !q || (m.name||'').toLowerCase().includes(q) || (m.group||'').toLowerCase().includes(q)).slice(0, 200);
+  document.getElementById('members-pick').innerHTML = list.map(m => {
+    const ck = selectedMembers.has(m.id);
+    return '<label class="member-item' + (ck?' checked':'') + '">'
+      + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (ck?' checked':'') + ' onchange="onMemberToggle(this)">'
+      + '<div class="nm">' + escapeHtml(m.name) + '</div>'
+      + (m.group ? '<div class="grp">' + escapeHtml(m.group) + '</div>' : '')
+      + '</label>';
+  }).join('');
+  document.getElementById('members-count').textContent = selectedMembers.size + '名選択中';
+}
+function onMemberToggle(cb){
+  if (cb.checked) selectedMembers.add(cb.dataset.uid); else selectedMembers.delete(cb.dataset.uid);
+  cb.closest('.member-item').classList.toggle('checked', cb.checked);
+  document.getElementById('members-count').textContent = selectedMembers.size + '名選択中';
+  renderGroupChips();
+}
+async function submitCreate(){
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { alert('タイトルを入力してください'); return; }
+  const desc = document.getElementById('f-desc').value.trim();
+  const items = getItems();
+  if (items.length < 1) { alert('募集項目を1つ以上入力してください'); return; }
+  const guests = getGuests();
+  const invitees = [...selectedMembers];
+  if (guests.length + invitees.length < 1) { alert('ゲストまたは登録メンバーを1人以上指定してください'); return; }
+  const btn = document.getElementById('btn-create-submit');
+  btn.disabled = true;
+  const r = await api('/api/poll', { method:'POST', body: { poll_kind:'event', title, description: desc, items, guests, invitees } });
+  btn.disabled = false;
+  if (r && r.success) location.href = '/boshu.html?id=' + r.id;
+  else alert('作成失敗: ' + (r && r.msg || '通信エラー'));
+}
+
+// ===== 詳細 =====
+async function showDetail(id){
+  history.replaceState({}, '', '/boshu.html?id=' + id);
+  setView('detail');
+  const wrap = document.getElementById('view-detail');
+  wrap.innerHTML = '<div class="empty"><div class="em">⏳</div>読み込み中...</div>';
+  const r = await api('/api/poll/' + id);
+  if (!r || !r.success) { wrap.innerHTML = '<div class="empty"><div class="em">⚠️</div>' + escapeHtml((r&&r.msg)||'読み込み失敗') + '<br><a href="/boshu.html">← 一覧へ</a></div>'; return; }
+  const { poll, slots, invitees, votes, is_organizer, is_invited, voted } = r;
+  const guests = r.guests || [];
+  const guestVotes = r.guest_votes || [];
+  const myVotes = {};
+  votes.forEach(v => { if (v.user_id === r.me) myVotes[v.slot_id] = v.answer; });
+
+  // スコア集計
+  const score = {};
+  slots.forEach(s => { score[s.id] = { yes:0, maybe:0, no:0 }; });
+  const tallyOf = v => { if (!score[v.slot_id]) return; if (v.answer==='yes') score[v.slot_id].yes++; else if (v.answer==='maybe') score[v.slot_id].maybe++; else if (v.answer==='no') score[v.slot_id].no++; };
+  votes.forEach(tallyOf); guestVotes.forEach(tallyOf);
+
+  // 回答済み人数
+  const votedMembers = new Set(votes.map(v => v.user_id));
+  const votedGuests = new Set(guestVotes.map(v => v.guest_id));
+  const responded = votedMembers.size + votedGuests.size;
+  const total = invitees.length + guests.length;
+  const pct = total ? Math.round(responded / total * 100) : 0;
+
+  const isClosed = poll.status === 'closed' || poll.status === 'decided';
+  const isCancelled = poll.status === 'cancelled';
+  const sCls = isCancelled ? 'cancelled' : (isClosed ? 'closed' : 'open');
+  const sLabel = isCancelled ? '🚫 中止しました' : (isClosed ? '🔒 募集を締め切りました' : '📣 募集中（回答受付中）');
+
+  let html = '<div class="poll-detail">';
+  html += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">';
+  html += '<h2 style="margin:0;flex:1;font-size:18px;">' + escapeHtml(poll.title) + '</h2>';
+  html += '<a class="btn ghost" href="/boshu.html">← 一覧</a></div>';
+  html += '<div style="color:var(--sub);font-size:12px;margin-bottom:12px;">主催: ' + escapeHtml(poll.organizer_name || '') + '</div>';
+  if (poll.description) html += '<div style="background:#f8fafc;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;color:#334155;margin-bottom:14px;white-space:pre-wrap;">' + escapeHtml(poll.description) + '</div>';
+
+  // ステータス + 進捗バナー
+  html += '<div class="status-banner ' + sCls + '">';
+  html += '<div class="big">' + sLabel + '</div>';
+  html += '<div class="prog">👥 回答 ' + responded + ' / ' + total + ' 名' + (total ? '（' + pct + '%）' : '') + '</div>';
+  if (total) html += '<div class="bar"><i style="width:' + pct + '%;"></i></div>';
+  html += '</div>';
+
+  // メンバー(招待者)用 回答フォーム — QR/リンク不要でアプリ内から直接○△×入力
+  if (is_invited && poll.status === 'open') {
+    html += '<div class="vote-form"><h3>👇 あなたの回答</h3>';
+    html += '<div class="vf-sub">○＝参加／△＝未定／×＝不参加</div>';
+    slots.forEach(s => {
+      const sel = myVotes[s.id] || '';
+      html += '<div class="vrow"><div class="slot">' + escapeHtml(s.label || '') + '</div><div class="opts">'
+        + '<label class="yes' + (sel==='yes'?' sel':'') + '"><input type="radio" name="mv_' + s.id + '" value="yes"' + (sel==='yes'?' checked':'') + ' onchange="markSel(this)"> ○</label>'
+        + '<label class="maybe' + (sel==='maybe'?' sel':'') + '"><input type="radio" name="mv_' + s.id + '" value="maybe"' + (sel==='maybe'?' checked':'') + ' onchange="markSel(this)"> △</label>'
+        + '<label class="no' + (sel==='no'?' sel':'') + '"><input type="radio" name="mv_' + s.id + '" value="no"' + (sel==='no'?' checked':'') + ' onchange="markSel(this)"> ×</label>'
+        + '</div></div>';
+    });
+    html += '<div style="text-align:right;margin-top:12px;"><button class="btn" id="btn-mvote" onclick="submitMyVote(' + poll.id + ')">' + (voted ? '回答を更新' : '回答する') + '</button></div></div>';
+  }
+
+  // 共有リンク (主催者のみ)
+  if (is_organizer) {
+    const shareUrl = location.origin + '/poll-rsvp.html?s=' + encodeURIComponent(poll.share_token || '');
+    html += '<div class="share-box">';
+    html += '<div class="lbl">📱 共有リンク（1つで全員に配布・ポスターのQR用）</div>';
+    html += '<div class="share-row"><input type="text" readonly value="' + escapeHtml(shareUrl) + '" onclick="this.select()">'
+      + '<button class="btn" type="button" onclick="copyVal(this)">コピー</button>'
+      + '<a class="btn ghost" href="' + escapeHtml(shareUrl) + '" target="_blank" rel="noopener">開く</a></div>';
+    html += '<div style="font-size:11px;color:#9a3412;margin-top:6px;">このリンクを開くと名前を選んで回答できます。LINE等で配布、またはQRコードにして掲示できます。</div>';
+    html += '</div>';
+  }
+
+  // マトリクス
+  html += '<div class="sec-title" style="margin-top:4px;">📊 回答状況</div>';
+  if (!slots.length) {
+    html += '<div class="empty">項目がありません</div>';
+  } else {
+    html += '<div class="matrix-wrap"><table class="matrix"><thead><tr><th></th>';
+    slots.forEach(s => {
+      html += '<th class="slot-h">' + escapeHtml(s.label || '') + '<br><span class="tally">○' + score[s.id].yes + ' △' + score[s.id].maybe + ' ×' + score[s.id].no + '</span></th>';
+    });
+    html += '</tr></thead><tbody>';
+    if (!invitees.length && !guests.length) {
+      html += '<tr><td colspan="' + (slots.length+1) + '" style="color:#94a3b8;padding:16px;">対象者がいません</td></tr>';
+    }
+    invitees.forEach(inv => {
+      html += '<tr><th>' + escapeHtml(inv.display_name || inv.user_id) + '<span class="mbadge">メンバー</span></th>';
+      slots.forEach(s => {
+        const v = votes.find(x => x.user_id === inv.user_id && x.slot_id === s.id);
+        html += cell(v);
+      });
+      html += '</tr>';
+    });
+    guests.forEach(g => {
+      html += '<tr><th>' + escapeHtml(g.name) + '<span class="gbadge">ゲスト</span></th>';
+      slots.forEach(s => {
+        const v = guestVotes.find(x => x.guest_id === g.guest_id && x.slot_id === s.id);
+        html += cell(v);
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // ゲスト個別リンク
+  if (is_organizer && guests.length) {
+    html += '<div class="sec-title" style="margin-top:18px;">🎫 ゲスト個別リンク（個別に送る場合）</div>';
+    html += '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">ログイン不要。LINE等で個別に送れます。上の共有リンク1本でもまとめて回答できます。</div>';
+    guests.forEach(g => {
+      const url = location.origin + '/poll-guest.html?t=' + encodeURIComponent(g.token || '');
+      html += '<div class="glink-row"><span style="min-width:80px;font-weight:600;">' + escapeHtml(g.name) + '</span>'
+        + '<input type="text" readonly value="' + escapeHtml(url) + '" onclick="this.select()">'
+        + '<button class="btn ghost" type="button" onclick="copyVal(this)">コピー</button></div>';
+    });
+  }
+
+  // 主催者操作
+  if (is_organizer) {
+    html += '<div class="sec-title" style="margin-top:18px;">⚙️ 主催者メニュー</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    if (poll.status === 'open') html += '<button class="btn" onclick="closePoll(' + poll.id + ')">🔒 募集を締め切る</button>';
+    else if (isClosed) html += '<button class="btn ghost" onclick="reopenPoll(' + poll.id + ')">🔓 募集を再開する</button>';
+    if (!isCancelled) html += '<button class="btn danger" onclick="cancelPoll(' + poll.id + ')">この募集を中止</button>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+function cell(v){
+  const sym = v ? (v.answer==='yes'?'○':v.answer==='maybe'?'△':'×') : '—';
+  const cls = v ? ('ans ' + v.answer) : 'ans none';
+  return '<td class="' + cls + '">' + sym + '</td>';
+}
+function markSel(input){
+  const row = input.closest('.vrow');
+  row.querySelectorAll('.opts label').forEach(l => l.classList.remove('sel'));
+  input.parentNode.classList.add('sel');
+}
+async function submitMyVote(id){
+  const votes = {};
+  document.querySelectorAll('#view-detail input[type=radio]:checked').forEach(i => { votes[i.name.replace('mv_','')] = i.value; });
+  if (Object.keys(votes).length === 0) { alert('1つ以上の項目に回答してください'); return; }
+  const btn = document.getElementById('btn-mvote'); if (btn) btn.disabled = true;
+  const r = await api('/api/poll/' + id + '/vote', { method:'POST', body: { votes } });
+  if (btn) btn.disabled = false;
+  if (r && r.success) showDetail(id);
+  else alert('送信失敗: ' + (r && r.msg || '通信エラー'));
+}
+function copyVal(btn){
+  const inp = btn.parentNode.querySelector('input');
+  const url = inp ? inp.value : '';
+  navigator.clipboard.writeText(url).then(() => { const t = btn.textContent; btn.textContent = '✓ コピー済'; setTimeout(() => { btn.textContent = t; }, 1200); }).catch(() => { if (inp) inp.select(); alert('コピーできませんでした。長押しでコピーしてください。'); });
+}
+async function closePoll(id){
+  if (!confirm('募集を締め切りますか? 回答の受付が停止します（履歴は残ります。あとで再開もできます）')) return;
+  const r = await api('/api/poll/' + id + '/close', { method:'POST' });
+  if (r && r.success) showDetail(id); else alert('失敗: ' + (r && r.msg || '通信エラー'));
+}
+async function reopenPoll(id){
+  const r = await api('/api/poll/' + id + '/reopen', { method:'POST' });
+  if (r && r.success) showDetail(id); else alert('失敗: ' + (r && r.msg || '通信エラー'));
+}
+async function cancelPoll(id){
+  if (!confirm('この募集を中止しますか? 回答も含めて停止状態になります（履歴は残ります）')) return;
+  const r = await api('/api/poll/' + id, { method:'DELETE' });
+  if (r && r.success) showList(); else alert('失敗: ' + (r && r.msg || '通信エラー'));
+}
+
+init();
+</script>
+<script src="/translate.js" defer></script>
+</body>
+</html>

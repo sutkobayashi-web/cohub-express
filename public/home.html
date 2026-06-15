@@ -426,6 +426,7 @@
   /* 📅 Meeting = 紫系 (sec-title #7c3aed) */
   .card.meeting    { --c1: #a78bfa; --c2: #6d28d9; }  /* ミーティング: violet深め */
   .card.poll       { --c1: #c4b5fd; --c2: #7c3aed; }  /* 日程調整: violet明るめ */
+  .card.boshu      { --c1: #fdba74; --c2: #c2410c; }  /* スポット募集: orange (非会員募集) */
   /* 🚨 Report = 赤系 (sec-title #dc2626) */
   .card.accident   { --c1: #fca5a5; --c2: #dc2626; }  /* 事故報告: red中間 */
   .card.announce   { --c1: #f87171; --c2: #991b1b; }  /* 通達: red深め (事故と区別) */
@@ -686,8 +687,13 @@
     <a class="card poll" href="/poll.html">
       <span class="badge" id="b-poll" style="display:none;">0</span>
       <div class="icon-pill">📅</div>
-      <div class="label">会議出太郎（日程調整）</div>
+      <div class="label">日程調整</div>
       <div class="desc">候補日時を出して、出席者が ○△× で回答。最適日が一目で分かる。</div>
+    </a>
+    <a class="card boshu" href="/boshu.html">
+      <div class="icon-pill">📋</div>
+      <div class="label">スポット募集</div>
+      <div class="desc">登録外の社員・社外の方にも、ログイン不要で参加可否を募集。親睦会などの出欠集計に。</div>
     </a>
     <a class="card meeting" href="/calendar.html" id="card-shared-cal" style="display:none;">
       <div class="icon-pill">🗓</div>
@@ -1271,6 +1277,7 @@ function renderNewFeatures(isManager) {
   if (!box || !list) return;
   const items = [];
   // ★本日の新機能 (全員向け・最新を先頭に)
+  items.push({ ic: '📋', t: 'スポット募集', d: '登録外の社員・社外の方にもログイン不要で参加可否を募集。親睦会の出欠集計に', href: '/boshu.html' });
   items.push({ ic: '🗳️', t: '投票したろう', d: '選択肢を出して対象者が投票。アンケートや多数決の集計が一目で分かる', href: '/vote.html' });
   items.push({ ic: '🏁', t: '決選投票', d: '投票で票が割れたら、上位候補だけでもう一度「決選投票」ができます', href: '/vote.html' });
   items.push({ ic: '🦉', t: 'まとめる君', d: '走り書きの報告メモをAIが5W1Hに整形。「文章に翼をさずけよう」', href: '/matomeru.html' });

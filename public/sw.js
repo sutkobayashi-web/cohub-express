@@ -1,6 +1,10 @@
 // CoWell Service Worker (PWA Push通知)
 // v4 (2026-05-18): 旧 lobby/葵版が残存する PWA を強制的に /home に飛ばすため cache全削除＋controlled clientsをnavigate。
-const CACHE = "cohub-v6";
+// v7 (2026-06-15): 「旧版が通常ブラウザで起動する」事案対策。activate時に CacheStorage を全削除(例外なし)し、
+//                  旧SWが残したキャッシュシェルを根絶。push通知ハンドラは維持(通知は引き続き機能)。
+// v8 (2026-06-15): activate時の「全クライアント強制navigate(リロード)」を撤去。リセット直後にトップ描画途中で
+//                  リロードが走り「遅い/出ない」と感じる原因だったため。キャッシュ掃除+claimのみに簡素化。
+const CACHE = "cohub-v8";
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -8,27 +12,17 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // 旧バージョン (v1/v2/v3) が CacheStorage に残した全エントリを掃除。
-    // 現行 SW は HTMLキャッシュしない設計だが、過去にキャッシュされた index.html が
-    // 旧 lobby/葵 を返し続ける事案が出ているため、ここで一掃する。
+    // 旧バージョンが CacheStorage に残した全エントリを掃除。
+    // 現行 SW は HTMLキャッシュしない設計なので、例外なく全キャッシュを削除して
+    // 旧 lobby/葵 シェルや古いHTMLを根絶する。
     try {
       const names = await caches.keys();
-      await Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n)));
+      await Promise.all(names.map((n) => caches.delete(n)));
     } catch (e) {}
     await self.clients.claim();
-    // controlled 化したクライアントを最新HTMLに再ナビゲート。
-    // ルート(`/`)とパス無しは /home に振り、それ以外は同じURLを再取得させて
-    // サーバー側302/最新static配信に乗せ替える。
-    try {
-      const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      for (const c of list) {
-        try {
-          const u = new URL(c.url);
-          const target = (u.pathname === '/' || u.pathname === '') ? '/home' : c.url;
-          await c.navigate(target);
-        } catch (e) {}
-      }
-    } catch (e) {}
+    // 注: 旧版では controlled clients を c.navigate() で強制リロードしていたが、
+    //     トップ描画途中のリロードで「遅い/画面が出ない」誤認を招くため撤去。
+    //     現行SWはfetchをインターセプトしないので、次回ナビゲーションで自然に最新が読まれる。
   })());
 });
 

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>出欠回答 | CoWell</title>
+<style>
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif; background:#fef6ec; color:#1f2937; }
+  .wrap { max-width:560px; margin:0 auto; padding:16px 14px 60px; }
+  .hd { background:linear-gradient(135deg,#fb923c,#ea580c); color:#fff; border-radius:18px; padding:18px; margin-bottom:14px; box-shadow:0 6px 16px rgba(234,88,12,.28); text-align:center; }
+  .hd .ttl { font-size:1.3rem; font-weight:800; margin:0 0 4px; }
+  .hd .sub { font-size:.8rem; opacity:.95; }
+  .card { background:#fff; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:14px; }
+  .meta { font-size:.82rem; color:#475569; background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:10px 12px; margin-bottom:14px; line-height:1.7; white-space:pre-wrap; }
+  .lead { font-weight:800; font-size:1rem; margin:2px 0 10px; color:#c2410c; }
+  .names { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .nbtn { display:flex; align-items:center; justify-content:center; gap:6px; min-height:52px; border:2px solid #fed7aa; border-radius:14px; background:#fff; font-size:1rem; font-weight:700; color:#9a3412; cursor:pointer; }
+  .nbtn .ck { color:#16a34a; font-weight:900; }
+  .nbtn.voted { background:#f0fdf4; border-color:#bbf7d0; }
+  .vrow { display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid #f1f0ec; }
+  .vrow:last-child { border-bottom:none; }
+  .slot { flex:1; font-size:.95rem; font-weight:700; }
+  .opts { display:flex; gap:6px; }
+  .opts label { display:inline-flex; align-items:center; justify-content:center; width:44px; height:42px; border:2px solid #e5e7eb; border-radius:11px; font-size:1.2rem; font-weight:800; cursor:pointer; background:#fff; color:#9ca3af; }
+  .opts label input { display:none; }
+  .opts label.yes.sel { border-color:#16a34a; background:#dcfce7; color:#15803d; }
+  .opts label.maybe.sel { border-color:#d97706; background:#fef3c7; color:#b45309; }
+  .opts label.no.sel { border-color:#dc2626; background:#fee2e2; color:#b91c1c; }
+  .btn { width:100%; border:none; border-radius:14px; padding:15px; font-size:1.05rem; font-weight:800; color:#fff; background:linear-gradient(135deg,#fb923c,#ea580c); cursor:pointer; margin-top:14px; }
+  .btn:disabled { opacity:.5; }
+  .lnk { display:inline-block; margin-top:12px; color:#ea580c; font-weight:700; font-size:.85rem; cursor:pointer; }
+  .msg { text-align:center; padding:38px 16px; color:#475569; }
+  .msg .em { font-size:2.4rem; margin-bottom:10px; }
+  .done { text-align:center; padding:26px 16px; }
+  .done .em { font-size:2.8rem; }
+  .done .t { font-size:1.1rem; font-weight:800; color:#ea580c; margin-top:8px; }
+  .foot { text-align:center; font-size:.7rem; color:#b9a89a; margin-top:18px; }
+  .hint { font-size:.72rem; color:#94a3b8; text-align:center; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="msg"><div class="em">⏳</div>読み込み中…</div></div>
+<div class="foot">CoWell 日程調整（かいぎ出太郎）</div>
+<script>
+const params = new URLSearchParams(location.search);
+const S = params.get('s') || '';
+const app = document.getElementById('app');
+const DOWS = ['日','月','火','水','木','金','土'];
+let DATA = null, CUR = null;
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtJa(iso){
+  const m = String(iso||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m) return iso;
+  const d = new Date(iso.length===16 ? iso+':00' : iso);
+  return parseInt(m[2])+'/'+parseInt(m[3])+'('+DOWS[d.getDay()]+') '+m[4]+':'+m[5];
+}
+function fmtPlace(p){
+  if(p.format==='inperson') return p.location ? '📍 '+esc(p.location) : '📍 対面';
+  return '📹 オンライン';
+}
+async function jget(u){ try { return await (await fetch(u)).json(); } catch(e){ return null; } }
+async function load(){
+  if(!S){ app.innerHTML = '<div class="msg"><div class="em">⚠️</div>リンクが正しくありません。</div>'; return; }
+  const r = await jget('/api/poll/share/'+encodeURIComponent(S));
+  if(!r || !r.success){ app.innerHTML = '<div class="msg"><div class="em">⚠️</div>'+esc((r&&r.msg)||'リンクが無効です')+'</div>'; return; }
+  DATA = r;
+  renderPick();
+}
+function isEvent(){ return DATA && DATA.poll && DATA.poll.poll_kind === 'event'; }
+function slotText(s){ return isEvent() ? esc(s.label || '') : esc(fmtJa(s.starts_at)); }
+function header(){
+  const p = DATA.poll;
+  const sub = isEvent() ? '📋 参加可否のご回答をお願いします' : '📅 出欠のご回答をお願いします';
+  return '<div class="hd"><div class="ttl">'+esc(p.title)+'</div><div class="sub">'+sub+'</div></div>';
+}
+function renderPick(){
+  const p = DATA.poll;
+  let h = header();
+  if(p.status !== 'open'){
+    const ds = (DATA.slots||[]).find(s => s.id === p.decided_slot_id);
+    h += '<div class="card"><div class="msg"><div class="em">'+(p.status==='decided'?'✅':'🚫')+'</div>'
+      + (p.status==='decided' ? ('開催日が確定しました。'+(ds?'<br><b>'+esc(fmtJa(ds.starts_at))+'</b>':'')) : 'この受付は締め切られました。')
+      + '</div></div>';
+    app.innerHTML = h; return;
+  }
+  h += '<div class="card">';
+  h += '<div class="meta">'+fmtPlace(p)+((p.description)?('\n'+esc(p.description)):'')+'</div>';
+  h += '<div class="lead">① お名前を選んでください</div>';
+  h += '<div class="names">';
+  (DATA.guests||[]).forEach(g => {
+    h += '<button class="nbtn'+(g.voted?' voted':'')+'" onclick="pick('+g.guest_id+')">'+esc(g.name)+(g.voted?'<span class="ck">✓</span>':'')+'</button>';
+  });
+  h += '</div><div class="hint">✓ は回答済み（タップで修正できます）</div>';
+  h += '</div>';
+  app.innerHTML = h;
+}
+async function pick(gid){
+  const pre = await jget('/api/poll/share/'+encodeURIComponent(S)+'/g/'+gid);
+  const myv = {};
+  if(pre && pre.success){ (pre.my_votes||[]).forEach(v => myv[v.slot_id] = v.answer); }
+  CUR = { gid, name: (pre && pre.guest_name) || '' };
+  renderForm(myv);
+}
+function renderForm(myv){
+  const p = DATA.poll;
+  let h = header();
+  h += '<div class="card">';
+  h += '<div class="lead">② '+esc(CUR.name)+' さんの回答（'+(isEvent()?'○＝参加／△＝未定／×＝不参加':'×＝都合が悪い日')+'）</div>';
+  (DATA.slots||[]).forEach(s => {
+    const sel = myv[s.id] || '';
+    h += '<div class="vrow"><div class="slot">'+slotText(s)+'</div><div class="opts">'
+      + opt(s.id,'yes','○',sel) + opt(s.id,'maybe','△',sel) + opt(s.id,'no','×',sel)
+      + '</div></div>';
+  });
+  h += '<button class="btn" id="sb" onclick="submit()">この内容で回答する</button>';
+  h += '<div style="text-align:center;"><span class="lnk" onclick="renderPick()">← 名前を選び直す</span></div>';
+  h += '</div>';
+  app.innerHTML = h;
+}
+function opt(sid,val,sym,sel){
+  return '<label class="'+val+(sel===val?' sel':'')+'"><input type="radio" name="v_'+sid+'" value="'+val+'"'+(sel===val?' checked':'')+' onchange="mark(this)">'+sym+'</label>';
+}
+function mark(input){
+  const row = input.closest('.vrow');
+  row.querySelectorAll('.opts label').forEach(l => l.classList.remove('sel'));
+  input.parentNode.classList.add('sel');
+}
+async function submit(){
+  const votes = {};
+  document.querySelectorAll('#app input[type=radio]:checked').forEach(i => { votes[i.name.replace('v_','')] = i.value; });
+  if(Object.keys(votes).length === 0){ alert('1つ以上の候補にご回答ください'); return; }
+  const sb = document.getElementById('sb'); sb.disabled = true; sb.textContent = '送信中…';
+  let r;
+  try { r = await (await fetch('/api/poll/share/'+encodeURIComponent(S)+'/vote', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ guest_id: CUR.gid, votes }) })).json(); }
+  catch(e){ r = null; }
+  if(r && r.success){
+    app.innerHTML = header() + '<div class="card"><div class="done"><div class="em">🎉</div><div class="t">'+esc(CUR.name)+'さん、ありがとうございました！</div><div style="font-size:.85rem;color:#64748b;margin-top:8px;">回答を受け付けました。</div><div style="text-align:center;"><span class="lnk" onclick="reload()">他の人も回答する</span></div></div></div>';
+  } else {
+    sb.disabled = false; sb.textContent = 'この内容で回答する';
+    alert('送信に失敗しました: ' + (r && r.msg || '通信エラー'));
+  }
+}
+function reload(){ load(); }
+load();
+</script>
+</body>
+</html>

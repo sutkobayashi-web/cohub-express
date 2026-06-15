@@ -1,6 +1,6 @@
 // 投票したろう — 多肢選択投票 (アンケート型) 2026-06-11
 // 主催者が選択肢を複数出し、招待者は「最大N個まで」選んで投票。記名式。
-// 会議出太郎(meeting_poll)の作法を踏襲: 個別招待 + 招待DM + 未読バッジ
+// 日程調整(meeting_poll)の作法を踏襲: 個別招待 + 招待DM + 未読バッジ
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../services/db');
