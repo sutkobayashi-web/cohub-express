@@ -691,6 +691,7 @@
       <div class="desc">候補日時を出して、出席者が ○△× で回答。最適日が一目で分かる。</div>
     </a>
     <a class="card boshu" href="/boshu.html">
+      <span class="badge" id="b-boshu" style="display:none;">0</span>
       <div class="icon-pill">📋</div>
       <div class="label">スポット募集</div>
       <div class="desc">登録外の社員・社外の方にも、ログイン不要で参加可否を募集。親睦会などの出欠集計に。</div>
@@ -1450,6 +1451,16 @@ async function fetchBadges() {
       $('b-poll').style.display = '';
     } else if ($('b-poll')) {
       $('b-poll').style.display = 'none';
+    }
+  } catch(e) {}
+  // スポット募集 (招待されていて未回答の募集数)
+  try {
+    const bo = await api('/api/poll/event-unread-count');
+    if (bo && bo.success && bo.count > 0) {
+      $('b-boshu').textContent = bo.count;
+      $('b-boshu').style.display = '';
+    } else if ($('b-boshu')) {
+      $('b-boshu').style.display = 'none';
     }
   } catch(e) {}
   // 投票したろう (未投票数)

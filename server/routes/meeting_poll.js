@@ -42,6 +42,23 @@ router.get('/unread-count', authUser, (req, res) => {
   res.json({ success: true, count: r.count || 0 });
 });
 
+// スポット募集(event)の未回答数 (招待メンバーで未回答の open 募集、主催者本人は除く)
+router.get('/event-unread-count', authUser, (req, res) => {
+  const db = getDb();
+  const r = db.prepare(`
+    SELECT COUNT(*) AS count FROM meeting_polls p
+    JOIN meeting_poll_invitees i ON i.poll_id = p.id AND i.user_id = ?
+    WHERE p.status = 'open'
+      AND p.poll_kind = 'event'
+      AND p.organizer_id != ?
+      AND NOT EXISTS (
+        SELECT 1 FROM meeting_poll_votes v
+        WHERE v.poll_id = p.id AND v.user_id = ?
+      )
+  `).get(req.uid, req.uid, req.uid);
+  res.json({ success: true, count: r.count || 0 });
+});
+
 // 会議室 mt:main の現在の参加者プロファイルを返す
 function getCurrentRoomParticipants(req) {
   const io = req.app && req.app.locals && req.app.locals.io;
