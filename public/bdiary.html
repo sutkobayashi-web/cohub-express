@@ -110,7 +110,7 @@ function renderComposer(){
     '<div class="composer">'
     + '<h2>きょうの ひとこと</h2>'
     + '<div class="hint">🎤「はなす」を押して話すと、文字になります。<br>✨「ととのえる」でやさしい文章に。写真もどうぞ。</div>'
-    + '<button class="bigbtn mic" id="mic" onclick="toggleMic()">🎤 はなす</button>'
+    + '<button class="bigbtn mic vi-keep-text" id="mic" onclick="toggleMic()">🎤 はなす</button>'
     + '<textarea id="ta" placeholder="ここに文章が入ります（直接入力もできます）"></textarea>'
     + '<button class="bigbtn ai" id="aibtn" onclick="aiFormat()">✨ まとめる君で ととのえる</button>'
     + '<div class="row2">'
@@ -123,25 +123,8 @@ function renderComposer(){
     + '</div>';
 }
 
-function toggleMic(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('この端末は音声入力に対応していません。キーボードで入力してください。'); return; }
-  if (listening) { try { recog && recog.stop(); } catch(e){} return; }
-  const ta = document.getElementById('ta');
-  recog = new SR();
-  recog.lang = 'ja-JP'; recog.interimResults = true; recog.continuous = true;
-  let base = ta.value ? ta.value + ' ' : '';
-  recog.onresult = (e) => {
-    let fin = '', itm = '';
-    for (let i = e.resultIndex; i < e.results.length; i++){ const t = e.results[i]; if (t.isFinal) fin += t[0].transcript; else itm += t[0].transcript; }
-    if (fin) base += fin;
-    ta.value = base + itm;
-  };
-  recog.onend = () => { listening = false; micUI(); };   // 自動再開しない(点滅防止)
-  recog.onerror = () => { listening = false; micUI(); };
-  try { recog.start(); listening = true; micUI(); } catch(e){}
-}
-function micUI(){ const b=document.getElementById('mic'); if(!b) return; b.classList.toggle('on', listening); b.textContent = listening ? '⏹ とめる（話し終わったら）' : '🎤 はなす'; }
+// 録音→サーバー文字起こし(全端末対応)。共通の voice-input.js を利用。
+function toggleMic(){ if (window.VoiceInput) window.VoiceInput.dictate(document.getElementById('ta'), document.getElementById('mic')); }
 
 async function aiFormat(){
   const ta = document.getElementById('ta');
@@ -196,7 +179,7 @@ function renderFeed(){
       + '<button class="love'+(p.my_love?' on':'')+'" onclick="toggleLove('+p.id+',this)">❤️ 応援 <span>'+p.love_count+'</span></button>'
       + '</div>'
       + '<div class="comments">'+comments
-      + '<div class="cinput"><button class="cmic" id="cm'+p.id+'" title="声で入力" onclick="cmicToggle('+p.id+')">🎤</button><input type="text" id="ci'+p.id+'" placeholder="応援メッセージ（🎤で声入力も）" maxlength="1000"><button onclick="sendComment('+p.id+')">送信</button></div>'
+      + '<div class="cinput"><button class="cmic vi-keep-text" id="cm'+p.id+'" title="声で入力" onclick="cmicToggle('+p.id+')">🎤</button><input type="text" id="ci'+p.id+'" placeholder="応援メッセージ（🎤で声入力も）" maxlength="1000"><button onclick="sendComment('+p.id+')">送信</button></div>'
       + '</div>'
       + '</div>';
   }).join('');
@@ -205,34 +188,10 @@ async function toggleLove(id, btn){
   const r = await api('/api/bdiary/'+id+'/love', { method:'POST' });
   if (r && r.success) { btn.classList.toggle('on', r.my_love); btn.querySelector('span').textContent = r.love_count; }
 }
-// ===== コメントの音声入力(文字起こしのみ・まとめる君なし) =====
-let crecog = null, clistening = false, cTarget = null;
-function cmicToggle(id){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('この端末は音声入力に対応していません。キーボードで入力してください。'); return; }
-  if (clistening && cTarget === id) { try { crecog && crecog.stop(); } catch(e){} return; }
-  if (clistening) { try { crecog && crecog.stop(); } catch(e){} }
-  const inp = document.getElementById('ci'+id);
-  cTarget = id;
-  crecog = new SR(); crecog.lang='ja-JP'; crecog.interimResults=true; crecog.continuous=true;
-  let base = inp.value ? inp.value + ' ' : '';
-  crecog.onresult = (e) => {
-    let fin='', itm='';
-    for (let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i]; if(t.isFinal) fin+=t[0].transcript; else itm+=t[0].transcript; }
-    if (fin) base += fin;
-    inp.value = base + itm;
-  };
-  crecog.onend = () => { clistening=false; cmicUI(); };   // 自動再開しない
-  crecog.onerror = () => { clistening=false; cmicUI(); };
-  try { crecog.start(); clistening=true; cmicUI(); } catch(e){}
-}
-function cmicUI(){
-  document.querySelectorAll('.cmic').forEach(b => b.classList.remove('on'));
-  if (clistening && cTarget != null) { const b=document.getElementById('cm'+cTarget); if(b){ b.classList.add('on'); b.textContent='⏹'; } }
-  else document.querySelectorAll('.cmic').forEach(b => b.textContent='🎤');
-}
+// ===== コメントの音声入力 (録音→サーバー文字起こし。共通 voice-input.js を利用) =====
+let crecog = null;
+function cmicToggle(id){ if (window.VoiceInput) window.VoiceInput.dictate(document.getElementById('ci'+id), document.getElementById('cm'+id)); }
 async function sendComment(id){
-  try { crecog && crecog.stop(); } catch(e){}
   const inp = document.getElementById('ci'+id);
   const body = inp.value.trim(); if(!body) return;
   inp.disabled = true;
@@ -247,5 +206,7 @@ async function delPost(id){
 }
 load();
 </script>
+<script>window.VOICE_NO_AUTOINJECT = true;</script>
+<script src="/voice-input.js" defer></script>
 </body>
 </html>

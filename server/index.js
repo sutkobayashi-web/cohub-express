@@ -316,6 +316,7 @@ app.use('/api/shared-calendar', require('./routes/shared_calendar'));
 app.use('/api/weekly-report', require('./routes/weekly_report'));
 app.use('/api/report', require('./routes/report'));
 app.use('/api/bdiary', require('./routes/bdiary'));
+app.use('/api/voice', require('./routes/voice'));
 app.use('/api/alert', require('./routes/alert'));
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
