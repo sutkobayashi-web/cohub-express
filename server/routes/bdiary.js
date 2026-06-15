@@ -47,12 +47,25 @@ function ensureTables() {
     db.prepare(`CREATE TABLE IF NOT EXISTS bdiary_reactions (
       post_id INTEGER NOT NULL,
       user_id TEXT NOT NULL,
+      emoji TEXT NOT NULL DEFAULT '❤️',
       created_at TEXT DEFAULT (datetime('now')),
-      PRIMARY KEY (post_id, user_id)
+      PRIMARY KEY (post_id, user_id, emoji)
     )`).run();
+    // 旧スキーマ(post_id,user_idのみ=単一❤応援)からの移行: emoji列が無ければ作り直す
+    const rinfo = db.prepare('PRAGMA table_info(bdiary_reactions)').all();
+    if (!rinfo.some(c => c.name === 'emoji')) {
+      db.exec(`
+        ALTER TABLE bdiary_reactions RENAME TO bdiary_reactions_old;
+        CREATE TABLE bdiary_reactions (post_id INTEGER NOT NULL, user_id TEXT NOT NULL, emoji TEXT NOT NULL DEFAULT '❤️', created_at TEXT DEFAULT (datetime('now')), PRIMARY KEY (post_id, user_id, emoji));
+        INSERT OR IGNORE INTO bdiary_reactions (post_id, user_id, emoji, created_at) SELECT post_id, user_id, '❤️', created_at FROM bdiary_reactions_old;
+        DROP TABLE bdiary_reactions_old;
+      `);
+    }
     db.prepare(`CREATE TABLE IF NOT EXISTS bdiary_seen (user_id TEXT PRIMARY KEY, last_seen_at TEXT)`).run();
   } catch (e) { console.warn('[bdiary] ensureTables:', e.message); }
 }
+// 日記に合う温かいリアクション6種(ひろば流)
+const ALLOWED_EMOJIS = ['👍', '❤️', '😊', '💪', '👏', '🙏'];
 try { ensureTables(); } catch (e) {}
 
 function getAuthorId(db) {
@@ -101,8 +114,13 @@ router.get('/', authUser, (req, res) => {
   const author = getAuthorId(db);
   const authorUser = author ? db.prepare(`SELECT avatar_url FROM users WHERE id = ?`).get(author) : null;
   const posts = db.prepare(`SELECT id, author_id, body, photo_url, created_at FROM bdiary_posts WHERE hidden = 0 ORDER BY created_at DESC, id DESC LIMIT 100`).all();
-  const reactions = db.prepare(`SELECT post_id, COUNT(*) c, SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) mine FROM bdiary_reactions GROUP BY post_id`).all(req.uid);
-  const rmap = {}; reactions.forEach(r => { rmap[r.post_id] = { c: r.c, mine: r.mine > 0 }; });
+  const reactions = db.prepare(`SELECT post_id, emoji, COUNT(*) c, SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) mine FROM bdiary_reactions GROUP BY post_id, emoji`).all(req.uid);
+  const rmap = {};
+  reactions.forEach(r => {
+    if (!rmap[r.post_id]) rmap[r.post_id] = { counts: {}, mine: {} };
+    rmap[r.post_id].counts[r.emoji] = r.c;
+    if (r.mine > 0) rmap[r.post_id].mine[r.emoji] = true;
+  });
   const comments = db.prepare(`
     SELECT c.id, c.post_id, c.body, c.created_at, u.display_name, u.avatar_url
     FROM bdiary_comments c LEFT JOIN users u ON u.id = c.user_id
@@ -118,14 +136,15 @@ router.get('/', authUser, (req, res) => {
     author_set: !!author,
     is_author: !!author && req.uid === author,
     can_post: canPost(db, req.uid),
+    allowed_emojis: ALLOWED_EMOJIS,
     me: req.uid,
     posts: posts.map(p => ({
       id: p.id,
       body: p.body || '',
       photo_url: p.photo_url || '',
       created_at: p.created_at,
-      love_count: (rmap[p.id] && rmap[p.id].c) || 0,
-      my_love: !!(rmap[p.id] && rmap[p.id].mine),
+      reactions: (rmap[p.id] && rmap[p.id].counts) || {},
+      my_reactions: (rmap[p.id] && rmap[p.id].mine) || {},
       comments: cmap[p.id] || [],
     })),
   });
@@ -154,17 +173,19 @@ router.post('/', authUser, upload.single('photo'), (req, res) => {
   res.json({ success: true, id: r.lastInsertRowid });
 });
 
-// 応援(❤️) トグル
-router.post('/:id/love', authUser, (req, res) => {
+// リアクション(絵文字) トグル
+router.post('/:id/react', authUser, express.json(), (req, res) => {
   const db = getDb();
   const id = parseInt(req.params.id);
+  const emoji = String((req.body && req.body.emoji) || '');
+  if (!ALLOWED_EMOJIS.includes(emoji)) return res.status(400).json({ success: false, msg: '不正なリアクション' });
   const post = db.prepare(`SELECT id FROM bdiary_posts WHERE id = ? AND hidden = 0`).get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
-  const exists = db.prepare(`SELECT 1 FROM bdiary_reactions WHERE post_id = ? AND user_id = ?`).get(id, req.uid);
-  if (exists) db.prepare(`DELETE FROM bdiary_reactions WHERE post_id = ? AND user_id = ?`).run(id, req.uid);
-  else db.prepare(`INSERT OR IGNORE INTO bdiary_reactions (post_id, user_id) VALUES (?, ?)`).run(id, req.uid);
-  const c = db.prepare(`SELECT COUNT(*) c FROM bdiary_reactions WHERE post_id = ?`).get(id).c;
-  res.json({ success: true, love_count: c, my_love: !exists });
+  const exists = db.prepare(`SELECT 1 FROM bdiary_reactions WHERE post_id = ? AND user_id = ? AND emoji = ?`).get(id, req.uid, emoji);
+  if (exists) db.prepare(`DELETE FROM bdiary_reactions WHERE post_id = ? AND user_id = ? AND emoji = ?`).run(id, req.uid, emoji);
+  else db.prepare(`INSERT OR IGNORE INTO bdiary_reactions (post_id, user_id, emoji) VALUES (?, ?, ?)`).run(id, req.uid, emoji);
+  const c = db.prepare(`SELECT COUNT(*) c FROM bdiary_reactions WHERE post_id = ? AND emoji = ?`).get(id, emoji).c;
+  res.json({ success: true, emoji, count: c, mine: !exists });
 });
 
 // コメント(励まし)
