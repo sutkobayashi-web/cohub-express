@@ -640,6 +640,9 @@
   }
   .ms-av .online-dot.online { background: #22c55e; box-shadow: 0 0 0 1px rgba(34,197,94,0.18), 0 0 4px rgba(34,197,94,0.6); }
   .ms-av .online-dot.away { background: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,0.18), 0 0 4px rgba(245,158,11,0.55); }
+  /* 💬 チャット中バッジ (アバター左上・吹き出しのしっぽがアバター側を向くよう左右反転。枠なし) */
+  .chat-badge { position: absolute; left: -8px; top: -10px; font-size: 21px; line-height: 1; z-index: 3; pointer-events: none; transform-origin: center; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.3)); animation: chatPulse 1.6s ease-in-out infinite; }
+  @keyframes chatPulse { 0%,100% { transform: scaleX(-1) scale(1); } 50% { transform: scaleX(-1) scale(1.16); } }
   .ms-av-name {
     font-size: 10px; color: #475569;
     width: 100%;
@@ -1127,12 +1130,18 @@
   /* 旧 me-av (撤去済) */
   #input textarea {
     flex: 1; min-width: 0;
-    height: 40px; min-height: 40px; max-height: 120px;
-    padding: 9px 14px; line-height: 1.5;
-    border: 1px solid #cbd5e1; border-radius: 20px;
+    /* 1行=16px×1.4(22.4px)+上下padding18px+border2px≈42.4px。height44pxで文字が切れない余裕を確保
+       (Androidは枠ぴったりだと上下が切れるため、テキスト領域>行高 を必ず満たす) */
+    height: 44px; min-height: 44px; max-height: 120px;
+    padding: 9px 14px; line-height: 1.4;
+    border: 1px solid #cbd5e1; border-radius: 22px;
     font-size: 16px; font-family: inherit; resize: none; outline: none;
     background: #f8fafc; box-sizing: border-box;
+    /* Android PWA(standalone)で親の touch-action:pan-y によりタップでフォーカス/
+       キーボードが出ない不具合の対策。入力欄・ボタンはタップを通常処理する。 */
+    touch-action: manipulation;
   }
+  #input .attach-btn, #input #send-btn, #input #btn-emoji, #input #btn-matomeru { touch-action: manipulation; }
   #input textarea:focus {
     background: #fff; border-color: #0d9488;
     box-shadow: 0 0 0 3px rgba(13,148,136,0.15);
@@ -1196,7 +1205,7 @@
 <!-- 運転アラート/事故一報を受信するため global-notif.js を読み込む。ただし chat は自前socketを
      張るので __cohubNoGnSocket で gn の2本目socketを抑止し、cohubWireAlerts で相乗りさせる(2026-06-11)。 -->
 <script>window.__cohubNoGnSocket = true;</script>
-<script src="/global-notif.js?v=20260611d" defer></script>
+<script src="/global-notif.js?v=20260619a" defer></script>
 </head>
 <body>
 
@@ -1402,7 +1411,34 @@ function persistCollapsed() {
 let selectedPeers = new Set(); // user_id Set
 let onlineUids = new Set();    // 現在オンラインのuid集合 (presence ベース)
 let awayUids = new Set();      // 離席中(退席中)のuid集合
+let chattingUids = new Set();  // 💬 チャット利用中のuid集合
 const $ = (id) => document.getElementById(id);
+// 💬 チャット中バッジ (アバター左下)
+function chatBadgeHtml(uid) {
+  return (uid && !isBot(uid) && chattingUids.has(uid)) ? '<span class="chat-badge" title="チャット中">💬</span>' : '';
+}
+// 💬 自分の「チャット中」プレゼンス送信。
+// ★閲覧だけでは出さない。会話を開いて「実際に本文を入力している(打ちかけがある)」ときだけ true。
+let _chatPresSent = false;
+function isComposingNow() {
+  var inp = document.getElementById('input-text');
+  var hasConvo = (currentMode === 'group' && currentGid) || (currentMode === 'dm' && currentDmPeer);
+  return !document.hidden && !!hasConvo && !!(inp && inp.value && inp.value.trim().length > 0);
+}
+function refreshChatPresence() {
+  try {
+    if (typeof socket === 'undefined' || !socket || !socket.connected) return;
+    var active = isComposingNow();
+    if (active && !_chatPresSent) { socket.emit('chat:using'); _chatPresSent = true; }
+    else if (!active && _chatPresSent) { socket.emit('chat:idle_end'); _chatPresSent = false; }
+  } catch (e) {}
+}
+// 入力中は20秒ごとに再送して45秒失効を防止。入力をやめていれば解除。
+setInterval(function () {
+  if (_chatPresSent && isComposingNow()) { try { socket.emit('chat:using'); } catch (e) {} }
+  else if (_chatPresSent) refreshChatPresence();
+}, 20000);
+document.addEventListener('visibilitychange', refreshChatPresence);
 
 // 在席ドットのクラスとタイトル (online=緑 / away=黄(離席中) / それ以外=灰(オフライン))
 function presenceDot(uid) {
@@ -1425,6 +1461,7 @@ async function loadOnlineUsers() {
     if (r && r.success) {
       onlineUids = new Set(r.online || []);
       awayUids = new Set(r.away || []);
+      chattingUids = new Set(r.chatting || []);
       // 自分自身はオンライン扱い (離席集合からは外す)
       if (me && me.uid) { onlineUids.add(me.uid); awayUids.delete(me.uid); }
     }
@@ -1433,7 +1470,7 @@ async function loadOnlineUsers() {
 
 function setUserOnline(uid, on) {
   if (!uid) return;
-  if (on) { onlineUids.add(uid); awayUids.delete(uid); } else { onlineUids.delete(uid); awayUids.delete(uid); }
+  if (on) { onlineUids.add(uid); awayUids.delete(uid); } else { onlineUids.delete(uid); awayUids.delete(uid); chattingUids.delete(uid); }
   // サイドバー一覧+メンバーモーダル+選択中DMヘッダーを更新
   try { renderGroupList(); } catch (e) {}
   try {
@@ -1486,7 +1523,7 @@ function renderMemberStrip() {
     const cls = 'ms-av' + (isSelf ? ' self' : '');
     const fullName = m.display_name || '';
     return `<div class="ms-cell">
-      <div class="${cls}" style="--av-c1:${c1};--av-c2:${c2};" title="${escapeHtml(fullName)}" ${onclick}>${inner}<span class="${onlineCls}"></span></div>
+      <div class="${cls}" style="--av-c1:${c1};--av-c2:${c2};" title="${escapeHtml(fullName)}" ${onclick}>${inner}<span class="${onlineCls}"></span>${chatBadgeHtml(m.id)}</div>
       <div class="ms-av-name">${escapeHtml(fullName)}</div>
     </div>`;
   }).join('');
@@ -1552,73 +1589,9 @@ window.addEventListener('focus', () => {
 
 async function playChatChime() {
   if (!chatNotifOn) return;
-  // インパクト重視「ピンポンピーン↑」3音アラート×2回 (約1.4秒)
-  try {
-    if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _chatAudioCtx;
-    // ★ 非アクティブタブ復帰時の無音対策: resume() を待ってから再生
-    if (ctx.state !== 'running') {
-      try { await ctx.resume(); } catch (e) {}
-    }
-    if (ctx.state !== 'running') {
-      // それでもサスペンドのままなら MP3 で確実再生
-      console.warn('[chat] ctx still suspended, fallback mp3');
-      const a = ensureNotifAudio();
-      a.currentTime = 0;
-      const p = a.play();
-      if (p && p.catch) p.catch(() => {});
-      return;
-    }
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.value = 2.0;  // 大音量
-    // 軽くハイカットして耳痛を抑える
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 6000;
-    master.connect(lp); lp.connect(ctx.destination);
-
-    // 音=三角波(主音) + 矩形波(倍音) を重ねて存在感を増す
-    const note = (freq, startOffset, dur, vol) => {
-      const t0 = now + startOffset;
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0.0001, t0);
-      env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005); // 鋭いアタック5ms
-      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      env.connect(master);
-      // 主音 (三角波)
-      const o1 = ctx.createOscillator();
-      o1.type = 'triangle';
-      o1.frequency.setValueAtTime(freq, t0);
-      o1.connect(env);
-      o1.start(t0); o1.stop(t0 + dur + 0.02);
-      // 倍音 (矩形波・音量小さめ) で派手さを足す
-      const o2 = ctx.createOscillator();
-      o2.type = 'square';
-      o2.frequency.setValueAtTime(freq * 2, t0);
-      const o2Gain = ctx.createGain();
-      o2Gain.gain.value = 0.18;
-      o2.connect(o2Gain); o2Gain.connect(env);
-      o2.start(t0); o2.stop(t0 + dur + 0.02);
-    };
-    // C6 → E6 → G6 (Cメジャーの上昇) を2回連続で鳴らす
-    // 1回目
-    note(1047, 0.00,  0.14, 0.55);  // C6 ピン
-    note(1319, 0.13,  0.14, 0.55);  // E6 ポン
-    note(1568, 0.26,  0.38, 0.65);  // G6 ピーン
-    // 2回目 (約750ms後にリピート)
-    const REP = 0.75;
-    note(1047, REP + 0.00, 0.14, 0.55);
-    note(1319, REP + 0.13, 0.14, 0.55);
-    note(1568, REP + 0.26, 0.38, 0.65);
-  } catch (e) {
-    try {
-      const a = ensureNotifAudio();
-      a.currentTime = 0;
-      const p = a.play();
-      if (p && p.catch) p.catch(() => {});
-    } catch (e2) {}
-  }
+  // 2026-06-19: 着信音を全画面で統一。旧「ピンポンパーン(notif-mention.mp3)/ピンポンピーン」は廃止し、
+  // 呼出と同じビープ音(playSummonChime)に統一。
+  try { await playSummonChime(); } catch (e) {}
 }
 
 // ===== 呼出 (DM相手を気づかせる) =====
@@ -1628,9 +1601,7 @@ async function playSummonChime() {
     if (!_chatAudioCtx) _chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _chatAudioCtx;
     if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
-    if (ctx.state !== 'running') {
-      const a = ensureNotifAudio(); a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); return;
-    }
+    if (ctx.state !== 'running') return; // 規制で鳴らせない時は無音(オーバーレイ/バイブ/TTSで気づく)
     const now = ctx.currentTime;
     const master = ctx.createGain(); master.gain.value = 2.4;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500;
@@ -1646,16 +1617,9 @@ async function playSummonChime() {
       const o2 = ctx.createOscillator(); o2.type = 'square'; o2.frequency.setValueAtTime(freq * 2, t0);
       const g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2); g2.connect(env); o2.start(t0); o2.stop(t0 + dur + 0.02);
     };
-    // 呼び鈴「リリリン」を3セット (約1.5秒) — 高めG6↔C7で注意喚起
-    for (let r = 0; r < 3; r++) {
-      const b = r * 0.5;
-      beep(1568, b + 0.00, 0.12, 0.6);
-      beep(2093, b + 0.12, 0.12, 0.6);
-      beep(1568, b + 0.24, 0.18, 0.6);
-    }
-  } catch (e) {
-    try { const a = ensureNotifAudio(); a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e2) {}
-  }
+    // 「ぴぴぴ ぴぴぴ」= 短いビープ3回×2セット (約1.3秒・同音)。旧「リリリン/ピンポンパーン」は廃止し全画面で統一。
+    [0.00, 0.13, 0.26, 0.62, 0.75, 0.88].forEach(off => beep(1047, off, 0.09, 0.7));
+  } catch (e) {}
 }
 
 // 呼出を受けた時の中央オーバーレイ
@@ -2259,6 +2223,7 @@ function chatRowHtml(r, rowAction) {
   const [c1, c2] = avatarColorPair(r.id || r.name || '');
   const ringDot = '';
   const onDot = (r.type === 'dm') ? onlineDotHtml(r.id) : '';
+  const chatBdg = (r.type === 'dm') ? chatBadgeHtml(r.id) : '';
   // プレビュー文字列 (両タイプ同じ生成)
   let preview;
   if (r.last_content) {
@@ -2284,7 +2249,7 @@ function chatRowHtml(r, rowAction) {
     actionBtn = `<button class="row-hide-btn show" title="一覧に表示し直す" onclick="event.stopPropagation();toggleHideGroup('${escapeHtml(r.id)}',false)">↩ 表示に戻す</button>`;
   }
   return `<a class="${cls.join(' ')}" onclick="${onclick}">
-    <div class="row-av" style="--av-c1:${c1};--av-c2:${c2};">${avInner}${ringDot}${onDot}</div>
+    <div class="row-av" style="--av-c1:${c1};--av-c2:${c2};">${avInner}${ringDot}${onDot}${chatBdg}</div>
     <div class="row-meta">
       <div class="row-top">
         <span class="row-name">${escapeHtml(displayName)}</span>
@@ -2332,7 +2297,7 @@ function memberRowHtml(m) {
   const tag = m.company_code && dmInfo ? `<span class="mn-tag" style="--ring-color:${ringColor || '#94a3b8'};background:${ringColor || '#94a3b8'};">${escapeHtml(m.company_code)}</span>` : '';
   return `<a class="${cls.join(' ')}" onclick="event.stopPropagation();onMemberClick('${escapeHtml(m.id)}')">
     <div class="mem-check"></div>
-    <div class="av-mini" style="--av-c1:${pc1};--av-c2:${pc2};">${inner}${ringDot}${onlineDotHtml(m.id)}</div>
+    <div class="av-mini" style="--av-c1:${pc1};--av-c2:${pc2};">${inner}${ringDot}${onlineDotHtml(m.id)}${chatBadgeHtml(m.id)}</div>
     <div class="mem-meta">
       <div class="mn">${escapeHtml(m.display_name || '')}${tag}${timeStr ? '<span class="mc-time">' + escapeHtml(timeStr) + '</span>' : ''}</div>
       <div class="mc${line2Cls}">${escapeHtml(line2)}</div>
@@ -2633,6 +2598,8 @@ async function selectGroup(gid) {
   currentDmPeer = null;
   updateMatomeruBtn();
   applyTypingDisplay();
+  restoreDraft();         // 書きかけの下書きを復元
+  refreshChatPresence();  // 💬 復元した下書きの有無で「チャット中」を判定
   renderMemberStrip();  // プリロード済みメンバーがあれば即時描画
   document.body.classList.remove('dm-mode');
   document.body.classList.add('chat-active');
@@ -2707,6 +2674,8 @@ async function selectDmPeer(peerId) {
   }
   if (!peer && allMembersById.has(peerId)) peer = allMembersById.get(peerId);
   currentDmPeer = peer || { id: peerId, display_name: '...', avatar_url: '', company_code: '', ring_color: '' };
+  restoreDraft();         // 書きかけの下書きを復元
+  refreshChatPresence();  // 💬 復元した下書きの有無で「チャット中」を判定
   renderGroupList();
   $('panel-title').innerHTML = '💬 <span style="color:#0d9488;">' + escapeHtml(currentDmPeer.display_name || '...') + '</span> <span style="font-size:11px;color:#94a3b8;font-weight:500;">との個別チャット</span>';
   $('panel-members').textContent = '1対1';
@@ -3059,7 +3028,15 @@ function removeMsgFromView(id) {
   if (_selMsgId === id) hideChatActions();
 }
 let _fwdContent = '';
-function msgForward(id) { const m = findCurMsg(id); if (!m) return; _fwdContent = String(m.content || ''); openForwardPicker(); }
+let _fwdAttach = null;
+function msgForward(id) {
+  const m = findCurMsg(id); if (!m) return;
+  _fwdContent = String(m.content || '');
+  // 添付(写真/ファイル)も一緒に転送する。url+nameがあれば再emitで参照を引き継ぐ(画像はURL拡張子で自動表示)
+  _fwdAttach = m.attach_url ? { url: m.attach_url, name: m.attach_name || '添付ファイル', size: m.attach_size, type: m.attach_type } : null;
+  if (!_fwdContent && !_fwdAttach) return;  // 本文も添付も無ければ何もしない
+  openForwardPicker();
+}
 function nameOfUid(uid) { for (const arr of groupMembers.values()) { const f = arr.find(x => x.id === uid); if (f) return f; } if (allMembersById.has(uid)) return allMembersById.get(uid); return null; }
 function openForwardPicker() {
   let mod = document.getElementById('fwd-modal');
@@ -3069,7 +3046,9 @@ function openForwardPicker() {
     mod.onclick = (e) => { if (e.target === mod) closeForwardPicker(); };
     document.body.appendChild(mod);
   }
-  document.getElementById('fwd-prev').textContent = _fwdContent.slice(0, 100);
+  document.getElementById('fwd-prev').textContent =
+    (_fwdContent ? _fwdContent.slice(0, 100) : '')
+    + (_fwdAttach ? (_fwdContent ? '\n' : '') + '📎 ' + (_fwdAttach.name || '添付ファイル') : '');
   let html = '';
   (groups || []).forEach(g => {
     html += '<div class="fwd-row" onclick="doForward(\'group\',\'' + escapeHtml(g.id) + '\')"><div class="ic">👥</div><div>' + escapeHtml(g.name || 'グループ') + '</div></div>';
@@ -3086,9 +3065,11 @@ function openForwardPicker() {
 }
 function closeForwardPicker() { const m = document.getElementById('fwd-modal'); if (m) m.classList.remove('show'); }
 function doForward(type, id) {
-  if (!_fwdContent) return;
-  if (type === 'group') socket.emit('chat:group', { group_id: id, content: _fwdContent });
-  else socket.emit('chat:dm', { to: id, content: _fwdContent });
+  if (!_fwdContent && !_fwdAttach) return;
+  const payload = { content: _fwdContent };
+  if (_fwdAttach) payload.attach = { url: _fwdAttach.url, name: _fwdAttach.name, size: _fwdAttach.size, type: _fwdAttach.type };
+  if (type === 'group') socket.emit('chat:group', Object.assign({ group_id: id }, payload));
+  else socket.emit('chat:dm', Object.assign({ to: id }, payload));
   showToastMsg('↪ 転送しました');
   closeForwardPicker();
 }
@@ -3153,6 +3134,14 @@ function setupSocket() {
   // 在席状態
   socket.on('user:login', (d) => { if (d && d.uid) setUserOnline(d.uid, true); });
   socket.on('user:logout', (d) => { if (d && d.uid) setUserOnline(d.uid, false); });
+  // 💬 チャット中の増減 (相手は伏せる)
+  socket.on('presence:chat', (d) => {
+    if (!d || !d.uid) return;
+    if (d.chatting) chattingUids.add(d.uid); else chattingUids.delete(d.uid);
+    try { renderMemberStrip(); } catch (e) {}
+    try { renderGroupList(); } catch (e) {}
+    try { const mm = document.getElementById('members-modal'); if (mm && mm.classList.contains('show')) renderMpList(); } catch (e) {}
+  });
   socket.on('user:floor', (d) => {
     if (!d || !d.uid) return;
     if (d.offline) setUserOnline(d.uid, false);
@@ -3418,7 +3407,8 @@ function send() {
     });
     showToastMsg(`✓ ${sent}人にDMで送信しました`);
     $('input-text').value = '';
-    $('input-text').style.height = '40px';
+    autoGrowInput($('input-text'));
+    saveDraft();
     updateSelectionUI();
     return;
   }
@@ -3428,7 +3418,7 @@ function send() {
   if (!_tgt) return;
   const _now = Date.now();
   if (_lastSent.key === _tgt && _lastSent.content === t && (_now - _lastSent.at) < 1500) {
-    $('input-text').value = ''; $('input-text').style.height = '40px'; return;
+    $('input-text').value = ''; autoGrowInput($('input-text')); saveDraft(); return;
   }
   _lastSent = { key: _tgt, content: t, at: _now };
   if (currentMode === 'group' && currentGid) {
@@ -3440,7 +3430,8 @@ function send() {
   }
   // 入力欄は楽観描画より先にクリア (反応が鈍くても空になっているので誤連打を防ぐ)
   $('input-text').value = '';
-  $('input-text').style.height = '40px';
+  autoGrowInput($('input-text'));
+  saveDraft();
   appendMessage({
     id: 'pending_' + Date.now(),
     sender_id: me.uid,
@@ -3518,22 +3509,48 @@ function goToAvatarSetup() {
   location.href = '/avatar';
 }
 
+// LINE風入力欄のオートグロー。auto起点でscrollHeightを測り、1行(44px)〜最大120pxにクランプ。
+// 空にした直後もこれを呼べば確実に1行高へ戻る (Androidで文字が切れない)。
+function autoGrowInput(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(120, Math.max(44, el.scrollHeight)) + 'px';
+}
+// ===== 下書き保存: 入力中にホーム遷移/自動更新(version-check)が起きても、会話ごとに復元できるよう
+//       localStorage に保持する。送信・クリアで自動的に消える。 =====
+function draftKey() { const k = ctxKey(); return k ? 'cohub_draft_' + k : null; }
+function saveDraft() {
+  const k = draftKey();
+  const inp = $('input-text'); const v = inp ? inp.value : '';
+  if (k) { try { if (v && v.trim()) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  try { refreshChatPresence(); } catch (e) {}  // 💬 入力の有無に応じて「チャット中」を更新
+}
+function restoreDraft() {
+  const inp = $('input-text'); if (!inp) return;
+  const k = draftKey(); let v = '';
+  if (k) { try { v = localStorage.getItem(k) || ''; } catch (e) {} }
+  inp.value = v;
+  autoGrowInput(inp);
+  if (currentMode === 'group') { try { updateSelectionUI(); } catch (e) {} }
+  else { try { $('send-btn').disabled = !v.trim(); } catch (e) {} }
+}
 // ★ window.send は後で添付対応版に差し替えられるため、毎回動的に呼ぶ
 $('send-btn').addEventListener('click', () => window.send());
 $('input-text').addEventListener('keydown', e => {
+  // 日本語IME変換確定中のEnterは送信扱いにしない (Android/IME対策)
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     window.send();
   }
 });
 $('input-text').addEventListener('input', e => {
-  // 1行高(40px)をベースに、内容に応じて伸ばす (max 120px)
-  e.target.style.height = '40px';
-  if (e.target.scrollHeight > 40) {
-    e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px';
-  }
+  // LINE風オートグロー: 一旦 auto にして実際の中身の高さ(scrollHeight)で測り直す。
+  // 固定値リセットだとAndroidで枠が中身より低くなり文字が切れるため、必ず auto 起点で測る。
+  autoGrowInput(e.target);
   if (currentMode === 'group') updateSelectionUI();
   else $('send-btn').disabled = !e.target.value.trim();
+  saveDraft();  // 下書きを会話ごとに保存
   // 入力中インジケーターを相手に送信 (3秒スロットル + 6秒で停止)
   emitTypingThrottled();
 });
@@ -3810,9 +3827,9 @@ window.send = async function() {
   if (!hasTarget) return;
   _sendBusy = true;
   // ★ 入力欄を即クリア (安全チェックのネット往復で反応が鈍くても空にして誤連打を防ぐ)
-  const savedHeight = inputEl.style.height;
   inputEl.value = '';
-  inputEl.style.height = '40px';
+  autoGrowInput(inputEl);
+  saveDraft();  // 送信したので下書きも消す
   try {
     stopTypingNow();
     // 送信前安全チェック
@@ -3820,12 +3837,13 @@ window.send = async function() {
     if (!sc.ok) {
       // 「書き直す」を選択 → 入力を復元
       inputEl.value = t;
-      inputEl.style.height = savedHeight || '40px';
+      autoGrowInput(inputEl);
+      saveDraft();  // 書き直し → 下書きを復元保存
       return;
     }
     const attach = pendingAttach;
     if (currentMode === 'group' && selectedPeers.size > 0) {
-      if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) { inputEl.value = t; return; }
+      if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) { inputEl.value = t; autoGrowInput(inputEl); saveDraft(); return; }
       let sent = 0;
       selectedPeers.forEach(uid => {
         if (uid === me.uid) return;
@@ -3841,6 +3859,7 @@ window.send = async function() {
       appendMessage(buildLocalMsg(t, attach));
     } else {
       inputEl.value = t;  // 想定外: 復元
+      autoGrowInput(inputEl); saveDraft();
       return;
     }
     pendingAttach = null;

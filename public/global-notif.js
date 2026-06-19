@@ -61,35 +61,35 @@
 
   function playChime() {
     if (!_chimeOn) return;
-    var a = ensureAudio();
-    if (!a) return;
-    try {
-      a.currentTime = 0;
-      a.muted = false;
-      a.volume = 0.85;
-      var p = a.play();
-      if (p && typeof p.catch === 'function') {
-        p.catch(function (e) { console.warn('[chime] play blocked', e.name || e); });
-      }
-    } catch (e) { console.warn('[chime] play exception', e); }
+    // 2026-06-19: 着信音を全画面で統一。旧 notif-mention.mp3(ピンポンパーン)は廃止し、
+    // 呼出と同じビープ音(playSummon)に統一。通知OFF時は鳴らさない(上の_chimeOnガード)。
+    try { playSummon(); } catch (e) {}
   }
 
-  // 🔔 呼出専用: 通知OFFでも必ず鳴らす + 3回連続で確実に気づかせる
-  // (chat-simple の playSummonChime と同趣旨。明示的な人対人の呼び出しのため _chimeOn を無視)
+  // 🔔 呼出専用: 「ぴぴぴ ぴぴぴ」= 短いビープ3回×2セット (旧ピンポンパーンMP3は廃止し全画面で統一)。
+  // 通知OFFでも鳴らす(明示的な人対人の呼び出しのため)。WebAudioが規制で鳴らせない時は無音(オーバーレイ/バイブ/TTSで気づく)。
   function playSummon() {
-    var a = ensureAudio();
-    if (!a) return;
-    var n = 0;
-    function ring() {
-      try {
-        a.currentTime = 0; a.muted = false; a.volume = 1.0;
-        var p = a.play();
-        if (p && typeof p.catch === 'function') p.catch(function (e) { console.warn('[summon] play blocked', e.name || e); });
-      } catch (e) {}
-      n++;
-      if (n < 3) setTimeout(ring, 700);
-    }
-    ring();
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!_unlockCtx) _unlockCtx = new Ctx();
+      var ctx = _unlockCtx;
+      if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+      if (ctx.state !== 'running') return;
+      var now = ctx.currentTime;
+      var master = ctx.createGain(); master.gain.value = 1.6; master.connect(ctx.destination);
+      var beep = function (freq, off, dur, vol) {
+        var t0 = now + off;
+        var env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, t0);
+        env.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+        env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        env.connect(master);
+        var o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = freq; o.connect(env); o.start(t0); o.stop(t0 + dur + 0.02);
+        var o2 = ctx.createOscillator(); o2.type = 'square'; o2.frequency.value = freq * 2; var g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2); g2.connect(env); o2.start(t0); o2.stop(t0 + dur + 0.02);
+      };
+      [0.00, 0.13, 0.26, 0.62, 0.75, 0.88].forEach(function (off) { beep(1047, off, 0.09, 0.85); });
+    } catch (e) {}
   }
 
   // 呼出の中央オーバーレイ (どのページに居ても気づける)
@@ -140,6 +140,8 @@
     }
     return _chimeOn;
   };
+  // 外部ページ(home等の自前socket)からも同じMP3チャイムを鳴らせるよう公開 (WebAudioより自動再生規制に強い)
+  window.cohubPlayChime = function () { try { playChime(); } catch (e) {} };
 
   // ===== トースト (タップで /chat-simple へ) =====
   function showToast(msg) {
