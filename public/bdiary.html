@@ -155,11 +155,12 @@ async function submitCheer(){
   else alert('送信に失敗しました: ' + (r && r.msg || '通信エラー'));
 }
 
+// 日記を書く欄は本人(Bさん)だけに表示。代理投稿は廃止(2026-06-19)。
+// 本人以外は can_post=false なので何も出さない(応援は上の💪欄で実名投稿)。
 function renderComposer(){
   const wrap = document.getElementById('composer-wrap');
   if (!DATA.can_post) { wrap.innerHTML = ''; return; }
-  const lbl = esc(DATA.author_label);
-  const composerHtml =
+  wrap.innerHTML =
     '<div class="composer">'
     + '<h2>きょうの ひとこと</h2>'
     + '<div class="hint">🎤「はなす」を押して話すと、文字になります。<br>✨「ととのえる」でやさしい文章に。写真もどうぞ。</div>'
@@ -174,25 +175,6 @@ function renderComposer(){
     + '<div class="preview" id="prev"></div>'
     + '<button class="bigbtn send" id="sendbtn" onclick="submitPost()">📮 とうこうする</button>'
     + '</div>';
-  // 本人(Bさん)はそのまま日記を書く欄を表示
-  if (DATA.is_author) { wrap.innerHTML = composerHtml; return; }
-  // 本人以外(代理投稿権のある管理職)は既定で隠す。応援したい人が
-  // 誤って「Bさん本人の日記欄」に書き込む事故を防ぐため、明示的に開いた時だけ表示。
-  wrap.innerHTML =
-    '<div class="proxy-note">📣 ' + lbl + 'を応援したい方は、上の<b>「💪 ' + lbl + 'へ 応援メッセージ」</b>からお願いします。<br>下は' + lbl + '<b>本人が日記を書くための欄</b>です。</div>'
-    + '<button class="bigbtn ghost" id="proxyToggle" onclick="toggleProxyComposer()">✍️【代理】' + lbl + 'の日記を代わりに書く</button>'
-    + '<div id="proxy-composer" style="display:none;margin-top:12px">'
-    + '<div class="proxy-warn">⚠️ ここに書くと「' + lbl + '本人の日記」として載ります。応援メッセージは上の💪欄へ。</div>'
-    + composerHtml
-    + '</div>';
-}
-function toggleProxyComposer(){
-  const c = document.getElementById('proxy-composer');
-  const btn = document.getElementById('proxyToggle');
-  if (!c) return;
-  const open = c.style.display === 'none';
-  c.style.display = open ? 'block' : 'none';
-  if (btn) btn.textContent = open ? '✖ 代理投稿をとじる' : ('✍️【代理】' + esc(DATA.author_label) + 'の日記を代わりに書く');
 }
 
 // 録音→サーバー文字起こし(全端末対応)。共通の voice-input.js を利用。

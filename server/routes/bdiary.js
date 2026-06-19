@@ -36,6 +36,8 @@ function ensureTables() {
       created_at TEXT DEFAULT (datetime('now')),
       hidden INTEGER DEFAULT 0
     )`).run();
+    // 種別: 'diary'=Bさんの日記(Bさん表示) / 'cheer'=みんなの応援メッセージ(発信者名を表示)
+    try { db.prepare(`ALTER TABLE bdiary_posts ADD COLUMN kind TEXT DEFAULT 'diary'`).run(); } catch (e) {}
     db.prepare(`CREATE TABLE IF NOT EXISTS bdiary_comments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id INTEGER NOT NULL,
@@ -78,11 +80,11 @@ function isPrivileged(db, uid) {
     return !!u && (u.is_manager === 1 || u.role === 'admin' || u.employee_type === 'admin');
   } catch (e) { return false; }
 }
-// 投稿できる人: 本人(Bさん) または 代理(管理職/ADMIN・本人が疲れている日用)
+// 日記を書けるのは本人(Bさん)だけ。代理投稿は廃止(2026-06-19)。
+// 応援したい人は実名の「応援メッセージ」(/cheer)で佐藤さんに届ける。
 function canPost(db, uid) {
   const author = getAuthorId(db);
-  if (author && uid === author) return true;
-  return isPrivileged(db, uid);
+  return !!author && uid === author;
 }
 
 // 弱音/危機のサイン (見守り役へ静かに通知)。誤検知は許容(温かい声かけのきっかけ)。
@@ -113,7 +115,9 @@ router.get('/', authUser, (req, res) => {
   const db = getDb();
   const author = getAuthorId(db);
   const authorUser = author ? db.prepare(`SELECT avatar_url FROM users WHERE id = ?`).get(author) : null;
-  const posts = db.prepare(`SELECT id, author_id, body, photo_url, created_at FROM bdiary_posts WHERE hidden = 0 ORDER BY created_at DESC, id DESC LIMIT 100`).all();
+  const posts = db.prepare(`SELECT p.id, p.author_id, p.body, p.photo_url, p.created_at, COALESCE(p.kind,'diary') AS kind, u.display_name AS sender_name, u.avatar_url AS sender_avatar
+    FROM bdiary_posts p LEFT JOIN users u ON u.id = p.author_id
+    WHERE p.hidden = 0 ORDER BY p.created_at DESC, p.id DESC LIMIT 100`).all();
   const reactions = db.prepare(`SELECT post_id, emoji, COUNT(*) c, SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) mine FROM bdiary_reactions GROUP BY post_id, emoji`).all(req.uid);
   const rmap = {};
   reactions.forEach(r => {
@@ -128,6 +132,7 @@ router.get('/', authUser, (req, res) => {
   const cmap = {}; comments.forEach(c => { (cmap[c.post_id] = cmap[c.post_id] || []).push({ id: c.id, name: c.display_name || '', avatar: c.avatar_url || '', body: c.body, created_at: c.created_at }); });
   // 既読更新
   try { db.prepare(`INSERT INTO bdiary_seen (user_id, last_seen_at) VALUES (?, datetime('now')) ON CONFLICT(user_id) DO UPDATE SET last_seen_at = datetime('now')`).run(req.uid); } catch (e) {}
+  const priv = isPrivileged(db, req.uid); // 管理職は不適切投稿をモデレーション削除可
   res.json({
     success: true,
     title: '元祖Ｂさんの愛の日記',
@@ -140,9 +145,13 @@ router.get('/', authUser, (req, res) => {
     me: req.uid,
     posts: posts.map(p => ({
       id: p.id,
+      kind: p.kind,
       body: p.body || '',
       photo_url: p.photo_url || '',
       created_at: p.created_at,
+      sender_name: p.kind === 'cheer' ? (p.sender_name || 'メンバー') : '',
+      sender_avatar: p.kind === 'cheer' ? (p.sender_avatar || '') : '',
+      can_delete: p.author_id === req.uid || priv,
       reactions: (rmap[p.id] && rmap[p.id].counts) || {},
       my_reactions: (rmap[p.id] && rmap[p.id].mine) || {},
       comments: cmap[p.id] || [],
@@ -173,6 +182,16 @@ router.post('/', authUser, upload.single('photo'), (req, res) => {
   res.json({ success: true, id: r.lastInsertRowid });
 });
 
+// 応援メッセージ (全メンバーが投稿可・発信者名を表示。写真添付可。Bさんが書かない日もみんなの応援で賑わう)
+router.post('/cheer', authUser, upload.single('photo'), (req, res) => {
+  const db = getDb();
+  const body = String((req.body && req.body.body) || '').trim().slice(0, 1000);
+  const photo = req.file ? '/uploads/bdiary/' + req.file.filename : null;
+  if (!body && !photo) return res.status(400).json({ success: false, msg: '応援メッセージか写真を入れてください' });
+  const r = db.prepare(`INSERT INTO bdiary_posts (author_id, body, photo_url, kind) VALUES (?, ?, ?, 'cheer')`).run(req.uid, body, photo);
+  res.json({ success: true, id: r.lastInsertRowid });
+});
+
 // リアクション(絵文字) トグル
 router.post('/:id/react', authUser, express.json(), (req, res) => {
   const db = getDb();
@@ -200,11 +219,15 @@ router.post('/:id/comment', authUser, express.json(), (req, res) => {
   res.json({ success: true, id: r.lastInsertRowid });
 });
 
-// 投稿を隠す (本人 or 管理職)
+// 投稿を隠す (日記=本人/管理職、応援メッセージ=書いた本人 or 管理職)
 router.delete('/:id', authUser, (req, res) => {
   const db = getDb();
-  if (!canPost(db, req.uid)) return res.status(403).json({ success: false, msg: '権限がありません' });
-  db.prepare(`UPDATE bdiary_posts SET hidden = 1 WHERE id = ?`).run(parseInt(req.params.id));
+  const id = parseInt(req.params.id);
+  const post = db.prepare(`SELECT author_id, COALESCE(kind,'diary') AS kind FROM bdiary_posts WHERE id = ?`).get(id);
+  if (!post) return res.json({ success: true });
+  const own = post.author_id === req.uid; // 自分の投稿(本人の日記 or 自分の応援)
+  if (!own && !isPrivileged(db, req.uid)) return res.status(403).json({ success: false, msg: '権限がありません' });
+  db.prepare(`UPDATE bdiary_posts SET hidden = 1 WHERE id = ?`).run(id);
   res.json({ success: true });
 });
 
