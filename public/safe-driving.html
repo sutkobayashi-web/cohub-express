@@ -76,6 +76,11 @@ tr.top1 .rk { color: #b45309; } tr.top2 .rk, tr.top3 .rk { color: #64748b; }
 .upload-panel input { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; }
 .upload-panel .btn-up { margin-top: 12px; background: linear-gradient(135deg,#1e3a8a,#0891b2); color: #fff; border: none; padding: 11px; border-radius: 10px; font-weight: 800; font-size: 14px; width: 100%; cursor: pointer; }
 .upload-panel .btn-up:disabled { opacity: 0.5; }
+.dist-bar { margin: 0 0 14px; }
+.btn-dist { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer; background: linear-gradient(135deg,#dc2626,#f97316); color: #fff; }
+.btn-dist.done { background: linear-gradient(135deg,#0891b2,#0ea5e9); }
+.btn-dist:disabled { opacity: 0.5; }
+.dist-note { font-size: 11px; color: #94a3b8; margin-top: 5px; text-align: center; }
 .up-msg { font-size: 12px; font-weight: 700; margin-top: 8px; min-height: 16px; }
 
 .gate, .empty { max-width: 460px; margin: 70px auto; background: #fff; border-radius: 14px; padding: 26px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
@@ -179,6 +184,14 @@ function render(j){
     + '<div class="kpi rate"><div class="v">'+(s.rate!=null?s.rate+'%':'-')+'</div><div class="l">安全運転達成率<br>('+(s.perfect||0)+'/'+(s.total||0)+'名)</div></div>'
     + '<div class="kpi viol"><div class="v">'+(s.violationCount||0)+'</div><div class="l">違反件数</div></div>'
     + '</div>';
+  // 配信ボタン (管理職・運行管理者のみ): 運行・品質管理メンバー全員へDM
+  if(j.can_edit){
+    const done = !!j.distributed_at;
+    h += '<div class="dist-bar">'
+      + '<button id="dist-btn" class="btn-dist'+(done?' done':'')+'" onclick="distribute()">'+(done?'✅ 配信済み（もう一度配信）':'📣 運行・品質管理メンバーに配信')+'</button>'
+      + '<div class="dist-note">'+(done?'最終配信: '+esc(String(j.distributed_at).replace('T',' ').slice(0,16))+'（UTC）':'押すとメンバー全員に個別DM＋通知で届きます（確認されない対策）')+'</div>'
+      + '</div>';
+  }
   // 内訳
   const bt = s.byType||{};
   let chips = Object.keys(bt).length ? Object.entries(bt).map(([k,n])=>'<span class="chip">'+esc(VLABEL[k]||k)+' '+n+'</span>').join('') : '<span class="chip ok">違反なし 👍</span>';
@@ -230,6 +243,19 @@ function render(j){
 }
 
 function setOffice(o){ curOffice=o; render(curData); }
+
+async function distribute(){
+  const date = window._curDate; if(!date) return;
+  const done = !!(curData && curData.distributed_at);
+  if(!confirm((done?'再配信します。':'運行・品質管理メンバー全員にDM＋通知で配信します。')+'\n対象日: '+date+'\nよろしいですか？')) return;
+  const btn=document.getElementById('dist-btn'); if(btn){ btn.disabled=true; btn.textContent='配信中…'; }
+  try{
+    const r=await fetch('/api/safe-driving/distribute',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({date})});
+    const j=await r.json();
+    if(j.success){ alert('✅ '+j.count+'名へ配信しました'); loadReport(date); }
+    else { alert(j.msg||'配信に失敗しました'); if(btn){ btn.disabled=false; } }
+  }catch(e){ alert('通信エラー'); if(btn){ btn.disabled=false; } }
+}
 
 function renderTable(){
   const d = curData.data;

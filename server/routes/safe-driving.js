@@ -19,6 +19,11 @@ getDb().prepare(`CREATE TABLE IF NOT EXISTS safe_driving_reports (
   uploaded_by TEXT, uploaded_by_name TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 )`).run();
+// 運行・品質管理メンバーへ配信した日時 (配信ボタン)。既存DB向けに追加。
+try { getDb().prepare('ALTER TABLE safe_driving_reports ADD COLUMN distributed_at TEXT').run(); } catch (e) {}
+
+// 運行・品質管理メンバー グループ (このグループ全員へ配信)
+const OPS_GROUP_ID = 'e50d16e5-b049-43d4-860b-5ec719b4199d';
 
 const dir = path.join(__dirname, '..', '..', 'uploads', 'safe-driving');
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -174,7 +179,46 @@ router.get('/report', authUser, (req, res) => {
   const editor = canEdit(req.uid);
   // 違反詳細は管理職・運行管理者のみ。一般は件数のみ(順位表は全員)。
   if (!editor) { if (data.violations) data.violations = null; data.violations_hidden = true; }
-  res.json({ success: true, date: row.report_date, can_edit: editor, uploaded_by_name: row.uploaded_by_name, pdf_path: editor ? row.pdf_path : null, data });
+  res.json({ success: true, date: row.report_date, can_edit: editor, uploaded_by_name: row.uploaded_by_name, pdf_path: editor ? row.pdf_path : null, distributed_at: row.distributed_at || null, data });
+});
+
+// ---- 配信(管理職・運行管理者): 運行・品質管理メンバー全員へDM ----
+// 須貝さんが内容を確認してから「配信」ボタンで送る。確認されない問題への対処として
+// グループ投稿でなく個別DM(bot_safety=安全太郎)＋プッシュで気づかせる。
+router.post('/distribute', authUser, express.json(), (req, res) => {
+  if (!canEdit(req.uid)) return res.status(403).json({ success: false, msg: '管理職・運行管理者のみ配信できます' });
+  const db = getDb();
+  const date = String(req.body.date || '').slice(0, 10);
+  const row = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? db.prepare('SELECT * FROM safe_driving_reports WHERE report_date=?').get(date)
+    : db.prepare('SELECT * FROM safe_driving_reports ORDER BY report_date DESC LIMIT 1').get();
+  if (!row) return res.status(404).json({ success: false, msg: '対象のレポートがありません' });
+  let data = {}; try { data = JSON.parse(row.data_json); } catch (e) {}
+  const s = data.summary || {};
+  const d = row.report_date;
+  const md = d.slice(5).replace('-', '/');
+  const msg = '🚛 運行管理データ（' + md + '分）が更新されました。\n'
+    + '・運行ドライバー ' + (s.total || 0) + '名\n'
+    + '・安全運転達成率 ' + (s.rate != null ? s.rate + '%' : '-') + '（満点 ' + (s.perfect || 0) + '/' + (s.total || 0) + '名）\n'
+    + '・違反 ' + (s.violationCount || 0) + '件\n'
+    + '必ず内容をご確認ください。\n→ /safe-driving.html';
+  // グループ全員 (bot除く)
+  const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(OPS_GROUP_ID)
+    .map(r => r.user_id).filter(uid => uid && !/^bot_/.test(uid));
+  const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_safety', ?, ?, 'dm')");
+  const emit = req.app && req.app.locals && req.app.locals.emitToUser;
+  const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
+  let count = 0;
+  for (const uid of members) {
+    try {
+      const r = ins.run(uid, msg);
+      if (emit) emit(uid, 'dm:msg', { id: r.lastInsertRowid, from: 'bot_safety', to: uid, content: msg, at: new Date().toISOString(), attach: null });
+      if (push) { try { push(uid, { title: '🚛 運行管理データ更新', body: md + '分 達成率' + (s.rate != null ? s.rate + '%' : '-') + '・違反' + (s.violationCount || 0) + '件', tag: 'safe-driving', url: '/safe-driving.html' }); } catch (e) {} }
+      count++;
+    } catch (e) {}
+  }
+  try { db.prepare("UPDATE safe_driving_reports SET distributed_at=datetime('now') WHERE report_date=?").run(d); } catch (e) {}
+  res.json({ success: true, count, date: d });
 });
 
 // ---- 削除(管理職・運行管理者) ----
