@@ -20,11 +20,11 @@ const gcal = require('./services/gcal');
 
 // ===== 受付AI案内員(BOT) 定義 =====
 const CONCIERGE_BOTS = [
-  { id: 'bot_aoi', login_id: 'bot_aoi', name: '総合案内', avatar: '/assets/concierge_aoi.png?v=2', floor: 'home', x: 744, y: 405 },
   { id: 'bot_health', login_id: 'bot_health', name: 'ヘルスアドバイザー', avatar: '/assets/concierge_health_avatar.png?v=8', floor: 'wellness_room', x: 744, y: 519 },
   { id: 'bot_safety', login_id: 'bot_safety', name: '安全太郎', avatar: '/assets/concierge_safety_avatar.png?v=4', floor: 'field_accident', x: 1080, y: 500 },
 ];
-const OLD_BOT_IDS = ['bot_yui', 'bot_misaki', 'bot_master']; // 廃止bot
+// 廃止bot (起動時にユーザー行+関連メッセージを削除)。bot_aoi(総合案内/旧CoWell「葵」)は2026-06-19引退。
+const OLD_BOT_IDS = ['bot_yui', 'bot_misaki', 'bot_master', 'bot_aoi'];
 function ensureConciergeBots() {
   const db = getDb();
   // 廃止botを削除 (関連メッセージも掃除)
@@ -159,6 +159,7 @@ async function maybeSendWellnessAnnouncement(uid) {
 
 // 総合案内からの当日予定DM送信 (1日1回、ロビー入室時)
 async function maybeSendCalendarGreeting(uid) {
+  return; // 2026-06-19 廃止: bot_aoi(総合案内/旧葵)引退に伴い停止。bot送信DMは受信箱に出ず届かない。
   if (NO_AUTO_GREETING_UIDS.has(uid)) return;  // 佐藤さん等: 自動あいさつ廃止
   const db = getDb();
   const u = db.prepare('SELECT display_name, google_cal_id, last_cal_dm_date FROM users WHERE id = ?').get(uid);
@@ -747,12 +748,12 @@ function notifyInappropriateDetection(senderUid, botId, content, hit) {
       }).catch(() => {});
       // システムBOTからDM (管理者の DM 履歴に残る、後で確認可)
       try {
-        const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_aoi', ?, ?, 'dm')").run(t.id, summary);
+        const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_health', ?, ?, 'dm')").run(t.id, summary);
         const tp = presence.get(t.id);
         if (tp) {
           const s = io.sockets.sockets.get(tp.socketId);
           if (s) s.emit('dm:msg', {
-            id: ins.lastInsertRowid, from: 'bot_aoi', to: t.id, content: summary,
+            id: ins.lastInsertRowid, from: 'bot_health', to: t.id, content: summary,
             at: new Date().toISOString(), attach: null,
           });
         }
