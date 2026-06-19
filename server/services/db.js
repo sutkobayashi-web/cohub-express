@@ -382,6 +382,20 @@ function getDb() {
     app_id TEXT NOT NULL, action TEXT, role TEXT, actor_name TEXT, note TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );`);
+  // 承認ルートに「自己承認を許可」フラグ(申請者本人でも承認可)。管理課の時間外等、課長本人の申請用 (2026-06-17)
+  ensureColumn(_db, 'appr_routes', 'allow_self_approve', 'allow_self_approve INTEGER DEFAULT 0');
+  // マンスリー栄養レポート (2026-06-17): 食事投稿を1か月集計したAIレポートを保存
+  _db.exec(`CREATE TABLE IF NOT EXISTS food_monthly_reports (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    ym TEXT NOT NULL,
+    meal_count INTEGER DEFAULT 0,
+    metrics_json TEXT,
+    report_json TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, ym)
+  );
+  CREATE INDEX IF NOT EXISTS idx_fmr_user ON food_monthly_reports(user_id, ym DESC);`);
   try {
     if (!_db.prepare('SELECT COUNT(*) c FROM appr_roles').get().c) {
       // 役職階層 (rank昇順=承認順)。office_specific=1 は営業所別(MGR=所長)
@@ -1689,6 +1703,8 @@ function getDb() {
   ensureColumn(_db, 'user_mail_credentials', 'signature', 'signature TEXT');
   // メールフォルダの多層階(入れ子)対応: 親フォルダID (NULL=最上位)
   ensureColumn(_db, 'mail_labels', 'parent_id', 'parent_id INTEGER');
+  // マイ運動記録: 匿名ランキングの自分の行に添える「応援ひとこと」(本人が編集・匿名表示)
+  ensureColumn(_db, 'user_activity_prefs', 'rank_message', 'rank_message TEXT');
 
   return _db;
 }

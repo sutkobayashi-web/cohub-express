@@ -111,8 +111,19 @@ textarea.comment-input:focus { outline: none; border-color: #ea580c; }
 .rank-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; background: #fff7ed; border-radius: 8px; margin-bottom: 4px; }
 .rank-row.me { background: linear-gradient(135deg, #fed7aa, #fdba74); border: 2px solid #ea580c; }
 .rank-row .pos { font-size: 18px; font-weight: 900; color: #c2410c; text-align: center; }
+.rank-row { align-items: start; }
+.rank-row .pos { padding-top: 2px; }
 .rank-row .who { font-size: 12px; color: #7c2d12; }
-.rank-row .kcal { font-size: 14px; font-weight: 800; color: #c2410c; }
+.rank-row .who .msg { display: block; margin-top: 3px; font-size: 11px; line-height: 1.35; color: #9a3412; background: #fffbeb; border-left: 3px solid #fdba74; padding: 3px 7px; border-radius: 0 6px 6px 0; word-break: break-word; }
+.rank-row.me .who .msg { background: #fff; border-left-color: #ea580c; }
+.rank-row .kcal { font-size: 14px; font-weight: 800; color: #c2410c; padding-top: 2px; }
+/* 応援ひとこと編集 */
+.cheer-edit { margin-top: 10px; padding: 10px; background: #fff7ed; border: 1px dashed #fdba74; border-radius: 10px; }
+.cheer-edit label { display: block; font-size: 12px; font-weight: 800; color: #c2410c; margin-bottom: 6px; }
+.cheer-edit .row { display: flex; gap: 6px; }
+.cheer-edit input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #fdba74; border-radius: 8px; font-size: 13px; }
+.cheer-edit button { padding: 8px 14px; border: none; border-radius: 8px; background: #ea580c; color: #fff; font-weight: 800; font-size: 13px; }
+.cheer-edit .hint { font-size: 11px; color: #9a3412; margin-top: 5px; }
 
 /* Badges */
 .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; }
@@ -306,6 +317,14 @@ textarea.comment-input:focus { outline: none; border-color: #ea580c; }
       <div class="empty">読み込み中…</div>
     </div>
     <div class="note-line" id="my-rank-line"></div>
+    <div class="cheer-edit" id="cheer-edit" style="display:none">
+      <label>📣 あなたの応援ひとこと（みんなを激励するメッセージ）</label>
+      <div class="row">
+        <input id="cheer-input" type="text" maxlength="40" placeholder="例: 一緒に頑張ろう💪 毎朝の散歩おすすめ！">
+        <button id="cheer-save" onclick="saveCheer()">残す</button>
+      </div>
+      <div class="hint">あなたの順位の行に匿名（ニックネーム）で表示されます・40文字まで・空にすると消えます</div>
+    </div>
     <div class="note-line">※「全社匿名」設定で投稿した記録のみ集計。名前は表示されません。</div>
   </div>
 
@@ -672,7 +691,7 @@ function renderRanking(d) {
   document.getElementById('ranking-list').innerHTML = d.ranking.map(r => `
     <div class="rank-row ${r.is_me?'me':''}">
       <div class="pos">${r.rank}</div>
-      <div class="who"><b>${r.icon}</b> ${escapeHtml(r.branch)} (${typeName(r.main_type)})</div>
+      <div class="who"><b>${r.icon}</b> ${escapeHtml(r.branch)} (${typeName(r.main_type)})${r.message ? `<span class="msg">${escapeHtml(r.message)}</span>` : ''}</div>
       <div class="kcal">${r.kcal.toLocaleString()} kcal</div>
     </div>
   `).join('');
@@ -680,6 +699,27 @@ function renderRanking(d) {
     document.getElementById('my-rank-line').textContent = `あなた: ${d.my_rank}位 (${d.my_kcal.toLocaleString()} kcal, 上位 ${d.my_percentile}%)`;
   } else {
     document.getElementById('my-rank-line').textContent = '※「全社匿名」で投稿するとランキングに参加できます';
+  }
+  // 応援ひとことの編集欄はランキング参加者(=自分の順位がある)のみ表示
+  const cheerBox = document.getElementById('cheer-edit');
+  if (d.my_rank) {
+    cheerBox.style.display = '';
+    document.getElementById('cheer-input').value = d.my_message || '';
+  } else {
+    cheerBox.style.display = 'none';
+  }
+}
+async function saveCheer() {
+  const btn = document.getElementById('cheer-save');
+  const val = document.getElementById('cheer-input').value.trim();
+  btn.disabled = true;
+  const r = await api('/rank-message', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rank_message: val }) });
+  btn.disabled = false;
+  if (r && r.success) {
+    toast(val ? '応援ひとことを残しました🔥' : '応援ひとことを消しました');
+    refresh();
+  } else {
+    toast((r && r.msg) || '保存に失敗しました', true);
   }
 }
 function typeName(t) {

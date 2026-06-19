@@ -72,6 +72,25 @@ router.put('/prefs', authUser, express.json(), (req, res) => {
   res.json({ success: true });
 });
 
+// ===== 匿名ランキングの「応援ひとこと」(本人が自分の行に添える一言・匿名表示) =====
+const RANK_MSG_MAX = 40;
+function sanitizeRankMessage(s) {
+  if (typeof s !== 'string') return '';
+  // 制御文字/改行を空白化 → タグ無効化 → 連続空白圧縮 → 上限文字数
+  let t = s.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+  return t.slice(0, RANK_MSG_MAX);
+}
+router.put('/rank-message', authUser, express.json(), (req, res) => {
+  const msg = sanitizeRankMessage((req.body || {}).rank_message || '');
+  const value = msg || null; // 空文字なら削除扱い
+  getDb().prepare(`INSERT INTO user_activity_prefs (user_id, rank_message, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(user_id) DO UPDATE SET
+      rank_message = excluded.rank_message,
+      updated_at = excluded.updated_at`).run(req.uid, value);
+  res.json({ success: true, rank_message: value });
+});
+
 // ===== 記録CRUD =====
 router.post('/', authUser, express.json(), (req, res) => {
   const b = req.body || {};
@@ -266,6 +285,7 @@ router.get('/ranking', authUser, (req, res) => {
       a.user_id,
       u.company_code,
       u.nickname,
+      (SELECT rank_message FROM user_activity_prefs WHERE user_id = a.user_id) AS rank_message,
       SUM(a.kcal) AS kcal,
       (SELECT activity_type FROM activity_logs
         WHERE user_id = a.user_id AND date BETWEEN ? AND ? AND deleted_at IS NULL AND visibility = 'company'
@@ -295,13 +315,16 @@ router.get('/ranking', authUser, (req, res) => {
     main_type: r.main_type || 'walk',
     icon: typeIcon[r.main_type] || '🔥',
     kcal: r.kcal,
+    message: r.rank_message || '',
     is_me: r.user_id === req.uid,
   }));
   const myKcal = (rows.find(r => r.user_id === req.uid) || {}).kcal || 0;
+  const myRow = rows.find(r => r.user_id === req.uid);
   const percentile = (myRank && rows.length) ? Math.ceil((myRank / rows.length) * 100) : null;
   res.json({
     success: true, month, total_participants: rows.length,
     ranking, my_rank: myRank, my_kcal: myKcal, my_percentile: percentile,
+    my_message: (myRow && myRow.rank_message) || '',
   });
 });
 
