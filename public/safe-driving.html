@@ -188,8 +188,8 @@ function render(j){
   if(j.can_edit){
     const done = !!j.distributed_at;
     h += '<div class="dist-bar">'
-      + '<button id="dist-btn" class="btn-dist'+(done?' done':'')+'" onclick="distribute()">'+(done?'✅ 配信済み（もう一度配信）':'📣 運行・品質管理メンバーに配信')+'</button>'
-      + '<div class="dist-note">'+(done?'最終配信: '+esc(String(j.distributed_at).replace('T',' ').slice(0,16))+'（UTC）':'押すとメンバー全員に個別DM＋通知で届きます（確認されない対策）')+'</div>'
+      + '<button id="dist-btn" class="btn-dist'+(done?' done':'')+'" onclick="distribute()">'+(done?'✅ 配信済み（もう一度配信）':'📣 運行・品質管理グループに配信')+'</button>'
+      + '<div class="dist-note">'+(done?'最終配信: '+esc(String(j.distributed_at).replace('T',' ').slice(0,16))+'（UTC）':'押すと運行・品質管理グループのチャットに要約を投稿します（全員に通知）')+'</div>'
       + '</div>';
   }
   // 内訳
@@ -247,7 +247,7 @@ function setOffice(o){ curOffice=o; render(curData); }
 async function distribute(){
   const date = window._curDate; if(!date) return;
   const done = !!(curData && curData.distributed_at);
-  if(!confirm((done?'再配信します。':'運行・品質管理メンバー全員にDM＋通知で配信します。')+'\n対象日: '+date+'\nよろしいですか？')) return;
+  if(!confirm((done?'再配信します。':'運行・品質管理グループのチャットに要約を投稿します（全員に通知）。')+'\n対象日: '+date+'\nよろしいですか？')) return;
   const btn=document.getElementById('dist-btn'); if(btn){ btn.disabled=true; btn.textContent='配信中…'; }
   try{
     const r=await fetch('/api/safe-driving/distribute',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({date})});

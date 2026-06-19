@@ -182,10 +182,10 @@ router.get('/report', authUser, (req, res) => {
   res.json({ success: true, date: row.report_date, can_edit: editor, uploaded_by_name: row.uploaded_by_name, pdf_path: editor ? row.pdf_path : null, distributed_at: row.distributed_at || null, data });
 });
 
-// ---- 配信(管理職・運行管理者): 運行・品質管理メンバー全員へDM ----
-// 須貝さんが内容を確認してから「配信」ボタンで送る。確認されない問題への対処として
-// グループ投稿でなく個別DMで気づかせる。
-// 送信元は配信した本人(実ユーザー)。bot送信DMはDM一覧から隠れて受信できないため使わない。
+// ---- 配信(管理職・運行管理者): 運行・品質管理メンバーのグループチャットに投稿 ----
+// 須貝さんが内容を確認してから「配信」ボタンで送る。確認されない問題への対処。
+// グループチャットに投稿(=全員がその場で読める・通知も飛ぶ)。送信元=配信した本人。
+// 要約(対象日・達成率・満点人数・違反件数)のみ。リンクは載せない(見ても分からないため本文で完結)。
 router.post('/distribute', authUser, express.json(), (req, res) => {
   if (!canEdit(req.uid)) return res.status(403).json({ success: false, msg: '管理職・運行管理者のみ配信できます' });
   const db = getDb();
@@ -198,28 +198,30 @@ router.post('/distribute', authUser, express.json(), (req, res) => {
   const s = data.summary || {};
   const d = row.report_date;
   const md = d.slice(5).replace('-', '/');
-  const msg = '🚛 運行管理データ（' + md + '分）が更新されました。\n'
+  const msg = '🚛 運行管理データ（' + md + '分）\n'
     + '・運行ドライバー ' + (s.total || 0) + '名\n'
     + '・安全運転達成率 ' + (s.rate != null ? s.rate + '%' : '-') + '（満点 ' + (s.perfect || 0) + '/' + (s.total || 0) + '名）\n'
     + '・違反 ' + (s.violationCount || 0) + '件\n'
-    + '必ず内容をご確認ください。\n→ /safe-driving.html';
-  // グループ全員 (bot・配信者本人は除く)。送信元=配信した本人なので自分宛て自己DMは作らない。
-  const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(OPS_GROUP_ID)
-    .map(r => r.user_id).filter(uid => uid && !/^bot_/.test(uid) && uid !== req.uid);
-  const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
-  const emit = req.app && req.app.locals && req.app.locals.emitToUser;
+    + 'ご確認をお願いします。';
+  // グループチャットに1件投稿 (room_code=grp_+group_id)。chat:group ハンドラと同じ配信(emit group:msg + push)。
+  const roomCode = 'grp_' + OPS_GROUP_ID;
+  const r = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, NULL, ?, ?)").run(req.uid, msg, roomCode);
+  const sender = db.prepare('SELECT display_name, avatar_url FROM users WHERE id=?').get(req.uid) || {};
+  const groupName = (db.prepare('SELECT name FROM chat_groups WHERE id=?').get(OPS_GROUP_ID) || {}).name || '運行・品質管理メンバー';
+  const payload = { id: r.lastInsertRowid, from: req.uid, group_id: OPS_GROUP_ID, content: msg, at: new Date().toISOString(), attach: null, sender_name: sender.display_name || '', sender_avatar: sender.avatar_url || '' };
+  const emitG = req.app && req.app.locals && req.app.locals.emitToGroupMembers;
   const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
+  if (emitG) { try { emitG(OPS_GROUP_ID, 'group:msg', payload); } catch (e) {} }
+  // 送信者以外へプッシュ
   let count = 0;
-  for (const uid of members) {
-    try {
-      const r = ins.run(req.uid, uid, msg);
-      if (emit) emit(uid, 'dm:msg', { id: r.lastInsertRowid, from: req.uid, to: uid, content: msg, at: new Date().toISOString(), attach: null });
-      if (push) { try { push(uid, { title: '🚛 運行管理データ更新', body: md + '分 達成率' + (s.rate != null ? s.rate + '%' : '-') + '・違反' + (s.violationCount || 0) + '件', tag: 'safe-driving', url: '/safe-driving.html' }); } catch (e) {} }
-      count++;
-    } catch (e) {}
+  const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(OPS_GROUP_ID).map(x => x.user_id);
+  for (const m of members) {
+    if (m === req.uid || /^bot_/.test(m)) continue;
+    if (push) { try { push(m, { title: '[' + groupName + '] ' + (sender.display_name || ''), body: msg.slice(0, 120), tag: 'grp-' + OPS_GROUP_ID, url: '/?g=' + OPS_GROUP_ID }); } catch (e) {} }
+    count++;
   }
   try { db.prepare("UPDATE safe_driving_reports SET distributed_at=datetime('now') WHERE report_date=?").run(d); } catch (e) {}
-  res.json({ success: true, count, date: d });
+  res.json({ success: true, count, date: d, group: true });
 });
 
 // ---- 削除(管理職・運行管理者) ----
