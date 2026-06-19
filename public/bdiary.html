@@ -63,6 +63,13 @@ main { max-width:680px; margin:0 auto; padding:14px; }
 .cinput button { background:var(--rose); color:#fff; border:none; border-radius:999px; padding:0 18px; font-weight:800; cursor:pointer; }
 .cinput button.cmic { background:#fff; color:var(--rose); border:2px solid var(--line); border-radius:50%; width:46px; height:46px; padding:0; flex-shrink:0; font-size:20px; }
 .cinput button.cmic.on { background:#1d4ed8; color:#fff; border-color:#1d4ed8; animation:pulse 1.2s infinite; }
+/* 応援メッセージ */
+.composer.cheerbox { border-color:#fda4af; background:linear-gradient(180deg,#fff,#fff5f6); }
+.composer.cheerbox h2 { color:#be123c; }
+.post.cheer { border-color:#fda4af; background:linear-gradient(180deg,#fff,#fff6f7); }
+.post.cheer .top img { border-color:#fb7185; }
+.post.cheer .top .nm { color:#9f1239; }
+.cheer-tag { font-size:11px; font-weight:800; color:#fff; background:#fb7185; border-radius:999px; padding:2px 8px; margin-left:6px; vertical-align:middle; }
 .empty { text-align:center; padding:40px 16px; color:#9ca3af; }
 .empty img { width:120px; height:auto; opacity:.95; }
 .note { font-size:12px; color:#9ca3af; text-align:center; margin:6px 0 16px; }
@@ -77,6 +84,7 @@ main { max-width:680px; margin:0 auto; padding:14px; }
 </header>
 
 <main>
+  <div id="cheer-wrap"></div>
   <div id="composer-wrap"></div>
   <div class="note">※ 書きたい時だけでOK。みんながやさしく応援しています。</div>
   <div id="feed"><div class="empty">読み込み中…</div></div>
@@ -86,7 +94,7 @@ main { max-width:680px; margin:0 auto; padding:14px; }
 const token = localStorage.getItem('cohub_token');
 if (!token) location.replace('/');
 let DATA = null;
-let recog = null, listening = false, photoFile = null;
+let recog = null, listening = false, photoFile = null, cheerPhotoFile = null;
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(iso){ const m=String(iso||'').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); if(!m) return ''; return parseInt(m[2])+'/'+parseInt(m[3])+' '+m[4]+':'+m[5]; }
@@ -103,14 +111,55 @@ async function load(){
   const r = await api('/api/bdiary');
   if (!r || !r.success) { document.getElementById('feed').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
   DATA = r;
+  renderCheerComposer();
   renderComposer();
   renderFeed();
+}
+
+// 💪 応援メッセージ入力 (全メンバー。発信者名でBさんに届く)。本人(Bさん)には出さない。
+function renderCheerComposer(){
+  const wrap = document.getElementById('cheer-wrap');
+  if (!wrap) return;
+  if (DATA.is_author) { wrap.innerHTML = ''; return; }
+  const lbl = esc(DATA.author_label);
+  wrap.innerHTML =
+    '<div class="composer cheerbox">'
+    + '<h2>💪 ' + lbl + 'へ 応援メッセージ</h2>'
+    + '<div class="hint">ひとことでも大丈夫。<b>あなたの名前で' + lbl + 'に届きます。</b><br>🎤で声入力、📷で写真も送れます。</div>'
+    + '<button class="bigbtn mic vi-keep-text" id="cheermic" onclick="cheerMic()">🎤 はなす</button>'
+    + '<textarea id="cheerTa" placeholder="例: ' + lbl + '、いつも気にかけています。ゆっくり休んでくださいね。"></textarea>'
+    + '<button class="bigbtn photo" onclick="document.getElementById(\'cheerPh\').click()">📷 写真をつける</button>'
+    + '<input type="file" id="cheerPh" accept="image/*" style="display:none" onchange="onCheerPhoto(this)">'
+    + '<div class="preview" id="cheerPrev"></div>'
+    + '<button class="bigbtn send" id="cheerSend" onclick="submitCheer()">💌 応援を送る</button>'
+    + '</div>';
+}
+function cheerMic(){ if (window.VoiceInput) window.VoiceInput.dictate(document.getElementById('cheerTa'), document.getElementById('cheermic')); }
+function onCheerPhoto(inp){
+  const f = inp.files && inp.files[0]; if(!f) return; cheerPhotoFile = f;
+  const url = URL.createObjectURL(f);
+  document.getElementById('cheerPrev').innerHTML = '<img src="'+url+'"><button class="rm" onclick="rmCheerPhoto()">✕</button>';
+}
+function rmCheerPhoto(){ cheerPhotoFile=null; const ph=document.getElementById('cheerPh'); if(ph)ph.value=''; const pv=document.getElementById('cheerPrev'); if(pv)pv.innerHTML=''; }
+async function submitCheer(){
+  const ta = document.getElementById('cheerTa');
+  const body = (ta.value || '').trim();
+  if (!body && !cheerPhotoFile) { alert('応援メッセージか写真を入れてください'); return; }
+  const b = document.getElementById('cheerSend'); b.disabled = true; b.textContent = '送信中…';
+  const fd = new FormData();
+  fd.append('body', body);
+  if (cheerPhotoFile) fd.append('photo', cheerPhotoFile);
+  const r = await api('/api/bdiary/cheer', { method:'POST', body: fd });
+  b.disabled = false; b.textContent = '💌 応援を送る';
+  if (r && r.success) { ta.value=''; rmCheerPhoto(); load(); window.scrollTo({top:0,behavior:'smooth'}); }
+  else alert('送信に失敗しました: ' + (r && r.msg || '通信エラー'));
 }
 
 function renderComposer(){
   const wrap = document.getElementById('composer-wrap');
   if (!DATA.can_post) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML =
+  const lbl = esc(DATA.author_label);
+  const composerHtml =
     '<div class="composer">'
     + '<h2>きょうの ひとこと</h2>'
     + '<div class="hint">🎤「はなす」を押して話すと、文字になります。<br>✨「ととのえる」でやさしい文章に。写真もどうぞ。</div>'
@@ -125,6 +174,25 @@ function renderComposer(){
     + '<div class="preview" id="prev"></div>'
     + '<button class="bigbtn send" id="sendbtn" onclick="submitPost()">📮 とうこうする</button>'
     + '</div>';
+  // 本人(Bさん)はそのまま日記を書く欄を表示
+  if (DATA.is_author) { wrap.innerHTML = composerHtml; return; }
+  // 本人以外(代理投稿権のある管理職)は既定で隠す。応援したい人が
+  // 誤って「Bさん本人の日記欄」に書き込む事故を防ぐため、明示的に開いた時だけ表示。
+  wrap.innerHTML =
+    '<div class="proxy-note">📣 ' + lbl + 'を応援したい方は、上の<b>「💪 ' + lbl + 'へ 応援メッセージ」</b>からお願いします。<br>下は' + lbl + '<b>本人が日記を書くための欄</b>です。</div>'
+    + '<button class="bigbtn ghost" id="proxyToggle" onclick="toggleProxyComposer()">✍️【代理】' + lbl + 'の日記を代わりに書く</button>'
+    + '<div id="proxy-composer" style="display:none;margin-top:12px">'
+    + '<div class="proxy-warn">⚠️ ここに書くと「' + lbl + '本人の日記」として載ります。応援メッセージは上の💪欄へ。</div>'
+    + composerHtml
+    + '</div>';
+}
+function toggleProxyComposer(){
+  const c = document.getElementById('proxy-composer');
+  const btn = document.getElementById('proxyToggle');
+  if (!c) return;
+  const open = c.style.display === 'none';
+  c.style.display = open ? 'block' : 'none';
+  if (btn) btn.textContent = open ? '✖ 代理投稿をとじる' : ('✍️【代理】' + esc(DATA.author_label) + 'の日記を代わりに書く');
 }
 
 // 録音→サーバー文字起こし(全端末対応)。共通の voice-input.js を利用。
@@ -164,19 +232,25 @@ async function submitPost(){
 function renderFeed(){
   const feed = document.getElementById('feed');
   if (!DATA.posts.length) {
-    feed.innerHTML = '<div class="empty"><img src="/assets/bsan_full.png" alt="Bさん"><div style="margin-top:10px;">まだ投稿はありません。<br>最初のひとことを待っています。</div></div>';
+    feed.innerHTML = '<div class="empty"><img src="/assets/bsan_full.png" alt="Bさん"><div style="margin-top:10px;">まだ投稿はありません。<br>上の「💪 応援メッセージ」から、ひとこと贈ってみませんか。</div></div>';
     return;
   }
   const av = '/assets/bsan_avatar.png';
+  const grayAv = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2246%22 height=%2246%22><rect width=%2246%22 height=%2246%22 fill=%22%23e5e7eb%22/></svg>';
   feed.innerHTML = DATA.posts.map(p => {
+    const isCheer = p.kind === 'cheer';
     const photo = p.photo_url ? '<div class="photo"><img src="'+esc(p.photo_url)+'"></div>' : '';
     const comments = (p.comments||[]).map(c => {
       const ca = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '<img src="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><rect width=%2232%22 height=%2232%22 fill=%22%23e5e7eb%22/></svg>">';
       return '<div class="cmt">'+ca+'<div class="cb"><div class="cn">'+esc(c.name||'')+'</div><div class="ct">'+esc(c.body)+'</div></div></div>';
     }).join('');
-    const delBtn = DATA.can_post ? '<button class="del" onclick="delPost('+p.id+')">削除</button>' : '';
-    return '<div class="post">'
-      + '<div class="top"><img src="'+av+'" alt="Bさん"><div><div class="nm">'+esc(DATA.author_label)+'</div><div class="dt">'+fmtDate(p.created_at)+'</div></div>'+delBtn+'</div>'
+    const delBtn = p.can_delete ? '<button class="del" onclick="delPost('+p.id+')">削除</button>' : '';
+    const topAv = isCheer ? (p.sender_avatar ? esc(p.sender_avatar) : grayAv) : av;
+    const topName = isCheer
+      ? (esc(p.sender_name || 'メンバー') + '<span class="cheer-tag">💪 応援</span>')
+      : esc(DATA.author_label);
+    return '<div class="post'+(isCheer ? ' cheer' : '')+'">'
+      + '<div class="top"><img src="'+topAv+'" alt=""><div><div class="nm">'+topName+'</div><div class="dt">'+fmtDate(p.created_at)+'</div></div>'+delBtn+'</div>'
       + (p.body ? '<div class="body">'+esc(p.body)+'</div>' : '')
       + photo
       + '<div class="reacts">' + (DATA.allowed_emojis||[]).map(e => {
