@@ -113,7 +113,17 @@ const WELLNESS_EVENT_TEXT = process.env.WELLNESS_EVENT_TEXT || `🏥 健康管�
 
 皆さんの健康づくり、応援しています！`;
 
+// bot_aoi(総合案内)の自動あいさつDMを送らないユーザー。
+// 佐藤康成さん(bsan): 末期がん闘病中で「元祖Ｂさんの愛の日記」で支援中。機械的なボットのあいさつより
+// 人からの言葉を届けたいという方針のため、本人宛の自動メッセージは廃止 (2026-06-17)。
+const NO_AUTO_GREETING_UIDS = new Set([
+  '816512b1-b8e1-42c6-91c4-83efd4bbf431', // 佐藤康成 (login: bsan)
+]);
+
 async function maybeSendWellnessAnnouncement(uid) {
+  return; // 2026-06-19 廃止: bot_aoi(総合案内/旧葵)の「健康管理室からのご案内」自動DMは
+          // bot送信DMがDM一覧から隠れて受信できず(ログに残るだけ)、旧CoWell色の販促のため停止。
+  if (NO_AUTO_GREETING_UIDS.has(uid)) return;  // 佐藤さん等: 自動あいさつ廃止
   const db = getDb();
   const u = db.prepare('SELECT display_name, last_wellness_dm_date FROM users WHERE id = ?').get(uid);
   if (!u) return;
@@ -149,6 +159,7 @@ async function maybeSendWellnessAnnouncement(uid) {
 
 // 総合案内からの当日予定DM送信 (1日1回、ロビー入室時)
 async function maybeSendCalendarGreeting(uid) {
+  if (NO_AUTO_GREETING_UIDS.has(uid)) return;  // 佐藤さん等: 自動あいさつ廃止
   const db = getDb();
   const u = db.prepare('SELECT display_name, google_cal_id, last_cal_dm_date FROM users WHERE id = ?').get(uid);
   if (!u || !u.google_cal_id) return;
@@ -318,6 +329,8 @@ app.use('/api/report', require('./routes/report'));
 app.use('/api/bdiary', require('./routes/bdiary'));
 app.use('/api/voice', require('./routes/voice'));
 app.use('/api/alert', require('./routes/alert'));
+const foodReport = require('./routes/food_report');
+app.use('/api/food-report', foodReport);
 
 // ===== フィーチャーフラグ (ダウングレード制御 2026-05-07) =====
 // MINIMAL_MODE=1 の場合、/ で home.html (8カードシンプル玄関) を返す。
@@ -487,12 +500,14 @@ app.get('/api/floor-presence/:code', authUser, (req, res) => {
 app.get('/api/online-users', authUser, (req, res) => {
   const ids = [];
   const away = [];
+  const chatting = [];
   for (const [uid, p] of presence) {
     if (!p || p.isBot || p.status === 'offline') continue;
+    if (p.chatting) chatting.push(uid);                      // チャット利用中
     if (p.status === '退席中') { away.push(uid); continue; } // 離席(スリープ/5分無操作)
     ids.push(uid);
   }
-  res.json({ success: true, online: ids, away });
+  res.json({ success: true, online: ids, away, chatting });
 });
 
 // 初回管理者ブートストラップ（users 0件の時だけ有効）
@@ -1257,6 +1272,19 @@ io.on('connection', (socket) => {
       p.idleAway = false;
       io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'online' });
     }
+  });
+  // 💬 チャット利用中プレゼンス: チャット画面で会話中の人を全員に知らせる(相手は伏せる)。
+  // クライアントが利用中は約20秒ごとに chat:using を送信、離脱で chat:idle_end。45秒で自動失効(スイープ)。
+  socket.on('chat:using', () => {
+    const p = presence.get(uid);
+    if (!p) return;
+    p.chatAt = Date.now();
+    if (!p.chatting) { p.chatting = true; socket.broadcast.emit('presence:chat', { uid, chatting: true }); }
+  });
+  socket.on('chat:idle_end', () => {
+    const p = presence.get(uid);
+    if (!p) return;
+    if (p.chatting) { p.chatting = false; socket.broadcast.emit('presence:chat', { uid, chatting: false }); }
   });
 
   // 👋 肩たたき: 同フロア+440px以内の相手に通知 (PWA Push連動、30秒レート制限)
@@ -2220,6 +2248,7 @@ ${latestReport.summary}
       io.to('floor:' + p.floor).emit('hand', { uid, up: false });
     }
     db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'logout')").run(uid, p.floor);
+    if (p.chatting) { p.chatting = false; socket.broadcast.emit('presence:chat', { uid, chatting: false }); } // 切断時はチャット中も解除
     // 2段階プレゼンス: 即オフラインにせず、ナビ再接続の猶予(2秒)後に「退席中(自動)」へ。
     // オフライン昇格＋ログアウト通知は presence スイープが切断猶予(PRESENCE_DISCONNECT_OFFLINE_MS)経過後に実施。
     setTimeout(() => {
@@ -2245,6 +2274,8 @@ setInterval(() => {
   const sdb = getDb();
   for (const [uid, p] of presence) {
     if (!p || p.isBot) continue;          // botはsocket無しなので対象外
+    // 💬 チャット中の自動失効 (クライアントがchat:idle_endを送れず切れた保険・45秒)
+    if (p.chatting && now - (p.chatAt || 0) > 45000) { p.chatting = false; io.emit('presence:chat', { uid, chatting: false }); }
     if (p.status === 'offline') continue;
     // (1) 切断済みで退席中 → 猶予経過でオフライン+ログアウト+presence削除
     if (p.disconnectedAt) {
@@ -2325,6 +2356,34 @@ setInterval(() => {
     }
   } catch (e) { console.warn('[walk auto-tick] fail:', e.message); }
 }, 60 * 60 * 1000);
+
+// マンスリー栄養レポート: 月初(1〜3日)に前月分を自動生成し本人へ通知 (12hごと・冪等)。
+// 月初のみに限定して、デプロイ時の一斉バックフィル配信を防止。手動生成は管理画面/本人ボタンで随時可。
+let _foodReportRunning = false;
+async function runFoodMonthlyAuto() {
+  if (_foodReportRunning) return;
+  if (new Date().getDate() > 3) return;      // 月初のみ
+  _foodReportRunning = true;
+  try {
+    const ym = foodReport.prevYm();
+    const targets = foodReport.listAutoTargets(ym);
+    for (const uid of targets) {
+      if (NO_AUTO_GREETING_UIDS.has(uid)) continue;   // 自動配信を止めている人は除外
+      try {
+        await foodReport.generateReport(uid, ym);
+        const msg = '📊 ' + foodReport.ymLabel(ym) + 'のマンスリー栄養レポートができました！\nこの1か月の食事の栄養分析・傾向・来月の心がけをまとめています。\n→ /food-report.html で確認できます。';
+        const ins = getDb().prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_health', ?, ?, 'dm')").run(uid, msg);
+        const p = presence.get(uid);
+        if (p && p.socketId) { const s = io.sockets.sockets.get(p.socketId); if (s) s.emit('dm:msg', { id: ins.lastInsertRowid, from: 'bot_health', to: uid, content: msg, at: new Date().toISOString(), attach: null }); }
+        sendPushToUser(uid, { title: '📊 マンスリー栄養レポート', body: foodReport.ymLabel(ym) + 'の栄養レポートができました', tag: 'food-monthly', url: '/food-report.html' }).catch(() => {});
+        console.log('[food-report] auto-generated', uid, ym);
+      } catch (e) { console.warn('[food-report auto] fail', uid, (e.message || '').slice(0, 100)); }
+    }
+  } catch (e) { console.warn('[food-report auto] tick fail', e.message); }
+  finally { _foodReportRunning = false; }
+}
+setInterval(runFoodMonthlyAuto, 12 * 60 * 60 * 1000);
+setTimeout(runFoodMonthlyAuto, 90 * 1000);   // 起動後1回 (月初以外はno-op)
 
 // 健康管理室: 投票期間 7日経過の施策を自動締切 (1時間ごと)
 setInterval(() => {
