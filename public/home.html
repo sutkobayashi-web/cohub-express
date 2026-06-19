@@ -567,7 +567,7 @@
   }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js?v=20260611d" defer></script>
+<script src="/global-notif.js?v=20260618b" defer></script>
 <script src="/fukuri-hint.js?v=2"></script>
 </head>
 <body>
@@ -830,6 +830,11 @@
       <div class="icon-pill">🍱</div>
       <div class="label">食事投稿</div>
       <div class="desc">食事の写真をAIが栄養分析。血圧・体重も記録。</div>
+    </a>
+    <a class="card plaza" href="/food-report.html">
+      <div class="icon-pill">📊</div>
+      <div class="label">マンスリー栄養レポート</div>
+      <div class="desc">1か月の食事を集計し、栄養分析・傾向・来月の心がけをAIがレポート。</div>
     </a>
     <a class="card wellness" href="/wellness.html">
       <div class="icon-pill">🏥</div>
@@ -1567,8 +1572,10 @@ function logout() {
   if (!confirm('ログアウトしますか？')) return;
   localStorage.removeItem('cohub_token');
   token = '';
-  showLogin();
-  prefillLogin();
+  // 完全リロードして通知ソケット(global-notif.js)を停止する。
+  // 旧実装は showLogin だけでソケットが生き残り、ログイン画面でも他者の投稿/チャットの
+  // 着信音(ピンポンパーン)が鳴り続けた (2026-06-19)。global-notif.jsはtoken無しなら接続しない。
+  location.replace('/');
 }
 
 // 保存済みID/パスワードを復元
@@ -1617,6 +1624,9 @@ try { if (localStorage.getItem('cohub_chat_notif_on') === '0') _hChimeOn = false
 
 async function hPlayDmChime() {
   if (!_hChimeOn) return;
+  // global-notif.js の MP3チャイム(クリック等で解錠済み・自動再生規制に強い)を優先。
+  // WebAudio合成は保険(global-notif未ロード時のみ)。
+  if (typeof window.cohubPlayChime === 'function') { try { window.cohubPlayChime(); return; } catch (e) {} }
   try {
     if (!_hAudioCtx) _hAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _hAudioCtx;
