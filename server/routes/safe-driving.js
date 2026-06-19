@@ -184,7 +184,8 @@ router.get('/report', authUser, (req, res) => {
 
 // ---- 配信(管理職・運行管理者): 運行・品質管理メンバー全員へDM ----
 // 須貝さんが内容を確認してから「配信」ボタンで送る。確認されない問題への対処として
-// グループ投稿でなく個別DM(bot_safety=安全太郎)＋プッシュで気づかせる。
+// グループ投稿でなく個別DMで気づかせる。
+// 送信元は配信した本人(実ユーザー)。bot送信DMはDM一覧から隠れて受信できないため使わない。
 router.post('/distribute', authUser, express.json(), (req, res) => {
   if (!canEdit(req.uid)) return res.status(403).json({ success: false, msg: '管理職・運行管理者のみ配信できます' });
   const db = getDb();
@@ -202,17 +203,17 @@ router.post('/distribute', authUser, express.json(), (req, res) => {
     + '・安全運転達成率 ' + (s.rate != null ? s.rate + '%' : '-') + '（満点 ' + (s.perfect || 0) + '/' + (s.total || 0) + '名）\n'
     + '・違反 ' + (s.violationCount || 0) + '件\n'
     + '必ず内容をご確認ください。\n→ /safe-driving.html';
-  // グループ全員 (bot除く)
+  // グループ全員 (bot・配信者本人は除く)。送信元=配信した本人なので自分宛て自己DMは作らない。
   const members = db.prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(OPS_GROUP_ID)
-    .map(r => r.user_id).filter(uid => uid && !/^bot_/.test(uid));
-  const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_safety', ?, ?, 'dm')");
+    .map(r => r.user_id).filter(uid => uid && !/^bot_/.test(uid) && uid !== req.uid);
+  const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
   let count = 0;
   for (const uid of members) {
     try {
-      const r = ins.run(uid, msg);
-      if (emit) emit(uid, 'dm:msg', { id: r.lastInsertRowid, from: 'bot_safety', to: uid, content: msg, at: new Date().toISOString(), attach: null });
+      const r = ins.run(req.uid, uid, msg);
+      if (emit) emit(uid, 'dm:msg', { id: r.lastInsertRowid, from: req.uid, to: uid, content: msg, at: new Date().toISOString(), attach: null });
       if (push) { try { push(uid, { title: '🚛 運行管理データ更新', body: md + '分 達成率' + (s.rate != null ? s.rate + '%' : '-') + '・違反' + (s.violationCount || 0) + '件', tag: 'safe-driving', url: '/safe-driving.html' }); } catch (e) {} }
       count++;
     } catch (e) {}
