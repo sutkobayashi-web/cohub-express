@@ -745,6 +745,9 @@
   .msg .bub.tier1 { background: #ecfdf5; border-color: #a7f3d0; border-left: 4px solid #10b981; }
   .msg .bub.tier2 { background: #fffbeb; border-color: #fde68a; border-left: 4px solid #f59e0b; }
   .msg .bub.tier3 { background: #fef2f2; border-color: #fecaca; border-left: 4px solid #ef4444; }
+  /* 本文中URLのハイパーリンク (送受信どちらのバブルでも視認できる配色) */
+  .bub a.msg-link { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
+  .msg.me .bub a.msg-link { color: #fff; text-decoration: underline; }
   .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
   .msg.me .bub .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
   .bub .tr-result { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(148,163,184,0.4); font-size: 13px; opacity: 0.92; font-style: italic; white-space: pre-wrap; color: #475569; }
@@ -1815,6 +1818,17 @@ function showLogin() { $('login-screen').classList.add('show'); $('app').style.d
 function showApp() { $('login-screen').classList.remove('show'); $('app').style.display = 'flex'; }
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+// 本文中のURLをクリック可能なリンクに変換。XSS防止のため先にHTMLエスケープしてからURLだけを<a>化する。
+function linkify(s) {
+  const esc = escapeHtml(s || '');
+  return esc.replace(/(https?:\/\/[^\s<]+)/g, (m) => {
+    let url = m, tail = '';
+    const tm = url.match(/[)\]}>.,;:!?"'、。，）】」』]+$/); // 末尾の句読点・閉じ括弧はリンクから除外
+    if (tm) { tail = url.slice(url.length - tm[0].length); url = url.slice(0, url.length - tm[0].length); }
+    if (!url) return m;
+    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="msg-link">' + url + '</a>' + tail;
+  });
+}
 
 // ============================================================
 // チャット本文の翻訳トグル (🌐 訳)
@@ -2826,7 +2840,7 @@ function renderMessages() {
 
     // バブル本文 + 添付
     const attach = m.attach_url ? `<a class="attach-link" href="${escapeHtml(m.attach_url)}" target="_blank">📎 ${escapeHtml(m.attach_name || 'attach')}</a>` : '';
-    const bubble = `<div class="bub${consultTierClass(m.content)}">${escapeHtml(m.content || '')}${attach}</div>`;
+    const bubble = `<div class="bub${consultTierClass(m.content)}">${linkify(m.content || '')}${attach}</div>`;
 
     // 自分の連続でないメッセージは右下に時刻 + 既読/未読
     let tsBottom = '';
