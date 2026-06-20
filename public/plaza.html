@@ -118,6 +118,23 @@ body { padding-bottom: 80px !important; }
 .nutri-conf { margin-top: 6px; text-align: center; }
 .nutri-conf .badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
 .nutri-foot { text-align: right; font-size: 9px; color: #aaa; margin-top: 6px; }
+/* 栄養 塗り絵風イラストカード (food-reportと統一) */
+.nut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px,1fr)); gap: 8px; margin-top: 6px; }
+@media(max-width:420px){ .nut-grid { grid-template-columns: repeat(3,1fr); } }
+.nut-cell { border: 1px solid #e4eaf2; border-radius: 12px; padding: 8px 5px 7px; text-align: center; background: #fbfdff; }
+.nut-ico { position: relative; width: 50px; height: 50px; margin: 0 auto 4px; }
+.nut-ico .g { position: absolute; left: 0; bottom: 0; width: 50px; height: 50px; font-size: 40px; line-height: 50px; text-align: center; }
+.nut-ico .base { filter: grayscale(1); opacity: .20; }
+.nut-ico .clip { position: absolute; left: 0; bottom: 0; width: 50px; overflow: hidden; transition: height .5s ease; }
+.nut-name { font-size: 12px; font-weight: 800; color: #334155; }
+.nut-val { font-size: 14px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+.nut-val .t { font-size: 10px; font-weight: 600; color: #94a3b8; }
+.nut-pct { font-size: 12px; font-weight: 800; margin-top: 3px; padding: 2px 8px; border-radius: 999px; display: inline-block; border: 1px solid transparent; line-height: 1.3; }
+.nut-pct.sev1 { font-size: 12.5px; }
+.nut-pct.sev2 { font-size: 14px; font-weight: 900; }
+.nut-pct.sev3 { font-size: 15.5px; font-weight: 900; letter-spacing: .3px; box-shadow: 0 1px 5px rgba(220,38,38,.3); }
+.nut-pct.sev4 { font-size: 17.5px; font-weight: 900; letter-spacing: .5px; box-shadow: 0 2px 9px rgba(153,27,27,.45); animation: nutAlarm 1s ease-in-out infinite; }
+@keyframes nutAlarm { 0%,100% { transform: scale(1); } 50% { transform: scale(1.09); } }
 /* 追加飲酒記録 (写真未反映分の自己申告) */
 .alc-extra { margin: 8px 0; }
 .alc-toggle { width: 100%; text-align: left; background: linear-gradient(135deg,#fef3c7,#fde68a); border: 1px solid #fbbf24; border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 700; color: #92400e; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
@@ -265,7 +282,7 @@ body { padding-bottom: 80px !important; }
 </style>
 <script src="/font-zoom.js" defer></script>
 <script src="/image-zoom.js" defer></script>
-<script src="/global-notif.js?v=20260611d" defer></script>
+<script src="/global-notif.js?v=20260619a" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
 </head>
@@ -452,7 +469,7 @@ function buildNutritionBar(sc) {
   const items = [
     { key: 'calories', icon: '🔥', label: 'カロリー',     unit: 'kcal', target: 550, min: 450, max: 650, range: true },
     { key: 'protein',  icon: '🍖', label: 'たんぱく質',   unit: 'g',    target: 20,  positive: true },
-    { key: 'fat',      icon: '🫒', label: '脂質',         unit: 'g',    target: 15, min: 12, max: 18, range: true },
+    { key: 'fat',      icon: '🧈', label: '脂質',         unit: 'g',    target: 15, min: 12, max: 18, range: true },
     { key: 'carbs',    icon: '🍚', label: '炭水化物',     unit: 'g',    target: 79, min: 69, max: 89, range: true },
     { key: 'vitamin',  icon: '🥬', label: '野菜量',       unit: 'g',    target: 120, positive: true },
     { key: 'mineral',  icon: '🦴', label: 'カルシウム',   unit: 'mg',   target: 227, positive: true },
@@ -461,7 +478,8 @@ function buildNutritionBar(sc) {
     { key: 'alcohol',  icon: '🍺', label: 'アルコール',   unit: 'g',    target: 20, reverse: true, optional: true },
   ];
   let html = '<div class="nutri-card">';
-  html += '<div class="nutri-title">📊 栄養バランス（エビデンス対比）</div>';
+  html += '<div class="nutri-title">📊 栄養バランス（1食の目安と比較）</div>';
+  html += '<div class="nut-grid">';
   // calories の値を fat/carbs %→g 変換に使う
   const calRaw = sc.calories;
   const calV = (calRaw && typeof calRaw === 'object') ? Number(calRaw.value) : (typeof calRaw === 'number' ? calRaw : 550);
@@ -474,67 +492,52 @@ function buildNutritionBar(sc) {
     // 旧データ互換: fat/carbs が % で保存されている場合 → g に変換
     if (item.key === 'fat' && val > 0 && val <= 50) val = Math.round(val * calV / 100 / 9 * 10) / 10;
     if (item.key === 'carbs' && val > 0 && val <= 70) val = Math.round(val * calV / 100 / 4 * 10) / 10;
-    // positive 栄養素は超過時のバー溢れを防ぐため barMax を 2.0 に拡張
-    const barMax = item.positive ? item.target * 2.0 : item.target * 1.5;
-    const pct = Math.min(100, (val / barMax) * 100);
-    let status, color;
+    // ステータス + 逸脱の大きさ(dev%) を算出 (bad=超過/不足, over=超過方向)
+    let status, baseColor = '#10b981', bad = false, dev = 0, over = false;
     if (item.reverse) {
-      if (val <= item.target * 0.8) { status = '良好'; color = '#20c997'; }
-      else if (val <= item.target) { status = '適量'; color = '#f59e0b'; }
-      else { status = '超過'; color = '#ef4444'; }
+      if (val <= item.target * 0.8) status = '良好';
+      else if (val <= item.target) status = '適量';
+      else { status = '超過'; bad = true; over = true; dev = (val - item.target) / item.target * 100; }
     } else if (item.range) {
-      if (val >= item.min && val <= item.max) { status = '適量'; color = '#20c997'; }
-      else if (val < item.min) { status = '不足'; color = '#f59e0b'; }
-      else { status = '超過'; color = '#ef4444'; }
+      if (val >= item.min && val <= item.max) status = '適量';
+      else if (val < item.min) { status = '不足'; bad = true; dev = (item.min - val) / item.min * 100; }
+      else { status = '超過'; bad = true; over = true; dev = (val - item.max) / item.max * 100; }
     } else if (item.positive) {
-      // 多いほど良い栄養素 — 目標到達で「達成」、超過は「優秀」
       const ratio = val / item.target;
-      if (ratio >= 1.3) { status = '優秀'; color = '#0d9488'; }       // 濃緑 (130%超)
-      else if (ratio >= 1.0) { status = '達成'; color = '#20c997'; }  // 緑 (目標到達)
-      else if (ratio >= 0.7) { status = 'もう一歩'; color = '#f59e0b'; } // 黄 (70-99%)
-      else if (ratio >= 0.4) { status = '不足'; color = '#fb923c'; }  // オレンジ
-      else { status = '不足'; color = '#ef4444'; }                    // 赤 (40%未満)
+      if (ratio >= 1.3) { status = '優秀'; baseColor = '#0d9488'; }
+      else if (ratio >= 1.0) status = '達成';
+      else if (ratio >= 0.7) { status = 'もう一歩'; bad = true; dev = (item.target - val) / item.target * 100; }
+      else { status = '不足'; bad = true; dev = (item.target - val) / item.target * 100; }
     } else {
-      // フォールバック (旧 default 動作)
       const ratio = val / item.target;
-      if (ratio >= 0.8 && ratio <= 1.3) { status = '適量'; color = '#20c997'; }
-      else if (ratio < 0.8) { status = '不足'; color = '#f59e0b'; }
-      else { status = '超過'; color = '#ef4444'; }
+      if (ratio >= 0.8 && ratio <= 1.3) status = '適量';
+      else if (ratio < 0.8) { status = '不足'; bad = true; dev = (item.target - val) / item.target * 100; }
+      else { status = '超過'; bad = true; over = true; dev = (val - item.target) / item.target * 100; }
     }
-    const targetPct = Math.min(100, (item.target / barMax) * 100);
+    // 逸脱レベルで色とメリハリを段階化 (過剰/不足ほど 注意→危険→重大 を強調)
+    dev = Math.round(dev);
+    let color = baseColor, sev = 0, warn = '';
+    if (bad) {
+      if (dev < 25) { color = '#f59e0b'; sev = 1; }          // 軽度: アンバー
+      else if (dev < 60) { color = '#f97316'; sev = 2; warn = '⚠ '; }   // 注意: オレンジ
+      else if (dev < 120) { color = '#dc2626'; sev = 3; warn = '⚠ '; }  // 危険: 赤・大
+      else { color = '#991b1b'; sev = 4; warn = '‼ '; }      // 重大: 濃赤・最大・点滅
+    }
+    // 塗り絵フィル (満タン=基準到達)。range系は上限、その他は目標を基準に
+    const fillRef = item.range ? item.max : item.target;
+    const fill = Math.max(6, Math.min(100, Math.round(val / (fillRef || 1) * 100)));
+    // %テキスト: ▲超過 / ▼不足 (レベルで⚠/‼) / ✓状態
+    const pctText = bad ? (warn + (over ? '▲' : '▼') + dev + '% ' + status) : ('✓ ' + status);
+    const tgt = item.range ? (item.min + '〜' + item.max + item.unit) : (item.reverse ? (item.target + item.unit + '以下') : (item.target + item.unit + '以上'));
     const dispVal = (val % 1 === 0) ? val : val.toFixed(1);
-    // 達成ゾーン (緑背景帯): 各タイプ別に算出
-    let zoneHtml = '';
-    if (item.positive) {
-      // 達成ゾーン (100-130%) と優秀ゾーン (130%+ → barMax)
-      const z1L = Math.min(100, (item.target * 1.0 / barMax) * 100);
-      const z1R = Math.min(100, (item.target * 1.3 / barMax) * 100);
-      const z2L = z1R;
-      const z2R = 100;
-      zoneHtml = `<div class="bar-zone" style="left:${z1L}%;width:${z1R - z1L}%;"></div>` +
-                 `<div class="bar-zone-strong" style="left:${z2L}%;width:${z2R - z2L}%;"></div>`;
-    } else if (item.range) {
-      const zL = Math.min(100, (item.min / barMax) * 100);
-      const zR = Math.min(100, (item.max / barMax) * 100);
-      zoneHtml = `<div class="bar-zone" style="left:${zL}%;width:${zR - zL}%;"></div>`;
-    } else if (item.reverse) {
-      // 良好ゾーン (≦80% of target)
-      const zR = Math.min(100, (item.target * 0.8 / barMax) * 100);
-      zoneHtml = `<div class="bar-zone" style="left:0;width:${zR}%;"></div>`;
-    }
-    // 全項目: ラベルを左端に固定、ステータスバッジを右端に固定 (黒文字+白ハローで読みやすく)
-    const labelHtml = `${item.icon} ${escapeHtml(item.label)}<span class="bf-val">${dispVal}<span class="bf-unit">${item.unit}</span></span>`;
-    const bgStyle = `width:${pct}%;background:${color};`;
-    html += `<div class="nutri-row">
-      <div class="bar-wrap">
-        ${zoneHtml}
-        <div class="bar-fill" style="${bgStyle}"></div>
-        <div class="bar-label">${labelHtml}</div>
-        <div class="bar-target-lbl" style="left:${targetPct}%;transform:translate(${targetPct >= 70 ? '-104%' : '6px'},-50%);">目標 ${item.target}${item.unit}</div>
-        <span class="bar-status-fixed" style="color:${color};">${status}</span>
-      </div>
+    html += `<div class="nut-cell" style="border-color:${color}55;background:${color}10;">
+      <div class="nut-ico"><div class="g base">${item.icon}</div><div class="clip" style="height:${fill}%;"><div class="g">${item.icon}</div></div></div>
+      <div class="nut-name">${escapeHtml(item.label)}</div>
+      <div class="nut-val">${dispVal}<span class="t">${item.unit} / 基準 ${tgt}</span></div>
+      <div class="nut-pct sev${sev}" style="color:${color};background:${color}1f;border-color:${color}66;">${pctText}</div>
     </div>`;
   }
+  html += '</div>';
   // 信憑性バッジ (基準物検出時は緑「★★★ 基準物あり」)
   const conf = sc.confidence;
   if (conf && conf.level) {
