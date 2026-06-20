@@ -527,14 +527,19 @@ function buildNutritionBar(sc) {
     const fillRef = item.range ? item.max : item.target;
     const fill = Math.max(6, Math.min(100, Math.round(val / (fillRef || 1) * 100)));
     // %テキスト: ▲超過 / ▼不足 (レベルで⚠/‼) / ✓状態
-    const pctText = bad ? (warn + (over ? '▲' : '▼') + dev + '%' + status) : ('✓ ' + status);
+    // 表記: 小さなズレは%、大幅(60%以上)は直感的に「基準の◯.◯倍」(超過)/「基準の◯割」(不足)
+    let pctText;
+    if (!bad) pctText = '✓ ' + status;
+    else if (dev < 60) pctText = warn + (over ? '▲' : '▼') + dev + '%' + status;
+    else if (over) pctText = warn + '基準の' + (1 + dev / 100).toFixed(1) + '倍';
+    else { const w = Math.round((1 - dev / 100) * 10); pctText = warn + '基準の' + (w < 1 ? '1割未満' : w + '割'); }
     const tgt = item.range ? (item.min + '〜' + item.max + item.unit) : (item.reverse ? (item.target + item.unit + '以下') : (item.target + item.unit + '以上'));
     const dispVal = (val % 1 === 0) ? val : val.toFixed(1);
     html += `<div class="nut-cell" style="border-color:${color}55;background:${color}10;">
       <div class="nut-ico"><div class="g base">${item.icon}</div><div class="clip" style="height:${fill}%;"><div class="g">${item.icon}</div></div></div>
       <div class="nut-name">${escapeHtml(item.label)}</div>
       <div class="nut-val">${dispVal}<span class="t">${item.unit} / 基準 ${tgt}</span></div>
-      <div class="nut-pct sev${sev}" style="color:${color};background:${color}1f;border-color:${color}66;">${pctText}</div>
+      <div class="nut-pct sev${sev}" style="color:${color};background:#fff;border-color:${color};">${pctText}</div>
     </div>`;
   }
   html += '</div>';
