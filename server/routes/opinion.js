@@ -124,8 +124,11 @@ router.post('/', authUser, (req, res) => {
   db.transaction(() => { valid.forEach(u => invIns.run(rid, u)); })();
   // 対象者へ依頼DM(+push)。bot名義でなく主催者本人名義=受信箱に出る。
   const org = db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
-  const msg = `🙋 ${(org && org.display_name) || ''}さんが「${title}」についてみんなの意見を募集しています。\n`
-    + `あなたの考えを聞かせてください（${allowAnon ? '匿名でも回答できます' : '記名'}）。\n→ /opinion.html?id=${rid}`;
+  const link = 'https://cohub.biz-terrace.org/opinion.html?id=' + rid;
+  const msg = `🙋 ${(org && org.display_name) || ''}さんが、みんなの意見を募集しています。\n`
+    + `【お題】${title}\n`
+    + `あなたの考えを聞かせてください（${allowAnon ? '匿名でも回答できます' : '記名'}）。\n`
+    + `👇 下のリンクをタップすると回答画面が開きます\n${link}`;
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const push = req.app && req.app.locals && req.app.locals.sendPushToUser;
   const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
