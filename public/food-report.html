@@ -47,7 +47,7 @@
   /* 栄養イラスト(塗り絵風)グリッド */
   .nut-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:6px}
   @media(max-width:520px){.nut-grid{grid-template-columns:repeat(2,1fr)}}
-  .nut-cell{border:1px solid #e4eaf2;border-radius:14px;padding:10px 8px 9px;text-align:center;background:#fbfdff}
+  .nut-cell{border:1px solid #e4eaf2;border-radius:14px;padding:10px 8px 9px;text-align:center;background:#fbfdff;display:flex;flex-direction:column;align-items:center;height:100%}
   .nut-cell.good{border-color:#a7f3d0;background:#f0fdf9}
   .nut-cell.warn{border-color:#fde68a;background:#fffbeb}
   .nut-cell.bad{border-color:#fecaca;background:#fef2f2}
@@ -58,7 +58,7 @@
   .nut-name{font-size:13px;font-weight:800;color:#334155}
   .nut-val{font-size:15px;font-weight:800;color:#0f172a;margin-top:3px}
   .nut-val .t{font-size:11px;font-weight:600;color:#94a3b8}
-  .nut-pct{font-size:12px;font-weight:800;margin-top:3px;padding:1px 8px;border-radius:999px;display:inline-block}
+  .nut-pct{font-size:12px;font-weight:800;margin-top:auto;padding:3px 8px;border-radius:999px;display:inline-block;white-space:nowrap;line-height:1.25}
   .nut-pct.good{color:#0f9d63;background:#dcfce7}
   .nut-pct.warn{color:#b45309;background:#fef3c7}
   .nut-pct.bad{color:#dc2626;background:#fee2e2}
@@ -68,9 +68,9 @@
   .nut-cell.sev3{border-color:#fca5a5;background:#fef2f2}
   .nut-cell.sev4{border-color:#ef4444;background:#fee2e2}
   .nut-pct.sev1{color:#b45309;background:#fef3c7;font-size:12.5px}
-  .nut-pct.sev2{color:#c2410c;background:#ffedd5;font-size:14px;font-weight:900}
-  .nut-pct.sev3{color:#dc2626;background:#fee2e2;font-size:15.5px;font-weight:900;box-shadow:0 1px 5px rgba(220,38,38,.3)}
-  .nut-pct.sev4{color:#991b1b;background:#fee2e2;font-size:17.5px;font-weight:900;letter-spacing:.5px;box-shadow:0 2px 9px rgba(153,27,27,.45);animation:nutAlarm 1s ease-in-out infinite}
+  .nut-pct.sev2{color:#c2410c;background:#ffedd5;font-size:13.5px;font-weight:900}
+  .nut-pct.sev3{color:#dc2626;background:#fee2e2;font-size:14.5px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px rgba(220,38,38,.3)}
+  .nut-pct.sev4{color:#991b1b;background:#fee2e2;font-size:15.5px;font-weight:900;letter-spacing:.3px;box-shadow:0 2px 9px rgba(153,27,27,.45);animation:nutAlarm 1s ease-in-out infinite}
   @keyframes nutAlarm{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
   .meta{font-size:12px;color:#64748b;margin-bottom:6px}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -170,7 +170,7 @@ function evalNut(n,v){
     else if(dev<120){cls='sev3';warn='⚠ ';}
     else{cls='sev4';warn='‼ ';}
   }
-  const pctText = bad ? (warn+(over?'▲':'▼')+dev+'% '+lbl) : '✓ 適正';
+  const pctText = bad ? (warn+(over?'▲':'▼')+dev+'%'+lbl) : '✓ 適正';
   const ref=(n.max!=null?n.max:n.min);
   const fill=Math.max(8,Math.min(100,Math.round(v/ref*100)));
   return {cls,pctText,fill};
