@@ -100,7 +100,7 @@ function notifyWatchers(req, postId, snippet) {
     if (!watchers.length) return;
     const emit = req.app && req.app.locals && req.app.locals.emitToUser;
     const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
-    const msg = `🍀 「元祖Ｂさんの愛の日記」に、少し気にかけたい言葉がありました。\nそっと様子を気にかけて、よければ励ましの一言を。\n→ /bdiary.html`;
+    const msg = `🍀 「元祖Ｂさんの愛の日記」に、少し気にかけたい言葉がありました。\nそっと様子を気にかけて、よければ励ましの一言を。\n→ https://cohub.biz-terrace.org/bdiary.html`;
     for (const uid of watchers) {
       try {
         const r = dmIns.run('bot_promoter', uid, msg);

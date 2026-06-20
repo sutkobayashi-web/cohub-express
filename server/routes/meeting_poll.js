@@ -371,12 +371,12 @@ router.post('/', authUser, (req, res) => {
   if (kind === 'event') {
     const itemPreviews = slotValues.slice(0, 3).map(s => s.label).join('・');
     const more = slotValues.length > 3 ? ` 他${slotValues.length - 3}件` : '';
-    msg = `📋 ${orgName}さんが「${title}」の参加可否を募集しています。\n項目: ${itemPreviews}${more}\n→ /boshu.html?id=${pollId} で回答`;
+    msg = `📋 ${orgName}さんが「${title}」の参加可否を募集しています。\n項目: ${itemPreviews}${more}\n→ https://cohub.biz-terrace.org/boshu.html?id=${pollId} で回答`;
   } else {
     const slotPreviews = slotValues.slice(0, 3).map(s => fmtJa(s.starts_at)).join('・');
     const more = slotValues.length > 3 ? ` 他${slotValues.length - 3}件` : '';
     const place = fmtPlace(format, location);
-    msg = `📅 ${orgName}さんが「${title}」の日程調整を依頼しています。\n形式: ${place}\n候補: ${slotPreviews}${more}\n→ /poll.html?id=${pollId} で回答`;
+    msg = `📅 ${orgName}さんが「${title}」の日程調整を依頼しています。\n形式: ${place}\n候補: ${slotPreviews}${more}\n→ https://cohub.biz-terrace.org/poll.html?id=${pollId} で回答`;
   }
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
@@ -431,7 +431,7 @@ router.post('/:id/decide', authUser, (req, res) => {
 
   const invitees = db.prepare(`SELECT user_id FROM meeting_poll_invitees WHERE poll_id = ?`).all(id);
   const place = fmtPlace(poll.format, poll.location);
-  const msg = `✅ 「${poll.title}」の開催日時が確定しました: ${fmtJa(slot.starts_at)}\n形式: ${place}\n→ /poll.html?id=${id}`;
+  const msg = `✅ 「${poll.title}」の開催日時が確定しました: ${fmtJa(slot.starts_at)}\n形式: ${place}\n→ https://cohub.biz-terrace.org/poll.html?id=${id}`;
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
   for (const { user_id } of invitees) {
@@ -563,7 +563,7 @@ function tickReminders(app) {
     const dur = c.duration_minutes || 30;
     const timeStr = (() => { const d = new Date(startLocal); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); })();
     const place = fmtPlace(c.format, c.location);
-    const where = (c.format === 'inperson') ? place : `${place}\n→ /meeting で入室`;
+    const where = (c.format === 'inperson') ? place : `${place}\n→ https://cohub.biz-terrace.org/meeting で入室`;
     // 15分前: 15分以内 かつ 5分超 (5分通知に被らない) かつ 未通知
     if (!c.notified_15min_at && minsUntil <= 15 && minsUntil > 5) {
       const msg = `⏰ あと${Math.max(1, Math.round(minsUntil))}分で「${c.title}」が始まります (${timeStr}〜${dur}分)\n${where}`;

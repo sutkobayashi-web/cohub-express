@@ -94,7 +94,7 @@ async function notifyConsultToPromoters(app, post) {
       '─ 相談内容 ─',
       content.slice(0, 600),
       bodyAction,
-      '→ 「悩み相談」を開いて、あなたの言葉で返信してください: /plaza.html?tab=相談',
+      '→ 「悩み相談」を開いて、あなたの言葉で返信してください: https://cohub.biz-terrace.org/plaza.html?tab=相談',
     ].join('\n');
 
     // g_field_voice に記録 (全推進メンバーが見える) — Tierに関わらず投稿
@@ -289,6 +289,9 @@ router.get('/posts', authUser, (req, res) => {
 
   const ids = newPosts.map(p => p.id);
   const me = req.uid;
+  // 管理職(employee_type=admin)はモデレーションのため全投稿を削除可
+  const _viewer = db.prepare('SELECT employee_type FROM users WHERE id = ?').get(me);
+  const meIsManager = !!(_viewer && _viewer.employee_type === 'admin');
   let reactions = [];
   let cmtMap = {};
   if (ids.length) {
@@ -312,7 +315,7 @@ router.get('/posts', authUser, (req, res) => {
       reactions: counts,
       my_reactions: mine,
       comment_count: cmtMap[p.id] || 0,
-      can_delete: isAuthor,
+      can_delete: isAuthor || meIsManager,
       is_mine: isAuthor,
       // 表示用: nutrition_scores に extra_alcohol_g を合算
       nutrition_scores: mergeExtraAlcohol(p.nutrition_scores, p.extra_alcohol_g),
@@ -506,13 +509,15 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   res.json({ success: true, post });
 });
 
-// 削除 (本人のみ)
+// 削除 (本人 or 管理職)
 router.delete('/posts/:id', authUser, (req, res) => {
   const id = parseInt(req.params.id);
   const db = getDb();
   const p = db.prepare('SELECT author_id FROM plaza_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!p) return res.status(404).json({ success: false, msg: '見つかりません' });
-  if (p.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ削除可' });
+  const viewer = db.prepare('SELECT employee_type FROM users WHERE id = ?').get(req.uid);
+  const isManager = !!(viewer && viewer.employee_type === 'admin');
+  if (p.author_id !== req.uid && !isManager) return res.status(403).json({ success: false, msg: '削除権限がありません（本人または管理職のみ）' });
   db.prepare("UPDATE plaza_posts SET deleted_at = datetime('now') WHERE id = ?").run(id);
   const io = req.app && req.app.locals && req.app.locals.io;
   if (io) io.emit('plaza:delete', { id });

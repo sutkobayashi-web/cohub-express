@@ -203,7 +203,7 @@ router.post('/', authUser, (req, res) => {
   const rule = maxChoices === 1 ? '1つ選んで' : `最大${maxChoices}つまで選んで`;
   const preview = options.slice(0, 3).map(o => '・' + o).join('\n');
   const more = options.length > 3 ? `\n…他${options.length - 3}件` : '';
-  const msg = `🗳️ ${(orgUser && orgUser.display_name) || ''}さんが「${title}」の投票を依頼しています。\n${rule}投票してください (全${options.length}項目)\n${preview}${more}\n→ /vote.html?id=${pollId} で投票`;
+  const msg = `🗳️ ${(orgUser && orgUser.display_name) || ''}さんが「${title}」の投票を依頼しています。\n${rule}投票してください (全${options.length}項目)\n${preview}${more}\n→ https://cohub.biz-terrace.org/vote.html?id=${pollId} で投票`;
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
   for (const uid of validInvitees) {
@@ -262,7 +262,7 @@ router.post('/:id/close', authUser, (req, res) => {
   db.prepare(`UPDATE vote_polls SET status = 'closed', closed_at = datetime('now') WHERE id = ?`).run(id);
 
   const invitees = db.prepare(`SELECT user_id FROM vote_poll_invitees WHERE poll_id = ?`).all(id);
-  const msg = `📊 「${poll.title}」の投票が締め切られました。結果を確認できます。\n→ /vote.html?id=${id}`;
+  const msg = `📊 「${poll.title}」の投票が締め切られました。結果を確認できます。\n→ https://cohub.biz-terrace.org/vote.html?id=${id}`;
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
   for (const { user_id } of invitees) {
@@ -334,7 +334,7 @@ router.post('/:id/runoff', authUser, (req, res) => {
   const rule = maxChoices === 1 ? '1つ選んで' : `最大${maxChoices}つまで選んで`;
   const preview = opts.slice(0, 4).map(o => '・' + o.label).join('\n');
   const more = opts.length > 4 ? `\n…他${opts.length - 4}件` : '';
-  const msg = `🏁 ${(orgUser && orgUser.display_name) || ''}さんが「${parent.title}」の決選投票を開始しました。\n上位${opts.length}候補から${rule}投票してください\n${preview}${more}\n→ /vote.html?id=${newId} で投票`;
+  const msg = `🏁 ${(orgUser && orgUser.display_name) || ''}さんが「${parent.title}」の決選投票を開始しました。\n上位${opts.length}候補から${rule}投票してください\n${preview}${more}\n→ https://cohub.biz-terrace.org/vote.html?id=${newId} で投票`;
   const emit = req.app && req.app.locals && req.app.locals.emitToUser;
   const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES (?, ?, ?, 'dm')");
   for (const uid of invitees) {
