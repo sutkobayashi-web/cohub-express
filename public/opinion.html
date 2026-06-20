@@ -29,7 +29,8 @@
   .row-card .meta{ font-size:12px; color:var(--sub); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .pill{ display:inline-block; font-size:11px; font-weight:800; padding:2px 9px; border-radius:14px; }
   .pill.open{ background:#ecfdf5; color:var(--teal2); } .pill.closed{ background:#f1f5f9; color:#64748b; }
-  .pill.todo{ background:#fee2e2; color:#dc2626; } .pill.done{ background:#e0f2fe; color:#0369a1; }
+  .pill.todo{ background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; } .pill.done{ background:#e0f2fe; color:#0369a1; }
+  .pill.answered{ background:#dc2626; color:#fff; }  /* 回答済=赤い「済」スタンプ風 */
   .empty{ text-align:center; color:var(--sub); padding:40px 0; } .empty .em{ font-size:40px; }
 
   label.fld{ display:block; font-size:13px; font-weight:800; color:var(--ink); margin:14px 0 5px; }
@@ -155,7 +156,7 @@ async function showList(){
     let badge = '';
     if (mine) badge = '<span class="pill done">主催 ' + p.response_count + '/' + p.invitee_count + '件</span>';
     else if (p.status==='open' && !p.i_responded) badge = '<span class="pill todo">未回答</span>';
-    else if (p.i_responded) badge = '<span class="pill done">回答済</span>';
+    else if (p.i_responded) badge = '<span class="pill answered">✓ 回答済</span>';
     return '<div class="card row-card" onclick="showDetail(' + p.id + ')">'
       + '<div class="rt">' + escapeHtml(p.title) + '</div>'
       + '<div class="meta">' + statusPill + badge
