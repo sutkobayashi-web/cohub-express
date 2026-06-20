@@ -309,6 +309,7 @@ app.use('/api/meeting', require('./routes/meeting'));
   }
 }
 app.use('/api/vote', require('./routes/vote'));
+app.use('/api/opinion', require('./routes/opinion'));
 app.use('/api/daily-message', require('./routes/daily_message'));
 app.use('/api/whats-new', require('./routes/whats_new'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
@@ -340,7 +341,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-06-20-guide-close"
+const APP_VERSION = "2026-06-20-opinion"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });

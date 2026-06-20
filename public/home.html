@@ -750,6 +750,12 @@
       <div class="label">投票したろう（投票）</div>
       <div class="desc">選択肢を出して、対象者が選んで投票。アンケートや多数決の集計が一目で分かる。</div>
     </a>
+    <a class="card opinion" href="/opinion.html">
+      <span class="badge" id="b-opinion" style="display:none;">0</span>
+      <div class="icon-pill">🙋</div>
+      <div class="label">みんなに聞いてみよう</div>
+      <div class="desc">お題に自由記述で意見を集め、AIが論点・賛否を自動要約。DMでの手集約が不要に。</div>
+    </a>
     <a class="card matomeru" href="/matomeru.html">
       <div class="icon-pill">🦉</div>
       <div class="label">まとめる君</div>
@@ -1519,6 +1525,16 @@ async function fetchBadges() {
       $('b-vote').style.display = '';
     } else if ($('b-vote')) {
       $('b-vote').style.display = 'none';
+    }
+  } catch(e) {}
+  // みんなに聞いてみよう (未回答の意見募集数)
+  try {
+    const op = await api('/api/opinion/unread-count');
+    if (op && op.success && op.count > 0) {
+      $('b-opinion').textContent = op.count;
+      $('b-opinion').style.display = '';
+    } else if ($('b-opinion')) {
+      $('b-opinion').style.display = 'none';
     }
   } catch(e) {}
   // 食事・投稿 (plaza): 新着投稿数

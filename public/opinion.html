@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>みんなに聞いてみよう</title>
+<style>
+  :root{ --teal:#0d9488; --teal2:#0f766e; --ink:#1f2937; --sub:#64748b; --line:#e2e8f0; --bg:#eef3f8;
+         --amber:#b45309; --amberbg:#fffbeb; }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{ font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; padding-bottom:40px; }
+  .head{ position:sticky; top:0; z-index:10; background:linear-gradient(135deg,#0ea5a3,#0f766e); color:#fff; padding:12px 14px; display:flex; align-items:center; gap:10px; box-shadow:0 3px 12px rgba(15,118,110,.3); }
+  .head .back{ background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:20px; padding:6px 13px; font-weight:800; font-size:13px; cursor:pointer; }
+  .head .t{ font-size:18px; font-weight:900; letter-spacing:1px; }
+  .wrap{ max-width:760px; margin:0 auto; padding:14px; }
+  .hero{ background:#fff; border-radius:14px; padding:14px 16px; display:flex; gap:12px; align-items:center; box-shadow:0 2px 10px rgba(15,42,79,.06); margin-bottom:12px; }
+  .hero .em{ font-size:38px; }
+  .hero .msg{ font-size:13px; color:var(--sub); }
+  .hero .msg b{ color:var(--teal2); }
+
+  button.primary{ background:linear-gradient(135deg,#0d9488,#0f766e); color:#fff; border:none; border-radius:26px; padding:12px 22px; font-weight:900; font-size:15px; cursor:pointer; box-shadow:0 5px 14px rgba(13,148,136,.3); }
+  button.ghost{ background:#fff; color:var(--teal2); border:1.5px solid var(--teal); border-radius:24px; padding:9px 16px; font-weight:800; font-size:13.5px; cursor:pointer; }
+  button.danger{ background:#fff; color:#dc2626; border:1.5px solid #fca5a5; border-radius:24px; padding:9px 16px; font-weight:800; font-size:13px; cursor:pointer; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:15px 16px; margin:10px 0; box-shadow:0 2px 8px rgba(15,42,79,.05); }
+  .row-card{ cursor:pointer; transition:.15s; }
+  .row-card:hover{ box-shadow:0 4px 14px rgba(15,42,79,.12); transform:translateY(-1px); }
+  .row-card .rt{ font-size:16px; font-weight:900; }
+  .row-card .meta{ font-size:12px; color:var(--sub); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .pill{ display:inline-block; font-size:11px; font-weight:800; padding:2px 9px; border-radius:14px; }
+  .pill.open{ background:#ecfdf5; color:var(--teal2); } .pill.closed{ background:#f1f5f9; color:#64748b; }
+  .pill.todo{ background:#fee2e2; color:#dc2626; } .pill.done{ background:#e0f2fe; color:#0369a1; }
+  .empty{ text-align:center; color:var(--sub); padding:40px 0; } .empty .em{ font-size:40px; }
+
+  label.fld{ display:block; font-size:13px; font-weight:800; color:var(--ink); margin:14px 0 5px; }
+  input[type=text], textarea{ width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 13px; font-size:15px; font-family:inherit; }
+  textarea{ min-height:110px; resize:vertical; line-height:1.6; }
+  .hint{ font-size:11.5px; color:var(--sub); margin-top:4px; }
+  .chk{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; margin-top:10px; cursor:pointer; }
+  .chk input{ width:18px; height:18px; }
+
+  .group-chips{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+  .group-chip{ font-size:12px; font-weight:800; padding:5px 11px; border-radius:18px; border:1.5px solid var(--line); background:#fff; color:var(--sub); cursor:pointer; }
+  .group-chip.cross{ border-color:#34d399; color:var(--teal2); }
+  .group-chip.full{ background:var(--teal); color:#fff; border-color:var(--teal); }
+  .group-chip.partial{ background:#ccfbf1; color:var(--teal2); border-color:#5eead4; }
+  .group-chip .gc-cnt{ opacity:.8; margin-left:5px; }
+  .invitees-pick{ max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:10px; padding:6px; margin-top:4px; background:#fafafa; }
+  .invitee-item{ display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:8px; cursor:pointer; }
+  .invitee-item.checked{ background:#ecfdf5; }
+  .invitee-item input{ width:17px; height:17px; }
+  .invitee-item .ava{ width:30px; height:30px; border-radius:50%; background:#cbd5e1; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; overflow:hidden; }
+  .invitee-item .ava img{ width:100%; height:100%; object-fit:cover; }
+  .invitee-item .nm{ font-size:14px; font-weight:700; } .invitee-item .grp{ font-size:11px; color:var(--sub); margin-left:auto; }
+
+  .resp{ border-left:4px solid #cbd5e1; padding:8px 12px; margin:8px 0; background:#f8fafc; border-radius:0 8px 8px 0; }
+  .resp .who{ font-size:12px; font-weight:800; color:var(--sub); margin-bottom:3px; }
+  .resp .c{ font-size:14px; white-space:pre-wrap; }
+  .summary{ background:linear-gradient(180deg,#f0fdfa,#fff); border:1px solid #99f6e4; border-radius:14px; padding:16px 18px; margin:12px 0; }
+  .summary h3{ font-size:16px; color:var(--teal2); margin:14px 0 5px; padding-bottom:4px; border-bottom:1px solid #ccfbf1; }
+  .summary h3:first-child{ margin-top:0; }
+  .summary li{ margin:5px 0 5px 18px; font-size:14px; } .summary p{ font-size:14px; margin:5px 0; }
+  .summary .ai-badge{ display:inline-block; background:var(--teal); color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:14px; margin-bottom:6px; }
+  .err{ color:#dc2626; font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <button class="back" id="back-btn" onclick="goBack()">‹ 戻る</button>
+    <span class="t">🙋 みんなに聞いてみよう</span>
+  </div>
+  <div class="wrap">
+    <div class="hero">
+      <div class="em">🙋</div>
+      <div class="msg" id="hero-msg"><b>意見を、みんなから。</b><br>お題を出すと、集まった意見をAIが要点にまとめます。手集約は不要です。</div>
+    </div>
+
+    <!-- 一覧 -->
+    <div id="view-list">
+      <div style="text-align:right;margin-bottom:8px;"><button class="primary" onclick="showCreate()">＋ 新しく聞いてみる</button></div>
+      <div id="list"></div>
+    </div>
+
+    <!-- 作成 -->
+    <div id="view-create" style="display:none;">
+      <div class="card">
+        <label class="fld">お題（質問）<span style="color:#dc2626;">*</span></label>
+        <input type="text" id="f-title" maxlength="150" placeholder="例：BYOD（個人スマホ利用）をどう進めるべきか？">
+        <label class="fld">補足説明（任意）</label>
+        <textarea id="f-desc" maxlength="4000" placeholder="背景や、特に聞きたい論点があれば書いてください。" style="min-height:80px;"></textarea>
+        <label class="chk"><input type="checkbox" id="f-anon" checked> 匿名での回答を許可する（率直な意見が集まりやすくなります）</label>
+
+        <label class="fld">誰に聞く？（対象者）<span style="color:#dc2626;">*</span></label>
+        <div class="group-chips" id="group-chips"></div>
+        <input type="text" id="f-members-search" placeholder="🔎 名前で絞込" oninput="renderMembersPick()" style="margin-top:6px;">
+        <div class="invitees-pick" id="invitees-pick">読み込み中...</div>
+        <div class="hint" id="invitees-count">0名選択中</div>
+
+        <div style="margin-top:18px;display:flex;gap:10px;">
+          <button class="primary" id="btn-create" onclick="submitCreate()">この内容で募集する</button>
+          <button class="ghost" onclick="showList()">キャンセル</button>
+        </div>
+        <div class="err" id="create-err"></div>
+      </div>
+    </div>
+
+    <!-- 詳細 -->
+    <div id="view-detail" style="display:none;">
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) location.replace('/');
+let me = null, allMembers = [], selectedInvitees = new Set(), curDetail = null;
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function api(path, opts={}){
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object'){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(opts.body); }
+  const r = await fetch(path, opts);
+  if (r.status === 401){ localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+  return r.json();
+}
+function setView(v){
+  document.getElementById('view-list').style.display = v==='list'?'':'none';
+  document.getElementById('view-create').style.display = v==='create'?'':'none';
+  document.getElementById('view-detail').style.display = v==='detail'?'':'none';
+}
+function goBack(){ if(document.getElementById('view-list').style.display==='none'){ showList(); } else { location.href='/home'; } }
+
+async function init(){
+  const r = await api('/api/auth/me');
+  if (!r || !r.success) return;
+  me = r.user;
+  const p = new URLSearchParams(location.search);
+  if (p.get('new')==='1') showCreate();
+  else if (p.get('id')) showDetail(parseInt(p.get('id')));
+  else showList();
+}
+
+/* ===== 一覧 ===== */
+async function showList(){
+  history.replaceState({}, '', '/opinion.html');
+  setView('list');
+  const r = await api('/api/opinion');
+  const el = document.getElementById('list');
+  if (!r || !r.success){ el.innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込み失敗</div>'; return; }
+  if (!r.requests.length){ el.innerHTML = '<div class="empty"><div class="em">🙋</div>まだ募集はありません。<br>「＋ 新しく聞いてみる」から始められます。</div>'; return; }
+  el.innerHTML = r.requests.map(p => {
+    const mine = p.organizer_id === me.id;
+    const statusPill = p.status==='open' ? '<span class="pill open">募集中</span>' : '<span class="pill closed">締切</span>';
+    let badge = '';
+    if (mine) badge = '<span class="pill done">主催 ' + p.response_count + '/' + p.invitee_count + '件</span>';
+    else if (p.status==='open' && !p.i_responded) badge = '<span class="pill todo">未回答</span>';
+    else if (p.i_responded) badge = '<span class="pill done">回答済</span>';
+    return '<div class="card row-card" onclick="showDetail(' + p.id + ')">'
+      + '<div class="rt">' + escapeHtml(p.title) + '</div>'
+      + '<div class="meta">' + statusPill + badge
+      + '<span>主催: ' + escapeHtml(p.organizer_name||'') + '</span>'
+      + '<span>' + (p.created_at||'').slice(0,10) + '</span></div></div>';
+  }).join('');
+}
+
+/* ===== 作成 ===== */
+async function showCreate(){
+  history.replaceState({}, '', '/opinion.html?new=1');
+  setView('create');
+  selectedInvitees = new Set();
+  document.getElementById('f-title').value=''; document.getElementById('f-desc').value='';
+  document.getElementById('f-anon').checked=true; document.getElementById('f-members-search').value='';
+  document.getElementById('create-err').textContent='';
+  const r = await api('/api/members');
+  if (r && r.success){ allMembers = r.items || []; renderGroupChips(); renderMembersPick(); }
+  else document.getElementById('invitees-pick').innerHTML = '<div style="padding:10px;color:#dc2626;">メンバー読み込み失敗</div>';
+}
+function eligibleMembers(){ return allMembers.filter(m => m.id !== me.id); }
+function groupMembers(g){ return eligibleMembers().filter(m => (m.group||'')===g); }
+function chipDefs(){
+  const defs = [];
+  const promoters = eligibleMembers().filter(m => m.promoter);
+  if (promoters.length) defs.push({ label:'🌱 健康推進メンバー', cls:'cross', members:promoters });
+  const seen = new Set();
+  eligibleMembers().forEach(m => { const g=m.group||''; if(seen.has(g))return; seen.add(g); defs.push({label:g||'（グループ未設定）', cls:'', members:groupMembers(g)}); });
+  return defs;
+}
+function renderGroupChips(){
+  document.getElementById('group-chips').innerHTML = chipDefs().map((d,idx)=>{
+    const selN = d.members.filter(m=>selectedInvitees.has(m.id)).length;
+    const state = selN===0?'':(selN===d.members.length?'full':'partial');
+    return '<span class="group-chip '+d.cls+' '+state+'" onclick="toggleGroup('+idx+')">'+escapeHtml(d.label)+'<span class="gc-cnt">'+selN+'/'+d.members.length+'</span></span>';
+  }).join('');
+}
+function toggleGroup(idx){
+  const d = chipDefs()[idx]; if(!d) return;
+  const all = d.members.length>0 && d.members.every(m=>selectedInvitees.has(m.id));
+  d.members.forEach(m=>{ if(all) selectedInvitees.delete(m.id); else selectedInvitees.add(m.id); });
+  renderGroupChips(); renderMembersPick();
+}
+function renderMembersPick(){
+  const q = (document.getElementById('f-members-search').value||'').toLowerCase().trim();
+  const list = eligibleMembers().filter(m => !q || (m.name||'').toLowerCase().includes(q) || (m.group||'').toLowerCase().includes(q)).slice(0,300);
+  document.getElementById('invitees-pick').innerHTML = list.map(m=>{
+    const ck = selectedInvitees.has(m.id);
+    const initial = (m.name||'?').trim().charAt(0);
+    const ava = m.avatar ? '<img src="'+escapeHtml(m.avatar)+'" alt="">' : escapeHtml(initial);
+    return '<label class="invitee-item'+(ck?' checked':'')+'"><input type="checkbox" data-uid="'+escapeHtml(m.id)+'"'+(ck?' checked':'')+' onchange="onInviteeToggle(this)"><div class="ava">'+ava+'</div><div class="nm">'+escapeHtml(m.name)+'</div>'+(m.group?'<div class="grp">'+escapeHtml(m.group)+'</div>':'')+'</label>';
+  }).join('');
+  updateInviteeCount();
+}
+function onInviteeToggle(cb){ if(cb.checked) selectedInvitees.add(cb.dataset.uid); else selectedInvitees.delete(cb.dataset.uid); renderGroupChips(); updateInviteeCount(); }
+function updateInviteeCount(){
+  document.getElementById('invitees-count').textContent = selectedInvitees.size+'名選択中';
+  document.querySelectorAll('#invitees-pick .invitee-item').forEach(el=>el.classList.toggle('checked', el.querySelector('input').checked));
+}
+async function submitCreate(){
+  const title = document.getElementById('f-title').value.trim();
+  const err = document.getElementById('create-err'); err.textContent='';
+  if(!title){ err.textContent='お題（質問）を入力してください'; return; }
+  const invitees = [...selectedInvitees];
+  if(invitees.length<1){ err.textContent='対象者を1人以上選んでください'; return; }
+  const btn = document.getElementById('btn-create'); btn.disabled=true; btn.textContent='送信中...';
+  const r = await api('/api/opinion', { method:'POST', body:{ title, description:document.getElementById('f-desc').value.trim(), allow_anonymous:document.getElementById('f-anon').checked, invitees } });
+  btn.disabled=false; btn.textContent='この内容で募集する';
+  if(r && r.success){ showDetail(r.id); } else { err.textContent = (r&&r.msg)||'作成に失敗しました'; }
+}
+
+/* ===== 詳細 ===== */
+async function showDetail(id){
+  history.replaceState({}, '', '/opinion.html?id='+id);
+  setView('detail');
+  const el = document.getElementById('detail-body');
+  el.innerHTML = '<div class="empty">読み込み中...</div>';
+  const r = await api('/api/opinion/'+id);
+  if(!r || !r.success){ el.innerHTML = '<div class="empty"><div class="em">⚠️</div>'+((r&&r.msg)||'読み込み失敗')+'</div>'; return; }
+  curDetail = r;
+  const p = r.request;
+  const statusPill = p.status==='open' ? '<span class="pill open">募集中</span>' : '<span class="pill closed">締切</span>';
+  let html = '<div class="card"><div class="rt" style="font-size:19px;font-weight:900;">'+escapeHtml(p.title)+'</div>'
+    + '<div class="meta" style="margin-top:6px;color:var(--sub);font-size:12px;">'+statusPill+' 主催: '+escapeHtml(p.organizer_name||'')+' ・ '+(p.created_at||'').slice(0,10)+'</div>'
+    + (p.description ? '<div style="margin-top:10px;white-space:pre-wrap;font-size:14px;color:#334155;">'+escapeHtml(p.description)+'</div>' : '')
+    + '</div>';
+
+  // 回答フォーム (招待されている人 / open)
+  if (r.is_invited && p.status==='open'){
+    const cur = r.my_response;
+    html += '<div class="card"><label class="fld">あなたの意見</label>'
+      + '<textarea id="my-content" maxlength="4000" placeholder="思っていることを自由に書いてください。">'+escapeHtml(cur?cur.content:'')+'</textarea>'
+      + (p.allow_anonymous ? '<label class="chk"><input type="checkbox" id="my-anon"'+(cur&&cur.is_anon?' checked':(cur?'':' checked'))+'> 匿名で送る（名前を出さない）</label>' : '<div class="hint">この募集は記名式です。</div>')
+      + '<div style="margin-top:12px;"><button class="primary" id="btn-respond" onclick="submitResponse('+p.id+')">'+(cur?'意見を更新する':'意見を送る')+'</button>'
+      + (cur?'<span class="hint" style="margin-left:10px;">'+ (cur.updated_at||'').slice(0,16).replace('T',' ') +' に回答済み</span>':'')+'</div>'
+      + '<div class="err" id="respond-err"></div></div>';
+  } else if (r.is_invited && p.status!=='open'){
+    html += '<div class="card"><div class="hint">この募集は締め切られました。'+(r.my_response?'あなたは回答済みです。':'')+'</div></div>';
+  }
+
+  // 主催者ビュー: 集約 + 生の意見
+  if (r.is_organizer){
+    html += '<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+      + '<b style="font-size:15px;">回答 '+r.response_count+' / '+r.invitee_count+' 名</b>'
+      + '<button class="primary" id="btn-sum" onclick="runSummarize('+p.id+')" style="padding:9px 18px;font-size:14px;">🤖 AIで集約する</button>'
+      + (p.status==='open'
+          ? '<button class="danger" onclick="closeReq('+p.id+')">締め切る</button>'
+          : '<button class="ghost" onclick="reopenReq('+p.id+')">再開する</button>')
+      + '</div><div class="err" id="sum-err"></div>'
+      + '<div id="summary-box">'+(p.summary_text?renderSummary(p.summary_text, p.summarized_at):'')+'</div>'
+      + '</div>';
+    // 生の意見一覧
+    html += '<div class="card"><b style="font-size:14px;">寄せられた意見（主催者のみ閲覧）</b>';
+    if (r.responses && r.responses.length){
+      html += r.responses.map(x => '<div class="resp"><div class="who">'+(x.name?escapeHtml(x.name):'🎭 匿名')+'</div><div class="c">'+escapeHtml(x.content)+'</div></div>').join('');
+    } else { html += '<div class="hint" style="margin-top:6px;">まだ意見は集まっていません。</div>'; }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+async function submitResponse(id){
+  const content = document.getElementById('my-content').value.trim();
+  const err = document.getElementById('respond-err'); err.textContent='';
+  if(!content){ err.textContent='意見を入力してください'; return; }
+  const anonEl = document.getElementById('my-anon');
+  const btn = document.getElementById('btn-respond'); btn.disabled=true; btn.textContent='送信中...';
+  const r = await api('/api/opinion/'+id+'/respond', { method:'POST', body:{ content, anonymous: anonEl?anonEl.checked:false } });
+  btn.disabled=false;
+  if(r && r.success){ showDetail(id); } else { btn.textContent='意見を送る'; err.textContent=(r&&r.msg)||'送信失敗'; }
+}
+async function runSummarize(id){
+  const btn = document.getElementById('btn-sum'); const err=document.getElementById('sum-err'); err.textContent='';
+  btn.disabled=true; btn.textContent='🤖 集約中…(数十秒)';
+  const r = await api('/api/opinion/'+id+'/summarize', { method:'POST', body:{} });
+  btn.disabled=false; btn.textContent='🤖 AIで集約する（再実行）';
+  if(r && r.success){ document.getElementById('summary-box').innerHTML = renderSummary(r.summary, new Date().toISOString()); }
+  else { err.textContent=(r&&r.msg)||'集約に失敗しました'; }
+}
+async function closeReq(id){ if(!confirm('募集を締め切りますか？')) return; const r=await api('/api/opinion/'+id+'/close',{method:'POST',body:{}}); if(r&&r.success) showDetail(id); }
+async function reopenReq(id){ const r=await api('/api/opinion/'+id+'/reopen',{method:'POST',body:{}}); if(r&&r.success) showDetail(id); }
+
+// 簡易Markdown(##見出し / - 箇条書き / **強調**)→HTML
+function renderSummary(md, at){
+  const esc = escapeHtml(md);
+  const lines = esc.split(/\r?\n/); let out=''; let inUl=false;
+  const closeUl=()=>{ if(inUl){ out+='</ul>'; inUl=false; } };
+  for (let ln of lines){
+    ln = ln.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    if (/^\s*#{2,4}\s+/.test(ln)){ closeUl(); out += '<h3>'+ln.replace(/^\s*#{2,4}\s+/, '')+'</h3>'; }
+    else if (/^\s*[-・*]\s+/.test(ln)){ if(!inUl){ out+='<ul>'; inUl=true; } out += '<li>'+ln.replace(/^\s*[-・*]\s+/, '')+'</li>'; }
+    else if (ln.trim()===''){ closeUl(); }
+    else { closeUl(); out += '<p>'+ln+'</p>'; }
+  }
+  closeUl();
+  const stamp = at ? '<div class="hint" style="margin-top:8px;">集約: '+at.slice(0,16).replace('T',' ')+'</div>' : '';
+  return '<div class="summary"><span class="ai-badge">🤖 AIによる集約</span>'+out+stamp+'</div>';
+}
+init();
+</script>
+</body>
+</html>
