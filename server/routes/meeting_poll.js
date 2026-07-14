@@ -478,6 +478,24 @@ router.delete('/:id', authUser, (req, res) => {
   res.json({ success: true });
 });
 
+// 完全削除 (履歴ごと物理削除・主催者のみ)
+router.delete('/:id/purge', authUser, (req, res) => {
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const poll = db.prepare(`SELECT organizer_id FROM meeting_polls WHERE id = ?`).get(id);
+  if (!poll) return res.json({ success: true });
+  if (poll.organizer_id !== req.uid) return res.status(403).json({ success: false, msg: '主催者のみ削除できます' });
+  db.transaction(() => {
+    db.prepare(`DELETE FROM meeting_poll_votes WHERE poll_id = ?`).run(id);
+    db.prepare(`DELETE FROM meeting_poll_guest_votes WHERE poll_id = ?`).run(id);
+    db.prepare(`DELETE FROM meeting_poll_guests WHERE poll_id = ?`).run(id);
+    db.prepare(`DELETE FROM meeting_poll_invitees WHERE poll_id = ?`).run(id);
+    db.prepare(`DELETE FROM meeting_poll_slots WHERE poll_id = ?`).run(id);
+    db.prepare(`DELETE FROM meeting_polls WHERE id = ?`).run(id);
+  })();
+  res.json({ success: true });
+});
+
 // ============ 開始前リマインダーDM (15分前 / 5分前) ============
 // meeting_polls に notified_15min_at / notified_5min_at / format / location カラムを追加 (初回起動時)
 function ensureNotifyColumns() {
