@@ -10,7 +10,7 @@
   body{font-family:"Hiragino Kaku Gothic ProN","Meiryo",sans-serif;background:#f5f7fb;margin:0;color:#1f2937}
   .header{background:linear-gradient(135deg,#1d7f5f,#2fa0d7);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
   .header h1{font-size:18px;margin:0;font-weight:800;flex:1}
-  .back{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:700}
+  .back{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:12px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:700}
   .container{max-width:1100px;margin:14px auto;padding:0 12px 40px}
   .card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:16px;margin-bottom:14px}
   .card-title{font-size:16px;font-weight:800;margin-bottom:12px;color:#145c46}
@@ -18,19 +18,22 @@
   @media(max-width:760px){.grid{grid-template-columns:1fr}}
   .field{display:flex;flex-direction:column;gap:5px}
   label{font-size:12px;font-weight:700;color:#475569}
-  input,select,textarea{width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;background:#fff}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:13px;font-size:14px;background:#fff}
   textarea{min-height:70px;resize:vertical}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  .btn{border:none;border-radius:9px;padding:10px 16px;cursor:pointer;font-size:14px;font-weight:800;color:#fff}
+  .btn{border:none;border-radius:13px;padding:10px 16px;cursor:pointer;font-size:14px;font-weight:800;color:#fff}
   .btn-primary{background:#1d7f5f}.btn-blue{background:#2f7ed8}.btn-gray{background:#7c8797}.btn-red{background:#dc2626}.btn-orange{background:#d97706}
   .btn:active{transform:translateY(1px)}.btn.busy{opacity:.6;pointer-events:none}
   .nav-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-  .nav-btn{border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:800;background:#dfe8f3;color:#234;font-size:13px}
+  .nav-btn{border:none;border-radius:14px;padding:9px 16px;cursor:pointer;font-weight:800;background:#dfe8f3;color:#234;font-size:13px}
   .nav-btn.active{background:#1d7f5f;color:#fff}
   .section{display:none}.section.active{display:block}
-  .preview-box{border:1px dashed #c2cedd;padding:10px;border-radius:12px;background:#fbfcfe;margin-top:10px;text-align:center}
-  .preview-img{max-width:100%;max-height:300px;border-radius:8px;display:none;margin:0 auto}
-  .msg{margin-top:10px;padding:10px 12px;border-radius:9px;font-size:13px;display:none;white-space:pre-wrap}
+  .dmodal{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto}
+  .dmodal-card{background:#fff;border-radius:14px;max-width:760px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .dmodal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .preview-box{border:1px dashed #c2cedd;padding:10px;border-radius:16px;background:#fbfcfe;margin-top:10px;text-align:center}
+  .preview-img{max-width:100%;max-height:300px;border-radius:12px;display:none;margin:0 auto}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:13px;font-size:13px;display:none;white-space:pre-wrap}
   .msg.info{display:block;background:#eaf3ff;color:#235a9f;border:1px solid #bfd7fb}
   .msg.success{display:block;background:#e7f7ee;color:#156d45;border:1px solid #bde3ca}
   .msg.error{display:block;background:#fdeaea;color:#a12a2a;border:1px solid #f2bcbc}
@@ -40,9 +43,12 @@
   .mono{font-family:Consolas,monospace;font-size:11px}
   .group-row td{background:#eef4fb;font-weight:800;color:#145c46}
   .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;color:#fff;white-space:nowrap}
-  .st-申請済{background:#2563eb}.st-承認済{background:#059669}.st-差戻し{background:#d97706}
+  .st-申請済{background:#2563eb}.st-一次承認済{background:#0891b2}.st-承認済{background:#059669}.st-差戻し{background:#d97706}
+  .step{display:inline-block;padding:2px 8px;border-radius:12px;background:#e2e8f0;color:#475569;margin:2px;font-size:12px;font-weight:700}
+  .step.cur{background:#4338ca;color:#fff}
+  .step.done{background:#059669;color:#fff}
   .updated{background:#fff7bf!important}
-  .ocr-out{background:#f7f9fc;border:1px solid #e2e8f0;border-radius:9px;padding:10px;margin-top:10px}
+  .ocr-out{background:#f7f9fc;border:1px solid #e2e8f0;border-radius:13px;padding:10px;margin-top:10px}
   .small{font-size:12px;color:#64748b}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999}
   .overlay-card{background:#fff;border-radius:14px;padding:20px 26px;text-align:center;min-width:240px}
@@ -53,6 +59,15 @@
   .master-item .nm{flex:1}
   .hidden{display:none!important}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <div class="header">
@@ -65,6 +80,7 @@
   <div class="nav-row">
     <button class="nav-btn active" id="navForm" onclick="showSection('form')">申請入力</button>
     <button class="nav-btn" id="navList" onclick="showSection('list');loadList(false)">確認一覧</button>
+    <button class="nav-btn hidden" id="navFirst" onclick="showSection('first');loadList('first')">一次承認</button>
     <button class="nav-btn hidden" id="navApproval" onclick="showSection('approval');loadList(true)">承認管理</button>
     <button class="nav-btn hidden" id="navMaster" onclick="showSection('master');renderMasters()">マスタ管理</button>
   </div>
@@ -88,13 +104,14 @@
       <div class="field" style="margin-top:10px"><label>摘要</label><textarea id="f_summary"></textarea></div>
 
       <div class="field" style="margin-top:10px">
-        <label>領収書画像</label>
-        <input type="file" id="f_image" accept="image/*">
-        <div class="small">画像を選んで「OCR読み取り」を押すと、支払先・金額・日付などを自動入力します（内容は手で直せます）。</div>
+        <label>領収書（画像 / PDF）</label>
+        <input type="file" id="f_image" accept="image/*,application/pdf">
+        <div class="small">画像またはPDFを選んで「OCR読み取り」を押すと、支払先・金額・日付などを自動入力します（内容は手で直せます）。</div>
       </div>
       <div class="preview-box">
         <img id="preview" class="preview-img" alt="">
-        <div id="previewEmpty" class="small">画像未選択</div>
+        <div id="previewPdf" class="small" style="display:none;font-weight:700;color:#334155">📄 PDFを添付しました</div>
+        <div id="previewEmpty" class="small">未選択</div>
       </div>
 
       <div class="btn-row">
@@ -117,22 +134,48 @@
       <div class="card-title">確認一覧</div>
       <div class="btn-row" style="margin-top:0;align-items:flex-end">
         <div class="field" style="min-width:180px"><label>営業所</label><select id="listOffice" onchange="loadList(false)"><option value="">すべて</option></select></div>
-        <div class="field" style="min-width:140px"><label>状態</label><select id="listStatus" onchange="loadList(false)"><option value="">すべて</option><option>申請済</option><option>承認済</option><option>差戻し</option></select></div>
+        <div class="field" style="min-width:140px"><label>状態</label><select id="listStatus" onchange="loadList(false)"><option value="">すべて</option><option>申請済</option><option>一次承認済</option><option>承認済</option><option>差戻し</option></select></div>
         <button class="btn btn-blue" onclick="loadList(false)">更新</button>
       </div>
       <div id="listMsg" class="msg"></div>
       <div style="overflow:auto;margin-top:10px">
-        <table><thead><tr><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>状態</th><th></th></tr></thead>
-        <tbody id="listBody"><tr><td colspan="7" class="small">読み込み中…</td></tr></tbody></table>
+        <table><thead><tr><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>承認ルート</th><th>状態</th><th></th></tr></thead>
+        <tbody id="listBody"><tr><td colspan="8" class="small">読み込み中…</td></tr></tbody></table>
       </div>
     </div>
-    <div class="card"><div class="card-title">申請詳細</div><div id="detailBox" class="small">一覧の「詳細」を押してください。</div></div>
   </div>
 
-  <!-- 承認管理 -->
+  <!-- 申請詳細モーダル (確認一覧・承認管理どちらからでも表示) -->
+  <div id="detailModal" class="dmodal" style="display:none" onclick="if(event.target===this)closeDetail()">
+    <div class="dmodal-card">
+      <div class="dmodal-head">
+        <div class="card-title" style="margin:0">申請詳細</div>
+        <button class="btn btn-gray" style="padding:4px 12px" onclick="closeDetail()">✕ 閉じる</button>
+      </div>
+      <div id="detailBox" class="small">—</div>
+    </div>
+  </div>
+
+  <!-- 一次承認 (所長・課長) -->
+  <div id="sectionFirst" class="section">
+    <div class="card">
+      <div class="card-title">一次承認（所長・課長）</div>
+      <div class="small">自分の営業所の申請を一次承認すると、経営管理本部・管理部の最終承認へ進みます。</div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-blue" onclick="loadList('first')">更新</button>
+      </div>
+      <div id="firstMsg" class="msg"></div>
+      <div style="overflow:auto;margin-top:10px">
+        <table><thead><tr><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>営業所</th><th>承認ルート</th><th>状態</th><th></th></tr></thead>
+        <tbody id="firstBody"><tr><td colspan="8" class="small">読み込み中…</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 承認管理 (最終承認: 経営管理本部・管理部) -->
   <div id="sectionApproval" class="section">
     <div class="card">
-      <div class="card-title">承認管理（管理職）</div>
+      <div class="card-title">承認管理（最終承認・経営管理本部/管理部）</div>
       <div class="btn-row" style="margin-top:0">
         <button class="btn btn-blue" onclick="loadList(true)">更新</button>
         <button class="btn btn-primary" onclick="approveChecked()">選択分を一括承認</button>
@@ -140,7 +183,7 @@
       </div>
       <div id="apprMsg" class="msg"></div>
       <div style="overflow:auto;margin-top:10px">
-        <table><thead><tr><th><input type="checkbox" id="checkAll" onclick="toggleAll(this.checked)"></th><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>営業所</th><th>状態</th><th></th></tr></thead>
+        <table><thead><tr><th><input type="checkbox" id="checkAll" onclick="toggleAll(this.checked)"></th><th>申請日</th><th>申請ID</th><th>申請者</th><th>支払先</th><th>金額</th><th>営業所</th><th>承認ルート</th><th>状態</th><th></th></tr></thead>
         <tbody id="apprBody"><tr><td colspan="9" class="small">読み込み中…</td></tr></tbody></table>
       </div>
     </div>
@@ -192,7 +235,7 @@ async function api(path, opts){
 }
 
 function showSection(name){
-  ['form','list','approval','master'].forEach(k=>{
+  ['form','list','first','approval','master'].forEach(k=>{
     $('section'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('active',k===name);
     $('nav'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('active',k===name);
   });
@@ -224,19 +267,44 @@ async function init(){
   if(d.user.name) setVal('f_applicant',d.user.name);
   const today=new Date().toISOString().slice(0,10);
   setVal('f_apply_date',today); setVal('f_usage_date',today);
-  // admin tabs
-  if(d.user.is_admin){ $('navApproval').classList.remove('hidden'); $('navMaster').classList.remove('hidden'); }
+  // 一次承認は所長/課長のみ、最終承認(承認管理)は経営管理本部・管理部のみ、マスタ管理は管理職。
+  if(d.user.can_first_approve){ $('navFirst').classList.remove('hidden'); }
+  if(d.user.can_approve){ $('navApproval').classList.remove('hidden'); }
+  if(d.user.is_admin){ $('navMaster').classList.remove('hidden'); }
 }
 
-// ===== 画像プレビュー =====
+// ===== 領収書プレビュー (画像/PDF) =====
+function isPdf(nameOrUrl){return /\.pdf(\?|#|$)/i.test(String(nameOrUrl||''));}
 $('f_image').addEventListener('change',e=>{
   const f=e.target.files&&e.target.files[0];
-  const img=$('preview'),empty=$('previewEmpty');
-  if(!f){img.style.display='none';empty.style.display='block';return;}
+  const img=$('preview'),empty=$('previewEmpty'),pdf=$('previewPdf');
+  img.style.display='none';empty.style.display='none';pdf.style.display='none';
+  if(!f){empty.style.display='block';return;}
+  if((f.type==='application/pdf')||isPdf(f.name)){
+    pdf.textContent='📄 '+(f.name||'PDF')+' を添付しました';
+    pdf.style.display='block';
+    return;
+  }
   const rd=new FileReader();
-  rd.onload=ev=>{img.src=ev.target.result;img.style.display='block';empty.style.display='none';};
+  rd.onload=ev=>{img.src=ev.target.result;img.style.display='block';};
   rd.readAsDataURL(f);
 });
+// 詳細パネルの領収書表示 (PDFはインライン埋め込み+開くリンク、画像はサムネ+開くリンク)
+function attachmentHtml(url){
+  if(!url) return '';
+  const u=esc(url);
+  if(isPdf(url)){
+    return '<div style="margin-top:8px">'+
+      '<div class="small" style="font-weight:700;margin-bottom:4px">📄 領収書（PDF）</div>'+
+      '<embed src="'+u+'" type="application/pdf" style="width:100%;height:420px;border:1px solid #dbe3ee;border-radius:12px;background:#fff">'+
+      '<div style="margin-top:6px"><a href="'+u+'" target="_blank" rel="noopener">📄 別タブでPDFを開く</a></div>'+
+      '</div>';
+  }
+  return '<div style="margin-top:8px">'+
+    '<a href="'+u+'" target="_blank" rel="noopener"><img src="'+u+'" alt="領収書" style="max-width:100%;max-height:300px;border-radius:12px;border:1px solid #dbe3ee"></a>'+
+    '<div class="small" style="margin-top:4px"><a href="'+u+'" target="_blank" rel="noopener">🖼 拡大して開く</a></div>'+
+    '</div>';
+}
 
 let OCR_IMAGE_URL='', OCR_RAW='';
 async function runOcr(){
@@ -270,6 +338,17 @@ async function submitExpense(){
   if(!val('f_request_office')){showMsg('formMsg','申請営業所を選択してください','error');return;}
   if(!val('f_applicant')){showMsg('formMsg','申請者を入力してください','error');return;}
   if(!val('f_amount')){showMsg('formMsg','金額を入力してください','error');return;}
+  // 領収書画像が選択済みでOCR未実施(=まだアップロードされていない)なら、ここで必ずアップロードして画像を保存する
+  const imgFile=$('f_image').files[0];
+  if(imgFile && !OCR_IMAGE_URL){
+    busy(true,'領収書画像をアップロード中…');
+    try{
+      const fd=new FormData();fd.append('image',imgFile);
+      const r=await fetch('/api/expense/upload-receipt',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      const u=await r.json();
+      if(u&&u.success)OCR_IMAGE_URL=u.image_url||'';
+    }catch(e){/* 画像アップロード失敗でも申請自体は継続 */}
+  }
   busy(true,'申請を登録中…');
   const body={
     apply_date:val('f_apply_date'),request_office:val('f_request_office'),target_office:val('f_target_office'),
@@ -287,22 +366,49 @@ async function submitExpense(){
 }
 function clearForm(keepMsg){
   ['f_vendor','f_amount','f_receipt_date','f_invoice_no','f_summary','f_account_title','f_target_office'].forEach(id=>setVal(id,''));
-  $('f_image').value='';$('preview').style.display='none';$('previewEmpty').style.display='block';
+  $('f_image').value='';$('preview').style.display='none';$('previewPdf').style.display='none';$('previewEmpty').style.display='block';
   $('ocrOut').classList.add('hidden');OCR_IMAGE_URL='';OCR_RAW='';
   if(!keepMsg)showMsg('formMsg','','info'),$('formMsg').style.display='none';
 }
 
 // ===== 一覧 / 承認 =====
-function loadList(forApproval){
-  const tbody=forApproval?$('apprBody'):$('listBody');
-  const colspan=forApproval?9:7;
+// 承認ルート表示: 経費は2段階固定(一次承認[所長/課長] → 最終承認[管理部門3名のいずれか])。
+// 最終承認者は /init の final_approvers(氏名+役職)を使い、申請フローに実名を出す。現在段階をハイライト。
+function finalApprovers(){ return (INIT&&INIT.final_approvers)||[]; }
+function famName(n){ return String(n||'').split(/[\s　]/)[0]; }   // 「後藤　裕司」→「後藤」
+function finalStepText(full){
+  const fa=finalApprovers();
+  if(!fa.length) return '最終承認（管理部門）';
+  if(full) return '最終承認（'+fa.map(a=>a.name+'（'+a.role+'）').join('、')+' のいずれか1名）';
+  return '最終承認（'+fa.map(a=>famName(a.name)).join('・')+' のいずれか）';
+}
+// full=true で最終承認者を氏名+役職フル表示(詳細パネル用)、既定は苗字のみ(一覧列用)。
+function expRouteCol(x, full){
+  const st=x.status||'';
+  const faName=x.first_approver_name||'';
+  const skipped=!faName||/^（/.test(x.first_checker||''); // 一次省略(所長不在 or 申請者が所長/管理部門)
+  const steps=[];
+  if(!skipped){
+    steps.push({label:'一次承認（'+faName+'）',cls:(st==='一次承認済'||st==='承認済')?'done':(st==='申請済'?'cur':'')});
+  }
+  steps.push({label:finalStepText(full),cls:(st==='承認済')?'done':((st==='一次承認済'||(skipped&&st==='申請済'))?'cur':'')});
+  const cells=steps.map(s=>'<span class="step '+s.cls+'">'+esc(s.label)+(s.cls==='cur'?' ◀今ここ':'')+'</span>').join(' → ');
+  return '<div style="'+(full?'':'max-width:340px')+'">'+cells+'</div>';
+}
+// mode: false/未指定=確認一覧, true/'approval'=最終承認, 'first'=一次承認
+function loadList(mode){
+  const isFirst = mode==='first';
+  const isApproval = mode===true || mode==='approval';
+  const tbody = isFirst?$('firstBody') : isApproval?$('apprBody') : $('listBody');
+  const colspan = isFirst?9 : isApproval?10 : 8;
   tbody.innerHTML='<tr><td colspan="'+colspan+'" class="small">読み込み中…</td></tr>';
   const q=[];
-  if(!forApproval){const o=val('listOffice');const s=val('listStatus');if(o)q.push('office='+encodeURIComponent(o));if(s)q.push('status='+encodeURIComponent(s));}
+  if(!isFirst&&!isApproval){const o=val('listOffice');const s=val('listStatus');if(o)q.push('office='+encodeURIComponent(o));if(s)q.push('status='+encodeURIComponent(s));}
   api('/list'+(q.length?'?'+q.join('&'):'')).then(d=>{
     if(!d.success){tbody.innerHTML='<tr><td colspan="'+colspan+'" class="small">読込失敗</td></tr>';return;}
     let items=d.items||[];
-    if(forApproval) items=items.filter(x=>x.status!=='承認済');
+    if(isApproval) items=items.filter(x=>x.status!=='承認済');
+    if(isFirst) items=items.filter(x=>x.status==='申請済'&&x.can_first_act);
     if(!items.length){tbody.innerHTML='<tr><td colspan="'+colspan+'" class="small">該当データはありません。</td></tr>';return;}
     const groups={};
     items.forEach(x=>{const o=x.request_office_name||'未設定';(groups[o]=groups[o]||[]).push(x);});
@@ -315,22 +421,35 @@ function loadList(forApproval){
         const tr=document.createElement('tr');
         const idEsc=String(x.id).replace(/'/g,"\\'");
         tr.innerHTML=
-          (forApproval?'<td><input type="checkbox" class="appr-chk" value="'+esc(x.id)+'"></td>':'')+
+          (isApproval?'<td><input type="checkbox" class="appr-chk" value="'+esc(x.id)+'"></td>':'')+
           '<td>'+esc(x.apply_date)+'</td>'+
           '<td class="mono">'+esc(x.id)+'</td>'+
           '<td>'+esc(x.applicant)+'</td>'+
           '<td>'+esc(x.vendor)+'</td>'+
           '<td>'+esc(yen(x.amount))+'</td>'+
-          (forApproval?'<td>'+esc(x.request_office_name)+'</td>':'')+
+          ((isApproval||isFirst)?'<td>'+esc(x.request_office_name)+'</td>':'')+
+          '<td>'+expRouteCol(x)+'</td>'+
           '<td><span class="badge st-'+esc(x.status)+'">'+esc(x.status)+'</span></td>'+
           '<td style="white-space:nowrap"><button class="btn btn-blue" style="padding:5px 9px" onclick="showDetail(\''+idEsc+'\')">詳細</button>'+
-          (forApproval?' <button class="btn btn-primary" style="padding:5px 9px" onclick="approveOne(\''+idEsc+'\')">承認</button> <button class="btn btn-orange" style="padding:5px 9px" onclick="returnOne(\''+idEsc+'\')">差戻</button>':'')+
+          (isApproval?' <button class="btn btn-primary" style="padding:5px 9px" onclick="approveOne(\''+idEsc+'\')">最終承認</button> <button class="btn btn-orange" style="padding:5px 9px" onclick="returnOne(\''+idEsc+'\')">差戻</button>':'')+
+          (isFirst?' <button class="btn btn-primary" style="padding:5px 9px" onclick="firstApproveOne(\''+idEsc+'\')">一次承認</button> <button class="btn btn-orange" style="padding:5px 9px" onclick="firstReturnOne(\''+idEsc+'\')">差戻</button>':'')+
           (x.can_delete?' <button class="btn btn-gray" style="padding:5px 9px" title="削除" onclick="delExpense(\''+idEsc+'\')">🗑</button>':'')+
           '</td>';
         tbody.appendChild(tr);
       });
     });
   });
+}
+async function firstApproveOne(id){
+  if(!confirm('この申請を一次承認しますか？（管理部門の最終承認へ進みます）'))return;
+  busy(true,'一次承認中…');const d=await api('/'+encodeURIComponent(id)+'/first-approve',{method:'POST',json:{}});busy(false);
+  showMsg('firstMsg',d.msg||(d.success?'一次承認しました':'失敗'),d.success?'success':'error');loadList('first');
+}
+async function firstReturnOne(id){
+  const reason=prompt('差戻し理由を入力してください','');
+  if(reason===null)return;
+  busy(true,'差戻し中…');const d=await api('/'+encodeURIComponent(id)+'/first-return',{method:'POST',json:{reason}});busy(false);
+  showMsg('firstMsg',d.msg||(d.success?'差戻しました':'失敗'),d.success?'success':'error');loadList('first');
 }
 
 function toggleAll(on){document.querySelectorAll('.appr-chk').forEach(c=>c.checked=on);}
@@ -363,9 +482,12 @@ async function exportCsv(){
 }
 
 // ===== 詳細 / 修正 =====
+function closeDetail(){ const m=$('detailModal'); if(m) m.style.display='none'; }
 async function showDetail(id){
-  const d=await api('/'+encodeURIComponent(id));
   const box=$('detailBox');
+  $('detailModal').style.display='flex';        // どのセクションからでも見えるモーダルで表示
+  box.innerHTML='<div class="small">読み込み中…</div>';
+  const d=await api('/'+encodeURIComponent(id));
   if(!d.success){box.innerHTML='<div class="small">取得失敗</div>';return;}
   const x=d.item;
   const offices=(INIT.offices||[]).map(o=>'<option value="'+esc(o.code)+'"'+(o.code===x.request_office?' selected':'')+'>'+esc(o.name)+'</option>').join('');
@@ -388,21 +510,52 @@ async function showDetail(id){
     '<div class="field"><label>インボイス番号</label><input id="d_invoice_no" value="'+esc(x.invoice_no)+'"></div>'+
     '<div class="field" style="grid-column:1/-1"><label>摘要</label><textarea id="d_summary">'+esc(x.summary)+'</textarea></div>'+
     '</div>'+
-    (x.image_url?'<div style="margin-top:8px"><a href="'+esc(x.image_url)+'" target="_blank" rel="noopener">🖼 領収書画像を開く</a></div>':'')+
+    '<div style="margin-top:10px"><div class="small" style="font-weight:700;margin-bottom:3px">承認の流れ</div>'+expRouteCol(x,true)+'</div>'+
+    (x.image_url?attachmentHtml(x.image_url):'<div class="small" style="margin-top:8px;color:#b45309">⚠️ 領収書が添付されていません</div>')+
+    (editable?'<div style="margin-top:8px;border:1px dashed #c2cedd;border-radius:12px;padding:8px 10px;background:#fbfcfe">'+
+      '<div class="small" style="font-weight:700;margin-bottom:4px">領収書を'+(x.image_url?'差し替え':'添付')+'（画像 / PDF）</div>'+
+      '<input type="file" id="d_reattach" accept="image/*,application/pdf">'+
+      '<button class="btn btn-gray" style="padding:6px 12px;margin-left:6px" onclick="reattachReceipt(\''+String(x.id).replace(/'/g,"\\'")+'\')">アップロード</button>'+
+    '</div>':'')+
+    ((x.first_checker||x.checker)?'<div class="small" style="margin-top:6px">'+
+      (x.first_checker?'一次承認: '+esc(x.first_checker)+(x.first_checked_at?'（'+esc(x.first_checked_at)+'）':'')+'<br>':'')+
+      (x.checker?'最終承認/確認: '+esc(x.checker)+(x.checked_at?'（'+esc(x.checked_at)+'）':''):'')+
+    '</div>':'')+
     (editable?'<div class="btn-row"><button class="btn btn-primary" onclick="saveDetail(\''+String(x.id).replace(/'/g,"\\'")+'\')">修正保存</button></div>':'<div class="small" style="margin-top:8px">承認済のため編集できません。</div>')+
     (x.can_delete?'<div style="margin-top:12px;border-top:1px dashed #e2e8f0;padding-top:10px"><button class="btn btn-gray" style="padding:6px 12px" onclick="delExpense(\''+String(x.id).replace(/'/g,"\\'")+'\')">🗑 この経費精算を削除</button> <span class="small">記録と領収書画像を完全に削除します</span></div>':'')+
     '<div id="detailMsg" class="msg"></div>';
 }
-async function saveDetail(id){
-  busy(true,'保存中…');
-  const d=await api('/'+encodeURIComponent(id),{method:'PATCH',json:{
+// 詳細フォームの全項目を収集 (PATCHは未指定項目を空で上書きするため、常に全項目を送る)
+function detailBody(extra){
+  return Object.assign({
     apply_date:val('d_apply_date'),usage_date:val('d_usage_date'),request_office:val('d_request_office'),
     target_office:val('d_target_office'),applicant:val('d_applicant'),vendor:val('d_vendor'),amount:val('d_amount'),
     account_title:val('d_account_title'),receipt_date:val('d_receipt_date'),invoice_no:val('d_invoice_no'),summary:val('d_summary')
-  }});
+  }, extra||{});
+}
+async function saveDetail(id){
+  busy(true,'保存中…');
+  const d=await api('/'+encodeURIComponent(id),{method:'PATCH',json:detailBody()});
   busy(false);
   showMsg('detailMsg',d.msg||(d.success?'保存しました':'失敗'),d.success?'success':'error');
   if(d.success){loadList(false);if(!$('sectionApproval').classList.contains('active')===false)loadList(true);}
+}
+// 既存の経費に領収書(画像/PDF)を後付け・差し替え
+async function reattachReceipt(id){
+  const inp=$('d_reattach');const f=inp&&inp.files&&inp.files[0];
+  if(!f){showMsg('detailMsg','ファイルを選んでください','error');return;}
+  busy(true,'領収書をアップロード中…');
+  try{
+    const fd=new FormData();fd.append('image',f);
+    const r=await fetch('/api/expense/upload-receipt',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const u=await r.json();
+    if(!u||!u.success){busy(false);showMsg('detailMsg',(u&&u.msg)||'アップロードに失敗しました','error');return;}
+    const d=await api('/'+encodeURIComponent(id),{method:'PATCH',json:detailBody({image_url:u.image_url})});
+    busy(false);
+    if(!d.success){showMsg('detailMsg',d.msg||'保存に失敗しました','error');return;}
+    showDetail(id);       // 再読込してプレビュー表示
+    loadList(false);loadList(true);
+  }catch(e){busy(false);showMsg('detailMsg','エラー: '+(e.message||e),'error');}
 }
 // 経費精算の削除 (一覧の行・詳細パネルから)
 async function delExpense(id){
@@ -411,7 +564,7 @@ async function delExpense(id){
   const d=await api('/'+encodeURIComponent(id),{method:'DELETE'});
   busy(false);
   if(!d.success){alert(d.msg||'削除に失敗しました');return;}
-  $('detailBox').innerHTML='<div class="small">一覧の「詳細」を押してください。</div>';
+  closeDetail();
   loadList($('sectionApproval').classList.contains('active'));
 }
 
@@ -451,5 +604,6 @@ async function delMaster(type,id){
 
 init();
 </script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

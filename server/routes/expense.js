@@ -6,6 +6,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const crypto = require('crypto');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const { analyzeReceiptImage } = require('../services/ai');
@@ -18,12 +19,14 @@ const receiptUpload = multer({
     destination: uploadDir,
     filename: (req, file, cb) => {
       const ext = (path.extname(file.originalname || '').slice(0, 8) || '.jpg').replace(/[^a-zA-Z0-9.]/g, '');
-      cb(null, 'receipt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10) + ext);
+      cb(null, 'receipt_' + crypto.randomUUID() + ext);
     },
   }),
   limits: { fileSize: 12 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!/^image\//.test(file.mimetype || '')) return cb(new Error('画像のみアップロード可'));
+    const mt = file.mimetype || '';
+    // 領収書は画像に加えてPDFも許可 (レシートをPDFで受け取るケース対応)
+    if (!/^image\//.test(mt) && mt !== 'application/pdf') return cb(new Error('画像またはPDFのみアップロード可'));
     cb(null, true);
   },
 });
@@ -39,6 +42,98 @@ function requireManager(req, res, next) {
     if (!isManagerUid(req.uid)) return res.status(403).json({ success: false, msg: '承認権限 (管理職) が必要です' });
     next();
   });
+}
+// 経費の「承認」権限は 経営管理本部長(HQA)・管理部長(MBD)・代表取締役社長(PRES) のみ (2026-07-03 後藤要望、2026-07-09 ADM→MBD役職改編)。
+// 役職の割当 (appr_role_assignments) を正とし、異動追従できるようにする。
+function canApproveExpenseUid(uid) {
+  const db = getDb();
+  const u = db.prepare('SELECT login_id FROM users WHERE id = ?').get(uid);
+  if (!u || !u.login_id) return false;
+  const row = db.prepare("SELECT 1 FROM appr_role_assignments WHERE user_login_id = ? AND role_code IN ('HQA','MBD','PRES') LIMIT 1").get(u.login_id);
+  return !!row;
+}
+function requireApprover(req, res, next) {
+  authUser(req, res, () => {
+    if (!canApproveExpenseUid(req.uid)) return res.status(403).json({ success: false, msg: '経費の承認権限は経営管理本部・管理部のみです' });
+    next();
+  });
+}
+// 最終承認者(役職 HQA/MBD/PRES の割当者)を氏名+役職名で返す。承認ルート表示用(申請フローに名前を出す)。
+// 同一人物が複数役職/営業所で割当されていても login_id で一意化。表示順=本部長→管理部長→社長。
+function finalApproverList() {
+  const db = getDb();
+  const roleName = { HQA: '経営管理本部長', MBD: '管理部長', PRES: '代表取締役社長' };
+  const order = { HQA: 0, MBD: 1, PRES: 2 };
+  const rows = db.prepare(`SELECT a.role_code, a.user_login_id, u.display_name
+    FROM appr_role_assignments a LEFT JOIN users u ON u.login_id = a.user_login_id
+    WHERE a.role_code IN ('HQA','MBD','PRES')`).all();
+  rows.sort((a, b) => (order[a.role_code] - order[b.role_code]));
+  const seen = new Set(); const out = [];
+  for (const r of rows) {
+    if (!r.user_login_id || seen.has(r.user_login_id)) continue;
+    seen.add(r.user_login_id);
+    out.push({ name: r.display_name || r.user_login_id, role: roleName[r.role_code] || r.role_code });
+  }
+  return out;
+}
+// ===== 2段階承認 (2026-07-03): 所長(MGR、無ければ課長KCH)の一次承認 → 経営管理本部/管理部の最終承認 =====
+// 申請営業所の一次承認者(所長MGR優先・無ければ課長KCH)の login_id を返す。無ければ null。
+function firstApproverLoginId(officeCode) {
+  const db = getDb();
+  for (const role of ['MGR', 'KCH']) {
+    const a = db.prepare('SELECT user_login_id FROM appr_role_assignments WHERE role_code=? AND office_code=?').get(role, officeCode);
+    if (a && a.user_login_id) return a.user_login_id;
+  }
+  return null;
+}
+function loginToUid(login) {
+  if (!login) return null;
+  const u = getDb().prepare('SELECT id FROM users WHERE login_id=?').get(login);
+  return u ? u.id : null;
+}
+function firstApproverUid(officeCode) { return loginToUid(firstApproverLoginId(officeCode)); }
+// 申請者が申請営業所の一次承認者(所長MGR/課長KCH)より上位職なら、所長の一次承認を飛ばして
+// 管理部門の最終承認へ直行させる。例: 専務(SVP rank8)の申請が鹿島所長(MGR rank2)に回る逆転を解消(2026-07-04 小林指示)。
+function applicantRoleRank(uid) {
+  const db = getDb();
+  const u = db.prepare('SELECT login_id FROM users WHERE id = ?').get(uid);
+  if (!u || !u.login_id) return 0;
+  const row = db.prepare('SELECT MAX(r.rank) AS mx FROM appr_role_assignments a JOIN appr_roles r ON r.code = a.role_code WHERE a.user_login_id = ?').get(u.login_id);
+  return (row && row.mx) || 0;
+}
+function firstApproverRank(officeCode) {
+  const db = getDb();
+  for (const role of ['MGR', 'KCH']) {
+    const a = db.prepare('SELECT 1 FROM appr_role_assignments WHERE role_code = ? AND office_code = ?').get(role, officeCode);
+    if (a) { const r = db.prepare('SELECT rank FROM appr_roles WHERE code = ?').get(role); return (r && r.rank) || 0; }
+  }
+  return 0;
+}
+function applicantOutranksFirst(uid, officeCode) {
+  const far = firstApproverRank(officeCode);
+  if (!far) return false; // 一次承認者不在の営業所は既存ロジックで一次省略済
+  return applicantRoleRank(uid) > far;
+}
+// 申請営業所の一次承認者(所長/課長)の氏名。未設定(一次省略)なら空文字。承認ルート表示用。
+function firstApproverName(officeCode) {
+  const uid = firstApproverUid(officeCode);
+  if (!uid) return '';
+  const u = getDb().prepare('SELECT display_name FROM users WHERE id=?').get(uid);
+  return (u && u.display_name) || '';
+}
+// このユーザーが一次承認者になっている営業所コードの配列 (所長/課長として割当・かつ実際にその営業所の一次承認者)
+function firstApproveOffices(uid) {
+  const db = getDb();
+  const u = db.prepare('SELECT login_id FROM users WHERE id=?').get(uid);
+  if (!u || !u.login_id) return [];
+  const rows = db.prepare("SELECT DISTINCT office_code FROM appr_role_assignments WHERE user_login_id=? AND role_code IN ('MGR','KCH')").all(u.login_id);
+  return rows.map(r => r.office_code).filter(oc => firstApproverLoginId(oc) === u.login_id);
+}
+// 一次承認できるか: その申請営業所の一次承認者本人 or 管理部門(代理)
+function canFirstAct(uid, r) {
+  if (canApproveExpenseUid(uid)) return true; // 管理部門は代理で一次承認も可
+  const fa = firstApproverUid(r.request_office);
+  return !!fa && fa === uid;
 }
 function companyMap() {
   const m = {};
@@ -97,6 +192,8 @@ function mapRow(r, cmap) {
     status: r.status || '',
     checker: r.checker || '',
     checked_at: r.checked_at || '',
+    first_checker: r.first_checker || '',
+    first_checked_at: r.first_checked_at || '',
     return_reason: r.return_reason || '',
     created_by: r.created_by || '',
     created_at: r.created_at || '',
@@ -117,7 +214,12 @@ router.get('/init', authUser, (req, res) => {
       company_code: me.company_code || '',
       company_name: cmap[me.company_code] || '',
       is_admin: me.employee_type === 'admin',
+      can_approve: canApproveExpenseUid(req.uid),        // 最終承認 (経営管理本部/管理部)
+      first_offices: firstApproveOffices(req.uid),        // 一次承認できる営業所 (所長/課長)
+      can_first_approve: firstApproveOffices(req.uid).length > 0,
     },
+    final_approvers: finalApproverList(),                 // 最終承認者(氏名+役職) — 承認フロー表示用
+
     offices: db.prepare("SELECT code, name FROM companies WHERE code NOT IN ('ADMIN','UNIVERSITY','NPO','GUEST') ORDER BY code").all(),
     accountTitles: db.prepare('SELECT id, code, name FROM expense_account_titles WHERE active = 1 ORDER BY sort_order, id').all(),
     vendors: db.prepare('SELECT id, code, name, yomi, note FROM expense_vendors WHERE active = 1 ORDER BY yomi, name').all(),
@@ -143,6 +245,17 @@ router.post('/ocr', authUser, (req, res) => {
   });
 });
 
+// ===== 領収書画像アップロード (OCRなし・保存のみ) =====
+// 2026-07-03: OCR読み取りを押さずに申請した領収書が保存されず画像リンクが出ない不具合の対処。
+// 申請登録時、OCR未実施でもこのエンドポイントで画像を必ずアップロードし image_url を保存する。
+router.post('/upload-receipt', authUser, (req, res) => {
+  receiptUpload.single('image')(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, msg: err.message || 'アップロード失敗' });
+    if (!req.file) return res.status(400).json({ success: false, msg: '画像がありません' });
+    res.json({ success: true, image_url: '/uploads/' + req.file.filename });
+  });
+});
+
 // ===== 申請登録 =====
 router.post('/', authUser, express.json(), (req, res) => {
   const d = req.body || {};
@@ -152,16 +265,37 @@ router.post('/', authUser, express.json(), (req, res) => {
   const db = getDb();
   const id = genExpenseId();
   const now = nowStr();
+  // 2段階承認: ①所長(MGR/課長KCH)の一次承認 → ②経営管理本部/管理部の最終承認。
+  // ・申請者が最終承認権限者(経営管理本部長/管理部長/代表取締役社長)なら登録時に自動で最終承認(承認済)。
+  // ・一次承認者が居て申請者本人でなければ「申請済」(所長の一次承認待ち)。
+  // ・一次承認者が不在、または申請者自身が所長の場合は「一次承認済」(所長段階を飛ばし最終承認待ち)。
+  const selfFinal = canApproveExpenseUid(req.uid);
+  const faUid = firstApproverUid(d.request_office);
+  const outranksFirst = applicantOutranksFirst(req.uid, d.request_office); // 申請者が所長より上位職→一次省略
+  let status, checker = '', checkedAt = '', firstChecker = '', firstCheckedAt = '', msg;
+  if (selfFinal) {
+    status = '承認済'; checker = '自動承認(管理部門)'; checkedAt = now; firstChecker = '（管理部門のため一次省略）'; firstCheckedAt = now;
+    msg = '申請を登録しました（管理部門のため自動承認）';
+  } else if (outranksFirst) {
+    // 所長より上位職(専務・本部長等)は所長一次を飛ばし、管理部門(後藤/吉沢/小林)の最終承認へ直行。
+    status = '一次承認済'; firstChecker = '（申請者が所長より上位職のため一次省略）'; firstCheckedAt = now;
+    msg = '申請を登録しました（管理部門の最終承認待ち）';
+  } else if (faUid && faUid !== req.uid) {
+    status = '申請済'; msg = '申請を登録しました（所長の一次承認待ち）';
+  } else {
+    status = '一次承認済'; firstChecker = faUid ? '（申請者が所長のため一次省略）' : '（一次承認者未設定のため省略）'; firstCheckedAt = now;
+    msg = '申請を登録しました（最終承認待ち）';
+  }
   db.prepare(`INSERT INTO expenses
     (id, apply_date, request_office, target_office, applicant, usage_date, vendor, ocr_vendor, amount, ocr_amount,
-     account_title, summary, receipt_date, ocr_receipt_date, invoice_no, ocr_text, image_url, status, created_by, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     account_title, summary, receipt_date, ocr_receipt_date, invoice_no, ocr_text, image_url, status, checker, checked_at, first_checker, first_checked_at, created_by, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, d.apply_date || '', d.request_office || '', d.target_office || '', d.applicant || '', d.usage_date || '',
     d.vendor || '', d.ocr_vendor || '', normAmount(d.amount), normAmount(d.ocr_amount),
     d.account_title || '', d.summary || '', d.receipt_date || '', d.ocr_receipt_date || '', d.invoice_no || '',
-    d.ocr_text || '', d.image_url || '', '申請済', req.uid, now, now
+    d.ocr_text || '', d.image_url || '', status, checker, checkedAt, firstChecker, firstCheckedAt, req.uid, now, now
   );
-  res.json({ success: true, id, msg: '申請を登録しました' });
+  res.json({ success: true, id, msg });
 });
 
 // ===== 一覧 (USER=自営業所/自分の申請、管理職=全社) =====
@@ -185,20 +319,39 @@ router.get('/list', authUser, (req, res) => {
   if (vendor) items = items.filter(x => (x.vendor || '').indexOf(vendor) >= 0);
   if (dateFrom) items = items.filter(x => x.apply_date && x.apply_date >= dateFrom);
   if (dateTo) items = items.filter(x => x.apply_date && x.apply_date <= dateTo);
-  // 削除可否 (一覧は自分/自営業所に絞られているため、一般は承認済以外を削除可)
-  items.forEach(x => { x.can_delete = admin || x.status !== '承認済'; });
+  // 削除可否 + 段階別のアクション可否
+  const canFinal = canApproveExpenseUid(req.uid);
+  const myFirstOffices = firstApproveOffices(req.uid);
+  const faNameCache = {};
+  items.forEach(x => {
+    x.can_delete = admin || x.status !== '承認済';
+    // 承認ルート表示用: 意図した一次承認者(所長/課長)の氏名。空=一次省略(管理部門直行)
+    x.first_approver_name = (x.request_office in faNameCache) ? faNameCache[x.request_office] : (faNameCache[x.request_office] = firstApproverName(x.request_office));
+    // 一次承認: 申請済 かつ その営業所の一次承認者本人(または管理部門の代理)
+    x.can_first_act = x.status === '申請済' && (canFinal || myFirstOffices.indexOf(x.request_office) >= 0);
+    // 最終承認: 一次承認済(または管理部門が申請済を直接最終承認する上書き) かつ 管理部門
+    x.can_final_act = canFinal && (x.status === '一次承認済' || x.status === '申請済');
+  });
   res.json({ success: true, items, isAdmin: admin });
 });
 
-// ===== 承認待ち件数 (ホーム新着バッジ用): 管理職のみ。未承認(申請済)の経費精算件数 =====
+// ===== 承認待ち件数 (ホーム新着バッジ用) =====
+// 管理部門=最終承認待ち(一次承認済)の件数、所長/課長=自営業所の一次承認待ち(申請済)の件数。
 router.get('/pending-count', authUser, (req, res) => {
-  if (!isManagerUid(req.uid)) return res.json({ success: true, count: 0 });
-  const row = getDb().prepare("SELECT COUNT(*) AS c FROM expenses WHERE status = '申請済'").get();
+  const db = getDb();
+  if (canApproveExpenseUid(req.uid)) {
+    const row = db.prepare("SELECT COUNT(*) AS c FROM expenses WHERE status = '一次承認済'").get();
+    return res.json({ success: true, count: (row && row.c) || 0 });
+  }
+  const offices = firstApproveOffices(req.uid);
+  if (!offices.length) return res.json({ success: true, count: 0 });
+  const ph = offices.map(() => '?').join(',');
+  const row = db.prepare(`SELECT COUNT(*) AS c FROM expenses WHERE status='申請済' AND request_office IN (${ph})`).get(...offices);
   res.json({ success: true, count: (row && row.c) || 0 });
 });
 
 // ===== 承認済CSV出力 (管理職) =====
-router.get('/export-csv', requireManager, (req, res) => {
+router.get('/export-csv', requireApprover, (req, res) => {
   const db = getDb();
   const cmap = companyMap();
   const items = db.prepare("SELECT * FROM expenses WHERE status = '承認済' ORDER BY request_office, apply_date").all().map(r => mapRow(r, cmap));
@@ -219,7 +372,7 @@ router.get('/export-csv', requireManager, (req, res) => {
 });
 
 // ===== 一括承認 (管理職) =====
-router.post('/approve-bulk', requireManager, express.json(), (req, res) => {
+router.post('/approve-bulk', requireApprover, express.json(), (req, res) => {
   const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.filter(Boolean) : [];
   if (!ids.length) return res.status(400).json({ success: false, msg: '承認対象がありません' });
   const db = getDb();
@@ -275,7 +428,10 @@ router.get('/:id', authUser, (req, res) => {
   const r = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
   const item = mapRow(r, companyMap());
+  item.first_approver_name = firstApproverName(r.request_office);
   item.can_delete = canDeleteExpense(req.uid, r);
+  item.can_first_act = r.status === '申請済' && canFirstAct(req.uid, r);
+  item.can_final_act = canApproveExpenseUid(req.uid) && (r.status === '一次承認済' || r.status === '申請済');
   res.json({ success: true, item });
 });
 
@@ -284,34 +440,66 @@ router.patch('/:id', authUser, express.json(), (req, res) => {
   const db = getDb();
   const r = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
-  if (!isManagerUid(req.uid)) {
+  const isMgr = isManagerUid(req.uid);
+  if (!isMgr) {
     const me = db.prepare('SELECT company_code FROM users WHERE id = ?').get(req.uid) || {};
     if (r.created_by !== req.uid && r.request_office !== (me.company_code || '')) {
       return res.status(403).json({ success: false, msg: '修正権限がありません' });
     }
   }
   const d = req.body || {};
+  // 非管理職は request_office を変更不可。可視/削除スコープを跨ぐ mass-assignment を防ぐため保存済みの値を維持
+  const newOffice = isMgr ? (d.request_office || '') : (r.request_office || '');
+  // image_url は明示的に渡された時のみ更新 (領収書の後付け/差し替え)。通常の修正保存では既存値を保持
+  const newImageUrl = (d.image_url !== undefined) ? (d.image_url || '') : (r.image_url || '');
   db.prepare(`UPDATE expenses SET apply_date=?, request_office=?, target_office=?, applicant=?, usage_date=?,
-     vendor=?, amount=?, account_title=?, summary=?, receipt_date=?, invoice_no=?, updated_at=? WHERE id=?`).run(
-    d.apply_date || r.apply_date || '', d.request_office || '', d.target_office || '', d.applicant || '', d.usage_date || '',
+     vendor=?, amount=?, account_title=?, summary=?, receipt_date=?, invoice_no=?, image_url=?, updated_at=? WHERE id=?`).run(
+    d.apply_date || r.apply_date || '', newOffice, d.target_office || '', d.applicant || '', d.usage_date || '',
     d.vendor || '', normAmount(d.amount), d.account_title || '', d.summary || '', d.receipt_date || '', d.invoice_no || '',
-    nowStr(), req.params.id
+    newImageUrl, nowStr(), req.params.id
   );
   res.json({ success: true, msg: '修正を保存しました' });
 });
 
-// ===== 承認 / 差戻し (管理職) =====
-router.post('/:id/approve', requireManager, express.json(), (req, res) => {
+// ===== 一次承認 / 一次差戻し (所長・課長 or 管理部門の代理) =====
+router.post('/:id/first-approve', authUser, express.json(), (req, res) => {
   const db = getDb();
-  const r = db.prepare('SELECT id FROM expenses WHERE id = ?').get(req.params.id);
+  const r = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (r.status !== '申請済') return res.status(400).json({ success: false, msg: 'この申請は一次承認の段階ではありません' });
+  if (!canFirstAct(req.uid, r)) return res.status(403).json({ success: false, msg: '一次承認の権限がありません（申請営業所の所長のみ）' });
+  const checker = (db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid) || {}).display_name || '';
+  const now = nowStr();
+  db.prepare("UPDATE expenses SET status='一次承認済', first_checker=?, first_checked_at=?, return_reason='', updated_at=? WHERE id=?")
+    .run(checker, now, now, req.params.id);
+  res.json({ success: true, msg: '一次承認しました（管理部門の最終承認へ進みます）' });
+});
+router.post('/:id/first-return', authUser, express.json(), (req, res) => {
+  const db = getDb();
+  const r = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (r.status !== '申請済') return res.status(400).json({ success: false, msg: 'この申請は一次承認の段階ではありません' });
+  if (!canFirstAct(req.uid, r)) return res.status(403).json({ success: false, msg: '差戻しの権限がありません' });
+  const checker = (db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid) || {}).display_name || '';
+  const now = nowStr();
+  db.prepare("UPDATE expenses SET status='差戻し', first_checker=?, first_checked_at=?, return_reason=?, updated_at=? WHERE id=?")
+    .run(checker, now, String((req.body && req.body.reason) || ''), now, req.params.id);
+  res.json({ success: true, msg: '差戻ししました' });
+});
+
+// ===== 最終承認 / 差戻し (経営管理本部・管理部) =====
+router.post('/:id/approve', requireApprover, express.json(), (req, res) => {
+  const db = getDb();
+  const r = db.prepare('SELECT status FROM expenses WHERE id = ?').get(req.params.id);
+  if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (r.status === '承認済') return res.status(400).json({ success: false, msg: '既に承認済です' });
   const checker = (db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid) || {}).display_name || '';
   const now = nowStr();
   db.prepare("UPDATE expenses SET status='承認済', checker=?, checked_at=?, return_reason='', updated_at=? WHERE id=?")
     .run(checker, now, now, req.params.id);
   res.json({ success: true, msg: '承認しました' });
 });
-router.post('/:id/return', requireManager, express.json(), (req, res) => {
+router.post('/:id/return', requireApprover, express.json(), (req, res) => {
   const db = getDb();
   const r = db.prepare('SELECT id FROM expenses WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
