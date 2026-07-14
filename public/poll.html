@@ -105,6 +105,12 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .form .invitee-item .ava img { width: 100%; height: 100%; object-fit: cover; }
 .form .invitee-item .nm { font-size: 13px; }
 .form .invitee-item .grp { font-size: 11px; color: var(--sub); margin-left: auto; }
+.form .pick-sec { margin-bottom: 2px; }
+.form .pick-sec-hd { position: sticky; top: -6px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #eef2f7; border-radius: 8px; margin: 4px 2px 3px; z-index: 1; }
+.form .pick-sec-hd .ttl { font-size: 12px; font-weight: 800; color: #334155; }
+.form .pick-sec-hd .cnt { font-size: 11px; color: #64748b; font-weight: 600; }
+.form .pick-sec-hd .sec-all { margin-left: auto; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--teal); background: #fff; color: #0f766e; cursor: pointer; }
+.form .pick-sec-hd .sec-all.on { background: var(--teal); border-color: var(--teal); color: #fff; }
 .form .group-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .form .group-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--ink); user-select: none; }
 .form .group-chip:hover { border-color: #0d9488; background: #f0fdfa; }
@@ -586,31 +592,86 @@ function toggleGroup(idx) {
   renderGroupChips();
   renderMembersPick();
 }
+const NO_GROUP_LABEL = '（所属未設定）';
+function membersQuery() {
+  return (document.getElementById('f-members-search').value || '').toLowerCase().trim();
+}
+function filteredMembers() {
+  const q = membersQuery();
+  return eligibleMembers().filter(m =>
+    (!q || (m.name || '').toLowerCase().includes(q) || (m.group || '').toLowerCase().includes(q)));
+}
 function renderMembersPick() {
-  const q = (document.getElementById('f-members-search').value || '').toLowerCase().trim();
-  const list = eligibleMembers().filter(m =>
-    (!q || (m.name || '').toLowerCase().includes(q) || (m.group || '').toLowerCase().includes(q))
-  ).slice(0, 200);
-  document.getElementById('invitees-pick').innerHTML = list.map(m => {
-    const isChecked = selectedInvitees.has(m.id);
-    const initial = (m.name || '?').trim().charAt(0);
-    const ava = m.avatar
-      ? '<img src="' + escapeHtml(m.avatar) + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initial) + '\'))">'
-      : escapeHtml(initial);
-    return '<label class="invitee-item' + (isChecked ? ' checked' : '') + '">'
-      + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="onInviteeToggle(this)">'
-      + '<div class="ava">' + ava + '</div>'
-      + '<div class="nm">' + escapeHtml(m.name) + '</div>'
-      + (m.group ? '<div class="grp">' + escapeHtml(m.group) + '</div>' : '')
-      + '</label>';
+  const list = filteredMembers();
+  // 営業所(dm_group)ごとにまとめる。出現順を保持
+  const order = [];
+  const byGroup = {};
+  list.forEach(m => {
+    const g = m.group || NO_GROUP_LABEL;
+    if (!byGroup[g]) { byGroup[g] = []; order.push(g); }
+    byGroup[g].push(m);
+  });
+  const wrap = document.getElementById('invitees-pick');
+  if (!order.length) {
+    wrap.innerHTML = '<div style="padding:12px;color:#94a3b8;font-size:12px;text-align:center;">該当するメンバーがいません</div>';
+    updateInviteeCount();
+    return;
+  }
+  wrap.innerHTML = order.map(g => {
+    const mems = byGroup[g];
+    const selN = mems.filter(m => selectedInvitees.has(m.id)).length;
+    const allSel = selN === mems.length;
+    const items = mems.map(m => {
+      const isChecked = selectedInvitees.has(m.id);
+      const initial = (m.name || '?').trim().charAt(0);
+      const ava = m.avatar
+        ? '<img src="' + escapeHtml(m.avatar) + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + escapeHtml(initial) + '\'))">'
+        : escapeHtml(initial);
+      return '<label class="invitee-item' + (isChecked ? ' checked' : '') + '">'
+        + '<input type="checkbox" data-uid="' + escapeHtml(m.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="onInviteeToggle(this)">'
+        + '<div class="ava">' + ava + '</div>'
+        + '<div class="nm">' + escapeHtml(m.name) + '</div>'
+        + '</label>';
+    }).join('');
+    return '<div class="pick-sec">'
+      + '<div class="pick-sec-hd">'
+      +   '<span class="ttl">🏢 ' + escapeHtml(g) + '</span>'
+      +   '<span class="cnt">' + selN + '/' + mems.length + '</span>'
+      +   '<button type="button" class="sec-all' + (allSel ? ' on' : '') + '" data-g="' + escapeHtml(g) + '" onclick="toggleGroupByName(this.dataset.g)">' + (allSel ? '全解除' : '全員') + '</button>'
+      + '</div>'
+      + items + '</div>';
   }).join('');
   updateInviteeCount();
+}
+// 営業所単位で表示中(絞込適用後)の全員をまとめて追加／解除
+function toggleGroupByName(name) {
+  const real = (name === NO_GROUP_LABEL) ? '' : name;
+  const mems = filteredMembers().filter(m => (m.group || '') === real);
+  const allSel = mems.length > 0 && mems.every(m => selectedInvitees.has(m.id));
+  mems.forEach(m => { if (allSel) selectedInvitees.delete(m.id); else selectedInvitees.add(m.id); });
+  renderGroupChips();
+  renderMembersPick();
 }
 function onInviteeToggle(cb) {
   if (cb.checked) selectedInvitees.add(cb.dataset.uid);
   else selectedInvitees.delete(cb.dataset.uid);
+  const sec = cb.closest('.pick-sec');
+  if (sec) refreshSectionHeader(sec);
   renderGroupChips();
   updateInviteeCount();
+}
+// 個別チェック時に営業所ヘッダーの件数/全員ボタンだけを更新 (スクロール位置を保つため全再描画しない)
+function refreshSectionHeader(sec) {
+  const boxes = [...sec.querySelectorAll('.invitee-item input[type=checkbox]')];
+  const selN = boxes.filter(b => b.checked).length;
+  const cnt = sec.querySelector('.pick-sec-hd .cnt');
+  const btn = sec.querySelector('.pick-sec-hd .sec-all');
+  if (cnt) cnt.textContent = selN + '/' + boxes.length;
+  if (btn) {
+    const all = boxes.length > 0 && selN === boxes.length;
+    btn.classList.toggle('on', all);
+    btn.textContent = all ? '全解除' : '全員';
+  }
 }
 function getSelectedInvitees() {
   return new Set(selectedInvitees);
