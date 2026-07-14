@@ -7,9 +7,43 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const crypto = require('crypto');
+const { execFile, execFileSync } = require('child_process');
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const { analyzeReceiptImage } = require('../services/ai');
+
+// ===== 領収書PDFのページ画像化 (poppler pdftoppm) =====
+// スマホ/PWA/iOS Safari は <embed>/<iframe> のPDFインライン描画が不安定なため、
+// 掲示板(board.js)と同じくページを .pN.jpg 画像へ変換して確実にプレビューする。
+// 命名規則: /uploads/receipt_X.pdf → 1ページ目大 receipt_X.pdf.p1.jpg ... / サムネ receipt_X.pdf.thumb.jpg
+const RECEIPT_PDF_MAX_PAGES = 20;
+function pdfPageCount(absPdf) {
+  try {
+    const out = execFileSync('pdfinfo', [absPdf], { timeout: 15000 }).toString();
+    const m = out.match(/^Pages:\s+(\d+)/m);
+    return m ? parseInt(m[1], 10) : 0;
+  } catch (_) { return 0; }
+}
+// 1ページ目(サムネ+閲覧用大)を同期生成→アップロード直後のプレビューに間に合わせる。2ページ目以降は非同期。
+function generateReceiptPdfImages(absPdf) {
+  try { execFileSync('pdftoppm', ['-jpeg', '-singlefile', '-f', '1', '-l', '1', '-scale-to', '480', absPdf, absPdf + '.thumb'], { timeout: 20000 }); } catch (_) {}
+  try { execFileSync('pdftoppm', ['-jpeg', '-singlefile', '-f', '1', '-l', '1', '-scale-to', '1400', absPdf, absPdf + '.p1'], { timeout: 25000 }); } catch (_) {}
+  const pages = Math.min(pdfPageCount(absPdf) || 1, RECEIPT_PDF_MAX_PAGES);
+  let n = 2;
+  const next = () => {
+    if (n > pages) return;
+    const p = n++;
+    execFile('pdftoppm', ['-jpeg', '-singlefile', '-f', String(p), '-l', String(p), '-scale-to', '1400', absPdf, absPdf + '.p' + p], { timeout: 30000 }, () => next());
+  };
+  next();
+}
+// アップロードされたファイルがPDFならページ画像を生成 (絶対パスは uploadDir 配下に限定)
+function maybeGenerateReceiptPdf(filename, mimetype) {
+  if (mimetype !== 'application/pdf' && !/\.pdf$/i.test(filename || '')) return;
+  const abs = path.join(uploadDir, path.basename(filename));
+  if (!abs.startsWith(uploadDir) || !fs.existsSync(abs)) return;
+  try { generateReceiptPdfImages(abs); } catch (e) { console.warn('[expense pdf img]', e.message); }
+}
 
 // 領収書画像アップロード先 — /opt/cohub/uploads/ に直置き (URL は /uploads/<filename>)
 const uploadDir = path.join(__dirname, '..', '..', 'uploads');
@@ -159,6 +193,18 @@ function safeUnlinkUpload(url) {
   const fp = path.join(uploadDir, base);
   if (!fp.startsWith(uploadDir)) return;
   try { if (fs.existsSync(fp)) fs.unlinkSync(fp); } catch (e) { console.warn('[expense unlink]', e.message); }
+  // PDFから派生したサムネ/ページ画像も掃除 (receipt_X.pdf.thumb.jpg / receipt_X.pdf.pN.jpg)
+  if (/\.pdf$/i.test(base)) {
+    try {
+      const prefix = base + '.';
+      for (const f of fs.readdirSync(uploadDir)) {
+        if (f.startsWith(prefix) && /\.(jpg|jpeg)$/i.test(f)) {
+          const dp = path.join(uploadDir, f);
+          if (dp.startsWith(uploadDir)) { try { fs.unlinkSync(dp); } catch (_) {} }
+        }
+      }
+    } catch (_) {}
+  }
 }
 // 削除可否: 管理職=全件 / 一般=自分or自営業所(承認済を除く)
 function canDeleteExpense(uid, r) {
@@ -233,6 +279,7 @@ router.post('/ocr', authUser, (req, res) => {
     if (err) return res.status(400).json({ success: false, msg: err.message || 'アップロード失敗' });
     if (!req.file) return res.status(400).json({ success: false, msg: '画像がありません' });
     const imageUrl = '/uploads/' + req.file.filename;
+    maybeGenerateReceiptPdf(req.file.filename, req.file.mimetype);
     try {
       const titles = getDb().prepare('SELECT name FROM expense_account_titles WHERE active = 1 ORDER BY sort_order, id').all().map(r => r.name);
       const buf = fs.readFileSync(path.join(uploadDir, req.file.filename));
@@ -252,6 +299,7 @@ router.post('/upload-receipt', authUser, (req, res) => {
   receiptUpload.single('image')(req, res, (err) => {
     if (err) return res.status(400).json({ success: false, msg: err.message || 'アップロード失敗' });
     if (!req.file) return res.status(400).json({ success: false, msg: '画像がありません' });
+    maybeGenerateReceiptPdf(req.file.filename, req.file.mimetype);
     res.json({ success: true, image_url: '/uploads/' + req.file.filename });
   });
 });
