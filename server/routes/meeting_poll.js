@@ -309,6 +309,8 @@ router.post('/', authUser, (req, res) => {
   if (!title) return res.status(400).json({ success: false, msg: 'タイトル必須' });
   const description = String(b.description || '').trim().slice(0, 2000);
   const kind = (b.poll_kind === 'event') ? 'event' : 'schedule';
+  // fixed = 日程調整せず日時を指定して即確定でミーティングを作成 (schedule のみ)
+  const fixed = kind !== 'event' && b.fixed === true;
   const invitees = Array.isArray(b.invitees) ? b.invitees.filter(Boolean) : [];
   const guestNames = Array.isArray(b.guests) ? b.guests.map(n => String(n || '').trim().slice(0, 80)).filter(Boolean).slice(0, 100) : [];
   if (invitees.length > 50) return res.status(400).json({ success: false, msg: '出席者は50人まで' });
@@ -333,6 +335,8 @@ router.post('/', authUser, (req, res) => {
       return res.status(400).json({ success: false, msg: '対面の場合は場所を入力してください' });
     }
     slotValues = slots.map((s, idx) => ({ starts_at: String(s).slice(0, 30), label: null, ordinal: idx }));
+    // 日時指定(確定)モードは候補1つだけ
+    if (fixed) slotValues = slotValues.slice(0, 1);
   }
 
   const db = getDb();
@@ -364,11 +368,23 @@ router.post('/', authUser, (req, res) => {
     });
   })();
 
+  // 日時指定モードは投票を挟まず即「確定済み」にする
+  let decidedSlot = null;
+  if (fixed) {
+    decidedSlot = db.prepare(`SELECT id, starts_at FROM meeting_poll_slots WHERE poll_id = ? ORDER BY ordinal ASC LIMIT 1`).get(pollId);
+    if (decidedSlot) {
+      db.prepare(`UPDATE meeting_polls SET status = 'decided', decided_slot_id = ?, decided_at = datetime('now') WHERE id = ?`).run(decidedSlot.id, pollId);
+    }
+  }
+
   // 招待メンバーにDM (登録メンバーのみ。ゲストはトークンリンクで別途配布)
   const orgUser = db.prepare(`SELECT display_name FROM users WHERE id = ?`).get(req.uid);
   const orgName = (orgUser && orgUser.display_name) || '';
   let msg;
-  if (kind === 'event') {
+  if (fixed && decidedSlot) {
+    const place = fmtPlace(format, location);
+    msg = `📌 ${orgName}さんがミーティング「${title}」を作成しました。\n日時: ${fmtJa(decidedSlot.starts_at)}\n形式: ${place}\n→ https://cohub.biz-terrace.org/poll.html?id=${pollId}`;
+  } else if (kind === 'event') {
     const itemPreviews = slotValues.slice(0, 3).map(s => s.label).join('・');
     const more = slotValues.length > 3 ? ` 他${slotValues.length - 3}件` : '';
     msg = `📋 ${orgName}さんが「${title}」の参加可否を募集しています。\n項目: ${itemPreviews}${more}\n→ https://cohub.biz-terrace.org/boshu.html?id=${pollId} で回答`;
@@ -385,7 +401,7 @@ router.post('/', authUser, (req, res) => {
     const r = dmIns.run(req.uid, uid, msg);
     if (emit) emit(uid, 'dm:msg', { id: r.lastInsertRowid, from: req.uid, to: uid, content: msg, at: new Date().toISOString() });
   }
-  res.json({ success: true, id: pollId, guests: createdGuests, share_token: shareToken });
+  res.json({ success: true, id: pollId, guests: createdGuests, share_token: shareToken, decided: !!(fixed && decidedSlot) });
 });
 
 // 投票送信 (自分の全スロットの回答を上書き)

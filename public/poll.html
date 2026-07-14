@@ -230,6 +230,20 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <button class="btn ghost" onclick="showList()">← 一覧へ</button>
     </div>
     <div class="form">
+      <label>作成方法 <span style="color:#dc2626;">*</span></label>
+      <div class="format-pick" id="mode-pick">
+        <label class="fmt-opt selected">
+          <input type="radio" name="pmode" value="schedule" checked onchange="onModeChange()">
+          <span class="ic">🗳</span>
+          <span class="lbl"><b>日程を調整する</b><br><span class="hint">候補日を出して○△×で投票 → 後で確定</span></span>
+        </label>
+        <label class="fmt-opt">
+          <input type="radio" name="pmode" value="fixed" onchange="onModeChange()">
+          <span class="ic">📌</span>
+          <span class="lbl"><b>日時を指定して作成</b><br><span class="hint">調整せず、決まった日時でミーティングを作成</span></span>
+        </label>
+      </div>
+
       <label>タイトル <span style="color:#dc2626;">*</span></label>
       <input type="text" id="f-title" maxlength="120" placeholder="例: 経営会議 5月">
 
@@ -240,7 +254,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <input type="number" id="f-duration" min="10" max="480" value="30" style="max-width:120px;">
 
       <label>開催形式 <span style="color:#dc2626;">*</span></label>
-      <div class="format-pick">
+      <div class="format-pick" id="format-pick">
         <label class="fmt-opt selected">
           <input type="radio" name="fmt" value="online" checked onchange="onFormatChange()">
           <span class="ic">📹</span>
@@ -264,9 +278,9 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <div id="cal-ref" class="cal-ref">読み込み中...</div>
       </div>
 
-      <label>候補日時 <span style="color:#dc2626;">*</span> (1〜30件)</label>
+      <label><span id="slot-label">候補日時</span> <span style="color:#dc2626;">*</span> <span id="slot-hint">(1〜30件)</span></label>
       <div id="slot-list"></div>
-      <button type="button" class="add-slot" onclick="addSlotRow()">＋ 候補を追加</button>
+      <button type="button" class="add-slot" id="add-slot-btn" onclick="addSlotRow()">＋ 候補を追加</button>
 
       <label>出席者（登録メンバー）</label>
       <div style="font-size:11px;color:#64748b;margin-bottom:2px;">グループ名をタップすると、そのグループの全員をまとめて追加／解除できます</div>
@@ -275,9 +289,11 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div class="invitees-pick" id="invitees-pick">読み込み中...</div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;" id="invitees-count">0名選択中</div>
 
+      <div id="guest-section">
       <label style="margin-top:14px;">🎫 ゲスト（登録外の方・名前のみ） <span style="font-size:11px;font-weight:400;color:#64748b;">— アカウント不要。回答用リンクを発行します</span></label>
       <div id="guest-list"></div>
       <button type="button" class="add-slot" onclick="addGuestRow()">＋ ゲストを追加</button>
+      </div>
 
       <div class="actions">
         <button class="btn ghost" onclick="showList()">キャンセル</button>
@@ -435,6 +451,9 @@ async function showCreate() {
   document.getElementById('f-members-search').value = '';
   document.getElementById('slot-list').innerHTML = '';
   document.getElementById('guest-list').innerHTML = '';
+  // 作成方法を「日程調整」で初期化
+  const modeSched = document.querySelector('input[name=pmode][value=schedule]');
+  if (modeSched) modeSched.checked = true;
   // 開催形式をオンラインで初期化
   const fmtOnline = document.querySelector('input[name=fmt][value=online]');
   if (fmtOnline) fmtOnline.checked = true;
@@ -447,6 +466,7 @@ async function showCreate() {
     d.setHours(10, 0, 0, 0);
     addSlotRow(localPart(d));
   }
+  onModeChange();
   // メンバー一覧を取得
   const r = await api('/api/members');
   if (r && r.success) {
@@ -460,10 +480,38 @@ async function showCreate() {
 }
 function onFormatChange() {
   const val = (document.querySelector('input[name=fmt]:checked') || {}).value || 'online';
-  document.querySelectorAll('.fmt-opt').forEach(el => {
+  document.querySelectorAll('#format-pick .fmt-opt').forEach(el => {
     el.classList.toggle('selected', el.querySelector('input').value === val);
   });
   document.getElementById('location-row').style.display = (val === 'inperson') ? '' : 'none';
+}
+function isFixedMode() {
+  return ((document.querySelector('input[name=pmode]:checked') || {}).value || 'schedule') === 'fixed';
+}
+function onModeChange() {
+  const fixed = isFixedMode();
+  document.querySelectorAll('#mode-pick .fmt-opt').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('input').checked);
+  });
+  document.getElementById('slot-label').textContent = fixed ? '開催日時' : '候補日時';
+  document.getElementById('slot-hint').style.display = fixed ? 'none' : '';
+  document.getElementById('add-slot-btn').style.display = fixed ? 'none' : '';
+  document.getElementById('guest-section').style.display = fixed ? 'none' : '';
+  const slotList = document.getElementById('slot-list');
+  if (fixed) {
+    // 確定モードは1枠だけ。余分な行を畳む
+    while (slotList.children.length > 1) slotList.lastChild.remove();
+    if (slotList.children.length === 0) {
+      const d = new Date(Date.now() + 86400000); d.setHours(10, 0, 0, 0);
+      addSlotRow(localPart(d));
+    }
+    const rmBtn = slotList.querySelector('.slot-row button');
+    if (rmBtn) rmBtn.style.display = 'none';
+  } else {
+    const rmBtn = slotList.querySelector('.slot-row button');
+    if (rmBtn) rmBtn.style.display = '';
+  }
+  document.getElementById('btn-create-submit').textContent = fixed ? '📌 ミーティングを作成' : '作成 → 招待DM送信';
 }
 function localPart(d) {
   const pad = n => String(n).padStart(2, '0');
@@ -653,12 +701,18 @@ async function submitCreate() {
   if (!title) { alert('タイトルを入力してください'); return; }
   const desc = document.getElementById('f-desc').value.trim();
   const duration = parseInt(document.getElementById('f-duration').value) || 30;
-  const slots = [...document.querySelectorAll('#slot-list input[type=datetime-local]')]
+  const fixed = isFixedMode();
+  let slots = [...document.querySelectorAll('#slot-list input[type=datetime-local]')]
     .map(i => i.value).filter(v => v);
-  if (slots.length < 1) { alert('候補日時を1つ以上入力してください'); return; }
+  if (slots.length < 1) { alert(fixed ? '開催日時を入力してください' : '候補日時を1つ以上入力してください'); return; }
+  if (fixed) slots = slots.slice(0, 1);
   const invitees = [...getSelectedInvitees()];
-  const guests = getGuests();
-  if (invitees.length + guests.length < 1) { alert('出席者かゲストを1人以上指定してください'); return; }
+  const guests = fixed ? [] : getGuests();
+  if (fixed) {
+    if (invitees.length < 1) { alert('出席者を1人以上指定してください'); return; }
+  } else if (invitees.length + guests.length < 1) {
+    alert('出席者かゲストを1人以上指定してください'); return;
+  }
   const format = (document.querySelector('input[name=fmt]:checked') || {}).value || 'online';
   let location_ = '';
   if (format === 'inperson') {
@@ -667,7 +721,7 @@ async function submitCreate() {
   }
   const btn = document.getElementById('btn-create-submit');
   btn.disabled = true;
-  const r = await api('/api/poll', { method: 'POST', body: { title, description: desc, duration_minutes: duration, slots, invitees, guests, format, location: location_ } });
+  const r = await api('/api/poll', { method: 'POST', body: { title, description: desc, duration_minutes: duration, slots, invitees, guests, format, location: location_, fixed } });
   btn.disabled = false;
   if (r && r.success) {
     location.href = '/poll.html?id=' + r.id;
