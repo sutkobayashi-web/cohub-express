@@ -631,12 +631,15 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
     // 送信者 = 'notice_plaza' (おしらせ専用アカウント)。role='bot' なので社員一覧/点呼名簿には出ないが、
     // id が 'bot_' で始まらないので DM一覧・未読バッジには出る (bot_%名義DMは意図的に非表示=届かない)。
     // 匿名性維持: 差出人はコメント者本人ではなく、本文に🎭ニックネームのみ。
+    // 表示名はホームのカード名に合わせる (「ひろば」は開発上の呼び名でユーザーには通じない)
+    const CAT_LABEL = { '食事': '🍱 食事投稿', '相談': '🆘 悩み相談', '雑談': '💭 雑談', '健康Tips': '💡 健康Tips' };
+    const label = CAT_LABEL[post.category] || '📝 みんなの投稿';
+    const postUrl = '/plaza.html?tab=' + encodeURIComponent(post.category || '食事') + '#post-' + id;
     try {
-      const label = post.category === '食事' ? '🍱 食事の投稿' : '📝 ひろばの投稿';
-      const dmBody = ['💬 ' + label + 'にレスが付きました', '',
+      const dmBody = ['💬 あなたの「' + label + '」にコメントが届きました', '',
         anonName, '「' + content.slice(0, 200) + '」', '',
-        '→ 返信はこちら: https://cohub.biz-terrace.org/plaza.html#post-' + id,
-        '(このおしらせへの返信は届きません)'].join('\n');
+        '→ 投稿を開いて返信する: https://cohub.biz-terrace.org' + postUrl,
+        '(このおしらせに返信しても相手には届きません)'].join('\n');
       const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('notice_plaza', ?, ?, 'dm')")
         .run(post.author_id, dmBody);
       const emitToUser = req.app && req.app.locals && req.app.locals.emitToUser;
@@ -647,10 +650,10 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
     } catch (e) { console.warn('[plaza comment dm] fail:', e.message); }
     const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
     if (sendPush) sendPush(post.author_id, {
-      title: '💬 ひろば',
+      title: '💬 ' + label + 'にコメント',
       body: anonName + ': ' + content.slice(0, 80),
       tag: 'plaza-cmt-' + id,
-      url: '/plaza.html#post-' + id,
+      url: postUrl,
     }).catch(() => {});
   }
   const io = req.app && req.app.locals && req.app.locals.io;
