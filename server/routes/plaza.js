@@ -5,7 +5,7 @@ const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
-const { analyzeFoodImage, generateText } = require('../services/ai');
+const { analyzeFoodImage, generateText, computeNutritionTargets, ageFromBirth, regenFoodComment } = require('../services/ai');
 
 const CATEGORIES = ['食事', '相談', '雑談', '健康Tips'];
 
@@ -142,6 +142,8 @@ const ALCOHOL_PRESETS = {
   wine_glass:    { label: 'ワイン グラス',        g: 12 },
   highball:      { label: 'ハイボール',           g: 14 },
   shochu_mizu:   { label: '焼酎 水割り',         g: 20 },
+  shochu_1go:    { label: '焼酎 1合',            g: 36 },
+  chuhai_can:    { label: '缶チューハイ 350',     g: 14 },
 };
 // 反応セット (8種): 👍いいね/❤️推し/😊共感/💪応援/👏すごい/💡参考/🙏ありがとう/😢心配
 // 🎉は旧データ互換のため許容（UIには表示しない）
@@ -274,7 +276,7 @@ router.get('/posts', authUser, (req, res) => {
   const db = getDb();
 
   let sql = `SELECT p.id, p.author_id, p.category, p.content, p.image_url, p.nutrition_scores,
-                    p.ai_comment, p.is_anonymous, p.created_at,
+                    p.ai_comment, p.is_anonymous, p.created_at, p.meal_type,
                     COALESCE(p.extra_alcohol_g, 0) AS extra_alcohol_g,
                     u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
                     u.nickname AS author_nickname
@@ -294,11 +296,22 @@ router.get('/posts', authUser, (req, res) => {
   const meIsManager = !!(_viewer && _viewer.employee_type === 'admin');
   let reactions = [];
   let cmtMap = {};
+  let cmtListMap = {};
   if (ids.length) {
     const ph = ids.map(() => '?').join(',');
     reactions = db.prepare(`SELECT post_id, emoji, user_id FROM plaza_reactions WHERE post_id IN (${ph})`).all(...ids);
     const cnts = db.prepare(`SELECT post_id, COUNT(*) AS c FROM plaza_comments WHERE post_id IN (${ph}) AND deleted_at IS NULL GROUP BY post_id`).all(...ids);
     cmtMap = Object.fromEntries(cnts.map(x => [x.post_id, x.c]));
+    const crows = db.prepare(`SELECT c.id, c.post_id, c.author_id, c.content, c.created_at, u.nickname AS author_nickname
+                              FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id
+                              WHERE c.post_id IN (${ph}) AND c.deleted_at IS NULL ORDER BY c.id ASC`).all(...ids);
+    for (const r of crows) {
+      const isSelf = r.author_id === me;
+      (cmtListMap[r.post_id] = cmtListMap[r.post_id] || []).push({
+        id: r.id, author_id: isSelf ? r.author_id : null, content: r.content, created_at: r.created_at,
+        author_name: r.author_nickname ? '🎭 ' + r.author_nickname : '🎭 匿名', author_avatar: null, is_mine: isSelf,
+      });
+    }
   }
   const enriched = newPosts.map(p => {
     const rxs = reactions.filter(r => r.post_id === p.id);
@@ -315,6 +328,7 @@ router.get('/posts', authUser, (req, res) => {
       reactions: counts,
       my_reactions: mine,
       comment_count: cmtMap[p.id] || 0,
+      comments: cmtListMap[p.id] || [],
       can_delete: isAuthor || meIsManager,
       is_mine: isAuthor,
       // 表示用: nutrition_scores に extra_alcohol_g を合算
@@ -409,6 +423,10 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   const imageUrl = req.file ? '/uploads/plaza/' + req.file.filename : null;
   if (!content && !imageUrl) return res.status(400).json({ success: false, msg: '本文または画像が必要' });
   const isAnonymous = (req.body && (req.body.is_anonymous === '1' || req.body.is_anonymous === 'true')) ? 1 : 0;
+  // 食事区分 (朝食/昼食/夕食/おやつ)。おやつはAI評価で「一食」でなく「間食」として扱う。
+  const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+  const mealType = MEAL_TYPES.includes(String((req.body && req.body.meal_type) || '').trim())
+    ? String(req.body.meal_type).trim() : null;
 
   // 食事カテゴリ + 画像あり → AI 栄養分析を試行 (失敗しても投稿は成立)
   // CoWell 互換フォーマット ({calories:{value,unit}, protein:{value,unit}, ... confidence:{level,reason}}) で保存
@@ -421,7 +439,13 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
       // 過去7日の食事ログを収集 (CoHub plaza_posts + CoWell Classic ミラー cw_posts)
       const recentMeals = collectRecentMeals(req.uid);
       console.log('[plaza] recent meals for trend:', recentMeals.length);
-      const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals);
+      // 個別の栄養目標 (性別/年齢/身長/体重 → 推定必要量)。未入力なら一律目標にフォールバック。
+      const _db = getDb();
+      const _bu = _db.prepare('SELECT sex, height_cm, activity_pal, birth_date FROM users WHERE id = ?').get(req.uid) || {};
+      const _bw = _db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};
+      const foodTargets = computeNutritionTargets({ sex: _bu.sex, height_cm: _bu.height_cm, weight_kg: _bw.weight_kg, age: ageFromBirth(_bu.birth_date), pal: _bu.activity_pal });
+      console.log('[plaza] targets personalized=' + foodTargets.personalized);
+      const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals, foodTargets, mealType);
       if (r && typeof r === 'object') {
         // 5セクション形式 (good/bad/improve/trend/try) を結合保存
         // 旧形式 (comment_nutrition/comment_health/comment) もフォールバック
@@ -445,8 +469,8 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   }
 
   const db = getDb();
-  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous);
+  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous, meal_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous, mealType);
   const post = db.prepare(`SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company, u.nickname AS author_nickname
                            FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id WHERE p.id = ?`).get(ins.lastInsertRowid);
   post.kind = 'plaza';
@@ -589,10 +613,7 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const db = getDb();
   const post = db.prepare('SELECT id, author_id, category FROM plaza_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
-  // 食事投稿はコメント禁止 (👍リアクションのみ、マウント/食事ハラスメント防止)
-  if (post.category === '食事') {
-    return res.status(403).json({ success: false, msg: '食事投稿にはコメントできません (👍のみ)' });
-  }
+  // 食事投稿も 2026-07-17 よりコメント(レス)可 (社長指示: 交流/エンゲージメント優先。旧=👍のみマウント防止)。
   const ins = db.prepare('INSERT INTO plaza_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
   const raw = db.prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
                                  u.nickname AS author_nickname, u.avatar_url AS author_avatar
@@ -606,6 +627,24 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const pub = { id: raw.id, author_id: null, content: raw.content, created_at: raw.created_at,
                 author_name: anonName, author_avatar: null, is_mine: false };
   if (post.author_id !== req.uid) {
+    // 2026-07-20: レスの内容を DM でも本人に届ける (Push見逃し対策・社長要望)。
+    // 送信者 = 'notice_plaza' (おしらせ専用アカウント)。role='bot' なので社員一覧/点呼名簿には出ないが、
+    // id が 'bot_' で始まらないので DM一覧・未読バッジには出る (bot_%名義DMは意図的に非表示=届かない)。
+    // 匿名性維持: 差出人はコメント者本人ではなく、本文に🎭ニックネームのみ。
+    try {
+      const label = post.category === '食事' ? '🍱 食事の投稿' : '📝 ひろばの投稿';
+      const dmBody = ['💬 ' + label + 'にレスが付きました', '',
+        anonName, '「' + content.slice(0, 200) + '」', '',
+        '→ 返信はこちら: https://cohub.biz-terrace.org/plaza.html#post-' + id,
+        '(このおしらせへの返信は届きません)'].join('\n');
+      const dmIns = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('notice_plaza', ?, ?, 'dm')")
+        .run(post.author_id, dmBody);
+      const emitToUser = req.app && req.app.locals && req.app.locals.emitToUser;
+      if (emitToUser) emitToUser(post.author_id, 'dm:msg', {
+        id: dmIns.lastInsertRowid, from: 'notice_plaza', to: post.author_id,
+        content: dmBody, at: new Date().toISOString(), attach: null,
+      });
+    } catch (e) { console.warn('[plaza comment dm] fail:', e.message); }
     const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
     if (sendPush) sendPush(post.author_id, {
       title: '💬 ひろば',
@@ -636,6 +675,19 @@ router.post('/posts/:id/alcohol', authUser, express.json({ limit: '4kb' }), (req
 
   const b = req.body || {};
   let newExtra = Number(row.extra) || 0;
+  // clear_ai: AIの誤検出時。保存済み nutrition_scores のアルコールを0/has_alcohol=falseに書き換え、追加分も0に
+  if (b.clear_ai === true) {
+    let nsJson = row.nutrition_scores;
+    try {
+      const ns = typeof nsJson === 'string' ? JSON.parse(nsJson) : { ...(nsJson || {}) };
+      ns.alcohol = { value: 0, unit: 'g' };
+      ns.has_alcohol = false;
+      delete ns.alcohol_breakdown;
+      nsJson = JSON.stringify(ns);
+    } catch (e) {}
+    db.prepare('UPDATE plaza_posts SET extra_alcohol_g = 0, nutrition_scores = ? WHERE id = ?').run(nsJson, id);
+    return res.json({ success: true, extra_alcohol_g: 0, nutrition_scores: nsJson, breakdown: null });
+  }
   if (b.reset === true) {
     newExtra = 0;
   } else if (b.preset && ALCOHOL_PRESETS[b.preset]) {
@@ -683,6 +735,112 @@ router.get('/unread-count', authUser, (req, res) => {
 router.post('/mark-seen', authUser, (req, res) => {
   getDb().prepare("UPDATE users SET last_plaza_seen_at = datetime('now') WHERE id = ?").run(req.uid);
   res.json({ success: true });
+});
+
+// ── 食事傾向のひとこと (解説の特別感用: 飲酒/禁酒・おかず傾向を本人の履歴から) ──
+// AIヘルスアドバイザーの音声解説の冒頭に「ふだんの傾向」を1文添え、"あなたを分かっている"感を出す。
+const _tendencyCache = new Map(); // key: author_id|YYYY-MM-DD -> tendency文字列 (日次キャッシュ)
+function _stripEmoji(s) {
+  return String(s || '').replace(/[←-⇿⌀-➿⬀-⯿️\u{1F000}-\u{1FAFF}]/gu, '').replace(/\s+/g, ' ').trim();
+}
+// nutrition_scores は新形式(ネスト {value,unit}) と旧形式(フラット数値) が混在 → 両対応で数値取得
+function _nutVal(x) {
+  if (x == null) return null;
+  if (typeof x === 'object') { const v = Number(x.value); return isNaN(v) ? null : v; }
+  const n = Number(x); return isNaN(n) ? null : n;
+}
+router.get('/posts/:id/tendency', authUser, async (req, res) => {
+  try {
+    const db = getDb();
+    const post = db.prepare("SELECT author_id, category FROM plaza_posts WHERE id = ? AND deleted_at IS NULL").get(req.params.id);
+    if (!post || post.category !== '食事') return res.json({ success: true, tendency: '' });
+    const author = post.author_id;
+    const dayKey = new Date().toISOString().slice(0, 10);
+    const cacheKey = author + '|' + dayKey;
+    if (_tendencyCache.has(cacheKey)) return res.json({ success: true, tendency: _tendencyCache.get(cacheKey) });
+
+    // 本人の食事投稿(直近90日・最大40件)を集計
+    const rows = db.prepare(`SELECT content, nutrition_scores, extra_alcohol_g, created_at
+      FROM plaza_posts WHERE author_id = ? AND category = '食事' AND deleted_at IS NULL
+      AND created_at >= datetime('now','-90 days')
+      ORDER BY created_at DESC LIMIT 40`).all(author);
+    if (rows.length < 3) { _tendencyCache.set(cacheKey, ''); return res.json({ success: true, tendency: '' }); }
+
+    let n = 0, drink = 0, vegSum = 0, vegN = 0, protSum = 0, protN = 0, saltSum = 0, saltN = 0, fibSum = 0, fibN = 0;
+    const recentDrink = []; // 新しい順
+    const contents = [];
+    for (const r of rows) {
+      n++;
+      let ns = {};
+      try { ns = r.nutrition_scores ? JSON.parse(r.nutrition_scores) : {}; } catch (e) {}
+      const alcV = _nutVal(ns.alcohol);
+      const hasAlc = !!(ns.has_alcohol === true || (alcV && alcV > 0) || (Number(r.extra_alcohol_g) > 0));
+      if (hasAlc) drink++;
+      recentDrink.push(hasAlc);
+      const veg = _nutVal(ns.vitamin); if (veg != null) { vegSum += veg; vegN++; }
+      const prot = _nutVal(ns.protein); if (prot != null) { protSum += prot; protN++; }
+      const salt = _nutVal(ns.salt); if (salt != null) { saltSum += salt; saltN++; }
+      const fib = _nutVal(ns.fiber); if (fib != null) { fibSum += fib; fibN++; }
+      if (r.content) contents.push(String(r.content).replace(/\s+/g, ' ').slice(0, 40));
+    }
+    const drinkRate = Math.round((drink / n) * 100);
+    const recentNoAlc = drink > 0 && recentDrink.slice(0, 5).every(f => !f); // 以前は飲むが最近は禁酒
+    const vegAvg = vegN ? Math.round(vegSum / vegN) : null;
+    const protAvg = protN ? Math.round(protSum / protN) : null;
+    const saltAvg = saltN ? Math.round((saltSum / saltN) * 10) / 10 : null;
+    const fibAvg = fibN ? Math.round((fibSum / fibN) * 10) / 10 : null;
+
+    let tendency = '';
+    try {
+      const prompt = `あなたは健康管理室のアドバイザー。ある社員の食事記録${n}件の傾向データから、その人の「ふだんの食事傾向」を親しみを込めて日本語で1文だけ述べてください。飲酒/禁酒の傾向と、おかず(野菜・たんぱく)の傾向を自然に織り込む。断定や説教はせず、あたたかく。40文字以内。医療診断はしない。絵文字は使わない。
+データ: 記録${n}件, 飲酒あり${drink}件(${drinkRate}%)${recentNoAlc ? ', 最近は飲酒なしが続く' : ''}, 野菜平均${vegAvg}g(目標120), たんぱく平均${protAvg}g(目標20), 塩分平均${saltAvg}g(目標2.5未満), 食物繊維平均${fibAvg}g(目標7)
+最近の食事メモ: ${contents.slice(0, 6).join(' / ')}
+出力は1文のみ。「ですね」等でやわらかく締める。`;
+      const out = await generateText(prompt, { temperature: 0.6, maxTokens: 200, thinkingBudget: 0 });
+      tendency = _stripEmoji(String(out || '').split(/\n/)[0]).replace(/^[「『]|[」』]$/g, '').slice(0, 70);
+    } catch (e) {
+      // ルールベース fallback
+      const parts = [];
+      if (recentNoAlc) parts.push('この頃はお酒を控えていらっしゃいます');
+      else if (drinkRate >= 50) parts.push('晩酌を楽しまれる日が多め');
+      else if (drinkRate <= 15) parts.push('お酒は控えめな傾向');
+      if (vegAvg != null && vegAvg >= 110) parts.push('野菜のおかずをしっかり摂っています');
+      else if (vegAvg != null && vegAvg < 80) parts.push('野菜のおかずがもう少しあるとよい傾向');
+      else if (protAvg != null && protAvg >= 20) parts.push('たんぱくのおかずをよく摂っています');
+      tendency = parts.length ? ('ふだんは' + parts.join('、') + 'ね。') : '';
+    }
+    _tendencyCache.set(cacheKey, tendency);
+    if (_tendencyCache.size > 500) { const k = _tendencyCache.keys().next().value; _tendencyCache.delete(k); }
+    res.json({ success: true, tendency });
+  } catch (e) {
+    console.warn('[tendency]', e && e.message);
+    res.json({ success: true, tendency: '' });
+  }
+});
+
+// 過去の食事投稿を「今の個別目標」で再診断 (本人のみ・画像は再解析せず保存済み栄養値を評価し直す)
+router.post('/posts/:id/rediagnose', authUser, express.json(), async (req, res) => {
+  try {
+    const db = getDb();
+    const post = db.prepare("SELECT id, author_id, category, content, nutrition_scores FROM plaza_posts WHERE id = ? AND deleted_at IS NULL").get(req.params.id);
+    if (!post) return res.status(404).json({ success: false, msg: '投稿が見つかりません' });
+    if (post.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人の投稿のみ再診断できます' });
+    if (post.category !== '食事' || !post.nutrition_scores) return res.status(400).json({ success: false, msg: '栄養データのある食事投稿のみ対象です' });
+    let scores; try { scores = JSON.parse(post.nutrition_scores); } catch (e) { return res.status(400).json({ success: false, msg: '栄養データを読めません' }); }
+    // 本人の個別目標
+    const bu = db.prepare('SELECT sex, height_cm, activity_pal, birth_date FROM users WHERE id = ?').get(req.uid) || {};
+    const bw = db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};
+    const targets = computeNutritionTargets({ sex: bu.sex, height_cm: bu.height_cm, weight_kg: bw.weight_kg, age: ageFromBirth(bu.birth_date), pal: bu.activity_pal });
+    const recentMeals = collectRecentMeals(req.uid);
+    const obj = await regenFoodComment(scores, targets, post.content, recentMeals);
+    const newComment = formatAdvisorSections(obj);
+    if (!newComment) return res.status(500).json({ success: false, msg: '再診断に失敗しました' });
+    db.prepare('UPDATE plaza_posts SET ai_comment = ? WHERE id = ? AND author_id = ?').run(newComment, post.id, req.uid);
+    res.json({ success: true, ai_comment: newComment, personalized: targets.personalized, basis: targets.basis });
+  } catch (e) {
+    console.warn('[rediagnose]', e && e.message);
+    res.status(500).json({ success: false, msg: '再診断エラー' });
+  }
 });
 
 module.exports = router;
