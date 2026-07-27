@@ -1286,15 +1286,15 @@ let token = localStorage.getItem('cohub_token') || '';
 let me = null;
 const $ = (id) => document.getElementById(id);
 
-// 文字サイズ適用 (font-zoom.jsと同じ localStorage key 'm_fz' を共有、home.htmlは4段階でクランプ)
+// 文字サイズ適用 (font-zoom.jsと同じ localStorage key 'm_fz'・同じ3段階 標準/大/特大)
 // 2026-07-28: ヘッダー/フロートの [A− A＋] ボタンは廃止。切替は マイページ → 文字サイズ に集約。
-const FZ_LEVELS = ['s', 'm', 'l', 'xl'];
-const FZ_ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32 };
+const FZ_LEVELS = ['m', 'l', 'xl'];
+const FZ_ZOOM = { m: 1, l: 1.15, xl: 1.32 };
+const FZ_LEGACY = { s: 'm', xxl: 'xl', xxxl: 'xl' };   // 6段階時代の保存値を読み替え
 function getFzLevel() {
   try {
     const v = localStorage.getItem('m_fz');
-    // home.htmlは4段階、他ページの2XL/3XLが入っていたら xl にクランプ
-    if (v === 'xxl' || v === 'xxxl') return 'xl';
+    if (FZ_LEGACY[v]) return FZ_LEGACY[v];
     return FZ_LEVELS.indexOf(v) >= 0 ? v : 'm';
   } catch (e) { return 'm'; }
 }
