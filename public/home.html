@@ -338,6 +338,23 @@
   .whats-new { margin: 14px 4px 0; background: #fdf7e8; border-radius: 16px; align-items: flex-start; gap: 9px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
   .whats-new.has-msg { margin-top: 0; }
   .whats-new .wn-label { font-size: 12px; padding: 4px 13px; }
+  /* ===== 2026-07-28 運転アラートを「お知らせ」から格上げ (お知らせの直下に専用枠・管理職のみ) ===== */
+  .drive-alerts { margin: 10px 4px 0; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(159,18,57,0.07); }
+  .drive-alerts .da-head { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .drive-alerts .da-label { flex-shrink: 0; background: #e11d48; color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; padding: 4px 13px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .drive-alerts .da-count { background: #9f1239; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
+  .drive-alerts .da-more { margin-left: auto; font-size: 11.5px; color: #9f1239; text-decoration: none; font-weight: 700; }
+  .drive-alerts .da-list { width: 100%; display: flex; flex-direction: column; margin-top: 3px; }
+  .drive-alerts .da-li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid #fecdd3; text-decoration: none; color: #4c0519; }
+  .drive-alerts .da-li:first-child { border-top: none; }
+  .drive-alerts .da-li:active { background: #ffe4e6; }
+  .drive-alerts .da-li .li-ic { font-size: 17px; flex: 0 0 auto; width: 22px; text-align: center; }
+  .drive-alerts .da-li .li-body { flex: 1; min-width: 0; }
+  .drive-alerts .da-li .li-l1 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .drive-alerts .da-li .li-time { color: #9f1239; opacity: 0.75; font-size: 11px; }
+  .drive-alerts .da-li .li-new { background: #e11d48; color: #fff; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1px 6px; }
+  .drive-alerts .da-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: #881337; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .drive-alerts .da-li.is-unread .li-text { color: #4c0519; }
   .branch-strip { position: relative; margin: 14px 4px 0; background: #fdf7e8; border: 1px solid #ecdfc0; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
   .branch-strip .bs-label { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 11px; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; color: #fff; background: #0f766e; padding: 4px 13px; border-radius: 999px; }
   .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
@@ -842,6 +859,16 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <a class="wn-more" id="wn-more" href="/announcements.html">お知らせ一覧 ›</a>
     </div>
     <div class="wn-list" id="wn-list"></div>
+  </div>
+
+  <!-- ━━━ ⚠️ 運転アラート (お知らせから格上げ・その直下に独立表示。管理職のみサーバーが返す) ━━━ -->
+  <div id="drive-alerts" class="drive-alerts" style="display:none;">
+    <div class="da-head">
+      <span class="da-label">⚠️ 運転アラート</span>
+      <span class="da-count" id="da-count" style="display:none;">0</span>
+      <a class="da-more" href="/alerts.html">アラート一覧 ›</a>
+    </div>
+    <div class="da-list" id="da-list"></div>
   </div>
 
   <!-- ━━━ 🩸 今日の体調チェック (現場一般社員のトップ・JSで表示/状態切替) ━━━ -->
@@ -1561,33 +1588,67 @@ async function wnMarkRead(keys) {
     });
   } catch (e) {}
 }
-// 項目クリック: その1件だけ既読にしてから遷移
-function wnClick(ev, key) {
+// 項目クリック: その1件だけ既読にしてから遷移 (isAlert=運転アラート枠の項目)
+function wnClick(ev, key, isAlert) {
   wnMarkRead([key]);
   const li = ev && ev.currentTarget;
   if (li) { const b = li.querySelector('.li-new'); if (b) b.remove(); }
-  wnBumpCount(-1);
+  bumpCount(isAlert ? 'da-count' : 'wn-new-count', -1);
   return true;   // 既定の遷移はそのまま
 }
-function wnBumpCount(d) {
-  const c = document.getElementById('wn-new-count');
+function bumpCount(id, d) {
+  const c = document.getElementById(id);
   if (!c) return;
   const n = Math.max(0, (parseInt(c.dataset.n || '0', 10) || 0) + d);
   c.dataset.n = n;
   if (n > 0) { c.textContent = n + '件の未読'; c.style.display = ''; }
   else { c.style.display = 'none'; }
 }
+function wnBumpCount(d) { bumpCount('wn-new-count', d); }
 async function wnReadAll() {
-  const keys = _wnEvents.filter(function (e) { return e.unread && e.key; }).map(function (e) { return e.key; });
+  const keys = _wnEvents.concat(_wnAlerts).filter(function (e) { return e.unread && e.key; }).map(function (e) { return e.key; });
   await wnMarkRead(keys);
   loadWhatsNew();
+}
+// ⭐2026-07-28 運転アラートを「お知らせ」から格上げ: お知らせ直下の専用枠に出す (社長指示)
+//   サーバー側で管理職のみに返しているので、一般社員は空=枠ごと非表示。
+var _wnAlerts = [];
+const DA_SHOW = 4;
+function renderDriveAlerts(alerts) {
+  _wnAlerts = (alerts || []).slice(0, DA_SHOW);
+  const box = document.getElementById('drive-alerts'), list = document.getElementById('da-list');
+  if (!box || !list) return 0;
+  if (!_wnAlerts.length) { box.style.display = 'none'; return 0; }
+  box.style.display = '';
+  let unread = 0;
+  list.innerHTML = _wnAlerts.map(function (ev) {
+    if (ev.unread) unread++;
+    return '<a class="da-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(ev.link || '/alerts.html') + '"'
+      + ' onclick="return wnClick(event, ' + JSON.stringify(ev.key || '').replace(/"/g, '&quot;') + ', true)">'
+      + '<span class="li-ic">' + (ev.icon || '⚠️') + '</span>'
+      + '<span class="li-body">'
+      +   '<span class="li-l1">'
+      +     (ev.created_at ? '<span class="li-time">' + escapeHtml(postTime(ev.created_at)) + '</span>' : '')
+      +     (ev.unread ? '<span class="li-new">NEW</span>' : '')
+      +   '</span>'
+      +   (ev.summary ? '<span class="li-text">' + escapeHtml(ev.summary) + '</span>' : '')
+      + '</span>'
+      + '</a>';
+  }).join('');
+  const c = document.getElementById('da-count');
+  if (c) { c.dataset.n = 0; bumpCount('da-count', unread); }
+  return unread;
 }
 async function loadWhatsNew() {
   let events = [];
   try {
-    const r = await api('/api/whats-new?limit=10');
+    const r = await api('/api/whats-new?limit=14');
     if (r && r.success && Array.isArray(r.events)) events = r.events;
   } catch (e) { /* 取得失敗は黙って無視 */ }
+  // 運転アラートは「お知らせ」の枠を使わず専用枠へ (お知らせが埋もれない・アラートも見落とさない)
+  const alertEvents = events.filter(function (e) { return e.type === 'alert'; });
+  events = events.filter(function (e) { return e.type !== 'alert'; });
+  const alertUnread = renderDriveAlerts(alertEvents);   // お知らせが空でも描画されるよう先に処理
   // 実イベント + 新機能のお知らせ(管理画面で編集可) を1本の「お知らせ」に統合
   let features = null;
   try {
@@ -1634,7 +1695,7 @@ async function loadWhatsNew() {
   const cnt = document.getElementById('wn-new-count');
   if (cnt) { cnt.dataset.n = 0; wnBumpCount(unread); }
   const ra = document.getElementById('wn-readall');
-  if (ra) ra.style.display = unread > 0 ? '' : 'none';
+  if (ra) ra.style.display = (unread + alertUnread) > 0 ? '' : 'none';   // 運転アラート枠の未読も対象
   linkMsgNews();
 }
 // 今日のひとこと + NEWS を1枚に連結 (両方表示中のみ上下端フラット)

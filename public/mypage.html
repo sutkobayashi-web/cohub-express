@@ -66,7 +66,7 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
   main{padding:12px 12px 60px}
 }
 </style>
-<script src="/font-zoom.js?v=20260728c" defer></script>
+<script src="/font-zoom.js?v=20260728d" defer></script>
 <script src="/global-notif.js?v=20260709-accident2" defer></script>
 <script src="/version-check.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,7 +141,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   <!-- 文字サイズ -->
   <div class="section" id="fz-section">
     <h2><span class="ic">🔠</span>文字サイズ</h2>
-    <div class="desc">CoWellの画面全体の文字の大きさを4段階から選べます。選ぶとすぐに反映され、この端末で開くすべての画面に適用されます (言語設定と違い、<b>端末ごと</b>の設定です)。</div>
+    <div class="desc">CoWellの画面全体の文字の大きさを4段階から選べます。選ぶとすぐに反映され、この端末で開くすべての画面に適用されます (言語設定と違い、<b>端末ごと</b>の設定です)。選んだ時点で保存されていますが、確認用に保存ボタンもあります。</div>
     <div class="fz-pick">
       <button type="button" class="fz-opt" data-fz="s" onclick="fzPick('s')"><span style="font-size:12px;">あ</span>小さめ</button>
       <button type="button" class="fz-opt" data-fz="m" onclick="fzPick('m')"><span style="font-size:14px;">あ</span>標準</button>
@@ -151,6 +151,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div style="margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;color:#334155;line-height:1.6;">
       本日もお疲れさまです。出発前の確認をお願いします。
     </div>
+    <button class="btn btn-primary" id="save-fz" onclick="saveFz()" style="margin-top:10px;">この文字サイズで保存</button>
     <div class="msg" id="fzs-msg"></div>
   </div>
 
@@ -343,6 +344,14 @@ function fzPick(level){
   api.set(level);
   fzRefresh();
   setMsg('fzs-msg', 'この端末の文字サイズを「' + (api.LBL[level] || level) + '」にしました', 'ok');
+}
+// 選んだ時点で保存済みだが、他の設定と同じ操作感になるよう保存ボタンも用意 (押すと再保存+確認トースト)
+function saveFz(){
+  const api = window.cohubFontZoom; if (!api) return;
+  const lv = api.set(api.get());
+  fzRefresh();
+  setMsg('fzs-msg', '保存しました', 'ok');
+  toast('文字サイズを「' + (api.LBL[lv] || lv) + '」で保存しました');
 }
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.cohubFontZoom) { document.getElementById('fz-section').style.display = 'none'; return; }  // 読込失敗時は隠す
