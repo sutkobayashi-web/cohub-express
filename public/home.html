@@ -864,7 +864,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   <!-- ━━━ ⚠️ 運転アラート (お知らせから格上げ・その直下に独立表示。管理職のみサーバーが返す) ━━━ -->
   <div id="drive-alerts" class="drive-alerts" style="display:none;">
     <div class="da-head">
-      <span class="da-label">⚠️ 運転アラート</span>
+      <span class="da-label">⚠️ 本日の運転アラート</span>
       <span class="da-count" id="da-count" style="display:none;">0</span>
       <a class="da-more" href="/alerts.html">アラート一覧 ›</a>
     </div>
@@ -1613,9 +1613,17 @@ async function wnReadAll() {
 // ⭐2026-07-28 運転アラートを「お知らせ」から格上げ: お知らせ直下の専用枠に出す (社長指示)
 //   サーバー側で管理職のみに返しているので、一般社員は空=枠ごと非表示。
 var _wnAlerts = [];
-const DA_SHOW = 4;
+const DA_SHOW = 5;
+// ⭐当日分だけ出す (社長指示 2026-07-28。前日以前は「アラート一覧」で見る)
+function isTodayJst(iso) {
+  if (!iso) return false;
+  const t = new Date(String(iso).replace(' ', 'T') + 'Z');   // サーバーはUTC文字列。postTimeと同じ解釈
+  if (isNaN(t.getTime())) return false;
+  const n = new Date();
+  return t.getFullYear() === n.getFullYear() && t.getMonth() === n.getMonth() && t.getDate() === n.getDate();
+}
 function renderDriveAlerts(alerts) {
-  _wnAlerts = (alerts || []).slice(0, DA_SHOW);
+  _wnAlerts = (alerts || []).filter(function (a) { return isTodayJst(a.created_at); }).slice(0, DA_SHOW);
   const box = document.getElementById('drive-alerts'), list = document.getElementById('da-list');
   if (!box || !list) return 0;
   if (!_wnAlerts.length) { box.style.display = 'none'; return 0; }
