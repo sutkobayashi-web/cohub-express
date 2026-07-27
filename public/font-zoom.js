@@ -1,7 +1,7 @@
 /**
  * 文字サイズ統一適用 (localStorage 'm_fz' を全ページで尊重)
- * - localStorage 'm_fz' = 'm'(標準) | 'l'(大) | 'xl'(特大) の3段階
- *   旧値 s / xxl / xxxl は m / xl / xl に読み替え (2026-07-28に6段階→3段階へ集約)
+ * - localStorage 'm_fz' = 's'(小さめ) | 'm'(標準) | 'l'(大) | 'xl'(特大) の4段階
+ *   旧値 xxl / xxxl は xl に読み替え (2026-07-28に6段階→4段階へ集約)
  * - 2026-07-28: 画面上の [A− A＋] ボタンは廃止。切替は「マイページ → 文字サイズ」に集約。
  *   → 各ページからは window.cohubFontZoom (get/set/LEVELS/LBL/ZOOM) を使う。
  * - スマホ/タブレットだけでなく PC でも適用 (端末=ブラウザごとの設定。既定は標準=等倍)
@@ -18,10 +18,10 @@
       return uaHit && minSide < 1200;
     } catch (e) { return false; }
   }
-  var LEVELS = ['m', 'l', 'xl'];
-  var ZOOM = { m: 1, l: 1.15, xl: 1.32 };
-  var LBL = { m: '標準', l: '大', xl: '特大' };
-  var LEGACY = { s: 'm', xxl: 'xl', xxxl: 'xl' };   // 6段階時代の保存値を読み替え
+  var LEVELS = ['s', 'm', 'l', 'xl'];
+  var ZOOM = { s: 0.9, m: 1, l: 1.15, xl: 1.32 };
+  var LBL = { s: '小さめ', m: '標準', l: '大', xl: '特大' };
+  var LEGACY = { xxl: 'xl', xxxl: 'xl' };   // 6段階時代の保存値を読み替え
   function getLevel() {
     try {
       var v = localStorage.getItem('m_fz');
