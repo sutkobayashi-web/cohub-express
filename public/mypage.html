@@ -11,7 +11,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Hiragino Sans,system-ui,sans-serif}
 header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
-header .back{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:8px}
+header .back{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:12px}
 header .back:hover{background:#f1f5f9}
 header h1{font-size:17px;font-weight:800;margin:0;flex:1}
 main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
@@ -32,12 +32,12 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
 .section .desc{font-size:12px;color:var(--sub);margin:-6px 0 12px;line-height:1.5}
 .field{margin-bottom:10px}
 .field label{display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;letter-spacing:0.3px}
-.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;outline:none;font-family:inherit}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:14px;font-size:15px;background:#fff;outline:none;font-family:inherit}
 .field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(13,148,136,0.15)}
 .row-2{display:flex;gap:8px}
 .row-2 select{flex:1}
 .row-2 input{flex:1}
-.btn{display:inline-block;padding:10px 18px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px}
+.btn{display:inline-block;padding:10px 18px;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px}
 .btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 10px rgba(13,148,136,0.30)}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(13,148,136,0.40)}
 .btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
@@ -62,8 +62,18 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
   main{padding:12px 12px 60px}
 }
 </style>
-<script src="/global-notif.js" defer></script>
+<script src="/font-zoom.js?v=20260728a" defer></script>
+<script src="/global-notif.js?v=20260709-accident2" defer></script>
 <script src="/version-check.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <header>
@@ -110,6 +120,45 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
     <div class="msg" id="dg-msg"></div>
   </div>
 
+  <!-- 表示言語 -->
+  <div class="section">
+    <h2><span class="ic">🌐</span>表示言語 / Idioma / Language</h2>
+    <div class="desc">CoWellの表示言語を選びます。設定すると、次回以降どの端末でログインしても自動でこの言語で表示されます。</div>
+    <div class="field">
+      <select id="lang-select" onchange="saveLang()" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff">
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="pt">🇧🇷 Português</option>
+      </select>
+    </div>
+    <div class="msg" id="lang-msg"></div>
+  </div>
+
+  <!-- 文字サイズ -->
+  <div class="section" id="fz-section">
+    <h2><span class="ic">🔠</span>文字サイズ</h2>
+    <div class="desc">CoWellの画面全体の文字の大きさを変えます。ここで変えると、この端末で開くすべての画面に反映されます (言語設定と違い、<b>端末ごと</b>の設定です)。</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:14px;">
+      <button type="button" class="btn btn-ghost" id="fzs-minus" onclick="fzStep(-1)" aria-label="文字を小さく" style="min-width:76px;display:inline-flex;align-items:center;justify-content:center;gap:2px;">
+        <span style="font-size:14px;font-weight:900;">A</span><span style="font-size:18px;line-height:1;">−</span>
+      </button>
+      <span id="fzs-lvl" style="min-width:52px;text-align:center;font-size:15px;font-weight:900;color:#fff;background:var(--accent);border-radius:999px;padding:6px 10px;letter-spacing:0.3px;">M</span>
+      <button type="button" class="btn btn-ghost" id="fzs-plus" onclick="fzStep(1)" aria-label="文字を大きく" style="min-width:76px;display:inline-flex;align-items:center;justify-content:center;gap:2px;">
+        <span style="font-size:18px;font-weight:900;">A</span><span style="font-size:18px;line-height:1;">＋</span>
+      </button>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;color:#334155;line-height:1.6;">
+      本日もお疲れさまです。出発前の確認をお願いします。
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+      <button type="button" class="btn btn-ghost" id="fzs-reset" onclick="fzReset()">標準 (M) に戻す</button>
+    </div>
+    <div class="msg" id="fzs-msg"></div>
+    <div id="fzs-pc-note" style="display:none;font-size:11.5px;color:#94a3b8;line-height:1.6;margin-top:8px;">
+      ※ この設定はスマートフォン・タブレット用です。パソコンではブラウザのズーム (Ctrl と ＋ / −) をお使いください。
+    </div>
+  </div>
+
   <!-- パスワード -->
   <div class="section">
     <h2><span class="ic">🔒</span>パスワード変更</h2>
@@ -142,6 +191,50 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
     <button class="btn btn-primary btn-block" onclick="location.href='/avatar.html'">📸 アバターを撮り直す</button>
   </div>
 
+  <!-- 生年月日 -->
+  <div class="section">
+    <h2><span class="ic">🎂</span>生年月日</h2>
+    <div class="desc">健康管理・年齢に応じた案内に使います。本人のみ編集できます。</div>
+    <div class="field">
+      <label>生年月日</label>
+      <input type="date" id="bd-input" max="2200-12-31" min="1900-01-01">
+    </div>
+    <button class="btn btn-primary" id="save-bd" onclick="saveBirthDate()">生年月日を保存</button>
+    <div class="msg" id="bd-msg"></div>
+  </div>
+
+  <!-- からだの情報 (食事診断の個別化) -->
+  <div class="section">
+    <h2><span class="ic">📐</span>からだの情報</h2>
+    <div class="desc">食事の栄養診断を<b>あなたの体格に合わせて</b>より正確にするために使います。すべて任意・本人のみ・栄養診断のみに使用します（未入力でも一般的な目安で診断します）。</div>
+    <div class="field">
+      <label>性別</label>
+      <select id="body-sex">
+        <option value="">未設定</option>
+        <option value="male">男性</option>
+        <option value="female">女性</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>身長 (cm)</label>
+      <input type="number" id="body-height" inputmode="decimal" min="100" max="230" step="0.1" placeholder="例: 170">
+    </div>
+    <div class="field">
+      <label>体重 (kg)</label>
+      <input type="number" id="body-weight" inputmode="decimal" min="25" max="250" step="0.1" placeholder="例: 65">
+    </div>
+    <div class="field">
+      <label>ふだんの活動量</label>
+      <select id="body-pal">
+        <option value="1.5">運転・座り仕事が中心</option>
+        <option value="1.75">立ち仕事・軽作業もある</option>
+        <option value="2">よく動く・力仕事が多い</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="save-body" onclick="saveBody()">からだの情報を保存</button>
+    <div class="msg" id="body-msg"></div>
+  </div>
+
   <!-- タブレットPIN -->
   <div class="section">
     <h2><span class="ic">📱</span>タブレットPIN設定</h2>
@@ -164,7 +257,7 @@ main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
     <div class="desc">
       帝京大学公衆衛生学研究科 (福田研究室) との共同研究への匿名集計データ提供に協力するかどうか、いつでも切替えできます。<a href="/security.html#share" target="_blank">詳細は4-2項</a>。
     </div>
-    <div style="display:flex;align-items:center;gap:12px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;gap:12px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:14px;padding:12px 14px;margin-bottom:10px;">
       <div style="flex:1;min-width:0;">
         <div style="font-weight:800;font-size:13.5px;color:#5b21b6;">学術研究協力 (帝京大学)</div>
         <div style="font-size:11.5px;color:#64748b;margin-top:2px;" id="rc-status">確認中…</div>
@@ -222,6 +315,56 @@ function setMsg(id, text, kind){
   el.className = 'msg' + (kind?' '+kind:'');
 }
 
+// 表示言語 (users.lang) の読み込み・保存。保存後は即時反映(translate.js公開のcohubSetLang)。
+async function loadLang(){
+  try { const j = await api('/api/translate/lang'); if (j && j.lang) document.getElementById('lang-select').value = j.lang; } catch(e){}
+}
+async function saveLang(){
+  const lang = document.getElementById('lang-select').value;
+  const j = await api('/api/translate/lang', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lang }) });
+  if (j && j.success) {
+    try { localStorage.setItem('cohub_lang', lang); } catch(e){}
+    if (window.cohubSetLang) window.cohubSetLang(lang);   // このページを即時にその言語へ
+    toast('言語を保存しました');
+    setMsg('lang-msg', '', '');
+  } else {
+    setMsg('lang-msg', '保存に失敗しました', 'err');
+  }
+}
+
+// 文字サイズ (font-zoom.js が公開する window.cohubFontZoom = localStorage 'm_fz' 共通API)
+// 2026-07-28: 各画面の [A− A＋] ボタンを廃止し、切替をここに集約。
+function fzRefresh(){
+  const api = window.cohubFontZoom; if (!api) return;
+  const lv = api.get();
+  const i = api.LEVELS.indexOf(lv);
+  document.getElementById('fzs-lvl').textContent = api.LBL[lv] || 'M';
+  const mn = document.getElementById('fzs-minus'), pl = document.getElementById('fzs-plus');
+  mn.disabled = !api.supported || i <= 0;
+  pl.disabled = !api.supported || i >= api.LEVELS.length - 1;
+  mn.style.opacity = mn.disabled ? '0.4' : '1';
+  pl.style.opacity = pl.disabled ? '0.4' : '1';
+  document.getElementById('fzs-reset').disabled = !api.supported || lv === 'm';
+}
+function fzStep(dir){
+  const api = window.cohubFontZoom; if (!api || !api.supported) return;
+  const i = api.LEVELS.indexOf(api.get());
+  api.set(api.LEVELS[Math.min(api.LEVELS.length - 1, Math.max(0, i + dir))]);
+  fzRefresh();
+  setMsg('fzs-msg', 'この端末の文字サイズを変更しました', 'ok');
+}
+function fzReset(){
+  const api = window.cohubFontZoom; if (!api || !api.supported) return;
+  api.set('m'); fzRefresh();
+  setMsg('fzs-msg', '標準サイズに戻しました', 'ok');
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const api = window.cohubFontZoom;
+  if (!api) { document.getElementById('fz-section').style.display = 'none'; return; }  // 読込失敗時は隠す
+  if (!api.supported) document.getElementById('fzs-pc-note').style.display = '';
+  fzRefresh();
+});
+
 async function loadMe(){
   const r = await api('/api/auth/me');
   if (!r || !r.success) return;
@@ -242,6 +385,7 @@ async function loadMe(){
   // fields
   document.getElementById('nick').value = me.nickname || '';
   document.getElementById('dg-input').value = me.dm_group || '';
+  document.getElementById('bd-input').value = me.birth_date || '';
 }
 
 async function loadGroups(){
@@ -257,6 +401,57 @@ async function loadGroups(){
 }
 
 // ニックネーム保存
+
+async function saveBirthDate(){
+  const v = (document.getElementById('bd-input').value || '').trim();
+  if (!v) { setMsg('bd-msg', '生年月日を入力してください', 'err'); return; }
+  if (me && v === me.birth_date) { setMsg('bd-msg', '変更がありません', 'err'); return; }
+  const btn = document.getElementById('save-bd');
+  btn.disabled = true;
+  setMsg('bd-msg', '');
+  try {
+    const r = await api('/api/auth/birth-date', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ birth_date: v }),
+    });
+    if (!r || !r.success) { setMsg('bd-msg', (r && r.msg) || '保存失敗', 'err'); return; }
+    if (me) me.birth_date = r.birth_date;
+    setMsg('bd-msg', '保存しました', 'ok');
+    toast('生年月日を更新しました');
+  } finally { btn.disabled = false; }
+}
+
+// からだの情報 (食事診断の個別化)
+async function loadBody(){
+  try {
+    const r = await api('/api/myhealth/body');
+    if (!r || !r.success) return;
+    if (r.sex) document.getElementById('body-sex').value = r.sex;
+    if (r.height_cm != null) document.getElementById('body-height').value = r.height_cm;
+    if (r.weight_kg != null) document.getElementById('body-weight').value = r.weight_kg;
+    document.getElementById('body-pal').value = (r.activity_pal != null ? String(r.activity_pal) : '1.5');
+  } catch(e){}
+}
+async function saveBody(){
+  const payload = {
+    sex: document.getElementById('body-sex').value,
+    height_cm: document.getElementById('body-height').value,
+    weight_kg: document.getElementById('body-weight').value,
+    activity_pal: document.getElementById('body-pal').value,
+  };
+  const btn = document.getElementById('save-body');
+  btn.disabled = true; setMsg('body-msg', '');
+  try {
+    const r = await api('/api/myhealth/body', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    if (!r || !r.success) { setMsg('body-msg', (r && r.msg) || '保存に失敗しました', 'err'); return; }
+    setMsg('body-msg', '保存しました', 'ok');
+    toast('からだの情報を更新しました');
+  } finally { btn.disabled = false; }
+}
+
 async function saveNickname(){
   const nick = document.getElementById('nick').value.trim();
   if (!nick) { setMsg('nick-msg', 'ニックネームを入力してください', 'err'); return; }
@@ -413,8 +608,11 @@ async function saveResearchConsent() {
   await loadMe();
   await loadGroups();
   await loadResearchConsent();
+  await loadLang();
+  await loadBody();
 })();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

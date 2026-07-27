@@ -14,7 +14,7 @@
   header { background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   header #me-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 8em; flex-shrink: 1; }
-  header a, header button { color: #fff; text-decoration: none; font-size: 12px; padding: 6px 10px; background: rgba(255,255,255,0.2); border-radius: 6px; border: none; cursor: pointer; }
+  header a, header button { color: #fff; text-decoration: none; font-size: 12px; padding: 6px 10px; background: rgba(255,255,255,0.2); border-radius: 14px; border: none; cursor: pointer; }
   header a:hover, header button:hover { background: rgba(255,255,255,0.3); }
   #me-name { font-size: 11px; opacity: 0.9; }
 
@@ -27,7 +27,7 @@
     padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   #cal-drawer .cd-head .cd-ttl { flex: 1; font-size: 15px; font-weight: 800; }
   #cal-drawer .cd-head button { color: #fff; background: rgba(255,255,255,0.2); border: none; cursor: pointer;
-    border-radius: 6px; font-size: 18px; line-height: 1; padding: 6px 10px; }
+    border-radius: 14px; font-size: 18px; line-height: 1; padding: 6px 10px; }
   #cal-drawer .cd-head button:hover { background: rgba(255,255,255,0.32); }
   #cal-drawer iframe { flex: 1; width: 100%; border: 0; }
   #cal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.35); z-index: 1199;
@@ -45,7 +45,7 @@
   #side h2 {
     margin: 0; padding: 14px 16px 10px;
     font-size: 12px; font-weight: 800; color: #1e293b;
-    letter-spacing: 2px; text-transform: uppercase;
+    letter-spacing: 0.5px;
     background: linear-gradient(180deg, #f1f5f9, #f8fafc);
     border-bottom: 1px solid #e2e8f0;
     display: flex; align-items: center; gap: 6px;
@@ -59,7 +59,7 @@
     cursor: pointer; padding: 10px 12px;
     display: flex; align-items: center; gap: 10px;
     background: #fff;
-    border: 1px solid #e2e8f0; border-radius: 12px;
+    border: 1px solid #e2e8f0; border-radius: 16px;
     margin-bottom: 6px;
     transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
     position: relative; overflow: hidden;
@@ -82,13 +82,13 @@
 
   .grp-item .ic {
     flex-shrink: 0;
-    width: 38px; height: 38px; border-radius: 11px;
+    width: 38px; height: 38px; border-radius: 14px;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 19px; line-height: 1; color: #fff;
     background: linear-gradient(135deg, var(--c1), var(--c2));
-    box-shadow: 0 3px 8px rgba(13,148,136,0.25), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 2px 6px rgba(13,148,136,0.18);
   }
-  .grp-item.active .ic { box-shadow: 0 4px 12px rgba(13,148,136,0.45), inset 0 1px 0 rgba(255,255,255,0.30); }
+  .grp-item.active .ic { box-shadow: 0 3px 9px rgba(13,148,136,0.30); }
 
   .grp-item .meta { flex: 1; min-width: 0; }
   .grp-item .gn {
@@ -142,7 +142,7 @@
     color: #fff; font-weight: 800; font-size: 16px; line-height: 1;
     overflow: visible; flex-shrink: 0; position: relative;
     background: linear-gradient(135deg, var(--av-c1, #475569), var(--av-c2, #1e293b));
-    box-shadow: 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.18);
   }
   /* 画像本体だけを円形クリップ (ドットがはみ出せるように親はoverflow:visible) */
   .chat-row .row-av img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; background: #fff; }
@@ -244,19 +244,49 @@
   .msg.me .ts .read-mark.group-cnt {
     background: rgba(13,148,136,0.12);
     padding: 1px 7px; border-radius: 999px;
+    cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px;
   }
+  .msg.me .ts .read-mark.group-cnt:hover { background: rgba(13,148,136,0.22); }
+  /* 既読者一覧ポップアップ */
+  .readers-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 4000; align-items: flex-end; justify-content: center;
+  }
+  .readers-overlay.show { display: flex; }
+  .readers-pop {
+    background: #fff; width: 100%; max-width: 460px; max-height: 70vh; overflow-y: auto;
+    border-radius: 16px 16px 0 0; padding: 14px 16px 20px;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.2);
+  }
+  @media(min-width: 560px){ .readers-overlay{ align-items:center; } .readers-pop{ border-radius:16px; } }
+  .readers-pop h4 { margin: 0 0 10px; font-size: 15px; color: #0f172a; display:flex; align-items:center; gap:8px; }
+  .readers-pop .rp-close { margin-left:auto; border:none; background:#f1f5f9; color:#475569; border-radius:8px; padding:4px 10px; font-size:13px; font-weight:700; cursor:pointer; }
+  .readers-pop .rp-item { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #f1f5f9; }
+  .readers-pop .rp-item:last-child { border-bottom:none; }
+  .readers-pop .rp-av { width:30px; height:30px; border-radius:50%; background:#0d9488; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; overflow:hidden; }
+  .readers-pop .rp-av img { width:100%; height:100%; object-fit:cover; }
+  .readers-pop .rp-name { font-size:14px; color:#0f172a; font-weight:600; }
+  .readers-pop .rp-time { margin-left:auto; font-size:11px; color:#94a3b8; }
+  .readers-pop .rp-empty { color:#94a3b8; font-size:13px; padding:12px 4px; }
 
   /* セクションラベル (グループ/サークル/DMの区切り) */
   .list-sec-label {
-    padding: 10px 16px 6px; font-size: 10px; font-weight: 800;
-    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 14px 16px 12px; font-size: 11px; font-weight: 800;
+    letter-spacing: 0.4px; text-transform: uppercase;
     position: sticky; top: 0; z-index: 1;
     cursor: pointer; user-select: none;
   }
   .list-sec-label:hover { filter: brightness(0.96); }
   .sec-caret { display: inline-block; font-size: 15px; font-weight: 900; color: inherit; transition: transform 0.15s; margin-right: 5px; vertical-align: middle; }
-  /* セクションラベル横の未読バッジ (個人チャット行のバッジと完全同一デザイン) */
-  .sec-unread-badge { margin-left: 8px; vertical-align: middle; }
+  /* セクションラベル横の未読(新着)バッジ = 赤い丸バッジ (行のバッジと同色) */
+  .sec-unread-badge {
+    margin-left: 8px; vertical-align: middle;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 7px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff; font-size: 11px; font-weight: 800;
+    border-radius: 999px; box-shadow: 0 2px 6px rgba(220,38,38,0.30);
+  }
   /* 折りたたみ中のセクションに新着がある時: バッジを脈動させて気づかせる */
   .sec-unread-badge.collapsed-new {
     animation: secNewPulse 1.4s ease-in-out infinite;
@@ -314,6 +344,12 @@
   .section-dm .chat-row { background: transparent; }
   .section-dm .chat-row:hover { background: rgba(16,185,129,0.10); }
   .section-dm .chat-row.active { background: rgba(16,185,129,0.18); }
+  /* 🟢 オンライン: 在席DM相手を最上位に出す専用セクション(緑・やや濃いめ) */
+  .section-online { background: linear-gradient(180deg, #dcfce7 0%, #f0fdf4 100%); border-left: 3px solid #22c55e; }
+  .section-online .list-sec-label { background: linear-gradient(180deg, #bbf7d0 0%, #dcfce7 100%); color: #15803d; border-bottom: 1px solid #86efac; }
+  .section-online .chat-row { background: transparent; }
+  .section-online .chat-row:hover { background: rgba(34,197,94,0.12); }
+  .section-online .chat-row.active { background: rgba(34,197,94,0.20); }
 
   /* 非表示中のグループ (自分で隠したGCの集約先)。控えめなグレーで二次的扱い */
   .section-hidden { background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-left: 3px solid #94a3b8; }
@@ -325,13 +361,36 @@
   .section-hidden .chat-row { background: transparent; }
   .section-hidden .chat-row:hover { background: rgba(100,116,139,0.10); }
   .section-hidden .chat-row.active { background: rgba(100,116,139,0.18); }
+  /* 営業所グループ配色 (藍) — 従来テーマ未定義だったので追加 */
+  .section-branch { background: linear-gradient(180deg, #eef2ff 0%, #f5f3ff 100%); border-left: 3px solid #6366f1; }
+  .section-branch .list-sec-label { background: linear-gradient(180deg, #e0e7ff 0%, #eef2ff 100%); color: #4338ca; }
+  .section-branch .chat-row { background: transparent; }
+  .section-branch .chat-row:hover { background: rgba(99,102,241,0.10); }
+  .section-branch .chat-row.active { background: rgba(99,102,241,0.18); }
+  /* セクション見出しの件数 (折りたたみ色チップ時に白へ) */
+  .sec-count { color: #94a3b8; font-weight: 500; margin-left: 6px; font-size: 11px; }
+  /* ── 見出しは開閉どちらでも同じソリッド色に統一 (タップで開いても色が変わらず一体感) ── */
+  .section-group  > .list-sec-label { background: linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; }
+  .section-branch > .list-sec-label { background: linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; }
+  .section-circle > .list-sec-label { background: linear-gradient(135deg,#f97316,#ea580c); color:#fff; }
+  .section-dm     > .list-sec-label { background: linear-gradient(135deg,#10b981,#059669); color:#fff; }
+  .section-online > .list-sec-label { background: linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+  .section-hidden > .list-sec-label { background: linear-gradient(135deg,#94a3b8,#64748b); color:#fff; }
+  .list-sec-label .sec-count { color: rgba(255,255,255,0.9); }
+  .list-sec-label .sec-unread-badge { background: #fff; color: #dc2626; box-shadow: 0 1px 5px rgba(0,0,0,0.25); }
+  /* 折りたたみ中のみ: コンテナの淡色を消してチップだけ見せる + チップ形状(角丸・浮き) */
+  .section-group.collapsed, .section-branch.collapsed, .section-circle.collapsed,
+  .section-dm.collapsed, .section-online.collapsed, .section-hidden.collapsed {
+    background: transparent; border-left-color: transparent;
+  }
+  .collapsed > .list-sec-label { border-radius: 12px; margin: 6px 8px; padding: 11px 14px; position: static; box-shadow: 0 2px 8px rgba(15,23,42,0.14); }
   /* DM内オンライン/オフライン サブヘッダー */
   .dm-substatus {
-    padding: 6px 14px 4px;
+    padding: 10px 14px 9px;
     margin-top: 4px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: 0.3px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -345,8 +404,23 @@
   .dm-substatus .ss-dot-away { background: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.20); }
   .dm-substatus .ss-dot-off { background: #cbd5e1; }
   .dm-substatus .ss-cnt { margin-left: auto; font-weight: 700; font-size: 10px; color: inherit; opacity: 0.75; }
+  /* 個人DMの営業所別セクション見出し */
+  .dm-branch-head {
+    padding: 6px 14px 5px; margin-top: 2px;
+    font-size: 12px; font-weight: 900; letter-spacing: 0.3px;
+    color: #0b3d39; background: rgba(13,148,136,0.10);
+    border-top: 1px solid rgba(13,148,136,0.20); border-bottom: 1px solid rgba(13,148,136,0.20);
+    display: flex; align-items: center; gap: 4px; user-select: none;
+  }
+  .dm-branch-head .ss-cnt { margin-left: 6px; font-weight: 700; font-size: 10px; opacity: 0.7; }
+  .dm-branch-head .ss-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dm-branch-head .ss-dot-on { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.20); }
   /* オフライン側の行はうっすら透過 */
-  .section-dm .dm-sub-offline ~ .chat-row { opacity: 0.78; }
+  [data-sec="dm_offline"] .chat-row { opacity: 0.78; }
+  /* オンライン/オフライン サブセクションは少し字下げして階層を示す */
+  .section-dmsub .dm-substatus { cursor: pointer; }
+  .section-dmsub .dm-substatus .sec-caret { font-size: 9px; opacity: 0.7; margin-right: 2px; }
+  .section-dmsub .dm-branch-head { padding-left: 22px; }
   .list-empty {
     padding: 18px 16px; font-size: 12px; color: #94a3b8; text-align: center;
     font-style: italic;
@@ -402,7 +476,7 @@
   /* 折りたたみトグル */
   .grp-toggle {
     flex-shrink: 0;
-    width: 24px; height: 24px; border-radius: 6px;
+    width: 24px; height: 24px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     color: #475569; font-size: 11px;
     transition: transform 0.18s, background 0.15s;
@@ -429,7 +503,7 @@
   .mem-row {
     display: flex; align-items: center; gap: 10px;
     padding: 6px 10px;
-    border-radius: 9px;
+    border-radius: 13px;
     cursor: pointer;
     transition: background 0.12s;
     text-decoration: none; color: inherit;
@@ -454,7 +528,7 @@
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-weight: 800; font-size: 12px;
     background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
-    box-shadow: 0 1px 3px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.10);
     border: 2px solid #fff;
   }
   .mem-row .av-mini img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #fff; }
@@ -481,7 +555,7 @@
   /* ======== チェックボックス選択 (常時可視) ======== */
   .mem-row .mem-check {
     flex-shrink: 0; width: 20px; height: 20px;
-    border-radius: 6px; border: 2px solid #cbd5e1;
+    border-radius: 10px; border: 2px solid #cbd5e1;
     display: flex; align-items: center; justify-content: center;
     background: #fff; transition: all 0.12s;
   }
@@ -570,7 +644,7 @@
     font-size: 11px; font-weight: 700; cursor: pointer;
     background: rgba(255,255,255,0.65); color: #475569;
     border: 1px solid rgba(15,23,42,0.08);
-    border-radius: 8px;
+    border-radius: 12px;
     transition: all 0.12s;
   }
   .grp-actions button:hover {
@@ -674,7 +748,7 @@
   /* バー表示中は入力欄の上境界線を消して一体のパネルに見せる */
   #chat-actionbar.show + #input { border-top: none; box-shadow: none; }
   @keyframes barUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  #chat-actionbar .fact { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: #fff; border: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; color: #334155; cursor: pointer; line-height: 1.1; }
+  #chat-actionbar .fact { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: #fff; border: none; border-radius: 14px; padding: 8px 2px; font-size: 11px; font-weight: 700; color: #334155; cursor: pointer; line-height: 1.1; }
   #chat-actionbar .fact .i { font-size: 19px; line-height: 1; }
   #chat-actionbar .fact:active { background: #f0fdfa; }
   #chat-actionbar .fact.primary { color: #0d9488; }
@@ -688,7 +762,7 @@
   #fwd-modal .hd { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; }
   #fwd-modal .hd button { margin-left: auto; background: #eef2f7; border: 1px solid #cbd5e1; border-radius: 16px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
   #fwd-modal .lst { overflow-y: auto; padding: 6px; }
-  #fwd-modal .fwd-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+  #fwd-modal .fwd-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; cursor: pointer; }
   #fwd-modal .fwd-row:hover { background: #f1f5f9; }
   #fwd-modal .fwd-row .ic { width: 30px; height: 30px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: hidden; }
   #fwd-modal .fwd-row img { width: 100%; height: 100%; object-fit: cover; }
@@ -708,7 +782,7 @@
     font-size: 13px; color: #fff; font-weight: 800; letter-spacing: 0.5px;
     overflow: hidden; position: relative;
     background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
-    box-shadow: 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10);
   }
   .msg .av img { width: 100%; height: 100%; object-fit: cover; background: #fff; }
   .msg .av-spacer { width: 36px; flex-shrink: 0; }
@@ -748,7 +822,13 @@
   /* 本文中URLのハイパーリンク (送受信どちらのバブルでも視認できる配色) */
   .bub a.msg-link { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
   .msg.me .bub a.msg-link { color: #fff; text-decoration: underline; }
-  .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 10px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
+  .bub .link-card { display: flex; margin-top: 6px; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; text-decoration: none; max-width: 300px; }
+  .msg.me .bub .link-card { background: rgba(255,255,255,0.96); border-color: rgba(255,255,255,0.5); }
+  .bub .link-card .lc-img { width: 64px; min-width: 64px; background-color: #f1f5f9; background-position: center; background-size: cover; background-repeat: no-repeat; }
+  .bub .link-card .lc-body { padding: 7px 10px; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  .bub .link-card .lc-title { font-size: 12.5px; font-weight: 700; color: #0f172a; line-height: 1.3; max-height: 2.6em; overflow: hidden; }
+  .bub .link-card .lc-site { font-size: 10.5px; color: #64748b; margin-top: 2px; }
+  .bub .tr-btn { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.5; border: 1px solid rgba(15,23,42,0.2); border-radius: 14px; background: rgba(255,255,255,0.65); color: #475569; cursor: pointer; vertical-align: middle; }
   .msg.me .bub .tr-btn { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); color: #fff; }
   .bub .tr-result { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(148,163,184,0.4); font-size: 13px; opacity: 0.92; font-style: italic; white-space: pre-wrap; color: #475569; }
   .msg.me .bub .tr-result { color: rgba(255,255,255,0.95); border-top-color: rgba(255,255,255,0.45); }
@@ -763,7 +843,7 @@
   .msg .attach-link {
     display: inline-flex; align-items: center; gap: 5px;
     margin-top: 6px; font-size: 11px;
-    padding: 4px 10px; border-radius: 8px;
+    padding: 4px 10px; border-radius: 12px;
     background: rgba(0,0,0,0.04); color: #0f766e;
     text-decoration: none; font-weight: 600;
   }
@@ -827,7 +907,7 @@
   /* メッセージ内の添付画像 */
   .msg .bub .attach-img {
     display: block; max-width: 280px; max-height: 280px;
-    border-radius: 10px; margin-top: 6px; cursor: pointer;
+    border-radius: 14px; margin-top: 6px; cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
@@ -847,7 +927,7 @@
   .head-btn.cal:hover { background: #d1fae5; }
   .call-btn.voice, .head-btn.voice { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 3px 10px rgba(16,185,129,0.30); }
   .call-btn.video, .head-btn.video { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; box-shadow: 0 3px 10px rgba(99,102,241,0.30); }
-  .head-btn.ping { width: auto; min-width: 48px; padding: 0 12px; border-radius: 16px; font-size: 13px; font-weight: 700; letter-spacing: 1px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 3px 10px rgba(245,158,11,0.32); }
+  .head-btn.ping { width: auto; min-width: 48px; padding: 0 12px; border-radius: 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.3px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 3px 10px rgba(245,158,11,0.32); }
   .call-btn:hover { transform: translateY(-1px); }
   .head-btn.disabled { opacity: 0.40; cursor: not-allowed; }
   .head-btn.disabled:hover { transform: none; }
@@ -875,7 +955,7 @@
   #members-modal .head .cnt { font-size: 11px; opacity: 0.85; }
   #members-modal .head .back {
     background: rgba(255,255,255,0.20); border: none; color: #fff;
-    width: 32px; height: 32px; border-radius: 8px;
+    width: 32px; height: 32px; border-radius: 12px;
     cursor: pointer; font-size: 20px; font-weight: 800;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
@@ -911,7 +991,7 @@
     color: #fff; font-weight: 800; font-size: 14px; overflow: hidden;
     flex-shrink: 0;
     background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
   }
   #members-modal .mp-row .av img { width: 100%; height: 100%; object-fit: cover; background: #fff; }
   #members-modal .mp-row .info { flex: 1; min-width: 0; }
@@ -924,7 +1004,7 @@
     padding: 6px 12px; font-size: 11px; font-weight: 800; cursor: pointer;
   }
   #members-modal .mp-row .chk {
-    width: 22px; height: 22px; border-radius: 6px;
+    width: 22px; height: 22px; border-radius: 10px;
     border: 2px solid #cbd5e1; background: #fff;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.12s;
@@ -941,7 +1021,7 @@
   }
   #members-modal .footer button {
     flex: 1; padding: 12px;
-    border-radius: 12px; border: none;
+    border-radius: 16px; border: none;
     font-size: 14px; font-weight: 800; cursor: pointer;
   }
   #members-modal .footer .cancel { background: #f1f5f9; color: #475569; }
@@ -1044,7 +1124,7 @@
   #local-video {
     position: absolute; right: 12px; bottom: 12px;
     width: 100px; height: 140px;
-    object-fit: cover; border-radius: 10px;
+    object-fit: cover; border-radius: 14px;
     border: 2px solid rgba(255,255,255,0.40);
     box-shadow: 0 6px 18px rgba(0,0,0,0.40);
     background: #000; transform: scaleX(-1);
@@ -1080,7 +1160,7 @@
     padding: 10px 14px;
     background: linear-gradient(135deg, #fffbeb, #fef3c7);
     border: 1px solid #fde68a; border-left: 4px solid #f59e0b;
-    border-radius: 12px;
+    border-radius: 16px;
     font-size: 12px; color: #78350f; line-height: 1.55;
     align-items: center; gap: 12px;
     box-shadow: 0 2px 8px rgba(245,158,11,0.10);
@@ -1093,7 +1173,7 @@
   #avatar-prompt button {
     flex-shrink: 0; padding: 8px 16px;
     background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
-    border: none; border-radius: 10px; font-size: 12px; font-weight: 800;
+    border: none; border-radius: 14px; font-size: 12px; font-weight: 800;
     cursor: pointer; box-shadow: 0 4px 10px rgba(245,158,11,0.30);
     transition: transform 0.1s;
   }
@@ -1126,7 +1206,7 @@
   #emoji-panel .ep-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; }
   #emoji-panel .ep-grid button {
     border: 0; background: none; cursor: pointer; font-size: 22px; line-height: 1;
-    padding: 5px 0; border-radius: 8px; transition: background .1s;
+    padding: 5px 0; border-radius: 12px; transition: background .1s;
   }
   #emoji-panel .ep-grid button:hover { background: #f1f5f9; }
   #input #btn-emoji:disabled { opacity: .4; cursor: default; }
@@ -1202,13 +1282,22 @@
   #login-screen.show { display: flex; }
   .login-card { background: #fff; padding: 24px; border-radius: 14px; text-align: center; max-width: 320px; }
 </style>
-<script src="/font-zoom.js" defer></script>
+<script src="/font-zoom.js?v=20260728a" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
 <!-- 運転アラート/事故一報を受信するため global-notif.js を読み込む。ただし chat は自前socketを
      張るので __cohubNoGnSocket で gn の2本目socketを抑止し、cohubWireAlerts で相乗りさせる(2026-06-11)。 -->
 <script>window.__cohubNoGnSocket = true;</script>
-<script src="/global-notif.js?v=20260619a" defer></script>
+<script src="/global-notif.js?v=20260709-accident2" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 
@@ -1224,7 +1313,7 @@
   <a href="/" title="ホーム">←</a>
   <h1>💬 営業所チャット</h1>
   <span id="me-name"></span>
-  <span id="fz-slot"></span><button id="notif-toggle-btn" type="button" onclick="toggleChatNotif()" title="着信通知ON" style="font-size:16px;padding:6px 8px;">🔔</button>
+  <button id="notif-toggle-btn" type="button" onclick="toggleChatNotif()" title="着信通知ON" style="font-size:16px;padding:6px 8px;">🔔</button>
 </header>
 
 <main>
@@ -1238,7 +1327,7 @@
       <button class="head-btn" type="button" id="btn-back-list" title="一覧へ戻る" onclick="backToList()" style="background:transparent;color:#0f172a;font-size:22px;width:32px;height:32px;flex-shrink:0;border:none;">←</button>
       <div class="ttl" id="panel-title">チャットを選択してください</div>
       <button class="head-btn members" type="button" id="btn-members" title="メンバー一覧" onclick="openMembersModal()" style="display:none;">👥</button>
-      <button class="head-btn cal" type="button" id="btn-calendar" title="共有カレンダー: 予定を確認・登録" onclick="openCalDrawer()" style="display:none;">📅</button>
+      <button class="head-btn cal" type="button" id="btn-calendar" title="カレンダー: 予定を確認・登録" onclick="openCalDrawer()" style="display:none;">📅</button>
       <button class="head-btn ping" type="button" id="btn-call-ping" title="呼出: 相手にチャイムを鳴らして気づかせる" onclick="pingPeer()">呼出</button>
       <button class="head-btn voice" type="button" id="btn-call-voice" title="音声通話" onclick="startCall('voice')">📞</button>
       <button class="head-btn video" type="button" id="btn-call-video" title="ビデオ通話" onclick="startCall('video')">📹</button>
@@ -1326,8 +1415,8 @@
     <div id="sw-title" style="font-size:17px;font-weight:700;color:#0f172a;margin-bottom:10px;">内容を確認してください</div>
     <div id="sw-body" style="font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;margin-bottom:18px;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button id="sw-cancel" type="button" style="padding:9px 16px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">書き直す</button>
-      <button id="sw-ok" type="button" style="padding:9px 16px;border:0;background:#dc2626;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">このまま送信</button>
+      <button id="sw-cancel" type="button" style="padding:9px 16px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;">書き直す</button>
+      <button id="sw-ok" type="button" style="padding:9px 16px;border:0;background:#dc2626;color:#fff;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;">このまま送信</button>
     </div>
   </div>
 </div>
@@ -1379,11 +1468,11 @@
 <div id="cal-backdrop" onclick="closeCalDrawer()"></div>
 <div id="cal-drawer" aria-hidden="true">
   <div class="cd-head">
-    <span class="cd-ttl">📅 共有カレンダー</span>
+    <span class="cd-ttl">📅 カレンダー</span>
     <button type="button" title="別タブで開く" onclick="window.open('/calendar.html','_blank')">⤢</button>
     <button type="button" title="閉じる" onclick="closeCalDrawer()">✕</button>
   </div>
-  <iframe id="cal-frame" title="共有カレンダー" loading="lazy"></iframe>
+  <iframe id="cal-frame" title="カレンダー" loading="lazy"></iframe>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -1405,6 +1494,9 @@ let messageReaders = new Map(); // message_id → readers[]
 // AIボット (チャット一覧から除外)
 const BOT_IDS = new Set(['bot_aoi', 'bot_health', 'bot_safety', 'bot_yui', 'bot_misaki', 'bot_master']);
 function isBot(uid) { return BOT_IDS.has(uid); }
+// おしらせ専用アカウント (メンバー名簿に載らない通知送信元。例: 💬 コメントのおしらせ)
+// 名簿にいない=DM一覧に出ない=開けない=既読化できない → 未読バッジが永久に残る問題への対応 (2026-07-24)
+let noticeUids = new Set();
 // 折りたたみ状態 (localStorage で永続化)
 let collapsedGroups = new Set(JSON.parse(localStorage.getItem('cohub_chat_collapsed') || '[]'));
 function persistCollapsed() {
@@ -1636,8 +1728,8 @@ function showSummonAlert(name, fromId) {
       + '<div style="font-size:54px;line-height:1;margin-bottom:14px;">🛎️</div>'
       + '<div id="summon-name" style="font-size:19px;font-weight:800;color:#0f172a;margin-bottom:4px;"></div>'
       + '<div style="font-size:14px;color:#475569;margin-bottom:22px;">があなたを呼んでいます</div>'
-      + '<button id="summon-open" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2f80ed;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;">チャットを開く</button>'
-      + '<button id="summon-close" style="width:100%;padding:11px;border:none;border-radius:10px;background:#eef2f7;color:#475569;font-size:14px;cursor:pointer;">閉じる</button>'
+      + '<button id="summon-open" style="width:100%;padding:13px;border:none;border-radius:14px;background:#2f80ed;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;">チャットを開く</button>'
+      + '<button id="summon-close" style="width:100%;padding:11px;border:none;border-radius:14px;background:#eef2f7;color:#475569;font-size:14px;cursor:pointer;">閉じる</button>'
       + '</div>';
     document.body.appendChild(ov);
     if (!document.getElementById('summon-style')) {
@@ -1819,6 +1911,18 @@ function showApp() { $('login-screen').classList.remove('show'); $('app').style.
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 // 本文中のURLをクリック可能なリンクに変換。XSS防止のため先にHTMLエスケープしてからURLだけを<a>化する。
+// URLを短く整形して表示 (延々と続く文字を防ぐ。実体はhrefに保持)
+function shortenUrlDisplay(u) {
+  var raw = String(u).replace(/&amp;/g, '&');
+  try {
+    var x = new URL(raw);
+    var s = x.hostname.replace(/^www\./, '') + (x.pathname === '/' ? '' : x.pathname) + (x.search || '');
+    if (s.length > 36) s = s.slice(0, 36) + '…';
+    return '🔗 ' + escapeHtml(s);
+  } catch (e) {
+    return '🔗 ' + escapeHtml(raw.length > 40 ? raw.slice(0, 40) + '…' : raw);
+  }
+}
 function linkify(s) {
   const esc = escapeHtml(s || '');
   return esc.replace(/(https?:\/\/[^\s<]+)/g, (m) => {
@@ -1826,7 +1930,34 @@ function linkify(s) {
     const tm = url.match(/[)\]}>.,;:!?"'、。，）】」』]+$/); // 末尾の句読点・閉じ括弧はリンクから除外
     if (tm) { tail = url.slice(url.length - tm[0].length); url = url.slice(0, url.length - tm[0].length); }
     if (!url) return m;
-    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="msg-link">' + url + '</a>' + tail;
+    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="msg-link" data-url="' + url + '">' + shortenUrlDisplay(url) + '</a>' + tail;
+  });
+}
+// リンクプレビュー(OGPカード): メッセージ内URLのサムネ/タイトルを表示
+var _linkPreviewCache = new Map();
+function _hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
+function hydrateLinkPreviews(root) {
+  if (!root) return;
+  root.querySelectorAll('.bub').forEach(function (bub) {
+    if (bub.getAttribute('data-lp') === '1') return;
+    var a = bub.querySelector('a.msg-link[data-url]');
+    if (!a) return;
+    bub.setAttribute('data-lp', '1');
+    var url = a.getAttribute('data-url');
+    var render = function (data) {
+      if (!data || (!data.title && !data.image)) return;
+      var card = document.createElement('a');
+      card.href = url; card.target = '_blank'; card.rel = 'noopener noreferrer'; card.className = 'link-card';
+      var img = data.image ? '<span class="lc-img" style="background-image:url(\'' + String(data.image).replace(/['"\\]/g, '') + '\')"></span>' : '';
+      card.innerHTML = img + '<span class="lc-body"><span class="lc-title">' + escapeHtml(data.title || url) + '</span><span class="lc-site">' + escapeHtml(data.site_name || _hostOf(url)) + '</span></span>';
+      bub.appendChild(card);
+    };
+    if (_linkPreviewCache.has(url)) { render(_linkPreviewCache.get(url)); return; }
+    api('/api/link-preview?url=' + encodeURIComponent(url)).then(function (r) {
+      var data = (r && r.success) ? r.preview : null;
+      _linkPreviewCache.set(url, data);
+      render(data);
+    }).catch(function () {});
   });
 }
 
@@ -2033,7 +2164,12 @@ function renderGroupList() {
       name: peer.display_name || '...',
       avatar_url: peer.avatar_url || '',
       company_code: peer.company_code || '',
+      // 営業所ラベルは常にメンバーディレクトリ(allMembersById)から引く
+      // (グループ共有メンバー由来のpeerにはdm_groupが無いため)
+      dm_group: (allMembersById.get(peer.id) || {}).dm_group || peer.dm_group || '',
+      job_role: (allMembersById.get(peer.id) || {}).job_role || peer.job_role || '',
       ring_color: peer.ring_color || '',
+      last_seen: (allMembersById.get(peer.id) || {}).last_seen || '',   // 最終オンライン
       last_content: info.last_content || '',
       last_at: info.last_at || '',
       last_sender_id: info.last_sender_id || '',
@@ -2058,12 +2194,36 @@ function renderGroupList() {
     if (aHas && bHas) return (b.last_at || '').localeCompare(a.last_at || '');
     return (a.name || '').localeCompare(b.name || '', 'ja');
   });
+  // 🔔 おしらせ: 名簿(/api/members)に載らない送信元 (通知専用アカウント) からのDM。
+  // 一覧に出さないと開けず既読化もできないため未読バッジが永久に残る → 専用セクションで必ず出す (2026-07-24)
+  const noticeRows = [];
+  noticeUids.clear();
+  for (const [uid, info] of dmPeerInfo) {
+    if (!uid || uid === me.uid || isBot(uid) || peerSrc.has(uid)) continue;
+    // 通知アカウントのID命名規則 (notice_xxx / bot_xxx) のみ対象。
+    // 退職者など人のアカウントは従来どおり一覧に出さない
+    if (!/^(notice_|bot_)/.test(uid)) continue;
+    noticeUids.add(uid);
+    noticeRows.push({
+      type: 'dm', id: uid,
+      name: info.display_name || 'おしらせ',
+      avatar_url: info.avatar_url || '',
+      company_code: info.company_code || '',
+      dm_group: '', job_role: '', ring_color: '', last_seen: '',
+      last_content: info.last_content || '',
+      last_at: info.last_at || '',
+      last_sender_id: info.last_sender_id || '',
+      is_notice: true,
+    });
+  }
+  noticeRows.sort(byActivity);
   // 描画 (セクションラベル付き、各セクション折りたたみ可)
-  if (groupRows.length === 0 && branchRows.length === 0 && circleRows.length === 0 && dmRows.length === 0) {
+  if (groupRows.length === 0 && branchRows.length === 0 && circleRows.length === 0 && dmRows.length === 0 && noticeRows.length === 0) {
     list.innerHTML = '<div class="list-empty">チャットがありません</div>';
     return;
   }
   const html = [];
+  const noticeUnread = noticeRows.reduce((a, r) => a + (unreadDms.get(r.id) || 0), 0);
   const grpUnread = shownGroupRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const branchUnread = shownBranchRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
   const cirUnread = shownCircleRows.reduce((a, r) => a + (unreadGroups.get(r.id) || 0), 0);
@@ -2095,7 +2255,7 @@ function renderGroupList() {
     html.push(`<div class="list-sec-label${opts.showToggleHint ? ' has-toggle-hint' : ''}" onclick="toggleChatSection('${key}')">`
       + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
       + `${label}`
-      + `<span style="color:#94a3b8;font-weight:500;margin-left:6px;font-size:11px;">(${rows.length})</span>`
+      + `<span class="sec-count">(${rows.length})</span>`
       + (unread > 0 ? `<span class="unread-badge sec-unread-badge${collapsed ? ' collapsed-new' : ''}">${unread > 99 ? '99+' : unread}</span>` : '')
       + toggleHint
       + `</div>`);
@@ -2109,65 +2269,117 @@ function renderGroupList() {
     html.push(`</div>`);
     html.push(`</div>`);
   }
-  // 個人(DM)はオンライン/オフラインで二分割
+  // 個人(DM): まずオンライン/オフラインで二分し、各内を営業所(dm_group)別に。
+  // オンライン/オフラインの各見出しは個別に折りたたみ可 (既定=折りたたみ)。
+  // 履歴あり優先 → last_at降順 → 五十音
+  function dmSort(a, b) {
+    const aHas = !!a.last_at, bHas = !!b.last_at;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    if (aHas && bHas) return (b.last_at || '').localeCompare(a.last_at || '');
+    return (a.name || '').localeCompare(b.name || '', 'ja');
+  }
+  // オフラインDMの並び: 最終オンライン(ログアウト)が新しい順を最優先。last_seenが無い人は従来(DM履歴→五十音)で後段。
+  function offlineSort(a, b) {
+    const al = a.last_seen || '', bl = b.last_seen || '';
+    if (al && bl) { return (al !== bl) ? bl.localeCompare(al) : dmSort(a, b); }
+    if (al && !bl) return -1;
+    if (!al && bl) return 1;
+    return dmSort(a, b);
+  }
+  // 職種(job_role)別グルーピング: ログイン数が増えても探しやすいよう、オンライン/オフラインの各内を
+  // ドライバー/荷役/製造… の小見出しで細分化する (2026-07-10)。空バケットは出さない。
+  const JOB_BUCKETS = [
+    { key: 'office',        icon: '🖥', label: '事務スタッフ' },
+    { key: 'driver',        icon: '🚚', label: 'ドライバー' },
+    { key: 'warehouse',     icon: '📦', label: '荷役スタッフ' },
+    { key: 'manufacturing', icon: '🏭', label: '製造スタッフ' },
+    { key: 'construction',  icon: '🔧', label: '施工スタッフ' },
+  ];
+  function jobBucketOf(r) {
+    const jr = String(r.job_role || '').toLowerCase();
+    for (const b of JOB_BUCKETS) if (b.key === jr) return b.key;
+    return 'office';   // driver/warehouse/manufacturing/construction 以外(管理職/役員/職種未設定=旧その他)は事務スタッフに集約・先頭表示
+  }
+  // 既にソート済みの rows を職種別に小見出し(折りたたみ可)で html に積む。
+  function pushJobSubgroups(rows, sectionKey) {
+    const byKey = {};
+    rows.forEach(r => { const k = jobBucketOf(r); (byKey[k] = byKey[k] || []).push(r); });
+    for (const b of JOB_BUCKETS) {
+      const list = byKey[b.key]; if (!list || !list.length) continue;
+      const secKey = sectionKey + ':' + b.key;
+      const collapsed = isCollapsed(secKey, false);   // 既定=展開
+      const un = list.reduce((s, r) => s + (unreadDms.get(r.id) || 0), 0);
+      html.push(`<div class="section-dmsub${collapsed ? ' collapsed' : ''}" data-sec="${secKey}">`);
+      html.push(`<div class="dm-branch-head" onclick="toggleChatSection('${secKey}')">`
+        + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
+        + `${b.icon} ${b.label}`
+        + `<span class="ss-cnt">(${list.length})</span>`
+        + (un > 0 ? `<span class="unread-badge sec-unread-badge${collapsed ? ' collapsed-new' : ''}">${un > 99 ? '99+' : un}</span>` : '')
+        + `</div>`);
+      html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
+      html.push(list.map(r => chatRowHtml(r)).join(''));
+      html.push(`</div></div>`);
+    }
+  }
+  // 🟢 オンライン: 在席中のDM相手を最上位に表示(すぐ話せるように)。職種別に小分け。緑(在席)→離席→履歴順。
+  function renderDmOnlineTop(rows) {
+    const onlineRows = rows.filter(r => isPresent(r.id)).sort((a, b) => {
+      const ag = isPresent(a.id) && !awayUids.has(a.id), bg = isPresent(b.id) && !awayUids.has(b.id);
+      if (ag !== bg) return ag ? -1 : 1;
+      return dmSort(a, b);
+    });
+    if (onlineRows.length === 0) return;
+    const oUnread = onlineRows.reduce((s, r) => s + (unreadDms.get(r.id) || 0), 0);
+    const collapsed = isCollapsed('online'); // 既定=展開(最上位で見せる)
+    html.push(`<div class="section-online${collapsed ? ' collapsed' : ''}" data-sec="online">`);
+    html.push(`<div class="list-sec-label" onclick="toggleChatSection('online')">`
+      + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
+      + `🟢 オンライン`
+      + `<span class="sec-count">(${onlineRows.length})</span>`
+      + (oUnread > 0 ? `<span class="unread-badge sec-unread-badge${collapsed ? ' collapsed-new' : ''}">${oUnread > 99 ? '99+' : oUnread}</span>` : '')
+      + `</div>`);
+    html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
+    pushJobSubgroups(onlineRows, 'online');   // 職種別に小分け
+    html.push(`</div></div>`);
+  }
+  // 👤 個人(DM): オフラインのみ営業所別。既定で折りたたみ(オンラインは上で表示済)。
   function renderDmSplitSection(unread, rows) {
-    if (rows.length === 0) return;
-    const collapsed = isCollapsed('dm');
-    // ボット除外は既に dmRows 構築時に済んでいる前提
-    // ソート (履歴あり優先→last_at降順→五十音)
-    const dmSort = (a, b) => {
-      const aHas = !!a.last_at, bHas = !!b.last_at;
-      if (aHas && !bHas) return -1;
-      if (!aHas && bHas) return 1;
-      if (aHas && bHas) return (b.last_at || '').localeCompare(a.last_at || '');
-      return (a.name || '').localeCompare(b.name || '', 'ja');
-    };
-
+    const offlineRows = rows.filter(r => !isPresent(r.id));
+    if (offlineRows.length === 0) return;
+    const collapsed = isCollapsed('dm', true); // 既定=折りたたみ
+    const myBranch = (allMembersById.get(me.uid) || {}).dm_group || '';
+    const offUnread = offlineRows.reduce((s, r) => s + (unreadDms.get(r.id) || 0), 0);
     html.push(`<div class="section-dm${collapsed ? ' collapsed' : ''}" data-sec="dm">`);
     html.push(`<div class="list-sec-label" onclick="toggleChatSection('dm')">`
       + `<span class="sec-caret">${collapsed ? '▶' : '▼'}</span> `
-      + `👤 個人 (DM)`
-      + `<span style="color:#94a3b8;font-weight:500;margin-left:6px;font-size:11px;">(${rows.length})</span>`
-      + (unread > 0 ? `<span class="unread-badge sec-unread-badge">${unread > 99 ? '99+' : unread}</span>` : '')
+      + `👤 個人 (DM)・オフライン`
+      + `<span class="sec-count">(${offlineRows.length})</span>`
+      + (offUnread > 0 ? `<span class="unread-badge sec-unread-badge${collapsed ? ' collapsed-new' : ''}">${offUnread > 99 ? '99+' : offUnread}</span>` : '')
       + `</div>`);
-    // 未読行: 折りたたみ中も表示 (オンライン/オフライン区別せず)
-    const unreadRows = rows.filter(r => rowUnread(r) > 0);
-    html.push(`<div class="sec-unread-rows">`);
-    html.push(unreadRows.map(r => chatRowHtml(r)).join(''));
-    html.push(`</div>`);
-    // 既読行を二分割表示
     html.push(`<div class="sec-body" style="${collapsed ? 'display:none;' : ''}">`);
-    // 既読行: 在席(オンライン+離席中)を1グループに、見出しに緑(オンライン)の横へ黄(離席中)を並べる
-    const readRows = rows.filter(r => rowUnread(r) === 0);
-    const presentG = readRows.filter(r => isPresent(r.id)).sort(dmSort);
-    const offlineG = readRows.filter(r => !isPresent(r.id)).sort(dmSort);
-    const onlineN = presentG.filter(r => !awayUids.has(r.id)).length;
-    const awayN   = presentG.filter(r => awayUids.has(r.id)).length;
-    if (presentG.length > 0) {
-      let head = `<div class="dm-substatus dm-sub-online"><span class="ss-dot ss-dot-on"></span> オンライン ${onlineN}`;
-      if (awayN > 0) head += ` <span class="ss-dot ss-dot-away" style="margin-left:12px;"></span> 離席中 ${awayN}`;
-      head += `</div>`;
-      html.push(head);
-      html.push(presentG.map(r => chatRowHtml(r)).join(''));
-    }
-    if (offlineG.length > 0) {
-      html.push(`<div class="dm-substatus dm-sub-offline"><span class="ss-dot ss-dot-off"></span> オフライン <span class="ss-cnt">${offlineG.length}</span></div>`);
-      html.push(offlineG.map(r => chatRowHtml(r)).join(''));
-    }
-    html.push(`</div>`);
-    html.push(`</div>`);
+    // 職種別に小分け。各職種内の並び=最終オンライン(ログアウト)が新しい順(offlineSort)。
+    pushJobSubgroups(offlineRows.sort(offlineSort), 'dmoff');
+    html.push(`</div>`); // sec-body
+    html.push(`</div>`); // section-dm
   }
 
-  renderSection('group',  '👥 グループ',         grpUnread,    shownGroupRows,  { rowAction: 'hide' });
-  renderSection('branch', '🏢 営業所グループ',   branchUnread, shownBranchRows, { rowAction: 'hide' });
-  renderSection('circle', '🎯 サークル活動',     cirUnread,    shownCircleRows, { rowAction: 'hide' });
+  renderDmOnlineTop(dmRows); // 🟢 オンラインを最上位に
+  // 既定はたたむ (未読のある行だけは keepUnreadVisible で覗く)。オンラインは既定で開く。
+  renderSection('group',  '👥 グループ',         grpUnread,    shownGroupRows,  { rowAction: 'hide', defaultCollapsed: true });
+  renderSection('branch', '🏢 営業所グループ',   branchUnread, shownBranchRows, { rowAction: 'hide', defaultCollapsed: true });
+  renderSection('circle', '🎯 サークル活動',     cirUnread,    shownCircleRows, { rowAction: 'hide', defaultCollapsed: true });
   // 自分が「非表示」に選んだGC。既定で折りたたみ・完全に隠す。各行から「表示に戻す」可能
   renderSection('hidden', '🙈 非表示中のグループ', hiddenUnread, hiddenRows, { defaultCollapsed: true, keepUnreadVisible: false, rowAction: 'show' });
+  // 🔔 おしらせ (通知専用アカウントからのDM)。開けば既読になり未読バッジが消える
+  renderSection('notice', '🔔 おしらせ', noticeUnread, noticeRows, { defaultCollapsed: false });
   renderDmSplitSection(dmUnread, dmRows);
   list.innerHTML = html.join('');
 }
 
 // セクション折りたたみトグル
+// アコーディオン対象のトップ階層セクション (1つ開くと他は自動で畳む・常時ON)
+const CHAT_ACCORDION_KEYS = ['online', 'group', 'branch', 'circle', 'dm', 'hidden'];
 function toggleChatSection(key) {
   let collapsed;
   try {
@@ -2175,6 +2387,12 @@ function toggleChatSection(key) {
     collapsed = !cur;
     localStorage.setItem('chat_sec_' + key, collapsed ? '1' : '0');
   } catch (e) { return; }
+  // アコーディオン: トップ階層を「開く」時は、他のトップ階層を自動で畳む (常時ON)
+  if (!collapsed && CHAT_ACCORDION_KEYS.indexOf(key) >= 0) {
+    try { CHAT_ACCORDION_KEYS.forEach(k => { if (k !== key) localStorage.setItem('chat_sec_' + k, '1'); }); } catch (e) {}
+    try { renderGroupList(); } catch (e) {}
+    return;
+  }
   const sec = document.querySelector(`[data-sec="${key}"]`);
   if (!sec) return;
   sec.classList.toggle('collapsed', collapsed);
@@ -2367,6 +2585,36 @@ async function loadReaders(messageIds) {
   } catch (e) {}
 }
 
+// 既読者一覧ポップアップ (グループの「既読 N」タップ)
+function closeReaders(){ const o=document.getElementById('readersOverlay'); if(o) o.classList.remove('show'); }
+async function showReaders(mid){
+  let overlay = document.getElementById('readersOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'readersOverlay'; overlay.className = 'readers-overlay';
+    overlay.innerHTML = '<div class="readers-pop" id="readersPop"></div>';
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeReaders(); });
+    document.body.appendChild(overlay);
+  }
+  const pop = document.getElementById('readersPop');
+  pop.innerHTML = '<h4>既読者 <button class="rp-close" onclick="closeReaders()">閉じる</button></h4><div class="rp-empty">読み込み中…</div>';
+  overlay.classList.add('show');
+  let readers = (messageReaders.get(mid) || []).filter(r => r.id !== me.uid);
+  try {
+    const r = await fetch('/api/chat/messages/' + mid + '/readers', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d && d.success && Array.isArray(d.readers)) readers = d.readers.filter(x => x.id !== me.uid);
+  } catch (e) {}
+  const rows = readers.map(u => {
+    const nm = escapeHtml(u.display_name || '(不明)');
+    const av = u.avatar_url ? '<img src="'+escapeHtml(u.avatar_url)+'" alt="">' : escapeHtml((u.display_name||'?').slice(0,1));
+    const t = u.read_at ? fmtTime(u.read_at) : '';
+    return '<div class="rp-item"><span class="rp-av">'+av+'</span><span class="rp-name">'+nm+'</span><span class="rp-time">'+escapeHtml(t)+'</span></div>';
+  }).join('');
+  pop.innerHTML = '<h4>既読者 '+readers.length+'人 <button class="rp-close" onclick="closeReaders()">閉じる</button></h4>'
+    + (rows || '<div class="rp-empty">まだ既読者はいません</div>');
+}
+
 async function loadDmPeers() {
   try {
     const r = await api('/api/chat/dm');
@@ -2374,6 +2622,10 @@ async function loadDmPeers() {
       (r.peers || []).forEach(p => {
         if (isBot(p.peer_id)) return; // AIボットは除外
         dmPeerInfo.set(p.peer_id, {
+          // 名簿(/api/members)に載らない送信元でも行を描けるよう表示情報も保持 (2026-07-24)
+          display_name: p.display_name || '',
+          avatar_url: p.avatar_url || '',
+          company_code: p.company_code || '',
           last_content: p.last_content,
           last_at: p.last_at,
           last_sender_id: p.last_sender_id,
@@ -2397,7 +2649,10 @@ async function loadAllMembers() {
           display_name: it.name || '',
           avatar_url: it.avatar || '',
           company_code: it.company || '',
+          dm_group: it.group || '',   // 営業所ラベル (DM一覧の営業所別グルーピングに使用)
+          job_role: it.job_role || '',   // 職種ラベル (DM一覧の職種別グルーピングに使用) 2026-07-10
           ring_color: '',
+          last_seen: it.last_seen || '',   // 最終オンライン(オフラインDMの並び=ログアウト順)
         });
       }
     }
@@ -2675,9 +2930,11 @@ async function selectDmPeer(peerId) {
   document.body.classList.add('chat-active');
   $('btn-members').style.display = 'none';
   $('btn-calendar').style.display = (me && me.is_manager) ? 'flex' : 'none';
-  $('btn-call-ping').classList.remove('disabled');
-  $('btn-call-voice').classList.remove('disabled');
-  $('btn-call-video').classList.remove('disabled');
+  // おしらせ専用アカウント (通知の送信元) は返信も通話も相手がいないので不可 (2026-07-24)
+  const isNotice = noticeUids.has(peerId);
+  $('btn-call-ping').classList.toggle('disabled', isNotice);
+  $('btn-call-voice').classList.toggle('disabled', isNotice);
+  $('btn-call-video').classList.toggle('disabled', isNotice);
   $('select-bar').classList.remove('group-mode');
   $('select-bar').classList.remove('has-selection');
   // メンバー情報を groupMembers → 全メンバー の順で検索 (なければ後でAPI応答で埋める)
@@ -2693,10 +2950,12 @@ async function selectDmPeer(peerId) {
   renderGroupList();
   $('panel-title').innerHTML = '💬 <span style="color:#0d9488;">' + escapeHtml(currentDmPeer.display_name || '...') + '</span> <span style="font-size:11px;color:#94a3b8;font-weight:500;">との個別チャット</span>';
   $('panel-members').textContent = '1対1';
-  $('input-text').disabled = false;
-  $('btn-emoji').disabled = false;
-  $('input-text').placeholder = (currentDmPeer.display_name || '相手') + 'さんに個別メッセージ';
-  $('send-btn').disabled = false;
+  $('input-text').disabled = isNotice;
+  $('btn-emoji').disabled = isNotice;
+  $('input-text').placeholder = isNotice
+    ? 'おしらせ専用のため返信はできません'
+    : (currentDmPeer.display_name || '相手') + 'さんに個別メッセージ';
+  $('send-btn').disabled = isNotice;
   if (window.innerWidth <= 720) $('side').classList.add('collapsed');
   $('msgs').innerHTML = '<div class="empty" style="padding:40px 14px;">読み込み中...</div>';
   const r = await api('/api/chat/dm/' + peerId);
@@ -2744,7 +3003,7 @@ function avatarInitial(name) {
   const n = String(name || '?').trim();
   if (!n) return '?';
   if (/^[A-Za-z]/.test(n)) return n.slice(0, 2).toUpperCase();
-  return n.slice(0, 1);
+  return Array.from(n)[0] || '?';   // 絵文字(サロゲートペア)も1文字として取る (slice(0,1)だと文字化け)
 }
 
 // 同一発言者・3分以内なら連続扱い
@@ -2854,7 +3113,7 @@ function renderMessages() {
             : '<span class="unread-mark">未読</span>';
         } else if (currentMode === 'group') {
           readMark = readers.length > 0
-            ? `<span class="read-mark group-cnt">既読 ${readers.length}</span>`
+            ? `<span class="read-mark group-cnt" onclick="showReaders(${m.id});event.stopPropagation();" title="既読者を表示">既読 ${readers.length}</span>`
             : '<span class="unread-mark">未読</span>';
         }
       } else {
@@ -2887,6 +3146,7 @@ function renderMessages() {
     // 履歴閲覧中: 新着があった旨をバッジで表示
     showNewMsgBadge();
   }
+  hydrateLinkPreviews(msgsEl);
 }
 
 // 新着バッジ (履歴閲覧中に新着が来た時の通知 + クリックで下端へ)
@@ -3003,7 +3263,7 @@ function msgQuoteReply(id) {
   const m = findCurMsg(id); if (!m) return;
   const inp = $('input-text'); if (!inp) return;
   const quote = String(m.content || '').split('\n').map(l => '> ' + l).join('\n');
-  inp.value = (quote ? quote + '\n' : '') + (inp.value || '');
+  inp.value = (quote ? quote + '\n' : '') + '⇒ ' + (inp.value || '');
   inp.focus();
   try { inp.dispatchEvent(new Event('input')); } catch (e) {}
 }
@@ -3523,12 +3783,24 @@ function goToAvatarSetup() {
   location.href = '/avatar';
 }
 
-// LINE風入力欄のオートグロー。auto起点でscrollHeightを測り、1行(44px)〜最大120pxにクランプ。
-// 空にした直後もこれを呼べば確実に1行高へ戻る (Androidで文字が切れない)。
+// LINE風入力欄のオートグロー。1行(44px)〜最大120pxにクランプ。
+// ⚠️ iOS/Android対策: height:'auto' 起点で測ると、ソフトキーボード表示中/IME変換中に
+//    一瞬だけ入力欄の幅が崩れた状態で計測してしまい、行が異常に折り返って scrollHeight が
+//    巨大化 → 120pxまで伸びて固定される(=「大きく表示されて不安定」)不具合が出る。
+//    そこで①空なら無条件で1行高に戻す ②レイアウト未確定(幅0/非表示)では測らない
+//    ③'auto'でなく既知の基準値44pxから測る、の3点で安定させる。
 function autoGrowInput(el) {
   if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = Math.min(120, Math.max(44, el.scrollHeight)) + 'px';
+  // ① 空のときは確実に1行高へ。誤計測による巨大化を防ぐ。
+  if (!el.value) { el.style.height = '44px'; el.style.overflowY = 'hidden'; return; }
+  // ② 非表示/幅0で測ると行が異常折り返しして巨大化するため計測しない。
+  if (!el.offsetWidth) return;
+  // ③ 'auto'は幅が揺れて膨らむことがあるため、基準値(1行=44px)から測る。
+  //    box-sizing:border-box でも scrollHeight は中身の高さを返すので伸縮は正しく機能する。
+  el.style.height = '44px';
+  var h = el.scrollHeight;
+  el.style.height = Math.min(120, Math.max(44, h)) + 'px';
+  el.style.overflowY = (h > 120) ? 'auto' : 'hidden';
 }
 // ===== 下書き保存: 入力中にホーム遷移/自動更新(version-check)が起きても、会話ごとに復元できるよう
 //       localStorage に保持する。送信・クリアで自動的に消える。 =====
@@ -4201,21 +4473,22 @@ if ('serviceWorker' in navigator) {
     </div>
     <p style="margin:0 0 12px;font-size:12px;color:#64748b;">報告したいことを思いつくまま書いてください。AIが5W1Hに整えます。</p>
     <label style="font-size:12px;font-weight:700;color:#334155;">① メモ（自由に書く）</label>
-    <textarea id="mtm-input" maxlength="2000" placeholder="例：さっき三郷で荷下ろし中にパレット1枚割れてた。中身は無事。田中さんには伝えた。代替は明日朝持っていく" style="width:100%;min-height:84px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;font-family:inherit;resize:vertical;margin:4px 0 10px;box-sizing:border-box;"></textarea>
+    <textarea id="mtm-input" maxlength="2000" placeholder="例：さっき三郷で荷下ろし中にパレット1枚割れてた。中身は無事。田中さんには伝えた。代替は明日朝持っていく" style="width:100%;min-height:84px;padding:10px;border:1px solid #cbd5e1;border-radius:12px;font-size:15px;font-family:inherit;resize:vertical;margin:4px 0 10px;box-sizing:border-box;"></textarea>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-      <button id="mtm-format-btn" onclick="matomeruFormat()" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;">✨ 整える</button>
+      <button id="mtm-format-btn" onclick="matomeruFormat()" style="background:#0f766e;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;">✨ 整える</button>
       <span id="mtm-status" style="font-size:12px;color:#64748b;"></span>
     </div>
     <label style="font-size:12px;font-weight:700;color:#334155;">② 整えた報告（確認・修正できます）</label>
-    <textarea id="mtm-output" placeholder="「整える」を押すとここに整形された報告が入ります" style="width:100%;min-height:150px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;margin:4px 0 0;line-height:1.6;box-sizing:border-box;"></textarea>
+    <textarea id="mtm-output" placeholder="「整える」を押すとここに整形された報告が入ります" style="width:100%;min-height:150px;padding:10px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px;font-family:inherit;resize:vertical;margin:4px 0 0;line-height:1.6;box-sizing:border-box;"></textarea>
     <div style="display:flex;gap:8px;margin-top:14px;">
-      <button onclick="closeMatomeru()" style="background:#e2e8f0;color:#334155;border:none;border-radius:8px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;">閉じる</button>
-      <button onclick="matomeruSend()" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;flex:1;cursor:pointer;">この内容で送信</button>
+      <button onclick="closeMatomeru()" style="background:#e2e8f0;color:#334155;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;">閉じる</button>
+      <button onclick="matomeruSend()" style="background:#0f766e;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;flex:1;cursor:pointer;">この内容で送信</button>
     </div>
   </div>
 </div>
 <script src="/overlay-history.js?v=3"></script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
   <script src="/voice-input.js" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

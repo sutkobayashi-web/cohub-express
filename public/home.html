@@ -39,7 +39,7 @@
     box-shadow: 0 6px 18px rgba(15,118,110,0.25);
   }
   header .logo {
-    width: 42px; height: 42px; border-radius: 10px;
+    width: 42px; height: 42px; border-radius: 14px;
     overflow: hidden; flex-shrink: 0;
     box-shadow: 0 2px 6px rgba(0,0,0,0.18);
   }
@@ -60,18 +60,13 @@
   header button {
     font-size: 12px; padding: 5px 11px;
     background: transparent; color: #fff;
-    border: 1px solid rgba(255,255,255,0.55); border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.55); border-radius: 8px;
     cursor: pointer; font-weight: 500; letter-spacing: 0.3px;
     transition: background 0.12s, border-color 0.12s;
   }
   header button:hover { background: rgba(255,255,255,0.12); border-color: #fff; }
-  header #hd-fz-btn { padding: 4px 8px; gap: 2px; display: inline-flex; align-items: baseline; }
   header #hd-logout-btn { padding: 3px 9px; font-size: 16px; line-height: 1; font-weight: 700; }
-  header #hd-fz-lvl {
-    font-size: 10px !important; background: rgba(0,0,0,0.18) !important;
-    padding: 1px 5px !important; border-radius: 3px !important;
-    margin-left: 5px !important; font-weight: 700 !important;
-  }
+  #kiosk-logout-btn { display: none !important; }  /* 詳細ページはフロートのログアウトを非表示(ヘッダーに集約) 2026-07-09 */
 
   /* === ログイン画面 === */
   #login-screen {
@@ -93,13 +88,13 @@
     margin: 0 0 6px; font-size: 26px; font-weight: 800;
     background: linear-gradient(135deg, #0f766e, #0d9488);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    letter-spacing: 2px;
+    letter-spacing: 0.5px;
   }
   .login-card .desc { font-size: 12px; color: #64748b; text-align: center; }
   .login-card label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 5px; margin-top: 14px; letter-spacing: 0.3px; }
   .login-card input {
     width: 100%; padding: 12px 14px;
-    border: 1px solid #cbd5e1; border-radius: 10px;
+    border: 1px solid #cbd5e1; border-radius: 14px;
     font-size: 14px; outline: none; background: #fff;
     transition: border 0.15s, box-shadow 0.15s;
   }
@@ -107,8 +102,8 @@
   .login-card .btn {
     width: 100%; margin-top: 22px; padding: 13px;
     background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
-    color: #fff; border: none; border-radius: 12px;
-    font-size: 14px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+    color: #fff; border: none; border-radius: 16px;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.3px; cursor: pointer;
     box-shadow: 0 8px 22px rgba(13,148,136,0.30);
     transition: transform 0.12s, box-shadow 0.15s;
   }
@@ -123,7 +118,7 @@
 
   /* ヒーロー(挨拶+お知らせ帯) */
   .hero {
-    margin: 18px 4px 22px; padding: 18px 22px;
+    margin: 18px 4px 14px; padding: 18px 22px;
     background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(240,253,250,0.85));
     backdrop-filter: blur(8px);
     border-radius: 18px; border: 1px solid rgba(255,255,255,0.6);
@@ -132,8 +127,44 @@
   }
   .hero .ic { font-size: 38px; line-height: 1; flex-shrink: 0; }
   .hero .body { flex: 1; line-height: 1.5; }
-  .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; display: flex; align-items: flex-end; gap: 10px; }
+  .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 16px; }
   .hero .greet strong { color: #047857; }
+  /* 横並び洗練型: 左に大アバター / 右に [一言(小) → 名前(特大) → 挨拶(小)] の縦積み */
+  .hero .greet-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hero .greet-hk { font-size: 12px; font-weight: 700; color: #b45309; line-height: 1.35; }
+  .hero .greet-hk:empty { display: none; }   /* 一言が未取得なら詰める */
+  /* 3段: 一言 → 名前 → (マイページ + 検索) */
+  .hero .greet-name { font-size: 14px; color: #334155; }
+  .hero .greet-name strong { font-size: 26px; font-weight: 800; color: #047857; letter-spacing: 0.5px; line-height: 1.12; }
+  .hero .greet-nick { font-size: 14px; font-weight: 600; color: #64748b; margin-left: 2px; }
+  .hero .greet-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+  .hero .greet-mypage {
+    font-size: 11px; font-weight: 700; color: #0f766e; text-decoration: none; white-space: nowrap;
+    background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 999px; padding: 3px 11px;
+    transition: background 0.1s;
+  }
+  .hero .greet-mypage:hover { background: #99f6e4; }
+  .hero .greet-search {
+    font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap; cursor: pointer;
+    font-family: inherit; line-height: 1.3;
+    background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 999px; padding: 3px 11px;
+    transition: background 0.1s;
+  }
+  .hero .greet-search:hover { background: #e2e8f0; }
+  /* 🩸 体調チェック状態チップ (検索の横・完了=緑✅/未実施=琥珀🩸) */
+  .hero .greet-hc {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800;
+    white-space: nowrap; text-decoration: none; line-height: 1.3;
+    border-radius: 999px; padding: 3px 11px; transition: transform 0.1s;
+    background: #fef3c7; color: #b45309; border: 1px solid #fcd34d;
+  }
+  .hero .greet-hc:hover { transform: translateY(-1px); }
+  .hero .greet-hc.done { background: #dcfce7; color: #15803d; border-color: #86efac; }
+  /* マイページと検索を同じ表示幅に揃える */
+  .hero .greet-mypage, .hero .greet-search {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 104px; box-sizing: border-box;
+  }
   .hero .greet-ava-link {
     display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
     text-decoration: none; color: inherit; flex-shrink: 0;
@@ -141,14 +172,14 @@
   }
   .hero .greet-ava-link:hover { transform: translateY(-1px); }
   .hero .greet-ava {
-    width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.18); border: 2px solid #fff;
   }
   /* アバター未設定時のプレースホルダー (頭文字 + 破線で未設定を示唆) */
   .hero .greet-ava.greet-ava-empty {
     display: inline-flex; align-items: center; justify-content: center;
     background: linear-gradient(135deg,#94a3b8,#64748b); color: #fff;
-    font-size: 20px; font-weight: 800; border: 2px dashed #fff;
+    font-size: 29px; font-weight: 800; border: 2px dashed #fff;
   }
   .hero .greet-ava-lbl {
     font-size: 9px; font-weight: 700; color: #475569; letter-spacing: 0.3px;
@@ -194,7 +225,7 @@
   .hero .punchout-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(219,39,119,0.45); }
   .hero .punchout-btn:active { transform: translateY(0); }
   .hero .punchout-btn .ic { font-size: 22px; line-height: 1; }
-  .hero .punchout-btn .lbl { font-size: 16px; font-weight: 800; letter-spacing: 1px; text-align: center; line-height: 1.1; }
+  .hero .punchout-btn .lbl { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; text-align: center; line-height: 1.1; }
   .hero .mypage-btn {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     width: 64px; height: 64px;
@@ -227,9 +258,9 @@
   /* 今日のひとこと */
   .daily-msg {
     position: relative;
-    margin: 22px 4px 0; padding: 14px 14px 10px;
+    margin: 14px 4px 0; padding: 14px 14px 10px;
     background: linear-gradient(135deg, #fef9c3, #fef3c7);
-    border: 1.5px solid #fcd34d; border-radius: 12px;
+    border: 1.5px solid #fcd34d; border-radius: 16px;
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     box-shadow: 0 2px 8px rgba(252,211,77,0.18);
   }
@@ -257,55 +288,99 @@
   .daily-msg.has-news { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; box-shadow: none; }
   .whats-new.has-msg { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 
-  /* What's new — 1案件ずつフェード表示 (2026-05-25: 横スクロール廃止、写真投稿はサムネ・一行) */
+  /* お知らせ (旧 What's new) — 2026-07-28に一覧+既読/未読へ一新 */
   .whats-new {
-    margin: 22px 4px 0;
+    margin: 12px 4px 0;
     background: #fdf6e3;
-    border: 1.5px solid #e7d9b5;
-    border-radius: 10px;
-    min-height: 42px;
-    display: flex; align-items: stretch;
+    border: 1px solid #ecdfc0;
+    border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 5px;
+    padding: 9px 14px 11px;
     overflow: hidden;
-    box-shadow: 0 2px 6px rgba(120,90,40,0.08);
+    box-shadow: none;
   }
   .whats-new .wn-label {
     flex-shrink: 0;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: #dc2626;
     color: #fff;
-    font-size: 11px; font-weight: 800; letter-spacing: 0.6px;
-    padding: 0 12px;
-    display: flex; align-items: center; gap: 4px;
-    border-right: 1px solid #e7d9b5;
+    font-size: 11.5px; font-weight: 800; letter-spacing: 0.4px;
+    padding: 2px 11px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px;
   }
-  .whats-new .wn-view { flex: 1; min-width: 0; position: relative; }
-  .whats-new .wn-item {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; gap: 8px;
-    padding: 0 12px;
-    text-decoration: none; color: #422006;
-    opacity: 0; transition: opacity 0.45s ease;
-  }
-  .whats-new .wn-item.show { opacity: 1; }
-  .whats-new .wn-item .wn-cat { color: #b45309; font-weight: 800; font-size: 12px; flex-shrink: 0; }
-  .whats-new .wn-item .wn-text { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .whats-new .wn-item .wn-thumb { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
-  .whats-new .wn-item .wn-time { color: #a8a29e; font-size: 11px; flex-shrink: 0; }
-  .whats-new .wn-item .wn-author { color: #6b4a07; font-weight: 700; font-size: 13px; flex-shrink: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (max-width: 600px) {
-    .whats-new .wn-label { font-size: 10px; padding: 0 9px; }
-    .whats-new .wn-item .wn-text { font-size: 12.5px; }
   }
 
+  /* ===== 2026-07-28 一新: 1件ずつ回るカルーセルをやめ、一覧+新着バッジに (社長「みんなもう見ないですね」) ===== */
+  .whats-new .wn-head { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .whats-new .wn-new-count { background: #dc2626; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
+  .whats-new .wn-more { margin-left: auto; font-size: 11.5px; color: #92702a; text-decoration: none; font-weight: 700; }
+  .whats-new .wn-list { width: 100%; display: flex; flex-direction: column; }
+  .whats-new .wn-li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid #f0e4c8; text-decoration: none; color: #422006; }
+  .whats-new .wn-li:first-child { border-top: none; }
+  .whats-new .wn-li:active { background: #fbf1da; }
+  .whats-new .wn-li .li-ic { font-size: 17px; flex: 0 0 auto; width: 22px; text-align: center; }
+  .whats-new .wn-li .li-thumb { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; flex: 0 0 auto; border: 1px solid #ecdfc0; background: #fff; }
+  .whats-new .wn-li .li-body { flex: 1; min-width: 0; }
+  .whats-new .wn-li .li-l1 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .whats-new .wn-li .li-cat { color: #b45309; font-weight: 800; font-size: 12px; }
+  .whats-new .wn-li .li-time { color: #a8a29e; font-size: 11px; }
+  .whats-new .wn-li .li-new { background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1px 6px; }
+  .whats-new .wn-li.is-unread { background: #fffaf0; }
+  .whats-new .wn-li.is-unread .li-text { color: #422006; }
+  .whats-new .wn-readall { margin-left: auto; background: #fff; border: 1px solid #e7d8b4; color: #92702a; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-family: inherit; }
+  .whats-new .wn-readall + .wn-more { margin-left: 8px; }
+  .whats-new .wn-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: #57391a; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .whats-new .wn-empty { width: 100%; padding: 10px 2px; font-size: 12.5px; color: #a08b5f; }
+
+  /* ===== 2026-07-17 お知らせカード統一デザイン + 均等マージン (What's new / 営業所別 対応リスト) ===== */
+  .whats-new { margin: 14px 4px 0; background: #fdf7e8; border-radius: 16px; align-items: flex-start; gap: 9px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
+  .whats-new.has-msg { margin-top: 0; }
+  .whats-new .wn-label { font-size: 12px; padding: 4px 13px; }
+  .branch-strip { position: relative; margin: 14px 4px 0; background: #fdf7e8; border: 1px solid #ecdfc0; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
+  .branch-strip .bs-label { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 11px; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; color: #fff; background: #0f766e; padding: 4px 13px; border-radius: 999px; }
+  .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+  .branch-strip .bs-total { font-size: 12px; font-weight: 800; color: #fff; background: #dc2626; border-radius: 999px; padding: 2px 11px; }
+  .branch-strip .bs-total.zero { background: #0f766e; }
+  .branch-strip .bs-more { margin-left: auto; font-size: 12.5px; color: #0f766e; text-decoration: none; font-weight: 800; }
+  .branch-strip .bs-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .branch-strip .bs-chip { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; background: #fffdf7; border: 1px solid #e6d9ba; border-radius: 12px; padding: 8px 12px; color: #3a2c10; font-size: 14px; font-weight: 700; }
+  .branch-strip .bs-chip.has { background: #fff4f2; border-color: #f6c6bd; }
+  .branch-strip .bs-chip .bs-b { min-width: 20px; height: 20px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; padding: 0 6px; }
+  .branch-strip .bs-chip .bs-b.n { background: #dc2626; color: #fff; }
+  .branch-strip .bs-chip .bs-b.ok { color: #0f9d58; font-size: 14px; }
+  .branch-strip .bs-groups { display: flex; gap: 12px; align-items: stretch; }
+  .branch-strip .bs-group { min-width: 0; margin-top: 2px; border-radius: 12px; padding: 10px 12px 12px; }
+  /* スタンダード運輸=残り幅いっぱい / スズエ=内容幅に収める(分割比を自動最適化) */
+  .branch-strip .bs-g-std { flex: 1 1 auto; }
+  .branch-strip .bs-g-suzue { flex: 0 0 auto; }
+  /* スタンダード運輸の営業所は改行せず1行(はみ出しは横スクロール) */
+  .branch-strip .bs-g-std .bs-grid { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .branch-strip .bs-g-std .bs-chip { flex: 0 0 auto; }
+  .branch-strip .bs-gtitle { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 12.5px; font-weight: 800; }
+  .branch-strip .bs-gtitle::before { content: ''; width: 4px; height: 13px; border-radius: 2px; }
+  .branch-strip .bs-gcount { min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; padding: 0 6px; background: #dc2626; color: #fff; }
+  /* スタンダード運輸(茨運) = ティール系 */
+  .branch-strip .bs-g-std { background: #ecf7f5; border: 1px solid #cfe9e3; }
+  .branch-strip .bs-g-std .bs-gtitle { color: #0b6b62; }
+  .branch-strip .bs-g-std .bs-gtitle::before { background: #0f766e; }
+  .branch-strip .bs-g-std .bs-gcount.ok { background: #0f766e; }
+  /* スズエ電機 = インディゴ系 */
+  .branch-strip .bs-g-suzue { background: #eef0fb; border: 1px solid #d3d8f3; }
+  .branch-strip .bs-g-suzue .bs-gtitle { color: #3f3fa8; }
+  .branch-strip .bs-g-suzue .bs-gtitle::before { background: #4f46e5; }
+  .branch-strip .bs-g-suzue .bs-gcount.ok { background: #4f46e5; }
   /* 🆕 新機能のお知らせ — 一行カードを下から押上げて循環 (2026-05-25) */
   .new-features { position: relative; margin: 14px 4px 0; padding: 14px 12px 10px;
-    background: linear-gradient(135deg,#fffbeb,#fef3c7); border: 1.5px solid #fcd34d; border-radius: 12px;
+    background: linear-gradient(135deg,#fffbeb,#fef3c7); border: 1.5px solid #fcd34d; border-radius: 16px;
     box-shadow: 0 2px 8px rgba(252,211,77,0.18); }
   .new-features .nf-head { position: absolute; top: -11px; left: 14px; font-size: 11px; font-weight: 800; color: #fff;
     background: linear-gradient(135deg,#f59e0b,#d97706); border: 1.5px solid #fcd34d; padding: 2px 10px; border-radius: 999px; }
   .new-features .nf-view { height: 96px; overflow: hidden; }
   .new-features .nf-list { display: flex; flex-direction: column; gap: 4px; }
   .new-features .nf-item { display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box;
-    background: #fff; border: 1px solid #fde68a; border-radius: 10px; padding: 0 12px; text-decoration: none; color: #1f2937; }
+    background: #fff; border: 1px solid #fde68a; border-radius: 14px; padding: 0 12px; text-decoration: none; color: #1f2937; }
   .new-features .nf-item .nf-ic { font-size: 20px; line-height: 1; flex-shrink: 0; }
   .new-features .nf-item .nf-tx { font-size: 13px; line-height: 1.3; min-width: 0; }
   .new-features .nf-item .nf-tx small { display: block; font-size: 11px; color: #78716c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -316,7 +391,7 @@
     margin: 28px 4px 14px; padding-left: 12px;
     border-left: 4px solid #0d9488;
   }
-  .sec-title .lbl { font-size: 19px; font-weight: 800; color: #0f766e; letter-spacing: 1px; text-shadow: 0 -1px 1px rgba(255,255,255,0.95), 0 2px 3px rgba(15,23,42,0.6); font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif; }
+  .sec-title .lbl { font-size: 19px; font-weight: 800; color: #0f766e; letter-spacing: 0.3px; text-shadow: none; font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif; }
   .sec-title .desc { font-size: 12px; color: #94a3b8; font-family: "Helvetica Neue", Helvetica, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif; }
 
   /* カードグリッド */
@@ -331,7 +406,7 @@
         color-mix(in srgb, var(--c1) 14%, #fff) 0%,
         color-mix(in srgb, var(--c2) 8%, #fff) 100%);
     border: 1px solid color-mix(in srgb, var(--c2) 22%, #fff);
-    border-radius: 12px;
+    border-radius: 20px;
     padding: 12px 8px 10px;
     cursor: pointer; text-decoration: none; color: inherit;
     display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
@@ -340,8 +415,10 @@
     min-height: 74px;
   }
   .card:before {
-    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 3px;
+    border-radius: 0 0 3px 3px;
     background: linear-gradient(90deg, var(--c1), var(--c2));
+    opacity: 0.75;
   }
   .card:hover {
     transform: translateY(-2px);
@@ -354,11 +431,11 @@
   }
   .card .icon-pill {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; border-radius: 9px;
+    width: 32px; height: 32px; border-radius: 14px;
     font-size: 18px; line-height: 1;
     background: linear-gradient(135deg, var(--c1), var(--c2));
     color: #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10);
     margin-bottom: 5px;
   }
   .card .icon-pill.img { background: #fff; padding: 0; overflow: hidden; }
@@ -385,8 +462,8 @@
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-6deg);
     background: linear-gradient(135deg, #94a3b8, #475569);
-    color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 1.5px;
-    padding: 6px 18px; border-radius: 6px; z-index: 2;
+    color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 0.4px;
+    padding: 6px 18px; border-radius: 10px; z-index: 2;
     box-shadow: 0 3px 10px rgba(15,23,42,0.30);
     border: 2px solid rgba(255,255,255,0.7);
     white-space: nowrap;
@@ -398,8 +475,8 @@
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-6deg);
     background: linear-gradient(135deg, #f59e0b, #d97706);
-    color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 1px;
-    padding: 6px 14px; border-radius: 6px; z-index: 2;
+    color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 0.3px;
+    padding: 6px 14px; border-radius: 10px; z-index: 2;
     box-shadow: 0 3px 10px rgba(217,119,6,0.40);
     border: 2px solid rgba(255,255,255,0.7);
     white-space: nowrap;
@@ -423,6 +500,7 @@
   .card.wellness   { --c1: #86efac; --c2: #15803d; }  /* 健康管理室: deep green */
   .card.challenges { --c1: #bef264; --c2: #4d7c0f; }  /* チャレンジ: lime */
   .card.myactivity { --c1: #fb923c; --c2: #c2410c; }  /* マイ運動記録: 🔥 orange */
+  .card.hboard { --c1: #6ee7b7; --c2: #059669; }  /* 健康月間ボード */
   /* 「今日の一歩、明日の自分」 — Healthカテゴリ teal系 (plaza/wellness/challengesと区別) */
   .card.myplan     { --c1: #5eead4; --c2: #0f766e; }
   /* 📅 Meeting = 紫系 (sec-title #7c3aed) */
@@ -492,7 +570,7 @@
     margin: 0 4px 16px; padding: 11px 16px;
     background: linear-gradient(135deg, rgba(254,243,199,0.85), rgba(253,230,138,0.85));
     backdrop-filter: blur(4px);
-    border-left: 4px solid #f59e0b; border-radius: 10px;
+    border-left: 4px solid #f59e0b; border-radius: 14px;
     font-size: 12px; color: #78350f; line-height: 1.65;
     box-shadow: 0 2px 8px rgba(245,158,11,0.10);
   }
@@ -507,22 +585,32 @@
   }
   .footer a {
     color: #475569; text-decoration: none; font-weight: 600;
-    padding: 4px 10px; border-radius: 8px; transition: background 0.15s;
+    padding: 4px 10px; border-radius: 12px; transition: background 0.15s;
   }
   .footer a:hover { background: rgba(13,148,136,0.10); color: #0f766e; }
+  /* 最下段 著作権(ビズテラス ロゴ入り) */
+  .copyright {
+    margin: 16px 0 8px; padding: 0 12px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 9px; flex-wrap: wrap; text-align: center;
+    font-size: 10.5px; font-weight: 600; color: #9aa6b2; letter-spacing: .02em;
+  }
+  .copyright img { height: 15px; width: auto; opacity: .9; }
 
   /* スマホ調整 */
   @media (max-width: 600px) {
     header { padding: 12px 12px; gap: 8px; }
-    header .logo { width: 36px; height: 36px; border-radius: 8px; }
+    header .logo { width: 36px; height: 36px; border-radius: 12px; }
     header .sub { font-size: 11px; letter-spacing: 0.3px; }
     header .name { display: none; }
-    header button { font-size: 11px; padding: 4px 9px; border-radius: 4px; }
+    header button { font-size: 11px; padding: 4px 9px; border-radius: 8px; }
     header .right { gap: 6px; }
     #app { padding: 0 12px 80px; }
     .hero { padding: 14px 16px; gap: 10px; border-radius: 14px; }
     .hero .ic { font-size: 32px; }
-    .hero .greet { font-size: 14px; }
+    .hero .greet { font-size: 14px; gap: 13px; }
+    .hero .greet-ava { width: 60px; height: 60px; }
+    .hero .greet-name strong { font-size: 23px; }
     .hero .me-avatar { width: 44px; height: 44px; border-width: 2px; }
     .hero .me-avatar-inline { width: 26px; height: 26px; margin-left: 6px; }
     .hero .timecard-btn { width: 54px; height: 54px; border-radius: 14px; }
@@ -535,31 +623,39 @@
     .hero .mypage-btn .ic { font-size: 18px; }
     .hero .mypage-btn .lbl { font-size: 10px; }
     .hero .mypage-btn .ava { width: 50px; height: 50px; }
-    /* スマホはQR非表示 (既にスマホで開いているため不要) */
-    #qr-mobile { display: none !important; }
     /* スマホはタブレット版ボタンも非表示 (タブレットは事務所設置用) */
-    .hero .tablet-btn { display: none !important; }
-    /* スマホは 2 列、コンパクト */
-    .grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    .card { padding: 10px 6px 8px; min-height: 86px; border-radius: 10px; }
-    .card .icon-pill { width: 34px; height: 34px; font-size: 18px; border-radius: 9px; margin-bottom: 5px; }
-    .card .label { font-size: 12px; }
+    .hero .tablet-btn { display: flex !important; }
+    /* スマホは 2 列・余白広めで見やすく (2026-06-30 視認性改善) */
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .card { padding: 16px 12px 14px; min-height: 96px; border-radius: 16px; }
+    .card .icon-pill { width: 40px; height: 40px; font-size: 21px; border-radius: 13px; margin-bottom: 7px; }
+    .card .label { font-size: 14.5px; line-height: 1.3; word-break: break-word; }
     .card .desc { display: none; }
+    /* Bさん専用カードもモバイルは縦並びコンパクトにして3列に揃える (横並び大アバターは崩れるため) */
+    .grid.sec-comm .card.bdiary { flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; gap: 4px; padding: 16px 12px 14px; }
+    .card.bdiary .bd-ava { width: 40px; height: 40px; margin-bottom: 3px; }
+    .card.bdiary .bd-txt .label { font-size: 14.5px; line-height: 1.3; }
+    .card.bdiary .bd-sub { display: none; }
     .sec-title { margin-top: 24px; }
   }
-  /* iPhone SE 等の狭いスマホ向け詰め (3ボタンが横並びで窮屈になるのを防ぐ) */
+  /* iPhone SE 等の狭いスマホ向け微調整 (2列は維持) */
   @media (max-width: 400px) {
+    .grid { gap: 10px; }
+    .card { padding: 13px 9px 11px; min-height: 88px; }
+    .card .icon-pill { width: 36px; height: 36px; font-size: 19px; }
+    .card .label { font-size: 13.5px; }
     .hero { padding: 12px 12px; gap: 6px; }
     .hero .ic { font-size: 26px; }
     .hero .greet { font-size: 13px; }
+    .hero .greet-name strong { font-size: 22px; }
     .hero .note { font-size: 10px; margin-top: 2px; }
-    .hero .timecard-btn { width: 44px; height: 46px; border-radius: 12px; padding: 4px 0; }
+    .hero .timecard-btn { width: 44px; height: 46px; border-radius: 16px; padding: 4px 0; }
     .hero .timecard-btn .ic { font-size: 18px; }
     .hero .timecard-btn .lbl { font-size: 9px; letter-spacing: 0; }
-    .hero .punchout-btn { width: 44px; height: 46px; border-radius: 12px; padding: 4px 0; }
+    .hero .punchout-btn { width: 44px; height: 46px; border-radius: 16px; padding: 4px 0; }
     .hero .punchout-btn .ic { font-size: 16px; }
     .hero .punchout-btn .lbl { font-size: 13px; letter-spacing: 0; }
-    .hero .mypage-btn { width: 44px; height: 46px; border-radius: 12px; padding: 4px 0; }
+    .hero .mypage-btn { width: 44px; height: 46px; border-radius: 16px; padding: 4px 0; }
     .hero .mypage-btn .ic { font-size: 16px; }
     .hero .mypage-btn .lbl { font-size: 9px; letter-spacing: 0; }
     .hero .mypage-btn .ava { width: 44px; height: 44px; }
@@ -567,10 +663,65 @@
     .hero .tablet-btn span:first-child { font-size: 18px !important; }
     .hero .tablet-btn span:last-child { font-size: 9px !important; letter-spacing: 0 !important; }
   }
+  /* 共用タブレット (601〜1200px): 3列のまま文字・アイコン・余白を大きく＝大画面に小さい文字の見にくさを解消 (2026-06-30) */
+  @media (min-width: 601px) and (max-width: 1200px) {
+    #qr-mobile, .hero .tablet-btn { display: flex !important; }
+    #app { padding: 0 22px 90px; }
+    .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card { padding: 20px 14px 18px; min-height: 116px; border-radius: 18px; }
+    .card .icon-pill { width: 48px; height: 48px; font-size: 25px; border-radius: 16px; margin-bottom: 10px; }
+    .card .label { font-size: 16.5px; line-height: 1.3; }
+    .sec-title { margin-top: 26px; }
+    .sec-title .lbl { font-size: 21px; }
+    .field-daily-check { padding: 18px 20px; }
+    .field-daily-check .fdc-icon { font-size: 36px; }
+    .field-daily-check .fdc-state { font-size: 20px; }
+    .field-daily-check .fdc-sub { font-size: 14px; }
+    .field-daily-check .fdc-cta { font-size: 16px; padding: 11px 22px; }
+    .whats-new { padding: 13px 20px 15px; }
+    .whats-new .wn-label { font-size: 13px; padding: 3px 13px; }
+    .field-other-head { font-size: 17px; padding: 14px 18px; }
+    /* Bさん専用カードもタブレットは縦並びに揃える (3列セルで崩れないよう) */
+    .grid.sec-comm .card.bdiary { flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; gap: 5px; padding: 20px 14px 18px; }
+    .card.bdiary .bd-ava { width: 48px; height: 48px; margin-bottom: 3px; }
+    .card.bdiary .bd-sub { display: none; }
+    .card.bdiary .bd-txt .label { font-size: 16.5px; line-height: 1.3; }
+  }
+
+  /* ── カテゴリー折りたたみ (アコーディオン) 2026-07-02 ── */
+  .sec-title.acc { cursor: pointer; user-select: none; -webkit-user-select: none; align-items: center; transition: background 0.12s; }
+  .sec-title.acc:hover { background: rgba(13,148,136,0.06); border-radius: 0 12px 12px 0; }
+  .sec-title.acc .sec-arrow {
+    margin-left: auto; flex-shrink: 0; padding-left: 10px;
+    font-size: 14px; color: #94a3b8; line-height: 1;
+    transition: transform 0.2s ease;
+  }
+  .sec-title.acc.collapsed .sec-arrow { transform: rotate(-90deg); }
+  .sec-title.acc .sec-badge {
+    flex-shrink: 0; margin-left: 8px;
+    background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff;
+    font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(220,38,38,0.35); display: none;
+    min-width: 22px; text-align: center;
+  }
+  /* バッジがある時は矢印の直前に寄せる (矢印の margin-left:auto が両方を右へ押し出す) */
+  .grid.acc-collapsed { display: none !important; }
+  @media (max-width: 600px) {
+    .sec-title.acc .sec-arrow { font-size: 15px; padding-left: 8px; }
+  }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js?v=20260619a" defer></script>
+<script src="/global-notif.js?v=20260709-accident2" defer></script>
 <script src="/fukuri-hint.js?v=2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 
@@ -606,44 +757,74 @@
   </div>
   <div class="right">
     <span class="name" id="hd-name"></span>
-    <button id="hd-fz-btn" onclick="cycleFontSize()" title="文字サイズ切替" aria-label="文字サイズ切替">
-      <span style="font-size:10px;">A</span><span style="font-size:14px;margin-left:1px;">A</span><span id="hd-fz-lvl">M</span>
-    </button>
-    <button id="hd-bell-btn" onclick="toggleHeaderChime()" title="着信音 ON/OFF" aria-label="着信音切替" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:10px;width:34px;height:34px;font-size:18px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">🔔</button>
-    <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" aria-label="管理画面" style="display:none;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:10px;width:34px;height:34px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;">⚙️</button>
+    <button id="hd-simple-btn" onclick="switchToSimpleView()" title="かんたん表示に切り替える" style="display:none;background:#ecfdf5;color:#065f46;border:1.5px solid #a7f3d0;border-radius:14px;padding:7px 12px;font-size:13px;font-weight:800;cursor:pointer;">📱 かんたん表示</button>
+    <!-- 文字サイズ切替は下部スクリプトで生成 (言語切替フローティングは廃止) -->
+    <button id="hd-bell-btn" onclick="toggleHeaderChime()" title="着信音 ON/OFF" aria-label="着信音切替" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:14px;width:34px;height:34px;font-size:18px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">🔔</button>
+    <button id="hd-admin-btn" onclick="location.href='/admin'" title="管理画面" aria-label="管理画面" style="display:none;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:14px;width:34px;height:34px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;">⚙️</button>
     <button id="hd-logout-btn" onclick="logout()" title="ログアウト" aria-label="ログアウト"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
   </div>
 </header>
 
 <div id="app">
+  <!-- 🔔 通知有効化の導線 (Push購読率向上) -->
+  <div id="push-cta" style="display:none; margin:10px 12px; padding:12px 14px; background:#fffbeb; border:1.5px solid #fcd34d; border-radius:16px; font-size:13px; color:#92400e;">
+    <div style="font-weight:700; margin-bottom:6px;">🔔 通知をオンにしませんか？</div>
+    <div id="push-cta-msg" style="color:#78350f; margin-bottom:8px;">運転アラート・通達・呼び出しが、スマホにすぐ届くようになります。</div>
+    <div>
+      <button id="push-cta-btn" onclick="doEnablePush()" style="padding:9px 14px; border:none; border-radius:12px; background:#f59e0b; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">通知をオンにする</button>
+      <button onclick="dismissPushCta()" style="padding:9px 12px; border:none; border-radius:12px; background:transparent; color:#92400e; font-size:12px; cursor:pointer;">後で</button>
+    </div>
+  </div>
+  <!-- ━━━ 現場一般社員トップ刷新 (2026-06-30) ━━━ -->
+  <style id="field-top-css">
+  .field-daily-check{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fee2e2,#fecaca);border:1.5px solid #fca5a5;border-radius:16px;padding:14px 16px;margin:6px 0 14px;text-decoration:none;box-shadow:0 3px 10px rgba(220,38,38,0.12);}
+  .field-daily-check .fdc-icon{font-size:30px;line-height:1;flex-shrink:0;}
+  .field-daily-check .fdc-text{display:flex;flex-direction:column;flex:1;min-width:0;}
+  .field-daily-check .fdc-state{font-size:17px;font-weight:800;color:#b91c1c;}
+  .field-daily-check .fdc-sub{font-size:12.5px;color:#7f1d1d;opacity:.85;margin-top:2px;}
+  .field-daily-check .fdc-cta{flex-shrink:0;background:#dc2626;color:#fff;font-weight:800;font-size:14px;border-radius:999px;padding:8px 16px;white-space:nowrap;}
+  .field-daily-check.done{background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-color:#86efac;box-shadow:0 3px 10px rgba(22,163,74,0.12);}
+  .field-daily-check.done .fdc-state{color:#15803d;}
+  .field-daily-check.done .fdc-sub{color:#166534;}
+  .field-daily-check.done .fdc-cta{background:#16a34a;}
+  .field-other{margin:18px 0 6px;}
+  .field-other-head{width:100%;text-align:left;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:14px;padding:12px 16px;font-size:15px;font-weight:700;color:#475569;cursor:pointer;}
+  .field-other-body{margin-top:4px;}
+  </style>
+
   <!-- ヒーロー -->
   <div class="hero">
     <div class="body">
       <div class="greet" id="greet">CoWellへようこそ</div>
     </div>
     <!-- 出退勤打刻UIは廃止 (2026-05-25 完全削除) -->
-    <!-- スマホ用QRコード (PC画面のみ表示) -->
-    <div id="qr-mobile" style="display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px 4px;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;">
-      <img src="/img/qr-mobile.png?v=20260511c" alt="モバイル版QR" style="width:64px;height:64px;display:block;image-rendering:pixelated;">
-      <div style="font-size:10px;color:#0f766e;font-weight:700;letter-spacing:0.3px;margin-top:2px;">📱 スマホ版</div>
-    </div>
     <!-- タブレットキオスク (事務所設置タブレット用) -->
-    <a href="https://cohub.biz-terrace.org/tablet?demo=1" class="tablet-btn" title="タブレット版を開く" aria-label="タブレット版を開く" onclick="this.href='https://cohub.biz-terrace.org/tablet?demo=1&t='+Date.now()" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;text-decoration:none;color:#0f766e;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;cursor:pointer;">
-      <span style="font-size:24px;line-height:1;">🖥️</span>
-      <span style="font-size:10px;font-weight:700;letter-spacing:0.3px;">タブレット版</span>
+    <a href="/tablet-home.html" class="tablet-btn" title="タブレット・スマホ版に切り替え（このアカウントのまま）" aria-label="タブレット・スマホ版に切り替え" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:8px 10px;text-decoration:none;color:#0f766e;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;cursor:pointer;">
+      <span style="font-size:24px;line-height:1;">📱</span>
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.2px;line-height:1.2;text-align:center;">タブレット<br>・スマホ版</span>
     </a>
   </div>
 
-  <!-- ━━━ 🔍 横断検索 (メンバー・チャット・掲示板・ひろば) ━━━ -->
-  <div id="gsearch" style="position:relative;margin:4px 0 12px;">
-    <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #cbd5e1;border-radius:12px;padding:9px 14px;box-shadow:0 2px 6px rgba(15,23,42,0.05);">
+  <!-- ━━━ 📢 通達 (トップに格上げ・未読があるときだけ表示。確認済みで自動的に消える) ━━━ -->
+  <a class="top-announce" id="top-announce" href="/announcements.html" style="display:none;align-items:center;gap:12px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:16px;padding:14px 16px;margin:6px 0 14px;text-decoration:none;box-shadow:0 3px 10px rgba(220,38,38,0.12);">
+    <span style="font-size:28px;line-height:1;flex-shrink:0;">📢</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:16px;font-weight:800;color:#b91c1c;">通達<span id="top-announce-badge" style="display:none;background:#dc2626;color:#fff;font-size:11px;font-weight:800;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;">0</span></div>
+      <div id="top-announce-sub" style="font-size:12.5px;color:#7f1d1d;opacity:.85;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">管理部からの正式なお知らせ。タップで確認。</div>
+    </div>
+    <span style="flex-shrink:0;background:#dc2626;color:#fff;font-weight:800;font-size:14px;border-radius:999px;padding:8px 16px;white-space:nowrap;">確認する</span>
+  </a>
+
+  <!-- ━━━ 🔍 横断検索 (メンバー・チャット・掲示板・ひろば) — 既定は畳み、ヒーローの「🔍検索」で開く ━━━ -->
+  <div id="gsearch" style="position:relative;margin:4px 0 12px;display:none;">
+    <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #cbd5e1;border-radius:16px;padding:9px 14px;box-shadow:0 2px 6px rgba(15,23,42,0.05);">
       <span style="font-size:17px;line-height:1;">🔍</span>
       <input id="gsearch-input" type="search" autocomplete="off" placeholder="横断検索: メンバー・チャット・掲示板・ひろば"
              style="flex:1;border:none;outline:none;font-size:15px;background:transparent;color:#0f172a;min-width:0;"
              oninput="gsearchDebounced()" onkeydown="if(event.key==='Enter')gsearchRun()">
       <button type="button" id="gsearch-clear" onclick="gsearchClear()" style="display:none;border:none;background:#eef2f7;color:#64748b;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1;flex-shrink:0;">✕</button>
     </div>
-    <div id="gsearch-results" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:200;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 12px 40px rgba(15,23,42,0.18);max-height:60vh;overflow-y:auto;padding:6px;"></div>
+    <div id="gsearch-results" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:200;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,0.18);max-height:60vh;overflow-y:auto;padding:6px;"></div>
   </div>
 
   <!-- ━━━ 今日のひとこと ━━━ -->
@@ -652,22 +833,47 @@
     <span class="dm-body" id="dm-body"></span>
   </div>
 
-  <!-- ━━━ What's new (1案件ずつフェード・写真投稿はサムネ・一行) ━━━ -->
+  <!-- ━━━ 🆕 新着情報 (告知/掲示板/承認済み事故報告/新機能の4種・7日以内を一覧) ━━━ -->
   <div id="whats-new" class="whats-new" style="display:none;">
-    <div class="wn-view" id="wn-view"></div>
+    <div class="wn-head">
+      <span class="wn-label">お知らせ</span>
+      <span class="wn-new-count" id="wn-new-count" style="display:none;">0</span>
+      <button type="button" class="wn-readall" id="wn-readall" style="display:none;" onclick="wnReadAll()">すべて既読</button>
+      <a class="wn-more" id="wn-more" href="/announcements.html">お知らせ一覧 ›</a>
+    </div>
+    <div class="wn-list" id="wn-list"></div>
   </div>
 
-  <!-- ━━━ 🆕 新機能のお知らせ (一行・下から押上げ循環) ━━━ -->
-  <div id="new-features" class="new-features" style="display:none;">
-    <div class="nf-head">🆕 新機能のお知らせ</div>
-    <div class="nf-view"><div class="nf-list" id="nf-list"></div></div>
-  </div>
+  <!-- ━━━ 🩸 今日の体調チェック (現場一般社員のトップ・JSで表示/状態切替) ━━━ -->
+  <a id="field-daily-check" href="/self-check.html" class="field-daily-check" style="display:none;">
+    <span class="fdc-icon">🩸</span>
+    <span class="fdc-text">
+      <span class="fdc-state">今日の体調セルフチェック</span>
+      <span class="fdc-sub">まだ今日の記録がありません。タップで記録 →</span>
+    </span>
+    <span class="fdc-cta">記録する</span>
+  </a>
+
+  <!-- 🏢 管轄拠点の確認メッセージ (健康推進メンバー/拠点責任者/運行管理者のみ) -->
+  <div id="jurisdiction-msg" style="display:none;"></div>
+  <div id="branch-tasks-strip" style="display:none;"></div>
+
+  <!-- ✅ やること: いま対応が必要なことを集約 (件数付き・0件なら非表示) -->
+  <!-- 背景を白パネル化してトップページ(淡いグラデ)から浮かせ「まとまり感」を出す -->
+  <section id="tasks-section" style="display:none;background:#ffffff;border:1px solid #cffafe;border-radius:18px;padding:12px 16px 14px;box-shadow:0 6px 18px rgba(13,148,136,0.10);margin:4px 0 18px;">
+    <div class="sec-title" style="border-left-color:#0f766e;margin-top:0;">
+      <span class="lbl" style="color:#0f766e;">✅ やること<span id="tasks-count" style="display:none;font-size:13px;font-weight:800;color:#dc2626;margin-left:8px;"></span></span>
+      <span class="desc">いま対応が必要なこと</span>
+    </div>
+    <div id="tasks-list"></div>
+  </section>
+
 
   <!-- ⭐ 主役カード: 今日の一歩、明日の自分 (最上段) -->
   <!-- ✉️ メッセージ: 連絡手段 (社内チャット + 会社メール) -->
   <div class="sec-title" style="border-left-color:#0d9488;">
-    <span class="lbl" style="color:#0f766e;">✉️ Message</span>
-    <span class="desc">社内チャットと会社メール</span>
+    <span class="lbl" style="color:#0f766e;"><img src="/icons/cat/message.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> メッセージ・相談</span>
+    <span class="desc">Message</span>
   </div>
   <div class="grid sec-msg">
     <a class="card chat" href="/chat" id="card-chat">
@@ -681,12 +887,27 @@
       <div class="label">メール</div>
       <div class="desc">会社メール（@stdun.co.jp）をCoWell内で送受信。初回だけ設定が必要。</div>
     </a>
+    <a class="card chat" href="/plaza.html?tab=相談">
+      <div class="icon-pill">🆘</div>
+      <div class="label">悩み相談</div>
+      <div class="desc">健康・体調・職場で気になること、皆に相談してみよう。</div>
+    </a>
+    <a class="card chat" href="/plaza.html?tab=雑談">
+      <div class="icon-pill">💭</div>
+      <div class="label">雑談</div>
+      <div class="desc">仕事に関係ないつぶやき・近況・趣味の話など。</div>
+    </a>
+    <a class="card chat" href="/plaza.html?tab=健康Tips">
+      <div class="icon-pill">💡</div>
+      <div class="label">健康Tips</div>
+      <div class="desc">みんなで集める、ちょっとした健康の豆知識。</div>
+    </a>
   </div>
 
   <!-- 📅 Meeting: 予定・会議 -->
   <div class="sec-title" style="border-left-color:#7c3aed;">
-    <span class="lbl" style="color:#5b21b6;">📅 Meeting</span>
-    <span class="desc">予定・会議</span>
+    <span class="lbl" style="color:#5b21b6;"><img src="/icons/cat/meeting.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 予定・会議</span>
+    <span class="desc">Meeting</span>
   </div>
   <div class="grid sec-meeting">
     <a class="card meeting" href="/meeting">
@@ -708,23 +929,29 @@
     </a>
     <a class="card meeting" href="/calendar.html" id="card-shared-cal" style="display:none;">
       <div class="icon-pill">🗓</div>
-      <div class="label">共有カレンダー</div>
-      <div class="desc">役員・管理職の業務予定を社内で共有。会議・来客・出張・外出・社内行事などを登録。</div>
+      <div class="label">カレンダー</div>
+      <div class="desc">🙋マイ＝自分の予定とTo Do／👥共有＝みんなの予定。会議・来客・出張・外出・社内行事などを登録。</div>
+    </a>
+    <a class="card meeting" href="/todo.html" id="card-todo" style="display:none;">
+      <span class="badge" id="b-todo" style="display:none;">0</span>
+      <div class="icon-pill">📝</div>
+      <div class="label">To Do</div>
+      <div class="desc">自分だけのやることリスト。期限をつけて登録し、終わったらチェック。他の人には見えません。</div>
     </a>
   </div>
 
   <!-- 💬 Communication: 社内のつながり -->
   <div class="sec-title" style="border-left-color:#0284c7;">
-    <span class="lbl" style="color:#0369a1;">💬 Communication</span>
-    <span class="desc">社内のつながり・連絡</span>
+    <span class="lbl" style="color:#0369a1;"><img src="/icons/cat/comm.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 連絡・つながり</span>
+    <span class="desc">Communication</span>
   </div>
   <div class="grid sec-comm">
     <a class="card bdiary" href="/bdiary.html">
       <span class="badge" id="b-bdiary" style="display:none;">0</span>
       <img class="bd-ava" src="/assets/bsan_avatar_t.png" alt="Bさん">
       <div class="bd-txt">
-        <div class="label">元祖Ｂさんの愛の日記</div>
-        <div class="bd-sub">みんなで応援メッセージを送ろう 💌</div>
+        <div class="label">Bさん専用</div>
+        <div class="bd-sub">これまでの日記と、みんなのメッセージ 🌸</div>
       </div>
     </a>
     <a class="card board" href="/board.html">
@@ -765,8 +992,8 @@
 
   <!-- 🚨 Report: 報告・記録 -->
   <div class="sec-title" style="border-left-color:#dc2626;">
-    <span class="lbl" style="color:#b91c1c;">🚨 Report</span>
-    <span class="desc">報告・通達・記録</span>
+    <span class="lbl" style="color:#b91c1c;"><img src="/icons/cat/report.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 報告・通達・記録</span>
+    <span class="desc">Report</span>
   </div>
   <div class="grid sec-report">
     <a class="card announce" href="/announcements.html">
@@ -802,12 +1029,12 @@
     </a>
   </div>
 
-  <!-- 📝 Application: 各種承認申請 -->
-  <div class="sec-title" style="border-left-color:#475569;">
-    <span class="lbl" style="color:#334155;">📝 Application</span>
-    <span class="desc">承認・申請ワークフロー</span>
+  <!-- 📝 Application: 各種承認申請 (現場の一般社員には非表示) -->
+  <div class="sec-title" id="appl-sec-title" style="border-left-color:#475569;">
+    <span class="lbl" style="color:#334155;"><img src="/icons/cat/apply.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 申請・承認</span>
+    <span class="desc">Application</span>
   </div>
-  <div class="grid sec-appl">
+  <div class="grid sec-appl" id="appl-grid">
     <a class="card appl" href="/expense.html">
       <span class="badge" id="b-expense" style="display:none;">0</span>
       <div class="icon-pill">💰</div>
@@ -824,14 +1051,34 @@
 
   <!-- 🏥 Health: 健康・食事 -->
   <div class="sec-title" style="border-left-color:#10b981;">
-    <span class="lbl" style="color:#047857;">🏥 Health</span>
-    <span class="desc">健康・食事・チャレンジ</span>
+    <span class="lbl" style="color:#047857;"><img src="/icons/cat/health.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 健康</span>
+    <span class="desc">Health</span>
   </div>
   <div class="grid sec-health">
+    <a class="card hboard" href="/health-board.html">
+      <div class="icon-pill">🏅</div>
+      <div class="label">みんなの健康月間ボード</div>
+      <div class="desc">今月の運動・食事をみんなで集計。ランキングと応援で、無理なく健康習慣。</div>
+    </a>
     <a class="card myplan" href="/myplan.html" id="card-myplan">
       <div class="icon-pill">🩺</div>
       <div class="label">今日の一歩、明日の自分</div>
       <div class="desc">3日間からはじめる、自分だけのアクションプラン。</div>
+    </a>
+    <a class="card wellness" href="/self-check.html">
+      <div class="icon-pill">🩸</div>
+      <div class="label">体調・血圧チェック</div>
+      <div class="desc">今日の体調と血圧をその場で記録。タブレットでもダイヤルでかんたん入力。</div>
+    </a>
+    <a class="card wellness" href="/bp-trend.html">
+      <div class="icon-pill">📈</div>
+      <div class="label">血圧の推移</div>
+      <div class="desc">あなたの血圧を「線（流れ）」で確認。1回の数字に一喜一憂せず、平均で見る習慣を。</div>
+    </a>
+    <a class="card plaza" href="/menu-plan.html" id="card-menuplan">
+      <div class="icon-pill" style="padding:0;overflow:hidden;background:#bceae3;"><img src="/assets/calorie/_advisor_face.jpg?v=cal2" alt="ヘルス" style="width:100%;height:100%;object-fit:cover;object-position:center;"></div>
+      <div class="label">何を食べようか</div>
+      <div class="desc">ヘルスと今日の一食を、選ぶだけで一緒に決められます。</div>
     </a>
     <a class="card plaza" href="/plaza.html?tab=食事">
       <span class="badge" id="b-plaza" style="display:none;">0</span>
@@ -854,6 +1101,11 @@
       <div class="label">ヘルスリテラシー診断</div>
       <div class="desc">あなたの健康リテラシーを5問でチェック（<b>初回1回</b>）。結果に応じた情報が届きやすくなります。</div>
     </a>
+    <a class="card wellness" href="/stretch.html">
+      <div class="icon-pill">🧘</div>
+      <div class="label">暑い夏に涼しい自宅でストレッチ！</div>
+      <div class="desc">ポール1本とタオル1枚で13種目。寝る前の15分で、運転で固まった腰・肩・裏ももをゆるめる。</div>
+    </a>
     <a class="card myactivity" href="/myactivity.html">
       <div class="icon-pill">🔥</div>
       <div class="label">マイ運動記録</div>
@@ -869,8 +1121,8 @@
 
   <!-- ℹ️ Information: お役立ち情報 -->
   <div class="sec-title" style="border-left-color:#0891b2;">
-    <span class="lbl" style="color:#0e7490;">ℹ️ Information</span>
-    <span class="desc">安全・健康のお役立ち情報</span>
+    <span class="lbl" style="color:#0e7490;"><img src="/icons/cat/info.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> お役立ち情報</span>
+    <span class="desc">Information</span>
   </div>
   <div class="grid sec-info">
     <a class="card info" href="/heat-guide/index.html?v=2#about">
@@ -880,33 +1132,12 @@
     </a>
   </div>
 
-  <!-- 🆘 Consult: 相談 -->
-  <div class="sec-title" style="border-left-color:#f43f5e;">
-    <span class="lbl" style="color:#be123c;">🆘 Consult</span>
-    <span class="desc">気になることを相談</span>
-  </div>
-  <div class="grid sec-consult">
-    <a class="card consult" href="/plaza.html?tab=相談">
-      <div class="icon-pill">🆘</div>
-      <div class="label">悩み相談</div>
-      <div class="desc">健康・体調・職場で気になること、皆に相談してみよう。</div>
-    </a>
-    <a class="card consult" href="/plaza.html?tab=雑談">
-      <div class="icon-pill">💭</div>
-      <div class="label">雑談</div>
-      <div class="desc">仕事に関係ないつぶやき・近況・趣味の話など。</div>
-    </a>
-    <a class="card consult" href="/plaza.html?tab=健康Tips">
-      <div class="icon-pill">💡</div>
-      <div class="label">健康Tips</div>
-      <div class="desc">みんなで集める、ちょっとした健康の豆知識。</div>
-    </a>
-  </div>
+  <!-- 🆘 Consult は ✉️ Message & Consult に統合 (2026-06-25) -->
 
   <!-- 🎁 Welfare & Help: 福利厚生・サポート -->
   <div class="sec-title" style="border-left-color:#f59e0b;">
-    <span class="lbl" style="color:#b45309;">🎁 Welfare &amp; Help</span>
-    <span class="desc">福利厚生・サポート</span>
+    <span class="lbl" style="color:#b45309;"><img src="/icons/cat/welfare.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 福利厚生・サポート</span>
+    <span class="desc">Welfare &amp; Help</span>
   </div>
   <div class="grid sec-welfare">
     <a class="card yba" href="https://www.fukuri.co/" target="_blank" rel="noopener" onclick="return openFukuriHint(event)">
@@ -933,10 +1164,39 @@
       <span class="desc">推進メンバー・管理職のみに表示</span>
     </div>
     <div class="grid sec-promoter">
+      <div class="grp-sub" style="grid-column:1/-1;font-weight:800;font-size:14px;color:#5b21b6;margin:2px 2px 0;">🚦 運管メンバー</div>
       <a id="p-card-tenko" class="card p-rollcall" href="/tenko.html" style="display:none;">
         <div class="icon-pill">🚦</div>
         <div class="label">点呼・健康点検</div>
         <div class="desc">毎日、営業所メンバーを1人ずつタップ。点呼/朝礼と同時に体調を<b>「良好/気になる」1タップ</b>で点検（気になる時だけ詳細カード）。ドライバーは点呼で代行。不調は現場の声へ自動連携。</div>
+      </a>
+      <a id="p-card-tenkomgr" class="card p-rollcall" href="/tenko-manage.html" style="display:none;position:relative;">
+        <div class="icon-pill">🗂️</div>
+        <div class="label">点呼管理 <span id="tenkomgr-badge" style="display:none;background:#dc2626;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:1px 7px;margin-left:4px;">0</span></div>
+        <div class="desc">点呼・自己チェックの<b>不調/高血圧を1表で一括管理</b>。中🟡はチャット通知せずここに集約（未確認バッジ）。確認/対応の一括処理＋累計（実施率推移・頻発者）。指導履歴・乗務禁止もここ。</div>
+      </a>
+      <a class="card p-wifi" href="/branch-wifi.html">
+        <div class="icon-pill">📶</div>
+        <div class="label">営業所Wi-Fi設定</div>
+        <div class="desc">事務所タブレットに表示するWi-FiのSSID/パスワードを設定。個人スマホからの接続QRも自動生成。</div>
+      </a>
+
+      <div class="grp-sub" style="grid-column:1/-1;font-weight:800;font-size:14px;color:#047857;margin:12px 2px 0;padding-top:10px;border-top:1px dashed #d1fae5;">🩺 健康推進</div>
+      <a id="p-card-hcboard" class="card p-rollcall" href="/health-check-board.html" style="display:none;">
+        <div class="icon-pill">🩺</div>
+        <div class="label">健康点検ボード</div>
+        <div class="desc">拠点の毎日の健康点検（点呼＋自己チェック）の<b>実施状況・未実施者</b>・血圧/不調・項目別傾向を一覧。施策立案と業務管理に。</div>
+      </a>
+      <a id="p-card-careboard" class="card p-rollcall" href="/care-board.html" style="display:none;">
+        <div class="icon-pill">🫶</div>
+        <div class="label">気にかけボード</div>
+        <div class="desc">「コメントを入れたか」でなく<b>「気になる人に声をかけたか」</b>で見る場。<b>未対応の気がかり</b>・営業所別・声をかけた人・疲労が高め傾向の運転者を一覧。</div>
+      </a>
+      <a id="p-card-survey" class="card p-strategy" href="/survey.html" style="position:relative;">
+        <span class="badge" id="b-survey" style="display:none;">0</span>
+        <div class="icon-pill">📋</div>
+        <div class="label">推進メンバー アンケート</div>
+        <div class="desc">健康づくり活動(CoWell)の進み具合を、推進メンバーの実感から確かめる自己評価（全18問・約5分）。各設問の意味を読んだ上で回答できます。結果も確認可。</div>
       </a>
       <a class="card p-guide" href="/promoter-guide.html">
         <div class="icon-pill">📘</div>
@@ -947,11 +1207,6 @@
         <div class="icon-pill">📊</div>
         <div class="label">ヘルスリテラシー代理入力</div>
         <div class="desc">PCがなくログインできない社員向けに、ヘルスリテラシー5問を聞き取りで代理入力（<b>初回1回限り</b>）。日々の体調点検は「点呼・健康点検」へ統合しました。</div>
-      </a>
-      <a id="p-card-enroll" class="card p-enroll" href="/enroll.html" style="display:none;">
-        <div class="icon-pill">📷</div>
-        <div class="label">社員登録</div>
-        <div class="desc">新しい社員をスマホで撮影 → アバター作成 → 拠点・配属を選んで即登録。</div>
       </a>
       <a class="card p-strategy" href="/wellness-ops.html">
         <div class="icon-pill">🛠</div>
@@ -978,10 +1233,17 @@
         <div class="label">HL5紙アンケート</div>
         <div class="desc">未登録社員向け配布用 A4 印刷シート。CoWell QR + 設問5問入り。日本語/English/Português の3言語静的版を上部リンクで切替可。</div>
       </a>
-      <a class="card p-wifi" href="/branch-wifi.html">
-        <div class="icon-pill">📶</div>
-        <div class="label">営業所Wi-Fi設定</div>
-        <div class="desc">事務所タブレットに表示するWi-FiのSSID/パスワードを設定。個人スマホからの接続QRも自動生成。</div>
+
+      <div class="grp-sub" id="grp-label-toroku" style="grid-column:1/-1;font-weight:800;font-size:14px;color:#b45309;margin:12px 2px 0;padding-top:10px;border-top:1px dashed #fde68a;">📷 登録</div>
+      <a id="p-card-enroll" class="card p-enroll" href="/enroll.html" style="display:none;">
+        <div class="icon-pill">📷</div>
+        <div class="label">社員登録</div>
+        <div class="desc">新しい社員をスマホで撮影 → アバター作成 → 拠点・配属を選んで即登録。</div>
+      </a>
+      <a id="p-card-field-enroll" class="card p-enroll" href="/field-enroll.html" style="display:none;">
+        <div class="icon-pill">🪪</div>
+        <div class="label">現場登録（顔写真・初期PIN）</div>
+        <div class="desc">自拠点の社員にタブレット用の<b>顔写真</b>と<b>初期PIN</b>を設定。本人の同意を得て撮影。生年月日・アカウント作成は管理者が担当。</div>
       </a>
     </div>
   </section>
@@ -1009,10 +1271,13 @@
   </section>
 
   <div class="footer">
-    <a href="/announcements.html" style="position:relative;">📢 通達<span id="b-announce" style="display:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;box-shadow:0 2px 6px rgba(220,38,38,0.30);">0</span></a>
-    <a href="/mylog">📜 自分のログ</a>
+    <!-- 2026-07-21 「📜 自分のログ」導線を撤去 (/api/chat/history の情報漏えい対応。ページ自体は /mylog に残存) -->
     <a href="/security.html">🔒 セキュリティ</a>
     <a href="/about-cowell.html">ℹ️ CoWellについて</a>
+  </div>
+  <div class="copyright">
+    <img src="/assets/brand/bizterrace-logo.png?v=1" alt="BIZ-TERRACE">
+    <span>CoWell &copy; 2026 ビズテラス株式会社　All rights reserved.</span>
   </div>
 </div>
 
@@ -1021,10 +1286,10 @@ let token = localStorage.getItem('cohub_token') || '';
 let me = null;
 const $ = (id) => document.getElementById(id);
 
-// 文字サイズ切替 (font-zoom.jsと同じ localStorage key を共有、home.htmlは4段階)
+// 文字サイズ適用 (font-zoom.jsと同じ localStorage key 'm_fz' を共有、home.htmlは4段階でクランプ)
+// 2026-07-28: ヘッダー/フロートの [A− A＋] ボタンは廃止。切替は マイページ → 文字サイズ に集約。
 const FZ_LEVELS = ['s', 'm', 'l', 'xl'];
 const FZ_ZOOM = { s: 0.92, m: 1, l: 1.15, xl: 1.32 };
-const FZ_LBL = { s: 'S', m: 'M', l: 'L', xl: 'XL' };
 function getFzLevel() {
   try {
     const v = localStorage.getItem('m_fz');
@@ -1041,15 +1306,6 @@ function applyFz(level) {
     const hdr = document.getElementById('header');
     if (hdr) hdr.style.zoom = (1 / z).toFixed(4);
   } catch (e) {}
-  const lbl = document.getElementById('hd-fz-lvl');
-  if (lbl) lbl.textContent = FZ_LBL[level] || 'M';
-}
-function cycleFontSize() {
-  const cur = getFzLevel();
-  const idx = FZ_LEVELS.indexOf(cur);
-  const next = FZ_LEVELS[(idx + 1) % FZ_LEVELS.length];
-  try { localStorage.setItem('m_fz', next); } catch (e) {}
-  applyFz(next);
 }
 applyFz(getFzLevel());
 window.addEventListener('storage', (e) => { if (e.key === 'm_fz') applyFz(getFzLevel()); });
@@ -1198,7 +1454,7 @@ async function punchOutAndClose() {
         '<div style="font-size:24px;font-weight:800;color:#831843;margin-bottom:10px;">退勤打刻しました</div>' +
         '<div style="font-size:14px;color:#9d174d;margin-bottom:24px;">' + (r.punch && r.punch.punched_at ? r.punch.punched_at.replace('T', ' ') : '') + '</div>' +
         '<div style="font-size:13px;color:#64748b;margin-bottom:30px;line-height:1.7;">お疲れさまでした。<br>このタブを閉じてPCをシャットダウンしてください。</div>' +
-        '<button onclick="window._farewellClose()" style="padding:12px 28px;background:linear-gradient(135deg,#db2777,#9d174d);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(219,39,119,0.35);">タブを閉じる</button>' +
+        '<button onclick="window._farewellClose()" style="padding:12px 28px;background:linear-gradient(135deg,#db2777,#9d174d);color:#fff;border:none;border-radius:16px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(219,39,119,0.35);">タブを閉じる</button>' +
         '<div style="font-size:11px;color:#9ca3af;margin-top:18px;line-height:1.6;">ログイン画面に戻ったら<br>ブラウザの×でタブを閉じてください</div>' +
       '</div>';
     // window.close() を best-effort で試す (script-opened window/PWAでのみ動作)
@@ -1233,11 +1489,18 @@ async function loadDailyMessage() {
   try {
     const r = await api('/api/daily-message');
     if (r && r.success && r.message) {
-      const box = document.getElementById('daily-msg');
-      const body = document.getElementById('dm-body');
-      if (body) body.textContent = r.message;
-      if (box) box.style.display = '';
-      if (typeof linkMsgNews === 'function') linkMsgNews();   // NEWSと連結
+      // ヒーロー内・名前の上に「今日のひとこと」を表示 (下の独立カードは出さず重複回避)
+      const slot = document.getElementById('greet-word');
+      if (slot) {
+        slot.textContent = '🌟 ' + r.message;
+      } else {
+        // フォールバック (旧レイアウト): 従来の独立カード
+        const box = document.getElementById('daily-msg');
+        const body = document.getElementById('dm-body');
+        if (body) body.textContent = r.message;
+        if (box) box.style.display = '';
+        if (typeof linkMsgNews === 'function') linkMsgNews();
+      }
     }
   } catch (e) { /* ひとことの取得失敗は黙って無視 */ }
 }
@@ -1266,45 +1529,113 @@ function postTime(iso) {
   return (t.getMonth() + 1) + '/' + t.getDate() + ' ' + p(t.getHours()) + ':' + p(t.getMinutes());
 }
 
-// ===== What's new: 1案件ずつフェード表示 (写真投稿はサムネ・一行) 2026-05-25 =====
-var _wnEvents = [], _wnIdx = 0, _wnTimer = null, _wnHover = false;
+// ===== お知らせ (旧 What's new) 2026-07-28: 一覧表示 =====
+var _wnEvents = [];
+// 新機能のお知らせ (管理画面 /api/whats-new/features が空のときの既定)
+function featureNewsItems() {
+  return [
+    { ic: '📝', t: 'To Do', d: '自分だけのやることリスト。期限をつけて登録し、終わったらチェック', href: '/todo.html' },
+    { ic: '🗓', t: 'カレンダーがマイ/共有に', d: '自分の予定とTo Doだけを見る「マイ」に切り替えられます', href: '/calendar.html' },
+    { ic: '📷', t: '血圧を写真でAI入力', d: '血圧計を撮るだけ。健康点検の血圧がAIで自動入力に', href: '/self-check.html' },
+    { ic: '🍱', t: '食事をAIが栄養分析', d: '食事の写真を投稿すると、AIが栄養バランスをチェック', href: '/plaza.html?tab=食事' },
+    { ic: '🦉', t: 'まとめる君', d: '走り書きの報告をAIが5W1Hにきれいに整形', href: '/matomeru.html' },
+  ].map(function (x) { return { icon: x.ic, label: x.t, summary: x.d, link: x.href, feature: true }; });
+}
+/* ⭐2026-07-28 一新 (社長「みんなもう見ないですね」)
+   ・1件ずつ7秒で回るカルーセルをやめ、5件を一覧に = 待たずに見渡せる
+   ・前回見た時刻を覚えて、それより新しいものに「NEW」を付ける(見出しに未読件数)
+   ・見出しが画面に入ったら「見た」とみなして既読にする */
+/* ⭐既読/未読 (2026-07-28 社長「既読、未読処理が必要ですね」)
+   ・サーバーに **ユーザーごと・1件ずつ** で持つ = PCで読んだらスマホでも既読
+   ・「読んだものだけ」既読にする。スクロールしただけでは既読にしない
+     (旧: 画面に入って1.2秒で全部既読 = 実際に読んでいなくても消えていた) */
+const WN_SHOW = 5;
+async function wnMarkRead(keys) {
+  const ks = (keys || []).filter(Boolean);
+  if (!ks.length) return;
+  try {
+    await fetch('/api/whats-new/read', {
+      method: 'POST', keepalive: true,   // クリックで画面遷移しても送信を落とさない
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ keys: ks }),
+    });
+  } catch (e) {}
+}
+// 項目クリック: その1件だけ既読にしてから遷移
+function wnClick(ev, key) {
+  wnMarkRead([key]);
+  const li = ev && ev.currentTarget;
+  if (li) { const b = li.querySelector('.li-new'); if (b) b.remove(); }
+  wnBumpCount(-1);
+  return true;   // 既定の遷移はそのまま
+}
+function wnBumpCount(d) {
+  const c = document.getElementById('wn-new-count');
+  if (!c) return;
+  const n = Math.max(0, (parseInt(c.dataset.n || '0', 10) || 0) + d);
+  c.dataset.n = n;
+  if (n > 0) { c.textContent = n + '件の未読'; c.style.display = ''; }
+  else { c.style.display = 'none'; }
+}
+async function wnReadAll() {
+  const keys = _wnEvents.filter(function (e) { return e.unread && e.key; }).map(function (e) { return e.key; });
+  await wnMarkRead(keys);
+  loadWhatsNew();
+}
 async function loadWhatsNew() {
+  let events = [];
   try {
     const r = await api('/api/whats-new?limit=10');
-    if (!r || !r.success || !r.events || !r.events.length) return;
-    _wnEvents = r.events;
-    const box = document.getElementById('whats-new');
-    const view = document.getElementById('wn-view');
-    if (!box || !view) return;
-    box.style.display = '';
-    box.onmouseenter = function () { _wnHover = true; };   // ホバーで停止
-    box.onmouseleave = function () { _wnHover = false; };
-    _wnIdx = 0; showWnItem(0);
-    linkMsgNews();
-    if (_wnEvents.length > 1) {
-      clearInterval(_wnTimer);
-      _wnTimer = setInterval(function () {
-        if (_wnHover) return;
-        _wnIdx = (_wnIdx + 1) % _wnEvents.length;
-        showWnItem(_wnIdx);
-      }, 4500);
+    if (r && r.success && Array.isArray(r.events)) events = r.events;
+  } catch (e) { /* 取得失敗は黙って無視 */ }
+  // 実イベント + 新機能のお知らせ(管理画面で編集可) を1本の「お知らせ」に統合
+  let features = null;
+  try {
+    const rf = await api('/api/whats-new/features');
+    if (rf && rf.success && Array.isArray(rf.items) && rf.items.length) {
+      features = rf.items.map(function (x) {
+        return { icon: x.icon, label: x.title, summary: x.summary, link: x.link, key: x.key, unread: x.unread, feature: true };
+      });
     }
-  } catch (e) { /* What's newは黙って無視 */ }
-}
-function showWnItem(i) {
-  const view = document.getElementById('wn-view');
-  const ev = _wnEvents[i];
-  if (!view || !ev) return;
-  const thumb = ev.thumb ? '<img class="wn-thumb" src="' + escapeHtml(ev.thumb) + '" alt="" onerror="this.remove()">' : '';
-  const author = ev.author ? '<span class="wn-author">' + escapeHtml(ev.author) + '</span>' : '';
-  view.innerHTML = '<a class="wn-item" href="' + escapeHtml(ev.link || '#') + '">'
-    + '<span class="wn-cat">' + (ev.icon || '📌') + ' ' + escapeHtml(ev.label || '') + '</span>'
-    + author
-    + '<span class="wn-text">' + escapeHtml(ev.summary || '') + '</span>'
-    + thumb
-    + '<span class="wn-time">' + escapeHtml(postTime(ev.created_at)) + '</span>'
-    + '</a>';
-  requestAnimationFrame(function () { const el = view.querySelector('.wn-item'); if (el) el.classList.add('show'); });
+  } catch (e) { /* 取得失敗時は既定へ */ }
+  // 実イベントを優先しつつ、新機能のお知らせに必ず1枠は残す(ニュースが多い日に埋もれさせない)。
+  // ⚠️出すのは**リストの先頭から**=管理画面で一番上に置いたものが最新。
+  //   一度 日替わりローテーションにしたら、当日足したTo Doが数日に1回しか出なかった (2026-07-28)。
+  const feats = features || featureNewsItems();
+  const evs = events.slice(0, Math.max(1, WN_SHOW - 1));
+  const fs = feats.slice(0, Math.max(1, WN_SHOW - evs.length));
+  _wnEvents = evs.concat(fs);
+  const box = document.getElementById('whats-new');
+  const list = document.getElementById('wn-list');
+  if (!box || !list) return;
+  if (!_wnEvents.length) { box.style.display = 'none'; return; }
+  box.style.display = '';
+
+  let unread = 0;
+  list.innerHTML = _wnEvents.map(function (ev, i) {
+    if (ev.unread) unread++;
+    const thumb = ev.thumb
+      ? '<img class="li-thumb" src="' + escapeHtml(ev.thumb) + '" alt="" onerror="this.remove()">'
+      : '<span class="li-ic">' + (ev.icon || '📌') + '</span>';
+    return '<a class="wn-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(ev.link || '#') + '"'
+      + ' onclick="return wnClick(event, ' + JSON.stringify(ev.key || '').replace(/"/g, '&quot;') + ')">'
+      + thumb
+      + '<span class="li-body">'
+      +   '<span class="li-l1">'
+      +     '<span class="li-cat">' + escapeHtml(ev.label || '') + '</span>'
+      +     (ev.created_at ? '<span class="li-time">' + escapeHtml(postTime(ev.created_at)) + '</span>' : '')
+      +     (ev.unread ? '<span class="li-new">NEW</span>' : '')
+      +   '</span>'
+      +   (ev.summary ? '<span class="li-text">' + escapeHtml(ev.summary) + '</span>' : '')
+      + '</span>'
+      + '</a>';
+  }).join('');
+
+  const cnt = document.getElementById('wn-new-count');
+  if (cnt) { cnt.dataset.n = 0; wnBumpCount(unread); }
+  const ra = document.getElementById('wn-readall');
+  if (ra) ra.style.display = unread > 0 ? '' : 'none';
+  linkMsgNews();
 }
 // 今日のひとこと + NEWS を1枚に連結 (両方表示中のみ上下端フラット)
 function linkMsgNews() {
@@ -1351,20 +1682,136 @@ function initNewFeatures() {
   }, 3600);
 }
 
+// ===== 通知有効化の導線 (2026-06-22): Push購読率を上げる =====
+function urlB64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(base64); var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function _isiOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints || 0) > 1); }
+function _isStandalone() { try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; } catch (e) { return false; } }
+function maybeOfferPush() {
+  try {
+    if (localStorage.getItem('cohub_kiosk') === '1') return;        // 共用端末は対象外
+    if (localStorage.getItem('push_cta_dismissed') === '1') return; // 「後で」を押した
+    var cta = document.getElementById('push-cta');
+    var msg = document.getElementById('push-cta-msg');
+    var btn = document.getElementById('push-cta-btn');
+    // 未対応(iOS16.4未満/対応外ブラウザ)は黙らず理由を表示
+    var supported = ('Notification' in window) && ('serviceWorker' in navigator) && ('PushManager' in window);
+    if (!supported) {
+      msg.innerHTML = 'この端末では通知（Web Push）に対応していません。<br>iPhoneは <b>iOS 16.4 以上</b> かつ <b>ホーム画面に追加したアプリ</b>から開く必要があります（設定→一般→情報 でバージョン確認）。'
+        + (_isStandalone() ? '' : '<br><span style="color:#94a3b8;">※今はホーム画面版ではなくブラウザで開いている可能性があります。</span>');
+      btn.style.display = 'none'; cta.style.display = ''; return;
+    }
+    if (Notification.permission === 'granted') return;              // 既に許可済み
+    if (Notification.permission === 'denied') {
+      msg.textContent = '通知がブロックされています。端末の設定からCoHub（またはブラウザ）の通知を許可してください。';
+      btn.style.display = 'none';
+    } else if (_isiOS() && !_isStandalone()) {
+      msg.innerHTML = 'iPhone/iPadは <b>Safariのままでは通知をオンにできません</b>（Appleの仕様）。次の手順でオンにできます：<br>'
+        + '① Safari下の「共有」<b>⬆️</b> →「<b>ホーム画面に追加</b>」<br>'
+        + '② 追加された <b>CoWell</b> アイコンから開く<br>'
+        + '③ （別ログイン状態になるので）<b>もう一度ログイン</b><br>'
+        + '④ ここに出る「<b>通知をオンにする</b>」を押す<br>'
+        + '<span style="color:#94a3b8;">※iOS 16.4以降が必要です</span>';
+      btn.style.display = 'none';
+    }
+    cta.style.display = '';
+  } catch (e) {}
+}
+function dismissPushCta() {
+  try { localStorage.setItem('push_cta_dismissed', '1'); } catch (e) {}
+  var cta = document.getElementById('push-cta'); if (cta) cta.style.display = 'none';
+}
+async function doEnablePush() {
+  var btn = document.getElementById('push-cta-btn'), msg = document.getElementById('push-cta-msg');
+  btn.disabled = true;
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) { msg.textContent = 'この端末は通知に対応していません。'; return; }
+    var p = await Notification.requestPermission();
+    if (p !== 'granted') { msg.textContent = '通知が許可されませんでした。端末の設定からも変更できます。'; btn.disabled = false; return; }
+    var reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    var vd = await fetch('/api/push/vapid').then(function (x) { return x.json(); });
+    if (!vd.publicKey) { msg.textContent = 'サーバー設定エラー(VAPID)。管理者に連絡してください。'; return; }
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(vd.publicKey) });
+    await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+    document.getElementById('push-cta').style.display = 'none';
+    alert('✅ 通知をオンにしました。運転アラートや通達がすぐ届きます。');
+  } catch (e) {
+    msg.textContent = '通知の設定に失敗しました: ' + (e.message || e); btn.disabled = false;
+  }
+}
+
+// ===== 本日の会議 議題(ログイン時モーダル) 2026-07-13 =====
+// 表示可否はサーバー(/api/agenda/today)が対象者(管理職+推進)・当日判定。ここは表示と既読(localStorage)のみ。
+async function maybeShowAgenda() {
+  try {
+    if (localStorage.getItem('cohub_kiosk') === '1') return;   // 共用端末は対象外
+    const r = await api('/api/agenda/today');
+    const a = r && r.agenda;
+    if (!a) return;
+    if (localStorage.getItem('cohub_agenda_seen') === a.key) return;   // 本日分は表示済み
+    const esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    const pts = (a.points || []).map(function (p) { return '<li style="margin:0 0 10px;line-height:1.55">' + esc(p) + '</li>'; }).join('');
+    const ov = document.createElement('div');
+    ov.id = 'agenda-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML =
+      '<div role="dialog" aria-modal="true" style="background:#fff;max-width:560px;width:100%;max-height:88vh;overflow:auto;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,.28)">'
+      + '<div style="background:linear-gradient(135deg,#0e7490,#0369a1);color:#fff;padding:18px 20px;border-radius:20px 20px 0 0">'
+      + '<div style="font-size:13px;font-weight:700;opacity:.9;letter-spacing:.04em">📋 本日の会議 議題</div>'
+      + '<div style="font-size:21px;font-weight:900;margin-top:4px">' + esc(a.title) + '</div></div>'
+      + '<div style="padding:18px 20px">'
+      + (a.intro ? '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155">' + esc(a.intro) + '</p>' : '')
+      + (pts ? '<div style="font-size:13px;font-weight:800;color:#0369a1;margin:0 0 8px">◆ 話し合う論点</div><ul style="margin:0 0 6px;padding-left:22px;font-size:15px;color:#1e293b">' + pts + '</ul>' : '')
+      + (a.close ? '<p style="margin:14px 0 0;font-size:14px;color:#64748b">' + esc(a.close) + '</p>' : '')
+      + '<button id="agenda-ok" style="margin-top:18px;width:100%;padding:14px;border:none;border-radius:14px;background:#0369a1;color:#fff;font-size:17px;font-weight:800;cursor:pointer">確認しました</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    const close = function () { try { localStorage.setItem('cohub_agenda_seen', a.key); } catch (e) {} ov.remove(); };
+    ov.querySelector('#agenda-ok').addEventListener('click', close);
+    // 背景クリックでは閉じない(誤タップで見落とさないよう)。ボタンのみ。
+  } catch (e) {}
+}
+
+// 詳細ページ(/home)を使える人 = 事務職員/健康推進メンバー/役員/管理職。
+// これ以外(現場一般: driver/warehouse/manufacturing で無資格)は簡単版のみ。
+// ※ tablet-home.html と同一定義。変更時は両方を同期のこと。
+function canUseDetail(u){
+  if(!u) return false;
+  return u.employee_type==='office' || u.employee_type==='admin' || u.role==='admin'
+      || u.job_role==='executive' || u.job_role==='manager'
+      || !!u.is_manager || !!u.is_ops_manager || !!u.is_branch_head
+      || !!u.is_field_promoter || !!u.is_warehouse_promoter;
+}
 async function init() {
   if (!token) { showLogin(); return; }
   const r = await api('/api/auth/me');
   if (!r || !r.success) { showLogin(); return; }
   me = r.user;
+  // 他ページ(plaza等)が読む cohub_user キャッシュを最新化 (別アカウントのログイン残りで古い表示になる事故を防ぐ)
+  try { localStorage.setItem('cohub_user', JSON.stringify(me)); } catch (e) {}
+  // ★詳細ページ(/home)は 事務職員/健康推進メンバー/役員/管理職 のみ。
+  //   現場一般(ドライバー/倉庫/製造)はスマホ簡単版(tablet-home)に限定する(社長方針 2026-07-24)。
+  //   以前の「詳しい表示」オプトイン(cohub_view_pref)は廃止=現場一般は詳細に入れない。
+  if (!canUseDetail(me)) { location.replace('/tablet-home.html'); return; }
   showApp();
-  // 2026-05-24〜25機能の動線復旧 (2026-05-25): 🆕新機能パネル(押上げ循環) + 管理職限定カード
-  renderNewFeatures(!!me.is_manager);
+  maybeOfferPush();
+  maybeShowAgenda();   // 本日の会議 議題(対象=管理職+推進)のログイン時モーダル
+  // 新機能のお知らせは「新着情報」(loadWhatsNew)に統合済み (旧 renderNewFeatures は廃止)
   if (me.is_manager) {
-    ['card-shared-cal', 'card-weekly', 'card-alerts'].forEach(function(id) {
+    ['card-weekly', 'card-alerts'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.style.display = '';
     });
   }
-  $('hd-name').textContent = me.display_name + 'さん';
+  // 共有カレンダーは全社員に開放(閲覧は各自の共有分・管理職は全件) (2026-07-09)
+  var _calCard = document.getElementById('card-shared-cal'); if (_calCard) _calCard.style.display = '';
+  $('hd-name').textContent = me.display_name;
   const g = greetInfo();
   // 現場系職種(ドライバー/倉庫/施工/製造)は別途打刻記録があるため対象外
   const FIELD_JOBS = ['driver', 'warehouse', 'construction', 'manufacturing'];
@@ -1374,16 +1821,27 @@ async function init() {
 
   // マイページ/アバター設定への入口は常に表示する。
   // アバター未設定の社員も頭文字プレースホルダーから /mypage.html に入れる (アバター未撮影で入口が消える不具合を修正)
+  // アバター下のラベルは廃止し、入口リンクは名前と同じ行に置く (マイページ/未設定はアバター設定)
   const avaBlock = me.avatar_url
     ? '<a href="/mypage.html" class="greet-ava-link" title="マイページ" aria-label="マイページ">'
         + '<img src="' + escapeHtml(me.avatar_url) + '" class="greet-ava" alt="">'
-        + '<span class="greet-ava-lbl">マイページ</span>'
       + '</a>'
     : '<a href="/mypage.html" class="greet-ava-link" title="マイページ・アバター設定" aria-label="マイページ">'
         + '<span class="greet-ava greet-ava-empty">' + escapeHtml((me.display_name || '?').trim().charAt(0)) + '</span>'
-        + '<span class="greet-ava-lbl">アバター設定</span>'
       + '</a>';
-  let greetHtml = avaBlock + '<span><strong>' + escapeHtml(me.display_name) + '</strong>&nbsp;さん</span>';
+  const mypageLbl = me.avatar_url ? 'マイページ' : 'アバター設定';
+  let greetHtml = avaBlock
+    + '<span class="greet-text">'
+    +   '<span class="greet-hk" id="greet-word"></span>'   // 今日のひとこと (loadDailyMessageで充填・未取得時は:emptyで非表示)
+    +   '<span class="greet-name"><strong>' + escapeHtml(me.display_name) + '</strong>'
+    +     (me.nickname ? '<span class="greet-nick">（' + escapeHtml(me.nickname) + '）</span>' : '')
+    +   '</span>'
+    +   '<span class="greet-actions">'
+    +     '<a href="/mypage.html" class="greet-mypage">' + mypageLbl + ' ›</a>'
+    +     '<button type="button" class="greet-search" onclick="openSearch()">🔍 検索</button>'
+    +     '<a href="/self-check.html" id="hc-chip" class="greet-hc" style="display:none;" title="体調チェック"></a>'
+    +   '</span>'
+    + '</span>';
 
   // 出退勤打刻UIは廃止 (2026-05-25 完全削除)
   $('greet').innerHTML = greetHtml;
@@ -1393,6 +1851,28 @@ async function init() {
   loadDailyMessage();
   // What's new (全社活動の最新ダイジェスト)
   loadWhatsNew();
+  // 今日の体調チェック トップカード (全ユーザー・旧「体調・血圧チェック」ボタンの置き換え)
+  try { setupDailyCheckCard(); } catch (e) { console.warn('[dailycheck]', e); }
+  // 運行管理者からの指導(本人の承諾待ち)を最上部に出す
+  try { loadHomeGuidance(); } catch (e) { console.warn('[guidance]', e); }
+  // ✅ やること(対応が必要なこと)を集約表示
+  /* individual task-list hidden: superseded by branch-tasks (2026-07-17) */ // loadTaskList();
+  // 🏢 管轄拠点の確認メッセージ(健康推進メンバー/拠点責任者/運行管理者)
+  /* jurisdiction confirmation message removed (2026-07-17) */ // loadJurisdictionMsg();
+  try { loadBranchTasksStrip(); } catch (e) { console.warn('[branchstrip]', e); }
+  // 📝 To Do カード(本体は /todo.html)の表示可否と残件バッジ
+  try { loadTodos(); } catch (e) { console.warn('[todo]', e); }
+  // 共用タブレット(キオスク)では機微な個人カードを非表示にする (会社メール/個人の健康詳細)。
+  // 同僚にPINを覗かれた等の万一でも、最も見られたくない面は端末に出さない多層防御。毎日の体調チェック(入力)・食事投稿は目的なので残す。
+  try {
+    var _kt = localStorage.getItem('cohub_kiosk_token');
+    var _isKiosk = localStorage.getItem('cohub_kiosk') === '1' && _kt && _kt === localStorage.getItem('cohub_token');
+    if (_isKiosk) {
+      ['/mail.html', '/food-report.html', '/wellness.html'].forEach(function (href) {
+        document.querySelectorAll('a.card[href="' + href + '"]').forEach(function (el) { el.style.display = 'none'; });
+      });
+    }
+  } catch (e) {}
 
   // 推進メンバー / 管理職 / ゲストレビュアー: 専用セクション表示
   const isPromoter = !!me.is_field_promoter;
@@ -1402,11 +1882,22 @@ async function init() {
   const isListeningRecorder = isPromoter || isWarehousePromoter || isOpsManager || isBranchHead;
   const isAdmin = me.role === 'admin';
   const isGuest = !!me.is_guest_reviewer;
-  // 管理者のみヘッダーに「管理画面」ボタン表示 (inline-flex でアイコン中央寄せ)
-  if (isAdmin) $('hd-admin-btn').style.display = 'inline-flex';
+  // 申請(Application)は現場の一般社員には非表示 (申請業務をしない層・タブレット/キオスク利用者)。
+  // 事務の一般社員・管理職・admin には従来どおり表示。
+  if (isFieldStaff && !me.is_manager && !isAdmin) {
+    const _at = $('appl-sec-title'); if (_at) _at.style.display = 'none';
+    const _ag = $('appl-grid'); if (_ag) _ag.style.display = 'none';
+    // 現場一般社員トップ刷新: 体調チェックを最上部に・連絡→交流→報告→健康へ並べ替え・低使用は「その他」へ畳む
+    try { setupFieldStaffTop(); } catch (e) { console.warn('[fieldtop]', e); }
+    // ここに来る現場一般社員は「詳しい表示」を選んだ人(既定はかんたん表示へ自動転送)。かんたん表示へ戻すボタンを出す。
+    try { addSimpleViewSwitch(); } catch (e) { console.warn('[simpleswitch]', e); }
+  }
+  // 管理画面ボタンは役員5名+IT推進の6名のみ (2026-07-21 限定。server/middleware/auth.js の ADMIN_CONSOLE_LOGIN_IDS と同期させること)
+  const ADMIN_CONSOLE_IDS = ['taketake', 'e_sugai', 'y_gotoh', 'y_yoshizawa', 'y_okada', 'm_tateishi'];
+  if (ADMIN_CONSOLE_IDS.includes(me.login_id)) $('hd-admin-btn').style.display = 'inline-flex';
   // 点呼者・管理者 (点呼・朝礼を実施する人): 推進メンバー(運管/倉庫) / 管理職 / manager / systemadmin
   const isTenkoOp = isListeningRecorder || isAdmin || me.employee_type === 'admin' || me.job_role === 'manager';
-  if (isListeningRecorder || isAdmin || isGuest || isTenkoOp) {
+  if (isListeningRecorder || isAdmin || isGuest || isTenkoOp || me.is_manager) {
     $('promoter-section').style.display = 'block';
     if (isAdmin) {
       $('promoter-title').textContent = '🩺 推進メンバー / 管理職 専用';
@@ -1421,24 +1912,405 @@ async function init() {
     }
     // 点呼・朝礼: 点呼者・管理者に表示
     if (isTenkoOp) { const t = $('p-card-tenko'); if (t) t.style.display = ''; }
+    // 健康点検ボード: 推進メンバー・管理職 (canViewBoard相当)
+    if (isListeningRecorder || isAdmin || isTenkoOp || me.is_manager || me.employee_type === 'admin') {
+      const hb = $('p-card-hcboard'); if (hb) hb.style.display = '';
+      const cb = $('p-card-careboard'); if (cb) cb.style.display = '';
+      // 点呼管理(一括モーダル): 同じ権限で表示。未確認件数をバッジ表示
+      const tm = $('p-card-tenkomgr'); if (tm) tm.style.display = '';
+      api('/api/tenko/manage').then(function (r) {
+        if (r && r.success && r.unhandled > 0) {
+          const b = $('tenkomgr-badge'); if (b) { b.textContent = r.unhandled; b.style.display = ''; }
+          try { updateSectionBadges(); } catch (e) {}
+        }
+      }).catch(function () {});
+    }
     // 聞き取り記録者 (推進/運行管理者/所長副所長) または管理職: 聞き取りカードPOST (HL5問も同梱)
     if (isListeningRecorder || isAdmin || me.employee_type === 'admin') {
       const c = $('p-card-listening');
       if (c) c.style.display = '';
     }
-    // 社員登録: 管理職(employee_type=admin) / 推進メンバー / システムadmin
+    // 社員登録(ID+PWのPCログイン用): 事務・管理職は登録済みで、新規はほぼ現場登録(顔+PIN)に移行。
+    // 推進メンバー/管理職の画面からは隠し、管理者のみ表示(まれなPCログイン社員の逃げ道として残す)。
     const isMgr = me.employee_type === 'admin';
-    if (isPromoter || isWarehousePromoter || isMgr || isAdmin) {
+    if (isAdmin) {
       const c = $('p-card-enroll');
       if (c) c.style.display = '';
     }
+    // 現場登録(顔写真・初期PIN): 推進メンバー(現場/倉庫)・管理職・admin
+    if (isPromoter || isWarehousePromoter || me.employee_type === 'admin' || isAdmin) {
+      const cf = $('p-card-field-enroll');
+      if (cf) cf.style.display = '';
+    }
+    // 「📷 登録」小見出しは、社員登録/現場登録の両方が非表示なら隠す(運管/健康推進は常時表示カードあり)
+    try {
+      const _tl = $('grp-label-toroku');
+      const _e1 = $('p-card-enroll'), _e2 = $('p-card-field-enroll');
+      const _vis = (_e1 && _e1.style.display !== 'none') || (_e2 && _e2.style.display !== 'none');
+      if (_tl) _tl.style.display = _vis ? '' : 'none';
+    } catch (e) {}
     // LogiHub: システムadminのみ
     if (isAdmin) {
       const sec = $('logistics-section');
       if (sec) sec.style.display = '';
     }
   }
+  // カテゴリー折りたたみ (アコーディオン): 現場一般社員は専用トップ(setupFieldStaffTop)を使うため除外
+  if (!(isFieldStaff && !me.is_manager && !isAdmin)) {
+    try { setupHomeAccordion(); } catch (e) { console.warn('[accordion]', e); }
+  }
   fetchBadges();
+}
+
+// ━━━ 今日の体調チェック トップカード (全ユーザー共通): 旧「体調・血圧チェック」ボタンを置き換え ━━━
+// カード状態を当日の my-today で更新。done=済/未=初期表示。★未のelseブランチが要:
+// これが無いと、常駐PWAが日付をまたいだ時に前日の「記録済み」表示が残り、毎日リセットされない。
+function refreshDailyCheckCard() {
+  var top = document.getElementById('field-daily-check');
+  if (!top) return;
+  api('/api/tenko/my-today').then(function (r) {
+    var st = top.querySelector('.fdc-state');
+    var sub = top.querySelector('.fdc-sub');
+    var cta = top.querySelector('.fdc-cta');
+    var done = !!(r && r.success && r.done);
+    // 検索の横の体調チェック状態チップ (完了=緑✅済 / 未実施=琥珀🩸)
+    var chip = document.getElementById('hc-chip');
+    if (chip) {
+      chip.style.display = 'inline-flex';
+      if (done) { chip.classList.add('done'); chip.textContent = '✅ 体調チェック済'; }
+      else { chip.classList.remove('done'); chip.textContent = '🩸 体調チェック'; }
+    }
+    if (done) {
+      // 完了したらバナーは消す (通達バナーと同じ挙動)。翌日=未実施に戻ると再表示。
+      top.style.display = 'none';
+    } else {
+      top.style.display = '';
+      top.classList.remove('done');
+      if (st) st.textContent = '今日の体調セルフチェック';
+      if (sub) sub.textContent = 'まだ今日の記録がありません。タップで記録 →';
+      if (cta) cta.textContent = '記録する';
+    }
+  }).catch(function () {});
+}
+var _dailyCheckWired = false;
+function setupDailyCheckCard() {
+  var top = document.getElementById('field-daily-check');
+  if (top) {
+    // 表示可否は refreshDailyCheckCard が当日状態で決める(完了=非表示/未実施=表示)。ここでは出さない(ちらつき防止)。
+    refreshDailyCheckCard();
+    if (!_dailyCheckWired) {
+      _dailyCheckWired = true;
+      // アプリ復帰・タブ再表示・日付またぎでも当日状態へ更新 (常駐PWA対策)。
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') refreshDailyCheckCard();
+      });
+      window.addEventListener('pageshow', function () { refreshDailyCheckCard(); });
+    }
+  }
+  // 重複回避: 健康セクション内の旧「体調・血圧チェック」カードは全員から撤去 (最上部カードに一本化)
+  var dup = document.querySelector('.grid.sec-health a[href="/self-check.html"]');
+  if (dup) dup.style.display = 'none';
+}
+
+// ===== 🏢 管轄拠点の確認メッセージ (健康推進メンバー/拠点責任者/運行管理者) =====
+var CO_NAMES = {
+  'SU_HQ': 'スタンダード運輸 海老名', 'SU_ZAMA': 'スタンダード運輸 座間',
+  'SU_SAITAMA': 'スタンダード運輸 埼玉', 'SU_MKANTO': 'スタンダード運輸 南関東',
+  'SU_KANRI': '管理課', 'SU_KANRIBU': '管理部', 'KOJI': '施工事業係',
+  'SUZUE': 'スズエ電機 豊田工場', 'SUZUE_TENRYU': 'スズエ電機 天竜工場',
+  'IBA_SANWA': '茨運(三和)', 'IBA_KASHIMA': '茨運(鹿島)',
+  'NPO': 'NPO法人', 'GUEST': 'ゲスト', 'UNIVERSITY': '大学・研究機関', 'ADMIN': '管理職'
+};
+function coName(code) { return CO_NAMES[code] || code || '(拠点未設定)'; }
+function loadJurisdictionMsg() {
+  var el = $('jurisdiction-msg'); if (!el) return;
+  var isPromoter = !!(me.is_field_promoter || me.is_warehouse_promoter);
+  var isBranchHead = !!me.is_branch_head;
+  var isOpsMgr = !!me.is_ops_manager;
+  if (!(isPromoter || isBranchHead || isOpsMgr)) { el.style.display = 'none'; return; }
+  var roles = [];
+  if (isBranchHead) roles.push('拠点責任者');
+  if (isOpsMgr) roles.push('運行管理者');
+  if (isPromoter) roles.push('健康推進メンバー');
+  var isHQ = (me.role === 'admin' || me.employee_type === 'admin');   // 本社・管理職は全拠点統括
+  var body = isHQ
+    ? 'あなたは<b>' + roles.join('・') + '</b>として <b>全拠点</b>を統括しています。各拠点の点呼・健康点検・指導を横断で確認できます。'
+      + '<br><span style="color:#92400e;">拠点を絞って見る場合は、各画面の拠点セレクタで切り替えてください。</span>'
+    : 'あなたは<b>' + roles.join('・') + '</b>として <b>' + escapeHtml(coName(me.company_code)) + '</b> を担当しています。点呼・健康点検・指導などは<b>この拠点の範囲</b>で表示されます。'
+      + '<br><span style="color:#92400e;">担当拠点に相違がある場合、または複数拠点を担当している場合は、管理者へご連絡ください。</span>';
+  el.innerHTML =
+    '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:13px 15px;margin:4px 0 14px;display:flex;gap:12px;align-items:flex-start;">'
+    + '<span style="font-size:22px;line-height:1.1">🏢</span>'
+    + '<div style="flex:1;font-size:14px;line-height:1.6;color:#78350f;">'
+    + '<div style="font-weight:800;margin-bottom:2px;">管轄拠点のご確認</div>'
+    + body
+    + '</div></div>';
+  el.style.display = '';
+}
+
+function shortCoName(n) {
+  n = String(n || '');
+  var m = n.match(/[（(]([^）)]+)[）)]/);
+  if (m) return m[1];
+  if (n.indexOf(' ') >= 0) { var p = n.split(' '); return p[p.length - 1]; }
+  return n;
+}
+async function loadBranchTasksStrip() {
+  var el = $('branch-tasks-strip'); if (!el) return;
+  var isHQv = (me.role === 'admin' || me.employee_type === 'admin');
+  if (!(isHQv || me.is_branch_head || me.is_ops_manager)) { el.style.display = 'none'; return; }
+  try {
+    var r = await fetch('/api/branch-tasks/board', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('cohub_token') || '') } });
+    var d = await r.json();
+    if (!d || !d.success || !d.rows || !d.rows.length) { el.style.display = 'none'; return; }
+    // 会社ごとにグループ化: スズエ電機(SUZUE*) / スタンダード運輸(茨運)(SU_*・IBA_*)
+    function chipHtml(x) {
+      var has = x.total > 0;
+      var badge = has ? '<span class="bs-b n">' + x.total + '</span>' : '<span class="bs-b ok">✓</span>';
+      return '<a class="bs-chip' + (has ? ' has' : '') + '" href="/branch-tasks.html">' + escapeHtml(shortCoName(x.name)) + badge + '</a>';
+    }
+    var GROUPS = [
+      { title: 'スタンダード運輸（茨運）', cls: 'bs-g-std',   match: function (c) { return c.indexOf('SUZUE') !== 0; } },
+      { title: 'スズエ電機',             cls: 'bs-g-suzue', match: function (c) { return c.indexOf('SUZUE') === 0; } }
+    ];
+    var body = GROUPS.map(function (g) {
+      var rows = d.rows.filter(function (x) { return g.match(String(x.code || '')); });
+      if (!rows.length) return '';
+      var gt = rows.reduce(function (s, x) { return s + (x.total || 0); }, 0);
+      var count = gt > 0 ? '<span class="bs-gcount">' + gt + '</span>' : '<span class="bs-gcount ok">✓</span>';
+      return '<div class="bs-group ' + g.cls + '"><div class="bs-gtitle">' + escapeHtml(g.title) + count + '</div>'
+        + '<div class="bs-grid">' + rows.map(chipHtml).join('') + '</div></div>';
+    }).join('');
+    var grand = d.grand_total || 0;
+    el.className = 'branch-strip';
+    el.innerHTML = '<span class="bs-label">🏢 営業所別 対応リスト</span>'
+      + '<div class="bs-head">'
+      + (grand > 0 ? '<span class="bs-total">未対応 ' + grand + '</span>' : '<span class="bs-total zero">全拠点 対応済み</span>')
+      + '<a class="bs-more" href="/branch-tasks.html">一覧を見る ›</a></div>'
+      + '<div class="bs-groups">' + body + '</div>';
+    el.style.display = '';
+  } catch (e) { el.style.display = 'none'; }
+}
+// ===== ✅ やること (対応が必要なことを件数付きで集約) =====
+function scrollToBanner(e) {
+  if (e) e.preventDefault();
+  var b = document.getElementById('home-guidance-banner');
+  if (b) b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return false;
+}
+async function loadTaskList() {
+  var tasks = [];
+  var jobs = [
+    api('/api/tenko/manage').then(function (r) { if (r && r.success && r.unhandled > 0) tasks.push({ count: r.unhandled, label: '未確認の点呼・体調不調', icon: '🩺', href: '/tenko-manage.html', tone: 'red', pr: 0 }); }).catch(function () {}),
+    api('/api/tenko/kiko').then(function (r) { if (r && r.success) { var n = (r.items || []).filter(function (x) { return !x.approved_at; }).length; if (n > 0) tasks.push({ count: n, label: '帰庫点呼の承認待ち', icon: '🚚', href: '/tenko-manage.html', tone: 'amber', pr: 1 }); } }).catch(function () {}),
+    api('/api/guidance/mine').then(function (r) { if (r && r.success && r.pending_count > 0) tasks.push({ count: r.pending_count, label: '運行管理者からの指導を承諾', icon: '🚦', href: '#home-guidance-banner', tone: 'red', pr: 0 }); }).catch(function () {}),
+    api('/api/approval/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '承認待ちの申請', icon: '📑', href: '/approval.html', tone: 'teal', pr: 2 }); }).catch(function () {}),
+    api('/api/expense/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '経費精算の承認待ち', icon: '💰', href: '/expense.html', tone: 'teal', pr: 2 }); }).catch(function () {}),
+    api('/api/ops/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '業務連絡・運管ポストの未確認', icon: '📣', href: '/ops.html', tone: 'blue', pr: 3 }); }).catch(function () {}),
+    api('/api/survey/unread-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '未回答のアンケート', icon: '📋', href: '/survey.html', tone: 'purple', pr: 4 }); }).catch(function () {})
+  ];
+  try { await Promise.all(jobs); } catch (e) {}
+  var sec = $('tasks-section'), list = $('tasks-list'), cnt = $('tasks-count');
+  if (!sec || !list) return;
+  if (!tasks.length) { sec.style.display = 'none'; return; }
+  tasks.sort(function (a, b) { return a.pr - b.pr; });
+  var bg = { red: '#fee2e2', amber: '#fef3c7', teal: '#ccfbf1', purple: '#f3e8ff', blue: '#e0f2fe' };
+  var fg = { red: '#b91c1c', amber: '#b45309', teal: '#0f766e', purple: '#7c3aed', blue: '#0369a1' };
+  list.innerHTML = tasks.map(function (t) {
+    var isAnchor = t.href.charAt(0) === '#';
+    return '<a href="' + t.href + '"' + (isAnchor ? ' onclick="return scrollToBanner(event)"' : '') + ' style="display:flex;align-items:center;gap:12px;background:' + bg[t.tone] + ';border-radius:14px;padding:12px 14px;margin-bottom:8px;text-decoration:none">'
+      + '<span style="font-size:22px;line-height:1">' + t.icon + '</span>'
+      + '<span style="flex:1;font-size:15px;font-weight:800;color:#1e293b">' + t.label + '</span>'
+      + '<span style="background:' + fg[t.tone] + ';color:#fff;border-radius:999px;padding:2px 11px;font-size:14px;font-weight:900">' + t.count + '</span>'
+      + '<span style="color:#94a3b8;font-size:18px">›</span></a>';
+  }).join('');
+  var total = tasks.reduce(function (s, t) { return s + t.count; }, 0);
+  if (cnt) { cnt.textContent = total + '件'; cnt.style.display = ''; }
+  sec.style.display = 'block';
+}
+
+// ===== 🚫 運行管理者からの指導(本人の承諾) =====
+async function loadHomeGuidance() {
+  var j; try { j = await api('/api/guidance/mine'); } catch (e) { return; }
+  var pend = (j && j.success) ? (j.items || []).filter(function (x) { return x.consent_status === 'pending'; }) : [];
+  var el = document.getElementById('home-guidance-banner');
+  if (!pend.length) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'home-guidance-banner';
+    var anchor = document.getElementById('field-daily-check');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor);
+    else { var app = document.getElementById('app'); if (app) app.insertBefore(el, app.firstChild); }
+  }
+  var E = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  el.innerHTML = '<div style="background:#fee2e2;border:2px solid #dc2626;border-radius:16px;padding:14px;margin:10px 0">'
+    + '<div style="font-weight:800;font-size:16px;color:#991b1b">🚫 運行管理者からの指導があります（' + pend.length + '件）</div>'
+    + '<div style="font-size:13px;color:#7f1d1d;margin:2px 0 10px">内容を確認して承諾してください</div>'
+    + pend.map(function (it) {
+        return '<div style="background:#fff;border:1px solid #fecaca;border-radius:12px;padding:12px;margin-bottom:8px">'
+          + '<div style="font-size:12px;color:#64748b">' + E((it.guided_at || '').slice(0, 16)) + ' ／ ' + E(it.guided_by_name) + ' より' + (it.reason ? ' ／ ' + E(it.reason) : '') + '</div>'
+          + '<div style="font-size:15px;margin:6px 0;white-space:pre-wrap;line-height:1.6">' + E(it.content) + '</div>'
+          + (it.ban_flag ? '<div style="color:#b91c1c;font-weight:700;font-size:14px">🚫 ' + (it.ban_active ? '乗務禁止' : '乗務禁止(予定)') + '：' + E(it.ban_from || '') + '〜' + (it.ban_until ? E(it.ban_until) : '当面') + '</div>' : '')
+          + '<button onclick="homeConsent(' + it.id + ',this)" style="margin-top:8px;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer">内容を確認し、承諾します</button>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+async function homeConsent(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
+  var j; try { j = await api('/api/guidance/' + id + '/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agree: true }) }); } catch (e) {}
+  if (j && j.success) { loadHomeGuidance(); }
+  else { if (btn) { btn.disabled = false; btn.textContent = '内容を確認し、承諾します'; } alert('送信に失敗しました'); }
+}
+
+// 現場一般社員が「詳しい表示」を見ている時、ワンタップでかんたん表示(tablet-home)へ戻す案内バーを最上部に出す。
+function addSimpleViewSwitch() {
+  // かんたん表示への切替は名前の横のボタン(hd-simple-btn)に集約 (2026-07-09)
+  var btn = document.getElementById('hd-simple-btn');
+  if (btn) btn.style.display = '';
+}
+function switchToSimpleView() {
+  location.replace('/tablet-home.html');
+}
+
+// ━━━ 現場一般社員トップ刷新 (2026-06-30): 連絡→交流→報告→健康に並べ替え・低使用を「その他」に集約 ━━━
+function setupFieldStaffTop() {
+  // セクション並べ替え (連絡→交流→報告→健康) + 低使用は「その他」に折り畳み
+  var top = document.getElementById('field-daily-check');
+  function pair(sel) {
+    var g = document.querySelector(sel);
+    if (!g) return null;
+    var t = g.previousElementSibling;
+    if (!(t && t.classList && t.classList.contains('sec-title'))) t = null;
+    return { title: t, grid: g };
+  }
+  var firstGrid = document.querySelector('.grid.sec-msg');
+  var parent = firstGrid ? firstGrid.parentElement : null;
+  var anchor = top || document.getElementById('whats-new') || document.getElementById('daily-msg');
+  if (!parent || !anchor || anchor.parentElement !== parent) return;
+  var ref = anchor;
+  ['.grid.sec-msg', '.grid.sec-comm', '.grid.sec-report', '.grid.sec-health'].forEach(function (sel) {
+    var p = pair(sel);
+    if (!p) return;
+    if (p.title) { parent.insertBefore(p.title, ref.nextSibling); ref = p.title; }
+    parent.insertBefore(p.grid, ref.nextSibling); ref = p.grid;
+  });
+  // 「その他」折り畳み (会議・お役立ち情報・福利厚生)
+  var box = document.createElement('div');
+  box.className = 'field-other';
+  var head = document.createElement('button');
+  head.type = 'button';
+  head.className = 'field-other-head';
+  var arrow = document.createTextNode('▽');
+  head.appendChild(arrow);
+  head.appendChild(document.createTextNode(' その他（会議・お役立ち情報・福利厚生）'));
+  var body = document.createElement('div');
+  body.className = 'field-other-body';
+  body.style.display = 'none';
+  head.onclick = function () {
+    var open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    arrow.textContent = open ? '▽' : '△';
+  };
+  box.appendChild(head);
+  box.appendChild(body);
+  ['.grid.sec-meeting', '.grid.sec-info', '.grid.sec-welfare'].forEach(function (sel) {
+    var p = pair(sel);
+    if (!p) return;
+    if (p.title) body.appendChild(p.title);
+    body.appendChild(p.grid);
+  });
+  var promo = document.getElementById('promoter-section');
+  if (promo && promo.parentElement === parent) parent.insertBefore(box, promo);
+  else parent.appendChild(box);
+  // 新着情報は最下部へ (トップをスッキリさせる・ボタン中心+ひとこと案)。「その他」の下に置く
+  var wn = document.getElementById('whats-new');
+  if (wn && wn.parentElement === parent) {
+    if (promo && promo.parentElement === parent) parent.insertBefore(wn, promo);
+    else parent.appendChild(wn);
+  }
+}
+
+// ━━━ カテゴリー折りたたみ (アコーディオン) 2026-07-02 ━━━
+// 各セクション見出し(.sec-title)をタップで開閉。開閉状態は端末ごとに記憶。
+// 折りたたみ中の見出しには、そのカテゴリ内の未読バッジ合計を表示して見落としを防ぐ。
+function setupHomeAccordion() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  // 既定は全カテゴリを畳む (メッセージ・健康も他と同様に折りたたむ 2026-07-09)。
+  // ユーザーが自分で開いた履歴(localStorage)がある場合はその選択を優先。
+  const DEFAULT_OPEN = {};
+  const titles = Array.prototype.slice.call(app.querySelectorAll('.sec-title'));
+  titles.forEach(function (title) {
+    if (title.classList.contains('acc')) return; // idempotent
+    const grid = title.nextElementSibling;
+    if (!grid || !grid.classList || !grid.classList.contains('grid')) return;
+    // セクションキー = grid の sec-xxx クラス
+    let key = '';
+    grid.classList.forEach(function (c) { if (c.indexOf('sec-') === 0) key = c; });
+    if (!key) return;
+    title.classList.add('acc');
+    title.setAttribute('role', 'button');
+    title.setAttribute('tabindex', '0');
+    const badge = document.createElement('span');
+    badge.className = 'sec-badge';
+    const arrow = document.createElement('span');
+    arrow.className = 'sec-arrow';
+    arrow.textContent = '▾';
+    title.appendChild(badge);
+    title.appendChild(arrow);
+    title._accGrid = grid;
+    title._accBadge = badge;
+    title._accArrow = arrow;
+    // 初期状態 (保存値 > 既定)
+    let open;
+    try {
+      const saved = localStorage.getItem('cohub_home_acc_' + key);
+      open = (saved === null) ? !!DEFAULT_OPEN[key] : (saved === '1');
+    } catch (e) { open = !!DEFAULT_OPEN[key]; }
+    setSecOpen(title, open);
+    const toggle = function () {
+      const willOpen = grid.classList.contains('acc-collapsed'); // 現在畳→開く
+      setSecOpen(title, willOpen);
+      try { localStorage.setItem('cohub_home_acc_' + key, willOpen ? '1' : '0'); } catch (e) {}
+    };
+    title.addEventListener('click', toggle);
+    title.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+  updateSectionBadges();
+}
+function setSecOpen(title, open) {
+  const grid = title._accGrid;
+  if (!grid) return;
+  if (open) { grid.classList.remove('acc-collapsed'); title.classList.remove('collapsed'); }
+  else { grid.classList.add('acc-collapsed'); title.classList.add('collapsed'); }
+  updateOneSectionBadge(title);
+}
+function updateOneSectionBadge(title) {
+  const grid = title._accGrid, badge = title._accBadge, arrow = title._accArrow;
+  if (!grid || !badge) return;
+  // 開閉に関わらず、そのカテゴリ内の未読合計を見出しに常時表示 (2026-07-02: 常に表示に変更)
+  let sum = 0;
+  grid.querySelectorAll('.badge, #tenkomgr-badge').forEach(function (b) {
+    if (b.style.display === 'none') return; // 非表示バッジは0件
+    const n = parseInt((b.textContent || '').replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(n)) sum += n;
+  });
+  if (sum > 0) {
+    badge.textContent = sum > 99 ? '99+' : String(sum);
+    // ⚠️ '' だと CSS の display:none に戻り出ないため、必ず具体値を指定
+    badge.style.display = 'inline-block';
+    badge.style.marginLeft = 'auto';            // バッジを右へ寄せ、矢印はその隣に
+    if (arrow) arrow.style.marginLeft = '8px';
+  } else {
+    badge.style.display = 'none';
+    if (arrow) arrow.style.marginLeft = 'auto'; // バッジ無しの時は矢印を右端へ
+  }
+}
+function updateSectionBadges() {
+  document.querySelectorAll('.sec-title.acc').forEach(function (t) { updateOneSectionBadge(t); });
 }
 
 async function fetchBadges() {
@@ -1452,19 +2324,32 @@ async function fetchBadges() {
       $('b-board').style.display = 'none';
     }
   } catch(e) {}
-  // 通達 (announcements): フッターリンク + Communication 内カード両方
+  // 通達 (announcements): トップ格上げボタン + Communication 内カード
   try {
     const a = await api('/api/announcements/unread-count');
     const cnt = (a && a.success && a.count) ? a.count : 0;
-    const el = $('b-announce');
-    if (el) {
-      if (cnt > 0) { el.textContent = cnt; el.style.display = 'inline-block'; }
-      else el.style.display = 'none';
+    // 未読があるときだけトップの通達バナーを表示。確認済み(未読0)で自動的に消える。
+    const topEl = $('top-announce');
+    if (topEl) topEl.style.display = cnt > 0 ? 'flex' : 'none';
+    const tb = $('top-announce-badge');
+    if (tb) {
+      if (cnt > 0) { tb.textContent = cnt; tb.style.display = 'inline-block'; }
+      else tb.style.display = 'none';
     }
+    const sub = $('top-announce-sub');
+    if (sub && cnt > 0) sub.textContent = '未読の通達が ' + cnt + ' 件あります。タップで確認';
     const elCard = $('b-announce-card');
     if (elCard) {
       if (cnt > 0) { elCard.textContent = cnt; elCard.style.display = ''; }
       else elCard.style.display = 'none';
+    }
+    // 表示時のみ: 最新の通達タイトルをサブに表示 (取得できれば)
+    if (cnt > 0) {
+      try {
+        const list = await api('/api/announcements');
+        const arr = (list && (list.announcements || list.items || list.list)) || [];
+        if (sub && arr.length && arr[0] && arr[0].title) sub.textContent = '🆕 ' + arr[0].title;
+      } catch (e2) {}
     }
   } catch(e) {}
   // チャット未読
@@ -1537,6 +2422,16 @@ async function fetchBadges() {
       $('b-opinion').style.display = 'none';
     }
   } catch(e) {}
+  // 推進メンバー アンケート (未回答なら 1)
+  try {
+    const sv = await api('/api/survey/unread-count');
+    if (sv && sv.success && sv.count > 0) {
+      $('b-survey').textContent = sv.count;
+      $('b-survey').style.display = '';
+    } else if ($('b-survey')) {
+      $('b-survey').style.display = 'none';
+    }
+  } catch(e) {}
   // 食事・投稿 (plaza): 新着投稿数
   try {
     const pl = await api('/api/plaza/unread-count');
@@ -1567,6 +2462,8 @@ async function fetchBadges() {
       $('b-expense').style.display = 'none';
     }
   } catch(e) {}
+  // 折りたたみ中セクションの見出しバッジ(未読合計)を更新
+  try { updateSectionBadges(); } catch (e) {}
 }
 // 30秒ごとにバッジ更新 (画面表示中のリアルタイム性)
 setInterval(() => { if (token) fetchBadges(); }, 30000);
@@ -1600,12 +2497,16 @@ async function login() {
 }
 
 function logout() {
+  // 共用タブレット(キオスク)はヘッダーのログアウトで個人データ全消去→名簿(/tablet)へ。フロートの鍵ボタンは詳細ページでは非表示。
+  if (window.cohubKioskLogout) {
+    if (!confirm('ログアウトして名簿に戻りますか？（この端末の下書きなど個人データは消去されます）')) return;
+    window.cohubKioskLogout();
+    return;
+  }
   if (!confirm('ログアウトしますか？')) return;
   localStorage.removeItem('cohub_token');
   token = '';
-  // 完全リロードして通知ソケット(global-notif.js)を停止する。
-  // 旧実装は showLogin だけでソケットが生き残り、ログイン画面でも他者の投稿/チャットの
-  // 着信音(ピンポンパーン)が鳴り続けた (2026-06-19)。global-notif.jsはtoken無しなら接続しない。
+  // 完全リロードして通知ソケット(global-notif.js)を停止する(token無しなら接続しない)。
   location.replace('/');
 }
 
@@ -1622,6 +2523,28 @@ function prefillLogin() {
   } catch (e) {}
 }
 prefillLogin();
+
+// ===== 📝 To Do (自分専用) 2026-07-28 =====
+// 本体は /todo.html。ホームでは「予定・会議」カードの表示可否と 残件バッジ だけを扱う。
+// ⚠️現場の推進メンバーも詳細版には入れるが、ToDoは事務職員・管理職向けなので出さない。
+function canUseTodo(u) {
+  if (!u) return false;
+  return u.employee_type === 'office' || u.employee_type === 'admin' || u.role === 'admin'
+      || u.job_role === 'executive' || u.job_role === 'manager'
+      || !!u.is_manager || !!u.is_ops_manager || !!u.is_branch_head;
+}
+async function loadTodos() {
+  const card = $('card-todo'); if (!card) return;
+  if (!canUseTodo(me)) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  let d = null;
+  try { d = await api('/api/todo'); } catch (e) {}
+  const bdg = $('b-todo');
+  if (!bdg) return;
+  const open = (d && d.success) ? (d.open || 0) : 0;
+  bdg.textContent = open;
+  bdg.style.display = open > 0 ? '' : 'none';
+}
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
@@ -1729,7 +2652,7 @@ function hShowToast(msg) {
     t.onclick = () => { location.href = '/chat-simple.html'; };
     document.body.appendChild(t);
   }
-  t.innerHTML = '<span>' + msg + '</span><span style="font-size:11px;opacity:0.85;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:8px;">タップで開く</span>';
+  t.innerHTML = '<span>' + msg + '</span><span style="font-size:11px;opacity:0.85;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:12px;">タップで開く</span>';
   t.style.opacity = '1';
   t.style.transform = 'translateX(-50%) translateY(0)';
   clearTimeout(t._h);
@@ -1834,6 +2757,16 @@ function hShowToast(msg) {
 <script>
 (function(){
   let _gsTimer = null, _gsSeq = 0;
+  // ヒーローの「🔍検索」ピルから検索バーを開いてフォーカス
+  window.openSearch = function(){
+    const gs = document.getElementById('gsearch');
+    if (!gs) return;
+    const opening = gs.style.display === 'none';
+    gs.style.display = '';
+    const inp = document.getElementById('gsearch-input');
+    if (inp) inp.focus();
+    if (opening) gs.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
   function fmtDate(s){ if(!s) return ''; try{ const d=new Date(s.replace(' ','T')+(s.includes('Z')?'':'Z')); return (d.getMonth()+1)+'/'+d.getDate(); }catch(e){ return ''; } }
   window.gsearchDebounced = function(){
@@ -1861,7 +2794,7 @@ function hShowToast(msg) {
     if (seq !== _gsSeq) return;
     if (!r || !r.success) { box.innerHTML = '<div style="padding:14px;color:#dc2626;font-size:13px;">検索に失敗しました</div>'; return; }
     const R = r.results || {};
-    const rowStyle = 'display:block;text-decoration:none;color:#0f172a;padding:9px 12px;border-radius:8px;';
+    const rowStyle = 'display:block;text-decoration:none;color:#0f172a;padding:9px 12px;border-radius:12px;';
     const hov = "this.style.background='#f1f5f9'", out = "this.style.background='transparent'";
     let html = '';
     function section(icon, title, items, render){
@@ -1908,6 +2841,7 @@ function hShowToast(msg) {
   });
 })();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>
