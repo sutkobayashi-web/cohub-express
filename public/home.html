@@ -355,6 +355,11 @@
   .drive-alerts .da-li .li-new { background: #e11d48; color: #fff; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1px 6px; }
   .drive-alerts .da-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: #881337; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .drive-alerts .da-li.is-unread .li-text { color: #4c0519; }
+  .drive-alerts .da-empty { width: 100%; padding: 8px 2px 2px; font-size: 12.5px; font-weight: 700; color: #9f1239; opacity: 0.85; }
+  .drive-alerts.is-clear { background: #f7fbf8; border-color: #d7ead9; box-shadow: 0 3px 10px rgba(6,95,70,0.05); }
+  .drive-alerts.is-clear .da-label { background: #059669; }
+  .drive-alerts.is-clear .da-more { color: #047857; }
+  .drive-alerts.is-clear .da-empty { color: #047857; }
   .branch-strip { position: relative; margin: 14px 4px 0; background: #fdf7e8; border: 1px solid #ecdfc0; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
   .branch-strip .bs-label { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 11px; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; color: #fff; background: #0f766e; padding: 4px 13px; border-radius: 999px; }
   .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
@@ -1626,8 +1631,22 @@ function renderDriveAlerts(alerts) {
   _wnAlerts = (alerts || []).filter(function (a) { return isTodayJst(a.created_at); }).slice(0, DA_SHOW);
   const box = document.getElementById('drive-alerts'), list = document.getElementById('da-list');
   if (!box || !list) return 0;
-  if (!_wnAlerts.length) { box.style.display = 'none'; return 0; }
+  // アラートが1件も無い日も「ありません」と出す (社長 2026-07-28。枠ごと消えると"見落とし"と区別できないため)。
+  // ⚠️ただし管理職だけ。一般社員は元々アラートを受け取らないので枠ごと非表示。
+  // 条件はサーバー(whats_new.js)のアラート配信条件と同じ is_manager のみ。
+  // ⚠️広げると「アラートが届かない人」に"ありません"と出てしまい誤解を招く。
+  const isMgr = !!(me && me.is_manager);
+  if (!_wnAlerts.length) {
+    if (!isMgr) { box.style.display = 'none'; return 0; }
+    box.style.display = '';
+    box.classList.add('is-clear');   // 0件のときは緑基調 (赤いカードに「ありません」は紛らわしい)
+    list.innerHTML = '<div class="da-empty">✅ 本日の運転アラートはありません</div>';
+    const c0 = document.getElementById('da-count');
+    if (c0) { c0.dataset.n = 0; c0.style.display = 'none'; }
+    return 0;
+  }
   box.style.display = '';
+  box.classList.remove('is-clear');
   let unread = 0;
   list.innerHTML = _wnAlerts.map(function (ev) {
     if (ev.unread) unread++;
@@ -1647,7 +1666,22 @@ function renderDriveAlerts(alerts) {
   if (c) { c.dataset.n = 0; bumpCount('da-count', unread); }
   return unread;
 }
+// アプリ復帰・タブ再表示で読み直す (常駐PWA対策)。
+// 開きっぱなしだと 日付をまたいでも前日のアラートが残る / 新着アラートが出ない ため。
+var _wnLoadedAt = 0, _wnWired = false;
+function wireWhatsNewRefresh() {
+  if (_wnWired) return;
+  _wnWired = true;
+  const again = function () {
+    if (Date.now() - _wnLoadedAt < 3000) return;   // 起動直後の二重読込を避ける
+    loadWhatsNew();
+  };
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') again(); });
+  window.addEventListener('pageshow', again);
+}
 async function loadWhatsNew() {
+  _wnLoadedAt = Date.now();
+  wireWhatsNewRefresh();
   let events = [];
   try {
     const r = await api('/api/whats-new?limit=14');
