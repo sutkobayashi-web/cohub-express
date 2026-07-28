@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser, authAdmin } = require('../middleware/auth');
@@ -11,11 +12,21 @@ function isManager(uid) {
   const u = getDb().prepare("SELECT role, employee_type FROM users WHERE id=?").get(uid);
   return !!(u && u.role === 'admin' && u.employee_type === 'admin');
 }
-// グループ閲覧/操作の可否 (メンバー OR 管理者)
+// グループ閲覧/操作の可否 = メンバーであることのみ。
+// ⚠️2026-07-28 修正: 以前は `return isManager(uid)` のフォールバックがあり、
+// role=admin かつ employee_type=admin の11名は、参加していないグループ
+// (役員・拠点GC・ゴルフ部などの私的サークルを含む) を一覧で見て中身も読めた。
+// 「役員GCはメンバー6名なのに既読8」で発覚 (社長指摘)。内部統制上のモニタリングが
+// 必要な場合は、管理コンソールの全文検索 (/api/chat/admin/search・authAdmin・
+// 許可リスト6名・audit_log記録あり) を使うこと。ここでは特権を持たせない。
 function canAccessGroup(uid, gid) {
   const m = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(gid, uid);
-  if (m) return true;
-  return isManager(uid);
+  return !!m;
+}
+// 既読者の表示をメンバーに限る用 (過去に非メンバーが付けた既読は証跡として残すが、
+// 「既読N人」には数えない。送信者本人は退会していても表示対象に含める)
+function groupMemberIds(gid) {
+  return new Set(getDb().prepare('SELECT user_id FROM chat_group_members WHERE group_id=?').all(gid).map(r => r.user_id));
 }
 
 // 起動時マイグレーション: 個人ごとのグループ非表示リスト (本人の一覧表示だけに影響。権限は不変)
@@ -45,14 +56,24 @@ function decodeFilename(name) {
   } catch (e) {}
   return name;
 }
+// 能動的コンテンツ(.html/.svg/.js 等)は無認証の /uploads から同一オリジン実行=保存型XSSになるため拒否
+const DANGEROUS_UPLOAD = (file) =>
+  /\.(html?|xhtml|svg|js|mjs|xml)$/i.test(file.originalname || '') ||
+  /(text\/html|image\/svg|application\/xhtml|javascript)/i.test(file.mimetype || '');
+
 const chatUpload = multer({
   storage: multer.diskStorage({
     destination: chatDir,
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname || '').slice(0, 8).replace(/[^a-zA-Z0-9.]/g, '');
-      cb(null, Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext);
+      // 推測可能な Date.now()+Math.random ではなく CSPRNG の UUID で列挙を防ぐ
+      cb(null, crypto.randomUUID() + ext);
     },
   }),
+  fileFilter: (req, file, cb) => {
+    if (DANGEROUS_UPLOAD(file)) return cb(new Error('このファイル形式はアップロードできません'));
+    cb(null, true);
+  },
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
@@ -67,29 +88,32 @@ router.post('/upload', authUser, chatUpload.single('file'), (req, res) => {
   });
 });
 
-// 自分の60日以内の会話履歴（本人のみ閲覧）
+// 2026-07-21 廃止。旧「自分のログ」(/mylog) 専用API。
+// 旧実装が WHERE に `OR m.receiver_id IS NULL` を含んでいたため、receiver_id=NULL =
+// 全グループチャット(grp_*)が、未加入グループも含めて全ログインユーザーに最大60日500件
+// 閲覧可能だった (役員会話・実名つき健康データ・個人の病状を含む)。機能ごと撤去。
 router.get('/history', authUser, (req, res) => {
-  const db = getDb();
-  const rows = db.prepare(`
-    SELECT m.id, m.sender_id, m.receiver_id, m.content, m.created_at,
-           us.display_name AS sender_name, us.company_code AS sender_company,
-           ur.display_name AS receiver_name
-    FROM messages m
-    LEFT JOIN users us ON us.id = m.sender_id
-    LEFT JOIN users ur ON ur.id = m.receiver_id
-    WHERE (m.sender_id = ? OR m.receiver_id = ? OR m.receiver_id IS NULL)
-      AND m.created_at > datetime('now', '-60 days')
-    ORDER BY m.created_at DESC
-    LIMIT 500
-  `).all(req.uid, req.uid);
-  res.json({ success: true, messages: rows });
+  res.status(410).json({ success: false, msg: 'この機能は廃止されました' });
 });
 
-// 指定フロアのチャット履歴 直近100件（全ユーザー）
+// 指定フロアのチャット履歴 直近100件
+// ⚠️2026-07-21 修正: room をクライアント指定のまま SQL に渡しており、
+// `?room=dm` で全社のDM本文が、`?room=grp_xxx` で未加入グループの会話が
+// 全ログインユーザーに読めた (/history と同種の抜け)。閲覧可否を検査する。
 router.get('/recent', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
   const room = (req.query.room || 'lobby').toString();
   const db = getDb();
+  if (room === 'dm') {
+    return res.status(403).json({ success: false, msg: 'DMはこの経路では取得できません' });
+  }
+  if (room.startsWith('grp_')) {
+    if (!canAccessGroup(req.uid, room.slice(4))) {
+      return res.status(403).json({ success: false, msg: 'メンバーではありません' });
+    }
+  } else if (!db.prepare('SELECT 1 FROM floors WHERE code = ?').get(room)) {
+    return res.status(403).json({ success: false, msg: '閲覧できないルームです' });
+  }
   const rows = db.prepare(`
     SELECT m.id, m.sender_id, m.content, m.has_mention, m.created_at,
            m.attach_url, m.attach_name, m.attach_size, m.attach_type,
@@ -195,36 +219,22 @@ router.get('/dm', authUser, (req, res) => {
 });
 
 // 自分が参加しているグループ一覧 (最新メッセージ順)
+// ⚠️2026-07-28 修正: 以前は「管理者(11名)には全GCを返す」分岐があり、参加していない
+// グループが一覧に並び、そのまま開いて読めていた。参加しているGCだけを返す。
 router.get('/groups', authUser, (req, res) => {
-  const admin = isManager(req.uid);
-  let rows;
-  if (admin) {
-    // 管理者: 全GCを返す。is_memberフラグで自身がメンバーかも示す
-    rows = getDb().prepare(`
-      SELECT g.id, g.name, g.icon, g.created_at, g.is_circle, g.category,
-        (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
-        (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
-        (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
-        EXISTS(SELECT 1 FROM chat_group_members WHERE group_id = g.id AND user_id = ?) AS is_member,
-        EXISTS(SELECT 1 FROM user_hidden_groups WHERE group_id = g.id AND user_id = ?) AS is_hidden
-      FROM chat_groups g
-      ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
-    `).all(req.uid, req.uid);
-  } else {
-    rows = getDb().prepare(`
-      SELECT g.id, g.name, g.icon, g.created_at, g.is_circle, g.category,
-        (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
-        (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
-        (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
-        1 AS is_member,
-        EXISTS(SELECT 1 FROM user_hidden_groups WHERE group_id = g.id AND user_id = ?) AS is_hidden
-      FROM chat_groups g
-      JOIN chat_group_members m ON m.group_id = g.id
-      WHERE m.user_id = ?
-      ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
-    `).all(req.uid, req.uid);
-  }
-  res.json({ success: true, groups: rows, is_manager_view: admin });
+  const rows = getDb().prepare(`
+    SELECT g.id, g.name, g.icon, g.created_at, g.is_circle, g.category,
+      (SELECT MAX(created_at) FROM messages WHERE room_code = 'grp_' || g.id) AS last_at,
+      (SELECT content FROM messages WHERE room_code = 'grp_' || g.id ORDER BY created_at DESC LIMIT 1) AS last_content,
+      (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS member_count,
+      1 AS is_member,
+      EXISTS(SELECT 1 FROM user_hidden_groups WHERE group_id = g.id AND user_id = ?) AS is_hidden
+    FROM chat_groups g
+    JOIN chat_group_members m ON m.group_id = g.id
+    WHERE m.user_id = ?
+    ORDER BY COALESCE(g.sort_order, 100), COALESCE(last_at, g.created_at) DESC
+  `).all(req.uid, req.uid);
+  res.json({ success: true, groups: rows, is_manager_view: false });
 });
 
 // グループの「自分の一覧での表示/非表示」を切り替え (本人の表示だけに影響。閲覧/参加権限は不変)
@@ -283,8 +293,15 @@ router.post('/read', authUser, express.json(), (req, res) => {
   const db = getDb();
   // 自分が読まれた送信者ではない (sender_id != uid) のメッセージだけ既読対象
   const placeholders = valid.map(() => '?').join(',');
-  const target = db.prepare(`SELECT id, sender_id, room_code FROM messages
+  let target = db.prepare(`SELECT id, sender_id, room_code FROM messages
     WHERE id IN (${placeholders}) AND sender_id != ?`).all(...valid, req.uid);
+  // ⚠️2026-07-28 追加: グループのメッセージは「メンバーのときだけ」既読を記録する。
+  // 以前はここに検査が無く、IDさえ渡せば非メンバーでも既読が付いた
+  // (役員GC=メンバー6名なのに既読8、の直接原因)。
+  target = target.filter(m => {
+    if (!(m.room_code || '').startsWith('grp_')) return true;
+    return canAccessGroup(req.uid, m.room_code.slice(4));
+  });
   if (target.length === 0) return res.json({ success: true, read: 0 });
   const ins = db.prepare('INSERT OR IGNORE INTO message_reads (message_id, user_id) VALUES (?, ?)');
   let inserted = 0;
@@ -346,6 +363,7 @@ router.get('/unread', authUser, (req, res) => {
     JOIN messages m ON m.room_code = 'grp_' || g.id
       AND m.sender_id != ?
       AND m.created_at > datetime('now', '-60 days')
+      AND m.created_at > gm.joined_at
       AND NOT EXISTS (SELECT 1 FROM message_reads r WHERE r.message_id = m.id AND r.user_id = ?)
     GROUP BY g.id
   `).all(req.uid, req.uid, req.uid);
@@ -378,6 +396,7 @@ router.get('/unread-count', authUser, (req, res) => {
     JOIN messages m ON m.room_code = 'grp_' || g.id
       AND m.sender_id != ?
       AND m.created_at > datetime('now', '-60 days')
+      AND m.created_at > gm.joined_at
       AND NOT EXISTS (SELECT 1 FROM message_reads r WHERE r.message_id = m.id AND r.user_id = ?)
   `).get(req.uid, req.uid, req.uid);
   const dmSum = db.prepare(`
@@ -411,27 +430,62 @@ router.get('/messages/:mid/readers', authUser, (req, res) => {
       if (!isReceiver) return res.status(403).json({ success: false });
     }
   }
-  const readers = db.prepare(`SELECT u.id, u.display_name, u.avatar_url, c.ring_color, r.read_at
+  let readers = db.prepare(`SELECT u.id, u.display_name, u.avatar_url, c.ring_color, r.read_at
     FROM message_reads r JOIN users u ON u.id = r.user_id
     LEFT JOIN companies c ON c.code = u.company_code
     WHERE r.message_id = ? ORDER BY r.read_at`).all(mid);
+  // ⚠️2026-07-28: 修正前に非メンバーが付けた既読が過去分として残っている。
+  // 記録は証跡として消さないが、「既読N人」には現在のメンバーだけを数える。
+  if (msg.room_code.startsWith('grp_')) {
+    const mem = groupMemberIds(msg.room_code.slice(4));
+    readers = readers.filter(r => mem.has(r.id));
+  }
   res.json({ success: true, readers });
 });
 
 // メッセージID範囲で既読者を一括取得 (グループ画面表示用)
+// ⚠️2026-07-28 修正: 以前は権限検査が一切無く、message_id さえ渡せば
+// 誰でも他人のグループ/DMの「誰がいつ読んだか」を取得できた。
+// 自分が閲覧できるメッセージだけに絞り、既読者もメンバーのみ返す。
 router.post('/messages/readers-bulk', authUser, express.json(), (req, res) => {
   const ids = Array.isArray(req.body && req.body.message_ids) ? req.body.message_ids : [];
   const valid = ids.map(x => parseInt(x)).filter(n => !isNaN(n) && n > 0).slice(0, 500);
   if (valid.length === 0) return res.json({ success: true, by_message: {} });
   const db = getDb();
   const placeholders = valid.map(() => '?').join(',');
+  // 対象メッセージのうち、自分が見てよいものだけを残す
+  const msgs = db.prepare(`SELECT id, room_code, sender_id, receiver_id FROM messages
+    WHERE id IN (${placeholders})`).all(...valid);
+  const memCache = new Map();
+  const allowed = new Map();   // message_id -> 既読者として見せてよい user_id の Set (null=制限なし)
+  for (const m of msgs) {
+    const room = m.room_code || '';
+    if (room.startsWith('grp_')) {
+      const gid = room.slice(4);
+      if (!memCache.has(gid)) memCache.set(gid, groupMemberIds(gid));
+      const mem = memCache.get(gid);
+      if (!mem.has(req.uid)) continue;            // 非メンバーには返さない
+      allowed.set(m.id, mem);                     // 既読者はメンバーのみ (過去の非メンバー既読は数えない)
+    } else if (room === 'dm') {
+      if (m.sender_id !== req.uid && m.receiver_id !== req.uid) continue;
+      allowed.set(m.id, null);
+    } else {
+      if (!db.prepare('SELECT 1 FROM floors WHERE code = ?').get(room)) continue;
+      allowed.set(m.id, null);
+    }
+  }
+  if (allowed.size === 0) return res.json({ success: true, by_message: {} });
+  const okIds = [...allowed.keys()];
+  const ph2 = okIds.map(() => '?').join(',');
   const rows = db.prepare(`SELECT r.message_id, u.id, u.display_name, u.avatar_url, c.ring_color, r.read_at
     FROM message_reads r JOIN users u ON u.id = r.user_id
     LEFT JOIN companies c ON c.code = u.company_code
-    WHERE r.message_id IN (${placeholders})
-    ORDER BY r.read_at`).all(...valid);
+    WHERE r.message_id IN (${ph2})
+    ORDER BY r.read_at`).all(...okIds);
   const byMsg = {};
   for (const r of rows) {
+    const mem = allowed.get(r.message_id);
+    if (mem && !mem.has(r.id)) continue;
     if (!byMsg[r.message_id]) byMsg[r.message_id] = [];
     byMsg[r.message_id].push({ id: r.id, display_name: r.display_name, avatar_url: r.avatar_url, ring_color: r.ring_color, read_at: r.read_at });
   }

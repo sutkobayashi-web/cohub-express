@@ -417,7 +417,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-07-28-appr-group"
+const APP_VERSION = "2026-07-28-pdfview"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -1552,13 +1552,11 @@ io.on('connection', (socket) => {
     const gid = (data && data.group_id || '').toString();
     const content = (data && data.content || '').toString().trim().slice(0, 2000);
     if (!gid || (!content && !(data && data.attach))) return;
-    // メンバー確認 (管理者は全GCに送信可)
+    // メンバー確認。⚠️2026-07-28 修正: 以前は「管理者(role=admin かつ employee_type=admin
+    // の11名)は非メンバーでも全GCに送信可」の例外があり、役員GCや私的サークルにも
+    // 投稿できた。閲覧をメンバー限定に厳格化したのに合わせ、投稿も同じ基準に揃える。
     const isMember = getDb().prepare('SELECT 1 FROM chat_group_members WHERE group_id=? AND user_id=?').get(gid, uid);
-    if (!isMember) {
-      const u = getDb().prepare('SELECT role, employee_type FROM users WHERE id=?').get(uid);
-      const isAdmin = !!(u && u.role === 'admin' && u.employee_type === 'admin');
-      if (!isAdmin) return;
-    }
+    if (!isMember) return;
     const a = data && data.attach && data.attach.url ? data.attach : null;
     const attachUrl = a ? String(a.url).slice(0, 500) : null;
     const attachName = a ? String(a.name || '').slice(0, 200) : null;
