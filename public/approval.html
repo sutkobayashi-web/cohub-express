@@ -430,13 +430,24 @@ function renderList(){
   if(!items.length){tb.innerHTML='<tr><td colspan="9" class="small">'+(off?'この部署の申請はありません。':'申請はありません。')+'</td></tr>';return;}
   tb.innerHTML=items.map(x=>'<tr><td>'+esc((x.created_at||'').slice(0,10))+'</td><td class="mono">'+esc(x.id)+'</td><td>'+esc(x.subject)+'</td><td>'+esc(x.apply_type)+'</td><td>'+esc(x.office_name)+'</td><td>'+esc(yen(x.amount))+'</td><td>'+chainCol(x)+'</td><td><span class="badge st-'+esc(x.status)+'">'+esc(x.status)+'</span></td><td style="white-space:nowrap">'+rowActionsBtn(x.id,'List')+(x.can_delete?' <button class="btn btn-gray btn-sm" title="削除" onclick="delAppRow(\''+String(x.id).replace(/\x27/g,"\\\x27")+'\')">🗑</button>':'')+'</td></tr>').join('');
 }
+/* ⭐2026-07-28 添付PDFはアプリ内ビューア(/pdf-view.html)で開く。
+   端末標準のPDFビューアは「デジタル押印(PDFのスタンプ注釈)」を描画せず、
+   スマホでは印が消えて見えていたため。原本ファイルは一切変更しない。 */
+function attLink(url,name){
+  const u=String(url||''), nm=String(name||u.split('/').pop()||'PDF');
+  if(/\.pdf(\?|#|$)/i.test(u) && u.indexOf('/uploads/')===0){
+    const v='/pdf-view.html?file='+encodeURIComponent(u)+'&name='+encodeURIComponent(nm);
+    return '<a href="'+esc(v)+'" target="_blank" rel="noopener">📄 '+esc(nm)+'</a>';
+  }
+  return '<a href="'+esc(u)+'" target="_blank" rel="noopener">📄 '+esc(nm)+'</a>';
+}
 async function showDetail(id,target){
   const box=$('detail'+target);box.innerHTML='<div class="small">読み込み中…</div>';
   const d=await api('/'+encodeURIComponent(id));
   if(!d.success){box.innerHTML='<div class="small">取得失敗</div>';return;}
   const x=d.item;
   const steps=(x._chain||[]).map((s,i)=>'<span class="step '+(i<x.cur_step?'done':i===x.cur_step&&x.status==='申請中'?'cur':'')+'">'+(i+1)+'.'+esc(s.role_name)+'('+esc(s.name)+')</span>').join(' → ');
-  const att=(x.attachments||[]).map(a=>'<a href="'+esc(a.url)+'" target="_blank" rel="noopener">📄 '+esc(a.name)+'</a>').join(' / ');
+  const att=(x.attachments||[]).map(a=>attLink(a.url,a.name)).join(' / ');
   const hist=(d.history||[]).map(h=>'<div class="hist"><b>'+esc(h.action)+'</b> '+esc(h.role||'')+' '+esc(h.actor_name||'')+' <span class="small">'+esc((h.created_at||'').slice(0,16))+'</span>'+(h.note?'<br>'+esc(h.note):'')+'</div>').join('');
   let actions='';
   if(x.can_act){
