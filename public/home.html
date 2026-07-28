@@ -855,7 +855,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <span class="dm-body" id="dm-body"></span>
   </div>
 
-  <!-- ━━━ 🆕 新着情報 (告知/掲示板/承認済み事故報告/新機能の4種・7日以内を一覧) ━━━ -->
+  <!-- ━━━ 🆕 新着情報 (告知/掲示板/承認済み事故報告/新機能の4種・7日以内。⭐未読だけを一覧・読んだら消える) ━━━ -->
   <div id="whats-new" class="whats-new" style="display:none;">
     <div class="wn-head">
       <span class="wn-label">お知らせ</span>
@@ -1597,9 +1597,27 @@ async function wnMarkRead(keys) {
 function wnClick(ev, key, isAlert) {
   wnMarkRead([key]);
   const li = ev && ev.currentTarget;
-  if (li) { const b = li.querySelector('.li-new'); if (b) b.remove(); }
   bumpCount(isAlert ? 'da-count' : 'wn-new-count', -1);
+  // ⭐既読にした項目はトップから消す (社長 2026-07-28「既読にしたらトップ画面には表示しない」)。
+  //   ⚠️運転アラートは「本日分の一覧」なので消さず NEW バッジだけ落とす。
+  if (li && !isAlert) wnDropItem(li, key);
+  else if (li) { const b = li.querySelector('.li-new'); if (b) b.remove(); }
   return true;   // 既定の遷移はそのまま
+}
+// 読んだ1件をお知らせ一覧から取り除く (最後の1件なら「ありません」表示に切替)
+function wnDropItem(li, key) {
+  if (!key) { const b = li.querySelector('.li-new'); if (b) b.remove(); return; }   // キー無し=既読にできない項目は残す
+  _wnEvents = _wnEvents.filter(function (e) { return e.key !== key; });
+  li.remove();
+  if (!_wnEvents.length) wnShowEmpty();
+}
+function wnShowEmpty() {
+  const list = document.getElementById('wn-list');
+  if (list) list.innerHTML = '<div class="wn-empty">✅ 新しいお知らせはありません</div>';
+  const cnt = document.getElementById('wn-new-count');
+  if (cnt) { cnt.dataset.n = 0; cnt.style.display = 'none'; }
+  const ra = document.getElementById('wn-readall');
+  if (ra) ra.style.display = 'none';
 }
 function bumpCount(id, d) {
   const c = document.getElementById(id);
@@ -1691,28 +1709,35 @@ async function loadWhatsNew() {
   const alertEvents = events.filter(function (e) { return e.type === 'alert'; });
   events = events.filter(function (e) { return e.type !== 'alert'; });
   const alertUnread = renderDriveAlerts(alertEvents);   // お知らせが空でも描画されるよう先に処理
+  // ⭐既読は出さない (社長 2026-07-28「既読にしたらトップ画面には表示しない」)。
+  //   既読/未読は**ユーザーごと**にサーバー(whatsnew_reads)が持つので、PCで読めばスマホからも消える。
+  //   読み逃した過去分は 掲示板/通達 の各一覧で見られる。
+  events = events.filter(function (e) { return e.unread; });
   // 実イベント + 新機能のお知らせ(管理画面で編集可) を1本の「お知らせ」に統合
   let features = null;
   try {
     const rf = await api('/api/whats-new/features');
-    if (rf && rf.success && Array.isArray(rf.items) && rf.items.length) {
-      features = rf.items.map(function (x) {
+    if (rf && rf.success && Array.isArray(rf.items)) {
+      // ⚠️ items.length のガードを外した: 全部既読なら**空配列のまま**使う
+      //    (空だと既定リストへ落ちる作りだと、既読にした新機能が既定から復活してしまう)
+      features = rf.items.filter(function (x) { return x.unread; }).map(function (x) {
         return { icon: x.icon, label: x.title, summary: x.summary, link: x.link, key: x.key, unread: x.unread, feature: true };
       });
     }
-  } catch (e) { /* 取得失敗時は既定へ */ }
+  } catch (e) { /* 取得失敗時のみ既定へ */ }
   // 実イベントを優先しつつ、新機能のお知らせに必ず1枠は残す(ニュースが多い日に埋もれさせない)。
   // ⚠️出すのは**リストの先頭から**=管理画面で一番上に置いたものが最新。
   //   一度 日替わりローテーションにしたら、当日足したTo Doが数日に1回しか出なかった (2026-07-28)。
-  const feats = features || featureNewsItems();
-  const evs = events.slice(0, Math.max(1, WN_SHOW - 1));
-  const fs = feats.slice(0, Math.max(1, WN_SHOW - evs.length));
+  const feats = features === null ? featureNewsItems() : features;
+  const evs = events.slice(0, feats.length ? Math.max(1, WN_SHOW - 1) : WN_SHOW);   // 新機能が全部既読なら枠を空けない
+  const fs = feats.slice(0, Math.max(0, WN_SHOW - evs.length));
   _wnEvents = evs.concat(fs);
   const box = document.getElementById('whats-new');
   const list = document.getElementById('wn-list');
   if (!box || !list) return;
-  if (!_wnEvents.length) { box.style.display = 'none'; return; }
   box.style.display = '';
+  // 未読ゼロでも枠は残す (消すと"新着が無い日"と"不具合で出ない"が区別できない。運転アラート枠と同じ扱い)
+  if (!_wnEvents.length) { wnShowEmpty(); linkMsgNews(); return; }
 
   let unread = 0;
   list.innerHTML = _wnEvents.map(function (ev, i) {
