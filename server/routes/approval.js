@@ -22,10 +22,27 @@ const pdfUpload = multer({
   limits: { fileSize: 15 * 1024 * 1024 },
 });
 
+// multerのoriginalnameはlatin1で復号されるため、日本語ファイル名をUTF-8へ復元
+function decodeName(n) {
+  const s = String(n || '');
+  if (!s) return s;
+  try { return Buffer.from(s, 'latin1').toString('utf8'); } catch (e) { return s; }
+}
+
 // ===== 共通 =====
 function isManagerUid(uid) {
   const u = getDb().prepare('SELECT employee_type FROM users WHERE id = ?').get(uid);
   return !!(u && u.employee_type === 'admin');
+}
+// 部署長(branch_head)が閲覧できる営業所コード群。会社をまたがず自社グループのみ。
+const BRANCH_OFFICE_GROUPS = {
+  SUZUE: ['SUZUE', 'SUZUE_TENRYU'],
+  SUZUE_TENRYU: ['SUZUE', 'SUZUE_TENRYU'],
+};
+function branchVisibleOffices(uid) {
+  const u = getDb().prepare('SELECT is_branch_head, company_code FROM users WHERE id = ?').get(uid);
+  if (!u || !u.is_branch_head || !u.company_code) return [];
+  return BRANCH_OFFICE_GROUPS[u.company_code] || [u.company_code];
 }
 function requireManager(req, res, next) {
   authUser(req, res, () => {
@@ -70,14 +87,27 @@ function notifyDM(req, toUid, content) {
     if (sendPush) sendPush(toUid, { title: '承認申請', body: content }).catch(() => {});
   } catch (e) { console.warn('[approval notifyDM]', e.message); }
 }
+// 実ユーザー名義で申請者へDM(bot名義はDM一覧/未読から除外されるため、確実に届く実ユーザー名義で送る)
+function notifyDMFrom(req, fromUid, toUid, content, pushTitle) {
+  if (!fromUid || !toUid || fromUid === toUid) return;
+  try {
+    const ins = getDb().prepare('INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)').run(fromUid, toUid, content);
+    const emitToUser = req.app && req.app.locals && req.app.locals.emitToUser;
+    if (emitToUser) emitToUser(toUid, 'dm:msg', { id: ins.lastInsertRowid, from: fromUid, to: toUid, content, at: new Date().toISOString(), attach: null });
+    const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
+    if (sendPush) sendPush(toUid, { title: pushTitle || '承認申請', body: content }).catch(() => {});
+  } catch (e) { console.warn('[approval notifyDMFrom]', e.message); }
+}
 
 // 役職コード+営業所 → 担当者 {uid, name, login_id} or null
+// 「役職の担当者割当」(上段マスタ)を正とし、営業所別の割当を最優先→無ければ全社(ALL)割当にフォールバック。
+// 2026-07-03 後藤要望: 従来は office_specific=1 の役職(所長)しか営業所別割当を見ず、スズエ等で
+// 課長・本部長などに営業所別の担当者を割り当てても無視されていた(常にALLの固定人員になっていた)。
+// 全役職で営業所別割当を優先するよう変更し、スズエ含め各営業所の承認者を明確に指定できるようにする。
 function resolveApprover(roleCode, officeCode) {
   const db = getDb();
-  const role = db.prepare('SELECT office_specific FROM appr_roles WHERE code = ?').get(roleCode);
-  const office = (role && role.office_specific) ? officeCode : 'ALL';
-  let a = db.prepare('SELECT user_login_id FROM appr_role_assignments WHERE role_code=? AND office_code=?').get(roleCode, office);
-  if ((!a || !a.user_login_id) && office !== 'ALL') a = db.prepare("SELECT user_login_id FROM appr_role_assignments WHERE role_code=? AND office_code='ALL'").get(roleCode);
+  let a = db.prepare('SELECT user_login_id FROM appr_role_assignments WHERE role_code=? AND office_code=?').get(roleCode, officeCode);
+  if ((!a || !a.user_login_id) && officeCode !== 'ALL') a = db.prepare("SELECT user_login_id FROM appr_role_assignments WHERE role_code=? AND office_code='ALL'").get(roleCode);
   if (!a || !a.user_login_id) return null;
   const u = db.prepare('SELECT id, display_name FROM users WHERE login_id = ?').get(a.user_login_id);
   return u ? { uid: u.id, name: u.display_name, login_id: a.user_login_id } : null;
@@ -93,19 +123,57 @@ function findRoute(applyType, amount, officeCode) {
   const amt = Number(amount) || 0;
   const cands = rows.filter(r => amt >= (r.amount_min || 0) && ((r.amount_max || 0) === 0 || amt <= r.amount_max)
     && (r.office_code === 'ALL' || r.office_code === officeCode));
-  cands.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+  // 営業所専用ルートを全社(ALL)ルートより優先 → 次に priority 昇順
+  cands.sort((a, b) => {
+    const ao = a.office_code === officeCode ? 0 : 1, bo = b.office_code === officeCode ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return (a.priority || 100) - (b.priority || 100);
+  });
   return cands[0] || null;
+}
+// 役職コードの正規化: 全角英数→半角・大文字化 (手入力ルートの「ＡＤＭ」等の取りこぼし救済)
+function normCode(s) {
+  return String(s || '').trim()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .toUpperCase();
+}
+// チェーン文字列を正規化し、実在する役職コードのみに整える。{codes:[正規化済], bad:[不明コード]}
+function cleanChainCodes(chainStr) {
+  const db = getDb();
+  const codes = [], bad = [];
+  for (const c of String(chainStr || '').split(',').map(normCode).filter(Boolean)) {
+    const r = db.prepare('SELECT code FROM appr_roles WHERE code = ?').get(c);
+    if (r) { if (codes.indexOf(c) < 0) codes.push(c); }   // 実在role・重複排除
+    else if (bad.indexOf(c) < 0) bad.push(c);
+  }
+  return { codes, bad };
 }
 // ルートのrole chain → 実承認者を解決 (未割当ロール・申請者本人はスキップ)
 function buildChain(route, officeCode, applicantUid) {
-  const codes = String(route.chain || '').split(',').map(s => s.trim()).filter(Boolean);
+  const db = getDb();
+  const codes = String(route.chain || '').split(',').map(normCode).filter(Boolean);
   const out = [];
   for (const code of codes) {
     const ap = resolveApprover(code, officeCode);
     if (!ap) continue;                       // 未割当役職はスキップ
-    if (ap.uid === applicantUid) continue;   // 申請者本人の段階はスキップ
+    if (ap.uid === applicantUid && !route.allow_self_approve) continue;   // 申請者本人はスキップ(自己承認許可ルートを除く)
     if (out.some(x => x.uid === ap.uid)) continue; // 同一人物の重複段階を排除
     out.push({ role: code, role_name: roleName(code), uid: ap.uid, name: ap.name, login_id: ap.login_id });
+  }
+  // 安全網: 全役職が未割当 or 申請者本人で承認者が0人になった場合、ルート最上位役職より
+  // 上位の「割当済み」役職へ自動エスカレーション(申請者本人は除く)。これで承認者エラーを防ぐ。
+  // 例: 管理部長(MBD)本人が所長不在の営業所で短ルート申請 → 直近上位の本部長等へ。
+  if (out.length === 0) {
+    const ranks = codes.map(c => { const r = db.prepare('SELECT rank FROM appr_roles WHERE code=?').get(c); return r ? r.rank : 0; });
+    const topRank = ranks.length ? Math.max.apply(null, ranks) : 0;
+    const higher = db.prepare('SELECT code FROM appr_roles WHERE rank > ? ORDER BY rank').all(topRank);
+    for (const h of higher) {
+      const ap = resolveApprover(h.code, officeCode);
+      if (ap && ap.uid !== applicantUid) {
+        out.push({ role: h.code, role_name: roleName(h.code), uid: ap.uid, name: ap.name, login_id: ap.login_id });
+        break;
+      }
+    }
   }
   return out;
 }
@@ -119,8 +187,25 @@ router.get('/init', authUser, (req, res) => {
     user: { uid: req.uid, name: me.display_name || '', login_id: me.login_id || '', company_code: me.company_code || '', is_admin: me.employee_type === 'admin' },
     offices: db.prepare("SELECT code, name FROM companies WHERE code NOT IN ('ADMIN','UNIVERSITY','NPO','GUEST') ORDER BY code").all(),
     applyTypes: db.prepare('SELECT DISTINCT apply_type FROM appr_routes WHERE active=1 ORDER BY apply_type').all().map(r => r.apply_type),
+    // ⭐2026-07-28 申請種別を「会社（大分類）」で分類して選べるようにするため、
+    //   各種別がどの営業所のルートで使われているかを返す (ALL=全社共通)。
+    //   画面側(approval.html)が office_code から会社を判定してoptgroupにまとめる。
+    applyTypeScopes: applyTypeScopes(db),
   });
 });
+
+// 申請種別 → その種別に有効なルートがある営業所コードの一覧
+function applyTypeScopes(db) {
+  const rows = db.prepare('SELECT DISTINCT apply_type, office_code FROM appr_routes WHERE active=1 ORDER BY apply_type').all();
+  const map = new Map();
+  for (const r of rows) {
+    if (!map.has(r.apply_type)) map.set(r.apply_type, []);
+    const arr = map.get(r.apply_type);
+    const code = r.office_code || 'ALL';
+    if (!arr.includes(code)) arr.push(code);
+  }
+  return Array.from(map, ([type, offices]) => ({ type, offices }));
+}
 
 // ===== ルートプレビュー (申請前の承認チェーン確認) =====
 router.post('/preview', authUser, express.json(), (req, res) => {
@@ -135,7 +220,7 @@ router.post('/preview', authUser, express.json(), (req, res) => {
 router.post('/upload', authUser, (req, res) => {
   pdfUpload.array('files', 3)(req, res, (err) => {
     if (err) return res.status(400).json({ success: false, msg: err.message || 'アップロード失敗' });
-    res.json({ success: true, files: (req.files || []).map(f => ({ url: '/uploads/' + f.filename, name: f.originalname || f.filename })) });
+    res.json({ success: true, files: (req.files || []).map(f => ({ url: '/uploads/' + f.filename, name: decodeName(f.originalname) || f.filename })) });
   });
 });
 
@@ -174,11 +259,13 @@ router.post('/', authUser, express.json(), (req, res) => {
 router.get('/list', authUser, (req, res) => {
   const db = getDb();
   const admin = isManagerUid(req.uid);
+  const branchOffices = branchVisibleOffices(req.uid); // 部署長: 自社グループの申請を全件閲覧
   const rows = db.prepare('SELECT * FROM approval_apps ORDER BY created_at DESC').all();
   const cmap = companyMap();
   const items = rows.map(r => mapApp(r, cmap)).filter(a => {
     if (admin) return true;
     if (a.applicant_id === req.uid) return true;
+    if (branchOffices.includes(a.office_code)) return true;
     return (a._chain || []).some(s => s.uid === req.uid);
   }).map(a => {
     a.can_delete = admin || (a.applicant_id === req.uid && a.status !== '承認済');
@@ -241,6 +328,13 @@ router.get('/:id', authUser, (req, res) => {
   const r = db.prepare('SELECT * FROM approval_apps WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ success: false, msg: '見つかりません' });
   const item = mapApp(r, companyMap());
+  // 2026-07-21 認可追加: 一覧(/list)と同じ絞り込みが詳細に無く、金額・承認チェーン・
+  // 添付ファイルURLが全ログインユーザー(社外ゲスト含む)に見えていた。
+  if (!(isManagerUid(req.uid) || r.applicant_id === req.uid
+        || branchVisibleOffices(req.uid).indexOf(item.office_code) !== -1
+        || (item._chain || []).some(s => s.uid === req.uid))) {
+    return res.status(403).json({ success: false, msg: '閲覧権限がありません' });
+  }
   const cur = item._chain[item.cur_step] || null;
   item.can_act = (r.status === '申請中') && (isManagerUid(req.uid) || (cur && cur.uid === req.uid));
   item.is_applicant = r.applicant_id === req.uid;
@@ -275,7 +369,7 @@ router.post('/:id/approve', authUser, express.json(), (req, res) => {
     notifyDM(req, chain[next].uid, '【承認依頼】' + chain[next].role_name + ' 宛: ' + app.subject + ' — 前段階が承認されました。');
   } else {
     db.prepare("UPDATE approval_apps SET status='承認済', updated_at=? WHERE id=?").run(now, app.id);
-    notifyDM(req, app.applicant_id, '【承認完了】あなたの申請「' + app.subject + '」が最終承認されました。');
+    notifyDMFrom(req, req.uid, app.applicant_id, '【承認完了】あなたの申請「' + app.subject + '」が最終承認されました。', '承認完了');
   }
   db.prepare('INSERT INTO approval_history (app_id, action, role, actor_name, note) VALUES (?,?,?,?,?)')
     .run(app.id, proxy ? '承認(代理)' : '承認', (cur.role_name || ''), me.display_name || '', String((req.body && req.body.note) || ''));
@@ -294,7 +388,7 @@ router.post('/:id/return', authUser, express.json(), (req, res) => {
   db.prepare("UPDATE approval_apps SET status='差戻し', updated_at=? WHERE id=?").run(nowStr(), app.id);
   db.prepare('INSERT INTO approval_history (app_id, action, role, actor_name, note) VALUES (?,?,?,?,?)')
     .run(app.id, '差戻し', (cur.role_name || ''), me.display_name || '', String((req.body && req.body.note) || ''));
-  notifyDM(req, app.applicant_id, '【差戻し】申請「' + app.subject + '」が差戻されました。理由: ' + (String((req.body && req.body.note) || '') || '(なし)') + ' — 修正のうえ再申請してください。');
+  notifyDMFrom(req, req.uid, app.applicant_id, '【差戻し】申請「' + app.subject + '」が差戻されました。理由: ' + (String((req.body && req.body.note) || '') || '(なし)') + ' — 修正のうえ再申請してください。', '差戻し');
   res.json({ success: true, msg: '差戻しました' });
 });
 
@@ -310,7 +404,7 @@ router.post('/:id/reject', authUser, express.json(), (req, res) => {
   db.prepare("UPDATE approval_apps SET status='却下', updated_at=? WHERE id=?").run(nowStr(), app.id);
   db.prepare('INSERT INTO approval_history (app_id, action, role, actor_name, note) VALUES (?,?,?,?,?)')
     .run(app.id, '却下', (cur.role_name || ''), me.display_name || '', String((req.body && req.body.note) || ''));
-  notifyDM(req, app.applicant_id, '【却下】申請「' + app.subject + '」が却下されました。理由: ' + (String((req.body && req.body.note) || '') || '(なし)'));
+  notifyDMFrom(req, req.uid, app.applicant_id, '【却下】申請「' + app.subject + '」が却下されました。理由: ' + (String((req.body && req.body.note) || '') || '(なし)'), '却下');
   res.json({ success: true, msg: '却下しました' });
 });
 
@@ -373,15 +467,24 @@ router.get('/admin/config', requireManager, (req, res) => {
 router.post('/admin/route', requireManager, express.json(), (req, res) => {
   const b = req.body || {};
   if (!String(b.apply_type || '').trim() || !String(b.chain || '').trim()) return res.status(400).json({ success: false, msg: '申請種別とチェーンは必須です' });
-  getDb().prepare('INSERT INTO appr_routes (apply_type, office_code, amount_min, amount_max, chain, priority, active, note) VALUES (?,?,?,?,?,?,?,?)')
-    .run(b.apply_type.trim(), b.office_code || 'ALL', Number(b.amount_min) || 0, Number(b.amount_max) || 0, b.chain.trim(), Number(b.priority) || 100, b.active === false ? 0 : 1, b.note || '');
+  const cc = cleanChainCodes(b.chain);
+  if (cc.bad.length) return res.status(400).json({ success: false, msg: '不明な役職が含まれています: ' + cc.bad.join(', ') });
+  if (!cc.codes.length) return res.status(400).json({ success: false, msg: '承認の流れに有効な役職がありません' });
+  getDb().prepare('INSERT INTO appr_routes (apply_type, office_code, amount_min, amount_max, chain, priority, active, note, allow_self_approve) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(b.apply_type.trim(), b.office_code || 'ALL', Number(b.amount_min) || 0, Number(b.amount_max) || 0, cc.codes.join(','), Number(b.priority) || 100, b.active === false ? 0 : 1, b.note || '', b.allow_self_approve ? 1 : 0);
   res.json({ success: true });
 });
 router.patch('/admin/route/:id', requireManager, express.json(), (req, res) => {
   const b = req.body || {};
+  if (b.chain !== undefined) {
+    const cc = cleanChainCodes(b.chain);
+    if (cc.bad.length) return res.status(400).json({ success: false, msg: '不明な役職が含まれています: ' + cc.bad.join(', ') });
+    if (!cc.codes.length) return res.status(400).json({ success: false, msg: '承認の流れに有効な役職がありません' });
+    b.chain = cc.codes.join(',');
+  }
   const sets = [], params = [];
-  ['apply_type', 'office_code', 'amount_min', 'amount_max', 'chain', 'priority', 'active', 'note'].forEach(f => {
-    if (b[f] !== undefined) { sets.push(f + '=?'); params.push(f === 'active' ? (b[f] ? 1 : 0) : b[f]); }
+  ['apply_type', 'office_code', 'amount_min', 'amount_max', 'chain', 'priority', 'active', 'note', 'allow_self_approve'].forEach(f => {
+    if (b[f] !== undefined) { sets.push(f + '=?'); params.push((f === 'active' || f === 'allow_self_approve') ? (b[f] ? 1 : 0) : b[f]); }
   });
   if (!sets.length) return res.status(400).json({ success: false, msg: '更新項目なし' });
   params.push(req.params.id);
