@@ -1288,7 +1288,7 @@
 <!-- 運転アラート/事故一報を受信するため global-notif.js を読み込む。ただし chat は自前socketを
      張るので __cohubNoGnSocket で gn の2本目socketを抑止し、cohubWireAlerts で相乗りさせる(2026-06-11)。 -->
 <script>window.__cohubNoGnSocket = true;</script>
-<script src="/global-notif.js?v=20260709-accident2" defer></script>
+<script src="/global-notif.js?v=20260728-dmname" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
@@ -1848,10 +1848,12 @@ function announceSender(senderUid, name, isGroup, groupName) {
     return;
   }
   _lastFullAnnounceAt.set(key, now);
-  const reading = readingOf(name) || 'どなたか';
+  // ⚠️名前が取れないときに「どなたかさん」と読み上げていた (2026-07-28 後藤→田村)。
+  //   誰だか分からない読み上げは不安を招くので、名前が無いときは名前を言わない文にする。
+  const reading = readingOf(name) || '';
   const text = isGroup
-    ? reading + 'さんから' + (groupName || 'グループ') + 'にメッセージが届いています'
-    : reading + 'さんからメッセージが届いています';
+    ? (reading ? reading + 'さんから' : '') + (groupName || 'グループ') + 'にメッセージが届いています'
+    : (reading ? reading + 'さんからメッセージが届いています' : '新しいメッセージが届いています');
   playChatChime();
   setTimeout(() => speakViaTTS(text, { speed: 1.15 }), CHAT_CHIME_DURATION_MS + 150);
 }
@@ -3463,11 +3465,17 @@ function setupSocket() {
     if (!peerId) return;
     // AIボットとのDMはチャット一覧に表示しない (kept silent)
     if (!isBot(peerId)) {
-      dmPeerInfo.set(peerId, {
+      // ⚠️既存の表示情報(display_name/avatar)を消さずに最終メッセージだけ更新する。
+      //   丸ごと差し替えていたため、受信のたびに相手の名前が消えていた (2026-07-28)
+      const _prevPeer = dmPeerInfo.get(peerId) || {};
+      // from_name は送信者の名前 = 自分が送った echo のときは相手の名前ではないので使わない
+      const _fromName = payload.from !== me.uid ? (payload.from_name || '') : '';
+      dmPeerInfo.set(peerId, Object.assign({}, _prevPeer, {
+        display_name: _fromName || _prevPeer.display_name || '',
         last_content: payload.content,
         last_at: payload.at,
         last_sender_id: payload.from,
-      });
+      }));
       renderGroupList();
     }
     const k = 'dm_' + peerId;
@@ -3504,10 +3512,14 @@ function setupSocket() {
         if (peerInfo) break;
       }
     }
+    // ⭐グループを共有していない相手だと上の2つは空振りする。全社名簿(allMembersById)と
+    //   DM一覧(dmPeerInfo)からも引く。ここが空だと通知が「どなたかさんから…」になっていた (2026-07-28)
+    if (!peerInfo) peerInfo = allMembersById.get(peerId) || null;
+    if (!peerInfo) { const dp = dmPeerInfo.get(peerId); if (dp && dp.display_name) peerInfo = dp; }
     appendMessage({
       id: payload.id,
       sender_id: payload.from,
-      sender_name: payload.from === me.uid ? me.display_name : (peerInfo && peerInfo.display_name) || '',
+      sender_name: payload.from === me.uid ? me.display_name : (payload.from_name || (peerInfo && peerInfo.display_name) || ''),
       sender_avatar: payload.from === me.uid ? (me.avatar_url || '') : ((peerInfo && peerInfo.avatar_url) || ''),
       sender_company: payload.from === me.uid ? (me.company_code || '') : ((peerInfo && peerInfo.company_code) || ''),
       sender_ring: payload.from === me.uid ? '' : ((peerInfo && peerInfo.ring_color) || ''),
@@ -3518,7 +3530,8 @@ function setupSocket() {
     }, k);
     // 自分宛DM (相手→自分) の処理: 表示中なら既読化、それ以外なら未読+1+通知
     if (payload.from !== me.uid) {
-      const senderName = (peerInfo && peerInfo.display_name) || '';
+      // 送信者名: サーバーが載せてくる from_name を最優先 (名簿キャッシュが古くても実名で出る)
+      const senderName = payload.from_name || (peerInfo && peerInfo.display_name) || '';
       const viewingThisDm = currentMode === 'dm' && currentDmPeer && currentDmPeer.id === payload.from;
       const visible = document.visibilityState === 'visible';
       const isAdmin = !!(me && (me.employee_type === 'admin' || me.role === 'admin'));
@@ -3538,7 +3551,7 @@ function setupSocket() {
           fireOSNotif('💬 ' + (senderName || 'メッセージ'), payload.content || '', () => {
             try { selectDmPeer(payload.from); } catch (e) {}
           });
-          showToastMsg('💬 ' + (senderName || '誰か') + 'さんからメッセージ');
+          showToastMsg(senderName ? '💬 ' + senderName + 'さんからメッセージ' : '💬 メッセージが届きました');
         } else if (isAdmin && chatNotifOn) {
           // Admin: bot DMでもチャイムは鳴らす (TTSは抑制)
           playChatChime();

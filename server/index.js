@@ -94,6 +94,20 @@ async function sendPushToUser(uid, payload) {
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3007;
+
+// ===== プロセス例外ハンドラ (2026-06-22): 沈黙クラッシュを記録し安全に再起動 =====
+// 従来は未処理例外が無記録で、障害をユーザーが先に気づく状態だった。
+function _logFatal(kind, err) {
+  const line = '[' + new Date().toISOString() + '] ' + kind + ': ' + ((err && err.stack) || err) + '\n';
+  try { fs.appendFileSync(path.join(__dirname, '..', 'logs', 'error.log'), line); } catch (e) {}
+  try { console.error('[FATAL]', kind, (err && err.stack) || err); } catch (e) {}
+}
+process.on('unhandledRejection', function (reason) { _logFatal('unhandledRejection', reason); });
+process.on('uncaughtException', function (err) {
+  _logFatal('uncaughtException', err);
+  // プロセス状態が壊れている可能性 → クリーン終了し systemd に再起動させる
+  setTimeout(function () { process.exit(1); }, 1000);
+});
 const PROXIMITY_RADIUS = parseInt(process.env.PROXIMITY_RADIUS || '220', 10);
 // ささやきモード: アバター本体 (半径28px) が触れ合う距離で発動。揮発、ログなし
 // 28+28=56 が完全密着、70px で「軽く触れた」感覚 (耳打ちできる距離)
@@ -241,6 +255,16 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
 app.use('/api/auth/tablet-login', authLimiter);
+// 2026-07-21: 無認証で叩ける端末セットアップ系は総当たり/列挙を抑止する
+// (tablet-setup は PIN未設定者のアカウントを乗っ取れる経路・tablet-roster は全社員名簿)
+const setupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 40,
+  standardHeaders: true, legacyHeaders: false,
+  message: { success: false, msg: '試行が多すぎます。しばらくしてから再試行してください' },
+});
+app.use('/api/auth/tablet-setup', setupLimiter);
+app.use('/api/auth/tablet-roster', setupLimiter);
+app.use('/api/field-enroll/tablet-avatar', setupLimiter);
 app.use('/api/', apiLimiter);
 
 // /api/* は絶対にキャッシュさせない (ブラウザ/Cloudflareが古い401を304で返す事故を防止)
@@ -266,24 +290,68 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
+    // 静的メディア(画像/動画/フォント/音)は ?v= でバージョン管理済ゆえ長期キャッシュ可。
+    // Cloudflare/ブラウザがエッジ配信し origin 負荷減・タブレット高速化 (2026-07-06)。中身変更時は ?v= を上げる。
+    else if (/\.(png|jpe?g|gif|webp|ico|bmp|svg|mp4|webm|mov|m4v|ogg|mp3|wav|woff2?|ttf|otf|eot)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=2592000');
+    }
   }
 }));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// 2026-07-21: /uploads を「ログイン済みのみ」に限定 (社長判断)。
+// 従来は無認証配信で、チャット添付・食事写真・安全運転PDF等 約1900ファイルが
+// URLさえ分かれば社外の誰でも取得できた。<img>/<video> は Authorization ヘッダを
+// 送れないため、middleware/auth.js が配る HttpOnly Cookie (cohub_s) で認可する。
+// ⚠️Cloudflare にキャッシュさせない (private) こと。エッジ経由で素通りするため。
+app.use('/uploads', (req, res, next) => {
+  // アバター(AI生成の似顔絵)は共用ログイン画面(未認証)で本人の顔を選ぶため表示が必須。
+  // 非機密の画像のみ公開し、他の /uploads(事故写真・健康・チャット添付等)はログイン必須のまま。
+  if (/^\/avatars\/[^/]+\.(png|jpe?g|gif|webp)$/i.test(req.path)) return next();
+  if (hasValidSession(req)) return next();
+  res.setHeader('Cache-Control', 'private, no-store');
+  return res.status(401).end();
+});
+// /uploads は <img>/<video> 等で参照するため Bearer ではなく Cookie で認可する。
+// 能動的コンテンツ(.html/.svg/.js等)は MIME スニッフィングを禁止し必ずダウンロードさせて
+// 同一オリジン実行(保存型XSS)を無害化する (2026-06-24 セキュリティ修正)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  setHeaders: (res, filePath) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (/\.(html?|xhtml|svg|svgz|js|mjs|xml)$/i.test(filePath)) {
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', 'attachment');
+    }
+    // アップロード画像/動画(UUIDファイル名=実質不変)は1日キャッシュ。繰り返し表示(事故写真/チャット画像等)の再取得を減らす。
+    else if (/\.(png|jpe?g|gif|webp|bmp|mp4|webm|mov|m4v|ogg|mp3|wav)$/i.test(filePath)) {
+      // private: Cloudflare のエッジにキャッシュさせない (認証ゲートを素通りするため)
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+    }
+  }
+}));
 
 // DB初期化
 getDb();
 
 // ルート
+// 2026-07-21 認可の中央集約: 入口の粗い権限を1か所で宣言・強制する層。
+// 各routeの authUser より前に走り、POLICY に一致した窓口だけを判定する
+// (enforce:false のルールは遮断せず記録のみ)。詳細は middleware/authz.js。
+app.use('/api', require('./middleware/authz').policyGate);
+
+app.use('/api/weather', require('./routes/weather'));   // 天気予報(共用タブレット・公開)
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/usage', require('./routes/usage'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/avatar', require('./routes/avatar'));
 app.use('/api/enroll', require('./routes/enroll'));
+app.use('/api/field-enroll', require('./routes/field-enroll'));
+app.use('/api/link-preview', require('./routes/link-preview'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/voice', require('./routes/tts'));
 app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/board', require('./routes/board'));
+app.use('/api/wellness-materials', require('./routes/wellness_materials'));
 app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/ops', require('./routes/ops'));
 app.use('/api/videos', require('./routes/videos'));
@@ -310,8 +378,10 @@ app.use('/api/meeting', require('./routes/meeting'));
 }
 app.use('/api/vote', require('./routes/vote'));
 app.use('/api/opinion', require('./routes/opinion'));
+app.use('/api/survey', require('./routes/survey'));
 app.use('/api/daily-message', require('./routes/daily_message'));
 app.use('/api/whats-new', require('./routes/whats_new'));
+app.use('/api/health-board', require('./routes/health_board'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/takara', require('./routes/takara_demo'));
@@ -324,6 +394,9 @@ app.use('/api/expense', require('./routes/expense'));
 app.use('/api/approval', require('./routes/approval'));
 app.use('/api/mail', require('./routes/mail'));
 app.use('/api/tenko', require('./routes/tenko'));
+app.use('/api/branch-tasks', require('./routes/branch_tasks'));
+app.use('/api/todo', require('./routes/todo'));   // 個人ToDo (2026-07-28)
+app.use('/api/guidance', require('./routes/guidance'));
 // 2026-05-24〜25 機能 (誤って未mount化していたため復旧 2026-05-25): 共有カレンダー/業務週報/まとめる君/運転アラート
 app.use('/api/shared-calendar', require('./routes/shared_calendar'));
 app.use('/api/weekly-report', require('./routes/weekly_report'));
@@ -331,6 +404,9 @@ app.use('/api/report', require('./routes/report'));
 app.use('/api/bdiary', require('./routes/bdiary'));
 app.use('/api/voice', require('./routes/voice'));
 app.use('/api/alert', require('./routes/alert'));
+app.use('/api/aoi', require('./routes/aoi'));
+app.use('/api/menu', require('./routes/menu'));   // ヘルスと献立を考える(会話) 2026-07-24
+app.use('/api/agenda', require('./routes/agenda'));
 const foodReport = require('./routes/food_report');
 app.use('/api/food-report', foodReport);
 
@@ -341,7 +417,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-06-20-nutri-ratio"
+const APP_VERSION = "2026-07-28-dm-name"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -373,7 +449,7 @@ app.get('/api/config', (req, res) => {
 });
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
-const { authUser } = require('./middleware/auth');
+const { authUser, hasValidSession } = require('./middleware/auth');
 // ===== 外部相談窓口 (NPO等の第三者へ匿名相談を転送) =====
 // 設計: 本文はサーバ内でメール送信 → DB に永続化しない
 // 管理者でも内容は閲覧不可。件数+カテゴリ集計のみ
@@ -527,7 +603,14 @@ app.post('/api/bootstrap', (req, res) => {
   res.json({ success: true, id });
 });
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (req, res) => {
+  let dbOk = false;
+  try { getDb().prepare('SELECT 1').get(); dbOk = true; } catch (e) {}
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'ok' : 'degraded', db: dbOk,
+    uptime_s: Math.round(process.uptime()), version: APP_VERSION
+  });
+});
 
 // ===== PWAプッシュ通知 =====
 app.get('/api/push/vapid', (req, res) => {
@@ -622,8 +705,10 @@ function sendHtmlNoCache(res, file) {
   res.sendFile(path.join(__dirname, '..', 'public', file));
 }
 app.get('/admin', (req, res) => sendHtmlNoCache(res, 'admin.html'));
-app.get('/mylog', (req, res) => sendHtmlNoCache(res, 'mylog.html'));
-app.get('/m', (req, res) => sendHtmlNoCache(res, 'm.html'));
+// 2026-07-21 「自分のログ」完全廃止。/api/chat/history が全社のグループ会話を全社員に
+// 露出していたため機能ごと撤去 (mylog.html も削除済み)。旧URLはホームへ転送。
+app.get(['/mylog', '/mylog.html'], (req, res) => res.redirect(302, '/home'));
+app.get('/m', (req, res) => res.redirect(302, '/home')); // 旧モバイル版m.htmlは廃止→ホームへ転送(2026-06-25)
 app.get('/overview', (req, res) => sendHtmlNoCache(res, 'overview.html'));
 app.get('/report', (req, res) => sendHtmlNoCache(res, 'report.html'));
 // /full は廃止 (2026-05-18: 葵/3Dロビー全廃止方針)。完全に /home へ302固定
@@ -635,6 +720,7 @@ app.get('/meeting', (req, res) => sendHtmlNoCache(res, 'meeting.html'));
 app.get('/meeting-archive', (req, res) => res.redirect(302, '/meeting'));
 app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.html'));
 app.get('/tablet', (req, res) => sendHtmlNoCache(res, 'tablet.html'));
+app.get('/tablet-qr', (req, res) => sendHtmlNoCache(res, 'tablet-qr.html'));
 app.get('/ops-literacy', (req, res) => sendHtmlNoCache(res, 'ops-literacy.html'));
 app.get('/takara', (req, res) => sendHtmlNoCache(res, 'takara/admin.html'));
 app.get('/takara/driver', (req, res) => sendHtmlNoCache(res, 'takara/driver.html'));
@@ -991,7 +1077,6 @@ io.on('connection', (socket) => {
   lastLogoutAt.delete(uid);
   presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile, lastHb: Date.now() });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
-  db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'login')").run(uid, floor.code);
   socket.join('floor:' + floor.code);
   socket.join('user:' + uid); // ユーザー個別のroomに参加 (既読通知用)
 
@@ -1150,9 +1235,7 @@ io.on('connection', (socket) => {
       p.handUp = false;
       io.to('floor:' + oldFloor).emit('hand', { uid, up: false });
     }
-    // 出席履歴
-    db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'leave')").run(uid, oldFloor);
-    db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'enter')").run(uid, target.code);
+    // (フロア在席履歴 attendance は3D完全廃止により記録停止 2026-06-22)
     // 旧フロアから leave、旧メンバーに「退室」を通知
     socket.leave('floor:' + oldFloor);
     io.to('floor:' + oldFloor).emit('user:leave', { uid });
@@ -1642,9 +1725,15 @@ io.on('connection', (socket) => {
     }
     const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, ?, ?, 'dm', ?, ?, ?, ?)")
       .run(uid, to, content, attachUrl, attachName, attachSize, attachType);
+    // ⭐送信者の実名を payload に載せる (2026-07-28 後藤→田村)。
+    //   受信側は名簿キャッシュ(allMembersById/groupMembers)から名前を引いていたため、
+    //   グループを共有していない相手からのDMだと名前が引けず
+    //   「どなたかさんからメッセージが届いています」と読み上げていた。
+    const fromName = (db.prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
     const payload = {
       id: ins.lastInsertRowid,
       from: uid,
+      from_name: fromName,
       to,
       content,
       at: new Date().toISOString(),
@@ -2249,7 +2338,6 @@ ${latestReport.summary}
       p.handUp = false;
       io.to('floor:' + p.floor).emit('hand', { uid, up: false });
     }
-    db.prepare("INSERT INTO attendance (user_id, floor_code, event_type) VALUES (?, ?, 'logout')").run(uid, p.floor);
     if (p.chatting) { p.chatting = false; socket.broadcast.emit('presence:chat', { uid, chatting: false }); } // 切断時はチャット中も解除
     // 2段階プレゼンス: 即オフラインにせず、ナビ再接続の猶予(2秒)後に「退席中(自動)」へ。
     // オフライン昇格＋ログアウト通知は presence スイープが切断猶予(PRESENCE_DISCONNECT_OFFLINE_MS)経過後に実施。
@@ -2259,6 +2347,7 @@ ${latestReport.summary}
         cur.status = '退席中';
         cur.autoAway = true;
         cur.disconnectedAt = Date.now();
+        try { getDb().prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid); } catch (e) {}  // 最終オンライン(DMオフライン並び=ログアウト順)
         io.to('floor:' + cur.floor).emit('user:update', { uid, x: cur.x, y: cur.y, status: '退席中' });
         io.emit('floor:counts', floorCountMap());
       }
@@ -2421,16 +2510,34 @@ for (const b of CONCIERGE_BOTS) {
 
 // ===== 運転アラート(ITP違反通知)配線 — 2026-05-25実装、誤って巻き戻したため復旧 2026-05-25 =====
 // 新着アラート → 管理職(is_manager)へ alert:new emit + Push (派手な音+音声読み上げは global-notif.js 側)
+// 製造部門の管理職は運転・運行と無関係のため運転アラート配信から除外 (2026-06-27)。
+// 画面閲覧(alert.html / routes/alert.js)の is_manager 判定はそのまま=閲覧は可。
+const DRIVE_ALERT_EXCLUDE_UIDS = new Set([
+  '826d905d-291c-4ab5-8d4b-dd2e082cfdeb', // 寺田 さつき (SUZUE・製造)
+  '50a6a997-ee6c-44e1-a44d-d811bdd8b718', // 丸山 誠 (SUZUE・製造)
+]);
+// 管理職ではないが各営業所の事務中心人物=終日在所で即対処できるため運転アラートを個別配信 (2026-06-30)。
+// ⚠️ 解除通知(alert:handled)側 routes/alert.js にも同一UIDを追加すること(ループ警報の停止に必要)。
+const DRIVE_ALERT_EXTRA_UIDS = new Set([
+  '0a7ef4f4-4478-44cc-b1f2-2903ece6316f', // 小林 昌子 (SU_SAITAMA・事務)
+  '7039611c-be6d-4409-a7e3-460cf86458d1', // 卯月 正美 (IBA_KASHIMA・事務)
+  '702dff81-4a62-4c69-af8a-ae7e42822da3', // 牧田 弥生 (SU_MKANTO・事務)
+]);
 try {
   const alertRoute = require('./routes/alert');
   if (typeof alertRoute.setOnNewAlert === 'function') {
     alertRoute.setOnNewAlert((a) => {
       try {
         const mgrs = getDb().prepare('SELECT id FROM users WHERE is_manager = 1').all();
+        // 管理職 + 事務中心人物(個別追加) を重複なしで受信対象に
+        const recipientIds = new Set(mgrs.map((m) => m.id));
+        for (const id of DRIVE_ALERT_EXTRA_UIDS) recipientIds.add(id);
+        try { if (a.driver_name && !a.driver_avatar) { const _k = String(a.driver_name).replace(/[ 　]/g, ''); const _du = getDb().prepare("SELECT avatar_url FROM users WHERE replace(replace(display_name,' ',''),char(12288),'')=? AND status!='deleted' AND avatar_url IS NOT NULL AND avatar_url!='' LIMIT 1").get(_k); if (_du) a.driver_avatar = _du.avatar_url; } } catch (e) {}
         const body = [a.vehicle_name || a.vehicle_number, a.driver_name, a.notice].filter(Boolean).join(' / ');
-        for (const m of mgrs) {
-          io.to('user:' + m.id).emit('alert:new', a);
-          sendPushToUser(m.id, { title: '⚠️ 運転アラート', body: body, tag: 'alert-' + (a.id || ''), mention: true, alwaysShow: true, url: '/alerts.html' }).catch(() => {});
+        for (const id of recipientIds) {
+          if (DRIVE_ALERT_EXCLUDE_UIDS.has(id)) continue; // 製造部門は配信対象外
+          io.to('user:' + id).emit('alert:new', a);
+          sendPushToUser(id, { title: '⚠️ 運転アラート', body: body, tag: 'alert-' + (a.id || ''), mention: true, alwaysShow: true, url: '/alerts.html' }).catch(() => {});
         }
       } catch (e) { console.warn('[alert onNew]', e.message); }
     });

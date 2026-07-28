@@ -255,26 +255,36 @@
     try {
       if (!_unlockCtx) _unlockCtx = new (window.AudioContext || window.webkitAudioContext)();
       var ctx = _unlockCtx;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+      // 音アンロック前(無操作ページ)は鳴らせない → 穏やかチャイムにフォールバック
+      if (ctx.state !== 'running') { try { playChime(); } catch (_) {} return 1.3; }
       var t = ctx.currentTime;
-      // 1音 = 正弦波 + ベル風の自然な減衰 (やわらかい立ち上がり→ゆっくり消える)。倍音を僅かに重ね温かみを出す。
-      function note(freq, at, dur, peak) {
-        [[freq, peak], [freq * 2, peak * 0.18]].forEach(function (p) {
-          var o = ctx.createOscillator(), g = ctx.createGain();
-          o.type = 'sine';
-          o.frequency.setValueAtTime(p[0], at);
-          g.gain.setValueAtTime(0.0001, at);
-          g.gain.exponentialRampToValueAtTime(p[1], at + 0.05);    // ふわっと立ち上げ
-          g.gain.exponentialRampToValueAtTime(0.0001, at + dur);   // ゆっくり減衰
-          o.connect(g); g.connect(ctx.destination);
-          o.start(at); o.stop(at + dur + 0.05);
-        });
-      }
-      // 高→低の落ち着いた2音 (C6→G5)。駅・空港のアナウンス前チャイム風で「気づくが穏やか」。
-      note(1047, t,        0.85, 0.20);   // ピーン
-      note(784,  t + 0.45, 1.35, 0.22);   // ポーン
-      return 1.7; // 鳴動秒数 (音声読み上げ開始の目安)
-    } catch (e) { console.warn('[alert] chime fail', e); try { playChime(); } catch (_) {} return 1.0; }
+      // 2026-06-30: 離席中でも気づけるよう「館内放送型」の大音量ピーポーサイレンへ変更。
+      // 矩形波(遠達性が高い)のハイ/ロー2音を交互に=欧州式緊急サイレン。やわらかチャイムは廃止。
+      var master = ctx.createGain();
+      master.gain.value = 1.8;            // 部屋に響く音量 (旧チャイムの約8倍)
+      master.connect(ctx.destination);
+      var seg = 0.42;                      // 1音の長さ
+      var pattern = [880, 660, 880, 660, 880, 660];  // ハイ→ロー 3往復 ≈ 2.5秒
+      pattern.forEach(function (freq, i) {
+        var at = t + i * seg;
+        var env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, at);
+        env.gain.exponentialRampToValueAtTime(0.5, at + 0.02);     // 立ち上がり鋭く
+        env.gain.setValueAtTime(0.5, at + seg - 0.05);             // 区間中はフルで保持
+        env.gain.exponentialRampToValueAtTime(0.0001, at + seg);   // 末尾だけ素早く落とす
+        env.connect(master);
+        var o = ctx.createOscillator(); o.type = 'square';
+        o.frequency.setValueAtTime(freq, at);
+        o.connect(env); o.start(at); o.stop(at + seg + 0.02);
+        // 倍音(のこぎり波)を重ねて遠達性=耳に付く度合いを上げる
+        var o2 = ctx.createOscillator(); o2.type = 'sawtooth';
+        o2.frequency.setValueAtTime(freq, at);
+        var g2 = ctx.createGain(); g2.gain.value = 0.25;
+        o2.connect(g2); g2.connect(env); o2.start(at); o2.stop(at + seg + 0.02);
+      });
+      return pattern.length * seg + 0.2;   // 鳴動秒数 ≈ 2.7秒 (音声読み上げ開始の目安)
+    } catch (e) { console.warn('[alert] alarm fail', e); try { playChime(); } catch (_) {} return 1.0; }
   }
 
   function _esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
@@ -350,7 +360,8 @@
     var last = Array.from(_alertPending.values()).pop();
     var detail = [_alertWhere(last), last.driver_name ? ('運転者 ' + last.driver_name) : '', last.notice].filter(Boolean).map(_esc).join('　/　');
     var head = _alertPending.size > 1 ? ('⚠️ 未対応の運転アラート ' + _alertPending.size + '件') : '⚠️ 運転アラート（未対応）';
-    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">' + head + '</div><div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで一覧へ → 「対応済み」で停止</div>';
+    var _av = last.driver_avatar ? '<div style="margin:2px auto 8px;text-align:center;"><img src="' + _esc(last.driver_avatar) + '" alt="" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 8px rgba(0,0,0,.35);display:inline-block;"></div>' : '';
+    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">' + head + '</div>' + _av + '<div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで一覧へ → 「対応済み」で停止</div>';
     t.style.opacity = '1';
   }
 
@@ -448,6 +459,37 @@
     startAlertLoop();
     try { window.dispatchEvent(new CustomEvent('cohub:alert-new', { detail: a })); } catch (e) {}
   }
+
+  // テスト用: 運転アラートを「自分の画面だけ」に表示 (2026-07-03). サーバーemit/Push無し・他者に波及しない。
+  // 使い方(ブラウザのコンソール): cohubTestDriveAlert()  /  音も鳴らす: cohubTestDriveAlert({sound:true})  /  顔なし: cohubTestDriveAlert({driver_avatar:null})
+  window.cohubTestDriveAlert = function (opts) {
+    opts = opts || {};
+    var avatar = (opts.driver_avatar !== undefined) ? opts.driver_avatar : '/uploads/avatars/b097b512-468b-4161-a273-2e96ee589960_cand_soft_1777540349188.png';
+    var name = opts.driver_name || '吉沢 佑也';
+    var notice = opts.notice || 'テスト表示（急ブレーキ検知）';
+    var vehicle = opts.vehicle_name || 'テスト車両';
+    var old = document.getElementById('gn-alert-toast-test'); if (old) old.remove();
+    if (!document.getElementById('gn-alert-style')) { var st = document.createElement('style'); st.id = 'gn-alert-style'; st.textContent = '@keyframes gnAlertFlash{0%,100%{box-shadow:0 14px 40px rgba(220,38,38,.55);}50%{box-shadow:0 16px 56px rgba(255,90,90,.98);}}'; document.head.appendChild(st); }
+    var t = document.createElement('div'); t.id = 'gn-alert-toast-test';
+    t.style.cssText = 'position:fixed;left:50%;top:24px;transform:translateX(-50%);background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;padding:18px 30px;border-radius:18px;font-size:18px;font-weight:800;z-index:100001;max-width:94vw;text-align:center;pointer-events:auto;cursor:pointer;border:3px solid rgba(255,255,255,.55);animation:gnAlertFlash .6s ease-in-out infinite;';
+    var av = avatar ? '<div style="margin:2px auto 8px;text-align:center;"><img src="' + avatar + '" alt="" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 8px rgba(0,0,0,.35);display:inline-block;"></div>' : '';
+    var detail = [vehicle, '運転者 ' + name, notice].filter(Boolean).join('　/　');
+    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">⚠️ 運転アラート（未対応）【テスト】</div>' + av + '<div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで閉じる（これはテスト表示です）</div>';
+    t.onclick = function () { t.remove(); };
+    document.body.appendChild(t);
+    if (opts.sound === true) { try { if (typeof fireAlert === 'function') fireAlert(); } catch (e) {} }
+    return 'テスト表示中です。消えません。タップで閉じられます。';
+  };
+
+  // コンソール無しでもテスト可: URLに ?gntest=1 を付けて開くと自動表示 (?gntest=sound=音あり / ?gntest=noface=顔なし)
+  try {
+    var _gt = new URLSearchParams(location.search).get('gntest');
+    if (_gt) {
+      var _fireGt = function () { try { window.cohubTestDriveAlert({ sound: _gt === 'sound', driver_avatar: (_gt === 'noface' ? null : undefined) }); } catch (e) {} };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(_fireGt, 700); });
+      else setTimeout(_fireGt, 700);
+    }
+  } catch (e) {}
   function removePendingAlert(id) {
     _alertPending['delete'](id);
     if (_alertPending.size === 0) stopAlertLoop(); else renderAlertToast();
@@ -520,31 +562,29 @@
     if (_onAccidentPage) return;          // 事故対応画面では被るので出さない
     var t = document.getElementById('gn-accident-toast');
     if (_accidentPending.size === 0) { if (t) t.style.opacity = '0'; return; }
-    if (!document.getElementById('gn-accident-style')) {
-      var st = document.createElement('style'); st.id = 'gn-accident-style';
-      st.textContent = '@keyframes gnAccFlash{0%,100%{box-shadow:0 14px 40px rgba(217,70,30,.55);}50%{box-shadow:0 16px 56px rgba(255,120,60,.98);}}';
-      document.head.appendChild(st);
-    }
     if (!t) {
       t = document.createElement('div'); t.id = 'gn-accident-toast';
-      t.style.cssText = 'position:fixed;left:50%;top:96px;transform:translateX(-50%);background:linear-gradient(135deg,#ea580c,#b91c1c);color:#fff;padding:18px 30px;border-radius:18px;font-size:18px;font-weight:800;z-index:100000;max-width:94vw;text-align:center;opacity:0;transition:opacity .2s;pointer-events:auto;cursor:pointer;border:3px solid rgba(255,255,255,.55);animation:gnAccFlash .7s ease-in-out infinite;';
+      t.style.cssText = 'position:fixed;left:50%;top:96px;transform:translateX(-50%);background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;padding:16px 28px;border-radius:18px;font-size:18px;font-weight:800;z-index:100000;max-width:94vw;text-align:center;opacity:0;transition:opacity .2s;pointer-events:auto;cursor:pointer;border:2px solid rgba(255,255,255,.5);box-shadow:0 12px 34px rgba(2,132,199,.4);';
       t.onclick = function () { location.href = '/accident.html'; };
       document.body.appendChild(t);
     }
     var last = Array.from(_accidentPending.values()).pop();
     var detail = [_esc(last.location), _esc(last.accident_type), last.reporter_name ? ('報告者 ' + _esc(last.reporter_name)) : '', _esc(last.summary)].filter(Boolean).join('　/　');
-    var head = _accidentPending.size > 1 ? ('🚨 未確認の事故報告 ' + _accidentPending.size + '件') : '🚨 事故報告（一報）';
-    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">' + head + '</div><div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで事故報告へ → 承認で停止</div>';
+    var head = _accidentPending.size > 1 ? ('📋 確認待ちの事故報告 ' + _accidentPending.size + '件') : '📋 事故報告（確認待ち）';
+    t.innerHTML = '<div style="font-size:13px;opacity:.92;margin-bottom:5px;letter-spacing:1px;">' + head + '</div><div style="line-height:1.45;">' + detail + '</div><div style="font-size:11.5px;opacity:.85;margin-top:7px;">タップで内容を確認 → 対応済みで消えます</div>';
     t.style.opacity = '1';
   }
   function fireAccidentAlert(p) {
-    var dur = playAlarm() || 2.0;
+    // 事故報告の一報は「違反(運転アラート)」ではない。けたたましいサイレンは鳴らさず、
+    // 気づける程度のやわらかいチャイムを1回だけ。承認(確認)までトーストは残る。
+    try { playChime(); } catch (e) {}
     var src = p || (_accidentPending.size ? Array.from(_accidentPending.values()).pop() : null);
     if (!src) return;
     var ann = (_accidentPending.size > 1 && !p)
       ? ('未確認の事故報告が' + _accidentPending.size + '件あります。所属の管理者は確認してください。')
       : buildAccidentAnnounce(src);
-    setTimeout(function () { speak(ann, ALERT_VOICE); }, Math.round(dur * 1000) + 250);
+    // 声も違反アラート専用のシリアス声でなく通常の案内声で(運転アラートと差別化)。
+    setTimeout(function () { try { speak(ann); } catch (e) {} }, 900);
   }
   function addAccident(p, fireNow) {
     if (!p) return;
@@ -586,6 +626,15 @@
     sock.on('accident:new', function (p) { addAccident(p, true); });
     sock.on('accident:cleared', function (p) { if (p) removeAccident(p.id, p.kind); });
     bootstrapAccidents();
+    // 📢 通達 — 重要/緊急は全ページでチャイム+バナー。normalは鳴らさず未読バッジのみ(従来通り)。
+    sock.on('announcement:new', function (p) {
+      try {
+        if (!p || (p.level !== 'important' && p.level !== 'urgent')) return;
+        var icon = p.level === 'urgent' ? '🚨' : '📢';
+        playChime();
+        showToast(icon + ' 通達: ' + ((p.title || '').slice(0, 40) || '新しい通達があります'));
+      } catch (e) {}
+    });
   }
   window.cohubWireAlerts = wireAlerts;
 
@@ -617,7 +666,9 @@
         socket.on('dm:msg', function (p) {
           if (!p || p.from === myUid) return; // 自分の echo は無視
           playChime();
-          showToast('💬 メッセージ: ' + ((p.content || '').slice(0, 40) || '📎 添付'));
+          // 送信者名はサーバーが payload に載せる (2026-07-28。無い場合だけ従来表記)
+          var whoDm = (p.from_name || '').trim();
+          showToast('💬 ' + (whoDm ? whoDm + 'さん: ' : 'メッセージ: ') + ((p.content || '').slice(0, 40) || '📎 添付'));
         });
         socket.on('group:msg', function (p) {
           if (!p || p.from === myUid) return;
@@ -687,6 +738,68 @@
       });
     } catch (e) { console.warn('[gn] socket setup failed', e); }
   }
+
+  // ===== 共用タブレット(キオスク)ガード =====
+  // tablet.html 経由ログインで localStorage.cohub_kiosk='1' が立つ。
+  // 共用端末で「前の人のまま操作される」「前の人の下書きが見える」のを物理的に防ぐ:
+  //   ・無操作3分で自動ログアウト ・手動ログアウトボタン ・ログアウト時に個人データ全消去→/tablet
+  (function kioskGuard() {
+    var isKiosk = false;
+    // キオスク印は tablet.html ログイン時のトークンに紐づく(2026-06-23)。
+    // 現在のトークンと一致する時だけキオスク扱い。通常ログイン(別トークン)や
+    // 旧仕様(紐づけ無し)で印だけ残っている端末は、印を消して自己修復する。
+    // → これが無いと、過去に一度 /tablet ログインしたPCが永続的にキオスク化し、
+    //   通常ログインでも5分無操作で /tablet に飛んでしまう不具合になっていた。
+    try {
+      if (localStorage.getItem('cohub_kiosk') === '1') {
+        var _kt = localStorage.getItem('cohub_kiosk_token') || '';
+        var _cur = localStorage.getItem('cohub_token') || '';
+        if (_kt && _kt === _cur) isKiosk = true;
+        else { try { localStorage.removeItem('cohub_kiosk'); localStorage.removeItem('cohub_kiosk_token'); } catch (e) {} }
+      }
+    } catch (e) {}
+    if (!isKiosk) return;
+    var IDLE_MS = 3 * 60 * 1000; // 無操作3分
+    var idleTimer = null, loggingOut = false;
+
+    function clearPersonalStorage() {
+      // 端末設定(キオスク印/拠点/文字サイズ/通知ON)は残し、個人ひもづきは消す
+      try {
+        var keep = { cohub_kiosk: 1, cohub_tablet_co: 1, cohub_tablet_co_lock: 1, m_fz: 1, cohub_chat_notif_on: 1 };
+        var del = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && !keep[k] && k.indexOf('cohub_') === 0) del.push(k); // cohub_token/cohub_user/cohub_draft_* 等
+        }
+        del.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+      } catch (e) {}
+    }
+    window.cohubKioskLogout = function () {
+      if (loggingOut) return; loggingOut = true;
+      var t = ''; try { t = localStorage.getItem('cohub_token') || ''; } catch (e) {}
+      function done() { clearPersonalStorage(); location.replace('/tablet'); }
+      try { fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t } }).then(done, done); }
+      catch (e) { done(); }
+    };
+    function resetIdle() { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(window.cohubKioskLogout, IDLE_MS); }
+    ['touchstart', 'mousedown', 'keydown', 'scroll', 'pointerdown'].forEach(function (ev) {
+      window.addEventListener(ev, resetIdle, { passive: true });
+    });
+    resetIdle();
+
+    function addLogoutBtn() {
+      if (document.getElementById('kiosk-logout-btn')) return;
+      var b = document.createElement('button');
+      b.id = 'kiosk-logout-btn'; b.type = 'button'; b.textContent = '🔒 ログアウト';
+      b.style.cssText = 'position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:99999;padding:10px 12px;border:none;border-radius:22px 0 0 22px;background:#0f766e;color:#fff;font-size:12px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer;writing-mode:horizontal-tb;';
+      b.onclick = function () {
+        if (confirm('ログアウトして名簿に戻りますか?\n(この端末の下書きなど個人データは消去されます)')) window.cohubKioskLogout();
+      };
+      document.body.appendChild(b);
+    }
+    if (document.body) addLogoutBtn();
+    else document.addEventListener('DOMContentLoaded', addLogoutBtn);
+  })();
 
   // 自前socketを持つページ(chat-simple)は __cohubNoGnSocket=true で2本目を作らない。
   // その場合でも window.cohubWireAlerts / 音声アンロック / 各ヘルパは定義済みなので、
