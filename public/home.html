@@ -129,11 +129,9 @@
   .hero .body { flex: 1; line-height: 1.5; }
   .hero .greet { font-size: 15px; color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 16px; }
   .hero .greet strong { color: #047857; }
-  /* 横並び洗練型: 左に大アバター / 右に [一言(小) → 名前(特大) → 挨拶(小)] の縦積み */
+  /* 横並び洗練型: 左に大アバター / 右に [名前(特大) → 操作リンク] の縦積み */
   .hero .greet-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .hero .greet-hk { font-size: 12px; font-weight: 700; color: #b45309; line-height: 1.35; }
-  .hero .greet-hk:empty { display: none; }   /* 一言が未取得なら詰める */
-  /* 3段: 一言 → 名前 → (マイページ + 検索) */
+  /* 2段: 名前 → (マイページ + 検索)。一言は音声読み上げに変更(2026-07-29)し表示枠を廃止 */
   .hero .greet-name { font-size: 14px; color: #334155; }
   .hero .greet-name strong { font-size: 26px; font-weight: 800; color: #047857; letter-spacing: 0.5px; line-height: 1.12; }
   .hero .greet-nick { font-size: 14px; font-weight: 600; color: #64748b; margin-left: 2px; }
@@ -255,38 +253,7 @@
   }
   .hero .mypage-btn.has-avatar .lbl { display: none; }
 
-  /* 今日のひとこと */
-  .daily-msg {
-    position: relative;
-    margin: 14px 4px 0; padding: 14px 14px 10px;
-    background: linear-gradient(135deg, #fef9c3, #fef3c7);
-    border: 1.5px solid #fcd34d; border-radius: 16px;
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    box-shadow: 0 2px 8px rgba(252,211,77,0.18);
-  }
-  /* ラベルは枠の上に飛び出す (fieldset legend 風) */
-  .daily-msg .dm-label {
-    position: absolute; top: -11px; left: 14px;
-    font-size: 11px; font-weight: 800; color: #fff;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: 1.5px solid #fcd34d;
-    padding: 2px 10px; border-radius: 999px;
-    white-space: nowrap; letter-spacing: 0.4px;
-    box-shadow: 0 2px 5px rgba(217,119,6,0.30);
-  }
-  .daily-msg .dm-body {
-    flex: 1; min-width: 0;
-    font-size: 14px; font-weight: 700; color: #78350f; line-height: 1.5;
-  }
-  @media (max-width: 600px) {
-    .daily-msg { padding: 14px 12px 8px; gap: 8px; }
-    .daily-msg .dm-label { font-size: 10px; top: -10px; }
-    .daily-msg .dm-body { font-size: 13px; }
-  }
-
-  /* 今日のひとこと + NEWS を1枚に連結 (両方表示時のみ上下端をフラット結合) */
-  .daily-msg.has-news { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; box-shadow: none; }
-  .whats-new.has-msg { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  /* 今日のひとこと: 画面表示は廃止し音声読み上げへ (2026-07-29)。関連CSSも削除 */
 
   /* お知らせ (旧 What's new) — 2026-07-28に一覧+既読/未読へ一新 */
   .whats-new {
@@ -336,7 +303,6 @@
 
   /* ===== 2026-07-17 お知らせカード統一デザイン + 均等マージン (What's new / 営業所別 対応リスト) ===== */
   .whats-new { margin: 14px 4px 0; background: #fdf7e8; border-radius: 16px; align-items: flex-start; gap: 9px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
-  .whats-new.has-msg { margin-top: 0; }
   .whats-new .wn-label { font-size: 12px; padding: 4px 13px; }
   /* ===== 2026-07-28 運転アラートを「お知らせ」から格上げ (お知らせの直下に専用枠・管理職のみ) ===== */
   .drive-alerts { margin: 10px 4px 0; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(159,18,57,0.07); }
@@ -849,11 +815,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div id="gsearch-results" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:200;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,0.18);max-height:60vh;overflow-y:auto;padding:6px;"></div>
   </div>
 
-  <!-- ━━━ 今日のひとこと ━━━ -->
-  <div id="daily-msg" class="daily-msg" style="display:none;">
-    <span class="dm-label">🌟 今日のひとこと</span>
-    <span class="dm-body" id="dm-body"></span>
-  </div>
+  <!-- ━━━ 今日のひとこと: 表示カードは廃止 (読み上げのみ・loadDailyMessage) ━━━ -->
 
   <!-- ━━━ 🆕 新着情報 (告知/掲示板/承認済み事故報告/新機能の4種・7日以内。⭐未読だけを一覧・読んだら消える) ━━━ -->
   <div id="whats-new" class="whats-new" style="display:none;">
@@ -1517,24 +1479,52 @@ function greetInfo() {
   return { word: 'お疲れさまです', ic: '🌇', tod: 'evening' };
 }
 
+// ━━━ 今日のひとこと: 画面表示をやめ「読み上げ」に変更 (2026-07-29 社長要望) ━━━
+// 文字で出しても読まれない → 1日1回だけ音声で伝える。
+//  - 画面には一切出さない (ヒーロー内の表示枠・独立カードとも削除済み)
+//  - 同じ端末では 1日1回のみ (ホームに戻るたび繰り返さない)
+//  - 自動再生規制で鳴らせない場合は、最初のタップ/クリック時に1回だけ鳴らす
+//  - ひろばのTTS OFF設定 (cohub_plaza_tts_on='0') に従う
+function dmSpokenKey() {
+  const d = new Date();
+  return 'cohub_dm_spoken_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+async function speakDailyMessage(text) {
+  // 総合案内(葵)と同じ声・同じ設定 (global-notif.js の speak と揃える)
+  const res = await fetch('/api/voice/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ text: text, voice: 'ja-JP-Neural2-B', speed: 1.05, pitch: 3 }),
+  });
+  if (!res.ok) throw new Error('tts http ' + res.status);
+  const url = URL.createObjectURL(await res.blob());
+  const audio = new Audio(url);
+  audio.volume = 1.0;
+  audio.addEventListener('ended', function () { try { URL.revokeObjectURL(url); } catch (e) {} });
+  try {
+    await audio.play();   // 再生できた = 読み上げ済みとして記録
+    try { localStorage.setItem(dmSpokenKey(), '1'); } catch (e) {}
+  } catch (e) {
+    // 自動再生ブロック: 最初のユーザー操作で1回だけ鳴らす
+    const once = function () {
+      document.removeEventListener('pointerdown', once, true);
+      document.removeEventListener('keydown', once, true);
+      audio.play().then(function () { try { localStorage.setItem(dmSpokenKey(), '1'); } catch (e2) {} })
+                  .catch(function () {});
+    };
+    document.addEventListener('pointerdown', once, true);
+    document.addEventListener('keydown', once, true);
+  }
+}
 async function loadDailyMessage() {
   try {
+    // TTS OFF / 本日読み上げ済みなら何もしない (取得もしない)
+    try { if (localStorage.getItem('cohub_plaza_tts_on') === '0') return; } catch (e) {}
+    try { if (localStorage.getItem(dmSpokenKey()) === '1') return; } catch (e) {}
     const r = await api('/api/daily-message');
-    if (r && r.success && r.message) {
-      // ヒーロー内・名前の上に「今日のひとこと」を表示 (下の独立カードは出さず重複回避)
-      const slot = document.getElementById('greet-word');
-      if (slot) {
-        slot.textContent = '🌟 ' + r.message;
-      } else {
-        // フォールバック (旧レイアウト): 従来の独立カード
-        const box = document.getElementById('daily-msg');
-        const body = document.getElementById('dm-body');
-        if (body) body.textContent = r.message;
-        if (box) box.style.display = '';
-        if (typeof linkMsgNews === 'function') linkMsgNews();
-      }
-    }
-  } catch (e) { /* ひとことの取得失敗は黙って無視 */ }
+    if (!r || !r.success || !r.message) return;
+    await speakDailyMessage('今日のひとことです。' + r.message);
+  } catch (e) { /* ひとことの取得・読み上げ失敗は黙って無視 */ }
 }
 
 function relTime(iso) {
@@ -1737,7 +1727,7 @@ async function loadWhatsNew() {
   if (!box || !list) return;
   box.style.display = '';
   // 未読ゼロでも枠は残す (消すと"新着が無い日"と"不具合で出ない"が区別できない。運転アラート枠と同じ扱い)
-  if (!_wnEvents.length) { wnShowEmpty(); linkMsgNews(); return; }
+  if (!_wnEvents.length) { wnShowEmpty(); return; }
 
   let unread = 0;
   list.innerHTML = _wnEvents.map(function (ev, i) {
@@ -1763,16 +1753,8 @@ async function loadWhatsNew() {
   if (cnt) { cnt.dataset.n = 0; wnBumpCount(unread); }
   const ra = document.getElementById('wn-readall');
   if (ra) ra.style.display = (unread + alertUnread) > 0 ? '' : 'none';   // 運転アラート枠の未読も対象
-  linkMsgNews();
 }
-// 今日のひとこと + NEWS を1枚に連結 (両方表示中のみ上下端フラット)
-function linkMsgNews() {
-  const dm = document.getElementById('daily-msg'), wn = document.getElementById('whats-new');
-  if (!dm || !wn) return;
-  const both = dm.style.display !== 'none' && wn.style.display !== 'none';
-  dm.classList.toggle('has-news', both);
-  wn.classList.toggle('has-msg', both);
-}
+// (今日のひとこと + NEWS の連結 linkMsgNews は 2026-07-29 のひとこと音声化に伴い廃止)
 // 🆕 新機能のお知らせ: 一行カードを下から押上げて循環 (3件以上のとき)
 function renderNewFeatures(isManager) {
   const box = document.getElementById('new-features'), list = document.getElementById('nf-list');
@@ -1960,7 +1942,6 @@ async function init() {
   const mypageLbl = me.avatar_url ? 'マイページ' : 'アバター設定';
   let greetHtml = avaBlock
     + '<span class="greet-text">'
-    +   '<span class="greet-hk" id="greet-word"></span>'   // 今日のひとこと (loadDailyMessageで充填・未取得時は:emptyで非表示)
     +   '<span class="greet-name"><strong>' + escapeHtml(me.display_name) + '</strong>'
     +     (me.nickname ? '<span class="greet-nick">（' + escapeHtml(me.nickname) + '）</span>' : '')
     +   '</span>'
@@ -2314,7 +2295,7 @@ function setupFieldStaffTop() {
   }
   var firstGrid = document.querySelector('.grid.sec-msg');
   var parent = firstGrid ? firstGrid.parentElement : null;
-  var anchor = top || document.getElementById('whats-new') || document.getElementById('daily-msg');
+  var anchor = top || document.getElementById('whats-new');
   if (!parent || !anchor || anchor.parentElement !== parent) return;
   var ref = anchor;
   ['.grid.sec-msg', '.grid.sec-comm', '.grid.sec-report', '.grid.sec-health'].forEach(function (sel) {
