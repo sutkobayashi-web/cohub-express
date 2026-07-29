@@ -45,6 +45,21 @@
   .step.cur{background:#4338ca;color:#fff}
   .step.done{background:#059669;color:#fff}
   .hist{font-size:12px;border-left:3px solid #c7d2fe;padding:4px 0 4px 10px;margin:6px 0;color:#334155}
+  /* 詳細ポップアップ (2026-07-29: 最下段カード→モーダル化。一覧のすぐ上に出て確認しやすく)
+     ⚠️背景ごとスクロール(align-items:flex-start + overlayにoverflow-y)= タブレット横向きでも下部ボタンに届く
+     ⚠️背景クリックでは閉じない(スマホの誤タップで消える事故を避ける)。閉じるのは ✕ / 閉じるボタン / Escのみ */
+  .dmodal-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;justify-content:center;z-index:9998;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 12px}
+  .dmodal-bg.show{display:flex}
+  .dmodal{background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.28);width:100%;max-width:680px;margin:auto;max-height:none;overflow:visible}
+  .dmodal-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #e4eaf2;position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1}
+  .dmodal-head .t{flex:1;min-width:0;font-size:16px;font-weight:800;color:#4338ca}
+  .dmodal-x{border:none;background:#eef2ff;color:#3730a3;width:36px;height:36px;border-radius:50%;font-size:18px;font-weight:800;cursor:pointer;flex-shrink:0;line-height:1}
+  .dmodal-x:active{transform:translateY(1px)}
+  .dmodal-body{padding:16px}
+  .dmodal-foot{padding:10px 16px 16px;text-align:right}
+  /* コメント欄はiOSの自動ズーム回避のため16px以上にする */
+  .dmodal-body input[type="text"],.dmodal-body input:not([type]){font-size:16px}
+  @media(max-width:600px){.dmodal-body{padding:13px}.dmodal-head{padding:12px 13px}}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999}
   .overlay-card{background:#fff;border-radius:14px;padding:20px 26px;text-align:center;min-width:240px}
   .spinner{width:30px;height:30px;border:4px solid #d9e1ec;border-top-color:#4338ca;border-radius:50%;margin:0 auto 10px;animation:spin 1s linear infinite}
@@ -104,7 +119,6 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div id="pendingMsg" class="msg"></div>
       <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>申請日</th><th>件名</th><th>種別</th><th>営業所</th><th>金額</th><th>承認ルート</th><th></th></tr></thead><tbody id="pendingBody"><tr><td colspan="7" class="small">読み込み中…</td></tr></tbody></table></div>
     </div>
-    <div class="card"><div class="card-title">詳細</div><div id="detailPending" class="small">一覧の「詳細」を押してください。</div></div>
   </div>
 
   <!-- 一覧 -->
@@ -120,7 +134,6 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div id="listMsg" class="msg"></div>
       <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>申請日</th><th>申請番号</th><th>件名</th><th>種別</th><th>営業所</th><th>金額</th><th>承認ルート</th><th>状態</th><th></th></tr></thead><tbody id="listBody"><tr><td colspan="9" class="small">読み込み中…</td></tr></tbody></table></div>
     </div>
-    <div class="card"><div class="card-title">詳細</div><div id="detailList" class="small">一覧の「詳細」を押してください。</div></div>
   </div>
 
   <!-- ルート管理 (管理職) -->
@@ -167,6 +180,18 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     </div>
   </div>
 </div>
+<!-- 申請の詳細ポップアップ (一覧の「詳細」で開く) -->
+<div id="detailModal" class="dmodal-bg" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <div class="dmodal">
+    <div class="dmodal-head">
+      <div class="t" id="detailTitle">詳細</div>
+      <button type="button" class="dmodal-x" onclick="closeDetail()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="dmodal-body" id="detailBody"></div>
+    <div class="dmodal-foot"><button type="button" class="btn btn-gray" onclick="closeDetail()">閉じる</button></div>
+  </div>
+</div>
+
 <div id="overlay" class="overlay"><div class="overlay-card"><div class="spinner"></div><div id="overlayText">処理中…</div></div></div>
 
 <script>
@@ -441,11 +466,22 @@ function attLink(url,name){
   }
   return '<a href="'+esc(u)+'" target="_blank" rel="noopener">📄 '+esc(nm)+'</a>';
 }
+// ===== 詳細ポップアップ (2026-07-29: 最下段カード→モーダル化) =====
+// 一覧の「詳細」を押すたびに画面最下部までスクロールして探すのが手間だったため、その場でポップアップ表示にする。
+function openDetail(){ document.getElementById('detailModal').classList.add('show'); document.body.style.overflow='hidden'; }
+function closeDetail(){ document.getElementById('detailModal').classList.remove('show'); document.body.style.overflow=''; }
+// Escで閉じる (背景クリックでは閉じない=入力中の誤タップ事故を避ける)
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&document.getElementById('detailModal').classList.contains('show')) closeDetail(); });
+
 async function showDetail(id,target){
-  const box=$('detail'+target);box.innerHTML='<div class="small">読み込み中…</div>';
+  const box=$('detailBody');
+  $('detailTitle').textContent='詳細';
+  box.innerHTML='<div class="small">読み込み中…</div>';
+  openDetail();
   const d=await api('/'+encodeURIComponent(id));
   if(!d.success){box.innerHTML='<div class="small">取得失敗</div>';return;}
   const x=d.item;
+  $('detailTitle').textContent=x.subject||'詳細';
   const steps=(x._chain||[]).map((s,i)=>'<span class="step '+(i<x.cur_step?'done':i===x.cur_step&&x.status==='申請中'?'cur':'')+'">'+(i+1)+'.'+esc(s.role_name)+'('+esc(s.name)+')</span>').join(' → ');
   const att=(x.attachments||[]).map(a=>attLink(a.url,a.name)).join(' / ');
   const hist=(d.history||[]).map(h=>'<div class="hist"><b>'+esc(h.action)+'</b> '+esc(h.role||'')+' '+esc(h.actor_name||'')+' <span class="small">'+esc((h.created_at||'').slice(0,16))+'</span>'+(h.note?'<br>'+esc(h.note):'')+'</div>').join('');
@@ -488,7 +524,7 @@ async function delApp(id,target){
   const d=await api('/'+encodeURIComponent(id),{method:'DELETE'});
   busy(false);
   if(!d.success){showMsg('actMsg',d.msg||'削除に失敗しました','error');return;}
-  $('detail'+target).innerHTML='<div class="small">削除しました。</div>';
+  closeDetail();   // 削除できたらポップアップは閉じて一覧に戻す
   if(target==='Pending')loadPending(); else loadList();
   loadPendingCount();
 }
@@ -499,7 +535,7 @@ async function delAppRow(id){
   const d=await api('/'+encodeURIComponent(id),{method:'DELETE'});
   busy(false);
   if(!d.success){showMsg('listMsg',d.msg||'削除に失敗しました','error');return;}
-  $('detailList').innerHTML='<div class="small">一覧の「詳細」を押してください。</div>';
+  closeDetail();
   loadList();loadPendingCount();
 }
 
