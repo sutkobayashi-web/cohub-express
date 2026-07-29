@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>簡単モード | CoWell</title>
+<!-- タブレット専用manifest: ログイン後もタブレットアプリとして一貫させる -->
+<link rel="manifest" href="/tablet-manifest.json?v=1">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CoWellタブレット">
+<link rel="apple-touch-icon" href="/img/icon-192.png">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;background:#bceae3;color:#123;font-size:20px;overflow:hidden}
+  .wrap{max-width:1100px;margin:0 auto;height:100%;display:flex;flex-direction:column;padding:8px 14px 8px;overflow:hidden}
+  /* 最下段 著作権(ビズテラス ロゴ入り) */
+  .tb-copyright{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 0 1px;margin-top:3px;font-size:12px;font-weight:700;color:#3f5750;opacity:.8}
+  .tb-copyright img{height:15px;width:auto}
+  /* ヘッダー */
+  .top{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px}
+  /* 左ガター(掲示板の左列と同幅)=名前/横メニューを掲示板の左端に揃える(直線性)。アバターはタブの真上。 */
+  /* min-height=アバターの高さ。顔写真は後から読み込まれるので、先に場所を空けておかないと
+     読み込み完了の瞬間にヘッダーが伸びて下のタブ行が下がる(2026-07-26) */
+  .top-gutter{flex:0 0 226px;min-height:46px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px}
+  /* ヘッダー左=名前＋簡単モードの下に横メニューを縦積み(葵はログアウトの左隣) */
+  .topleft{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;gap:5px}
+  .topleft .who{flex:0 0 auto}
+  .who{flex:1;font-size:26px;font-weight:900;color:#0f5c46;line-height:1.2;display:flex;align-items:center;width:100%}
+  .who small{display:block;font-size:15px;color:#5b6b78;font-weight:700}
+  .who-av{width:46px;height:46px;border-radius:50%;object-fit:cover;flex:0 0 auto;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.15);background:#eef}
+  .btn-logout{background:#dc2626;color:#fff;border:none;border-radius:9px;padding:4px 11px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 2px 0 #a41a1a;vertical-align:middle;margin-left:0}
+  .btn-logout:active{transform:translateY(2px);box-shadow:0 1px 0 #a41a1a}
+  .menu-link{display:inline-block;margin-left:6px;font-size:14px;color:#2563eb;text-decoration:underline;background:none;border:none;cursor:pointer}
+  /* 表示切替(かんたん⇔詳しい)ボタン: 名前の横 2026-07-09 */
+  .who-actions{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
+  .view-switch{display:inline-block;vertical-align:middle;margin-left:0;font-size:14px;font-weight:800;color:#1f6fd0;background:#eef4fb;border:2px solid #cfe0ee;border-radius:12px;padding:6px 12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+  .view-switch:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+  /* 2カラム: 左=葵(常時表示) / 右=操作パネル */
+  .main{display:flex;flex-direction:row;gap:8px;flex:1;min-height:0}
+  /* 左列: 上=切替タブ / 下=葵(掲示板の左下) */
+  .boardside{flex:0 0 auto;width:226px;display:flex;flex-direction:column;gap:8px;min-height:0}
+  .boardside .aoi-col{margin-top:auto;flex:0 0 auto}
+  /* 横メニュー(ヘッダー左・簡単モードの下)。左寄せ・はみ出しは横スクロール */
+  #stripHost{flex:0 1 auto;min-width:0;align-self:flex-start;max-width:100%}
+  /* 葵に合わせ夏の飾りも縮小(大きすぎて散らかるのを防ぐ) */
+
+  /* ☀️夏バージョン: 画面全体を薄いターコイズ(body)に。葵の周りの枠は無し(aoi-col/aoiWrapとも背景なし)。
+     発話動画は白背景を同じターコイズにベイク済・待機stillは透過ゆえ、画面と葵がシームレスに繋がる(青被り無し・白箱無し・枠無し)。 */
+  .aoi-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:0;position:relative}
+  #aoiWrap{flex:0 0 auto;min-height:0;width:214px;height:380px;display:flex;align-items:flex-end;justify-content:center;position:relative;overflow:hidden;border-radius:14px}
+  /* 動画クリップ下部(約85〜92%)にAI生成の文字化けテロップが焼き込まれているため、下16%を隠して非表示に。
+     静止画・動画の両方へ同率で適用し、切替時に高さがズレないようにする。round=角丸維持。 */
+  /* テロップ隠しは直線クリップのみ(角丸クリップは動画でカクつき/黒影の原因→枠側で角丸)。 */
+  /* 葵は左配置なので左右反転(掲示板側=右を向く)。枠/飾りは反転しない。 */
+  #aoiStill,#aoiVid{max-height:100%;max-width:100%;width:auto;height:auto;display:block;position:relative;z-index:2;transform:scaleX(-1)}
+  /* clip-path廃止(再生中の黒影/カクつき対策)。動画下部の文字化けテロップは背景色(夏ターコイズ)バーで覆って隠す。 */
+  #aoiWrap::after{display:none}  /* 全身版はテロップ焼込み無し・足元を隠さない */
+  /* 夏の飾り(葵の四隅・音や操作を妨げない装飾レイヤー) */
+
+
+  @keyframes seSway{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+  @keyframes seSun{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.1);opacity:1}}
+
+
+
+  /* ☀️刷新: パネルも透明化し画面全体をターコイズに。カード/入力は各自の背景で可読性維持。 */
+  .panel{flex:1 1 auto;background:transparent;border-radius:22px;padding:6px 4px;overflow:auto;min-height:0}
+  /* 掲示板モード=パネルを縦フルに使い、ページャーを常に画面内に収める(モーダルには影響させない) */
+  #panelBody.boardmode{display:flex;flex-direction:column;height:100%;min-height:0}
+  #panelBody.boardmode #guidanceBanner{flex:0 0 auto}
+  #panelBody.boardmode #boardHost{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column}
+  .bubble{display:none}   /* 吹き出し廃止(可変高さでレイアウトが崩れるため)。案内は音声主体。 */
+  .bubble:before{content:"";position:absolute;bottom:-16px;left:40px;border:8px solid transparent;border-top-color:#7fd4b6}
+  .bubble:after{content:"";position:absolute;bottom:-11px;left:42px;border:6px solid transparent;border-top-color:#fff}
+  /* カード(右パネル・2x2) */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{position:relative;border:none;border-radius:20px;padding:18px 12px;font-size:23px;font-weight:900;color:#fff;cursor:pointer;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-shadow:0 5px 0 rgba(0,0,0,.18)}
+  .card:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+  .card .ico{font-size:44px;line-height:1}
+  .c-health{background:linear-gradient(135deg,#f0662f,#e0431f)}
+  .c-report{background:linear-gradient(135deg,#2f9ad8,#1f6fd0)}
+  .c-news{background:linear-gradient(135deg,#d9932a,#c06f10)}
+  .c-msg{background:linear-gradient(135deg,#6d55c8,#4f39a8)}
+  .c-wellness{background:linear-gradient(135deg,#34d399,#059669)}
+  .c-mypage{background:linear-gradient(135deg,#64748b,#334155)}
+  .c-kiko{background:linear-gradient(135deg,#0891b2,#0e5a8a)}
+  .c-arch{background:linear-gradient(135deg,#a1836a,#7d6248)}
+  /* 帰庫点呼(乗務後) 2026-07-09 */
+  .kiko-sec{margin-bottom:16px}
+  .kiko-q{font-size:19px;font-weight:800;color:#1f2b36;margin:0 0 10px}
+  .kiko-opts{display:flex;gap:10px;flex-wrap:wrap}
+  .kiko-opt{flex:1;min-width:130px;padding:18px 12px;font-size:21px;font-weight:800;border:2px solid #cfd8e0;border-radius:16px;background:#fff;color:#334155;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.1)}
+  .kiko-opt.sel{border-color:#0ea5e9;background:#e0f2fe;color:#075985}
+  .kiko-opt.ok.sel{border-color:#059669;background:#dcfce7;color:#065f46}
+  .kiko-opt.ng.sel{border-color:#dc2626;background:#fee2e2;color:#991b1b}
+  .kiko-opt:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
+  .fat-lead{font-size:15px;font-weight:600;color:#64748b;margin:-2px 0 8px}
+  .fat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .fat-btn{padding:14px 0;font-size:21px;font-weight:800;border:2px solid #cfd8e0;border-radius:12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+  .fat-btn.sel{outline:3px solid #0ea5e9;outline-offset:-2px;transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
+  .fat-ends{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#94a3b8;margin:4px 2px 0}
+  .kiko-note{width:100%;box-sizing:border-box;margin-top:10px;font-size:18px;padding:12px;border:2px solid #cfd8e0;border-radius:12px;min-height:60px;background:#fff}
+  /* マイページ(かんたんモード) 2026-07-09 */
+  .mp-head{display:flex;align-items:center;gap:14px;padding:2px 2px 14px;border-bottom:1px solid #e5e9ef;margin-bottom:16px}
+  .mp-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.15);flex:0 0 auto;background:#eef}
+  .mp-name{font-size:22px;font-weight:800;color:#1f2b36;line-height:1.2}
+  .mp-name small{display:block;font-size:14px;color:#6b7a86;font-weight:600;margin-top:3px}
+  .mp-title{font-size:17px;font-weight:800;color:#475569;margin:0 0 12px}
+  .mp-lang{display:block;width:100%;text-align:left;padding:16px 18px;margin-bottom:10px;border:2px solid #cfd8e0;border-radius:16px;background:#fff;font-size:22px;font-weight:800;color:#334155;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.08)}
+  .mp-lang.on{border-color:#0f766e;background:#f0fdfa;color:#0f766e}
+  .mp-lang:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+  .mp-sec{border:1px solid #e5e9ef;border-radius:16px;padding:14px 16px;margin-bottom:14px;background:#fbfcfe}
+  .mp-h{font-size:18px;font-weight:800;color:#334155;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+  .mp-desc{font-size:13px;color:#6b7a86;margin:0 0 10px;line-height:1.5}
+  .mp-in{width:100%;box-sizing:border-box;font-size:20px;padding:13px 14px;border:2px solid #cfd8e0;border-radius:14px;margin-bottom:10px;background:#fff}
+  .mp-save{display:inline-block;padding:13px 24px;border:none;border-radius:14px;background:#0f766e;color:#fff;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.12)}
+  .mp-save:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.12)}
+  .mp-msg{font-size:14px;margin-top:8px;min-height:18px;font-weight:700}
+  .mp-msg.ok{color:#15803d}.mp-msg.err{color:#dc2626}
+  .mp-link{display:block;width:100%;text-align:left;padding:15px 16px;border:2px solid #cfd8e0;border-radius:14px;background:#fff;font-size:18px;font-weight:700;color:#1f6fd0;cursor:pointer}
+  /* 発話後のみ表示。葵の下端に重ねて上帯の高さを消費しない(掲示板を広く保つ) */
+  .replay-btn{position:absolute;bottom:0;left:0;right:0;margin:0 auto;width:max-content;background:#eef4fb;color:#1f6fd0;border:1.5px solid #cfe0ee;border-radius:9px;padding:2px 8px;font-size:10px;font-weight:800;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.12);z-index:4}
+  .replay-btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.12)}
+  /* 健康サブメニュー: 3列・小さめ */
+  .hgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .hgrid .card{min-height:92px;font-size:17px;padding:10px 6px;gap:4px;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+  .hgrid .card .ico{font-size:32px}
+  .hgrid .card .hm-face{width:40px;height:40px;border-radius:50%;object-fit:cover;object-position:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  @media (max-width:640px){ .hgrid{grid-template-columns:1fr 1fr} }
+  .pill{position:absolute;top:12px;right:12px;background:#fff;color:#c0392b;font-size:18px;font-weight:900;border-radius:999px;padding:4px 14px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+  .pill.ok{color:#0a7d3f}
+  /* パネル内フローの見出し */
+  .ptop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+  .mtitle{font-size:23px;font-weight:900;color:#0f5c46}
+  .btn-close{background:#64748b;color:#fff;border:none;border-radius:14px;padding:10px 16px;font-size:19px;font-weight:900;cursor:pointer;white-space:nowrap}
+  .q{font-size:30px;font-weight:900;line-height:1.4;margin:10px 0 18px;text-align:center}
+  .opts{display:flex;flex-direction:column;gap:14px}
+  .opt{border:3px solid #cfe0ee;background:#f4f9ff;border-radius:20px;padding:20px;font-size:26px;font-weight:900;color:#123;cursor:pointer;text-align:center}
+  .opt:active{background:#dcecff;transform:translateY(2px)}
+  .opt.yes{border-color:#8fd4b6;background:#eefaf3}
+  .opt.no{border-color:#f2c0c0;background:#fdeeee}
+  .big-in{width:100%;font-size:30px;padding:16px;border:3px solid #cfe0ee;border-radius:18px;text-align:center;font-weight:900;background:#fff}
+  textarea.big-in{min-height:150px;text-align:left;line-height:1.5}
+  .btn-go{width:100%;background:#0f9d63;color:#fff;border:none;border-radius:20px;padding:20px;font-size:26px;font-weight:900;cursor:pointer;box-shadow:0 5px 0 #0a7a4c;margin-top:8px}
+  .btn-go:active{transform:translateY(3px);box-shadow:0 2px 0 #0a7a4c}
+  .btn-sub{background:#e2e8f0;color:#333;box-shadow:0 5px 0 #b7c0cc}
+  .num-row{display:flex;gap:12px;justify-content:center;align-items:flex-end;flex-wrap:wrap;margin:8px 0 16px}
+  .num-box{text-align:center}
+  .num-box label{display:block;font-size:18px;font-weight:800;color:#556;margin-bottom:6px}
+  .stepper{display:flex;align-items:center;gap:8px}
+  .stepper button{width:56px;height:56px;border:none;border-radius:14px;background:#2f7ed8;color:#fff;font-size:30px;font-weight:900;cursor:pointer}
+  .stepper input{width:96px}
+  .listitem{border:2px solid #e3ebf3;border-radius:16px;padding:16px;margin-bottom:12px;background:#fbfdff}
+  .listitem .ti{font-size:22px;font-weight:900;color:#12304a;margin-bottom:6px}
+  .listitem .bd{font-size:20px;line-height:1.55;white-space:pre-wrap;color:#25384a}
+  .listitem .mt{font-size:15px;color:#7488}
+  .empty{font-size:22px;color:#6b7a88;text-align:center;padding:26px}
+  /* 運動記録: 種目の大ボタン */
+  .ex-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:6px 0}
+  .ex-t{border:3px solid #cfe0ee;background:#f4f9ff;border-radius:18px;padding:12px 4px;font-size:19px;font-weight:900;color:#123;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .ex-t .exi{font-size:34px;line-height:1}
+  .ex-t.on{border-color:#0f9d63;background:#e9f9f1;box-shadow:0 3px 0 #0a7a4c}
+  .ex-t:active{transform:translateY(2px)}
+  @media (max-width:640px){ .ex-grid{grid-template-columns:1fr 1fr} }
+  /* 健康ボード */
+  .bd-tabs{display:flex;gap:8px;margin-bottom:12px}
+  .bd-tab{flex:1;padding:12px;border-radius:14px;border:3px solid #d1fae5;background:#fff;font-size:19px;font-weight:900;cursor:pointer;color:#64748b}
+  .bd-tab.on{border-color:#059669;background:#ecfdf5;color:#065f46}
+  .bd-total{text-align:center;background:#f0fdf9;border:2px solid #a7f3d0;border-radius:18px;padding:16px;margin-bottom:12px}
+  .bd-total .bn{font-size:48px;font-weight:900;color:#059669;line-height:1}
+  .bd-total .bu{font-size:20px;margin-left:4px}
+  .bd-total .bs{font-size:18px;color:#475569;font-weight:800;margin-top:6px}
+  .bd-row{display:flex;align-items:center;gap:12px;padding:12px 6px;border-bottom:1px solid #eef2f7;font-size:22px}
+  .bd-row .bp{width:36px;text-align:center;font-weight:900}
+  .bd-row .bnk{flex:1;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bd-row .bct{font-weight:900;color:#059669}
+  .bd-me{background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:2px solid #6ee7b7;border-radius:18px;padding:14px;margin-top:12px}
+  .bd-mrow{display:flex;justify-content:space-around;text-align:center}
+  .bd-mrow .bmn{font-size:34px;font-weight:900;color:#047857}
+  .bd-mrow .bml{font-size:15px;color:#065f46;font-weight:800}
+  /* 栄養レポート */
+  .fr-sec{margin:12px 0}
+  .fr-sec h3{font-size:20px;margin:0 0 6px;color:#0f766e;font-weight:900;border-left:5px solid #0d9488;padding-left:10px}
+  .fr-sec p{margin:0;font-size:20px;line-height:1.7;white-space:pre-wrap}
+  .fr-next{margin:0;padding-left:0;list-style:none}
+  .fr-next li{background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:12px 14px;margin-bottom:8px;font-size:19px;line-height:1.6;color:#3730a3}
+  .fr-warn{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:12px 14px}
+  .fr-warn h3{color:#b45309;border-left-color:#f59e0b}
+  .fr-cheer{background:#f0fdfa;border:1px solid #99f6e4;border-radius:16px;padding:14px;font-size:20px;font-weight:800;color:#0f766e;margin-top:10px}
+  .done-wrap{text-align:center;padding:10px}
+  .done-wrap .big{font-size:32px;font-weight:900;color:#0a7d3f;margin:6px 0 18px}
+  /* スタート被せ */
+  #startCover{position:fixed;inset:0;background:linear-gradient(160deg,#0f766e,#0e7490);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:100;text-align:center;padding:24px}
+  #startCover img{width:190px;filter:drop-shadow(0 8px 14px rgba(0,0,0,.3))}
+  #startCover .msg{font-size:34px;font-weight:900;line-height:1.4}
+  #startCover .sub{font-size:20px;opacity:.9}
+  #startCover .tap{margin-top:10px;font-size:24px;font-weight:900;background:#ffffff;color:#0f766e;border-radius:999px;padding:18px 40px;box-shadow:0 6px 0 rgba(0,0,0,.25);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  @media (max-width:640px){
+    /* スマホ縦: 葵が大きすぎてボタンが全部見えない → 葵を小さく・カードを低くして6枚とも収める */
+    body{font-size:17px}   /* スマホは文字を少し小さめに(タブレットの特大文字はスマホでは大きすぎるため) */
+    .main{gap:6px}
+    .aoi-col{flex:0 0 auto}
+    #aoiWrap{width:72px;height:128px}   /* スマホは葵をさらに小型化(全身9:16) */
+    .bubble{font-size:17px;padding:12px 14px;min-height:58px}.bubble:before,.bubble:after{display:none}
+    /* 「もう一度聴く」は葵の下でなく右上へ(縦スペースを空けて設問エリアを広く) */
+    #replayBtn{position:absolute;top:0;right:0;margin:0;padding:7px 11px;font-size:14px;z-index:3}
+    .cards{gap:10px}
+    .card{font-size:17px;min-height:70px;padding:11px 8px;gap:6px}.card .ico{font-size:27px}
+    .who{font-size:18px}.who small{font-size:13px}
+    .btn-logout{font-size:12px;padding:4px 10px;margin-left:0}
+    .menu-link{font-size:13px}
+    .mtitle{font-size:19px}.btn-close{font-size:16px;padding:8px 12px}
+    .q{font-size:21px}.opt{font-size:19px;padding:16px}
+    .btn-go{font-size:21px;padding:16px}.btn-sub{font-size:19px}
+    .big-in{font-size:23px;padding:13px}
+    .empty{font-size:18px}
+  }
+  /* 簡易ページでは🌐言語切替ボタンは非表示(言語設定はマイページに集約) 2026-07-09 */
+  .cohub-lang-switch{ display:none !important; }
+  /* パーソナル掲示板(通達・連絡のサムネタイル) 2026-07-22 */
+  .board{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:6px}
+  .tile{position:relative;display:flex;flex-direction:column;text-align:left;background:#fff;border:2px solid #e2e8f0;border-radius:16px;overflow:hidden;padding:0;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.06);font-family:inherit}
+  .tnew{position:absolute;top:7px;right:7px;z-index:3;background:#dc2626;color:#fff;font-size:15px;font-weight:900;letter-spacing:.06em;padding:4px 12px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #fff;animation:newpulse 1.5s ease-in-out infinite}
+  @keyframes newpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  .tthumb{width:100%;height:112px;display:flex;align-items:center;justify-content:center;font-size:44px;color:#fff;background:#94a3b8;overflow:hidden}
+  .tthumb img{width:100%;height:100%;object-fit:cover}
+  .tthumb.tdoc{flex-direction:column;background:#eef2f7;color:#334155;font-size:34px;line-height:1.1}
+  .tthumb.tdoc .small{font-size:12px;margin-top:4px;padding:0 6px;text-align:center}
+  .tmeta{padding:9px 11px}
+  .ttitle{font-size:18px;font-weight:800;line-height:1.35;max-height:2.7em;overflow:hidden}
+  .tsub{margin-top:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .tbadge{font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px;color:#fff}
+  .tbadge.new{background:#1d4ed8}.tbadge.ack{background:#b91c1c}
+  .tdate{font-size:12px;color:#64748b;margin-left:auto}
+  .ttype{font-size:13px;font-weight:900;color:#fff;padding:4px 10px;text-align:left}
+  .tbadge.new{background:#dc2626}
+  /* 上段=横並びメニュー(既存機能)、下段=掲示板 のランディング 2026-07-22 */
+  .mstrip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;touch-action:pan-x;overscroll-behavior:contain}
+  .mchip{position:relative;flex:0 0 auto;border:none;border-radius:13px;padding:8px 11px;min-width:64px;color:#fff;font-size:12px;font-weight:900;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);font-family:inherit;white-space:nowrap}
+  .mchip:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+  .mchip .ico{font-size:22px;line-height:1}
+  .mchip .pill{top:2px;right:2px;font-size:11px;padding:2px 6px}
+  /* 朝夕の点呼ボタンを少し目立たせる(金リング+拡大) */
+  .mchip.tenko-btn{padding:9px 13px;min-width:76px;font-size:13px;box-shadow:0 4px 0 rgba(0,0,0,.22),0 0 0 3px #fcd34d,0 5px 14px rgba(0,0,0,.18)}
+  .mchip.tenko-btn .ico{font-size:25px}
+  .mchip.tenko-btn::before{content:"";position:absolute;inset:-3px;border-radius:16px;box-shadow:0 0 0 0 rgba(251,191,36,.55);animation:tenkoPulse 2.4s ease-out infinite;pointer-events:none}
+  @keyframes tenkoPulse{0%{box-shadow:0 0 0 0 rgba(251,191,36,.5)}70%,100%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
+  @media (prefers-reduced-motion:reduce){.mchip.tenko-btn::before{animation:none}}
+  /* ゾーン見出し */
+  .zonehd{font-size:20px;font-weight:900;color:#0f172a;margin:16px 2px 9px;display:flex;align-items:baseline;gap:9px}
+  .zonehd small{font-size:13px;font-weight:600;color:#64748b}
+  .zonehd.soc{color:#b45c8a}
+  /* みんなの投稿タイル */
+  .tile.soc{cursor:pointer}
+  /* AIヘルスアドバイザーのまとめ有りの目印(食事) */
+  .aibadge{position:absolute;top:6px;right:6px;z-index:3;background:#0f766e;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.35);border:1.5px solid #fff}
+  /* 詳細ポップアップ内のAIまとめカード */
+  .aicard{margin-top:12px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:14px;padding:14px 16px}
+  .aihd{font-weight:900;color:#047857;font-size:17px;margin-bottom:6px}
+  .aibody{font-size:18px;line-height:1.75;white-space:pre-wrap;text-align:left;color:#134e4a}
+  /* 栄養分析(詳細ページ buildNutritionBar 流用: 塗り絵風アイコングリッド) */
+  .nutri-card{margin:10px 0;padding:12px;background:#f8faf9;border-radius:14px;border:1px solid #e0f0e8}
+  .nutri-title{font-size:14px;font-weight:800;color:#1a3c34;margin-bottom:10px}
+  .nut-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:6px}
+  .nut-cell{min-width:0;border:1px solid #e4eaf2;border-radius:16px;padding:8px 5px 7px;text-align:center;background:#fbfdff;display:flex;flex-direction:column;align-items:center;height:100%}
+  .nut-ico{position:relative;width:50px;height:50px;margin:0 auto 4px}
+  .nut-ico .g{position:absolute;left:0;bottom:0;width:50px;height:50px;font-size:40px;line-height:50px;text-align:center}
+  .nut-ico .base{filter:grayscale(1);opacity:.20}
+  .nut-ico .clip{position:absolute;left:0;bottom:0;width:50px;overflow:hidden;transition:height .5s ease}
+  .nut-name{font-size:13px;font-weight:800;color:#334155}
+  .nut-val{font-size:15px;font-weight:800;color:#0f172a;margin-top:2px}
+  .nut-val .t{font-size:10px;font-weight:600;color:#94a3b8}
+  .nut-pct{font-size:13px;font-weight:800;margin-top:auto;padding:3px 8px;border-radius:999px;display:inline-block;max-width:100%;border:1px solid transparent;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+  .nut-pct.sev1{font-size:13px}
+  .nut-pct.sev2{font-size:14px;font-weight:900}
+  .nut-pct.sev3{font-size:15px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px rgba(220,38,38,.3)}
+  .nut-pct.sev4{font-size:16px;font-weight:900;letter-spacing:.3px;box-shadow:0 2px 9px rgba(153,27,27,.45);animation:nutAlarm 1s ease-in-out infinite}
+  @keyframes nutAlarm{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  .nutri-conf{margin-top:8px;text-align:center}
+  .nutri-conf .badge{font-size:11px;padding:3px 9px;border-radius:10px;font-weight:700;display:inline-block}
+  .nutri-foot{text-align:right;font-size:10px;color:#aaa;margin-top:6px}
+  /* AIヘルスアドバイザーを葵の位置に(ヘッダーの葵枠と入れ替え・口パク) */
+  /* ヘルスも葵と同じバストアップ枠(214x200・ターコイズ・丸/白フチ無し・おへそ辺りまで)に統一 */
+  .adv-head{position:relative;width:214px;height:380px;margin:0 auto;border-radius:14px;overflow:hidden;flex:0 0 auto}
+  .adv-head::before{display:none}
+  .adv-head::after{display:none}
+  .adv-head.speaking::before{animation:none}
+  @keyframes advPulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.28);opacity:0}}
+  .advisor-avatar-big,.advisor-avatar-vid{position:absolute;inset:0;width:100%;height:100%;border-radius:0;object-fit:contain;object-position:bottom center;border:none;box-shadow:none;background:transparent;display:block;transform:scaleX(-1)}
+  .advisor-avatar-vid{display:none}
+  .adv-head.vid-on .advisor-avatar-vid{display:block}
+  .adv-head.vid-on .advisor-avatar-big{visibility:hidden}
+  .adv-head.speaking:not(.vid-on) .advisor-avatar-big{animation:advBob .9s ease-in-out infinite}
+  @keyframes advBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .tthumbwrap{position:relative}
+  .tthumb.soc-txt{background:#eef2f7;color:#9aa6b4;font-size:40px}
+  .meal{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;font-weight:800;padding:3px 9px;border-radius:999px;z-index:2}
+  .ttitle.sm{font-size:15.5px;font-weight:700;line-height:1.42;max-height:2.9em;overflow:hidden}
+  .anon{font-size:12.5px;font-weight:800;color:#8a7d66}
+  .likebtn{margin-left:auto;background:#fff;border:1.5px solid #e5b3c4;color:#d23b6a;font-weight:900;font-size:16px;padding:5px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+  .likebtn.on{background:#ffe0ec;border-color:#d23b6a}
+  .likebtn:active{transform:scale(.94)}
+  .likebtn .n{color:#4a3f2e}
+  .circleband{display:flex;align-items:center;gap:7px;background:linear-gradient(90deg,#4f9457,#3a9d5a);color:#fff;font-weight:900;font-size:14px;padding:8px 13px}
+  /* DM=付箋(ポストイット)風。黄色い紙に本文。未読のみ掲示板に貼付 */
+  .mcol .tile.postit{background:linear-gradient(180deg,#fff7ad,#ffe882);border:1px solid #efd968;border-radius:3px 3px 8px 8px;box-shadow:0 7px 14px rgba(130,105,20,.3);overflow:hidden}
+  .postit .pi-body{padding:15px 13px 6px;font-size:15px;font-weight:700;line-height:1.5;color:#4a3d0c;white-space:pre-wrap;word-break:break-word;max-height:8.5em;overflow:hidden}
+  .postit .pi-from{padding:0 13px 12px;font-size:12.5px;font-weight:800;color:#8a761f}
+  /* 食事投稿/ひろばの名前帯(サークルの部名帯と同じ見せ方) */
+  .foodband{display:flex;align-items:center;gap:7px;background:linear-gradient(90deg,#e58aa9,#d23b6a);color:#fff;font-weight:900;font-size:14px;padding:8px 13px}
+  .foodband.hiroba{background:linear-gradient(90deg,#b483cf,#9a5bb8)}
+  .foodband.boardband{background:linear-gradient(90deg,#c9a86a,#a1836a)}
+  /* 「報告書を書く」＝掲示物ではなく操作ボタン。白地＋帯の掲示カードとは別物に見せる(2026-07-26) */
+  .tile.act-tile{background:linear-gradient(135deg,#ef4444,#a01818);border:2px dashed #fecaca;color:#fff;padding:12px 13px;box-shadow:0 5px 0 rgba(90,10,10,.45),0 6px 16px rgba(0,0,0,.22)}
+  .tile.act-tile:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(90,10,10,.45)}
+  .act-in{display:flex;align-items:center;gap:10px}
+  .act-ico{flex:0 0 auto;font-size:29px;line-height:1;background:rgba(255,255,255,.2);border-radius:12px;padding:6px 9px}
+  .act-tx{flex:1 1 auto;min-width:0}
+  .act-t{font-size:16.5px;font-weight:900;line-height:1.3;letter-spacing:.01em}
+  .act-s{font-size:12px;font-weight:700;opacity:.92;margin-top:3px}
+  .act-arw{flex:0 0 auto;font-size:28px;font-weight:900;opacity:.85;line-height:1}
+  .act-note{margin-top:9px;font-size:11.5px;font-weight:700;line-height:1.45;background:rgba(255,255,255,.17);border-radius:9px;padding:6px 9px}
+  .foodband.dmgband{background:linear-gradient(90deg,#f0873f,#c2410c)}
+  /* アプリ内PDFビューア (別タブだとキオスク/PWAで戻れないため) 2026-07-26 */
+  .pdfov{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;flex-direction:column}
+  .pdfbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 12px;background:#0369a1;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+  .pdft{flex:1 1 auto;min-width:0;font-size:16px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pdfx{flex:0 0 auto;border:none;border-radius:12px;background:#fff;color:#0369a1;font-family:inherit;font-size:16px;font-weight:900;padding:10px 18px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+  .pdfx:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+  /* 「元のPDFをひらく」= ページ画像ではなく本物のPDFを別タブで開く導線 (2026-07-26) */
+  .pdfx.orig{background:rgba(255,255,255,.16);color:#fff;border:2px solid rgba(255,255,255,.65);text-decoration:none;box-shadow:none}
+  /* PDF添付の投稿カード: モーダル内の「資料をひらく」ボタン */
+  .pdfopen{display:flex;align-items:center;gap:10px;width:100%;margin-top:12px;border:none;border-radius:16px;background:linear-gradient(180deg,#0ea5e9,#0369a1);color:#fff;font-family:inherit;font-size:20px;font-weight:900;padding:14px 16px;cursor:pointer;box-shadow:0 4px 0 rgba(3,105,161,.5)}
+  .pdfopen:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(3,105,161,.5)}
+  .pdfshot{display:block;width:100%;max-width:520px;margin:0 auto;border-radius:14px;border:1px solid #cbd5e1;background:#fff;cursor:pointer}
+  .pdfpages{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .pdfpg{width:100%;max-width:900px;height:auto;display:block;border-radius:8px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+  .pdfload{color:#cbd5e1;font-size:17px;font-weight:800;text-align:center;padding:40px 20px;line-height:1.7}
+  /* 事故カードのサムネ右下バッジ(枚数 / 動画あり) 2026-07-26 */
+  .dmg-cnt{position:absolute;right:6px;bottom:6px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:2px 8px;pointer-events:none}
+  .foodband.safband{background:linear-gradient(90deg,#4a95c4,#0369a1)}
+  /* 未読ゼロ表示 & 読んだ通達アーカイブ(たたむ) */
+  .alldone{background:#eef7f0;border:1px solid #cfe6d6;color:#2f7d52;font-weight:800;font-size:16px;padding:15px 16px;border-radius:14px;text-align:center}
+  .archtoggle{display:block;width:100%;margin:12px 0 2px;background:#fbf9f3;border:1.5px solid #ddd5c6;color:#6b6151;font-weight:800;font-size:15px;padding:11px 16px;border-radius:12px;cursor:pointer;font-family:inherit;text-align:left}
+  .archtoggle:active{background:#f2eee2}
+  .board.arch{opacity:.72;margin-top:8px}
+  /* コルクボード＆1画面ページ送り 2026-07-22 */
+  #boardHost.cork{background-color:#caa877;
+    background-image:radial-gradient(circle at 20% 30%,rgba(120,84,40,.16) 0 1.3px,transparent 1.6px),radial-gradient(circle at 65% 70%,rgba(120,84,40,.16) 0 1.3px,transparent 1.6px),radial-gradient(circle at 82% 22%,rgba(120,84,40,.14) 0 1.1px,transparent 1.4px);
+    background-size:26px 26px,31px 31px,23px 23px;border-radius:16px;padding:11px 12px 9px;
+    box-shadow:inset 0 0 44px rgba(80,52,22,.4),inset 0 0 0 2px rgba(90,60,28,.28)}
+  /* 2タブ切替(掲示板の外・左に縦並び) */
+  /* タブは2列グリッド。5ボタンでも3行に収まり、葵の縦スペースを奪わない(全身が切れない) 2026-07-25 */
+  /* ⚠️ボタンの寸法は固定。文字が2行になったり件数バッジが出たりで高さが変わると行がズレて
+     「押したい場所が動く」ので、min-height を与えて常に同じ位置に置く(2026-07-26) */
+  .pgtabs{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}
+  .pgtab{min-height:62px}      /* ← 4つのタブは同じ高さ(文字の折返し/バッジで動かさない・文字拡大時は伸びる) */
+  .pgtab,.pgbtn-menu{flex:0 0 auto;width:100%;border:none;border-radius:12px;font-family:inherit;font-weight:900;font-size:12px;line-height:1.2;padding:10px 6px;cursor:pointer;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;position:relative;text-decoration:none;overflow:hidden}
+  .pgtab .pgti,.pgbtn-menu .pgti{font-size:21px;line-height:1}
+  .pgbtn-menu{background:#0d9488;grid-column:1/-1}   /* 「何を食べようか」は横いっぱい(2列ぶち抜き) */
+  .pgbtn-menu .mface{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:center;border:1.5px solid #fff;flex:0 0 auto}
+  .pgbtn-menu:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.2)}
+  .pgtab.tab-off{background:#b91c1c}
+  .pgtab.tab-soc{background:#3a9d5a}
+  .pgtab.tab-acc{background:#c2410c}
+  .pgtab.tab-saf{background:#0369a1}
+  /* 掲示板ごとに下地の色を変える=いま何の板を見ているか一目で判る(2026-07-25) */
+  #boardHost.cork.bt-official{background-color:#b5837e}
+  #boardHost.cork.bt-social{background-color:#caa877}
+  #boardHost.cork.bt-damage{background-color:#c98a52}
+  #boardHost.cork.bt-safety{background-color:#8ba3b5}
+  .pgtab:not(.on){opacity:.46;box-shadow:0 1px 0 rgba(0,0,0,.2)}
+  .pgtab:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.2)}
+  .pgtnew{position:absolute;top:5px;right:5px;background:#fff;color:#b91c1c;font-size:12px;font-weight:900;border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .pghint{flex:0 0 auto;min-height:16px;color:#fff;font-size:13.5px;font-weight:800;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.35);padding:4px 4px 0}
+  .pgviewport{flex:1 1 auto;min-height:0;overflow:hidden;position:relative}
+  .pgtrack{display:flex;height:100%;transition:transform .35s cubic-bezier(.4,.1,.2,1)}
+  /* マソンリー: 1ページ=複数列、カードは中身で可変高さ(コルクボードの大小の付箋) */
+  .pg{min-width:100%;height:100%;display:flex;gap:12px;padding:6px 2px 4px;align-items:flex-start;overflow:hidden}
+  .mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:11px}
+  /* 固定グリッド(労働安全=3列×2行)。カードを均等高さに伸ばす 2026-07-26 */
+  .pg.grid3x2{align-items:stretch}
+  .pg.grid3x2 .mcol{display:grid;grid-template-rows:repeat(2,minmax(0,1fr));gap:11px;height:100%;min-height:0}
+  .pg.grid3x2 .tile{height:100%;min-height:0}
+  /* ★サムネをカード全面に。帯とタイトルは重ねて表示し、PDFのプレビューをセル一杯まで大きくする */
+  .pg.grid3x2 .saf-tile{position:relative;overflow:hidden}
+  .pg.grid3x2 .saf-tile .foodband{position:absolute;top:0;left:0;right:0;z-index:2;font-size:12.5px;padding:5px 10px;opacity:.95}
+  .pg.grid3x2 .saf-tile .tthumbwrap{position:absolute;inset:0;z-index:1;display:flex}
+  .pg.grid3x2 .saf-tile .tthumb{flex:1 1 auto;width:100%;height:100%}
+  .pg.grid3x2 .saf-tile .tmeta{position:absolute;left:0;right:0;bottom:0;z-index:2;background:rgba(255,255,255,.94);padding:6px 10px 7px;border-top:1px solid rgba(3,105,161,.25)}
+  .pg.grid3x2 .saf-tile .saf-note{display:none}          /* 説明文は隠して高さをプレビューに回す */
+  .pg.grid3x2 .saf-tile .ttitle.sm{font-size:14px;max-height:2.9em}
+  .pg.grid3x2 .saf-tile .tsub{margin-top:4px}
+  .pg.grid3x2 .saf-tile .dmg-cnt{top:36px;bottom:auto}   /* 📄PDFバッジは帯の下へ逃がす */
+  /* 資料(PDF)のサムネ: A4縦をセル(横長)に contain すると左右が余って小さく見える。
+     上端そろえの cover で全面に敷き、見出し部分が読めるようにする(全体は開けば見られる) */
+  .tthumb.tdoc img{object-fit:cover;object-position:top center;background:#fff}
+  .saf-note{margin-top:6px;font-size:13px;line-height:1.45;color:#475569;max-height:4.4em;overflow:hidden}
+  /* コルクボードから浮く立体感: 柔らかいドロップシャドウ(暖色寄り) */
+  .mcol .tile{position:relative;margin:0;box-shadow:0 8px 18px rgba(45,30,10,.34),0 2px 5px rgba(0,0,0,.22)}
+  .mcol .tile .tthumb{height:90px;flex:none}
+  .mcol .tile .tthumb.soc-txt{height:56px}
+  /* カード内は上限まで(小さい投稿=小カード/長文=大カードでメリハリ)。続きはタップで全文。約90%サイズ(タブレット収まり優先・PCは余裕) */
+  .mcol .tile .ttitle{max-height:3.4em;overflow:hidden;font-size:16px}
+  .mcol .tile .ttitle.sm{max-height:7em;overflow:hidden;font-size:14px}
+  .mcol .tile .tmeta{padding:6px 9px}
+  .mcol .tile .foodband,.mcol .tile .circleband{padding:5px 11px;font-size:12px}
+  /* ピンで留めた感じ: 上端中央の画鋲＋わずかな傾き */
+  .mcol .tile::before{content:"";position:absolute;top:5px;left:50%;transform:translateX(-50%);width:15px;height:15px;border-radius:50%;z-index:6;
+    background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.9),transparent 46%),#c0392b;box-shadow:0 2px 4px rgba(0,0,0,.4),inset 0 -2px 3px rgba(0,0,0,.3)}
+  .mcol .tile:nth-child(3n+1){transform:rotate(-.6deg)}
+  .mcol .tile:nth-child(3n+2){transform:rotate(.5deg)}
+  .mcol .tile:nth-child(3n){transform:rotate(-.3deg)}
+  @media (prefers-reduced-motion:reduce){.pgtrack{transition:none}}
+  .pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px}
+  .pnav{background:linear-gradient(180deg,#fffdf6,#e9e0cd);border:1px solid rgba(120,90,50,.4);border-radius:11px;font-family:inherit;font-weight:900;font-size:14px;color:#5a4326;padding:7px 16px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.22)}
+  .pnav:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
+  .pnav:disabled{opacity:.4;box-shadow:none;transform:none}
+  .pdots{display:flex;gap:10px;align-items:center}
+  .pdots i{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.6);box-shadow:inset 0 -1px 2px rgba(0,0,0,.2);transition:.2s}
+  .pdots i.on{background:#fff;transform:scale(1.25)}
+  .archrow{display:flex;justify-content:space-between;align-items:center;width:100%;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:8px;font-family:inherit;font-size:17px;cursor:pointer;text-align:left}
+  .archrow b{font-weight:800;color:#1e293b}
+  .archrow span{color:#64748b;font-size:13px;font-weight:700;flex:0 0 auto}
+  @media(max-width:640px){.board{grid-template-columns:1fr}.tthumb{height:100px}.mchip{min-width:58px;font-size:10px;padding:7px 9px}.mchip .ico{font-size:19px}}
+  /* ===== スマホ縦画面: 評判の良いタブレット簡単版を1カラム縦スクロールに最適化 ===== */
+  @media(max-width:640px){
+    html,body{height:auto;overflow-y:auto;overflow-x:hidden}
+    .wrap{height:auto;min-height:100dvh;overflow:visible;max-width:100%;padding:8px 10px 12px}
+    /* ⚠️iOS Safari: dvh はアドレスバーの出入りで値が変わり、スクロールのたびに画面全体が伸縮して
+       ボタン行が上下に動く。svh(バー表示時の高さ)で固定する。非対応ブラウザは上のdvhのまま。 */
+    .wrap{min-height:100svh}
+    .top{margin-bottom:4px}
+    .top-gutter{display:none}
+    .who{font-size:20px}
+    /* 操作ボタン(上帯メニュー)=小さめ・横スライドの2段グリッド。
+       全ボタンを同寸の固定セルにして、2行目が上下左右にズレて動くのを防止(固定化)。
+       ⭐touch-action:pan-x = 横スライド中に指が少し縦へブレてもページが縦スクロールしない(軸を固定)。
+         これが無いと「メニューを横にスライドすると画面が上下に動く」(2026-07-26 社長指摘)。 */
+    .mstrip{display:grid;grid-auto-flow:column;grid-template-rows:1fr 1fr;grid-auto-columns:5.1rem;gap:6px;padding:2px 2px 8px;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;touch-action:pan-x}
+    .mchip,.mchip.tenko-btn{width:100%;min-width:0;height:100%;font-size:9.5px;padding:5px 4px;border-radius:11px;gap:2px;white-space:normal;line-height:1.15;text-align:center;justify-content:center}
+    .mchip .ico,.mchip.tenko-btn .ico{font-size:18px}
+    .mchip .pill{top:0;right:0}
+    /* 縦積み: 上=アバター＋タブ / 下=掲示板・操作パネル */
+    .main{flex-direction:column;flex:0 0 auto;min-height:0;gap:8px}
+    .boardside{width:auto;flex:0 0 auto;flex-direction:row;align-items:flex-start;gap:8px}
+    .boardside .aoi-col{margin-top:0}
+    .aoi-col{order:-1;flex:0 0 auto;justify-content:flex-start}
+    #aoiWrap{width:78px;height:104px}
+    /* 「🔊 もう一度聴く」: 葵に被せない(絶対配置を解除)・小さく葵の下へ */
+    .replay-btn{position:static;width:auto;margin:3px auto 0;font-size:9.5px;padding:3px 7px}
+    /* 掲示板タブ=1行・横スライド。高さを固定＋横スライドの軸固定(touch-action:pan-x)で行が上下に動かないようにする(2026-07-26) */
+    .pgtabs{display:flex;flex-direction:row;flex-wrap:nowrap;width:auto;flex:1 1 auto;gap:6px;overflow-x:auto;align-items:stretch;min-height:52px;overscroll-behavior:contain;touch-action:pan-x}
+    .pgtab,.pgbtn-menu{width:auto;flex:0 0 auto;min-width:82px;padding:8px 9px;font-size:12px}
+    .pgtab{min-height:52px}
+    /* 掲示板を1ページ縦積みにして本文スクロール(横ページャは非表示) */
+    .panel{flex:0 0 auto;overflow:visible}
+    #panelBody.boardmode{height:auto}
+    .pgviewport{overflow:visible;height:auto}
+    .pgtrack{height:auto;transition:none}
+    .pg{height:auto;overflow:visible;padding:6px 0 2px;gap:0}
+    .mcol .tile{transform:none!important}
+    .pager{display:none}
+    .pghint{color:#0f5c46;text-shadow:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="top-gutter"><img id="whoAv" class="who-av" alt="" style="display:none"></div>
+    <div class="topleft">
+      <div class="who" id="who">—<span class="who-actions"><button id="viewSwitchBtn" class="view-switch" style="display:none" onclick="goDetailed()">🖥 PC版</button><button class="btn-logout" onclick="doLogout(true)">ログアウト</button></span></div>
+      <div id="stripHost"></div>
+    </div>
+
+  </div>
+
+  <div class="main">
+    <!-- 左列: 上=切替タブ / 下=葵(ヘッダーから引っ越し・掲示板の左下) -->
+    <div class="boardside">
+      <div class="pgtabs" id="pgTabs"></div>
+      <div class="aoi-col">
+        <!-- 吹き出しは廃止。案内は音声主体。#bubbleは内部保持用に残すが非表示。 -->
+        <div class="bubble" id="bubble" hidden>…</div>
+        <div id="aoiWrap">
+          <img id="aoiStill" src="/assets/aoi/still.png?v=summer8" alt="葵">
+          <video id="aoiVid" muted loop playsinline preload="auto" poster="/assets/aoi/still.png?v=summer8" src="/assets/aoi/point.mp4?v=summer8" style="display:none"></video>
+          <div id="aoiSeason" aria-hidden="true">
+            
+            
+            
+            
+            
+          </div>
+        </div>
+        <!-- ヘルスアドバイザーを葵の位置に(食事詳細時に葵と入れ替え・口パク) -->
+        <div class="adv-head" id="adv-av-wrap" style="display:none">
+          <img class="advisor-avatar-big" src="/assets/advisor_still.png?v=5" alt="AIヘルスアドバイザー">
+          <video class="advisor-avatar-vid" id="adv-vid" poster="/assets/advisor_still.png?v=5" src="/assets/advisor_talk.mp4?v=6" muted loop playsinline preload="auto"></video>
+        </div>
+        <button id="replayBtn" class="replay-btn" onclick="replayLast()" style="display:none">🔊 もう一度聴く</button>
+      </div>
+    </div>
+    <div class="panel"><div id="panelBody"></div></div>
+  </div>
+  <div class="tb-copyright">
+    <img src="/assets/brand/bizterrace-logo.png?v=1" alt="BIZ-TERRACE">
+    <span>CoWell &copy; 2026 ビズテラス株式会社</span>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var TOKEN = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+// 共用タブレット(キオスク)か、個人スマホ(BYOD)かで挙動を変える。
+//  キオスク=無操作オートログアウト有・戻る無効・完了画面でログアウト必須。
+//  個人スマホ=自分の端末なのでオートログアウトしない・戻る有効・詳しい表示に切替可。
+var IS_KIOSK = (localStorage.getItem('cohub_kiosk') === '1');
+if(!TOKEN){ location.replace(IS_KIOSK ? '/tablet' : '/'); }
+var ME=null, AOI_VOICE='ja-JP-Neural2-B', ROSTER_YOMI={};
+// 在席(オンライン)登録＋DMリアルタイム受信のため socket.io に接続。
+var socket=null, curPeer=null;
+function connectSocket(){
+  if(socket || typeof io==='undefined') return;
+  try{
+    socket=io({auth:{token:TOKEN, isMobile:true}});
+    socket.on('dm:msg', function(m){
+      try{ refreshBadges(); }catch(e){}
+      if(curPeer && m && (String(m.from)===curPeer || String(m.to)===curPeer)){ try{ loadThread(curPeer, true); }catch(e){} }
+    });
+    socket.on('dm:blocked', function(b){ try{ speak('申し訳ありません。この相手には 送れません。'+((b&&b.reason==='hierarchy')?' 上司を 通じて ご連絡ください。':'')); }catch(e){} });
+  }catch(e){}
+}
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+async function api(path, opt){
+  opt=opt||{}; opt.headers=Object.assign({'Authorization':'Bearer '+TOKEN}, opt.headers||{});
+  if(opt.json!==undefined){opt.headers['Content-Type']='application/json';opt.body=JSON.stringify(opt.json);delete opt.json;}
+  try{ var r=await fetch(path,opt); return await r.json(); }catch(e){ return null; }
+}
+// 機能別 利用ログ (fire-and-forget)。展開の検証用=どの機能が使われたか。
+function logUsage(feature){ try{ api('/api/usage/tap',{method:'POST',json:{feature:feature,surface:'tablet'}}); }catch(e){} }
+
+/* ===== 葵の声＋実写トーキング動画(Veo) ===== */
+var curAudio=null;
+function setBubble(t){ $('bubble').textContent=t; }
+// 喋る間は実写動画を再生、待機中は静止画。TTS音声と動きが同期する。
+function aoiTalk(on){
+  var v=$('aoiVid'), s=$('aoiStill'); if(!v||!s) return;
+  if(on){ s.style.display='none'; v.style.display='block'; try{ v.currentTime=0; var p=v.play(); if(p&&p.catch)p.catch(function(){}); }catch(e){} }
+  else { try{ v.pause(); }catch(e){} v.style.display='none'; s.style.display='block'; }
+}
+function aoiWave(){ /* 動画に動作が含まれるため個別のwaveは不要 */ }
+// 感情クリップ(喜怒哀楽+表情)の出し分け。喋る直前に aoiSetClip() で切り替える。
+var CLIP={point:'point.mp4?v=summer8',greet:'greet.mp4?v=summer8',talk:'talk.mp4?v=summer8',concern:'concern.mp4?v=summer8',praise:'praise.mp4?v=summer8',bow:'bow.mp4?v=summer8',listen:'listen.mp4?v=summer8',thanks:'thanks.mp4?v=summer8',surprise:'surprise.mp4?v=summer8',caution:'caution.mp4?v=summer8'};
+var curClip='point';   // 動画の初期srcはpoint.mp4(挨拶で葵が手でボタンを促す・src切替のロード待ちなく即再生)
+function aoiSetClip(name){ if(!CLIP[name])name='talk'; if(name===curClip)return; curClip=name; var v=$('aoiVid'); if(v){ v.src='/assets/aoi/'+CLIP[name]; try{v.load();}catch(e){} } }
+try{ Object.keys(CLIP).forEach(function(k){ fetch('/assets/aoi/'+CLIP[k]).catch(function(){}); }); }catch(e){}   // 先読みでキャッシュを温める
+var _lastSpoken=null;
+// 葵ボイスの多言語化(2026-07-09): cohub_lang別の声・速度。表示テキストと同じ /api/translate で読み上げ文も翻訳。
+// speed=葵の話速。動画(実写8秒クリップ)の口の開閉テンポは自然会話速なので、1.3では発話が口パクより先行してズレる。
+// 1.1に落として口の動きと発話を合わせる(高齢ドライバーの聞き取りやすさも向上)。
+var VOICE_BY_LANG={ ja:{v:'ja-JP-Neural2-B',pitch:1.0,speed:1.1},
+                    pt:{v:'pt-BR-Neural2-C',pitch:0.0,speed:1.05},
+                    en:{v:'en-US-Neural2-F',pitch:0.0,speed:1.05} };
+// ヘルスアドバイザーの声(葵とは別の女性)。ja=Despina。pt/en は葵(pt-C/en-F)と別の女性Neural2。言語切替に追従。
+var ADV_VOICE={ ja:{v:'ja-JP-Chirp3-HD-Despina',speed:1.1,pitch:0},
+                pt:{v:'pt-BR-Neural2-A',speed:1.05,pitch:0},
+                en:{v:'en-US-Neural2-C',speed:1.05,pitch:0} };
+function curLang(){ try{ return localStorage.getItem('cohub_lang')||'ja'; }catch(e){ return 'ja'; } }
+// 読み上げ文を現在の言語へ翻訳。cohub_tr_<lang>キャッシュを translate.js と共有し2回目以降は即時。失敗時は原文のまま。
+function speakText(ja){
+  var lang=curLang();
+  if(lang==='ja'||!ja) return Promise.resolve(ja);
+  var ck='cohub_tr_'+lang, cache={};
+  try{ cache=JSON.parse(localStorage.getItem(ck)||'{}'); }catch(e){}
+  if(cache[ja]!=null) return Promise.resolve(cache[ja]);
+  return fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({lang:lang,texts:[ja]})})
+   .then(function(r){ return r.ok?r.json():null; })
+   .then(function(d){ var tr=d&&d.translations&&d.translations[ja];
+     if(tr){ cache[ja]=tr; try{ localStorage.setItem(ck,JSON.stringify(cache)); }catch(e){} return tr; }
+     return ja; })
+   .catch(function(){ return ja; });
+}
+var _aoiBusy=false, _aoiSpeakGen=0;   // _aoiBusy=葵が発話中(greetNow二重防止)。_aoiSpeakGen=世代(ヘルス割込みで進行中/準備中の葵をキャンセル=被り防止)
+function speak(text, cb, sayOverride){
+  var myGen=++_aoiSpeakGen;
+  _aoiBusy=true;
+  _lastSpoken={ text:text, say:sayOverride };   // 「もう一度聴く」用に最後の発話を保持
+  var rb=$('replayBtn'); if(rb) rb.style.display='';
+  setBubble(text);
+  var lang=curLang();
+  // 日本語=読み(sayOverride)優先(氏名の誤読対策)。多言語=表示文(漢字名含む)を翻訳して読ませる(氏名はローマ字化され外国語音声で自然)。
+  var src=(lang==='ja') ? String(sayOverride!=null?sayOverride:text) : String(text);
+  var vc=VOICE_BY_LANG[lang]||VOICE_BY_LANG.ja;
+  // 口パクは発話開始の直前に始める(翻訳/TTS取得の間は静止画=無言中に口が動かない)。
+  speakText(src).then(function(sayTr){
+    var say=String(sayTr).replace(/[ 　]+/g,'');   // 余分な空白はTTSに送らない
+    return fetch('/api/voice/tts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
+      body:JSON.stringify({text:say, voice:vc.v, pitch:vc.pitch, speed:vc.speed})});
+  })
+   .then(function(r){ if(!r.ok) throw 0; return r.blob(); })
+   .then(function(b){
+     if(myGen!==_aoiSpeakGen){ _aoiBusy=false; return; }   // ヘルス等の割込みが入ったので葵は鳴らさない(被り防止)
+     var url=URL.createObjectURL(b);
+     if(curAudio){try{curAudio.pause();}catch(e){}}
+     curAudio=new Audio(url);
+     curAudio.onended=function(){ _aoiBusy=false; aoiTalk(false); URL.revokeObjectURL(url); if(cb)cb(); };
+     curAudio.onerror=function(){ _aoiBusy=false; aoiTalk(false); if(cb)cb(); };
+     // 口パクと発話の開始を同期: 動画を再生し、実際に動き出したら(最大250msで)音声を鳴らす
+     aoiTalk(true);
+     var v=$('aoiVid'), started=false;
+     // ⚠️自動再生がブロックされた時(play() reject)も _aoiBusy を必ず解除(詰まり防止)
+     var go=function(){ if(started)return; started=true; var pp=curAudio.play(); if(pp&&pp.catch)pp.catch(function(){ _aoiBusy=false; aoiTalk(false); }); };
+     if(v){ v.addEventListener('playing', go, {once:true}); setTimeout(go, 250); } else { go(); }
+   })
+   .catch(function(){ _aoiBusy=false; aoiTalk(false); setTimeout(function(){ if(cb)cb(); }, Math.min(6500, 1300+String(src).length*95)); });
+}
+// 「もう一度聴く」= 直前に葵が言ったことを聞き直す(聞き逃し対策)。無ければ今の吹き出しを読む。
+function replayLast(){
+  bumpIdle();
+  if(_lastSpoken){ speak(_lastSpoken.text, null, _lastSpoken.say); }
+  else { var b=$('bubble'); if(b&&b.textContent) speak(b.textContent); }
+}
+// (言語切替ボタンは簡易ページでは非表示。言語設定はマイページに集約したため付け替えJSは撤去 2026-07-09)
+
+/* ===== 打鍵の「ピ」音 (画面キーボードで入力するたびに鳴らす) ===== */
+var actx=null;
+function beep(){
+  try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    var o=actx.createOscillator(), g=actx.createGain(), t=actx.currentTime;
+    o.type='square'; o.frequency.value=1500;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.06);
+    o.start(t); o.stop(t+0.07);
+  }catch(e){}
+}
+document.addEventListener('input', function(e){ if(e.target && e.target.classList && e.target.classList.contains('big-in')) beep(); }, true);
+
+/* ===== 起動 ===== */
+// 音声/動画の自動再生規制を解除(初回のユーザー操作内で呼ぶ)
+function unlockMedia(){
+  // ⚠️動画のprime再生はしない: 遅延pauseが直後の挨拶動画の再生を止めてしまうため。
+  //   動画は挨拶/各機能の aoiTalk(true)(このタッチ操作内で呼ばれる)でアンロック＆再生される。
+  try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(e){}
+  try{ var s=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='); var ps=s.play(); if(ps&&ps.then) ps.then(function(){ s.pause(); }).catch(function(){}); }catch(e){}
+}
+async function greetNow(){
+  if(_aoiBusy) return;   // 既に葵が挨拶中なら二重発火しない
+  if(!ME||!ME.display_name){ var d=await api('/api/auth/me'); ME=(d&&d.user)||ME||{}; }
+  var hour=(new Date()).getHours();
+  var greet = hour<11 ? 'おはようございます' : 'お疲れ様です';
+  // ログイン挨拶は実名(社長方針2026-07-23: ログイン=実名/その他=匿名)。名前はPIN入力時には呼ばず、この挨拶で1回だけ。
+  var nm = (ME && ME.display_name) || '';
+  var yomi = (ME && ROSTER_YOMI[ME.uid]) || nm;
+  // その人だけの一言(昨日の帰庫点呼の疲労/体調・運転アラート等をAIが加味)。取得失敗や無データは季節の一言に。
+  // visit=当日の何回目のログインか(サーバーが数える)。2回目以降はフルの挨拶を繰り返さない(2026-07-27 社長指示)。
+  var line='', mood='point', visit=1, sched=null;
+  // ⭐「今日のひとこと」(/api/daily-message) も挨拶の冒頭で読む(2026-07-29 社長要望)。
+  //   PC版(home.html)は表示をやめて読み上げのみにしたので、タブレット/スマホでも声で伝える。
+  //   ⚠️挨拶が遅れないよう、葵の一言(/api/aoi/greeting)と**並行**で取りに行く。
+  var dmP=api('/api/daily-message').catch(function(){ return null; });
+  try{ var g=await api('/api/aoi/greeting'); if(g){ line=(g.line||'').trim(); mood=(g.mood==='concern'||g.mood==='caution')?g.mood:'point'; visit=g.visit||1; sched=g.schedule||null; } }catch(e){}
+  if(visit>=2){ return greetAgain(visit, nm, yomi, sched); }   // 2回目以降はひとことも繰り返さない
+  var dmText='';
+  try{ var dm=await dmP; if(dm&&dm.success&&dm.message) dmText=String(dm.message).trim(); }catch(e){}
+  // ⚠️ひとことが「〇〇さん、…」で始まることがある(AI生成)。直前で名前を呼んでいるので二重呼びを外す。
+  if(dmText){
+    var _rx=function(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); };
+    var _sei=_rx(String(nm).split(/[\s　]+/)[0]||'');
+    var _full=_rx(nm).replace(/[\s　]+/g,'[\\s　]*');
+    if(_sei) try{ dmText=dmText.replace(new RegExp('^(?:'+_full+'|'+_sei+')[\\s　]*さん[、,。]?[\\s　]*'), ''); }catch(e){}
+  }
+  // 個人端末(BYOD)では PC版ホーム(home.html)と同じ「1日1回」フラグを共有=同じ端末で二度読まれないように。
+  // 共用タブレット(kiosk)は端末のlocalStorageが全員共通なので触らない(次の人が聞けなくなる)。
+  if(dmText && !IS_KIOSK){
+    try{ var d0=new Date(); localStorage.setItem('cohub_dm_spoken_'+d0.getFullYear()+'-'+String(d0.getMonth()+1).padStart(2,'0')+'-'+String(d0.getDate()).padStart(2,'0'), '1'); }catch(e){}
+  }
+  // 一言の後ろの「締め」も毎日同じだと飽きるので、人と日で入れ替える(意味は同じ=ボタンを押す案内)。
+  var CLOSERS=['今日も お手伝いします。ボタンを 押してください。',
+               '今日も よろしく お願いします。ボタンを 押してください。',
+               'ご用の ときは、ボタンを 押してくださいね。',
+               'お手伝いできることが あれば、ボタンを 押してください。'];
+  var _sd=(function(s){ var h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; })(String((ME&&ME.uid)||'')+String(new Date().toDateString()));
+  var closer=CLOSERS[_sd%CLOSERS.length];
+  var body = line
+    ? (line+' ')
+    : '暑い日が つづきますね。こまめに 水分を とって、無理なく いきましょう。';
+  // ⭐帰りの健康チェック(帰庫点呼)の予告(2026-07-26 社長指示)。ドライバーだけ・今日まだ記録が無いときだけ。
+  //   帰庫点呼は「乗務後の体調の自己申告」＝一日の終わりにやってもらうもの。朝の挨拶で先に伝えておく。
+  //   ⚠️読み上げは「帰庫」を かな にする(TTSが誤読しないよう display と say を分ける)。
+  var kikoSay='', kikoShow='';
+  try{
+    var k=await api('/api/tenko/kiko/mine');
+    if(!(k&&k.done)){
+      if(kikoKind()==='driver'){
+        kikoShow='お帰りの ときは、帰庫（帰社）点呼から 体調の チェックを お願いしますね。';
+        kikoSay='お帰りの ときは、きこ、帰社点呼から 体調の チェックを お願いしますね。';
+      } else {
+        kikoShow=kikoSay='お帰りの まえに、帰る前の チェックも お願いしますね。';
+      }
+    }
+  }catch(e){}
+  // ⭐共有カレンダーに自分の予定が入っている人には、今日と明日の予定を読み上げる(2026-07-27 社長要望)。
+  //   サーバー(routes/aoi.js)が素のデータから定型文を組む=AIに作文させない。予定が無い人には何も足さない。
+  var sc=schedSpeech(sched, true);
+  // 「今日のひとこと」は挨拶のすぐ後・葵の一言の前(=冒頭)に置く。絵文字はTTS側(routes/tts.js)で除去される。
+  var dmPart = dmText ? (dmText+' ') : '';
+  var tailShow='さん、'+greet+'。'+dmPart+body+sc.show+kikoShow+closer;
+  var tailSay ='さん、'+greet+'。'+dmPart+body+sc.say +kikoSay +closer;
+  aoiSetClip(mood);   // 疲労=concern / アラート=caution / それ以外=point(ボタンを促す)
+  speak(nm+tailShow, null, yomi+tailSay);   // 表示=漢字 / 読み上げ=読み辞書(名前のみ差替・本文はTTSが読む)
+}
+/* 予定の読み上げ文。withTomorrow=false のときは今日ぶんだけ(2回目以降のログイン用)。
+   ⭐夕方(18時)以降は「今日の予定」を言われても もう遅いので、明日の予定に切り替える。
+     終日の予定はサーバー側の「終わった予定を外す」判定に掛からないため、ここで時間帯を見る。 */
+function schedSpeech(sched, withTomorrow){
+  if(!sched) return { show:'', say:'' };
+  var evening=(new Date()).getHours()>=18;
+  var t=sched.today||{}, n=sched.tomorrow||{};
+  var show='', say='';
+  if(!evening && t.text){ show+=t.text+' '; say+=t.say+' '; }
+  if((withTomorrow || evening) && n.text){ show+=n.text+' '; say+=n.say+' '; }
+  return { show: show, say: say };
+}
+/* 同じ日の2回目以降のログイン挨拶 (2026-07-27 社長「毎回一緒だと…」)。
+   ⭐長い挨拶を繰り返さない。「おかえりなさい」＋**まだ残っていること**(体調チェック／帰る前のチェック／未読の通達)だけ。
+   残っていることが無ければ ごく短い一言。3回目以降はさらに短く、名前も呼ばない(呼ばれ過ぎるとうるさい)。 */
+async function greetAgain(visit, nm, yomi, sched){
+  var pend=[];
+  // 2回目以降は「今日のこの後の予定」だけ(明日ぶんは初回で伝えている)。残っていなければ何も言わない。
+  var sc=schedSpeech(sched, false);
+  try{ var t=await api('/api/tenko/my-today'); if(t&&t.success&&!t.done) pend.push('体調チェックが まだですね。よかったら 先に どうぞ。'); }catch(e){}
+  try{
+    var k=await api('/api/tenko/kiko/mine');
+    if(!(k&&k.done)) pend.push(kikoKind()==='driver'
+      ? 'お帰りの ときは、帰庫（帰社）点呼を お願いします。'
+      : 'お帰りの まえに、帰る前の チェックを お願いします。');
+  }catch(e){}
+  try{ var u=await api('/api/announcements/unread-count'); var n=(u&&(u.count!=null?u.count:u.unread))||0;
+       if(n>0) pend.push('未読の 通達が '+n+'件 あります。'); }catch(e){}
+  var SHORT=['ゆっくり どうぞ。','何か あれば ボタンを 押してくださいね。','お手伝いできることが あれば どうぞ。','ご用の ときは ボタンを どうぞ。'];
+  var body = pend.length ? pend.slice(0, visit>=4?1:2).join(' ')
+                         : SHORT[(visit + (new Date()).getHours()) % SHORT.length];
+  aoiSetClip('greet');
+  if(visit===2){
+    var tailShow='さん、おかえりなさい。'+sc.show+body;
+    var tailSay ='さん、おかえりなさい。'+sc.say +body;
+    speak(nm+tailShow, null, yomi+tailSay);   // 表示=漢字 / 読み上げ=読み辞書
+  } else {
+    speak('おかえりなさい。'+sc.show+body, null, 'おかえりなさい。'+sc.say+body);   // 3回目以降は名前を呼ばない
+  }
+}
+// 「ふれてはじめる」パネルは廃止。ログイン後は最初からメニュー表示し、最初の画面タッチで音声解禁＋挨拶。
+var _firstDone=false;
+function firstTouch(e){
+  if(_firstDone) return; _firstDone=true;
+  bumpIdle(); unlockMedia();
+  if(e && e.target && e.target.closest && e.target.closest('button, .card, .tile')) return;   // ボタン/カード/投稿タイルを最初に押した時は機能側の音声に任せる(挨拶の重複回避)
+  greetNow();
+}
+// 詳細ページ(/home)を使える人 = 事務職員/健康推進メンバー/役員/管理職。
+// これ以外(現場一般: driver/warehouse/manufacturing で無資格)は簡単版のみ。
+// ※ home.html と同一定義。変更時は両方を同期のこと。
+function canUseDetail(u){
+  if(!u) return false;
+  return u.employee_type==='office' || u.employee_type==='admin' || u.role==='admin'
+      || u.job_role==='executive' || u.job_role==='manager'
+      || !!u.is_manager || !!u.is_ops_manager || !!u.is_branch_head
+      || !!u.is_field_promoter || !!u.is_warehouse_promoter;
+}
+async function init(){
+  var d=await api('/api/auth/me'); ME=(d&&d.user)||{};
+  try{ ROSTER_YOMI=(await fetch('/assets/roster_yomi.json').then(function(x){return x.json();}).catch(function(){return {};}))||{}; }catch(e){}
+  $('who').firstChild.textContent=(ME.display_name||'')+' さん';
+  if(ME.avatar_url){ var av=$('whoAv'); if(av){ av.src=ME.avatar_url; av.style.display=''; } }
+  // 共用タブレット(kiosk)では詳細画面(/home)への切替を一切出さない=全員かんたんモード専用(2026-07-23 社長方針)。
+  // 個人スマホ(BYOD)でも「詳しい表示(PC版)」を出すのは詳細を使える人(事務/推進/役員/管理職)のみ。
+  // 現場一般には出さない=詳細ページは限定(2026-07-24 社長方針)。
+  var vb=$('viewSwitchBtn');
+  if(!IS_KIOSK && canUseDetail(ME)){ if(vb) vb.style.display=''; }
+  setBubble('こんにちは。ボタンを 押してください。');
+  renderMenu();
+  connectSocket();   // 在席登録＋DM受信
+  if(IS_KIOSK){ try{ greetNow(); }catch(e){} }   // ログイン直後に葵が挨拶(kiosk自動再生。不可時はfirstTouchで発話)
+  ['pointerdown','touchstart','keydown'].forEach(function(ev){ document.addEventListener(ev, firstTouch, {once:true, passive:true}); });
+  // 共用端末のみ: ブラウザ「戻る」で詳細ページ等が露出しないよう簡単モードに留める(戻る=無効)。個人スマホは通常どおり戻れる。
+  if(IS_KIOSK){ try{ history.pushState(null,'',location.href); window.addEventListener('popstate', function(){ history.pushState(null,'',location.href); }); }catch(e){} }
+  maybeShowAgenda();   // 本日の会議 議題(対象=管理職+推進)のログイン時モーダル
+}
+// 本日の会議 議題(ログイン時モーダル)。表示可否はサーバー(/api/agenda/today)が対象者(管理職+推進)・当日判定。
+// かんたんモード=大きな文字＋「葵に読んでもらう」ボタン(タップで音声解禁して読み上げ)。既読はlocalStorage。
+async function maybeShowAgenda(){
+  try{
+    var r=await api('/api/agenda/today'); var a=r&&r.agenda; if(!a) return;
+    if(localStorage.getItem('cohub_agenda_seen')===a.key) return;
+    var pts=(a.points||[]).map(function(p){ return '<li style="margin:0 0 14px;line-height:1.5">'+esc(p)+'</li>'; }).join('');
+    var ov=document.createElement('div'); ov.id='agenda-overlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:18px';
+    ov.innerHTML='<div style="background:#fff;max-width:620px;width:100%;max-height:90vh;overflow:auto;border-radius:24px;box-shadow:0 14px 44px rgba(0,0,0,.3)">'
+      +'<div style="background:linear-gradient(135deg,#0e7490,#0369a1);color:#fff;padding:20px 22px;border-radius:24px 24px 0 0">'
+      +'<div style="font-size:16px;font-weight:800;opacity:.92">📋 本日の会議 議題</div>'
+      +'<div style="font-size:26px;font-weight:900;margin-top:6px;line-height:1.35">'+esc(a.title)+'</div></div>'
+      +'<div style="padding:20px 22px">'
+      +(a.intro?'<p style="margin:0 0 16px;font-size:20px;line-height:1.6;color:#334155">'+esc(a.intro)+'</p>':'')
+      +(pts?'<div style="font-size:16px;font-weight:800;color:#0369a1;margin:0 0 10px">◆ 話し合う 論点</div><ul style="margin:0;padding-left:26px;font-size:20px;color:#1e293b">'+pts+'</ul>':'')
+      +(a.close?'<p style="margin:16px 0 0;font-size:18px;color:#64748b">'+esc(a.close)+'</p>':'')
+      +'<button id="agenda-read" class="btn-go btn-sub" style="margin-top:18px">🔊 葵に 読んでもらう</button>'
+      +'<button id="agenda-ok" class="btn-go" style="margin-top:10px">確認しました</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    var readText='本日の会議の 議題です。'+(a.intro||a.title||'')+' 論点は、'+(a.points||[]).map(function(p,i){return (i+1)+'つ目、'+p+'。';}).join('')+' '+(a.close||'');
+    ov.querySelector('#agenda-read').addEventListener('click', function(){ try{ unlockMedia(); }catch(e){} aoiSetClip('talk'); speak(readText); });
+    ov.querySelector('#agenda-ok').addEventListener('click', function(){ try{ localStorage.setItem('cohub_agenda_seen', a.key); }catch(e){} if(curAudio){try{curAudio.pause();}catch(e){}} aoiTalk(false); ov.remove(); });
+  }catch(e){}
+}
+// かんたん表示→詳しい表示(/home)へ。個人スマホは以後 /home に留まるよう pref を記録(homeが再びかんたんへ転送しない)。
+// 共用タブレットは端末に pref を残さない(次の利用者=現場一般が誤って詳細版になるのを防ぐ)。管理職/事務/adminは
+// そもそも home 側で簡易へ転送されないため、pref 無しで /home に行けば詳細版が表示される。
+function goDetailed(){ location.href='/home'; }  // /home 側の門番(canUseDetail)が可否を判定
+// ランディング = 上段に既存メニュー(横並び)、下段にパーソナル掲示板(通達・連絡)を最初から表示。
+// 上帯の横メニュー(葵の隣)。panelBodyとは別の #stripHost に描画=モーダルでも位置が固定。
+function stripHtml(){
+  var isDrv=!!(ME&&ME.job_role==='driver');
+  // 帰る前の申告は全職種に(2026-07-27 社長指示)。ドライバーだけ法定の「帰庫（帰社）点呼」、
+  // 倉庫・製造・事務は「🏠 帰る前のチェック」(法定点呼ではないので"点呼"と呼ばない)。
+  return '<div class="mstrip">'+
+    '<button class="mchip c-health tenko-btn" onclick="openHealth()"><span class="ico">🩸</span>体調チェック<span class="pill" id="bHealth" style="display:none"></span></button>'+
+    (isDrv?'<button class="mchip c-kiko tenko-btn" onclick="openKiko()"><span class="ico">🚚</span>帰庫（帰社）点呼</button>'
+          :'<button class="mchip c-kiko tenko-btn" onclick="openKiko()"><span class="ico">🏠</span>帰る前の チェック</button>')+
+    '<button class="mchip c-wellness" onclick="openHealthMenu()"><span class="ico">🏥</span>健康</button>'+
+    '<button class="mchip c-report" onclick="openReport()"><span class="ico">📝</span>報告</button>'+
+    '<button class="mchip c-msg" onclick="openMsg()"><span class="ico">💬</span>メッセージ<span class="pill" id="bMsg" style="display:none"></span></button>'+
+    '<button class="mchip c-mypage" onclick="openMyPage()"><span class="ico">⚙️</span>マイページ</button>'+
+    '<button class="mchip c-arch" onclick="openReadArchive()"><span class="ico">📁</span>読んだ通達・連絡</button>'+
+    '</div>';
+}
+// panelBody は掲示板(＋指導バナー)のみ。横メニューは上帯 #stripHost 側に分離。
+function menuHtml(){
+  return '<div id="guidanceBanner"></div>'+
+    '<div id="boardHost"><div class="empty">読み込み中…</div></div>';
+}
+// 横メニュー(上帯)の表示/非表示。モーダル中は隠し、ランディング(掲示板)時のみ表示。葵は常時表示のまま。
+// ⚠️display:none にすると帯のぶんだけ下の全部(タブ・掲示板)が上下にズレる。カードを開く/戻るたびに
+//   タブのボタン行が動いて狙いにくい、という指摘(2026-07-26 社長)。→ visibility で場所は必ず確保する。
+function showStrip(v){ var s=$('stripHost'); if(s){ s.style.display=''; s.style.visibility = v ? '' : 'hidden'; } }
+// 掲示板の切替タブ(左列)。モーダル中は掲示板が出ないので隠す。葵はそのまま(発話するため)。
+function showTabs(v){ var t=$('pgTabs'); if(t){ t.style.display=''; t.style.visibility = v ? '' : 'hidden'; } }
+function renderMenu(){ $('stripHost').innerHTML=stripHtml(); $('panelBody').innerHTML=menuHtml(); $('panelBody').classList.add('boardmode'); showStrip(true); showTabs(true); advHeadShow(false); refreshBadges(); loadGuidance(); renderBoard(); }
+
+/* ===== 🚫 運行管理者からの指導(本人の承諾) ===== */
+var PENDING_GUIDANCE=[];
+async function loadGuidance(){
+  var j=await api('/api/guidance/mine');
+  PENDING_GUIDANCE=(j&&j.success)?(j.items||[]).filter(function(x){return x.consent_status==='pending';}):[];
+  var el=$('guidanceBanner'); if(!el) return;
+  if(PENDING_GUIDANCE.length){
+    el.innerHTML='<button onclick="openGuidance()" style="width:100%;box-sizing:border-box;background:#fee2e2;border:2px solid #dc2626;border-radius:16px;padding:15px;margin-bottom:12px;text-align:left;cursor:pointer;color:#991b1b">'
+      +'<div style="font-size:18px;font-weight:800">🚫 運行管理者から だいじな お知らせが '+PENDING_GUIDANCE.length+'件 あります</div>'
+      +'<div style="font-weight:600;font-size:14px;margin-top:4px">タップして 内容を 確認してください</div></button>';
+  } else { el.innerHTML=''; }
+}
+function guidanceItemHtml(it){
+  var ban=it.ban_flag?'<div style="margin-top:8px;color:#b91c1c;font-weight:800;font-size:15px">🚫 '+(it.ban_active?'乗務禁止':'乗務禁止(予定)')+'：'+esc(it.ban_from||'')+' 〜 '+(it.ban_until?esc(it.ban_until):'当面')+'</div>':'';
+  return '<div style="border:1px solid #e2e8f0;border-radius:14px;padding:15px;margin-bottom:12px">'
+    +'<div style="font-size:13px;color:#64748b">'+esc((it.guided_at||'').slice(0,16))+' ／ '+esc(it.guided_by_name)+' より'+(it.reason?' ／ '+esc(it.reason):'')+'</div>'
+    +'<div style="font-size:18px;margin:8px 0;white-space:pre-wrap;line-height:1.7">'+esc(it.content)+'</div>'+ban
+    +'<button onclick="consentGuidance('+it.id+',this)" style="width:100%;margin-top:12px;background:#0f766e;color:#fff;border:none;border-radius:12px;padding:15px;font-size:18px;font-weight:800;cursor:pointer">内容を 確認し、承諾します</button>'
+    +'</div>';
+}
+function openGuidance(){
+  if(!PENDING_GUIDANCE.length){ renderMenu(); return; }
+  openModal('運行管理者からの指導', PENDING_GUIDANCE.map(guidanceItemHtml).join(''));
+  try{ var f=PENDING_GUIDANCE[0]; speak('運行管理者から お知らせです。'+(f.reason?f.reason+'に ついて。':'')+f.content+' よろしければ、承諾します、を 押してください。'); }catch(e){}
+}
+async function consentGuidance(id, btn){
+  if(btn){ btn.disabled=true; btn.textContent='送信中…'; }
+  var j=await api('/api/guidance/'+id+'/consent',{method:'POST',json:{agree:true}});
+  if(j&&j.success){
+    PENDING_GUIDANCE=PENDING_GUIDANCE.filter(function(x){return x.id!==id;});
+    try{ speak('ありがとうございます。承諾を 記録しました。'); }catch(e){}
+    if(PENDING_GUIDANCE.length){ openGuidance(); } else { setTimeout(renderMenu, 900); }
+  } else { if(btn){ btn.disabled=false; btn.textContent='内容を 確認し、承諾します'; } alert('送信に失敗しました。もう一度お試しください。'); }
+}
+async function refreshBadges(){
+  var t=await api('/api/tenko/my-today');
+  var bh=$('bHealth');
+  if(bh&&t&&t.success){ if(t.done){bh.textContent='済';bh.className='pill ok';} else {bh.textContent='未';bh.className='pill';} bh.style.display=''; }
+  var u=await api('/api/announcements/unread-count');
+  var n=(u&&(u.count!=null?u.count:u.unread))||0;
+  var bn=$('bNews'); if(bn){ if(n>0){bn.textContent=n;bn.style.display='';} else bn.style.display='none'; }
+  // メッセージ新着バッジ = 実際のDM未読数(message_readsベース・既読で減る)
+  var uc=await api('/api/chat/unread-count');
+  var m=(uc&&(uc.dm!=null?uc.dm:uc.count))||0;
+  var bm=$('bMsg'); if(bm){ if(m>0){bm.textContent=m;bm.style.display='';} else bm.style.display='none'; }
+}
+
+/* ===== 右パネルのフロー表示(全画面モーダルは廃止・葵は常に左に表示) ===== */
+function openModal(title, html){
+  showStrip(false); showTabs(false);
+  $('panelBody').classList.remove('boardmode');
+  $('panelBody').innerHTML='<div class="ptop"><div class="mtitle">'+esc(title)+'</div><button class="btn-close" onclick="closeModal()">← 戻る</button></div><div id="mbody"></div>';
+  $('mbody').innerHTML=html||'';
+  bumpIdle();
+}
+function closeModal(){ if(curAudio){try{curAudio.pause();}catch(e){}} aoiTalk(false); renderMenu(); }
+
+/* ===== ① 体調チェック（葵が1問ずつ） ===== */
+var HC=[
+ ['こまめに 水分を 摂っていますか？','hydration',[['はい','yes','yes'],['いいえ','no','no']]],
+ ['朝ご飯を 食べましたか？','breakfast',[['はい','yes','yes'],['いいえ','no','no']]],
+ ['3食 きちんと 食べていますか？','three_meals',[['はい','yes','yes'],['いいえ','no','no']]],
+ ['夕べは 6時間以上 眠れましたか？','sleep6h',[['はい','yes','yes'],['いいえ','no','no']]],
+ ['朝の目覚めは スッキリ していますか？','wakeup',[['はい','yes','yes'],['いいえ','no','no']]],
+ ['今日の 顔色・調子は どうですか？','facial_color',[['普通','normal'],['疲れ気味','tired'],['赤い','red'],['青白い','pale']]],
+ ['体に 痛いところは ありますか？','pain',[['なし','no'],['腰','low_back'],['肩・首','shoulder'],['関節','joint'],['強い痛み','severe']]],
+ ['気になることは ありますか？','concern',[['なし','no'],['体調','health'],['家族','family'],['仕事','work'],['お金','money'],['その他','other']]]
+];
+var hcIdx=0, hcAns={}, bpVal={sys:null,dia:null,pulse:null};
+// 管理者が追加した「健康チェックの追加質問」(サーバー app_settings)。標準8項目の後ろに続けて出す。
+// 形式は HC と同じ [質問文, 保存キー, [[表示,値],...]]。回答は hcAns[key] に入り health_json に保存される。
+var HC_EXTRA=[];
+async function loadHealthItems(){
+  try{
+    var j=await api('/api/tenko/health-items');
+    HC_EXTRA=((j&&j.items)||[]).map(function(it){
+      return [String(it.q||''), String(it.key||''), (it.opts||[]).map(function(o){ return [o[0], (o[1]!=null?o[1]:o[0])]; })];
+    }).filter(function(x){ return x[0] && x[1] && x[2].length; });
+  }catch(e){ HC_EXTRA=[]; }
+}
+// 「健康」サブメニュー(詳細ページの健康カテゴリを簡単モードから利用)
+function openHealthMenu(){
+  logUsage('open:健康'); aoiSetClip('talk');
+  // it[2] は onclick に入れる式。運動記録/健康ボード/栄養レポートは簡単モード内でネイティブ完結(外部ページへ飛ばさない)。他は従来通り詳細ページへ。
+  var items=[
+    ['🍱','食事記録',"location.href='/plaza.html?tab=食事'"],
+    ['🍽','何を食べようか',"location.href='/menu-plan.html'",'/assets/calorie/_advisor_face.jpg?v=cal2'],
+    ['🏃','運動記録',"openExercise()"],
+    ['📊','健康ボード',"openBoard()"],
+    ['🏥','健康管理室',"location.href='/wellness.html'"],
+    ['📝','マイプラン',"location.href='/myplan.html'"],
+    ['📈','栄養レポート',"openFoodReport()"],
+    ['📐','からだの情報',"openBodyInfo()"],
+    ['🧠','健康リテラシー',"location.href='/health-literacy.html'"],
+    ['🌡️','熱中症ガイド',"location.href='/heat-guide/index.html'"]
+  ];
+  var html='<div class="hgrid">'+items.map(function(it){
+    var _ic = it[3] ? '<img class="hm-face" src="'+it[3]+'" alt="">' : '<span class="ico">'+it[0]+'</span>';
+    return '<button class="card c-wellness" onclick="'+it[2]+'">'+_ic+esc(it[1])+'</button>';
+  }).join('')+'</div>';
+  openModal('🏥 健康', html);
+  speak('健康の メニューです。したい ことを タッチしてください。');
+}
+
+/* ===== からだの情報 (食事診断の個別化用・すべて任意) ===== */
+async function openBodyInfo(){
+  logUsage('open:からだ'); aoiSetClip('talk');
+  var d = await api('/api/myhealth/body') || {};
+  var sel=function(v){return v===d.sex?' selected':'';};
+  var palv=(d.activity_pal!=null?String(d.activity_pal):'1.5');
+  var fld='display:block;margin-bottom:14px;';
+  var lab='display:block;font-size:15px;font-weight:800;color:#334155;margin-bottom:6px;';
+  var inp='width:100%;font-size:20px;padding:12px 14px;border:2px solid #b6d9d2;border-radius:14px;background:#fff;color:#0f172a;box-sizing:border-box;';
+  var html='<div style="max-width:620px;font-size:18px;line-height:1.7;color:#0f172a;">'
+    +'<p style="margin:0 0 16px;">食事しんだんを <b>あなたに合わせて</b> より正確にします。にゅうりょくは <b>すべて任意</b> です。</p>'
+    +'<div style="'+fld+'"><label style="'+lab+'">性別</label><select id="tb-sex" style="'+inp+'"><option value="">未設定</option><option value="male"'+sel('male')+'>男性</option><option value="female"'+sel('female')+'>女性</option></select></div>'
+    +'<div style="'+fld+'"><label style="'+lab+'">身長 (cm)</label><input id="tb-h" type="number" inputmode="decimal" min="100" max="230" step="0.1" value="'+(d.height_cm!=null?d.height_cm:'')+'" placeholder="れい: 170" style="'+inp+'"></div>'
+    +'<div style="'+fld+'"><label style="'+lab+'">体重 (kg)</label><input id="tb-w" type="number" inputmode="decimal" min="25" max="250" step="0.1" value="'+(d.weight_kg!=null?d.weight_kg:'')+'" placeholder="れい: 65" style="'+inp+'"></div>'
+    +'<div style="'+fld+'"><label style="'+lab+'">ふだんの 活動量</label><select id="tb-pal" style="'+inp+'"><option value="1.5"'+(palv==='1.5'?' selected':'')+'>運転・すわり仕事が中心</option><option value="1.75"'+(palv==='1.75'?' selected':'')+'>立ち仕事・軽作業もある</option><option value="2"'+(palv==='2'?' selected':'')+'>よく動く・力仕事が多い</option></select></div>'
+    +'<button onclick="saveTabletBody()" style="width:100%;font-size:20px;font-weight:800;color:#fff;background:linear-gradient(135deg,#0e7d67,#0891b2);border:none;border-radius:16px;padding:16px;margin-top:6px;cursor:pointer;">保存する</button>'
+    +'<div id="tb-msg" style="margin-top:12px;font-weight:800;font-size:16px;min-height:20px;"></div>'
+    +'</div>';
+  openModal('📐 からだの情報', html);
+  speak('からだの 情報です。性別や 身長、体重を 入れると、食事の しんだんが あなた向けに なります。にゅうりょくは 任意です。');
+}
+async function saveTabletBody(){
+  var payload={ sex:$('tb-sex').value, height_cm:$('tb-h').value, weight_kg:$('tb-w').value, activity_pal:$('tb-pal').value };
+  var msg=$('tb-msg'); if(msg){ msg.textContent='保存中…'; msg.style.color='#64748b'; }
+  var r=await api('/api/myhealth/body',{method:'POST',json:payload});
+  if(r&&r.success){ if(msg){ msg.textContent='保存しました。ありがとうございます。'; msg.style.color='#0e7d67'; } speak('保存 しました。ありがとうございます。'); }
+  else if(msg){ msg.textContent=(r&&r.msg)||'保存に しっぱいしました'; msg.style.color='#c0392b'; }
+}
+
+/* ===== 健康サブ画面の共通: 右パネル(葵は左に常時)。戻る=健康メニューへ ===== */
+function subPanel(title, html){
+  showStrip(false); showTabs(false);
+  $('panelBody').classList.remove('boardmode');
+  $('panelBody').innerHTML='<div class="ptop"><div class="mtitle">'+esc(title)+'</div><button class="btn-close" onclick="openHealthMenu()">← 戻る</button></div><div id="mbody"></div>';
+  $('mbody').innerHTML=html||'';
+  bumpIdle();
+}
+
+/* ===== ⚙️ マイページ（かんたんモード・表示言語の設定） 2026-07-09 ===== */
+var LANG_OPTS=[['ja','🇯🇵 日本語'],['pt','🇧🇷 Português'],['en','🇺🇸 English']];
+function curUiLang(){ try{ return localStorage.getItem('cohub_lang')||'ja'; }catch(e){ return 'ja'; } }
+function openMyPage(){
+  logUsage('open:マイページ'); aoiSetClip('talk');
+  renderMyPage();
+  speak('マイページです。設定を 変更できます。');
+}
+// 共通: マイページ内のAPI呼び出しとメッセージ表示
+function mpMsg(id,text,kind){ var e=$(id); if(e){ e.textContent=text||''; e.className='mp-msg'+(kind?' '+kind:''); } }
+async function mpApi(path, body){
+  try{
+    var opt={ headers:{'Authorization':'Bearer '+TOKEN} };
+    if(body){ opt.method='POST'; opt.headers['Content-Type']='application/json'; opt.body=JSON.stringify(body); }
+    var r=await fetch(path,opt); return await r.json();
+  }catch(e){ return null; }
+}
+function renderMyPage(){
+  var cur=curUiLang();
+  var av=(ME&&ME.avatar_url)?'<img class="mp-av" src="'+esc(ME.avatar_url)+'" alt="">':'<div class="mp-av"></div>';
+  var name=(ME&&ME.display_name)||'', lid=(ME&&ME.login_id)||'';
+  // 言語名(国旗+現地語)は翻訳されないよう data-no-translate で保護
+  var langBtns=LANG_OPTS.map(function(o){ var on=(o[0]===cur);
+    return '<button class="mp-lang'+(on?' on':'')+'" onclick="setUiLang(\''+o[0]+'\')">'+o[1]+(on?' ✓':'')+'</button>';
+  }).join('');
+  var h=''
+   +'<div class="mp-head">'+av+'<div class="mp-name">'+esc(name)+'<small>@'+esc(lid)+'</small></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">🌐 表示する言語</div><div data-no-translate>'+langBtns+'</div></div>'
+   +'<div class="mp-sec"><div class="mp-h">🏷 ニックネーム</div><div class="mp-desc">ひろば等での表示名（2〜20文字）</div>'
+     +'<input id="mp-nick" class="mp-in" maxlength="20" value="'+esc((ME&&ME.nickname)||'')+'" placeholder="例：たろちゃん">'
+     +'<button class="mp-save" onclick="mpSaveNick()">保存</button><div class="mp-msg" id="mp-nick-msg"></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">🏢 所属</div><div class="mp-desc">部署内DM・チャットグループ</div>'
+     +'<select id="mp-dg" class="mp-in"><option value="">― 選択 ―</option></select>'
+     +'<button class="mp-save" onclick="mpSaveDg()">保存</button><div class="mp-msg" id="mp-dg-msg"></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">🎂 生年月日</div>'
+     +'<input id="mp-bd" class="mp-in" type="date" value="'+esc((ME&&ME.birth_date)||'')+'">'
+     +'<button class="mp-save" onclick="mpSaveBd()">保存</button><div class="mp-msg" id="mp-bd-msg"></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">📱 タブレットPIN（4桁）</div><div class="mp-desc">タブレットにログインする番号</div>'
+     +'<input id="mp-pin" class="mp-in" inputmode="numeric" maxlength="4" placeholder="････" oninput="this.value=this.value.replace(/\\D/g,\'\')">'
+     +'<button class="mp-save" onclick="mpSavePin()">設定する</button><div class="mp-msg" id="mp-pin-msg"></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">📷 顔写真</div>'
+     +'<button class="mp-link" onclick="bumpIdle();location.href=\'/avatar.html?from=tablet\'">📸 顔写真を撮り直す ›</button></div>'
+   +'<div class="mp-sec"><div class="mp-h">🔒 パスワード変更</div><div class="mp-desc">PCでのログイン用（タブレットのみの方は不要）</div>'
+     +'<input id="mp-pw-cur" class="mp-in" type="password" placeholder="現在のパスワード">'
+     +'<input id="mp-pw-new" class="mp-in" type="password" placeholder="新しいパスワード（8文字以上）">'
+     +'<input id="mp-pw-new2" class="mp-in" type="password" placeholder="新しいパスワード（確認）">'
+     +'<button class="mp-save" onclick="mpSavePw()">変更する</button><div class="mp-msg" id="mp-pw-msg"></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">🎓 学術研究への参加</div><div class="mp-desc">CoWell通常利用には影響しません。いつでも変更できます。</div>'
+     +'<label style="display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;cursor:pointer"><input type="checkbox" id="mp-rc" style="width:26px;height:26px" onchange="mpSaveConsent()"> 研究参加に同意する</label>'
+     +'<div class="mp-msg" id="mp-rc-msg"></div></div>'
+   +'<div class="mp-sec"><div class="mp-h">📖 プライバシーポリシー</div>'
+     +'<button class="mp-link" onclick="bumpIdle();location.href=\'/security.html?from=tablet\'">プライバシーポリシーを見る ›</button></div>';
+  openModal('⚙️ マイページ', h);
+  mpFillDgGroups();
+  var rc=$('mp-rc'); if(rc&&ME) rc.checked=!!ME.research_consent;
+}
+async function mpFillDgGroups(){
+  var j=await mpApi('/api/auth/dm-groups'); var sel=$('mp-dg');
+  if(!sel||!j||!j.groups) return;
+  var cur=(ME&&ME.dm_group)||'';
+  sel.innerHTML='<option value="">― 選択 ―</option>'+j.groups.map(function(g){ return '<option value="'+esc(g)+'"'+(g===cur?' selected':'')+'>'+esc(g)+'</option>'; }).join('');
+}
+function setUiLang(lang){
+  bumpIdle();
+  try{ localStorage.setItem('cohub_lang',lang); }catch(e){}
+  try{ fetch('/api/translate/lang',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({lang:lang})}).catch(function(){}); }catch(e){}
+  if(window.cohubSetLang) window.cohubSetLang(lang);   // 画面を即時にその言語へ
+  renderMyPage();                                       // 選択中ハイライト更新
+  speak('言語を 変更しました。');                          // 葵は変更後の言語で確認
+}
+function mpSaveNick(){ bumpIdle(); var v=($('mp-nick').value||'').trim(); if(!v){mpMsg('mp-nick-msg','入力してください','err');return;}
+  mpApi('/api/auth/nickname',{nickname:v}).then(function(r){ if(r&&r.success){ if(ME)ME.nickname=r.nickname; mpMsg('mp-nick-msg','保存しました','ok'); } else mpMsg('mp-nick-msg',(r&&r.msg)||'保存に失敗しました','err'); }); }
+function mpSaveDg(){ bumpIdle(); var v=($('mp-dg').value||'').trim(); if(!v){mpMsg('mp-dg-msg','選択してください','err');return;}
+  mpApi('/api/auth/dm-group',{dm_group:v}).then(function(r){ if(r&&r.success){ if(ME)ME.dm_group=r.dm_group; mpMsg('mp-dg-msg','保存しました','ok'); } else mpMsg('mp-dg-msg',(r&&r.msg)||'保存に失敗しました','err'); }); }
+function mpSaveBd(){ bumpIdle(); var v=($('mp-bd').value||'').trim(); if(!v){mpMsg('mp-bd-msg','入力してください','err');return;}
+  mpApi('/api/auth/birth-date',{birth_date:v}).then(function(r){ if(r&&r.success){ if(ME)ME.birth_date=r.birth_date; mpMsg('mp-bd-msg','保存しました','ok'); } else mpMsg('mp-bd-msg',(r&&r.msg)||'保存に失敗しました','err'); }); }
+function mpSavePin(){ bumpIdle(); var v=($('mp-pin').value||'').trim(); if(!/^\d{4}$/.test(v)){mpMsg('mp-pin-msg','4桁の数字で入力してください','err');return;}
+  mpApi('/api/auth/tablet-pin',{new_pin:v}).then(function(r){ if(r&&r.success){ $('mp-pin').value=''; mpMsg('mp-pin-msg','✅ PINを設定しました','ok'); } else mpMsg('mp-pin-msg',(r&&r.msg)||'設定に失敗しました','err'); }); }
+function mpSavePw(){ bumpIdle(); var c=$('mp-pw-cur').value,n=$('mp-pw-new').value,n2=$('mp-pw-new2').value;
+  if(!c||!n){mpMsg('mp-pw-msg','現在と新しいパスワードを入力してください','err');return;}
+  if(n!==n2){mpMsg('mp-pw-msg','新しいパスワードの確認が一致しません','err');return;}
+  if(n.length<8){mpMsg('mp-pw-msg','新しいパスワードは8文字以上必要です','err');return;}
+  mpApi('/api/auth/change-password',{current_password:c,new_password:n}).then(function(r){ if(r&&r.success){ if(r.token){ try{localStorage.setItem('cohub_token',r.token);}catch(e){} TOKEN=r.token; } $('mp-pw-cur').value='';$('mp-pw-new').value='';$('mp-pw-new2').value=''; mpMsg('mp-pw-msg','パスワードを変更しました','ok'); } else mpMsg('mp-pw-msg',(r&&r.msg)||'変更に失敗しました','err'); }); }
+function mpSaveConsent(){ bumpIdle(); var on=$('mp-rc').checked;
+  mpApi('/api/auth/research-consent',{accepted:on}).then(function(r){ if(r&&r.success){ if(ME)ME.research_consent=on; mpMsg('mp-rc-msg',on?'同意しました':'取り下げました','ok'); } else mpMsg('mp-rc-msg',(r&&r.msg)||'保存に失敗しました','err'); }); }
+
+/* ===== 🏃 運動記録（簡易入力版：種目＋時間を大ボタンで） =====
+   歩数/距離/写真OCRは詳細ページに任せ、タブレットは「種目を選ぶ→時間を入れる→記録」だけで完結。kcalはサーバー側で計算。 */
+var _exType='walk';
+var EX_TYPES=[['walk','👣','歩く'],['jog','🏃','ジョギング'],['run','💨','ランニング'],['bike','🚴','自転車'],['gym','💪','筋トレ'],['stretch','🧘','ストレッチ']];
+function openExercise(){
+  logUsage('open:運動記録'); aoiSetClip('talk');
+  _exType='walk';
+  subPanel('🏃 運動記録', exerciseFormHtml());
+  paintExType();
+  speak('運動を 記録します。種目を えらんで、運動した 時間を 入れて、記録するを 押してください。');
+}
+function exerciseFormHtml(){
+  var grid='<div class="ex-grid">'+EX_TYPES.map(function(t){
+    return '<button class="ex-t" data-t="'+t[0]+'" onclick="pickExType(\''+t[0]+'\')"><span class="exi">'+t[1]+'</span>'+t[2]+'</button>';
+  }).join('')+'</div>';
+  var dur='<div class="q" style="font-size:24px;margin:14px 0 8px">運動した 時間（分）</div>'+
+    '<div class="stepper" style="justify-content:center">'+
+      '<button onclick="exMin(-10)">−10</button>'+
+      '<input class="big-in" id="ex_min" inputmode="numeric" value="30" style="width:120px">'+
+      '<button onclick="exMin(10)">＋10</button>'+
+    '</div>';
+  return grid+dur+'<button class="btn-go" onclick="sendExercise()">この内容で 記録する</button>';
+}
+function pickExType(t){ _exType=t; paintExType(); bumpIdle(); }
+function paintExType(){ var bs=document.querySelectorAll('.ex-t'); for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('on', bs[i].getAttribute('data-t')===_exType); } }
+function exMin(d){ var e=$('ex_min'); if(!e)return; var v=parseInt(e.value||'0',10)||0; e.value=Math.max(0,v+d); beep(); bumpIdle(); }
+async function sendExercise(){
+  bumpIdle();
+  var min=parseInt(($('ex_min')&&$('ex_min').value)||'0',10)||0;
+  if(min<=0){ speak('運動した 時間を 入れてください。'); return; }
+  var label=(EX_TYPES.filter(function(t){return t[0]===_exType;})[0]||['','','運動'])[2];
+  $('mbody').innerHTML='<div class="empty">記録しています…</div>';
+  var r=await api('/api/activity/',{method:'POST',json:{ activity_type:_exType, duration_min:min, visibility:'private', source:'manual' }});
+  if(r&&r.success){
+    logUsage('done:運動記録');
+    doneScreen(label+'を '+min+'分 記録しました！', 'およそ '+(r.kcal||0)+' キロカロリー。よく がんばりました。', 'praise');
+  } else {
+    $('mbody').innerHTML='<div class="empty">うまく記録できませんでした。<br>もう一度お試しください。</div><button class="btn-go" onclick="openExercise()">戻る</button>';
+    speak('うまく 記録できませんでした。もう一度 お試しください。');
+  }
+}
+
+/* ===== 📊 健康ボード（みんなの運動・食事：閲覧＋読み上げ） ===== */
+var _boardKind='exercise';
+function openBoard(){
+  logUsage('open:健康ボード'); aoiSetClip('talk');
+  _boardKind='exercise';
+  subPanel('📊 健康ボード','<div class="empty">読み込み中…</div>');
+  setBubble('みんなの 健康ボード');
+  loadBoard();   // 読み込み後に数値を自動で読み上げる
+}
+function boardTab(k){ _boardKind=k; loadBoard(); bumpIdle(); }
+async function loadBoard(){
+  var d=await api('/api/health-board?kind='+_boardKind);
+  if(!d||!d.success){ $('mbody').innerHTML='<div class="empty">読み込みに 失敗しました。</div>'; return; }
+  _boardLast=d;
+  var isEx=(_boardKind==='exercise'), unit=isEx?'回':'品', act=isEx?'運動':'食事';
+  var tabs='<div class="bd-tabs">'+
+    '<button class="bd-tab'+(isEx?' on':'')+'" onclick="boardTab(\'exercise\')">🏃 運動</button>'+
+    '<button class="bd-tab'+(!isEx?' on':'')+'" onclick="boardTab(\'food\')">🍱 食事</button></div>';
+  var total='<div class="bd-total"><div class="bn">'+(d.total||0)+'<span class="bu">'+unit+'</span></div>'+
+    '<div class="bs">'+(d.participants||0)+'人が 今月 参加しています</div></div>';
+  var rank='<div class="q" style="font-size:22px;margin:14px 0 6px">🏅 今月の ランキング</div>';
+  if(d.ranking&&d.ranking.length){
+    var medal=['🥇','🥈','🥉'];
+    rank+=d.ranking.slice(0,5).map(function(x,i){ return '<div class="bd-row"><span class="bp">'+(medal[i]||(i+1))+'</span><span class="bnk">'+esc(x.nick)+'</span><span class="bct">'+x.count+unit+'</span></div>'; }).join('');
+  } else rank+='<div class="empty" style="font-size:19px;padding:12px">まだ 記録が ありません。あなたが 最初の一人に なりましょう。</div>';
+  var me='<div class="bd-me"><div class="q" style="font-size:20px;margin:0 0 6px">🙌 あなたの 今月</div>'+
+    '<div class="bd-mrow"><div><div class="bmn">'+((d.me&&d.me.count)||0)+'</div><div class="bml">'+unit+'数</div></div>'+
+    '<div><div class="bmn">'+((d.me&&d.me.streak)||0)+'</div><div class="bml">連続日数</div></div></div></div>';
+  $('mbody').innerHTML=tabs+total+rank+me+
+    '<button class="btn-go btn-sub" style="font-size:20px" onclick="readBoard()">🔊 よみあげる</button>';
+  // 自動で一度読み上げ
+  readBoard();
+}
+function readBoard(){
+  bumpIdle();
+  var d=_boardLast; if(!d) return;
+  var isEx=(_boardKind==='exercise'), unit=isEx?'回':'品', act=isEx?'運動':'食事';
+  var t='今月は みんなで '+(d.total||0)+unit+'の '+act+'が 記録されました。'+(d.participants||0)+'人が 参加しています。';
+  if(d.ranking&&d.ranking.length){ t+='1位は '+d.ranking[0].nick+'さん、'+d.ranking[0].count+unit+'です。'; }
+  t+='あなたは 今月 '+((d.me&&d.me.count)||0)+unit+'です。';
+  speak(t);
+}
+var _boardLast=null;
+
+/* ===== 📈 栄養レポート（マンスリー：作成済みを閲覧＋読み上げ） ===== */
+function openFoodReport(){
+  logUsage('open:栄養レポート'); aoiSetClip('talk');
+  subPanel('📈 栄養レポート','<div class="empty">読み込み中…</div>');
+  setBubble('毎月の 栄養レポート');
+  loadFoodReport();   // 読み込み後に本文を自動で読み上げる
+}
+async function loadFoodReport(){
+  var d=await api('/api/food-report/init');
+  if(!d||!d.success){ $('mbody').innerHTML='<div class="empty">読み込みに 失敗しました。</div>'; return; }
+  var reports=d.my_reports||[], months=d.my_months||[], minM=d.min_meals||10;
+  if(reports.length){ showFoodReport(reports[0]); return; }
+  // 未作成: 十分な食事記録があれば「作る」、無ければやさしく案内
+  var top=months[0];
+  if(top && top.n>=minM){
+    $('mbody').innerHTML='<div class="q" style="font-size:22px">'+ymLabelJa(top.ym)+'の 食事記録が '+top.n+'件 たまりました。<br>レポートを 作れます。</div>'+
+      '<button class="btn-go" onclick="genFoodReport(\''+top.ym+'\')">この月の レポートを 作る</button>';
+    speak(ymLabelJa(top.ym)+'の 栄養レポートを 作れます。作るボタンを 押すと、AIが 分析します。');
+  } else {
+    var need=top?Math.max(0,minM-top.n):minM;
+    $('mbody').innerHTML='<div class="empty" style="font-size:21px">まだ 今月の 栄養レポートは ありません。<br>食事を あと '+need+'件 記録すると、<br>レポートが 作れます。</div>'+
+      '<button class="btn-go btn-sub" onclick="location.href=\'/plaza.html?tab=食事\'">🍱 食事を 記録する</button>';
+    speak('まだ 栄養レポートは ありません。食事を 記録すると、来月 まとめが 作られます。');
+  }
+}
+function ymLabelJa(ym){ var p=String(ym||'').split('-'); return p[0]+'年'+Number(p[1])+'月'; }
+async function genFoodReport(ym){
+  bumpIdle();
+  $('mbody').innerHTML='<div class="empty">AIが 分析しています…<br>少し お待ちください（10〜30秒）</div>';
+  speak('AIが 分析しています。少し お待ちください。');
+  var d=await api('/api/food-report/generate',{method:'POST',json:{ym:ym}});
+  if(!d||!d.success){ $('mbody').innerHTML='<div class="empty">作成できませんでした。<br>もう一度 お試しください。</div><button class="btn-go" onclick="openFoodReport()">戻る</button>'; speak('作成できませんでした。もう一度 お試しください。'); return; }
+  renderFoodReport({ ym:ym, report:(d.report&&d.report.report)||d.report });
+}
+async function showFoodReport(ym){
+  $('mbody').innerHTML='<div class="empty">読み込み中…</div>';
+  var d=await api('/api/food-report/get?ym='+encodeURIComponent(ym));
+  if(!d||!d.success){ $('mbody').innerHTML='<div class="empty">この月の レポートは ありません。</div>'; return; }
+  var rep=d.report||{};
+  renderFoodReport({ ym:(rep.ym||ym), report:rep.report||{} });
+}
+var _foodReadText='';
+function renderFoodReport(o){
+  var r=o.report||{};
+  var next=(Array.isArray(r.next_month)?r.next_month:[]).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('');
+  var html='<div class="q" style="font-size:24px;margin:4px 0 12px">'+ymLabelJa(o.ym)+'の 栄養レポート</div>';
+  if(r.summary) html+='<div class="fr-sec"><h3>今月の まとめ</h3><p>'+esc(r.summary)+'</p></div>';
+  if(r.nutrition_analysis) html+='<div class="fr-sec"><h3>栄養の アドバイス</h3><p>'+esc(r.nutrition_analysis)+'</p></div>';
+  if(next) html+='<div class="fr-sec"><h3>来月 心がけたいこと</h3><ul class="fr-next">'+next+'</ul></div>';
+  if(r.future_warning) html+='<div class="fr-sec fr-warn"><h3>⚠️ このまま 続くと…</h3><p>'+esc(r.future_warning)+'</p></div>';
+  if(r.cheer) html+='<div class="fr-cheer">'+esc(r.cheer)+'</div>';
+  _foodReadText=[r.summary,r.nutrition_analysis,r.future_warning,r.cheer].filter(Boolean).join(' ');
+  $('mbody').innerHTML=html+'<button class="btn-go btn-sub" style="font-size:20px" onclick="readFood()">🔊 よみあげる</button>';
+  bumpIdle();
+  if(_foodReadText) speak(_foodReadText.slice(0,600));
+}
+function readFood(){ bumpIdle(); if(_foodReadText) speak(_foodReadText.slice(0,600)); }
+async function openHealth(){
+  logUsage('open:体調チェック');
+  // 今日すでに入力済みなら、いきなり再入力させず音声で確認する
+  var t=await api('/api/tenko/my-today');
+  if(t&&t.success&&t.done){ confirmReHealth(); return; }
+  startHealth();
+}
+async function startHealth(){ aoiSetClip('talk'); hcIdx=0; hcAns={}; bpVal={sys:null,dia:null,pulse:null}; openModal('🩸 体調チェック','<div class="empty">読み込み中…</div>'); await loadHealthItems(); healthStep(); }
+function confirmReHealth(){
+  aoiSetClip('surprise');
+  openModal('🩸 体調チェック',
+    '<div class="q">今日の体調チェックは<br>入力済みです。<br>もう一度 入力しますか？</div>'+
+    '<div class="opts">'+
+      '<button class="opt yes" onclick="startHealth()">はい、もう一度 入力する</button>'+
+      '<button class="opt no" onclick="closeModal()">いいえ、やめる</button>'+
+    '</div>');
+  speak('今日の体調チェックは 入力済みです。もう一度 入力しますか？');
+}
+function healthStep(){
+  bumpIdle();
+  var list=HC.concat(HC_EXTRA);
+  if(hcIdx>=list.length){ askBP(); return; }
+  var item=list[hcIdx], q=item[0], opts=item[2];
+  var html='<div class="q">'+(hcIdx+1)+'／'+list.length+'　'+esc(q)+'</div><div class="opts">';
+  opts.forEach(function(o,i){ var cls=o[2]==='yes'?' yes':(o[2]==='no'?' no':''); html+='<button class="opt'+cls+'" onclick="hcPick('+i+')">'+esc(o[0])+'</button>'; });
+  html+='</div>';
+  $('mbody').innerHTML=html;
+  speak(q);
+}
+function hcPick(i){ var list=HC.concat(HC_EXTRA); var item=list[hcIdx]; hcAns[item[1]]=item[2][i][1]; hcIdx++; healthStep(); }
+function askBP(){
+  bumpIdle();
+  $('mbody').innerHTML='<div class="q">血圧を 測りましたか？</div><div class="opts">'+
+    '<button class="opt yes" onclick="bpForm()">はい、入力する</button>'+
+    '<button class="opt" onclick="submitHealth()">いいえ（スキップ）</button></div>';
+  speak('血圧を 測りましたか？ 測った方は 数字を 入れてください。');
+}
+function stepInput(id,def){ return '<div class="stepper"><button onclick="stepAdj(\''+id+'\',-1)">−</button><input class="big-in" id="'+id+'" inputmode="numeric" value="'+def+'"><button onclick="stepAdj(\''+id+'\',1)">＋</button></div>'; }
+function stepAdj(id,d){ var e=$(id); var v=parseInt(e.value||'0',10)||0; e.value=Math.max(0,v+d); }
+function bpForm(){
+  bumpIdle();
+  $('mbody').innerHTML='<div class="q">血圧を 入れてください</div>'+
+    '<div class="num-row">'+
+    '<div class="num-box"><label>上（最高）</label>'+stepInput('bp_sys',120)+'</div>'+
+    '<div class="num-box"><label>下（最低）</label>'+stepInput('bp_dia',70)+'</div>'+
+    '<div class="num-box"><label>脈拍（任意）</label>'+stepInput('bp_pulse',60)+'</div>'+
+    '</div>'+
+    '<button class="btn-go" onclick="takeBP()">この血圧で 記録する</button>'+
+    '<button class="btn-go btn-sub" onclick="submitHealth()">血圧なしで 記録する</button>';
+  speak('上と下の 数字を 入れてください。 脈拍も わかれば 入れて、記録するを 押してください。');
+}
+function takeBP(){ bpVal.sys=parseInt($('bp_sys').value,10)||null; bpVal.dia=parseInt($('bp_dia').value,10)||null; bpVal.pulse=parseInt($('bp_pulse').value,10)||null; submitHealth(); }
+async function submitHealth(){
+  bumpIdle();
+  $('mbody').innerHTML='<div class="empty">記録しています…</div>';
+  var r=await api('/api/tenko/self-checkin',{method:'POST',json:{ health:hcAns, bp_systolic:bpVal.sys, bp_diastolic:bpVal.dia, pulse:bpVal.pulse, note:'' }});
+  if(r&&r.success){
+    refreshBadges(); logUsage('done:体調チェック');
+    var emo = r.escalated ? (r.bp_high ? 'caution' : 'concern') : 'praise';
+    var sub = r.escalated ? (r.bp_high ? '血圧が 高めです。 無理を なさらず、 気をつけてくださいね。' : '体調を 担当者に お伝えしました。 無理を なさらないでくださいね。') : '今日も お疲れ様です。';
+    // 体調チェックの最後に「帰る前の申告」を葵が促す(トップ画面のバナーは廃止しここに集約)。
+    // ドライバー=帰庫点呼 / 倉庫・製造・事務=帰る前のチェック(2026-07-27 全職種へ展開)。
+    if(kikoKind()==='driver'){ sub += ' そして夕方、お仕事を終えて帰庫したら、忘れずに『帰庫点呼』をお願いします。その時に、通達やお知らせもゆっくり見ていってくださいね。'; }
+    else { sub += ' そして お帰りの まえに、『帰る前の チェック』も おねがいします。その時に、通達やお知らせも ゆっくり 見ていってくださいね。'; }
+    // 健康点検だけで終わらせない: 通達・営業所の連絡・未読メッセージを葵が読み上げてから完了。
+    briefingStep(function(){ doneScreen('体調チェックが 終わりました！', sub, emo); });
+  } else {
+    $('mbody').innerHTML='<div class="empty">うまく記録できませんでした。<br>もう一度お試しください。</div><button class="btn-go" onclick="closeModal()">閉じる</button>';
+    speak('うまく記録できませんでした。もう一度お試しください。');
+  }
+}
+
+/* ===== ①-2 出発前の確認（通達・連絡・未読メッセージ）=====
+   体調チェックの直後に必ず挟む。葵が1件ずつ読み上げ、タップで次へ。
+   確認するものが何も無い日は素通りする(毎日の余計なタップを増やさない)。 */
+var _brf=null, _brfPages=[], _brfIdx=0, _brfDone=null, _brfLabel='📋 出発前の 確認', _brfSay='出発の 前に', _brfNoBrief=false, _brfHasAck=false;
+async function briefingStep(onDone, label, say, noBrief){
+  _brfDone = onDone || function(){};
+  _brfLabel = label || '📋 出発前の 確認';
+  _brfSay = say || '出発の 前に';
+  _brfNoBrief = !!noBrief;
+  var j = await api('/api/tenko/briefing');
+  if(!j || !j.success){ _brfDone(); return; }
+  _brf = j; _brfIdx = 0; _brfPages = brfBuildPages(j);
+  if(!_brfPages.length){ _brfDone(); return; }
+  // 要確認(requires_ack)の通達が含まれる時は、確認し切るまで「戻る」を消してゲート化する。
+  _brfHasAck = _brfPages.some(function(p){ return p.ack; });
+  try{ logUsage('briefing:shown:'+((_brf.notices||[]).length)+(_brfHasAck?':ack':'')); }catch(e){}
+  aoiSetClip('talk');
+  brfShow();
+}
+function brfBuildPages(j){
+  var p = [];
+  // 「今日の連絡・安全一言」は朝の伝達事項。帰庫時(_brfNoBrief)は繰り返さない。
+  if(j.brief && !_brfNoBrief){
+    p.push({ h:'<div class="q" style="font-size:26px;color:#b45309">📢 きょうの 連絡</div>'+
+                '<div class="q" style="font-size:28px;white-space:pre-wrap;text-align:left">'+esc(j.brief)+'</div>',
+             say:'きょうの 連絡です。'+j.brief });
+  }
+  (j.notices||[]).forEach(function(n){
+    var lv = n.level==='urgent' ? '🚨 緊急の 通達' : (n.level==='important' ? '⚠️ 大事な 通達' : '📣 通達');
+    var sayLv = n.level==='urgent' ? '緊急の 通達です。' : (n.level==='important' ? '大事な 通達です。' : '通達です。');
+    p.push({ h:'<div class="q" style="font-size:24px;color:'+(n.level==='urgent'?'#b91c1c':'#b45309')+'">'+lv+(n.requires_ack?'（要確認）':'')+'</div>'+
+                '<div class="q" style="font-size:30px">'+esc(n.title)+'</div>'+
+                '<div class="q" style="font-size:26px;white-space:pre-wrap;text-align:left">'+esc(n.body)+'</div>'+
+                (n.attachments ? '<div class="small">※ 添付ファイルが '+n.attachments+'件 あります。あとで スマホや パソコンの 「通達」から ご確認ください。</div>' : ''),
+             ack: !!n.requires_ack,
+             say: sayLv + n.title + '。' + String(n.body||'').slice(0,400) });
+  });
+  var msgs = (j.dm_unread||0) + (j.group_unread||0);
+  if(msgs){
+    p.push({ h:'<div class="q" style="font-size:28px;color:#1d4ed8">💬 未読の メッセージが '+msgs+'件 あります</div>'+
+                '<div class="small">メニューの「メッセージ」から ご確認ください。</div>',
+             say:'未読の メッセージが '+msgs+'件 あります。'+_brfSay+' ご確認ください。' });
+  }
+  return p;
+}
+function brfShow(){
+  bumpIdle();
+  brfLock(_brfHasAck);   // 要確認がある間は「戻る」を消して、確認を必須化(点呼完了ゲート)
+  var pg = _brfPages[_brfIdx];
+  var last = (_brfIdx >= _brfPages.length-1);
+  var pos = _brfPages.length>1 ? '<div class="small">'+(_brfIdx+1)+'／'+_brfPages.length+'</div>' : '';
+  var gate = _brfHasAck ? '<div class="small" style="color:#b91c1c">※ かならず 最後まで 確認してください</div>' : '';
+  $('mbody').innerHTML =
+    '<div class="q" style="font-size:22px;color:#0f766e">'+_brfLabel+'</div>'+pos+pg.h+gate+
+    '<button class="btn-go" onclick="'+(last?'brfFinish()':'brfNext()')+'">'+(last?'確認しました':'次へ ›')+'</button>'+
+    '<button class="btn-go btn-sub" onclick="brfSpeak()">🔊 もう一度 聴く</button>';
+  speak(pg.say);
+}
+// 出発前確認のゲート制御: on=trueで上部の「← 戻る」を消す(逃げ道を塞ぐ)、falseで戻す。
+function brfLock(on){ try{ var b=document.querySelector('.btn-close'); if(b) b.style.display = on ? 'none' : ''; }catch(e){} }
+function brfNext(){ _brfIdx++; brfShow(); }
+function brfSpeak(){ bumpIdle(); var pg=_brfPages[_brfIdx]; if(pg) speak(pg.say); }
+async function brfFinish(){
+  bumpIdle();
+  brfLock(false);   // ゲート解除(「← 戻る」を戻す)
+  var ids = ((_brf && _brf.notices) || []).map(function(n){ return n.id; });
+  if(ids.length){ await api('/api/tenko/briefing/confirm',{method:'POST',json:{ ids:ids }}); try{ logUsage('briefing:confirmed:'+ids.length); }catch(e){} }
+  refreshBadges();
+  _brfDone();
+}
+
+/* ===== ② 報告する（現場の声） ===== */
+function openReport(){
+  logUsage('open:報告'); aoiSetClip('talk');
+  openModal('📝 報告する','<div class="q">気になること・困ったこと・ヒヤリとしたことを 書いてください</div>'+
+    '<textarea class="big-in" id="rpt" placeholder="ここに 書いてください"></textarea>'+
+    '<button class="btn-go" onclick="sendReport()">この内容で 報告する</button>');
+  // 画面キーボードはユーザー操作(このタップ)の中で同期的にフォーカスしないと出ないため、setTimeoutを使わず即フォーカス
+  var ta=$('rpt'); if(ta){ try{ ta.focus(); if(ta.setSelectionRange) ta.setSelectionRange(0,0); }catch(e){} }
+  speak('気になることや 困ったことを、画面のキーボードで 書いてください。書けたら 報告するを 押してください。');
+}
+async function sendReport(){
+  bumpIdle();
+  var t=($('rpt').value||'').trim();
+  if(!t){ speak('内容を 書いてください。'); return; }
+  $('mbody').innerHTML='<div class="empty">送信しています…</div>';
+  var r=await api('/api/tenko/field-report',{method:'POST',json:{text:t}});
+  if(r&&r.success){ logUsage('done:報告'); doneScreen('報告を 送りました！','担当者に 届きました。ありがとうございます。','thanks'); }
+  else { $('mbody').innerHTML='<div class="empty">送信できませんでした。もう一度お試しください。</div><button class="btn-go" onclick="openReport()">戻る</button>'; speak('送信できませんでした。もう一度お試しください。'); }
+}
+
+/* ===== 事故・破損（車両事故＋製品破損を告知・タップで内容を展開） =====
+   タイトルだけでは分からないので、タップで状況/原因/再発防止/写真を展開表示。写真はタップで拡大。
+   実際の報告書(写真アップ・対策記入)は「報告書を書く」で /accident.html へ。 */
+var _dmgReports=[];
+async function openDamage(){
+  logUsage('open:事故破損'); aoiSetClip('talk');
+  openModal('🚨 事故・破損','<div class="empty">読み込み中…</div>');
+  var pr=await api('/api/accident/product?limit=15');
+  var vr=await api('/api/accident/vehicle?limit=15');
+  var prod=((pr&&pr.reports)||[]).filter(function(r){return r.status==='approved';}).map(function(r){ r._kind='product'; return r; });
+  var veh =((vr&&vr.reports)||[]).filter(function(r){return r.status==='approved';}).map(function(r){ r._kind='vehicle'; return r; });
+  _dmgReports=prod.concat(veh).sort(function(a,b){ return String(b.accident_date||b.created_at||'').localeCompare(String(a.accident_date||a.created_at||'')); }).slice(0,20);
+  var list='';
+  if(_dmgReports.length){
+    list='<div class="q" style="font-size:20px;margin-bottom:6px">最近の 事故・破損（タップで 内容）</div>';
+    _dmgReports.forEach(function(r,i){
+      var icon=r._kind==='vehicle'?'🚗':'📦';
+      list+='<div class="listitem" style="cursor:pointer" onclick="toggleDamage('+i+')">'+
+          '<div class="ti">'+icon+' '+esc(dmgTitle(r))+
+            (aiReviewText(r)?' <span style="background:#1d4ed8;color:#fff;border-radius:10px;padding:2px 8px;font-size:14px;font-weight:800">🤖AIのまとめ</span>':'')+
+            ' <button class="btn-go btn-sub" style="width:auto;padding:6px 12px;margin:0;font-size:16px" onclick="event.stopPropagation();readDamage('+i+')">🔊 きく</button>'+
+            '<span id="dmg-caret-'+i+'" style="float:right;color:#94a3b8;font-size:22px">▾</span></div>'+
+          '<div class="mt">'+esc((r.accident_date||r.created_at||'').slice(0,10))+'　'+esc(r.reporter_name||r.reporter_display||'')+'</div>'+
+          '<div id="dmg-detail-'+i+'" style="display:none;margin-top:8px;font-size:18px;line-height:1.5"></div></div>';
+    });
+  } else {
+    list='<div class="empty">今のところ 事故・破損の お知らせは ありません。</div>';
+  }
+  var write='<button class="btn-go" style="background:#dc2626;box-shadow:0 5px 0 #a41a1a" onclick="location.href=\'/accident.html?from=tablet\'">📝 報告書を 書く</button>'+
+    '<div class="small" style="margin-top:6px">写真や くわしい 内容の 報告は、「報告書を書く」から お願いします。</div>';
+  $('mbody').innerHTML=list+write;
+  speak('事故や 破損の お知らせです。読みたい ものを タップすると、内容が 出ます。');
+}
+function dmgTitle(r){
+  if(r._kind==='vehicle') return ((r.location||'')+(r.accident_type?('・'+r.accident_type):'')) || '車両事故';
+  return r.product_name || r.accident_type || '製品破損';
+}
+// AIのまとめ(全社員向けの ai_brief=5W1H+原因の本質+対策+歯止め)を優先。無ければ管理職向け ai_review。
+function aiReviewText(r){
+  var b=String((r&&r.ai_brief)||'').trim();
+  if(b && b.indexOf('(AI')!==0) return b;
+  var t=String((r&&r.ai_review)||'').trim();
+  if(!t || t.indexOf('(AI見解の生成に失敗')===0) return '';
+  return t;
+}
+function lightMd(t){ return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/【([^】]+)】/g,'<b style="color:#1d4ed8">【$1】</b>').replace(/^\s*[-・]\s*/gm,'・'); }
+// 事故・破損レポートの写真URL一覧(画像のみ・動画は除く)。media_pathsはJSON文字列の配列。
+// 製品事故は label_photo_path(ラベル写真)も持つのでフォールバックに含める。カード/詳細の両方から使う。
+function dmgPhotos(r){
+  var a=[]; try{ a=JSON.parse((r&&r.media_paths)||'[]'); }catch(e){ a=[]; }
+  if(!Array.isArray(a)) a=[];
+  var imgs=a.filter(function(u){ return typeof u==='string' && /\.(jpg|jpeg|png|gif|webp|heic)(\?|$)/i.test(u); });
+  if(!imgs.length && r && r.label_photo_path) imgs=[r.label_photo_path];
+  return imgs;
+}
+// 画像が無くても動画が付いていれば、その旨をカードに出す(「写真なし」と誤解させない)
+function dmgHasVideo(r){
+  var a=[]; try{ a=JSON.parse((r&&r.media_paths)||'[]'); }catch(e){ a=[]; }
+  return Array.isArray(a) && a.some(function(u){ return typeof u==='string' && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(u); });
+}
+// 表示する項目(空欄は除く)
+function dmgRows(r){
+  var rows = r._kind==='vehicle'
+    ? [['場所',r.location],['事故種別',r.accident_type],['相手',r.counter_party],['負傷',r.injury_status],['状況',r.description||r.cause_summary],['原因',r.cause_summary||r.root_cause||r.direct_cause],['再発防止',r.recurrence_prevention||r.org_measure]]
+    : [['品名',r.product_name],['状況',r.situation_detail||r.damage_description],['損害',r.damage_description],['原因',r.cause_detail||r.root_cause||r.direct_cause],['再発防止',r.recurrence_prevention||r.org_measure]];
+  return rows.filter(function(x){ return x[1] && String(x[1]).trim(); });
+}
+function dmgDetailHtml(i){
+  var r=_dmgReports[i]; var html=''; var ai=aiReviewText(r);
+  // ★AIの見解を最上部に目立たせて表示(皆に分かってもらう)
+  if(ai){
+    html+='<div style="background:#eff6ff;border:2px solid #93c5fd;border-radius:14px;padding:12px 14px;margin-bottom:10px">'+
+      '<div style="font-weight:900;color:#1d4ed8;margin-bottom:6px;font-size:19px">🤖 AIの まとめ（原因の本質・対策・歯止め）'+
+        ' <button class="btn-go btn-sub" style="width:auto;padding:6px 12px;margin:0;font-size:16px;float:right" onclick="event.stopPropagation();readDamage('+i+')">🔊 きく</button></div>'+
+      '<div style="color:#1e3a8a;font-size:18px;line-height:1.7;white-space:pre-wrap">'+lightMd(ai.slice(0,2000))+'</div></div>';
+  }
+  var rows=dmgRows(r);
+  rows.forEach(function(x){ html+='<div style="margin:4px 0"><b style="color:#475569">'+esc(x[0])+'：</b>'+esc(String(x[1]).slice(0,600))+'</div>'; });
+  var photos=dmgPhotos(r).slice(0,6);
+  if(photos.length){
+    html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+
+      photos.map(function(u){ return '<img src="'+esc(u)+'" onclick="event.stopPropagation();dmgLightbox(\''+esc(u)+'\')" style="width:110px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" loading="lazy">'; }).join('')+'</div>';
+  }
+  if(!ai && !rows.length && !photos.length){ html='<div class="small">くわしい 内容の 記載は ありません。「報告書を書く」で 確認できます。</div>'; }
+  return html;
+}
+function toggleDamage(i){
+  bumpIdle();
+  var d=$('dmg-detail-'+i), c=$('dmg-caret-'+i); if(!d) return;
+  if(d.style.display==='none'){ if(!d.innerHTML) d.innerHTML=dmgDetailHtml(i); d.style.display=''; if(c)c.textContent='▴'; }
+  else { d.style.display='none'; if(c)c.textContent='▾'; }
+}
+// 葵が読み上げる。★AIの見解が有ればそれを優先して読み上げる(皆に分かってもらうのが目的)。
+function readDamage(i){
+  var r=_dmgReports[i]; if(!r) return; bumpIdle(); aoiSetClip('caution'); logUsage('listen:事故内容');
+  var ai=aiReviewText(r), text;
+  if(ai){ text=dmgTitle(r)+'。安全管理エーアイの まとめです。'+ai; }
+  else { var parts=[dmgTitle(r)]; dmgRows(r).forEach(function(x){ parts.push(x[0]+'、'+x[1]); }); text=parts.join('。'); }
+  speak(text.slice(0,700));
+}
+// 写真の拡大(タップで閉じる)
+function dmgLightbox(url){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(){ try{ document.body.removeChild(ov); }catch(e){} };
+  ov.innerHTML='<img src="'+esc(url)+'" style="max-width:96%;max-height:96%;border-radius:12px">';
+  document.body.appendChild(ov);
+}
+
+/* ===== ③ パーソナル掲示板（通達 + 公式3系統からの連絡・サムネタイル・タップで全文）2026-07-22 ===== */
+// 掲示板は「読ませる主戦場」ではなく任意の受け皿。必読(要確認通達)の強制は briefingStep のゲートが担う。
+var _boardNotices=[], _boardMsgs=[], _boardPlaza=[], _boardCircle=[], _boardGeneral=[], _boardDamage=[], _boardSafety=[], _pagesByTab={official:[],social:[],damage:[],safety:[]}, _pgTab='official', _pgIdx=0;
+// 掲示板タブの定義(色クラス・空表示)。タブを増やすときはここと paintBoard のタブHTMLだけ触る。
+var TAB_CLS={official:'tab-off',social:'tab-soc',damage:'tab-acc',safety:'tab-saf'};
+var TAB_EMPTY={official:'✓ 未読の 通達・連絡は ありません',social:'まだ 投稿は ありません',damage:'今のところ 事故・破損の お知らせは ありません',safety:'労働安全の 資料は まだ ありません'};
+// ランディングの #boardHost に掲示板を描画(音声はしない=挨拶 greetNow が予告を担う)。
+async function renderBoard(){
+  if(!$('boardHost')) return;
+  var an=await api('/api/announcements');
+  _boardNotices=((an&&(an.items||an.announcements||(Array.isArray(an)?an:[])))||[]);
+  // 公式3系統からの連絡(新ルート未反映時は404→messages空で通達のみ表示)。
+  var mg=await api('/api/tenko/official-messages').catch(function(){return null;});
+  _boardMsgs=((mg&&mg.messages)||[]).slice(0,20);
+  // みんなの投稿: ひろば・食事(plaza) と サークル活動(board circle)。
+  var pz=await api('/api/plaza/posts').catch(function(){return null;});
+  _boardPlaza=((pz&&(pz.posts||pz.items))||[]).slice(0,10);
+  try{ _prewarmOpeners(); }catch(e){}   // 食事投稿の前置き(ニックネーム入り)を先読み=タップ時に即再生
+  var bd=await api('/api/board/posts?limit=40').catch(function(){return null;});
+  var allBoard=((bd&&bd.posts)||[]);
+  _boardCircle=allBoard.filter(function(p){return p.circle_id;}).slice(0,6);
+  _boardGeneral=allBoard.filter(function(p){return !p.circle_id;}).slice(0,10);   // 一般の掲示板投稿(サークル以外)
+  // 🚨事故・破損: openDamage と同じ条件(承認済のみ)。未承認は現場に出さない。
+  var pr=await api('/api/accident/product?limit=15').catch(function(){return null;});
+  var vr=await api('/api/accident/vehicle?limit=15').catch(function(){return null;});
+  var pd=((pr&&pr.reports)||[]).filter(function(r){return r.status==='approved';}).map(function(r){ r._kind='product'; return r; });
+  var vh=((vr&&vr.reports)||[]).filter(function(r){return r.status==='approved';}).map(function(r){ r._kind='vehicle'; return r; });
+  _boardDamage=pd.concat(vh).sort(function(a,b){ return String(b.accident_date||b.created_at||'').localeCompare(String(a.accident_date||a.created_at||'')); }).slice(0,12);
+  // 🦺労働安全: 安全衛生ニュース/ヒヤリハット等のPDF資料(safety_reports)。
+  var sr=await api('/api/safety-report/list').catch(function(){return null;});
+  _boardSafety=((sr&&sr.reports)||[]).slice(0,12);
+  if(!$('boardHost')) return;   // await中に画面遷移した場合
+  paintBoard();
+}
+// 投稿日時(並べ替え用)。plaza/board とも created_at は 'YYYY-MM-DD HH:MM:SS'(UTC)で形式が揃っているため
+// 文字列比較で新しい順に並ぶ。欠損は最古扱いにして末尾へ送る。
+function postAt(p){ return String((p&&(p.created_at||p.cw_created_at||p.updated_at))||''); }
+// 未読 or 要確認未完了 = 前面に出す対象。読んだ通達は本欄から外してアーカイブへ畳む(掲示板が何枚にもならないように)。
+function isFreshNotice(a){ return (!a.read_at) || (a.requires_ack && !a.acked_at); }
+// マソンリー: カードを中身で可変高さにし、1画面(pgviewport高)に入る分だけ列詰め→残りは次ページ。横スライドは維持。
+// カード高さは実測(写真は上部132px固定なので画像ロード待ち不要=同期で確定)。ゾーン(通達・連絡→みんなの投稿)は混ぜない。
+function measureCards(vp,colW,htmls){
+  var m=document.createElement('div');
+  m.style.cssText='position:absolute;visibility:hidden;left:-9999px;top:0;width:'+colW+'px';
+  m.innerHTML='<div class="mcol" style="width:'+colW+'px">'+htmls.join('')+'</div>';
+  vp.appendChild(m);
+  var hs=[].map.call(m.firstChild.children,function(el){ return el.offsetHeight; });
+  vp.removeChild(m);
+  return hs;
+}
+function paginateZone(htmls,zone,dot,hint,vp,pageH,NCOL,GAP,out){
+  if(!htmls.length) return;
+  var colW=Math.floor((vp.clientWidth-(NCOL-1)*GAP)/NCOL); if(colW<80)colW=vp.clientWidth;
+  var hs=measureCards(vp,colW,htmls), page=null;
+  function np(){ page={zone:zone,dot:dot,hint:hint,cols:[]}; for(var c=0;c<NCOL;c++)page.cols.push({h:0,items:[]}); out.push(page); }
+  np();
+  for(var i=0;i<htmls.length;i++){
+    var ch=Math.min(hs[i]||120,pageH);
+    var si=0; for(var c=1;c<NCOL;c++) if(page.cols[c].h<page.cols[si].h) si=c;
+    var add=(page.cols[si].items.length?GAP:0)+ch;
+    if(page.cols[si].items.length && page.cols[si].h+add>pageH){ np(); si=0; add=ch; }
+    page.cols[si].items.push(htmls[i]); page.cols[si].h+=add;
+  }
+}
+// 固定グリッド分割 (2026-07-26)
+// マソンリー(paginateZone)は高さ可変で詰めるので枚数が揃わない。労働安全の資料は
+// 「同じ大きさで整列」しているほうが探しやすいので、cols×rows 枚ずつの固定ページにする。
+// 並びは行優先(左→右→次の行)＝読み順。カード高さはCSS(.pg.gridNxM)で均等に伸ばす。
+function paginateGrid(htmls,zone,dot,hint,cols,rows,out){
+  if(!htmls.length) return;
+  var per=cols*rows;
+  for(var s=0;s<htmls.length;s+=per){
+    var slice=htmls.slice(s,s+per);
+    var page={zone:zone,dot:dot,hint:hint,cls:'grid'+cols+'x'+rows,cols:[]};
+    for(var c=0;c<cols;c++) page.cols.push({h:0,items:[]});
+    for(var i=0;i<slice.length;i++) page.cols[i%cols].items.push(slice[i]);
+    out.push(page);
+  }
+}
+// 掲示板=2タブ切替。①通達・連絡(既定・NEWバッジ) ②みんなの投稿。ページ送りはタブ内だけ。
+function paintBoard(){
+  var host=$('boardHost'); if(!host) return;
+  var fresh=_boardNotices.filter(isFreshNotice);
+  var unreadMsgs=_boardMsgs.filter(function(m){ return !m.read; });
+  var official=[]; _boardMsgs.forEach(function(m,i){ if(!m.read) official.push(msgTile(m,i)); });   // 未読DMのみ(既読は過去フォルダ)
+  fresh.forEach(function(a){ official.push(noticeTile(a,_boardNotices.indexOf(a))); });
+  // みんなの投稿=食事/ひろば・掲示板・サークルを系統別に積まず、投稿日の新しい順に混ぜて並べる(2026-07-25)。
+  // ⚠️タイルのonclickは各配列のindexを参照するので、並べ替えてもindexは元のまま渡すこと。
+  var socialItems=[];
+  _boardPlaza.forEach(function(p,i){ socialItems.push({at:postAt(p), h:plazaTile(p,i)}); });
+  _boardGeneral.forEach(function(p,i){ socialItems.push({at:postAt(p), h:boardTile(p,i)}); });
+  _boardCircle.forEach(function(p,i){ socialItems.push({at:postAt(p), h:circleTile(p,i)}); });
+  socialItems.sort(function(a,b){ return String(b.at).localeCompare(String(a.at)); });   // 新しい順
+  var social=socialItems.map(function(x){ return x.h; });
+  // 先頭に「報告書を書く」カード。上帯の🚨ボタンを廃止(2026-07-26)したため、報告への導線はここが正式な入口。
+  var damage=[damageReportTile()]; _boardDamage.forEach(function(r,i){ damage.push(damageTile(r,i)); });
+  var safety=[]; _boardSafety.forEach(function(r,i){ safety.push(safetyTile(r,i)); });
+  host.classList.add('cork');
+  var offNew=fresh.length+unreadMsgs.length;
+  // タブは掲示板の外(左 #pgTabs)へ。掲示板内はヒント＋ビューポート＋ページャーのみ(カードレイアウトを乱さない)。
+  var tabsEl=$('pgTabs');
+  if(tabsEl){ tabsEl.innerHTML=
+    '<button class="pgtab tab-off" onclick="switchTab(\'official\')"><span class="pgti">📋</span>通達'+(offNew?'<span class="pgtnew">'+offNew+'</span>':'')+'</button>'+
+    '<button class="pgtab tab-soc" onclick="switchTab(\'social\')"><span class="pgti">🎭</span>みんなの投稿</button>'+
+    '<button class="pgtab tab-acc" onclick="switchTab(\'damage\')"><span class="pgti">🚨</span>事故・破損</button>'+
+    '<button class="pgtab tab-saf" onclick="switchTab(\'safety\')"><span class="pgti">🦺</span>労働安全</button>'+
+    '<button class="pgbtn-menu" onclick="location.href=\'/menu-plan.html\'"><img class="mface" src="/assets/calorie/_advisor_face.jpg?v=cal2" alt="">何を食べようか</button>'; }
+  host.innerHTML=
+    '<div class="pgviewport"><div class="pgtrack" id="pgtrack"></div></div>'+
+    '<div class="pager"><button class="pnav" id="pgPrev">◀ 前</button><div class="pdots" id="pgDots"></div><button class="pnav" id="pgNext">次 ▶</button></div>'+
+    '<div class="pghint" id="pgHint"></div>';
+  var vp=host.querySelector('.pgviewport');
+  // スマホ縦画面: 1カラム・全カードを1ページに積んで縦スクロール(横ページング無効)。
+  var IS_PHONE=(window.matchMedia && window.matchMedia('(max-width:640px)').matches);
+  var pageH=IS_PHONE ? 1000000 : (vp.clientHeight||400); if(!IS_PHONE && pageH<80) pageH=400;
+  var NCOL=IS_PHONE ? 1 : (vp.clientWidth>=700?3:2), GAP=13;
+  _pagesByTab={official:[],social:[],damage:[],safety:[]};
+  paginateZone(official,'📋 通達・連絡','#b91c1c','',vp,pageH,NCOL,GAP,_pagesByTab.official);
+  paginateZone(social,'🎭 みんなの投稿','#3a9d5a','気に入った投稿に ♡ いいね を つけてね',vp,pageH,NCOL,GAP,_pagesByTab.social);
+  paginateZone(damage,'🚨 事故・破損','#c2410c','タップすると くわしい 内容が 出ます',vp,pageH,NCOL,GAP,_pagesByTab.damage);
+  // 労働安全は 3列×2行=1ページ6枚の固定グリッド(社長指示 2026-07-26)。資料は同じ大きさで並ぶほうが探しやすい。
+  // ⚠️スマホ縦(IS_PHONE)は1カラム縦スクロールなのでグリッドにせず従来どおり積む。
+  if(IS_PHONE) paginateZone(safety,'🦺 労働安全','#0369a1','タップすると 資料が ひらきます',vp,pageH,NCOL,GAP,_pagesByTab.safety);
+  else paginateGrid(safety,'🦺 労働安全','#0369a1','タップすると 資料が ひらきます（✕とじる で戻れます）',3,2,_pagesByTab.safety);
+  // 既定=通達・連絡(優先)。空ならみんなの投稿。
+  // ⭐利用者が選んだタブは再描画後も維持する。paintBoardはモーダルを閉じるたび(closeModal→renderMenu→renderBoard)に
+  //   走るため、無条件に既定へ戻すと「タブを押しても通達に戻ってしまう」ように見える(2026-07-25 修正)。
+  var keep=_pgTab && _pagesByTab[_pgTab] && _pagesByTab[_pgTab].length;
+  if(!keep) _pgTab=(_pagesByTab.official.length?'official':(_pagesByTab.social.length?'social':(_pgTab||'official')));
+  // _pgIdx は維持(範囲外なら renderTab 側で 0 に戻す)＝カードを開いて閉じても見ていたページに戻る
+  $('pgPrev').onclick=function(){ if(_pgIdx>0){ _pgIdx--; setPage(); } };
+  $('pgNext').onclick=function(){ var n=(_pagesByTab[_pgTab]||[]).length; if(_pgIdx<n-1){ _pgIdx++; setPage(); } };
+  var sx=null;
+  vp.addEventListener('touchstart',function(e){ sx=e.touches[0].clientX; },{passive:true});
+  vp.addEventListener('touchend',function(e){ if(sx==null)return; var n=(_pagesByTab[_pgTab]||[]).length; var dx=e.changedTouches[0].clientX-sx; if(dx<-40&&_pgIdx<n-1){_pgIdx++;setPage();} else if(dx>40&&_pgIdx>0){_pgIdx--;setPage();} sx=null; });
+  renderTab();
+}
+// タブ切替。スマホ縦はページ全体が縦スクロールなので、切替で中身の高さが変わると
+// ブラウザがスクロール位置を詰めてボタン行が上下に動く → 押したら必ずタブ行を画面上端に揃える。
+function switchTab(tab){
+  if(_pgTab===tab) return; _pgTab=tab; _pgIdx=0; renderTab();
+  try{
+    if(window.matchMedia && window.matchMedia('(max-width:640px)').matches){
+      var bs=document.querySelector('.boardside');
+      if(bs){ var y=bs.getBoundingClientRect().top+(window.pageYOffset||0)-6; window.scrollTo(0, y<0?0:y); }
+    }
+  }catch(e){}
+}
+// 現在タブのページをトラック/ドットへ描画＋タブ選択状態。
+function renderTab(){
+  bumpIdle();
+  var pages=(_pagesByTab&&_pagesByTab[_pgTab])||[];
+  var track=$('pgtrack');
+  if(track){
+    if(!pages.length){ track.innerHTML='<div class="alldone">'+(TAB_EMPTY[_pgTab]||'まだ 投稿は ありません')+'</div>'; }
+    else track.innerHTML=pages.map(function(pg){ return '<div class="pg '+(pg.cls||'')+'">'+pg.cols.map(function(c){ return '<div class="mcol">'+c.items.join('')+'</div>'; }).join('')+'</div>'; }).join('');
+  }
+  var dots=$('pgDots'); if(dots){ dots.innerHTML=''; for(var k=0;k<pages.length;k++) dots.appendChild(document.createElement('i')); }
+  var cls=TAB_CLS[_pgTab]||'tab-off';
+  [].forEach.call(document.querySelectorAll('.pgtab'),function(b){ b.classList.toggle('on', b.className.indexOf(cls)>=0); });
+  // 掲示板の下地色をタブに合わせて切替(いま何の板か一目で判る)
+  var bh=$('boardHost');
+  if(bh){ ['official','social','damage','safety'].forEach(function(k){ bh.classList.toggle('bt-'+k, _pgTab===k); }); }
+  if(_pgIdx>=pages.length) _pgIdx=0;
+  setPage();
+}
+function setPage(){
+  bumpIdle();
+  var pages=(_pagesByTab&&_pagesByTab[_pgTab])||[];
+  var t=$('pgtrack'); if(t) t.style.transform='translateX('+(-_pgIdx*100)+'%)';
+  var dots=$('pgDots'); if(dots)[].forEach.call(dots.children,function(d,k){ d.className=k===_pgIdx?'on':''; });
+  var pg=pages[_pgIdx]||{};
+  if($('pgHint')) $('pgHint').textContent=pg.hint||'';
+  if($('pgPrev')) $('pgPrev').disabled=_pgIdx===0;
+  if($('pgNext')) $('pgNext').disabled=_pgIdx>=pages.length-1;
+  var pager=document.querySelector('.pager'); if(pager) pager.style.visibility=(pages.length>1?'visible':'hidden');
+}
+function chunk(a,n){ var r=[]; for(var i=0;i<a.length;i+=n) r.push(a.slice(i,i+n)); return r; }
+// 読んだ通達=消さずに保管。ボタンから一覧(モーダル)で見返せる。
+// 「読んだ通達」は上部メニューのボタン(c-arch)へ移設。掲示板内には出さない。
+function archiveBtnHtml(read){ return ''; }
+function wireArchive(read){}
+// メニューボタンから: 既読(=freshでない)通達を一覧表示。無ければ「ありません」。
+// 過去履歴フォルダ=読んだ通達＋読んだ連絡(DM)を新しい順に。消さずに保管。
+function openReadArchive(){
+  bumpIdle(); logUsage('open:読んだ通達・連絡');
+  var rows=[];
+  _boardNotices.forEach(function(a,i){ if(!isFreshNotice(a)) rows.push({d:String(a.created_at||''), h:'<button class="archrow" onclick="openNotice('+i+')"><b>📣 '+esc(a.title||'通達')+'</b><span>'+esc(String(a.created_at||'').slice(0,10))+'</span></button>'}); });
+  _boardMsgs.forEach(function(m,i){ if(m.read) rows.push({d:String(m.created_at||''), h:'<button class="archrow" onclick="openOffMsg('+i+')"><b>✉️ '+esc(m.sender_name||'連絡')+' さん</b><span>'+esc(String(m.created_at||'').slice(0,10))+'</span></button>'}); });
+  rows.sort(function(a,b){ return a.d<b.d?1:(a.d>b.d?-1:0); });
+  openModal('📁 読んだ通達・連絡', rows.map(function(r){ return r.h; }).join('')||'<div class="empty">ありません</div>');
+}
+function openNews(){ renderMenu(); }   // 旧参照・戻り先=ランディング(掲示板)
+// みんなの投稿タイル(🎭匿名・♡リアクション)。食事は写真+区分、ひろばは本文。
+function mealLabel(mt){ var m={breakfast:'🍞 朝',lunch:'🍱 昼',dinner:'🍜 夕',snack:'🍡 おやつ',morning:'🍞 朝',noon:'🍱 昼',night:'🍜 夕'}; return m[mt]||(mt?('🍽 '+mt):''); }
+function reactTotal(rx){ var t=0; if(rx){ for(var k in rx){ t+=(rx[k]||0); } } return t; }
+function myLiked(p){ return !!(p.my_reactions && (p.my_reactions['❤️']||p.my_reactions['👍'])); }
+// 食事(ひろば)カード=タップで詳細ポップアップ(写真原寸＋AIまとめ＋音声)。カード面のサムネはトリミング(cover)で揃える。
+function plazaTile(p,i){
+  var thumb = p.image_url
+    ? '<div class="tthumbwrap"><div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>'+(p.meal_type?'<span class="meal">'+mealLabel(p.meal_type)+'</span>':'')+'</div>'
+    : '<div class="tthumb soc-txt">🎭</div>';
+  var body=esc(String(p.content||''));
+  // 共用タブレットは実名を出さない: 🎭で始まる匿名名のみ許可、それ以外は「🎭 匿名」に伏せる。
+  var who=(p.author_name && /^🎭/.test(p.author_name)) ? p.author_name : '🎭 匿名';
+  var hasAI=!!String(p.ai_comment||'').trim();
+  var isMeal=!!(p.meal_type)||p.category==='食事';
+  var band=isMeal?'<div class="foodband">🍽 食事投稿</div>':'<div class="foodband hiroba">🎭 ひろば</div>';
+  return '<div class="tile soc" style="border-color:#e5b3c4" onclick="openPlaza('+i+')">'+band+thumb+
+    (hasAI?'<span class="aibadge">🩺 AI</span>':'')+
+    '<div class="tmeta"><div class="ttitle sm">'+(body||'　')+'</div>'+
+    '<div class="tsub"><span class="anon">'+esc(who)+'</span>'+
+    '<button class="likebtn'+(myLiked(p)?' on':'')+'" onclick="event.stopPropagation();reactPost(\'plaza\','+p.id+',this)">♡ <span class="n">'+reactTotal(p.reactions)+'</span></button></div></div></div>';
+}
+// 一般の掲示板投稿(サークル以外)。共用タブレットの匿名ルールで実名は出さず「掲示板」ラベル。
+// ⚠️添付がPDFのとき image_url は .pdf。<img src="~.pdf"> は絶対に表示されないので pdfThumbHtml を通す(2026-07-26)。
+function boardTile(p,i){
+  var img = p.image_url ? (isPdf(p.image_url) ? pdfThumbHtml(p.image_url)
+    : '<div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>') : '';
+  var body=esc(String(p.content||''));
+  return '<div class="tile soc" style="border-color:#c9b58a" onclick="openBoardPost('+i+')">'+
+    '<div class="foodband boardband">📋 掲示板</div>'+img+
+    '<div class="tmeta"><div class="ttitle sm">'+(body||'　')+'</div>'+
+    '<div class="tsub"><span class="anon">みんなの掲示板</span>'+
+    '<button class="likebtn'+(myLiked(p)?' on':'')+'" onclick="event.stopPropagation();reactPost(\'board\','+p.id+',this)">♡ <span class="n">'+reactTotal(p.reactions)+'</span></button></div></div></div>';
+}
+function openBoardPost(i){
+  var p=_boardGeneral[i]; if(!p) return; bumpIdle();
+  var img=p.image_url?(isPdf(p.image_url)?pdfAttachHtml(p.image_url,'boardPdf',i)
+    :'<img src="'+esc(p.image_url)+'" style="display:block;max-width:100%;max-height:44vh;margin:0 auto;object-fit:contain;border-radius:14px;background:#f1f5f9;cursor:zoom-in" onclick="dmgLightbox(\''+esc(p.image_url)+'\')">'):'';
+  openModal('📋 掲示板', img+(p.content?'<div class="q" style="font-size:20px;white-space:pre-wrap;text-align:left;margin-top:10px">'+esc(p.content)+'</div>':'')+'<div class="anon" style="margin-top:10px">みんなの掲示板</div>');
+  logUsage('open:掲示板詳細');
+}
+// PDF添付の詳細表示: 1ページ目のサムネ(タップで全ページ)＋「資料を ひらく」ボタン。
+// kind は openPdfFrom() のディスパッチ用(投稿の配列を引くため)。
+function pdfAttachHtml(u,kind,i){
+  return '<img class="pdfshot" src="'+esc(pdfThumbUrl(u))+'" alt="" onclick="openPdfFrom(\''+kind+'\','+i+')" onerror="this.style.display=\'none\'">'+
+    '<button class="pdfopen" onclick="openPdfFrom(\''+kind+'\','+i+')">📄 資料を ひらく</button>';
+}
+function openPdfFrom(kind,i){
+  var p = kind==='boardPdf' ? _boardGeneral[i] : (kind==='circlePdf' ? _boardCircle[i] : null);
+  if(!p||!p.image_url) return;
+  var title = kind==='circlePdf' ? ((p.circle_name||'サークル')+' の 活動報告') : '掲示板の 資料';
+  openPdfViewer(p.image_url, title, kind==='circlePdf'?'🎪':'📋');
+}
+function circleTile(p,i){
+  var img = p.image_url ? (isPdf(p.image_url) ? pdfThumbHtml(p.image_url)
+    : '<div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>') : '';
+  var body=esc(String(p.content||''));
+  return '<div class="tile soc" style="border-color:#8fbf9a" onclick="openCircle('+i+')">'+
+    '<div class="circleband">'+esc((p.circle_icon||'🎪')+' '+(p.circle_name||'サークル'))+'</div>'+img+
+    '<div class="tmeta"><div class="ttitle sm">'+(body||'　')+'</div>'+
+    '<div class="tsub"><span class="anon">活動報告</span>'+
+    '<button class="likebtn'+(myLiked(p)?' on':'')+'" onclick="event.stopPropagation();reactPost(\'board\','+p.id+',this)">♡ <span class="n">'+reactTotal(p.reactions)+'</span></button></div></div></div>';
+}
+/* ===== 🚨 事故・破損 / 🦺 労働安全 の掲示タイル (2026-07-25) ===== */
+// 事故・破損タブの先頭に置く「報告書を書く」カード。
+// ⚠️上帯の🚨事故・破損ボタン(openDamage)を廃止したため、/accident.html への導線はこのカードだけになる。消さないこと。
+// ⭐これは「掲示物」ではなく「操作ボタン」。他のカード(白地・帯付き)と明確に別物に見せる(2026-07-26)。
+function damageReportTile(){
+  return '<div class="tile act-tile" onclick="location.href=\'/accident.html?from=tablet\'">'+
+    '<div class="act-in">'+
+      '<div class="act-ico">📝</div>'+
+      '<div class="act-tx"><div class="act-t">報告書を 書く</div>'+
+        '<div class="act-s">事故・破損が あったとき</div></div>'+
+      '<div class="act-arw">›</div>'+
+    '</div>'+
+    '<div class="act-note">写真を つけて くわしく 報告できます</div>'+
+  '</div>';
+}
+// 事故・破損: 承認済のみ(renderBoardで絞込)。タップ=既存の一覧モーダルを開いて該当項目を展開。
+function damageTile(r,i){
+  var icon=(r._kind==='vehicle')?'🚗':'📦';
+  var ai=aiReviewText(r);
+  var lead=ai || dmgRows(r).map(function(x){ return x[0]+'：'+x[1]; }).join('　');
+  lead=String(lead||'').replace(/[#*【】]/g,'').slice(0,110);
+  // 写真があれば食事投稿と同じサムネを出す(2026-07-26)。複数枚は枚数バッジ、動画のみは🎥バッジ。
+  var ph=dmgPhotos(r), thumb='';
+  if(ph.length){
+    thumb='<div class="tthumbwrap"><div class="tthumb"><img src="'+esc(ph[0])+'" loading="lazy" alt=""></div>'+
+      (ph.length>1?'<span class="dmg-cnt">📷 '+ph.length+'</span>':'')+'</div>';
+  } else if(dmgHasVideo(r)){
+    thumb='<div class="tthumbwrap"><div class="tthumb" style="background:#475569">🎥</div><span class="dmg-cnt">動画</span></div>';
+  }
+  return '<div class="tile soc" style="border-color:#e2955f" onclick="openDamageAt('+i+')">'+
+    '<div class="foodband dmgband">'+icon+' 事故・破損</div>'+thumb+
+    '<div class="tmeta"><div class="ttitle sm">'+esc(dmgTitle(r))+'</div>'+
+    (lead?'<div style="margin-top:6px;font-size:13px;line-height:1.45;color:#475569;max-height:5.8em;overflow:hidden">'+esc(lead)+'</div>':'')+
+    '<div class="tsub"><span class="anon">'+esc(String(r.accident_date||r.created_at||'').slice(0,10))+'</span>'+
+    (ai?'<span style="background:#1d4ed8;color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:800">🤖AIのまとめ</span>':'')+
+    '</div></div></div>';
+}
+// 一覧モーダルを開いて i 番目を展開。_dmgReports は renderBoard と同じAPI・同じ並びなので index 一致。
+async function openDamageAt(i){
+  bumpIdle();
+  await openDamage();
+  try{ if(_dmgReports && _dmgReports[i]) toggleDamage(i); }catch(e){}
+}
+// 労働安全: 安全衛生ニュース・ヒヤリハット等のPDF資料(safety_reports)。タップで別タブに開く。
+// PDFは命名規則でサムネ/ページ画像を持つ(board.jsと共通): F.pdf → F.pdf.thumb.jpg / F.pdf.pN.jpg
+function isPdf(u){ return /\.pdf(\?|$)/i.test(String(u||'')); }
+function pdfThumbUrl(u){ return isPdf(u) ? (u+'.thumb.jpg') : u; }
+// PDF添付のカード面サムネ(1ページ目)。労働安全/掲示板/サークルで共用。
+// ⚠️PDFのURLをそのまま <img src> に入れると読めない(画像として取りに行って壊れる)ので必ずここを通す。
+function pdfThumbHtml(u){
+  return '<div class="tthumbwrap"><div class="tthumb tdoc">'+
+    '<img src="'+esc(pdfThumbUrl(u))+'" loading="lazy" alt="" onerror="this.parentNode.innerHTML=\'📄\'">'+
+    '</div><span class="dmg-cnt">📄 PDF</span></div>';
+}
+function safetyTile(r,i){
+  var ym=(r.year&&r.month)?(r.year+'年 '+r.month+'月'):'';
+  var fp=r.file_path||'';
+  // 1ページ目のサムネを表示(2026-07-26)。生成前/失敗時は onerror で📄アイコンに差し替え。
+  var thumb = fp ? pdfThumbHtml(fp) : '';
+  return '<div class="tile soc saf-tile" style="border-color:#7fa6bf" onclick="openSafetyDoc('+i+')">'+
+    '<div class="foodband safband">🦺 労働安全</div>'+thumb+
+    '<div class="tmeta"><div class="ttitle sm">'+esc(r.title||r.file_name||'資料')+'</div>'+
+    (r.note?'<div class="saf-note">'+esc(r.note)+'</div>':'')+
+    '<div class="tsub"><span class="anon">'+esc(ym)+'</span>'+
+    '<span style="background:#0369a1;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:800">📄 ひらく</span></div></div></div>';
+}
+/* アプリ内PDFビューア (2026-07-26)
+   ⚠️別タブで開くと、共用タブレット(キオスク)やPWAでは戻るボタンが無く閉じ込めになる。
+   → ページ画像(.pN.jpg)を順に読み込む全画面モーダルにして、必ず「✕とじる」で戻れるようにする。
+   ⭐上部に「📄 元のPDF」も置く。ページ画像はあくまで閲覧用で、拡大/保存/印刷したい人は
+     本物のPDFに辿り着けないと詰む(2026-07-26 社長指摘「タップしても元のPDFが開かない」)。
+   労働安全だけでなく、掲示板/サークル/通達/連絡のPDF添付も全部ここを通す。 */
+function openPdfViewer(fp,title,icon){
+  if(!fp) return; bumpIdle();
+  if(!isPdf(fp)){ try{ window.open(fp,'_blank','noopener'); }catch(e){ location.href=fp; } return; }
+  var ov=document.createElement('div'); ov.id='pdfOverlay'; ov.className='pdfov';
+  ov.innerHTML='<div class="pdfbar"><div class="pdft">'+esc((icon||'📄')+' '+(title||'資料'))+'</div>'+
+      '<a class="pdfx orig" href="'+esc(fp)+'" target="_blank" rel="noopener">📄 元のPDF</a>'+
+      '<button class="pdfx" onclick="closePdfViewer()">✕ とじる</button></div>'+
+      '<div class="pdfpages" id="pdfPages"><div class="pdfload">読み込み中…</div></div>';
+  document.body.appendChild(ov);
+  var host=ov.querySelector('#pdfPages'); host.innerHTML='';
+  // .p1.jpg から順に読み、404(onerror)で打ち止め=ページ数をフロントで持たなくてよい
+  (function addPage(p){
+    if(p>20) return;
+    var im=document.createElement('img'); im.className='pdfpg'; im.loading='lazy';
+    im.onload=function(){ var l=host.querySelector('.pdfload'); if(l) l.remove(); addPage(p+1); };
+    im.onerror=function(){
+      im.remove();
+      var l=host.querySelector('.pdfload'); if(l) l.remove();
+      // ページ画像が未生成でも「元のPDF」には必ず行けるようにする
+      if(p===1) host.innerHTML='<div class="pdfload">プレビューを 準備中です。<br><br>'+
+        '<a href="'+esc(fp)+'" target="_blank" rel="noopener" style="color:#7dd3fc;font-weight:900">📄 PDFを ひらく</a></div>';
+    };
+    im.src=fp+'.p'+p+'.jpg';
+    host.appendChild(im);
+  })(1);
+}
+function closePdfViewer(){ var o=$('pdfOverlay'); if(o) o.remove(); bumpIdle(); }
+function closeSafetyDoc(){ closePdfViewer(); }   // 旧名(既存のonclick互換)
+function openSafetyDoc(i){
+  var r=_boardSafety[i]; if(!r||!r.file_path) return;
+  logUsage('open:労働安全資料');
+  var ym=(r.year&&r.month)?(r.year+'年'+r.month+'月　'):'';
+  openPdfViewer(r.file_path, ym+(r.title||''), '🦺');
+}
+// 栄養分析: 詳細ページ(plaza.html)の buildNutritionBar を流用(塗り絵風アイコン＋基準比較＋信憑性)。
+// nutrition_scores はオブジェクト or JSON文字列の両対応。escapeHtml→esc に置換。
+function buildNutritionBar(sc){
+  if(!sc) return '';
+  if(typeof sc==='string'){ try{ sc=JSON.parse(sc); }catch(e){ return ''; } }
+  if(!sc || typeof sc!=='object') return '';
+  var isLegacy=(typeof sc.protein==='number' && sc.protein<=5 && !sc.calories);
+  if(isLegacy){
+    sc={ calories:{value:300+(sc.protein||3)*70,unit:'kcal'},protein:{value:(sc.protein||3)*5,unit:'g'},fat:{value:5+(sc.fat||3)*2.5,unit:'g'},carbs:{value:40+(sc.carbs||sc.carb||3)*10,unit:'g'},vitamin:{value:(sc.vitamin||3)*30,unit:'g'},mineral:{value:(sc.mineral||3)*55,unit:'mg'},fiber:{value:(sc.vitamin||3)*1.5,unit:'g'},salt:{value:4.0-(sc.salt||3)*0.5,unit:'g'},alcohol:{value:0,unit:'g'} };
+  }
+  var items=[
+    {key:'calories',icon:'🔥',label:'カロリー',unit:'kcal',target:550,min:450,max:650,range:true},
+    {key:'protein',icon:'🍖',label:'たんぱく質',unit:'g',target:20,positive:true},
+    {key:'fat',icon:'🧈',label:'脂質',unit:'g',target:15,min:12,max:18,range:true},
+    {key:'carbs',icon:'🍚',label:'炭水化物',unit:'g',target:79,min:69,max:89,range:true},
+    {key:'vitamin',icon:'🥬',label:'野菜量',unit:'g',target:120,positive:true},
+    {key:'mineral',icon:'🦴',label:'カルシウム',unit:'mg',target:227,positive:true},
+    {key:'fiber',icon:'🌾',label:'食物繊維',unit:'g',target:7,positive:true},
+    {key:'salt',icon:'🧂',label:'塩分',unit:'g',target:2.5,reverse:true},
+    {key:'alcohol',icon:'🍺',label:'アルコール',unit:'g',target:20,reverse:true,optional:true}
+  ];
+  var html='<div class="nutri-card"><div class="nutri-title">📊 栄養バランス（1食の目安と比較）</div><div class="nut-grid">';
+  var calRaw=sc.calories, calV=(calRaw&&typeof calRaw==='object')?Number(calRaw.value):(typeof calRaw==='number'?calRaw:550);
+  for(var ii=0;ii<items.length;ii++){
+    var item=items[ii], raw=sc[item.key], val=0;
+    if(raw&&typeof raw==='object'&&raw.value!==undefined) val=Number(raw.value); else if(typeof raw==='number') val=raw;
+    if(item.optional&&val===0) continue;
+    if(item.key==='fat'&&val>0&&val<=50) val=Math.round(val*calV/100/9*10)/10;
+    if(item.key==='carbs'&&val>0&&val<=70) val=Math.round(val*calV/100/4*10)/10;
+    var status,baseColor='#10b981',bad=false,dev=0,over=false;
+    if(item.reverse){ if(val<=item.target*0.8) status='良好'; else if(val<=item.target) status='適量'; else { status='超過';bad=true;over=true;dev=(val-item.target)/item.target*100; } }
+    else if(item.range){ if(val>=item.min&&val<=item.max) status='適量'; else if(val<item.min){ status='不足';bad=true;dev=(item.min-val)/item.min*100; } else { status='超過';bad=true;over=true;dev=(val-item.max)/item.max*100; } }
+    else if(item.positive){ var ratio=val/item.target; if(ratio>=1.3){ status='優秀';baseColor='#0d9488'; } else if(ratio>=1.0) status='達成'; else if(ratio>=0.7){ status='もう一歩';bad=true;dev=(item.target-val)/item.target*100; } else { status='不足';bad=true;dev=(item.target-val)/item.target*100; } }
+    else { var r2=val/item.target; if(r2>=0.8&&r2<=1.3) status='適量'; else if(r2<0.8){ status='不足';bad=true;dev=(item.target-val)/item.target*100; } else { status='超過';bad=true;over=true;dev=(val-item.target)/item.target*100; } }
+    dev=Math.round(dev); var color=baseColor,sev=0,warn='';
+    if(bad){ if(dev<25){ color='#f59e0b';sev=1; } else if(dev<60){ color='#f97316';sev=2;warn='⚠ '; } else if(dev<120){ color='#dc2626';sev=3;warn='⚠ '; } else { color='#991b1b';sev=4;warn='‼ '; } }
+    var fillRef=item.range?item.max:item.target, fill=Math.max(6,Math.min(100,Math.round(val/(fillRef||1)*100)));
+    var pctText;
+    if(!bad) pctText='✓ '+status;
+    else if(dev<60) pctText=warn+(over?'▲':'▼')+dev+'%'+status;
+    else if(over) pctText=warn+'基準の'+(1+dev/100).toFixed(1)+'倍';
+    else { var w=Math.round((1-dev/100)*10); pctText=warn+'基準の'+(w<1?'1割未満':w+'割'); }
+    var tgt=item.range?(item.min+'〜'+item.max+item.unit):(item.reverse?(item.target+item.unit+'以下'):(item.target+item.unit+'以上'));
+    var dispVal=(val%1===0)?val:val.toFixed(1);
+    html+='<div class="nut-cell" style="border-color:'+color+'55;background:'+color+'10;">'+
+      '<div class="nut-ico"><div class="g base">'+item.icon+'</div><div class="clip" style="height:'+fill+'%;"><div class="g">'+item.icon+'</div></div></div>'+
+      '<div class="nut-name">'+esc(item.label)+'</div>'+
+      '<div class="nut-val">'+dispVal+'<span class="t">'+item.unit+' / 基準 '+tgt+'</span></div>'+
+      '<div class="nut-pct sev'+sev+'" style="color:'+color+';background:#fff;border-color:'+color+';">'+pctText+'</div>'+
+    '</div>';
+  }
+  html+='</div>';
+  var conf=sc.confidence;
+  if(conf&&conf.level){
+    var stars=conf.level===3?'★★★':conf.level===2?'★★☆':'★☆☆';
+    var cc=conf.level===3?'#20c997':conf.level===2?'#f59e0b':'#ef4444';
+    var refObj=conf.reference_object, lbl=conf.reason||(conf.level===3?'成分表示':conf.level===2?'定番料理':'目視推定');
+    var refIco=refObj?'📐':'🔍';
+    var refTag=refObj?'<span style="background:#fff;color:'+cc+';padding:1px 6px;border-radius:8px;margin-left:4px;font-size:10px;font-weight:900;">📐 '+esc(refObj)+'</span>':'';
+    html+='<div class="nutri-conf"><span class="badge" style="background:'+cc+'18;color:'+cc+';">'+refIco+' 信憑性 '+stars+'（'+esc(lbl)+'）'+refTag+'</span></div>';
+  }
+  html+='<div class="nutri-foot">▮ 基準値｜食事摂取基準2025・スマートミール基準</div></div>';
+  return html;
+}
+// 食事カードの詳細=「栄養分析＋ヘルスアドバイザーの解説」だけのポップアップ(投稿者の雑談は省く)。写真は分析対象として上部に。
+// 非食事(ひろば)は従来どおり本文表示。解説の読み上げは任意(ボタン)。
+function openPlaza(i){
+  var p=_boardPlaza[i]; if(!p) return; bumpIdle();
+  var isMeal=!!(p.meal_type)||p.category==='食事';
+  var mealLbl=p.meal_type?mealLabel(p.meal_type):'';
+  var img=p.image_url?'<img src="'+esc(p.image_url)+'" style="display:block;max-width:100%;max-height:36vh;margin:0 auto;object-fit:contain;border-radius:14px;background:#f1f5f9;cursor:zoom-in" onclick="dmgLightbox(\''+esc(p.image_url)+'\')">':'';
+  var ai=String(p.ai_comment||'').trim();
+  if(isMeal && (ai || p.nutrition_scores)){
+    var nut=buildNutritionBar(p.nutrition_scores);
+    var aiHtml=ai?'<div class="aicard"><div class="aihd">🩺 ヘルスアドバイザーの 解説</div><div class="aibody">'+esc(ai)+'</div></div>':'';
+    openModal('🍽 食事の 分析'+(mealLbl?'（'+esc(mealLbl)+'）':''),
+      img+nut+aiHtml+(ai?'<button class="btn-go btn-sub" onclick="openAdvisor('+i+')">🔊 解説を 聞く</button>':''));
+    logUsage('open:食事分析');
+    if(ai) openAdvisor(i);   // 食事タップで即ヘルス解説を自動再生(葵は openAdvisor 側で確実に停止=被り防止)
+  } else {
+    var who=(p.author_name && /^🎭/.test(p.author_name)) ? p.author_name : '🎭 匿名';
+    var body=p.content?'<div class="q" style="font-size:20px;white-space:pre-wrap;text-align:left;margin-top:10px">'+esc(p.content)+'</div>':'';
+    openModal('🎭 ひろば', img+body+'<div class="anon" style="margin-top:10px">'+esc(who)+'</div>');
+    logUsage('open:ひろば詳細');
+  }
+}
+/* ===== AIヘルスアドバイザー(ショートカット女性)の解説モーダル: 詳細ページ plaza.html から移植 =====
+   共用タブレットの匿名配慮でニックネーム挨拶・個人の食事傾向は入れず、解説本文だけを話す。声=Despina(1.4倍速)。 */
+var ADV_MEAL={breakfast:'朝食',lunch:'昼食',dinner:'夕食',snack:'おやつ',morning:'朝食',noon:'昼食',night:'夕食'};
+function _advCleanSpeech(s){ return String(s||'').replace(/【([^】]*)】/g,'$1').replace(/[←-⇿⌀-➿■-◿⬀-⯿️\u{1F000}-\u{1FAFF}]/gu,'').replace(/\s+/g,' ').trim(); }
+function _advSentences(s,n){ s=_advCleanSpeech(s); if(!s)return ''; var arr=s.match(/[\s\S]*?[。！？!?]/g); if(!arr)return s; return arr.slice(0,n).join('').trim(); }
+function foodVoiceScript(text){
+  var src=String(text||''), map={}, re=/【([^】]+)】([\s\S]*?)(?=【[^】]+】|$)/g, m;
+  while((m=re.exec(src))!==null){ map[m[1].trim().replace(/[!！]+$/,'!')]=m[2].trim(); }
+  var good=map['良い点']?_advSentences(map['良い点'],2):'';
+  var concern=(map['改善点']||map['悪い点'])?_advSentences(map['改善点']||map['悪い点'],2):'';
+  var action=map['やってみよう!']?_advSentences(map['やってみよう!'],2):'';
+  var body;
+  if(good||concern||action){ var chunks=[]; if(good)chunks.push(good); if(concern)chunks.push('いっぽうで、'+concern); if(action)chunks.push('そこで、'+action); body=chunks.join(' '); }
+  else { body=_advSentences(src,3); }
+  if(!body) return '';
+  return body.length>400 ? body.slice(0,398)+'…' : body;
+}
+function _advCompose(meal,body){ var label=ADV_MEAL[meal]||'お食事'; return '今日の '+label+'について、解説しますね。 '+body; }
+var _advAudio=null, _advText='', _advAudioEl=null, _advVidFailed=false, _advGen=0;
+var _ADV_SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+function _advAudioPrime(){ try{ if(!_advAudioEl){ _advAudioEl=new Audio(); _advAudioEl.preload='auto'; } _advAudioEl.muted=true; _advAudioEl.src=_ADV_SILENT; var p=_advAudioEl.play(); if(p&&p.then)p.then(function(){ try{_advAudioEl.pause();_advAudioEl.currentTime=0;}catch(e){} }).catch(function(){}); }catch(e){} }
+function _advVidInit(){ var vid=$('adv-vid'); if(!vid||vid._inited)return; vid._inited=true; vid.addEventListener('error',function(){ _advVidFailed=true; var w=$('adv-av-wrap'); if(w)w.classList.remove('vid-on'); }); }
+function _advVidStart(){ var wrap=$('adv-av-wrap'), vid=$('adv-vid'); if(!wrap||!vid||_advVidFailed)return; _advVidInit(); wrap.classList.add('vid-on'); try{ vid.muted=true; try{vid.currentTime=0;}catch(e){} var p=vid.play(); if(p&&p.catch)p.catch(function(){ if(wrap)wrap.classList.remove('vid-on'); }); }catch(e){ if(wrap)wrap.classList.remove('vid-on'); } }
+function _advVidStop(){ var wrap=$('adv-av-wrap'), vid=$('adv-vid'); if(wrap)wrap.classList.remove('vid-on'); if(vid){ try{vid.pause();}catch(e){} } }
+function _advVidPrime(){ var vid=$('adv-vid'); if(!vid||_advVidFailed)return; _advVidInit(); try{ vid.muted=true; var p=vid.play(); if(p&&p.then)p.then(function(){ try{vid.pause();vid.currentTime=0;}catch(e){} }).catch(function(){}); }catch(e){} }
+// === ヘルス発話: 前置き音声(即時キャッシュ)＋本文TTS(並行読込)で「考え中の間」を埋める ===
+var _advOpenEl=null;
+var _ADV_OP={asa:'/assets/adv_op_asa.mp3?v=2',hiru:'/assets/adv_op_hiru.mp3?v=2',yoru:'/assets/adv_op_yoru.mp3?v=2',oyatsu:'/assets/adv_op_oyatsu.mp3?v=2',gen:'/assets/adv_op_gen.mp3?v=2'};
+function _advOpKey(meal){ var m=ADV_MEAL[meal]||''; return m==='朝食'?'asa':m==='昼食'?'hiru':m==='夕食'?'yoru':m==='おやつ'?'oyatsu':'gen'; }
+// 本文をTTS合成し、準備できた_advAudioEl(src設定済)を返す。離脱/失敗はnull。
+async function _advSynthMain(gen){
+  try{
+    if(!_advText) return null;
+    var lang=curLang(), vc=ADV_VOICE[lang]||ADV_VOICE.ja;
+    var sayText=await speakText(_advText);
+    if(gen!==_advGen) return null;
+    var res=await fetch('/api/voice/tts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({text:sayText,voice:vc.v,speed:vc.speed,pitch:vc.pitch||0})});
+    if(!res.ok||gen!==_advGen) return null;
+    var url=URL.createObjectURL(await res.blob());
+    if(gen!==_advGen){ try{URL.revokeObjectURL(url);}catch(e){} return null; }
+    if(!_advAudioEl) _advAudioEl=new Audio();
+    _advAudioEl.src=url; _advAudioEl._url=url;
+    return _advAudioEl;
+  }catch(e){ return null; }
+}
+// 準備済み本文audioを口パク動画＋ボタン制御付きで再生。
+function _advSpeakMain(el, gen){
+  var wrap=$('adv-av-wrap'), replay=$('adv-replay');
+  if(!el||gen!==_advGen){ if(wrap)wrap.classList.remove('speaking'); _advVidStop(); if(replay){ replay.disabled=false; replay.innerHTML='🔊 もう一度 聞く'; } return; }
+  el.muted=false; _advAudio=el;
+  if(replay){ replay.disabled=false; replay.innerHTML='⏸ 停止'; }
+  el.onplaying=function(){ if(wrap)wrap.classList.add('speaking'); _advVidStart(); };
+  el.onended=function(){ if(_advAudio===el)_advAudio=null; if(wrap)wrap.classList.remove('speaking'); _advVidStop(); if(replay)replay.innerHTML='🔊 もう一度 聞く'; if(el._url){try{URL.revokeObjectURL(el._url);}catch(e){}} };
+  el.play().catch(function(){});
+}
+// 投稿者ニックネーム: 匿名投稿はauthor_nameに「🎭 ニックネーム」で入る(author_nicknameはサーバーで削除される)。
+function _posterNick(p){ var a=(p&&p.author_name)||''; if(/^🎭/.test(a)){ var n=a.replace(/^🎭\s*/,'').trim(); if(n && n!=='匿名') return n; } return ''; }
+// 前置き音声(ニックネーム入り)をブロブで先読みキャッシュ→タップ時はジェスチャ内で即再生(間ゼロ)。
+var _opBlobCache={};   // "nick|meal" -> objectURL / null(取得中) / undefined(未取得)
+function _opKey(nick,meal){ return (nick||'')+'|'+(meal||''); }
+function _warmOpener(nick, meal){
+  var k=_opKey(nick,meal); if(_opBlobCache[k]!==undefined) return;   // 取得済/取得中はスキップ
+  _opBlobCache[k]=null;
+  fetch('/api/voice/tts-opener?v=2&meal='+encodeURIComponent(meal||'')+'&nick='+encodeURIComponent(nick||''))
+    .then(function(r){ return r.ok?r.blob():null; })
+    .then(function(b){ if(b){ try{ _opBlobCache[k]=URL.createObjectURL(b); }catch(e){} } })
+    .catch(function(){});
+}
+function _prewarmOpeners(){ try{ (_boardPlaza||[]).forEach(function(p){ if(p&&p.ai_comment){ _warmOpener(_posterNick(p), p.meal_type||''); } }); }catch(e){} }
+// 前置き(即時・長め)を鳴らしつつ本文を並行読込→前置き終了で本文へ。前置きが長いので本文が間に合い間が出ない。
+function _advBridge(meal, gen, nick){
+  var wrap=$('adv-av-wrap'), replay=$('adv-replay');
+  if(replay){ replay.disabled=true; replay.innerHTML='⏳ 読み込み中…'; }
+  var mainP=_advSynthMain(gen);   // 本文を並行読込(間を隠す)
+  if(!_advOpenEl) _advOpenEl=new Audio();
+  var op=_advOpenEl; try{op.pause();}catch(e){}
+  var u=_opBlobCache[_opKey(nick,meal)];
+  if(u){ op.src=u; }                                                    // 先読み済ニックネーム前置き=ジェスチャ内で即再生
+  else { op.src=(_ADV_OP[_advOpKey(meal)]||_ADV_OP.gen); _warmOpener(nick,meal); }   // 未達=汎用前置きを即再生+次回用に用意
+  op.muted=false; _advAudio=op;
+  var chained=false, chain=function(){ if(chained||gen!==_advGen)return; chained=true; mainP.then(function(el){ _advSpeakMain(el,gen); }); };
+  op.onplaying=function(){ if(wrap)wrap.classList.add('speaking'); _advVidStart(); };
+  op.onended=chain; op.onerror=chain;
+  var pp=op.play(); if(pp&&pp.catch) pp.catch(function(){ chain(); });   // 自動再生不可時は本文のみ
+}
+// 食事カードの「🔊 解説を聞く」から。葵は止めてアドバイザーに交代。匿名配慮で本文のみ。
+function openAdvisor(i){
+  var p=_boardPlaza[i]; if(!p) return; bumpIdle();
+  _aoiSpeakGen++;   // 進行中/準備中の葵の発話をキャンセル(被り防止)
+  var _g=++_advGen;   // このヘルス解説の世代(離脱時に無効化して見えない所で喋らせない)
+  if(curAudio){ try{curAudio.pause();}catch(e){} } _aoiBusy=false; try{ aoiTalk(false); }catch(e){}
+  var vs=foodVoiceScript(p.ai_comment); if(!vs) vs=_advCleanSpeech(p.ai_comment).slice(0,398);
+  if(!vs) return;
+  logUsage('listen:食事解説');
+  _advText=vs;   // 本文のみ(挨拶は前置きキャッシュ音声が担う)
+  advHeadShow(true);
+  _advVidPrime(); _advAudioPrime();
+  var pnick=_posterNick(p);   // ヘルスは投稿者のニックネームを読み上げる(匿名投稿はauthor_nameに🎭付きで入る)
+  _advBridge(p.meal_type||'', _g, pnick);   // 前置き即時＋本文並行読込で「考え中の間」を埋める
+}
+// 食事詳細のあいだ、葵の枠にヘルスを差し込む(on)/葵へ戻す(off)。offで音声・口パク停止。
+function advHeadShow(on){
+  var aoi=$('aoiWrap'), adv=$('adv-av-wrap'), rb=$('replayBtn');
+  if(on){ if(aoi)aoi.style.display='none'; if(adv)adv.style.display=''; if(rb)rb.style.display='none'; }
+  else {
+    _advGen++;   // 準備中(考え中)のヘルス発話を無効化=葵へ戻った後に見えない所で喋らない
+    if(_advAudio){ try{_advAudio.pause();}catch(e){} _advAudio=null; }
+    _advVidStop();
+    if(adv){ adv.classList.remove('speaking'); adv.style.display='none'; }
+    if(aoi)aoi.style.display='';
+  }
+}
+// 「もう一度 聞く」ボタン: 再生中なら停止、そうでなければ再生。
+function advisorReplay(){
+  if(_advAudio){ try{_advAudio.pause();}catch(e){} _advAudio=null; var w=$('adv-av-wrap'); if(w)w.classList.remove('speaking'); _advVidStop(); return; }
+  var replay=$('adv-replay'); if(replay){ replay.disabled=true; replay.innerHTML='⏳ 読み込み中…'; }
+  _advSynthMain(_advGen).then(function(el){ _advSpeakMain(el, _advGen); });   // もう一度=本文のみ
+}
+// サークル活動報告の詳細(写真原寸＋本文)。人名は出さない(活動報告名義)。
+function openCircle(i){
+  var p=_boardCircle[i]; if(!p) return; bumpIdle();
+  var img=p.image_url?(isPdf(p.image_url)?pdfAttachHtml(p.image_url,'circlePdf',i)
+    :'<img src="'+esc(p.image_url)+'" style="display:block;max-width:100%;max-height:44vh;margin:0 auto;object-fit:contain;border-radius:14px;background:#f1f5f9;cursor:zoom-in" onclick="dmgLightbox(\''+esc(p.image_url)+'\')">'):'';
+  openModal('🎪 '+(p.circle_name||'サークル')+' の 活動報告',
+    img+(p.content?'<div class="q" style="font-size:20px;white-space:pre-wrap;text-align:left;margin-top:10px">'+esc(p.content)+'</div>':'')+
+    '<div class="anon" style="margin-top:10px">活動報告</div>');
+  logUsage('open:サークル詳細');
+}
+// ♡リアクション(❤️をトグル)。楽観更新→失敗時に戻す。共用タブレットなのでリアクションのみ(コメントは出さない)。
+async function reactPost(kind,id,el){
+  bumpIdle();
+  var base = kind==='plaza' ? '/api/plaza/posts/' : '/api/board/posts/';
+  var on=el.classList.contains('on'), nEl=el.querySelector('.n'), n=parseInt((nEl&&nEl.textContent)||'0',10)||0;
+  el.classList.toggle('on'); if(nEl) nEl.textContent = on ? Math.max(0,n-1) : n+1;
+  try{ await api(base+id+'/react',{method:'POST',json:{emoji:'❤️'}}); }
+  catch(e){ el.classList.toggle('on'); if(nEl) nEl.textContent=n; }
+}
+// タイプ別に色分け(通達=種別色 / 連絡=青)。上部に色付きラベル+NEWバッジ。
+function noticeTile(a,i){
+  var lv=a.level==='urgent'?'#b91c1c':(a.level==='important'?'#b45309':'#0f766e');
+  var isNew=!a.read_at;
+  var ackBadge=(a.requires_ack&&!a.acked_at)?'<span class="tbadge ack">要確認</span>':'';
+  var att=(a.attachments&&a.attachments[0])||null;
+  var thumb;
+  if(att && /^image\//.test(att.mime||'')){ thumb='<div class="tthumb"><img src="'+esc(att.url)+'" loading="lazy"></div>'; }
+  else if(att){ thumb='<div class="tthumb tdoc" style="border-top:5px solid '+lv+'">📄<div class="small">'+esc(String(att.name||'ファイル').slice(0,16))+'</div></div>'; }
+  else { thumb='<div class="tthumb" style="background:'+lv+'">📣</div>'; }
+  return '<button class="tile" onclick="openNotice('+i+')" style="border-color:'+lv+'">'+
+    (isNew?'<span class="tnew">NEW</span>':'')+
+    '<div class="ttype" style="background:'+lv+'">📣 通達'+(a.level==='urgent'?'（緊急）':(a.level==='important'?'（重要）':''))+'</div>'+thumb+
+    '<div class="tmeta"><div class="ttitle">'+esc(a.title||'通達')+'</div>'+
+    '<div class="tsub">'+ackBadge+'<span class="tdate">'+esc(String(a.created_at||'').slice(0,10))+'</span></div></div></button>';
+}
+// DM(連絡)=付箋(ポストイット)風。本文を書いた感じで黄色い紙に貼る。掲示板には未読のみ。
+function msgTile(m,i){
+  var body=esc(String(m.content||'').slice(0,120));
+  return '<button class="tile postit" onclick="openOffMsg('+i+')">'+
+    '<span class="tnew">NEW</span>'+
+    '<div class="pi-body">'+(body||'✉️ 連絡')+'</div>'+
+    '<div class="pi-from">✉️ '+esc(m.sender_name||'連絡')+' さん</div></button>';
+}
+// 通達の全文(タップで開く)。戻るはモーダル上部の「← 戻る」でランディング掲示板へ。開いて読んだ=既読、要確認は確認(ack)。弔事は音声にしない。
+function openNotice(i){
+  var a=_boardNotices[i]; if(!a) return; bumpIdle();
+  var atts=(a.attachments||[]);
+  // 添付PDFはアプリ内ビューア(サムネ+全ページ+「元のPDF」)へ。別タブ直行だと戻れない/開かない(2026-07-26)
+  var attHtml=atts.map(function(t){
+    if(/^image\//.test(t.mime||'')) return '<img src="'+esc(t.url)+'" style="max-width:100%;border-radius:12px;margin-top:10px" onclick="window.open(this.src)">';
+    if(isPdf(t.url)) return '<img class="pdfshot" style="margin-top:10px" src="'+esc(pdfThumbUrl(t.url))+'" alt="" onclick="openPdfViewer(\''+esc(t.url)+'\',\''+esc(String(t.name||'添付資料').replace(/\x27/g,'')) +'\',\'📣\')" onerror="this.style.display=\'none\'">'+
+      '<button class="pdfopen" onclick="openPdfViewer(\''+esc(t.url)+'\',\''+esc(String(t.name||'添付資料').replace(/\x27/g,''))+'\',\'📣\')">📄 '+esc(t.name||'添付資料')+' を ひらく</button>';
+    return '<div style="margin-top:10px"><a class="btn-go btn-sub" href="'+esc(t.url)+'" target="_blank" style="display:inline-block;width:auto;padding:8px 16px">📄 '+esc(t.name||'ファイル')+'</a></div>';
+  }).join('');
+  var solemn=isSolemn(a);
+  openModal(a.title||'通達',
+    (a.requires_ack?'<div class="q" style="font-size:22px;color:#b91c1c">（要確認）</div>':'')+
+    '<div class="q" style="font-size:24px;white-space:pre-wrap;text-align:left">'+esc(a.body||a.content||'')+'</div>'+attHtml+
+    (solemn?'':'<button class="btn-go btn-sub" onclick="sayNotice('+i+')">🔊 もう一度 聴く</button>'));
+  if(!solemn) sayNotice(i);
+  if(a.id){
+    var ops=[ api('/api/announcements/'+encodeURIComponent(a.id)+'/read',{method:'POST'}) ];
+    if(a.requires_ack) ops.push(api('/api/announcements/'+encodeURIComponent(a.id)+'/ack',{method:'POST'}));
+    a.read_at=a.read_at||'now'; if(a.requires_ack) a.acked_at='now';
+    Promise.all(ops).then(function(){ try{ refreshBadges(); }catch(e){} });
+  }
+}
+function sayNotice(i){ var a=_boardNotices[i]; if(!a||isSolemn(a)) return; bumpIdle(); aoiSetClip('talk'); speak((a.title||'通達')+'。'+String(a.body||a.content||'').slice(0,600)); }
+// 公式連絡の全文(タップで開く)。開いた=既読(/api/chat/read)。
+function openOffMsg(i){
+  var m=_boardMsgs[i]; if(!m) return; bumpIdle();
+  var att = m.attach_url ? (/^image\//.test(m.attach_type||'')
+      ? '<img src="'+esc(m.attach_url)+'" style="max-width:100%;border-radius:12px;margin-top:10px" onclick="window.open(this.src)">'
+      : (isPdf(m.attach_url)
+        ? '<img class="pdfshot" style="margin-top:10px" src="'+esc(pdfThumbUrl(m.attach_url))+'" alt="" onclick="openPdfViewer(\''+esc(m.attach_url)+'\',\'添付資料\',\'✉️\')" onerror="this.style.display=\'none\'">'+
+          '<button class="pdfopen" onclick="openPdfViewer(\''+esc(m.attach_url)+'\',\'添付資料\',\'✉️\')">📄 '+esc(m.attach_name||'添付資料')+' を ひらく</button>'
+        : '<div style="margin-top:10px"><a class="btn-go btn-sub" href="'+esc(m.attach_url)+'" target="_blank" style="display:inline-block;width:auto;padding:8px 16px">📎 '+esc(m.attach_name||'ファイル')+'</a></div>')) : '';
+  openModal('✉️ '+(m.sender_name||'')+' さんからの 連絡',
+    '<div class="q" style="font-size:24px;white-space:pre-wrap;text-align:left">'+esc(m.content||'')+'</div>'+att+
+    '<button class="btn-go btn-sub" onclick="sayMsg('+i+')">🔊 もう一度 聴く</button>');
+  sayMsg(i);
+  if(m.id){ api('/api/chat/read',{method:'POST',json:{message_ids:[m.id]}}).then(function(){ try{ refreshBadges(); }catch(e){} }); }
+}
+function sayMsg(i){ var m=_boardMsgs[i]; if(!m) return; bumpIdle(); aoiSetClip('talk'); speak((m.sender_name||'')+'さんからの 連絡です。'+String(m.content||'').slice(0,600)); }
+// 弔事(訃報・逝去・通夜/告別式)の判定。合成音声での読み上げ対象から外すために使う。
+function isSolemn(a){
+  if(!a) return false;
+  return /訃報|逝去|ご逝去|お悔やみ|通夜|告別式/.test(String((a.title||'')+' '+(a.body||a.content||'')));
+}
+
+/* ===== ④ メッセージ ===== */
+async function openMsg(){
+  logUsage('open:メッセージ'); aoiSetClip('talk'); curPeer=null;
+  openModal('💬 メッセージ','<div class="empty">読み込み中…</div>');
+  var d=await api('/api/chat/dm');
+  var peers=(d&&d.peers)||[];
+  var html='<button class="btn-go" style="margin:0 0 12px" onclick="openNewDm()">✉️ 新しく 送る</button>';
+  if(!peers.length){ html+='<div class="empty">これまでの メッセージは ありません。</div>'; }
+  else { peers.slice(0,30).forEach(function(p){
+    html+='<div class="listitem" style="cursor:pointer" onclick="loadThread(\''+esc(p.peer_id)+'\')">'+
+      '<div class="ti">'+esc(p.display_name||'')+'</div>'+
+      '<div class="bd">'+esc((p.last_content||'').slice(0,140))+'</div></div>';
+  }); }
+  $('mbody').innerHTML=html;
+  speak('メッセージです。相手を 選ぶか、新しく 送るを 押してください。');
+}
+// 新規に送る相手を名簿から選ぶ
+var CO_MAP={}, ND_USERS=[];
+async function ensureCoMap(){ if(Object.keys(CO_MAP).length) return; var d=await api('/api/expense/init'); ((d&&d.offices)||[]).forEach(function(o){ CO_MAP[o.code]=o.name; }); }
+async function openNewDm(){
+  aoiSetClip('talk'); curPeer=null;
+  openModal('✉️ 新しく 送る','<div class="empty">読み込み中…</div>');
+  await ensureCoMap();
+  var r=await fetch('/api/auth/tablet-roster').then(function(x){return x.json();}).catch(function(){return null;});
+  var myUid=ME&&ME.uid;
+  ND_USERS=((r&&r.users)||[]).filter(function(u){ return u.id!==myUid; });
+  var myCo=(ME&&ME.company_code)||'';
+  var seen={}, offices=[]; ND_USERS.forEach(function(u){ var c=u.company_code||''; if(c&&!seen[c]){seen[c]=1;offices.push(c);} });
+  var sel='<select id="ndco" onchange="renderNewDm()" style="width:100%;font-size:20px;padding:12px;border:2px solid #cfe0ee;border-radius:14px;margin-bottom:10px;font-weight:700"><option value="">すべての拠点</option>';
+  offices.forEach(function(c){ sel+='<option value="'+esc(c)+'"'+(c===myCo?' selected':'')+'>'+esc(CO_MAP[c]||c)+'</option>'; });
+  sel+='</select>';
+  $('mbody').innerHTML=sel+'<div id="ndlist"></div>';
+  renderNewDm();
+  speak('送りたい 相手を 選んで タッチしてください。');
+}
+function renderNewDm(){
+  var co=($('ndco')&&$('ndco').value)||'';
+  var us=ND_USERS.filter(function(u){ return !co || (u.company_code||'')===co; });
+  us.sort(function(a,b){ return String(a.display_name||'').localeCompare(String(b.display_name||''),'ja'); });
+  var html=us.map(function(u){
+    var av=u.avatar_url?('<img src="'+esc(u.avatar_url)+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 auto">'):'<span style="font-size:30px">👤</span>';
+    return '<div class="listitem" style="cursor:pointer;display:flex;align-items:center;gap:10px" onclick="loadThread(\''+esc(u.id)+'\')">'+av+'<div><div class="ti" style="margin:0">'+esc(u.display_name||'')+'</div><div class="mt">'+esc(CO_MAP[u.company_code]||u.company_code||'')+'</div></div></div>';
+  }).join('') || '<div class="empty">該当者が いません。</div>';
+  $('ndlist').innerHTML=html;
+}
+// スレッド表示＋既読処理＋返信
+async function loadThread(peerId, quiet){
+  curPeer=String(peerId); bumpIdle();
+  if(!quiet) $('mbody').innerHTML='<div class="empty">読み込み中…</div>';
+  var d=await api('/api/chat/dm/'+encodeURIComponent(peerId));
+  var msgs=(d&&(d.messages||d.items))||[];
+  var name=(d&&d.peer&&d.peer.display_name)||'';
+  var mine=ME&&ME.uid, readIds=[];
+  var body=msgs.map(function(m){
+    var isMine=String(m.sender_id)===String(mine);
+    if(!isMine && m.id) readIds.push(m.id);
+    return '<div style="margin:8px 0;text-align:'+(isMine?'right':'left')+'"><div style="display:inline-block;max-width:82%;padding:12px 16px;border-radius:16px;font-size:20px;line-height:1.5;text-align:left;background:'+(isMine?'#d1f0dd':'#eef2f7')+'">'+esc(m.content||'')+'</div></div>';
+  }).join('') || '<div class="empty">まだ メッセージは ありません。</div>';
+  $('mbody').innerHTML='<div style="font-weight:900;font-size:20px;margin-bottom:8px">'+esc(name)+' さん</div>'+
+    '<div id="thread" style="max-height:44vh;overflow:auto;padding:4px;background:#fafcff;border-radius:12px">'+body+'</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px"><textarea class="big-in" id="rply" style="min-height:64px;font-size:22px" placeholder="返事を 書く"></textarea>'+
+    '<button class="btn-go" style="width:auto;padding:14px 20px;margin:0;flex:0 0 auto" onclick="sendDm()">送信</button></div>'+
+    '<button class="btn-close" style="margin-top:10px" onclick="openMsg()">← 一覧に 戻る</button>';
+  if(readIds.length){ api('/api/chat/read',{method:'POST',json:{message_ids:readIds}}); refreshBadges(); }
+  var th=$('thread'); if(th) th.scrollTop=th.scrollHeight;
+  if(!quiet){ var py=ROSTER_YOMI[String(peerId)]||name; speak(name+'さんとの メッセージです。返事も 書けます。', null, py+'さんとの メッセージです。返事も 書けます。'); }
+}
+function sendDm(){
+  bumpIdle();
+  var el=$('rply'); var t=(el&&el.value||'').trim();
+  if(!t||!curPeer) return;
+  if(socket){ try{ socket.emit('chat:dm',{to:curPeer, content:t}); }catch(e){} }
+  var th=$('thread'); if(th){ th.insertAdjacentHTML('beforeend','<div style="margin:8px 0;text-align:right"><div style="display:inline-block;max-width:82%;padding:12px 16px;border-radius:16px;font-size:20px;line-height:1.5;text-align:left;background:#d1f0dd">'+esc(t)+'</div></div>'); th.scrollTop=th.scrollHeight; }
+  if(el) el.value='';
+}
+
+/* ===== 完了画面 → 必ずログアウトを促す ===== */
+/* ===== 🚚 帰庫点呼 / 🏠 帰る前のチェック (乗務後・退勤前の自己申告) 2026-07-09, 職種展開 2026-07-27 =====
+   ⚠️「点呼」は貨物事業法の法定用語。ドライバー以外には使わず「帰る前の チェック」と呼ぶ。
+   共通= つかれ / からだ (ふだん=5) ＋ ひとこと。職種ごとに固有の2〜3問を足す。
+     driver        : アルコール / 運行の状況 / ヒヤリハット / 荷待ち・荷役の時間
+     warehouse     : 腰・肩・ひざの痛み / ヒヤリハット / 設備・荷の異常
+     manufacturing : 作業中の体調の異変 / ヒヤリハット / 設備・製品の異常
+     office        : 今日の時間外 / こころの調子(任意) / 目・肩・腰の疲れ
+   固有回答は extra_json で保存(サーバー側)。つかれ/からだは全職種同じ列＝KPI・平常値・エスカレを共通化。 */
+var kikoAns={alcohol_detected:null, operation_issue:null, hiyari:null, wait:null, fatigue:null, body:null,
+             pain:null, symptom:null, overtime:null, eye:null, mind:null};
+function kikoKind(){
+  var jr=(ME&&ME.job_role)||'';
+  if(jr==='driver') return 'driver';
+  if(jr==='warehouse') return 'warehouse';
+  if(jr==='manufacturing') return 'manufacturing';
+  return 'office';   // 事務・管理職・役員(job_role未設定の事務も含む)
+}
+function kikoTitle(kind){ return kind==='driver' ? '🚚 帰庫（帰社）点呼' : '🏠 帰る前の チェック'; }
+// 3択(なし/中/つらい)などの共通ビルダー。opts=[[label,value,cls],...]
+function kikoChoice(key,title,opts,noteId,notePh){
+  var b=opts.map(function(o){ return '<button class="kiko-opt '+(o[2]||'')+'" onclick="kikoPick(this,\''+key+'\',\''+o[1]+'\')">'+o[0]+'</button>'; }).join('');
+  return '<div class="kiko-sec"><div class="kiko-q">'+title+'</div><div class="kiko-opts">'+b+'</div>'
+    +(noteId?'<textarea id="'+noteId+'" class="kiko-note" placeholder="'+notePh+'" style="display:none"></textarea>':'')+'</div>';
+}
+// ヒヤリハット(ドライバー・倉庫・製造で共通)
+function kikoHiyariSec(){
+  return '<div class="kiko-sec"><div class="kiko-q">😨 ヒヤリハット（今日 ヒヤッと したこと）</div>'
+    +'<div class="kiko-opts"><button class="kiko-opt ok" onclick="kikoPick(this,\'hiyari\',0)">なかった</button>'
+    +'<button class="kiko-opt" onclick="kikoPick(this,\'hiyari\',1)">あった</button></div>'
+    +'<textarea id="kiko-hiyanote" class="kiko-note" placeholder="どんな場面でしたか（あれば入力）" style="display:none"></textarea></div>';
+}
+// 設備・荷・製品の異常(ラベルだけ職種で変える。保存は operation_issue / operation_note を共用)
+function kikoEquipSec(title){
+  return '<div class="kiko-sec"><div class="kiko-q">'+title+'</div>'
+    +'<div class="kiko-opts"><button class="kiko-opt ok" onclick="kikoPick(this,\'operation_issue\',0)">✅ 異常なし</button>'
+    +'<button class="kiko-opt ng" onclick="kikoPick(this,\'operation_issue\',1)">⚠️ 異常あり</button></div>'
+    +'<textarea id="kiko-opnote" class="kiko-note" placeholder="異常の内容（あれば入力）" style="display:none"></textarea></div>';
+}
+async function openKiko(){
+  var kind=kikoKind();
+  logUsage(kind==='driver'?'open:帰庫点呼':'open:帰る前のチェック'); aoiSetClip('greet');
+  kikoAns={alcohol_detected:null, operation_issue:null, hiyari:null, wait:null, fatigue:null, body:null,
+           pain:null, symptom:null, overtime:null, eye:null, mind:null};
+  var h='';
+  if(kind==='driver'){
+    h+='<div class="kiko-sec"><div class="kiko-q">🍺 アルコールチェック（検知器で測定）</div>'
+     +'<div class="kiko-opts"><button class="kiko-opt ok" onclick="kikoPick(this,\'alcohol_detected\',0)">🟢 検知なし</button>'
+     +'<button class="kiko-opt ng" onclick="kikoPick(this,\'alcohol_detected\',1)">🔴 検知あり</button></div></div>'
+     +kikoEquipSec('🚗 運行の状況（車両・道路）')
+     +kikoHiyariSec()
+     +'<div class="kiko-sec"><div class="kiko-q">⏱ 今日の 荷待ち・荷役の 時間</div>'
+       +'<div class="kiko-opts"><button class="kiko-opt ok" onclick="kikoPick(this,\'wait\',\'none\')">なし・30分未満</button>'
+       +'<button class="kiko-opt" onclick="kikoPick(this,\'wait\',\'lt60\')">30分〜1時間</button>'
+       +'<button class="kiko-opt ng" onclick="kikoPick(this,\'wait\',\'gt60\')">1時間以上</button></div>'
+       +'<textarea id="kiko-waitnote" class="kiko-note" placeholder="荷主・現場の名前（あれば入力）" style="display:none"></textarea></div>';
+  } else if(kind==='warehouse'){
+    h+=kikoChoice('pain','💪 腰・肩・ひざの 痛み',
+        [['なし','none','ok'],['少しある','mild',''],['つらい','hard','ng']],'kiko-painnote','どこが 痛みますか（あれば入力）')
+     +kikoHiyariSec()
+     +kikoEquipSec('⚙️ 設備・荷の 異常（フォークリフト・パレット・ラックなど）');
+  } else if(kind==='manufacturing'){
+    h+=kikoChoice('symptom','😵 作業中の 体調の 異変',
+        [['なかった','none','ok'],['めまい・頭痛','dizzy','ng'],['目や のどの 刺激','irritation','ng']],'kiko-symnote','どんな作業のときでしたか（あれば入力）')
+     +kikoHiyariSec()
+     +kikoEquipSec('⚙️ 設備・製品の 異常');
+  } else {
+    h+=kikoChoice('overtime','⏰ 今日の 時間外',
+        [['なし','none','ok'],['1時間ほど','lt1',''],['2時間以上','gt2','ng']],null,null)
+     +kikoChoice('eye','👀 目・肩・腰の 疲れ',
+        [['なし','none','ok'],['少し','mild',''],['つらい','hard','ng']],null,null)
+     +kikoScale('mind','🫧 こころの 調子（任意）','普段の気持ちを5として、今はいくつですか？　答えたくないときは とばして かまいません。');
+  }
+  h+=kikoScale('fatigue','😫 現在の疲労度','普段の疲れを5として、現在はいくつですか？')
+   +kikoScale('body','🩹 現在の体調','普段の体調を5として、現在はいくつですか？')
+   +'<div class="kiko-sec"><div class="kiko-q">💬 ひとこと（任意）</div>'
+     +'<textarea id="kiko-note" class="kiko-note" placeholder="伝えたいこと・気になった点があれば入力"></textarea></div>'
+   +'<div class="kiko-sec"><div class="kiko-q">📢 管理者からのお知らせ</div><div id="kiko-news" style="text-align:left">読み込み中…</div></div>'
+   +'<button class="btn-go" onclick="submitKiko()">'+(kind==='driver'?'帰庫（帰社）点呼を送信する':'送信する')+'</button>';
+  openModal(kikoTitle(kind), h);
+  var notice = await loadKikoNews();
+  if(kind==='driver') await loadMyAlerts();   // 当日の運転アラート(本人分)を先読み。ドライバーのみ
+  else _myAlerts=[];
+  var greet = kind==='driver'
+    ? 'お疲れさまでした。帰庫点呼を行います。アルコール、運行状況、本日の体調を選択して送信してください。'
+    : 'お疲れさまでした。帰る前の チェックです。今日の 体の 調子を えらんで、送信して ください。';
+  // 声が重ならないよう順番に: 挨拶 → 疲労スケールの説明(5=いつも通り) → (当日 運転アラート) → (管理者お知らせ)
+  speak(greet, function(){
+    var after=function(){ speakMyAlert(function(){ if(notice) speakKikoNotice(); }); };
+    if(shouldSpeakScale()) speakFatScale(after); else after();
+  });
+}
+// スケール説明の頻度: 今週(〜2026-07-19)は毎回、来週からは各ドライバー週1回(その週の初回)だけ。
+function scaleWeekStart(d){ var day=(d.getDay()+6)%7; var m=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day);
+  return m.getFullYear()+'-'+('0'+(m.getMonth()+1)).slice(-2)+'-'+('0'+m.getDate()).slice(-2); }
+function shouldSpeakScale(){
+  var now=new Date();
+  var today=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2);
+  if(today<='2026-07-19') return true;   // 今週は毎日
+  try{ var uid=(ME&&ME.id)||'x'; var key='kikoScaleWk_'+uid; var wk=scaleWeekStart(now);
+       if(localStorage.getItem(key)===wk) return false;   // 今週分は既読
+       localStorage.setItem(key,wk); return true;
+  }catch(e){ return true; }
+}
+// つかれ/からだの 0〜10 の読み方を葵が説明(新基準「ふだん=5」の周知)。
+function speakFatScale(done){
+  bumpIdle(); aoiSetClip('talk');
+  speak('疲労と体調は、普段を5として選んでください。いつも通りなら5、楽なら5より下、つらい時は5より上の数字を選んでください。', done);
+}
+var _myAlerts=[];
+// 当日の運転アラート(本人分)を取得。managerでなくても本人分のみ返る専用API。
+async function loadMyAlerts(){
+  _myAlerts=[];
+  try{ var d=await api('/api/alert/mine'); if(d&&d.alerts) _myAlerts=d.alerts; }catch(e){}
+  return _myAlerts;
+}
+// 帰庫当日に運転アラートがあった対象ドライバーへ、葵が やさしく一言 触れる(叱責でなく安全への気づかい)。
+function speakMyAlert(done){
+  done=done||function(){};
+  if(!_myAlerts||!_myAlerts.length){ done(); return; }
+  var n=_myAlerts.length;
+  var line='ところで、今日は 運転の 注意アラートが '+n+'件 ありました。'
+    +'長時間の 運転で お疲れの ことと 思います。次の 乗務も、車間と スピードに 気をつけて、安全運転で お願いしますね。';
+  aoiSetClip('caution'); speak(line, done);
+}
+// 0〜10スケール(つかれ/からだ)。5=いつも通り、10=げんかい。5以下=平常(緑)→上振れで黄→橙→赤。
+function fatColor(n){
+  if(n<=5) return 'background:#dcfce7;border-color:#86efac;color:#065f46';
+  if(n<=7) return 'background:#fef9c3;border-color:#fde047;color:#854d0e';
+  if(n<=8) return 'background:#ffedd5;border-color:#fdba74;color:#9a3412';
+  return 'background:#fee2e2;border-color:#fca5a5;color:#991b1b';
+}
+function kikoScale(key,title,lead){
+  var b='';
+  for(var n=0;n<=10;n++){ b+='<button class="fat-btn" id="fat-'+key+'-'+n+'" style="'+fatColor(n)+'" onclick="fatPick(\''+key+'\','+n+')">'+n+'</button>'; }
+  return '<div class="kiko-sec"><div class="kiko-q">'+title+'</div>'
+    +'<div class="fat-lead">'+lead+'</div>'
+    +'<div class="fat-grid">'+b+'</div>'
+    +'<div class="fat-ends"><span>0 = 大丈夫</span><span>5 = 普段通り</span><span>10 = 限界</span></div></div>';
+}
+// 数字タップは音声反応なし(0〜11回喋ると うるさいため)。送信後の葵コメントでまとめてねぎらう。
+function fatPick(key,n){
+  bumpIdle(); kikoAns[key]=n;
+  for(var i=0;i<=10;i++){ var el=$('fat-'+key+'-'+i); if(el) el.classList.toggle('sel', i===n); }
+}
+function kikoPick(el,key,val){
+  bumpIdle(); kikoAns[key]=val;
+  var grp=el.parentNode.querySelectorAll('.kiko-opt'); for(var i=0;i<grp.length;i++) grp[i].classList.remove('sel');
+  el.classList.add('sel');
+  if(key==='operation_issue'){ var n=$('kiko-opnote'); if(n) n.style.display=val?'block':'none'; }
+  if(key==='hiyari'){ var hn=$('kiko-hiyanote'); if(hn) hn.style.display=val?'block':'none'; }
+  // 荷待ちの現場名は「30分以上かかったとき」だけ聞く(短い日は入力させない)
+  if(key==='wait'){ var wn=$('kiko-waitnote'); if(wn) wn.style.display=(val==='none')?'none':'block'; }
+  if(key==='pain'){ var pn=$('kiko-painnote'); if(pn) pn.style.display=(val==='none')?'none':'block'; }
+  if(key==='symptom'){ var sn=$('kiko-symnote'); if(sn) sn.style.display=(val==='none')?'none':'block'; }
+  kikoReact(key,val);   // 選択に合わせて葵が表情(喜怒哀楽クリップ)＋ひとことで反応=感情豊かに
+}
+// 帰庫点呼の各選択への葵の反応。表情クリップを切り替えてから短いセリフを喋る(口パク=クリップの口の動きと一緒に出る)。
+function kikoReact(key,val){
+  var clip='talk', line='';
+  if(key==='alcohol_detected'){
+    if(val){ clip='caution'; line='アルコールが検出されました。運転はできません。直ちに管理者へお知らせします。'; }
+    else { clip='praise'; line='アルコールは検知なし。安心しました。'; }
+  } else if(key==='operation_issue'){
+    // ラベルは職種で違う(運行の状況 / 設備・荷 / 設備・製品)ので、セリフも合わせる
+    var ek=kikoKind();
+    if(val){ clip='concern'; line=(ek==='driver'?'運行で異常があったのですね。':'異常が あったのですね。')+'下の欄に内容を入力してください。'; }
+    else { clip='thanks'; line=(ek==='driver'?'運行も問題なし。':'異常なし、ですね。')+'本日もお疲れさまでした。'; }
+  } else if(key==='pain'){
+    if(val==='hard'){ clip='concern'; line='つらい痛みですね。無理を なさらないでください。管理者にも お伝えします。'; }
+    else if(val==='mild'){ clip='listen'; line='痛みが 出ているのですね。今夜は 温めて、ゆっくり 休んでください。'; }
+    else { return; }
+  } else if(key==='symptom'){
+    if(val==='none'){ return; }
+    clip='concern'; line='体調に 変わりが あったのですね。管理者に お伝えします。無理を なさらないでください。';
+  } else if(key==='overtime'){
+    if(val==='gt2'){ clip='listen'; line='今日は 長い時間でしたね。おつかれさまでした。'; }
+    else { return; }
+  } else if(key==='eye'){
+    if(val==='hard'){ clip='listen'; line='目や 肩が つらいときは、少し 目を 休めて、肩を 回してみてください。'; }
+    else { return; }
+  } else if(key==='hiyari'){
+    // ⚠️ヒヤリハットは「言ってくれてありがとう」で受ける。責める言い方は絶対にしない(報告が止まる)。
+    if(val){ clip='listen'; line='教えてくださって ありがとうございます。下の欄に、どんな場面だったか お願いします。'; }
+    else { return; }   // 「なかった」は淡々と(反応なし=喋りすぎ防止)
+  } else if(key==='wait'){
+    if(val==='gt60'){ clip='concern'; line='1時間以上の 荷待ちでしたか。おつかれさまでした。記録しておきます。'; }
+    else if(val==='lt60'){ clip='listen'; line='荷待ちの時間、記録しておきます。'; }
+    else { return; }
+  } else if(key==='fatigue'){
+    if(val==='very_tired'){ clip='concern'; line='かなりお疲れですね。今日はご無理をなさらないでください。'; }
+    else if(val==='tired'){ clip='listen'; line='少しお疲れですね。ゆっくり休んでください。'; }
+    else { clip='greet'; line='お元気そうで何よりです。'; }
+  } else { return; }
+  aoiSetClip(clip); speak(line);
+}
+var _kikoNotice='';
+// 管理者が入力した帰庫点呼のお知らせ(専用テキスト)を取得して表示。読み上げ文を返す。
+async function loadKikoNews(){
+  var box=$('kiko-news'); if(!box) return '';
+  var txt='';
+  try{ var d=await api('/api/tenko/kiko/notice'); txt=(d&&d.notice)?String(d.notice).trim():''; }catch(e){}
+  _kikoNotice=txt;
+  if(!txt){ box.innerHTML='<div style="color:#94a3b8;font-size:16px">本日のお知らせはありません。</div>'; return ''; }
+  box.innerHTML='<div style="white-space:pre-wrap;font-size:18px;line-height:1.6;background:#fffdf3;border:1px solid #fde68a;border-radius:12px;padding:12px">'+esc(txt)+'</div>'
+    +'<button class="btn-go btn-sub" style="margin-top:10px" onclick="speakKikoNotice()">🔊 もう一度聴く</button>';
+  return txt;
+}
+// 葵が管理者からのお知らせを読み上げる(文章を読まない社員向け)
+function speakKikoNotice(){ if(_kikoNotice){ bumpIdle(); aoiSetClip('talk'); speak('管理者からのお知らせです。'+_kikoNotice); } }
+async function submitKiko(){
+  bumpIdle();
+  var kind=kikoKind(), v=($('kiko-note')||{}).value||'';
+  // 職種ごとの必須チェック(こころの調子だけ任意=とばせる)
+  if(kind==='driver'){
+    if(kikoAns.alcohol_detected===null){ speak('アルコールの結果を選択してください。'); return; }
+    if(kikoAns.operation_issue===null){ speak('運行状況を選択してください。'); return; }
+    if(kikoAns.hiyari===null){ speak('ヒヤリハットが あったか どうかを 選択してください。'); return; }
+    if(kikoAns.wait===null){ speak('荷待ち・荷役の 時間を 選択してください。'); return; }
+  } else if(kind==='warehouse'){
+    if(kikoAns.pain===null){ speak('腰や 肩の 痛みを 選択してください。'); return; }
+    if(kikoAns.hiyari===null){ speak('ヒヤリハットが あったか どうかを 選択してください。'); return; }
+    if(kikoAns.operation_issue===null){ speak('設備や 荷の 異常を 選択してください。'); return; }
+  } else if(kind==='manufacturing'){
+    if(kikoAns.symptom===null){ speak('作業中の 体調の 異変を 選択してください。'); return; }
+    if(kikoAns.hiyari===null){ speak('ヒヤリハットが あったか どうかを 選択してください。'); return; }
+    if(kikoAns.operation_issue===null){ speak('設備や 製品の 異常を 選択してください。'); return; }
+  } else {
+    if(kikoAns.overtime===null){ speak('今日の 時間外を 選択してください。'); return; }
+    if(kikoAns.eye===null){ speak('目や 肩の 疲れを 選択してください。'); return; }
+  }
+  if(kikoAns.fatigue===null){ speak('疲労度を数字で選択してください。'); return; }
+  if(kikoAns.body===null){ speak('体調を数字で選択してください。'); return; }
+  // ⚠️アルコールチェックはドライバーのみ。他職種は alcohol_used=0 で送り、一覧では「—」と出す
+  //   (0を送ると「検知なし＝測った」と誤読されるため)。
+  var body={ alcohol_used:(kind==='driver'?1:0), alcohol_detected:kikoAns.alcohol_detected?1:0, operation_issue:kikoAns.operation_issue?1:0,
+    job_kind:kind, fatigue_score:kikoAns.fatigue, body_score:kikoAns.body,
+    hiyari:kikoAns.hiyari?1:0, hiyari_note:(kikoAns.hiyari?(($('kiko-hiyanote')||{}).value||''):''),
+    wait_level:(kind==='driver'?kikoAns.wait:null), wait_note:((kind==='driver'&&kikoAns.wait!=='none')?(($('kiko-waitnote')||{}).value||''):''),
+    // 職種固有の回答(サーバーは extra_json にそのまま保存)
+    pain:kikoAns.pain, pain_note:((kikoAns.pain&&kikoAns.pain!=='none')?(($('kiko-painnote')||{}).value||''):''),
+    symptom:kikoAns.symptom, symptom_note:((kikoAns.symptom&&kikoAns.symptom!=='none')?(($('kiko-symnote')||{}).value||''):''),
+    overtime:kikoAns.overtime, eye:kikoAns.eye, mind_score:kikoAns.mind,
+    operation_note:(($('kiko-opnote')||{}).value||''), note:v };
+  var r=await api('/api/tenko/kiko',{method:'POST',json:body});
+  if(r&&r.success){
+    logUsage(kind==='driver'?'done:帰庫点呼':'done:帰る前のチェック');
+    if(kikoAns.alcohol_detected||kikoAns.operation_issue){
+      // 異常あり=管理者の指示が最優先。通達の確認は挟まない。
+      doneScreen('送信しました','管理者に直ちに連絡しました。指示をお待ちください。','concern');
+    } else {
+      // 帰庫点呼も健康・運行の申告だけで終わらせず、未読の通達/連絡を確認してから終わる。
+      briefingStep(function(){
+        doneScreen('本日もお疲れさまでした',
+          (r.aoi_comment||((kind==='driver'?'帰庫点呼':'帰る前の チェック')+'を記録しました。本日もお疲れさまでした。')),'thanks');
+      }, '📋 帰る前の確認', '帰る前に', true);
+    }
+  } else { speak('送信に失敗しました。もう一度お試しください。'); }
+}
+// 帰庫時の ねぎらい＋健康ワンポイント(体調に合わせて葵が読み上げる)
+function kikoHealthTip(fatigue){
+  if(fatigue==='very_tired') return 'かなりお疲れのようです。今夜は早めに休んで、しっかり睡眠を取ってください。運行管理者にもお伝えしました。';
+  if(fatigue==='tired') return '少しお疲れのようですね。ぬるめのお風呂で体をほぐし、水分も取りましょう。';
+  var tips=['水分をコップ1杯取って、ひと息つきましょう。','首と肩をゆっくり回して、体をほぐしましょう。','今夜は少し早めに休んで、しっかり睡眠を取りましょう。','ゆっくり深呼吸を3回。疲れをリセットしましょう。','夕食は野菜からよく噛んで食べると体に優しいです。'];
+  return tips[Math.floor(Math.random()*tips.length)];
+}
+function doneScreen(title, sub, emotion){
+  aoiSetClip(emotion||'praise');
+  var tail;
+  if(IS_KIOSK){
+    // 共用タブレット: 次の人のため、使い終わったら必ずログアウト。
+    tail='<div class="q" style="font-size:24px;color:#b91c1c">使い終わったら 必ず<br>「ログアウト」を 押してください。</div>'+
+      '<button class="btn-go" style="background:#dc2626;box-shadow:0 5px 0 #a41a1a" onclick="doLogout(true)">ログアウトする</button>'+
+      '<button class="btn-go btn-sub" onclick="closeModal()">続ける（他もやる）</button>';
+  } else {
+    // 個人スマホ: 自分の端末なのでログアウト強制はしない。メニューに戻るだけ。
+    tail='<button class="btn-go" onclick="closeModal()">メニューに 戻る</button>';
+  }
+  $('mbody').innerHTML='<div class="done-wrap"><div class="big">✅ '+esc(title)+'</div>'+
+    '<div class="q" style="font-size:24px">'+esc(sub)+'</div>'+tail+'</div>';
+  speak(title+' '+sub+(IS_KIOSK?' 使い終わったら、必ず ログアウトを 押してください。':''));
+}
+
+/* ===== ログアウト ＋ 無操作オートログアウト ===== */
+async function doLogout(farewell){
+  _firstDone=true;   // 挨拶の後追い発火を止める
+  if(curAudio){ try{ curAudio.pause(); }catch(e){} }
+  if(farewell){ // 退出時は葵が会釈して見送る
+    try{ aoiSetClip('bow'); await new Promise(function(res){ var d=false,fin=function(){ if(d)return; d=true; res(); }; speak('お疲れ様でした。ご安全に。', fin); setTimeout(fin, 3500); }); }catch(e){}
+  }
+  try{ if(socket) socket.disconnect(); }catch(e){}
+  try{ await fetch('/api/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+TOKEN}}); }catch(e){}
+  ['cohub_token','cohub_user','cohub_kiosk','cohub_kiosk_token'].forEach(function(k){ try{localStorage.removeItem(k);}catch(e){} });
+  // 共用タブレットは表示モードの好み・言語を端末に残さない(次の利用者へ波及させない)。個人スマホは好みを維持。
+  if(IS_KIOSK){ try{ localStorage.removeItem('cohub_view_pref'); localStorage.removeItem('cohub_lang'); }catch(e){} }
+  try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf('cohub_draft_')===0) localStorage.removeItem(k); }); }catch(e){}
+  // キオスクは共用ログイン画面(/tablet)へ、個人スマホは通常ログイン(/)へ。
+  location.replace(IS_KIOSK ? '/tablet' : '/');
+}
+var idleTimer=null;
+// 無操作オートログアウトは共用タブレット(キオスク)のみ。個人スマホは自分の端末なので勝手にログアウトしない。
+function bumpIdle(){ if(!IS_KIOSK) return; if(idleTimer)clearTimeout(idleTimer); idleTimer=setTimeout(function(){ doLogout(); }, 3*60*1000); }
+['click','touchstart','keydown'].forEach(function(ev){ document.addEventListener(ev, bumpIdle, {passive:true}); });
+
+init();
+</script>
+<script src="/translate.js?v=20260622f" defer></script>
+</body>
+</html>
