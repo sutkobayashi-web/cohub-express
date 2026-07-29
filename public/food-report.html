@@ -45,33 +45,46 @@
   .chip{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;color:#fff;margin-left:4px}
   .chip-good{background:#10b981}.chip-warn{background:#f59e0b}.chip-bad{background:#ef4444}
   /* 栄養イラスト(塗り絵風)グリッド */
-  .nut-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:6px}
-  @media(max-width:520px){.nut-grid{grid-template-columns:repeat(2,1fr)}}
-  .nut-cell{border:1px solid #e4eaf2;border-radius:14px;padding:10px 8px 9px;text-align:center;background:#fbfdff;display:flex;flex-direction:column;align-items:center;height:100%}
-  .nut-cell.good{border-color:#a7f3d0;background:#f0fdf9}
-  .nut-cell.warn{border-color:#fde68a;background:#fffbeb}
-  .nut-cell.bad{border-color:#fecaca;background:#fef2f2}
-  .nut-ico{position:relative;width:58px;height:58px;margin:0 auto 6px}
-  .nut-ico .g{position:absolute;left:0;bottom:0;width:58px;height:58px;font-size:46px;line-height:58px;text-align:center}
-  .nut-ico .base{filter:grayscale(1);opacity:.20}
-  .nut-ico .clip{position:absolute;left:0;bottom:0;width:58px;overflow:hidden;transition:height .5s ease}
-  .nut-name{font-size:13px;font-weight:800;color:#334155}
-  .nut-val{font-size:15px;font-weight:800;color:#0f172a;margin-top:3px}
-  .nut-val .t{font-size:11px;font-weight:600;color:#94a3b8}
-  .nut-pct{font-size:12px;font-weight:800;margin-top:auto;padding:3px 8px;border-radius:999px;display:inline-block;white-space:nowrap;line-height:1.25;background:#fff;border:1px solid currentColor}
-  .nut-pct.good{color:#0f9d63;background:#fff}
-  .nut-pct.warn{color:#b45309;background:#fef3c7}
-  .nut-pct.bad{color:#dc2626;background:#fee2e2}
-  /* 逸脱レベル別の段階強調 (超過/不足ほど 注意→危険→重大) */
-  .nut-cell.sev1{border-color:#fcd34d;background:#fffbeb}
-  .nut-cell.sev2{border-color:#fdba74;background:#fff7ed}
-  .nut-cell.sev3{border-color:#fca5a5;background:#fef2f2}
-  .nut-cell.sev4{border-color:#ef4444;background:#fee2e2}
-  .nut-pct.sev1{color:#b45309;background:#fff;font-size:12.5px}
-  .nut-pct.sev2{color:#c2410c;background:#fff;font-size:13.5px;font-weight:900}
-  .nut-pct.sev3{color:#dc2626;background:#fff;font-size:14.5px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px rgba(220,38,38,.3)}
-  .nut-pct.sev4{color:#991b1b;background:#fff;font-size:15.5px;font-weight:900;letter-spacing:.3px;box-shadow:0 2px 9px rgba(153,27,27,.45);animation:nutAlarm 1s ease-in-out infinite}
-  @keyframes nutAlarm{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  /* 結論1行 + 共通軸ゲージ (2026-07-30・plaza.html と同設計) */
+  .nv{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid #e2e8e5}
+  .nv-sig{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;flex:none}
+  .nv-tx{min-width:0}
+  .nv-hl{font-size:17px;font-weight:900;line-height:1.35;color:#14211c}
+  .nv-hl .nv-sub{color:#7b8b84;font-weight:800;font-size:13px}
+  .nv-act{font-size:14px;color:#41514a;line-height:1.5;margin-top:2px}
+  .ng-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:16px 2px 9px}
+  .ng-head b{font-size:13px;font-weight:800;color:#41514a}
+  .ng-head span{font-size:11px;color:#8b9a93;white-space:nowrap}
+  .ng-rows{display:grid;gap:11px}
+  .ng-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+  .ng-name{font-size:14px;font-weight:800;color:#14211c;display:flex;align-items:center;gap:6px;min-width:0}
+  .ng-val{font-size:13px;font-weight:800;color:#41514a;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ng-val i{font-style:normal;font-weight:600;color:#8b9a93;font-size:11px}
+  .ng-track{grid-column:1/-1;position:relative;height:18px;margin-top:2px}
+  .ng-zones{position:absolute;left:0;right:0;top:4px;bottom:4px;display:flex;border-radius:5px;overflow:hidden;background:#e7ece6}
+  .ng-z{height:100%}
+  .ng-z-bad{background:rgba(207,59,59,.10)}
+  .ng-z-ok{background:rgba(12,163,12,.14)}
+  .ng-z-fine{background:rgba(12,163,12,.06)}
+  .ng-band{position:absolute;top:0;bottom:0;border-left:1px solid rgba(12,163,12,.55);border-right:1px solid rgba(12,163,12,.55)}
+  .ng-mark{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.10)}
+  .ng-mark.ng-tri{border-radius:3px;transform:rotate(45deg)}
+  .ng-st{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .ng-tag{font-size:13px;font-weight:900;white-space:nowrap}
+  .ng-tag .ng-dev{font-variant-numeric:tabular-nums;font-weight:800}
+  .ng-hint{font-size:12px;color:#7b8b84;text-align:right;line-height:1.4}
+  .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:11px;border-top:1px solid #eaefe9}
+  .ng-chip{font-size:12.5px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:3px 10px}
+  .ng-chip b{color:#0ca30c;font-weight:900}
+  .ng-more{margin-top:12px;width:100%;font-family:inherit;font-size:12.5px;font-weight:800;color:#1b4034;background:#fff;border:1px dashed #cfdad4;border-radius:10px;padding:8px 10px;cursor:pointer}
+  .ng-more:hover{background:rgba(12,163,12,.06)}
+  .ng-tbl{overflow-x:auto;margin-top:8px}
+  .ng-tbl table{border-collapse:collapse;width:100%;font-size:12.5px}
+  .ng-tbl th,.ng-tbl td{text-align:right;padding:5px 7px;border-bottom:1px solid #eaefe9;white-space:nowrap}
+  .ng-tbl th:first-child,.ng-tbl td:first-child{text-align:left}
+  .ng-tbl thead th{font-size:11px;color:#8b9a93;font-weight:800}
+  .ng-tbl td.n{font-variant-numeric:tabular-nums;font-weight:700}
+  .ng-basis{font-size:11.5px;color:#7b8b84;margin-top:10px}
   .meta{font-size:12px;color:#64748b;margin-bottom:6px}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{border-bottom:1px solid #e4eaf2;padding:8px;text-align:left}
@@ -154,56 +167,122 @@ function showSection(name){
 }
 function ymLabel(ym){const p=String(ym).split('-');return p[0]+'年'+Number(p[1])+'月';}
 
-// 栄養バー定義
-const NUTRIENTS=[
-  {k:'kcal',label:'カロリー',unit:'kcal',min:450,max:650},
-  {k:'protein',label:'たんぱく質',unit:'g',min:20},
-  {k:'fat',label:'脂質',unit:'g',min:12,max:18},
-  {k:'carbs',label:'炭水化物',unit:'g',min:69,max:89},
-  {k:'veg',label:'野菜',unit:'g',min:120},
-  {k:'ca',label:'カルシウム',unit:'mg',min:227},
-  {k:'salt',label:'食塩',unit:'g',max:2.5},
-  {k:'fiber',label:'食物繊維',unit:'g',min:7},
+// ===== 栄養: 結論1行 + 共通軸ゲージ (2026-07-30) =====
+// 全項目を同じ横軸に載せ、中央 B0〜B1 を「適量帯」として固定する。判定は「●が帯に入っているか」だけ。
+// 基準は metrics.targets (本人の体格に合わせた個別目安) を優先し、無い月は一律の参考値を使う。
+var B0=36, B1=64;
+var NUT_DEF=[
+  {k:'kcal',   ico:'🔥',label:'カロリー',  unit:'kcal',type:'range',lo:450,hi:650,tk:'kcal'},
+  {k:'protein',ico:'🍖',label:'たんぱく質',unit:'g',   type:'min',  lo:20,        tk:'protein'},
+  {k:'fat',    ico:'🧈',label:'脂質',      unit:'g',   type:'range',lo:12,hi:18,  tk:'fat'},
+  {k:'carbs',  ico:'🍚',label:'炭水化物',  unit:'g',   type:'range',lo:69,hi:89,  tk:'carbs'},
+  {k:'veg',    ico:'🥬',label:'野菜',      unit:'g',   type:'min',  lo:120,       tk:'veg'},
+  {k:'ca',     ico:'🦴',label:'カルシウム',unit:'mg',  type:'min',  lo:227,       tk:'ca'},
+  {k:'fiber',  ico:'🌾',label:'食物繊維',  unit:'g',   type:'min',  lo:7,         tk:'fiber'},
+  {k:'salt',   ico:'🧂',label:'食塩',      unit:'g',   type:'max',        hi:2.5, tk:'salt'}
 ];
-const NUT_ICON={kcal:'🔥',protein:'🍗',fat:'🧈',carbs:'🍚',veg:'🥬',ca:'🥛',salt:'🧂',fiber:'🌾'};
-// 実際値を基準と比較 → {cls,pctText,fill%}
-function evalNut(n,v){
-  let cls='good', bad=false, over=false, dev=0, lbl='適正';
-  if(n.max!=null && v>n.max){ bad=true; over=true; lbl='超過'; dev=Math.round((v-n.max)/n.max*100); }
-  else if(n.min!=null && v<n.min){ bad=true; lbl='不足'; dev=Math.round((n.min-v)/n.min*100); }
-  let warn='';
-  if(bad){
-    if(dev<25){cls='sev1';}
-    else if(dev<60){cls='sev2';warn='⚠ ';}
-    else if(dev<120){cls='sev3';warn='⚠ ';}
-    else{cls='sev4';warn='‼ ';}
+var NG_TAG={in:'適量',plenty:'しっかり',low:'足りない',high:'多い'};
+var NG_GLY={in:'✓',plenty:'✓',low:'◀',high:'▶'};
+var NG_COL=['#0ca30c','#d98411','#cf3b3b'];
+var NG_HINT={
+  kcal:['1食あたりおにぎり1個ぶん足りません','1食あたり少し量を減らす'],
+  protein:['卵1個か納豆1パックを足す',''],
+  fat:['','揚げ物やドレッシングを半分に'],
+  carbs:['ごはんをもう半分','ごはんを一口残す'],
+  veg:['サラダか具の多いみそ汁を1品',''],
+  ca:['牛乳かヨーグルトを1つ',''],
+  fiber:['海藻かきのこを1品',''],
+  salt:['','みそ汁の汁を残す・卓上の塩を足さない']
+};
+// metrics.targets から基準を取る (min/max のあるキーだけ上書き)
+function nutBounds(d,tgt){
+  var lo=d.lo, hi=d.hi, t=(tgt&&tgt[d.tk])||null;
+  if(t){
+    if(t.min!=null && d.lo!=null) lo=Math.round(t.min*10)/10;
+    if(t.max!=null && d.hi!=null) hi=Math.round(t.max*10)/10;
   }
-  let pctText;
-  if(!bad) pctText='✓ 適正';
-  else if(dev<60) pctText=warn+(over?'▲':'▼')+dev+'%'+lbl;
-  else if(over) pctText=warn+'基準の'+(1+dev/100).toFixed(1)+'倍';
-  else { const w=Math.round((1-dev/100)*10); pctText=warn+'基準の'+(w<1?'1割未満':w+'割'); }
-  const ref=(n.max!=null?n.max:n.min);
-  const fill=Math.max(8,Math.min(100,Math.round(v/ref*100)));
-  return {cls,pctText,fill};
+  return {lo:lo,hi:hi};
 }
-function tgtNum(n){
-  if(n.min!=null&&n.max!=null)return n.min+'〜'+n.max+n.unit;
-  if(n.max!=null)return n.max+n.unit+'まで';
-  return n.min+n.unit+'以上';
+function nutEval(d,v,tgt){
+  var b=nutBounds(d,tgt), lo=b.lo, hi=(d.type==='min')?b.lo*1.5:b.hi;
+  var x, dir='in', dev=0;
+  if(d.type==='max'){
+    if(v<=hi){ x=B1*(hi?v/hi:0); }
+    else { dev=(v-hi)/hi; x=B1+(100-B1)*Math.min(1,dev); dir='high'; }
+  } else if(v<lo){ dev=lo?(lo-v)/lo:0; x=B0*(lo?v/lo:0); dir='low'; }
+  else if(v<=hi){ x=B0+(B1-B0)*((v-lo)/((hi-lo)||1)); }
+  else if(d.type==='min'){ x=B1+(100-B1)*Math.min(1,v/(hi||1)-1); dir='plenty'; }
+  else { dev=(v-hi)/hi; x=B1+(100-B1)*Math.min(1,dev); dir='high'; }
+  var sev=(dir==='low'||dir==='high')?(dev<0.25?1:2):0;
+  return {lo:lo,hi:hi,dir:dir,sev:sev,dev:Math.round(dev*100),x:Math.max(2,Math.min(98,x))};
 }
-function chartHtml(avg){
-  const cells=NUTRIENTS.map(n=>{
-    const v=Number(avg[n.k]||0), e=evalNut(n,v), ico=NUT_ICON[n.k]||'🍽';
-    return '<div class="nut-cell '+e.cls+'">'
-      +'<div class="nut-ico"><div class="g base">'+ico+'</div><div class="clip" style="height:'+e.fill+'%"><div class="g">'+ico+'</div></div></div>'
-      +'<div class="nut-name">'+n.label+'</div>'
-      +'<div class="nut-val">'+v+'<span class="t">'+n.unit+' / 基準 '+tgtNum(n)+'</span></div>'
-      +'<div class="nut-pct '+e.cls+'">'+e.pctText+'</div>'
-      +'</div>';
-  }).join('');
-  return '<div class="nut-grid">'+cells+'</div>'
-    +'<div class="small" style="margin-top:8px">イラストは基準値に対する量を下から塗って表現（満タン＝基準到達）。数値は1食あたりの平均で、基準と比べた超過／不足を表示しています。</div>';
+function nutTgtText(d,e){
+  if(d.type==='range') return e.lo+'〜'+e.hi+d.unit;
+  if(d.type==='max')   return e.hi+d.unit+'まで';
+  return e.lo+d.unit+'以上';
+}
+function nutNum(v){ return (v%1===0)?String(v):Number(v).toFixed(1); }
+function nutHint(d,e){ return e.sev===0?'':((NG_HINT[d.k]||['',''])[e.dir==='low'?0:1]||''); }
+function nutRowHtml(r){
+  var d=r.d, e=r.e, c=NG_COL[e.sev];
+  var z=d.type==='max'?['ng-z-fine','ng-z-ok','ng-z-bad']:(d.type==='min'?['ng-z-bad','ng-z-ok','ng-z-fine']:['ng-z-bad','ng-z-ok','ng-z-bad']);
+  var dev=e.sev===0?'':' <span class="ng-dev">'+(e.dir==='high'?'+':'−')+e.dev+'%</span>';
+  return '<div class="ng-row">'
+    +'<div class="ng-name"><span>'+d.ico+'</span>'+d.label+'</div>'
+    +'<div class="ng-val">'+nutNum(r.v)+'<i>'+d.unit+' ／ 目安 '+nutTgtText(d,e)+'</i></div>'
+    +'<div class="ng-track"><div class="ng-zones">'
+      +'<div class="ng-z '+z[0]+'" style="width:'+B0+'%"></div>'
+      +'<div class="ng-z '+z[1]+'" style="width:'+(B1-B0)+'%"></div>'
+      +'<div class="ng-z '+z[2]+'" style="width:'+(100-B1)+'%"></div></div>'
+      +'<div class="ng-band" style="left:'+B0+'%;width:'+(B1-B0)+'%"></div>'
+      +'<div class="ng-mark'+(e.sev?' ng-tri':'')+'" style="left:'+e.x+'%;background:'+c+';"></div></div>'
+    +'<div class="ng-st"><div class="ng-tag" style="color:'+c+';">'+NG_GLY[e.dir]+' '+NG_TAG[e.dir]+dev+'</div>'
+      +'<div class="ng-hint">'+esc(nutHint(d,e))+'</div></div>'
+    +'</div>';
+}
+function ngToggleTable(btn){
+  var t=btn.nextElementSibling; if(!t) return;
+  var open=t.style.display==='none';
+  t.style.display=open?'block':'none';
+  btn.textContent=open?'数値を閉じる ▴':'数値で見る ▾';
+}
+function chartHtml(avg,tgt){
+  var rs=NUT_DEF.map(function(d){ var v=Number(avg[d.k]||0); return {d:d,v:v,e:nutEval(d,v,tgt)}; });
+  var bad=rs.filter(function(r){return r.e.sev===2;}), warn=rs.filter(function(r){return r.e.sev===1;});
+  var worst=bad.concat(warn).sort(function(a,b){return b.e.dev-a.e.dev;})[0];
+  var vCls,vSig,vHl;
+  if(bad.length){ vCls='#cf3b3b'; vSig='!'; vHl='今月、直したいのは '+bad.length+'つ'+(warn.length?'<span class="nv-sub"> ＋気になる '+warn.length+'つ</span>':''); }
+  else if(warn.length){ vCls='#d98411'; vSig='△'; vHl='おしい。気になるのは '+warn.length+'つ'; }
+  else { vCls='#0ca30c'; vSig='◎'; vHl='今月はよい食べ方でした'; }
+  var vAct=worst?('<b>'+esc(worst.d.label)+'が'+NG_TAG[worst.e.dir]+'</b>'+(nutHint(worst.d,worst.e)?' — '+nutHint(worst.d,worst.e):''))
+    :(rs.length+'項目すべて目安の範囲でした。この食べ方を続けられると理想的です。');
+  var h='<div class="nv"><div class="nv-sig" style="background:'+vCls+';">'+vSig+'</div>'
+    +'<div class="nv-tx"><div class="nv-hl">'+vHl+'</div><div class="nv-act">'+vAct+'</div></div></div>';
+  var ng=rs.filter(function(r){return r.e.sev>0;}).sort(function(a,b){return (b.e.sev-a.e.sev)||(b.e.dev-a.e.dev);});
+  var ok=rs.filter(function(r){return r.e.sev===0;});
+  var LEG='<span>◀ 足りない ｜ 緑の帯＝適量 ｜ 多い ▶</span>';
+  if(ng.length){
+    h+='<div class="ng-head"><b>気になる項目（1食あたりの平均）</b>'+LEG+'</div>';
+    h+='<div class="ng-rows">'+ng.map(nutRowHtml).join('')+'</div>';
+    if(ok.length){
+      h+='<div class="ng-oks"><span class="ng-chip"><b>◎</b> 適量 '+ok.length+'項目</span>'
+        +ok.map(function(r){return '<span class="ng-chip">'+r.d.ico+' '+r.d.label+'</span>';}).join('')+'</div>';
+    }
+  } else {
+    h+='<div class="ng-head"><b>すべて適量（1食あたりの平均）</b>'+LEG+'</div>';
+    h+='<div class="ng-rows">'+ok.map(nutRowHtml).join('')+'</div>';
+  }
+  h+='<button type="button" class="ng-more" onclick="ngToggleTable(this)">数値で見る ▾</button>'
+    +'<div class="ng-tbl" style="display:none;"><table><thead><tr><th>項目</th><th>1食平均</th><th>目安</th><th>判定</th></tr></thead><tbody>'
+    +rs.map(function(r){ return '<tr><td>'+r.d.ico+' '+r.d.label+'</td><td class="n">'+nutNum(r.v)+r.d.unit+'</td>'
+      +'<td class="n">'+nutTgtText(r.d,r.e)+'</td><td style="color:'+NG_COL[r.e.sev]+';font-weight:800;">'
+      +NG_GLY[r.e.dir]+' '+NG_TAG[r.e.dir]+(r.e.sev===0?'':' '+(r.e.dir==='high'?'+':'−')+r.e.dev+'%')+'</td></tr>'; }).join('')
+    +'</tbody></table></div>';
+  h+='<div class="ng-basis">'+((tgt&&tgt.personalized)
+    ? '目安は<b>あなたの体格に合わせた個別の値</b>です（マイページの「からだの情報」から算出）。'
+    : '目安は一般の参考値です。マイページの「からだの情報」を入れると、あなたの体格に合わせた目安に切り替わります。')
+    +'</div>';
+  return h;
 }
 function reportHtml(data, name){
   const r=data.report||{}, m=data.metrics||{}, avg=m.avg||{}, c=m.counts||{};
@@ -213,7 +292,7 @@ function reportHtml(data, name){
     +'<div class="card-title">'+esc(name?name+'さんの':'')+ymLabel(data.ym)+' のレポート</div>'
     +'<div class="meta">食事記録 '+(m.meal_count||0)+'件 / '+(m.days_logged||0)+'日　作成日 '+esc((data.created_at||'').slice(0,10))+'</div>'
     +'<div class="rep-sec"><h3>今月のまとめ</h3><p>'+esc(r.summary||'')+'</p></div>'
-    +'<div class="rep-sec"><h3>栄養バランス（1食あたり平均）</h3>'+chartHtml(avg)+'</div>'
+    +'<div class="rep-sec"><h3>栄養バランス（1食あたり平均）</h3>'+chartHtml(avg,m.targets)+'</div>'
     +'<div class="rep-sec"><h3>栄養分析</h3><p>'+esc(r.nutrition_analysis||'')+'</p></div>'
     +'<div class="rep-sec"><h3>🍶 飲酒（お酒）について</h3>'+alcStat+'<p>'+esc(r.alcohol||'')+'</p></div>'
     +'<div class="rep-sec"><h3>あなたの食習慣の傾向</h3><p>'+esc(r.tendencies||'')+'</p></div>'

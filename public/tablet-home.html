@@ -267,21 +267,37 @@
   /* 栄養分析(詳細ページ buildNutritionBar 流用: 塗り絵風アイコングリッド) */
   .nutri-card{margin:10px 0;padding:12px;background:#f8faf9;border-radius:14px;border:1px solid #e0f0e8}
   .nutri-title{font-size:14px;font-weight:800;color:#1a3c34;margin-bottom:10px}
-  .nut-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:6px}
-  .nut-cell{min-width:0;border:1px solid #e4eaf2;border-radius:16px;padding:8px 5px 7px;text-align:center;background:#fbfdff;display:flex;flex-direction:column;align-items:center;height:100%}
-  .nut-ico{position:relative;width:50px;height:50px;margin:0 auto 4px}
-  .nut-ico .g{position:absolute;left:0;bottom:0;width:50px;height:50px;font-size:40px;line-height:50px;text-align:center}
-  .nut-ico .base{filter:grayscale(1);opacity:.20}
-  .nut-ico .clip{position:absolute;left:0;bottom:0;width:50px;overflow:hidden;transition:height .5s ease}
-  .nut-name{font-size:13px;font-weight:800;color:#334155}
-  .nut-val{font-size:15px;font-weight:800;color:#0f172a;margin-top:2px}
-  .nut-val .t{font-size:10px;font-weight:600;color:#94a3b8}
-  .nut-pct{font-size:13px;font-weight:800;margin-top:auto;padding:3px 8px;border-radius:999px;display:inline-block;max-width:100%;border:1px solid transparent;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
-  .nut-pct.sev1{font-size:13px}
-  .nut-pct.sev2{font-size:14px;font-weight:900}
-  .nut-pct.sev3{font-size:15px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px rgba(220,38,38,.3)}
-  .nut-pct.sev4{font-size:16px;font-weight:900;letter-spacing:.3px;box-shadow:0 2px 9px rgba(153,27,27,.45);animation:nutAlarm 1s ease-in-out infinite}
-  @keyframes nutAlarm{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  /* 結論1行 + 共通軸ゲージ (2026-07-30・plaza.html と同設計。タブレットは文字を一段大きく) */
+  .nv{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:#fff;border:1px solid #e2e8e5}
+  .nv-sig{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:#fff;flex:none}
+  .nv-tx{min-width:0;text-align:left}
+  .nv-hl{font-size:19px;font-weight:900;line-height:1.35;color:#14211c}
+  .nv-hl .nv-sub{color:#7b8b84;font-weight:800;font-size:15px}
+  .nv-act{font-size:16px;color:#41514a;line-height:1.5;margin-top:2px}
+  .ng-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:16px 2px 10px}
+  .ng-head b{font-size:15px;font-weight:800;color:#41514a}
+  .ng-head span{font-size:12px;color:#8b9a93;white-space:nowrap}
+  .ng-rows{display:grid;gap:13px}
+  .ng-row{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:baseline;text-align:left}
+  .ng-name{font-size:17px;font-weight:800;color:#14211c;display:flex;align-items:center;gap:6px;min-width:0}
+  .ng-val{font-size:15px;font-weight:800;color:#41514a;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ng-val i{font-style:normal;font-weight:600;color:#8b9a93;font-size:13px}
+  .ng-track{grid-column:1/-1;position:relative;height:20px;margin-top:3px}
+  .ng-zones{position:absolute;left:0;right:0;top:4px;bottom:4px;display:flex;border-radius:5px;overflow:hidden;background:#e7ece6}
+  .ng-z{height:100%}
+  .ng-z-bad{background:rgba(207,59,59,.10)}
+  .ng-z-ok{background:rgba(12,163,12,.14)}
+  .ng-z-fine{background:rgba(12,163,12,.06)}
+  .ng-band{position:absolute;top:0;bottom:0;border-left:1px solid rgba(12,163,12,.55);border-right:1px solid rgba(12,163,12,.55)}
+  .ng-mark{position:absolute;top:50%;width:19px;height:19px;margin:-9.5px 0 0 -9.5px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.10)}
+  .ng-mark.ng-tri{border-radius:4px;transform:rotate(45deg)}
+  .ng-st{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .ng-tag{font-size:16px;font-weight:900;white-space:nowrap}
+  .ng-tag .ng-dev{font-variant-numeric:tabular-nums;font-weight:800}
+  .ng-hint{font-size:14px;color:#7b8b84;text-align:right;line-height:1.4}
+  .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid #eaefe9}
+  .ng-chip{font-size:15px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:4px 11px}
+  .ng-chip b{color:#0ca30c;font-weight:900}
   .nutri-conf{margin-top:8px;text-align:center}
   .nutri-conf .badge{font-size:11px;padding:3px 9px;border-radius:10px;font-weight:700;display:inline-block}
   .nutri-foot{text-align:right;font-size:10px;color:#aaa;margin-top:6px}
@@ -1883,37 +1899,95 @@ function buildNutritionBar(sc){
     {key:'salt',icon:'🧂',label:'塩分',unit:'g',target:2.5,reverse:true},
     {key:'alcohol',icon:'🍺',label:'アルコール',unit:'g',target:20,reverse:true,optional:true}
   ];
-  var html='<div class="nutri-card"><div class="nutri-title">📊 栄養バランス（1食の目安と比較）</div><div class="nut-grid">';
+  // 全項目を共通軸で判定。B0〜B1 が「適量帯」で、この位置は全項目で固定。
+  var B0=36, B1=64;
   var calRaw=sc.calories, calV=(calRaw&&typeof calRaw==='object')?Number(calRaw.value):(typeof calRaw==='number'?calRaw:550);
+  var nrows=[];
   for(var ii=0;ii<items.length;ii++){
     var item=items[ii], raw=sc[item.key], val=0;
     if(raw&&typeof raw==='object'&&raw.value!==undefined) val=Number(raw.value); else if(typeof raw==='number') val=raw;
     if(item.optional&&val===0) continue;
-    if(item.key==='fat'&&val>0&&val<=50) val=Math.round(val*calV/100/9*10)/10;
-    if(item.key==='carbs'&&val>0&&val<=70) val=Math.round(val*calV/100/4*10)/10;
-    var status,baseColor='#10b981',bad=false,dev=0,over=false;
-    if(item.reverse){ if(val<=item.target*0.8) status='良好'; else if(val<=item.target) status='適量'; else { status='超過';bad=true;over=true;dev=(val-item.target)/item.target*100; } }
-    else if(item.range){ if(val>=item.min&&val<=item.max) status='適量'; else if(val<item.min){ status='不足';bad=true;dev=(item.min-val)/item.min*100; } else { status='超過';bad=true;over=true;dev=(val-item.max)/item.max*100; } }
-    else if(item.positive){ var ratio=val/item.target; if(ratio>=1.3){ status='優秀';baseColor='#0d9488'; } else if(ratio>=1.0) status='達成'; else if(ratio>=0.7){ status='もう一歩';bad=true;dev=(item.target-val)/item.target*100; } else { status='不足';bad=true;dev=(item.target-val)/item.target*100; } }
-    else { var r2=val/item.target; if(r2>=0.8&&r2<=1.3) status='適量'; else if(r2<0.8){ status='不足';bad=true;dev=(item.target-val)/item.target*100; } else { status='超過';bad=true;over=true;dev=(val-item.target)/item.target*100; } }
-    dev=Math.round(dev); var color=baseColor,sev=0,warn='';
-    if(bad){ if(dev<25){ color='#f59e0b';sev=1; } else if(dev<60){ color='#f97316';sev=2;warn='⚠ '; } else if(dev<120){ color='#dc2626';sev=3;warn='⚠ '; } else { color='#991b1b';sev=4;warn='‼ '; } }
-    var fillRef=item.range?item.max:item.target, fill=Math.max(6,Math.min(100,Math.round(val/(fillRef||1)*100)));
-    var pctText;
-    if(!bad) pctText='✓ '+status;
-    else if(dev<60) pctText=warn+(over?'▲':'▼')+dev+'%'+status;
-    else if(over) pctText=warn+'基準の'+(1+dev/100).toFixed(1)+'倍';
-    else { var w=Math.round((1-dev/100)*10); pctText=warn+'基準の'+(w<1?'1割未満':w+'割'); }
-    var tgt=item.range?(item.min+'〜'+item.max+item.unit):(item.reverse?(item.target+item.unit+'以下'):(item.target+item.unit+'以上'));
-    var dispVal=(val%1===0)?val:val.toFixed(1);
-    html+='<div class="nut-cell" style="border-color:'+color+'55;background:'+color+'10;">'+
-      '<div class="nut-ico"><div class="g base">'+item.icon+'</div><div class="clip" style="height:'+fill+'%;"><div class="g">'+item.icon+'</div></div></div>'+
-      '<div class="nut-name">'+esc(item.label)+'</div>'+
-      '<div class="nut-val">'+dispVal+'<span class="t">'+item.unit+' / 基準 '+tgt+'</span></div>'+
-      '<div class="nut-pct sev'+sev+'" style="color:'+color+';background:#fff;border-color:'+color+';">'+pctText+'</div>'+
-    '</div>';
+    // 旧データ互換: %エネルギー比で保存されている場合のみ g に変換 (値の大小での推測はしない)
+    var rawUnit=(raw&&typeof raw==='object'&&raw.unit)?String(raw.unit):'';
+    var isPct=rawUnit.indexOf('%')>=0;
+    if(isPct&&item.key==='fat'&&val>0) val=Math.round(val*calV/100/9*10)/10;
+    if(isPct&&item.key==='carbs'&&val>0) val=Math.round(val*calV/100/4*10)/10;
+    var t=item.range?'range':(item.reverse?'max':'min');
+    var lo=item.range?item.min:(t==='min'?item.target:0);
+    var hi=item.range?item.max:(t==='max'?item.target:item.target*1.5);
+    var x, dir='in', dev=0;
+    if(t==='max'){
+      if(val<=hi){ x=B1*(hi?val/hi:0); }
+      else { dev=(val-hi)/hi; x=B1+(100-B1)*Math.min(1,dev); dir='high'; }
+    } else if(val<lo){ dev=(lo-val)/lo; x=B0*(lo?val/lo:0); dir='low'; }
+    else if(val<=hi){ x=B0+(B1-B0)*((val-lo)/((hi-lo)||1)); }
+    else if(t==='min'){ x=B1+(100-B1)*Math.min(1,val/(hi||1)-1); dir='plenty'; }
+    else { dev=(val-hi)/hi; x=B1+(100-B1)*Math.min(1,dev); dir='high'; }
+    var sev=(dir==='low'||dir==='high')?(dev<0.25?1:2):0;
+    nrows.push({item:item,t:t,lo:lo,hi:hi,val:val,dir:dir,sev:sev,dev:Math.round(dev*100),x:Math.max(2,Math.min(98,x))});
   }
-  html+='</div>';
+  var NG_TAG={in:'適量',plenty:'しっかり',low:'足りない',high:'多い'};
+  var NG_GLY={in:'✓',plenty:'✓',low:'◀',high:'▶'};
+  var NG_COL=['#0ca30c','#d98411','#cf3b3b'];
+  var NG_HINT={
+    calories:['おにぎり1個ぶん足りません','ごはんを少し残す'],
+    protein:['卵1個か納豆1パック足す',''],
+    fat:['','揚げ物かドレッシングを半分に'],
+    carbs:['ごはんをもう半分','ごはんを一口残す'],
+    vitamin:['サラダか具の多いみそ汁を1品',''],
+    mineral:['牛乳かヨーグルトを1つ',''],
+    fiber:['海藻かきのこを1品',''],
+    salt:['','みそ汁の汁を残す・卓上の塩を足さない'],
+    alcohol:['','1本ぶん減らす・週2日は休肝日']
+  };
+  function ngTgt(r){ return r.t==='range'?(r.lo+'〜'+r.hi+r.item.unit):(r.t==='max'?(r.hi+r.item.unit+'まで'):(r.lo+r.item.unit+'以上')); }
+  function ngNum(v){ return (v%1===0)?String(v):v.toFixed(1); }
+  function ngHint(r){ return r.sev===0?'':((NG_HINT[r.item.key]||['',''])[r.dir==='low'?0:1]||''); }
+
+  var html='<div class="nutri-card">';
+  // 結論を1行
+  var ngBad=nrows.filter(function(r){return r.sev===2;}), ngWarn=nrows.filter(function(r){return r.sev===1;});
+  var worst=ngBad.concat(ngWarn).sort(function(a,b){return b.dev-a.dev;})[0];
+  var vCls,vSig,vHl;
+  if(ngBad.length){ vCls='#cf3b3b'; vSig='!'; vHl='直したいのは '+ngBad.length+'つ'+(ngWarn.length?'<span class="nv-sub"> ＋気になる '+ngWarn.length+'つ</span>':''); }
+  else if(ngWarn.length){ vCls='#d98411'; vSig='△'; vHl='おしい。気になるのは '+ngWarn.length+'つ'; }
+  else { vCls='#0ca30c'; vSig='◎'; vHl='よい一皿です'; }
+  var vAct=worst?('<b>'+esc(worst.item.label)+'が'+NG_TAG[worst.dir]+'</b>'+(ngHint(worst)?' — '+ngHint(worst):''))
+    :(nrows.length+'項目すべて目安の範囲。同じ組み合わせを覚えておくと楽です。');
+  html+='<div class="nv"><div class="nv-sig" style="background:'+vCls+';">'+vSig+'</div>'
+    +'<div class="nv-tx"><div class="nv-hl">'+vHl+'</div><div class="nv-act">'+vAct+'</div></div></div>';
+  // 共通軸ゲージ (気になる項目を上に、適量は畳む)
+  function ngRowHtml(r){
+    var c=NG_COL[r.sev], it=r.item;
+    var z=r.t==='max'?['ng-z-fine','ng-z-ok','ng-z-bad']:(r.t==='min'?['ng-z-bad','ng-z-ok','ng-z-fine']:['ng-z-bad','ng-z-ok','ng-z-bad']);
+    var dev=r.sev===0?'':' <span class="ng-dev">'+(r.dir==='high'?'+':'−')+r.dev+'%</span>';
+    return '<div class="ng-row">'
+      +'<div class="ng-name"><span>'+it.icon+'</span>'+esc(it.label)+'</div>'
+      +'<div class="ng-val">'+ngNum(r.val)+'<i>'+it.unit+' ／ 目安 '+ngTgt(r)+'</i></div>'
+      +'<div class="ng-track"><div class="ng-zones">'
+        +'<div class="ng-z '+z[0]+'" style="width:'+B0+'%"></div>'
+        +'<div class="ng-z '+z[1]+'" style="width:'+(B1-B0)+'%"></div>'
+        +'<div class="ng-z '+z[2]+'" style="width:'+(100-B1)+'%"></div></div>'
+        +'<div class="ng-band" style="left:'+B0+'%;width:'+(B1-B0)+'%"></div>'
+        +'<div class="ng-mark'+(r.sev?' ng-tri':'')+'" style="left:'+r.x+'%;background:'+c+';"></div></div>'
+      +'<div class="ng-st"><div class="ng-tag" style="color:'+c+';">'+NG_GLY[r.dir]+' '+NG_TAG[r.dir]+dev+'</div>'
+        +'<div class="ng-hint">'+esc(ngHint(r))+'</div></div>'
+      +'</div>';
+  }
+  var ngNg=nrows.filter(function(r){return r.sev>0;}).sort(function(a,b){return (b.sev-a.sev)||(b.dev-a.dev);});
+  var ngOk=nrows.filter(function(r){return r.sev===0;});
+  var NG_LEGEND='<span>◀ 足りない ｜ 緑の帯＝適量 ｜ 多い ▶</span>';
+  if(ngNg.length){
+    html+='<div class="ng-head"><b>気になる項目</b>'+NG_LEGEND+'</div>';
+    html+='<div class="ng-rows">'+ngNg.map(ngRowHtml).join('')+'</div>';
+    if(ngOk.length){
+      html+='<div class="ng-oks"><span class="ng-chip"><b>◎</b> 適量 '+ngOk.length+'項目</span>'
+        +ngOk.map(function(r){return '<span class="ng-chip">'+r.item.icon+' '+esc(r.item.label)+'</span>';}).join('')+'</div>';
+    }
+  } else {
+    html+='<div class="ng-head"><b>すべて適量</b>'+NG_LEGEND+'</div>';
+    html+='<div class="ng-rows">'+ngOk.map(ngRowHtml).join('')+'</div>';
+  }
   var conf=sc.confidence;
   if(conf&&conf.level){
     var stars=conf.level===3?'★★★':conf.level===2?'★★☆':'★☆☆';
