@@ -554,7 +554,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div class="shot-done" id="shot-done"></div>
       <div class="composer-bar">
         <button class="btn-icon" onclick="openShotPicker()" title="写真を追加">📷</button>
-        <input type="file" id="cmp-file" accept="image/*" multiple style="display:none;" onchange="onPickImage(event)">
+        <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
         <label class="anon-toggle" title="本名ではなくニックネームで投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
           <input type="checkbox" id="cmp-anon" checked> <span>🎭 ニックネームで投稿</span>
         </label>
@@ -1417,8 +1417,9 @@ async function initApp() {
   if (urlAction === 'food') {
     setTab('食事');
     setTimeout(() => {
-      const cam = document.getElementById('cmp-file');
-      if (cam) cam.click();
+      // ⚠️ 直接 click せず openShotPicker を通す。入手元(手料理/コンビニ/外食)の
+      //    選択を撮影の前提にしているため、この経路だけ抜け道になっていた。
+      try { openShotPicker(); } catch (e) { const cam = document.getElementById('cmp-file'); if (cam) cam.click(); }
     }, 250);
   } else if (urlAction === 'fooddraft') {
     setTab('食事');
@@ -1566,7 +1567,9 @@ function openShotPicker() {
     }
     return;
   }
-  document.getElementById('cmp-file').click();
+  const fi = document.getElementById('cmp-file');
+  try { fi.value = ''; } catch (e) {}   // 同じ写真を続けて選べるように、開く前にクリア
+  fi.click();
 }
 
 // ===== 複数枚撮影 (2026-07-30) =====
@@ -1575,8 +1578,9 @@ const SHOT_MAX = 5;
 var _shots = [];        // File の配列
 var _shotEnded = false; // 「撮影を終わる」を押したか
 function onPickImage(ev) {
+  // ⚠️ 2026-07-30: ここで ev.target.value='' とすると一部のAndroidで File の実体が
+  //    失われ「写真が撮れない」状態になる。クリアは撮影を開く直前(openShotPicker)で行う。
   const files = Array.prototype.slice.call(ev.target.files || []);
-  ev.target.value = '';            // 同じファイルを続けて選べるように毎回クリア
   if (!files.length) return;
   for (const f of files) {
     if (_shots.length >= SHOT_MAX) { alert('写真は' + SHOT_MAX + '枚までです'); break; }
