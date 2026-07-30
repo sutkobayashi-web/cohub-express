@@ -74,7 +74,7 @@
   .ng-zlbl span{font-size:11px;font-weight:800;text-align:center;line-height:1.2}
   .ng-zlbl .l-low{color:#97640f} .ng-zlbl .l-ok{color:#0a7a0a} .ng-zlbl .l-hi{color:#a32e2e} .ng-zlbl .l-mute{color:#79887f}
   .ng-pt{position:absolute;top:0;font-size:12.5px;font-weight:900;padding:1px 8px;border-radius:999px;background:#fff;border:1.5px solid currentColor;white-space:nowrap;line-height:1.4;font-variant-numeric:tabular-nums}
-  .ng-cmt{flex:1;min-width:0;font-size:14px;font-weight:800;line-height:1.35;color:#2b3a33;padding:7px 11px;border-radius:10px;border-left:3px solid;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ng-cmt{flex:1;min-width:0;font-size:14.5px;font-weight:800;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:11px;border-top:1px solid #eaefe9}
   .ng-chip{font-size:14px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:4px 12px}
   .ng-chip b{color:#0ca30c;font-weight:900}
@@ -197,9 +197,6 @@ var NG_HINT={
   fiber:['海藻かきのこを1品',''],
   salt:['','汁物の汁を残す']
 };
-// コメントの背景は針がある領域の色 (少ない=橙 / 適量=緑 / 過剰=赤)。枠線は重さの色。
-var NG_ZBG={low:'#f6dfb4',ok:'#b9e3b9',hi:'#f4c3c1',mute:'#e2e7e2'};
-var NG_ZIDX={low:0,in:1,plenty:2,high:2};
 // metrics.targets から基準を取る (min/max のあるキーだけ上書き)
 function nutBounds(d,tgt){
   var lo=d.lo, hi=d.hi, t=(tgt&&tgt[d.tk])||null;
@@ -251,7 +248,7 @@ function nutRowHtml(r){
       +'<div class="ng-track">'+zones+'</div>'
       +'<div class="ng-needle" style="left:'+e.x+'%;background:'+c+';"></div>'
       +'<div class="ng-zlbl">'+labels+'</div></div>'
-    +(cmt?'<div class="ng-cmt" style="background:'+NG_ZBG[z[NG_ZIDX[e.dir]]]+';border-left-color:'+c+';">💡 '+esc(cmt)+'</div>':'')
+    +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')
     +'</div></div>';
 }
 function ngToggleTable(btn){
