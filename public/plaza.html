@@ -134,6 +134,9 @@ body { padding-bottom: 80px !important; }
 .composer.is-food .cal-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 11px 14px; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 12px; color: #0e7490; font-size: 13px; font-weight: 800; text-decoration: none; }
 .composer.is-food .cal-link:active { background: #cffafe; }
 .cal-link .arw { color: #06b6d4; font-weight: 800; }
+/* おやつ選択時の一言 (2026-07-30): 間食の記録が全社で1件しかなかったため後押しする */
+.snack-tip { display: none; margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #fdf4ff; border: 1px solid #e9d5ff; color: #6b21a8; font-size: 12.5px; font-weight: 700; line-height: 1.6; }
+.snack-tip.on { display: block; }
 /* からだの情報 未入力の促し (食事モードのみ・未入力のときだけ .on が付く) */
 .body-nudge { display: none; }
 .composer.is-food .body-nudge.on { display: block; margin-bottom: 10px; padding: 11px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; color: #92400e; font-size: 12.5px; font-weight: 700; line-height: 1.6; text-decoration: none; }
@@ -498,10 +501,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
           <button type="button" class="cmp-cat-btn" data-cat="健康Tips" style="flex:1 1 auto;padding:8px 10px;border:1.5px solid #6ee7b7;background:#f0fdf4;color:#065f46;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;">💚 Tips</button>
         </div>
       </div>
-      <div class="ai-tip" id="ai-tip">🍱 <b>写真を撮るだけ</b>で AI が栄養バランスを自動分析します（10〜20秒）。本文は無くてもOK！</div>
+      <div class="ai-tip" id="ai-tip">🍱 <b>写真を撮るだけ</b>で AI が栄養バランスを自動分析します（10〜20秒）。本文は無くてもOK！<br><b>お菓子・アイス・甘い飲み物も1枚どうぞ。</b>ごはんだけより、間食まで記録したほうが傾向がはっきり見えます。</div>
       <div class="ai-tip" id="ai-tip-ref" style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-left-color:#10b981;color:#065f46;display:none;">📐 <b>精度UP のコツ</b>: 🥢お箸 / 🍚茶碗 / ☕コップ / 🍶ペットボトル / 🪙 500円玉 など <b>大きさの基準物</b> を一緒に写すと AI 判定が <b>★1つ上がります</b>!</div>
       <div id="cmp-meal-picker">
-        <div class="mp-label">🍽️ この投稿は？（おやつは一食として評価しません）</div>
+        <div class="mp-label">🍽️ この投稿は？（<b>おやつ・飲み物もこの区分で記録できます</b>。一食としては評価しません）</div>
         <div class="mp-btns">
           <button type="button" class="cmp-meal-btn" data-meal="breakfast">🌅 朝食</button>
           <button type="button" class="cmp-meal-btn" data-meal="lunch">🍚 昼食</button>
@@ -517,6 +520,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
           <button type="button" class="cmp-src-btn" data-src="eatout">🍽️ 外食・配達弁当</button>
         </div>
       </div>
+      <div class="snack-tip" id="snack-tip">🍬 <b>記録してくれてありがとうございます。</b>おやつや甘い飲み物は、ごはんより傾向が見えにくいところです。続けて記録すると、無理のない置き換えを提案できます。</div>
       <div class="body-nudge" id="body-nudge">
         📐 <b>からだの情報が未入力です。</b>いま出ている「適量」は<b>全員共通の目安</b>のため、あなたの体格には合っていない可能性があります。<br>
         性別・身長・体重を入れると、あなたの体格に合わせた目安で診断します（本人だけが見られます）。
@@ -617,7 +621,11 @@ let _curCat = '雑談';
 const MEAL_LABELS = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: 'おやつ' };
 function _guessMeal() { const h = new Date().getHours(); if (h < 10) return 'breakfast'; if (h < 15) return 'lunch'; return 'dinner'; }
 let _curMeal = _guessMeal();
-function _paintMeal() { document.querySelectorAll('.cmp-meal-btn').forEach(b => b.classList.toggle('on', b.dataset.meal === _curMeal)); }
+function _paintMeal() {
+  document.querySelectorAll('.cmp-meal-btn').forEach(b => b.classList.toggle('on', b.dataset.meal === _curMeal));
+  var _st = document.getElementById('snack-tip');
+  if (_st) _st.classList.toggle('on', _curMeal === 'snack');   // おやつ選択時だけ後押しの一言
+}
 document.addEventListener('click', function (e) {
   const b = e.target && e.target.closest && e.target.closest('.cmp-meal-btn');
   if (!b) return;
