@@ -88,6 +88,13 @@ body { padding-bottom: 80px !important; }
 .shot-end { flex: 1; padding: 13px 10px; border-radius: 14px; border: none; background: #0d9488; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(13,148,136,.35); }
 .shot-done { display: none; margin: 0 0 12px; padding: 11px 13px; border-radius: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-size: 13px; font-weight: 800; line-height: 1.6; }
 .composer.is-food .shot-done.on { display: block; }
+/* 入手元を選ぶまで撮影させない (選ぶと助言の中身が変わるため) */
+.composer.is-food:not(.src-ok) .food-photo-cta { opacity: .5; box-shadow: none; }
+.composer.is-food:not(.src-ok) .shot-add, .composer.is-food:not(.src-ok) .btn-icon { opacity: .5; }
+#cmp-src-picker.need { border: 2px solid #dc2626; border-radius: 12px; padding: 8px; background: #fef2f2; }
+#cmp-src-picker.need .mp-label { color: #b91c1c; }
+.src-need-msg { display: none; margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; font-size: 13px; font-weight: 800; line-height: 1.5; }
+.src-need-msg.on { display: block; }
 .food-photo-cta { display: none; width: 100%; padding: 20px 18px; margin: 4px 0 12px; background: linear-gradient(135deg,#0d9488,#10b981); color: #fff; border: none; border-radius: 18px; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 0 6px 18px rgba(13,148,136,0.40); align-items: center; justify-content: center; gap: 12px; transition: transform 0.1s, box-shadow 0.2s; text-align: left; }
 .food-photo-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(13,148,136,0.5); }
 .food-photo-cta:active { transform: translateY(0); }
@@ -133,15 +140,6 @@ body { padding-bottom: 80px !important; }
 .body-nudge b { font-weight: 900; }
 .body-nudge .bn-go { display: inline-block; margin-top: 7px; padding: 7px 13px; border-radius: 11px; background: #b45309; color: #fff; font-size: 12.5px; font-weight: 900; text-decoration: none; }
 .body-nudge .bn-go:active { background: #92400e; }
-.composer.is-food .menu-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 12px 14px; background: linear-gradient(135deg,#0d9488,#0f766e); border: 0; border-radius: 12px; color: #fff; font-size: 13.5px; font-weight: 800; text-decoration: none; box-shadow: 0 3px 10px rgba(13,148,136,.35); }
-.menu-link { display: none; }
-.composer.is-food .menu-link:active { transform: translateY(1px); }
-.menu-link .arw { opacity: .85; }
-.composer.is-food .menu-link { padding: 10px 14px; gap: 12px; }
-.menu-link .ml-face { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: center; border: 2px solid rgba(255,255,255,0.85); flex: 0 0 auto; background: #bceae3; }
-.menu-link .ml-txt { display: flex; flex-direction: column; line-height: 1.3; flex: 1; text-align: left; min-width: 0; }
-.menu-link .ml-txt b { font-size: 15px; font-weight: 800; }
-.menu-link .ml-txt small { font-size: 11.5px; font-weight: 600; opacity: 0.92; }
 /* 投稿ヘッダー: ニックネーム横の食事区分バッジ (色分け) */
 .meal-badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
 .meal-badge.breakfast { background: #ffedd5; color: #9a3412; }  /* 朝食: オレンジ */
@@ -519,7 +517,6 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
           <button type="button" class="cmp-src-btn" data-src="eatout">🍽️ 外食</button>
         </div>
       </div>
-      <a class="menu-link" href="/menu-plan.html?v=mp1"><img class="ml-face" src="/assets/calorie/_advisor_face.jpg?v=cal2" alt="ヘルス"><span class="ml-txt"><b>何を食べようか？</b><small>今日の献立を一緒に決めましょう</small></span><span class="arw">→</span></a>
       <div class="body-nudge" id="body-nudge">
         📐 <b>からだの情報が未入力です。</b>いま出ている「適量」は<b>全員共通の目安</b>のため、あなたの体格には合っていない可能性があります。<br>
         性別・身長・体重を入れると、あなたの体格に合わせた目安で診断します（本人だけが見られます）。
@@ -535,9 +532,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <div class="st-conbini" id="st-conbini">📋 <b>成分表示のラベルを一緒に写してください。</b>推定ではなく<b>実際の数値</b>で計算できるので、精度が最高になります（信憑性★★★）。<br>
           <b>コツ</b>: フタの裏やラベル面を商品の横に置いて<b>1枚に収める</b>。全部入らないときは<b>ラベルを優先</b>してください。</div>
       </div>
-      <button class="food-photo-cta" id="food-photo-cta" onclick="document.getElementById('cmp-file').click()">
+      <div class="src-need-msg" id="src-need-msg">⬆️ まず<b>「手料理／コンビニ・スーパー／外食」</b>のどれかを選んでください。<br>選んだ内容で助言が変わります。</div>
+      <button class="food-photo-cta" id="food-photo-cta" onclick="openShotPicker()">
         <span class="ico">📷</span>
-        <span>食事の写真を撮る／選ぶ<span class="sub">タップでカメラ起動</span></span>
+        <span>食事の写真を撮る／選ぶ<span class="sub" id="cta-sub">タップでカメラ起動</span></span>
       </button>
       <textarea id="cmp-text" placeholder="今、何食べた？気になることある？シェアしましょう"></textarea>
       <div id="cmp-preview" class="preview-img-wrap" style="display:none;">
@@ -546,12 +544,12 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       </div>
       <div class="shots" id="shots"></div>
       <div class="shot-acts" id="shot-acts">
-        <button type="button" class="shot-add" id="shot-add" onclick="document.getElementById('cmp-file').click()">📷 もう1枚追加</button>
+        <button type="button" class="shot-add" id="shot-add" onclick="openShotPicker()">📷 もう1枚追加</button>
         <button type="button" class="shot-end" onclick="endShooting()">✅ 撮影を終わる</button>
       </div>
       <div class="shot-done" id="shot-done"></div>
       <div class="composer-bar">
-        <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真を追加">📷</button>
+        <button class="btn-icon" onclick="openShotPicker()" title="写真を追加">📷</button>
         <input type="file" id="cmp-file" accept="image/*" multiple style="display:none;" onchange="onPickImage(event)">
         <label class="anon-toggle" title="本名ではなくニックネームで投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
           <input type="checkbox" id="cmp-anon" checked> <span>🎭 ニックネームで投稿</span>
@@ -637,6 +635,15 @@ function _paintSrc() {
   // ⚠️ 手料理にはラベルが無いので出さない (代わりに基準物のコツが効く)。
   const tip = document.getElementById('shot-tip');
   if (tip) tip.classList.toggle('src-conbini', _curSrc === 'conbini' || _curSrc === 'eatout');
+  // 撮影ゲートの解除/再ロック
+  const comp = document.getElementById('composer');
+  if (comp) comp.classList.toggle('src-ok', !!_curSrc);
+  const need = document.getElementById('src-need-msg');
+  if (need && _curSrc) need.classList.remove('on');
+  const pk = document.getElementById('cmp-src-picker');
+  if (pk && _curSrc) pk.classList.remove('need');
+  const sub = document.getElementById('cta-sub');
+  if (sub) sub.textContent = _curSrc ? 'タップでカメラ起動' : 'まず上の3つから選んでください';
 }
 document.addEventListener('click', function (e) {
   const b = e.target && e.target.closest && e.target.closest('.cmp-src-btn');
@@ -1440,7 +1447,7 @@ function setTab(t) {
   const composer = document.getElementById('composer');
   composer.classList.remove('is-food', 'is-相談', 'is-雑談', 'is-健康Tips');
   if (_curCat === '食事') composer.classList.add('is-food');
-  if (_curCat === '食事') checkBodyInfo();   // からだの情報 未入力なら促す
+  if (_curCat === '食事') { checkBodyInfo(); try { _paintSrc(); } catch (e) {} }   // 未入力の促し + 撮影ゲートの反映
   else if (_curCat === '相談') composer.classList.add('is-相談');
   else if (_curCat === '雑談') composer.classList.add('is-雑談');
   else if (_curCat === '健康Tips') composer.classList.add('is-健康Tips');
@@ -1494,7 +1501,7 @@ document.addEventListener('click', (e) => {
   const composer = document.getElementById('composer');
   composer.classList.remove('is-food', 'is-相談', 'is-雑談', 'is-健康Tips');
   if (_curCat === '食事') composer.classList.add('is-food');
-  if (_curCat === '食事') checkBodyInfo();   // からだの情報 未入力なら促す
+  if (_curCat === '食事') { checkBodyInfo(); try { _paintSrc(); } catch (e) {} }   // 未入力の促し + 撮影ゲートの反映
   else if (_curCat === '相談') composer.classList.add('is-相談');
   else if (_curCat === '雑談') composer.classList.add('is-雑談');
   else if (_curCat === '健康Tips') composer.classList.add('is-健康Tips');
@@ -1537,6 +1544,22 @@ async function loadEvents() {
 }
 
 document.getElementById('cmp-text').addEventListener('input', e => { document.getElementById('cmp-count').textContent = e.target.value.length; });
+
+// 入手元(手料理/コンビニ・スーパー/外食)を選ぶまで撮影させない。
+// 選択で助言の中身が変わる(コンビニは調理の助言をしない等)ため、後から選ばれても手遅れになる。
+function openShotPicker() {
+  if (_curCat === '食事' && !_curSrc) {
+    const p = document.getElementById('cmp-src-picker');
+    const m = document.getElementById('src-need-msg');
+    if (m) m.classList.add('on');
+    if (p) {
+      p.classList.add('need');
+      try { p.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    }
+    return;
+  }
+  document.getElementById('cmp-file').click();
+}
 
 // ===== 複数枚撮影 (2026-07-30) =====
 // 1食を複数枚(商品+成分表示ラベル、品数が多い場合)に分けて撮れる。最大5枚。
