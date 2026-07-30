@@ -181,6 +181,26 @@ body { padding-bottom: 80px !important; }
 .ng-dev { font-size: 26px; font-weight: 900; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ng-dev .u { font-size: 15px; }
 .ng-state { font-size: 11.5px; font-weight: 900; margin-top: 3px; }
+/* 写真で分からない点のQ&A */
+.clar-btn { width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 14px; border: 1px solid #bfdbfe; background: linear-gradient(135deg,#eff6ff,#dbeafe); color: #1d4ed8; font-family: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; text-align: left; }
+.clar-btn b { float: right; }
+.clar-btn:active { transform: translateY(1px); }
+.clar-ov { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 10000; align-items: center; justify-content: center; padding: 14px; }
+.clar-card { background: #fff; border-radius: 18px; padding: 18px 16px; width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto; }
+.clar-h { font-size: 16.5px; font-weight: 900; color: #14211c; }
+.clar-s { font-size: 12.5px; color: #52736a; margin: 4px 0 12px; line-height: 1.6; }
+.clar-q { margin-bottom: 14px; }
+.clar-qt { font-size: 14.5px; font-weight: 800; color: #14211c; margin-bottom: 7px; }
+.clar-chs { display: flex; flex-wrap: wrap; gap: 6px; }
+.clar-ch { font-family: inherit; font-size: 14px; font-weight: 800; padding: 9px 13px; border-radius: 13px; border: 2px solid #99f6e4; background: #fff; color: #0f766e; cursor: pointer; }
+.clar-ch.on { background: #0d9488; border-color: #0f766e; color: #fff; }
+.clar-ch.clar-skip { border-color: #e2e8e5; color: #7b8b84; }
+.clar-ch.clar-skip.on { background: #7b8b84; border-color: #64748b; color: #fff; }
+.clar-msg { font-size: 12.5px; color: #dc2626; min-height: 16px; }
+.clar-foot { display: flex; gap: 8px; margin-top: 6px; }
+.clar-go { flex: 1; font-family: inherit; font-size: 14.5px; font-weight: 900; padding: 12px; border-radius: 14px; border: none; background: #0d9488; color: #fff; cursor: pointer; }
+.clar-go:disabled { background: #cbd5e1; cursor: default; }
+.clar-later { font-family: inherit; font-size: 13px; font-weight: 800; padding: 12px 14px; border-radius: 14px; border: 1px solid #e2e8e5; background: #fff; color: #52736a; cursor: pointer; }
 .ng-dev.ng-alarm { font-size: 31px; }
 @keyframes ngAlarm { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.09); opacity: .68; } }
 .ng-alarm { animation: ngAlarm 1.05s ease-in-out infinite; }
@@ -711,22 +731,31 @@ function buildNutritionBar(sc) {
     return sev >= 3 ? '#b3221f' : (sev === 2 ? '#cf3b3b' : '#e07b1a');
   };
   // 次の一手 [不足のとき, 多いとき]
-  // スライダー右に1行で収める長さにする (全角10文字程度まで)
+  // ★一手は「AIが写真を見て作った actions」を優先する。
+  // 下は actions が無い(過去の投稿など)ときの控えで、写真の中身を知らないので
+  // ⚠️料理名や調理法を決めつけない書き方にしてある (「揚げ物を半分に」等は書かない)。
   const NG_HINT = {
-    calories: ['おにぎり1個ぶん', 'ごはんを少し残す'],
-    protein:  ['卵1個か納豆1パック', ''],
-    fat:      ['ナッツや魚の脂を少し', '揚げ物を半分に'],
-    carbs:    ['ごはんをもう半分', 'ごはんを一口残す'],
+    calories: ['もう少し量を足す', '少し量を減らす'],
+    protein:  ['たんぱく質を1品', ''],
+    fat:      ['あぶら分をもう少し', 'あぶら分を控えめに'],
+    carbs:    ['主食をもう少し', '主食を少し控える'],
     vitamin:  ['野菜をもう1品', ''],
-    mineral:  ['牛乳かヨーグルト1つ', ''],
+    mineral:  ['乳製品か小魚を1品', ''],
     fiber:    ['海藻かきのこを1品', ''],
-    salt:     ['', '汁物の汁を残す'],
-    alcohol:  ['', '1本ぶん減らす'],
+    salt:     ['', '塩分を控えめに'],
+    alcohol:  ['', 'お酒の量を減らす'],
   };
+  const NG_ACT = (sc.actions && typeof sc.actions === 'object') ? sc.actions : {};
   const ngTgt = (r) => r.t === 'range' ? (r.lo + '〜' + r.hi + r.item.unit)
     : (r.t === 'max' ? (r.hi + r.item.unit + 'まで') : (r.lo + r.item.unit + '以上'));
   const ngNum = (v) => (v % 1 === 0) ? String(v) : v.toFixed(1);
-  const ngHint = (r) => r.sev === 0 ? '' : ((NG_HINT[r.item.key] || ['', ''])[r.dir === 'low' ? 0 : 1] || '');
+  const ngHint = (r) => {
+    if (r.sev === 0) return '';
+    const a = NG_ACT[r.item.key];
+    if (typeof a === 'string' && a.trim()) return a.trim();   // 写真に写っているものを根拠にした一手
+    if (r.sev < 2) return '';                                  // 軽い外れに固定文言で口出ししない
+    return (NG_HINT[r.item.key] || ['', ''])[r.dir === 'low' ? 0 : 1] || '';
+  };
 
   let html = '<div class="nutri-card">';
 
@@ -1556,10 +1585,88 @@ function finalizePostDisplay(post) {
   const errEl = document.getElementById('cmp-err');
   if (_curTab === 'all' || _curTab === _curCat) {
     prependPost(post);
+    // 写真で分からない点があれば、その場で聞く (推測のまま確定させない)
+    if (_pendingAsk(post)) setTimeout(function () { openClarify(post.id); }, 350);
   } else {
     errEl.style.color = '#0f766e';
     errEl.textContent = '✓ 投稿しました ([' + _curCat + ']タブで確認)';
     setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#dc2626'; }, 4000);
+  }
+}
+
+// ===== 写真で分からない点のQ&A (2026-07-30) =====
+// ⚠️ 写真からの推測で「揚げ物を半分に」等と決めつけると信頼を失う。
+//    分からない点は推測せず本人に聞き、その回答込みで再分析する。
+function _pendingAsk(p) {
+  try {
+    const ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
+    const a = ns && ns.ask;
+    return (Array.isArray(a) && a.length) ? a : null;
+  } catch (e) { return null; }
+}
+function buildClarifyBar(p) {
+  const ask = _pendingAsk(p);
+  if (!ask) return '';
+  return '<button type="button" class="clar-btn" onclick="openClarify(' + p.id + ')">'
+    + '📝 あと' + ask.length + 'つ答えると分析が正確になります <b>答える</b></button>';
+}
+var _clarPost = null, _clarAsk = null, _clarAns = {};
+function openClarify(postId) {
+  // 投稿データは article 要素に __postData で保持されている (prependPost/renderFeed)
+  const host = document.getElementById('post-' + postId);
+  const p = host && host.__postData;
+  if (!p) return;
+  const ask = _pendingAsk(p);
+  if (!ask) return;
+  _clarPost = p; _clarAsk = ask; _clarAns = {};
+  document.getElementById('clar-body').innerHTML = ask.map(function (q, i) {
+    return '<div class="clar-q"><div class="clar-qt">' + (i + 1) + '. ' + escapeHtml(q.q) + '</div>'
+      + '<div class="clar-chs">'
+      + (q.choices || []).map(function (c) {
+          return '<button type="button" class="clar-ch" data-q="' + i + '" data-a="' + escapeHtml(c) + '" onclick="pickClarify(this)">' + escapeHtml(c) + '</button>';
+        }).join('')
+      + '<button type="button" class="clar-ch clar-skip" data-q="' + i + '" data-a="" onclick="pickClarify(this)">わからない</button>'
+      + '</div></div>';
+  }).join('');
+  document.getElementById('clar-msg').textContent = '';
+  document.getElementById('clar-ov').style.display = 'flex';
+}
+function pickClarify(btn) {
+  const qi = btn.getAttribute('data-q'), a = btn.getAttribute('data-a');
+  const box = btn.parentNode;
+  Array.prototype.forEach.call(box.querySelectorAll('.clar-ch'), function (b) { b.classList.remove('on'); });
+  btn.classList.add('on');
+  if (a) _clarAns[qi] = a; else delete _clarAns[qi];
+  const n = Object.keys(_clarAns).length;
+  const go = document.getElementById('clar-go');
+  go.disabled = n === 0;
+  go.textContent = n ? 'この内容で分析する（' + n + '件）' : '答えを選んでください';
+}
+function closeClarify() { document.getElementById('clar-ov').style.display = 'none'; }
+async function submitClarify() {
+  const answers = Object.keys(_clarAns).map(function (qi) {
+    return { q: _clarAsk[Number(qi)].q, a: _clarAns[qi] };
+  });
+  if (!answers.length) return;
+  const go = document.getElementById('clar-go');
+  go.disabled = true; go.textContent = '分析し直しています…';
+  try {
+    const r = await api('/api/plaza/posts/' + _clarPost.id + '/clarify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: answers }),
+    });
+    if (!r || !r.success) { document.getElementById('clar-msg').textContent = (r && r.msg) || '再分析に失敗しました'; go.disabled = false; go.textContent = 'もう一度'; return; }
+    _clarPost.nutrition_scores = r.nutrition_scores;
+    if (r.ai_comment) _clarPost.ai_comment = r.ai_comment;
+    const el = document.getElementById('post-' + _clarPost.id);
+    if (el) {
+      el.outerHTML = postHtml(_clarPost);
+      const ne = document.getElementById('post-' + _clarPost.id);
+      if (ne) ne.__postData = _clarPost;   // outerHTML 差し替えで消えるので付け直す
+    }
+    closeClarify();
+  } catch (e) {
+    document.getElementById('clar-msg').textContent = '通信エラー: ' + (e.message || e);
+    go.disabled = false; go.textContent = 'もう一度';
   }
 }
 
@@ -1786,6 +1893,7 @@ function postHtml(p) {
     : '';
   // 自分の食事投稿に「追加飲酒記録」UI を出す (写真に写ってない後続のドリンクを足す)
   const alcExtraBlock = (!isArchive && p.is_mine && p.category === '食事') ? buildAlcExtraBar(p) : '';
+  const clarifyBlock = (!isArchive && p.is_mine && p.category === '食事') ? buildClarifyBar(p) : '';
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';
   const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 ニックネームで投稿中</span>' : '') : '';
   const author = p.author_name || (isArchive ? '(過去ユーザー)' : '不明');
@@ -1810,7 +1918,7 @@ function postHtml(p) {
     ${p.content ? `<div class="post-content">${linkify(p.content)}</div>` : ''}
     ${img}
     ${nutri}
-    ${alcExtraBlock}
+    ${clarifyBlock}${alcExtraBlock}
     ${!isArchive ? `<div class="post-actions">
       ${reactions}
       <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>
@@ -2024,5 +2132,17 @@ function closeImgModal() { document.getElementById('img-modal').classList.remove
   <script src="/translate.js?v=20260622f" defer></script>
   <script src="/voice-input.js" defer></script>
 <script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+<div class="clar-ov" id="clar-ov" onclick="if(event.target===this)closeClarify()">
+  <div class="clar-card">
+    <div class="clar-h">📝 もう少し正確にできます</div>
+    <div class="clar-s">写真だけでは分からない点です。タップで教えてください。答えた内容で分析をやり直します。</div>
+    <div id="clar-body"></div>
+    <div class="clar-msg" id="clar-msg"></div>
+    <div class="clar-foot">
+      <button type="button" class="clar-go" id="clar-go" disabled onclick="submitClarify()">答えを選んでください</button>
+      <button type="button" class="clar-later" onclick="closeClarify()">あとで</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

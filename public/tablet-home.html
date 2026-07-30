@@ -1930,21 +1930,29 @@ function buildNutritionBar(sc){
     if(dir==='low') return sev>=3?'#1740b8':(sev===2?'#1d63c9':'#3f86d4');
     return sev>=3?'#b3221f':(sev===2?'#cf3b3b':'#e07b1a');
   }
-  // スライダー右に1行で収める長さにする (全角10文字程度まで)
+  // ★一手は「AIが写真を見て作った actions」を優先。下はそれが無いときの控えで、
+  // ⚠️写真の中身を知らないため料理名や調理法を決めつけない書き方にしてある。
   var NG_HINT={
-    calories:['おにぎり1個ぶん','ごはんを少し残す'],
-    protein:['卵1個か納豆1パック',''],
-    fat:['ナッツや魚の脂を少し','揚げ物を半分に'],
-    carbs:['ごはんをもう半分','ごはんを一口残す'],
+    calories:['もう少し量を足す','少し量を減らす'],
+    protein:['たんぱく質を1品',''],
+    fat:['あぶら分をもう少し','あぶら分を控えめに'],
+    carbs:['主食をもう少し','主食を少し控える'],
     vitamin:['野菜をもう1品',''],
-    mineral:['牛乳かヨーグルト1つ',''],
+    mineral:['乳製品か小魚を1品',''],
     fiber:['海藻かきのこを1品',''],
-    salt:['','汁物の汁を残す'],
-    alcohol:['','1本ぶん減らす']
+    salt:['','塩分を控えめに'],
+    alcohol:['','お酒の量を減らす']
   };
+  var NG_ACT=(sc.actions&&typeof sc.actions==='object')?sc.actions:{};
   function ngTgt(r){ return r.t==='range'?(r.lo+'〜'+r.hi+r.item.unit):(r.t==='max'?(r.hi+r.item.unit+'まで'):(r.lo+r.item.unit+'以上')); }
   function ngNum(v){ return (v%1===0)?String(v):v.toFixed(1); }
-  function ngHint(r){ return r.sev===0?'':((NG_HINT[r.item.key]||['',''])[r.dir==='low'?0:1]||''); }
+  function ngHint(r){
+    if(r.sev===0) return '';
+    var a=NG_ACT[r.item.key];
+    if(typeof a==='string'&&a.trim()) return a.trim();   // 写真に写っているものを根拠にした一手
+    if(r.sev<2) return '';                               // 軽い外れに固定文言で口出ししない
+    return (NG_HINT[r.item.key]||['',''])[r.dir==='low'?0:1]||'';
+  }
 
   var html='<div class="nutri-card">';
   // 結論を1行

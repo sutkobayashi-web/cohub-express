@@ -412,9 +412,92 @@ async function generateText(prompt, opts) {
 
 // 食事画像を Gemini Vision で栄養分析 (CoWell ひろば 互換のスコア形式)
 // recentMeals: 過去食事サマリ配列 [{date, kcal, protein, fat, carbs, veg, ca, salt, fiber, alc}]
-async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals) {
+// ── 個別の1食あたり栄養目標 (性別/年齢/身長/体重/活動レベル → 推定エネルギー必要量) ──
+// 日本人の食事摂取基準/スマートミール基準ベース。データ不足時は一律目標にフォールバック。
+const DEFAULT_TARGETS = {
+  personalized: false, basis: '一般的な目安 (スマートミール ちゃんと基準)',
+  kcal: { min: 450, max: 650 }, protein: { min: 20 }, fat: { min: 12, max: 18 },
+  carbs: { min: 69, max: 89 }, veg: { min: 120 }, ca: { min: 227 }, salt: { max: 2.5 }, fiber: { min: 7 },
+};
+function ageFromBirth(birth_date) {
+  if (!birth_date) return null;
+  const b = new Date(String(birth_date).slice(0, 10));
+  if (isNaN(b)) return null;
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
+  return (a >= 5 && a <= 120) ? a : null;
+}
+// profile = { sex:'male'|'female', age, height_cm, weight_kg, pal? }
+function computeNutritionTargets(profile) {
+  profile = profile || {};
+  const sex = (profile.sex === 'male' || profile.sex === 'female') ? profile.sex : null;
+  const H = Number(profile.height_cm), W = Number(profile.weight_kg);
+  const pal = Number(profile.pal) > 0 ? Number(profile.pal) : 1.5; // 既定=運転・座り仕事中心(過剰喚起回避)
+  // 必須=性別・身長・体重。年齢は任意(未設定なら標準50歳で計算。年齢の影響は1食±30kcal程度と小さい)
+  const ageOk = Number(profile.age) >= 15 && Number(profile.age) <= 100;
+  const age = ageOk ? Number(profile.age) : 50;
+  if (!sex || !(H >= 120 && H <= 220) || !(W >= 30 && W <= 200)) return DEFAULT_TARGETS;
+  const round = Math.round;
+  const bmr = sex === 'male' ? 10 * W + 6.25 * H - 5 * age + 5 : 10 * W + 6.25 * H - 5 * age - 161; // Mifflin-St Jeor
+  const tdee = bmr * pal, pm = tdee / 3;
+  const proteinDay = Math.max(W * 1.0, sex === 'male' ? 65 : 50);
+  const saltDay = sex === 'male' ? 7.5 : 6.5, caDay = sex === 'male' ? 750 : 650, fiberDay = sex === 'male' ? 21 : 18;
+  return {
+    personalized: true,
+    basis: `${sex === 'male' ? '男性' : '女性'}・${ageOk ? age + '歳' : '年齢未設定(標準で計算)'}・${round(H)}cm・${round(W)}kg／推定必要量 約${round(tdee)}kcal/日 (活動レベル${pal})`,
+    kcal: { min: round(pm * 0.9), max: round(pm * 1.1) }, protein: { min: round(proteinDay / 3) },
+    fat: { min: round(pm * 0.20 / 9), max: round(pm * 0.30 / 9) }, carbs: { min: round(pm * 0.50 / 4), max: round(pm * 0.65 / 4) },
+    veg: { min: 120 }, ca: { min: round(caDay / 3) }, salt: { max: Math.round(saltDay / 3 * 10) / 10 }, fiber: { min: round(fiberDay / 3) },
+  };
+}
+function _tgtLines(t) {
+  return `- calories: kcal (目標 ${t.kcal.min}-${t.kcal.max}/食)
+- protein: g (目標 ${t.protein.min})
+- fat: g (目標 ${t.fat.min}-${t.fat.max})
+- carbs: g (目標 ${t.carbs.min}-${t.carbs.max})
+- vitamin: 野菜量 g (目標 ${t.veg.min})
+- mineral: カルシウム mg (目標 ${t.ca.min})
+- salt: 食塩相当量 g (目標 ${t.salt.max}未満)
+- fiber: 食物繊維 g (目標 ${t.fiber.min})`;
+}
+
+async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, targets, mealType, foodSource, clarify) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY未設定');
+  const TGT = (targets && targets.kcal) ? targets : DEFAULT_TARGETS;
+  // 食事区分 (朝食/昼食/夕食/おやつ)。おやつは「一食」でなく「間食」として評価させる。
+  const MEAL_LABELS = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: 'おやつ（間食）' };
+  const mealLabel = MEAL_LABELS[mealType] || '';
+  const mealBlock = (mealType === 'snack')
+    ? '\n## この投稿は【おやつ（間食）】です\nこれは一食（主食＋主菜＋副菜が揃った完全な食事）ではなく「間食」です。**一食としては評価しないこと。**\n- 「野菜がない」「たんぱく質が不足」「一食としてバランスが悪い」など、完全な食事を前提にした指摘はしない。\n- 評価軸は間食として: 量・エネルギー(kcal)・糖分・塩分・脂質・食べる時間帯・一日全体の中での位置づけ。\n- good=間食としての良い選び方/楽しみ方、bad=摂り過ぎ・糖分/塩分など間食で気になる点、improve=より良い間食や量の工夫、try=次の間食の具体案(果物・素焼きナッツ・ヨーグルト等)や摂り方。\n- 文中の呼び方は「一食」でなく「おやつ」「間食」とする。\n'
+    : (mealLabel ? `\n## この投稿は【${mealLabel}】です\n${mealLabel}として評価すること。good/bad/improve/try は${mealLabel}の文脈で述べる。\n` : '');
+  // 食事の入手元 (外食/自炊/コンビニ)。improve/try の助言を入手元に合わせて「刺さる」具体策にする。
+  const SRC_LABELS = { conbini: 'コンビニ', homemade: '自炊', eatout: '外食' };
+  const srcLabel = SRC_LABELS[foodSource] || '';
+  const sourceBlock = foodSource === 'conbini'
+    ? '\n## この食事は【コンビニ】で選んだものです\nimprove と try は必ず、次にコンビニで"その場で選べる"具体策にする。実在する商品カテゴリ名を挙げて刺さる助言に: 成分表示の食塩相当量/たんぱく質/食物繊維を見る、サラダチキン・ゆで卵・納豆・冷奴でたんぱく質を足す、海藻/ひじき/カットサラダ/野菜スティック、豚汁や味噌汁で汁物+野菜、おにぎりは鮭/昆布で具入り、菓子パンより惣菜系、加糖飲料→お茶や水。「コンビニでもここを見れば整う」と一歩を後押しする一言で締める。\n'
+    : foodSource === 'homemade'
+    ? '\n## この食事は【自炊】です\nimprove と try は必ず、次に作る時の"味付け・調理法"の工夫にする。刺さる具体策で: 減塩は「かける→少量つける」「出汁・酢・レモン・生姜・大葉・胡椒で塩を減らす」、揚げる→焼く/蒸す/茹でる、油は小さじで量る、野菜は先に炒めてかさ増し、作り置き/下味冷凍。「自炊してるあなたなら、この一手間で見違える」と努力を認めて後押しする。\n'
+    : foodSource === 'eatout'
+    ? '\n## この食事は【外食】です\nimprove と try は必ず、次の注文で"選べる"メニュー選択のコツにする。刺さる具体策で: 単品より定食(主食+主菜+副菜)、揚げ物より焼き魚/蒸し料理/生姜焼き、ご飯は少なめ/半ライス、麺類は汁を残す、+サラダや小鉢で野菜、ドレッシング/ソースは別添え。「我慢ではなく"選び方"で整う」と外食を楽しみながら実践できる一言で締める。\n'
+    : '';
+  // ★投稿者本人が書いたコメント。調理法や食材の情報源として写真の推測より優先する。
+  const _memo = String(userMemo || '').trim();
+  const memoBlock = _memo
+    ? '\n## ★投稿者本人のコメント (本人が書いた確定情報。写真からの推測より優先する)\n「' + _memo.slice(0, 400) + '」\n'
+      + '→ 調理法・食材・量・味付けについて本人が書いていることは必ず尊重し、推測で上書きしないこと。\n'
+      + '→ 本人のコメントで分かることは questions で聞かない。\n'
+      + '→ good/bad/improve/try/actions は本人のコメントの内容を必ず踏まえて書く。\n'
+    : '';
+  // ★本人への確認結果 (ヒアリング)。写真からの推測より優先する確定情報。
+  const clarifyBlock = (Array.isArray(clarify) && clarify.length)
+    ? '\n## ★本人に確認した内容 (確定情報。写真からの推測より優先する)\n'
+      + clarify.slice(0, 3).map(c => `- Q: ${String(c.q || '').slice(0, 60)} → A: ${String(c.a || '').slice(0, 40)}`).join('\n')
+      + '\n→ 栄養価の推定・bad/improve/try・actions は必ずこの回答を反映すること。回答と矛盾する推測は捨てる。'
+      + '\n→ 確認済みなので questions は空配列 [] にすること。\n'
+    : '';
   const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
   const trendBlock = (Array.isArray(recentMeals) && recentMeals.length)
     ? `\n## この投稿者の最近の食事ログ (新しい順、最大7件)\n` +
@@ -426,24 +509,45 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals) {
   const prompt = `あなたはAIヘルスアドバイザー (健康管理士キャラ) です。食事の写真を見て JSON で回答します。
 親しみある口調で、専門知識をやさしく伝えてください。「〜だね」「〜してみよう」のフレンドリー語尾。
 国立長寿医療研究センター「栄養改善パック」(2020) およびスマートミール基準に基づき分析。
-${userMemo ? '投稿者メモ: ' + userMemo.slice(0, 200) + '\n' : ''}画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
+${TGT.personalized ? '★この方の体格に合わせた個別目安で評価します。good/bad/improveは必ずこの個別目安を基準に判断し、bad/improveでは「あなたの体格に合わせた目安より多め/少なめ」のように述べる。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値は解説文に一切書かないこと(体格に触れる時も数値・属性を出さず「あなたに合わせた目安では」と表現)。\n' : ''}${memoBlock}画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
 それ以外は箸/茶碗/手等の基準物から実重量を推定し、食品成分表で算出。
-${trendBlock}
+${mealBlock}${sourceBlock}${clarifyBlock}${trendBlock}
 ★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。改行は \\n で。
 
-{"good":"良い点 (120-180字)。具体食材を挙げ、栄養面で何が良いかをポジティブに。","bad":"悪い点 (100-160字)。過剰/不足している栄養素を数値根拠つきで1-2点。攻撃的にならず事実を淡々と。","improve":"改善点 (120-180字)。今日の食事に対して、塩分減らす具体策や追加すべき一品など実行可能な提案。","trend":"あなたの傾向 (140-200字)。過去ログから読み取れる習慣的な過不足や曜日パターン。データなしなら「記録を続けると傾向が見えてくる」旨。","try":"やってみよう！(100-160字)。次回〜数日内の具体行動。実在する料理名 1-2品 (例: 「ほうれん草のおひたし」「鯖の塩焼き」) で背中を押す。","calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由","reference_object":"検出した基準物 or null"}}
+{"good":"良い点 (120-180字)。具体食材を挙げ、栄養面で何が良いかをポジティブに。","bad":"気になる点 (100-160字)。目安から実際に外れている栄養素を数値根拠つきで1-2点。攻撃的にならず事実を淡々と。★外れが無ければ『特に問題は見つかりませんでした』と正直に書き、指摘を作らない。","improve":"改善点 (120-180字)。今日の食事に対して実行可能な提案。★写真や本人コメントで確認できたことだけを根拠にする。既に控えているものを更に減らせとは言わない。整っている場合は『この形を続けよう』でよい。","trend":"あなたの傾向 (140-200字)。過去ログから読み取れる習慣的な過不足や曜日パターン。データなしなら「記録を続けると傾向が見えてくる」旨。","try":"やってみよう！(100-160字)。次回〜数日内の具体行動。実在する料理名 1-2品 (例: 「ほうれん草のおひたし」「鯖の塩焼き」) で背中を押す。","actions":{"栄養素キー":"全角12字以内の一手"},"questions":[{"id":"短い識別子","q":"全角20字以内の質問","choices":["選択肢1","選択肢2"]}],"calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由","reference_object":"検出した基準物 or null"}}
 
-各値:
-- calories: kcal (目標 450-650/食)
-- protein: g (目標 20)
-- fat: g (目標 12-18)
-- carbs: g (目標 69-89)
-- vitamin: 野菜量 g (目標 120)
-- mineral: カルシウム mg (目標 227)
-- salt: 食塩相当量 g (目標 2.5未満)
-- fiber: 食物繊維 g (目標 7)
+各値 (目標は${TGT.personalized ? 'この方の体格に合わせた個別目安' : '一般目安'}):
+${_tgtLines(TGT)}
 - alcohol: 純アルコール g (酒なし=0)。ビール350ml=14g、日本酒1合=22g
 - has_alcohol: 画像に酒類があれば true
+
+【★★ 根拠のない指摘をしない (最重要・信頼に直結) ★★】
+- 写真・投稿者本人のコメント・確認回答から**確認できないことは書かない**。
+  「揚げ物」「濃い味付け」「大盛り」などは、**実際に確認できた時だけ**言及する。
+  例: 焼いた肉から脂を落としているのに「揚げ物を減らそう」と書くのは誤りであり、信頼を失う。
+- **目安の範囲内に収まっている栄養素を「多い/少ない」と書かない。** bad は実際に目安から外れたものだけ。
+  外れが無ければ bad は「特に問題は見つかりませんでした」とし、**無理に指摘を作らない**。
+- ★**本人が既に控えているものを、さらに減らせと言わない。**
+  ご飯や主食の量が目安より少ない(または範囲内)なら「ご飯を減らそう」と書いてはならない。
+  少ない側に外れているものは「減らす」ではなく、維持または足す助言にする。
+- confidence.level が 3 (成分表示や基準物で量を確認できた) の場合、量の推定は信頼できる。
+  「量が多いかもしれない」のような**曖昧な量の指摘はしない**。基準物を一緒に撮ってくれた配慮を無駄にしないこと。
+- 指摘すべき点が無いのは良いことである。褒めて終えてよい。improve は「この形を続けよう」で構わない。
+
+【★actions: 栄養素ごとの「次の一手」(1行・全角12字以内)】
+目安から外れている栄養素のキーだけを入れる (calories/protein/fat/carbs/vitamin/mineral/salt/fiber/alcohol)。外れが無ければ {} 。
+★★ 写真に写っていないものを原因として決めつけてはならない ★★
+- 「揚げ物を半分に」と書けるのは、**写真に揚げ物が確かに写っている時だけ**。
+- 焼いた肉なら「脂身を落とす」、ドレッシングやマヨネーズが見えるなら「ソースは別添えに」のように、**見えているものだけ**を根拠にする。
+- 写真から原因が特定できない時は、食材を特定せず「あぶら分を控えめに」「塩分を控えめに」のように書く。
+- 誤った決めつけは利用者の信頼を失う。**確認できないことは書かない**。
+- 命令口調にしない。短い提案(「〜を1品」「〜を半分に」「〜を足す」)。
+
+【★questions: 写真だけでは確定できない点の確認 (0〜3件)】
+目的は次回以降の精度向上。**写真から明らかに分かることは聞かない**。
+- 聞く価値がある例: 調理法(揚げた/焼いた/蒸した/茹でた)、油の使用量、ご飯の量、味付けの濃さ、ソース/ドレッシングの有無、一緒に飲んだもの、食べ切ったか。
+- q は全角20字以内の平易な質問。choices は**タップで選べる2〜4個**の短い選択肢(各全角8字以内)。id は英小文字の短い識別子。
+- 栄養価の推定が変わらない質問は入れない。迷う点が無ければ空配列 [] 。
 
 【★信憑性の判定 (4段階)】
 画像内に**サイズ既知の基準物**が写っているかを必ずチェックし、検出できた場合は寸法測定に使用する:
@@ -456,16 +560,23 @@ ${trendBlock}
   - 🍚 茶碗 (直径11cm × 高さ6cm、満杯約170g)
   - 🍴 フォーク (約20cm)
 
-confidence.level の判定:
-- **3** (成分表示): パッケージに kcal や塩分などの数値表記が読み取れる
-- **3** (基準物あり): 上記の基準物が画像に写っており、それで料理の体積/重量を測定できる
-- **2** (定番料理): カレー/ラーメン/牛丼等の定番料理で標準的な量と推定可能
-- **1** (目視推定): 基準物なし、手作り/不明料理で目視のみの推定
+confidence.level の判定 ※★厳格に。迷ったら必ず低い方を選ぶこと:
+- **3**: 次のどちらかを**実際に満たした時だけ**。
+   (a) パッケージの成分表示に kcal 等の数値が**実際に読み取れた** → reference_object は "成分表示"
+   (b) 上記リストの基準物が**画像に確かに写っており**、それを使って実際に寸法/体積を測った → reference_object にその物体名
+- **2** (定番料理): カレー/ラーメン/牛丼等の定番料理で、標準的な一人前として推定した
+- **1** (目視推定): 基準物なし・成分表示なし。手作り/不明料理を目視のみで推定した
 
-confidence.reason: 「成分表示から読み取り」「お箸の長さからご飯量を170gと推定」「定番料理の標準値」「目視推定 (基準物がないとブレが出やすい)」など具体的に。
-confidence.reference_object: 検出した基準物名 (例「箸」「マグカップ」「茶碗」「ペットボトル」)。検出なしは null。
+★★ 絶対厳守のルール ★★
+- **reference_object が null なら level は 3 にしてはならない。** 必ず 2 か 1 にすること。
+- 基準物が「写っているかもしれない」程度の推測で 3 を名乗らない。**確実に見えている物だけ**を挙げる。
+- 存在しない基準物を挙げてはならない(捏造禁止)。写っていなければ null と正直に書く。
+- 大多数の食事写真には基準物は写っていない。**level 1 が最も多くて当然**であり、それは正しい判定である。
+- 量の推定は誤差が出やすい。**自信がない時は level を下げる**ことが、利用者への誠実さである。
+
+confidence.reason: 「成分表示から読み取り」「お箸(23cm)を検出: ご飯量を170gと推定」「定番料理の標準値」「目視推定 (基準物がないため量のブレが出やすい)」など、判定根拠を具体的に。
+confidence.reference_object: 実際に使った基準物名 (例「箸」「マグカップ」「茶碗」「ペットボトル」「成分表示」)。**使っていない/写っていない場合は必ず null**。
 ※ 基準物が複数ある場合は最も精度が高そうなもの1つを reference_object に記載。
-※ 基準物検出時は reason に「○○を検出: ご飯量 ○○g と推定」のように測定根拠を明記。
 
 数値はカンマ無し。実数または推定実数 (小数点1桁まで)。
 重複表現を避け、各セクションは別の角度から書く (good=評価, bad=数値根拠, improve=今日への即時策, trend=長期パターン, try=次回行動)。
@@ -481,7 +592,9 @@ confidence.reference_object: 検出した基準物名 (例「箸」「マグカ�
     }],
     // thinkingBudget=0 で内部 thinking 無効化 (JSON出力のみで思考不要、出力トークン枯渇防止)
     // 2人体制コメント (各260字) + 9栄養素 → 余裕持って 6000
-    generationConfig: { temperature: 0.6, maxOutputTokens: 6000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+    // temperature: 数値(kcal/PFC)の推定に創造性は不要。0.6だと同じ写真でも投稿のたびに数値がブレるため
+    // 0.25 に下げて再現性を優先 (2026-07-26)。コメント文の多様性は多少落ちるがトレードオフとして許容。
+    generationConfig: { temperature: 0.25, maxOutputTokens: 6000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
   };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
   const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -522,6 +635,73 @@ confidence.reference_object: 検出した基準物名 (例「箸」「マグカ�
     }
   }
   console.log('[analyzeFoodImage] parsed:', JSON.stringify(parsed).slice(0, 200));
+  parsed = _sanitizeFoodConfidence(parsed);
+  parsed = _sanitizeFoodAdvice(parsed);
+  return parsed;
+}
+
+// actions / questions の是正 (2026-07-30)
+// AIは字数や件数の指示を破ることがあるので、保存前に機械的に丸める。
+const _ADVICE_KEYS = ['calories', 'protein', 'fat', 'carbs', 'vitamin', 'mineral', 'salt', 'fiber', 'alcohol'];
+function _sanitizeFoodAdvice(p) {
+  if (!p || typeof p !== 'object') return p;
+  // actions: 既知の栄養素キーのみ・全角16字で打ち切り
+  const src = (p.actions && typeof p.actions === 'object') ? p.actions : null;
+  const acts = {};
+  if (src) {
+    for (const k of _ADVICE_KEYS) {
+      const v = src[k];
+      if (typeof v === 'string' && v.trim()) acts[k] = v.trim().replace(/\s+/g, ' ').slice(0, 16);
+    }
+  }
+  p.actions = acts;
+  // questions: 最大3件・選択肢は2〜4個・空は捨てる
+  const qs = [];
+  if (Array.isArray(p.questions)) {
+    for (const q of p.questions) {
+      if (!q || typeof q !== 'object') continue;
+      const text = String(q.q || '').trim().slice(0, 40);
+      const ch = Array.isArray(q.choices)
+        ? q.choices.map(c => String(c == null ? '' : c).trim().slice(0, 12)).filter(Boolean).slice(0, 4)
+        : [];
+      if (!text || ch.length < 2) continue;
+      qs.push({ id: String(q.id || 'q' + (qs.length + 1)).replace(/[^a-z0-9_]/gi, '').slice(0, 16) || ('q' + (qs.length + 1)), q: text, choices: ch });
+      if (qs.length >= 3) break;
+    }
+  }
+  p.questions = qs;
+  return p;
+}
+
+// 信憑性の是正 (2026-07-26)
+// 実測468件の検証で、level=3(高信憑性)を名乗った365件のうち100件(27%)が reference_object=null だった
+// = 自身のルールに反した過大申告。プロンプトだけでは守られないため、コード側で決定的に是正する。
+// ⚠️推定精度そのものは上がらない。上がるのは「誤差の申告の正直さ」＝利用者の信頼。
+function _sanitizeFoodConfidence(parsed) {
+  try {
+    if (!parsed || typeof parsed !== 'object') return parsed;
+    const c = parsed.confidence;
+    if (!c || typeof c !== 'object') return parsed;
+    const lvl = Number(c.level);
+    if (!(lvl >= 1)) return parsed;
+    const refRaw = c.reference_object;
+    // 文字列 'null'/'なし'/空 は未検出として扱う (AIが文字列で返すケースあり)
+    const ref = (refRaw === null || refRaw === undefined) ? '' : String(refRaw).trim();
+    const hasRef = ref && !/^(null|none|nan|なし|不明|-)$/i.test(ref);
+    const reason = String(c.reason || '');
+    const labelSays = /成分表示|栄養成分|パッケージ|ラベル/.test(reason);
+    if (lvl >= 3 && !hasRef && !labelSays) {
+      // 基準物も成分表示も示せていないのに「高」を名乗った → 目視推定へ格下げ
+      c.level = 1;
+      c.reference_object = null;
+      c.reason = (reason ? reason + ' / ' : '') + '目視推定（大きさの基準になる物が写っていないため、量のブレが出やすい）';
+      console.log('[analyzeFoodImage] confidence downgraded 3→1 (no reference_object)');
+    } else if (lvl >= 3 && !hasRef && labelSays) {
+      c.reference_object = '成分表示';
+    } else if (!hasRef) {
+      c.reference_object = null;
+    }
+  } catch (e) { console.warn('[_sanitizeFoodConfidence]', e.message); }
   return parsed;
 }
 
@@ -1161,4 +1341,27 @@ async function analyzeActivityImage(imageBuffer, mimeType) {
   return parsed;
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, analyzeActivityImage, analyzeReceiptImage, generateActionPlan, generateDialogStep, generateDailyReply };
+// 保存済みの栄養数値(確定)を「個別目標」で評価し直して5セクションのコメントを再生成する。
+// 画像を再解析しない軽量版(過去投稿の再診断用)。数値は変えず good/bad/improve/trend/try のみ作り直す。
+async function regenFoodComment(scores, targets, userMemo, recentMeals) {
+  const nv = (x) => (x && typeof x === 'object') ? Number(x.value) : Number(x);
+  const s = scores || {};
+  const TGT = (targets && targets.kcal) ? targets : DEFAULT_TARGETS;
+  const measured = `カロリー${nv(s.calories) || '?'}kcal / たんぱく質${nv(s.protein) || '?'}g / 脂質${nv(s.fat) || '?'}g / 炭水化物${nv(s.carbs) || '?'}g / 野菜${nv(s.vitamin) || '?'}g / カルシウム${nv(s.mineral) || '?'}mg / 食塩${nv(s.salt) || '?'}g / 食物繊維${nv(s.fiber) || '?'}g / アルコール${nv(s.alcohol) || 0}g`;
+  const trendBlock = (Array.isArray(recentMeals) && recentMeals.length)
+    ? `\n【この方の最近の食事ログ(新しい順・最大7件)】\n` + recentMeals.slice(0, 7).map(m => `- ${m.date}: ${m.kcal}kcal P${m.protein} 野菜${m.veg}g 塩${m.salt}g 酒${m.alc}g`).join('\n') + '\n'
+    : '';
+  const prompt = `あなたはAIヘルスアドバイザー(健康管理士キャラ)です。親しみある口調(「〜だね」「〜してみよう」)。
+ある食事の栄養値は既に推定済み(確定)です。数値は再推定せず、下記の確定値を、この方の体格に合わせた個別目標と照らして評価コメントだけを作成してください。
+${TGT.personalized ? '★この方の体格に合わせた個別目標で評価します。評価は必ずこの個別目標(下記)を基準に、「あなたに合わせた目安より〜」と述べる。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値は解説文に一切書かないこと。\n' : ''}【この食事の栄養値(確定)】${measured}
+【1食の目標(${TGT.personalized ? 'この方の個別目安' : '一般の参考値'})】
+${_tgtLines(TGT)}
+${userMemo ? '本人メモ: ' + String(userMemo).slice(0, 200) + '\n' : ''}${trendBlock}
+★純粋なJSONのみ。前置き・コードフェンス・マークダウン禁止。改行は \\n で。
+{"good":"良い点(120-180字)。具体食材を挙げ栄養面の良さをポジティブに。","bad":"悪い点(100-160字)。個別目標と比べ過不足を数値根拠つき1-2点。淡々と。","improve":"改善点(120-180字)。実行可能な提案。","trend":"あなたの傾向(140-200字)。過去ログの習慣的な過不足。データなしなら記録継続を促す。","try":"やってみよう！(100-160字)。実在料理名1-2品で背中を押す。"}`;
+  const raw = await generateText(prompt, { responseMimeType: 'application/json', maxTokens: 1600, temperature: 0.6 });
+  let obj; try { obj = JSON.parse(raw); } catch (e) { const m = raw.match(/\{[\s\S]*\}/); obj = m ? JSON.parse(m[0]) : null; }
+  return obj; // {good,bad,improve,trend,try} or null
+}
+
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, analyzeActivityImage, analyzeReceiptImage, generateActionPlan, generateDialogStep, generateDailyReply, computeNutritionTargets, ageFromBirth, DEFAULT_TARGETS, regenFoodComment };

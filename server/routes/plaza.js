@@ -131,6 +131,10 @@ try {
     db.prepare('ALTER TABLE plaza_posts ADD COLUMN extra_alcohol_g REAL DEFAULT 0').run();
     console.log('[plaza] migrated: plaza_posts.extra_alcohol_g');
   }
+  if (!cols.has('food_source')) {
+    db.prepare('ALTER TABLE plaza_posts ADD COLUMN food_source TEXT').run();
+    console.log('[plaza] migrated: plaza_posts.food_source');
+  }
 } catch (e) { console.warn('[plaza] migration skipped:', e.message); }
 
 // 飲酒プリセット (純アルコール g)
@@ -276,7 +280,7 @@ router.get('/posts', authUser, (req, res) => {
   const db = getDb();
 
   let sql = `SELECT p.id, p.author_id, p.category, p.content, p.image_url, p.nutrition_scores,
-                    p.ai_comment, p.is_anonymous, p.created_at, p.meal_type,
+                    p.ai_comment, p.is_anonymous, p.created_at, p.meal_type, p.food_source,
                     COALESCE(p.extra_alcohol_g, 0) AS extra_alcohol_g,
                     u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
                     u.nickname AS author_nickname
@@ -427,6 +431,10 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
   const mealType = MEAL_TYPES.includes(String((req.body && req.body.meal_type) || '').trim())
     ? String(req.body.meal_type).trim() : null;
+  // 食事の入手元 (外食/自炊/コンビニ)。improve/try の助言を入手元に合わせて「刺さる」具体策にする。
+  const FOOD_SOURCES = ['conbini', 'homemade', 'eatout'];
+  const foodSource = FOOD_SOURCES.includes(String((req.body && req.body.food_source) || '').trim())
+    ? String(req.body.food_source).trim() : null;
 
   // 食事カテゴリ + 画像あり → AI 栄養分析を試行 (失敗しても投稿は成立)
   // CoWell 互換フォーマット ({calories:{value,unit}, protein:{value,unit}, ... confidence:{level,reason}}) で保存
@@ -445,7 +453,7 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
       const _bw = _db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};
       const foodTargets = computeNutritionTargets({ sex: _bu.sex, height_cm: _bu.height_cm, weight_kg: _bw.weight_kg, age: ageFromBirth(_bu.birth_date), pal: _bu.activity_pal });
       console.log('[plaza] targets personalized=' + foodTargets.personalized);
-      const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals, foodTargets, mealType);
+      const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals, foodTargets, mealType, foodSource);
       if (r && typeof r === 'object') {
         // 5セクション形式 (good/bad/improve/trend/try) を結合保存
         // 旧形式 (comment_nutrition/comment_health/comment) もフォールバック
@@ -462,6 +470,10 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
         }
         if (r.has_alcohol != null) scores.has_alcohol = !!r.has_alcohol;
         if (r.confidence != null) scores.confidence = r.confidence;
+        // 栄養素ごとの一手 (写真に写っているものだけを根拠にAIが作る)。表示側の固定文言より優先する。
+        if (r.actions && typeof r.actions === 'object' && Object.keys(r.actions).length) scores.actions = r.actions;
+        // 写真だけでは確定できない点。本人にタップで答えてもらい /clarify で再分析する。
+        if (Array.isArray(r.questions) && r.questions.length) scores.ask = r.questions;
         if (hasAny) nutritionScores = JSON.stringify(scores);
       }
       console.log('[plaza] AI done: scores=' + (nutritionScores ? 'YES' : 'no') + ' comment_len=' + (aiComment ? aiComment.length : 0));
@@ -469,8 +481,8 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   }
 
   const db = getDb();
-  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous, meal_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous, mealType);
+  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous, meal_type, food_source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous, mealType, foodSource);
   const post = db.prepare(`SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company, u.nickname AS author_nickname
                            FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id WHERE p.id = ?`).get(ins.lastInsertRowid);
   post.kind = 'plaza';
@@ -843,6 +855,96 @@ router.post('/posts/:id/rediagnose', authUser, express.json(), async (req, res) 
   } catch (e) {
     console.warn('[rediagnose]', e && e.message);
     res.status(500).json({ success: false, msg: '再診断エラー' });
+  }
+});
+
+// 写真では分からない点を本人に聞いて、その回答込みで再分析する (2026-07-30)
+// ⚠️ 写真から「揚げ物」等を決めつけた助言は信頼を損なうため、不明点は推測せず本人に確認する。
+router.post('/posts/:id/clarify', authUser, express.json(), async (req, res) => {
+  try {
+    const db = getDb();
+    const post = db.prepare("SELECT id, author_id, category, content, image_url, nutrition_scores, meal_type, food_source FROM plaza_posts WHERE id = ? AND deleted_at IS NULL").get(req.params.id);
+    if (!post) return res.status(404).json({ success: false, msg: '投稿が見つかりません' });
+    if (post.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人の投稿のみ対象です' });
+    if (post.category !== '食事' || !post.image_url) return res.status(400).json({ success: false, msg: '写真のある食事投稿のみ対象です' });
+    // 回答: [{q, a}] を最大3件。空回答(わからない)は捨てる。
+    const raw = Array.isArray(req.body && req.body.answers) ? req.body.answers : [];
+    const answers = raw
+      .map(x => ({ q: String((x && x.q) || '').slice(0, 60), a: String((x && x.a) || '').slice(0, 40) }))
+      .filter(x => x.q && x.a)
+      .slice(0, 3);
+    if (!answers.length) return res.status(400).json({ success: false, msg: '回答がありません' });
+    // 画像を読む (image_url = /uploads/plaza/xxx)
+    const rel = String(post.image_url).replace(/^\/+/, '');
+    if (!/^uploads\/plaza\/[\w.\-]+$/.test(rel)) return res.status(400).json({ success: false, msg: '画像を特定できません' });
+    const abs = path.join(__dirname, '..', '..', rel);
+    if (!fs.existsSync(abs)) return res.status(400).json({ success: false, msg: '画像が見つかりません' });
+    const buf = fs.readFileSync(abs);
+    const mime = /\.png$/i.test(abs) ? 'image/png' : (/\.webp$/i.test(abs) ? 'image/webp' : 'image/jpeg');
+    // 本人の個別目標
+    const bu = db.prepare('SELECT sex, height_cm, activity_pal, birth_date FROM users WHERE id = ?').get(req.uid) || {};
+    const bw = db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};
+    const targets = computeNutritionTargets({ sex: bu.sex, height_cm: bu.height_cm, weight_kg: bw.weight_kg, age: ageFromBirth(bu.birth_date), pal: bu.activity_pal });
+    const recentMeals = collectRecentMeals(req.uid);
+    const r = await analyzeFoodImage(buf, mime, post.content, recentMeals, targets, post.meal_type, post.food_source, answers);
+    if (!r || typeof r !== 'object') return res.status(500).json({ success: false, msg: '再分析に失敗しました' });
+    const NUTRI_KEYS = ['calories', 'protein', 'fat', 'carbs', 'vitamin', 'mineral', 'salt', 'fiber', 'alcohol'];
+    const scores = {};
+    let hasAny = false;
+    for (const k of NUTRI_KEYS) if (r[k] != null) { scores[k] = r[k]; hasAny = true; }
+    if (!hasAny) return res.status(500).json({ success: false, msg: '再分析の数値が取れませんでした' });
+    if (r.has_alcohol != null) scores.has_alcohol = !!r.has_alcohol;
+    if (r.confidence != null) scores.confidence = r.confidence;
+    if (r.actions && typeof r.actions === 'object' && Object.keys(r.actions).length) scores.actions = r.actions;
+    // 確認済み: ask は畳み、回答内容を残す (何を答えたか本人が見返せるように)
+    scores.asked = answers;
+    if (Array.isArray(r.questions) && r.questions.length) scores.ask = r.questions;
+    const comment = formatAdvisorSections(r);
+    db.prepare('UPDATE plaza_posts SET nutrition_scores = ?, ai_comment = ? WHERE id = ? AND author_id = ?')
+      .run(JSON.stringify(scores), comment || null, post.id, req.uid);
+    console.log('[clarify] post=' + post.id + ' answers=' + answers.length + ' kcal=' + (scores.calories && scores.calories.value));
+    res.json({ success: true, nutrition_scores: scores, ai_comment: comment });
+  } catch (e) {
+    console.warn('[clarify]', e && e.message);
+    res.status(500).json({ success: false, msg: '再分析エラー: ' + (e && e.message ? e.message : '') });
+  }
+});
+
+// 自分の直近の平均 (相対比較「いつもと比べて」用) 2026-07-26
+// ★写真からのカロリー推定は絶対値の誤差が大きい(量の推定が主因)。ただし同じ人・同じ食器・同じ癖なら
+//   誤差は同じ方向に系統的に出るため、「自分の平均との差」は絶対値よりはるかに信頼できる。
+//   → 絶対kcalを断定的に見せるのではなく、相対で見せるための基準値を返す。
+router.get('/my-nutrition-avg', authUser, (req, res) => {
+  try {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT nutrition_scores FROM plaza_posts
+       WHERE author_id = ? AND category = '食事' AND deleted_at IS NULL
+         AND nutrition_scores IS NOT NULL AND nutrition_scores != ''
+         AND created_at >= datetime('now','-60 days')
+       ORDER BY id DESC LIMIT 30`).all(req.uid);
+    const keys = ['calories', 'protein', 'fat', 'carbs', 'salt', 'vitamin', 'fiber'];
+    const sum = {}, cnt = {};
+    keys.forEach(k => { sum[k] = 0; cnt[k] = 0; });
+    let n = 0;
+    for (const r of rows) {
+      let sc; try { sc = JSON.parse(r.nutrition_scores); } catch (e) { continue; }
+      if (!sc || typeof sc !== 'object') continue;
+      const kcal = sc.calories && Number(sc.calories.value);
+      if (!(kcal > 0)) continue;   // 食事でない/解析失敗(全0)は除外
+      n++;
+      keys.forEach(k => {
+        const v = sc[k] && Number(sc[k].value);
+        if (Number.isFinite(v) && v >= 0) { sum[k] += v; cnt[k]++; }
+      });
+    }
+    const avg = {};
+    keys.forEach(k => { avg[k] = cnt[k] ? Math.round((sum[k] / cnt[k]) * 10) / 10 : null; });
+    // n<5 は平均が安定しないので、比較表示を出すかどうかの判断材料としてクライアントへ返す
+    res.json({ success: true, n, avg, stable: n >= 5 });
+  } catch (e) {
+    console.error('[my-nutrition-avg]', e.message);
+    res.json({ success: false, n: 0, avg: {}, stable: false });
   }
 });
 
