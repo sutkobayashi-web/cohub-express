@@ -284,7 +284,8 @@
   .ng-val{font-size:17px;font-weight:800;color:#41514a;font-variant-numeric:tabular-nums;white-space:nowrap}
   .ng-val i{font-style:normal;font-weight:600;color:#8b9a93;font-size:14px}
   /* スライダーは短く固定幅。3領域を色で分け、針の位置に過不足%を出す */
-  .ng-gauge{grid-column:1/-1;justify-self:start;position:relative;width:100%;max-width:300px;padding-top:26px}
+  .ng-line2{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin-top:2px}
+  .ng-gauge{flex:none;position:relative;width:236px;padding-top:26px}
   .ng-track{display:flex;height:17px;border-radius:5px;overflow:hidden}
   .ng-z{height:100%}
   .ng-z-low{background:#f6dfb4}
@@ -296,7 +297,7 @@
   .ng-zlbl span{font-size:13px;font-weight:800;text-align:center;line-height:1.2}
   .ng-zlbl .l-low{color:#97640f} .ng-zlbl .l-ok{color:#0a7a0a} .ng-zlbl .l-hi{color:#a32e2e} .ng-zlbl .l-mute{color:#79887f}
   .ng-pt{position:absolute;top:0;font-size:16px;font-weight:900;padding:2px 10px;border-radius:999px;background:#fff;border:2px solid currentColor;white-space:nowrap;line-height:1.4;font-variant-numeric:tabular-nums}
-  .ng-cmt{grid-column:1/-1;margin-top:10px;font-size:18px;font-weight:800;line-height:1.5;padding:10px 14px;border-radius:12px;border-left:4px solid currentColor}
+  .ng-cmt{flex:1;min-width:0;font-size:17px;font-weight:800;line-height:1.35;color:#2b3a33;padding:9px 13px;border-radius:11px;border-left:4px solid;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid #eaefe9}
   .ng-chip{font-size:17px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:5px 13px}
   .ng-chip b{color:#0ca30c;font-weight:900}
@@ -1931,17 +1932,21 @@ function buildNutritionBar(sc){
   var NG_TAG={in:'適量',plenty:'しっかり',low:'足りない',high:'多い'};
   var NG_GLY={in:'✓',plenty:'✓',low:'◀',high:'▶'};
   var NG_COL=['#0ca30c','#d98411','#cf3b3b'];
+  // スライダー右に1行で収める長さにする (全角10文字程度まで)
   var NG_HINT={
-    calories:['おにぎり1個ぶん足りません','ごはんを少し残す'],
-    protein:['卵1個か納豆1パック足す',''],
-    fat:['ナッツや魚、オリーブ油を少し足す','揚げ物かドレッシングを半分に'],
+    calories:['おにぎり1個ぶん','ごはんを少し残す'],
+    protein:['卵1個か納豆1パック',''],
+    fat:['ナッツや魚の脂を少し','揚げ物を半分に'],
     carbs:['ごはんをもう半分','ごはんを一口残す'],
-    vitamin:['サラダか具の多いみそ汁を1品',''],
-    mineral:['牛乳かヨーグルトを1つ',''],
+    vitamin:['野菜をもう1品',''],
+    mineral:['牛乳かヨーグルト1つ',''],
     fiber:['海藻かきのこを1品',''],
-    salt:['','みそ汁の汁を残す・卓上の塩を足さない'],
-    alcohol:['','1本ぶん減らす・週2日は休肝日']
+    salt:['','汁物の汁を残す'],
+    alcohol:['','1本ぶん減らす']
   };
+  // コメントの背景は針がある領域の色 (少ない=橙 / 適量=緑 / 過剰=赤)。枠線は重さの色。
+  var NG_ZBG={low:'#f6dfb4',ok:'#b9e3b9',hi:'#f4c3c1',mute:'#e2e7e2'};
+  var NG_ZIDX={low:0,in:1,plenty:2,high:2};
   function ngTgt(r){ return r.t==='range'?(r.lo+'〜'+r.hi+r.item.unit):(r.t==='max'?(r.hi+r.item.unit+'まで'):(r.lo+r.item.unit+'以上')); }
   function ngNum(v){ return (v%1===0)?String(v):v.toFixed(1); }
   function ngHint(r){ return r.sev===0?'':((NG_HINT[r.item.key]||['',''])[r.dir==='low'?0:1]||''); }
@@ -1967,7 +1972,7 @@ function buildNutritionBar(sc){
     var c=NG_COL[r.sev], it=r.item, z=NG_ZCLS[r.t], zl=NG_ZLBL[r.t];
     var pt=r.sev===0?('✓ '+NG_TAG[r.dir]):((r.dir==='high'?'▲ +':'▼ −')+r.dev+'%');
     // 針が端に寄ったときはバッジを内側に寄せてはみ出しを防ぐ
-    var tf=r.x<17?'translateX(0)':(r.x>83?'translateX(-100%)':'translateX(-50%)');
+    var tf=r.x<24?'translateX(0)':(r.x>76?'translateX(-100%)':'translateX(-50%)');
     var cmt=ngHint(r);
     var zones='', labels='';
     for(var zi=0;zi<3;zi++){
@@ -1977,13 +1982,13 @@ function buildNutritionBar(sc){
     return '<div class="ng-row">'
       +'<div class="ng-name"><span class="ng-ico">'+it.icon+'</span>'+esc(it.label)+'</div>'
       +'<div class="ng-val">'+ngNum(r.val)+'<i>'+it.unit+' ／ 目安 '+ngTgt(r)+'</i></div>'
-      +'<div class="ng-gauge">'
+      +'<div class="ng-line2"><div class="ng-gauge">'
         +'<div class="ng-pt" style="left:'+r.x+'%;transform:'+tf+';color:'+c+';">'+pt+'</div>'
         +'<div class="ng-track">'+zones+'</div>'
         +'<div class="ng-needle" style="left:'+r.x+'%;background:'+c+';"></div>'
         +'<div class="ng-zlbl">'+labels+'</div></div>'
-      +(cmt?'<div class="ng-cmt" style="color:'+c+';background:'+c+'14;">💡 '+esc(cmt)+'</div>':'')
-      +'</div>';
+      +(cmt?'<div class="ng-cmt" style="background:'+NG_ZBG[z[NG_ZIDX[r.dir]]]+';border-left-color:'+c+';">💡 '+esc(cmt)+'</div>':'')
+      +'</div></div>';
   }
   var ngNg=nrows.filter(function(r){return r.sev>0;}).sort(function(a,b){return (b.sev-a.sev)||(b.dev-a.dev);});
   var ngOk=nrows.filter(function(r){return r.sev===0;});
