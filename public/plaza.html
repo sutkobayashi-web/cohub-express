@@ -121,7 +121,7 @@ body { padding-bottom: 80px !important; }
 .cmp-meal-btn { flex: 1 1 auto; padding: 12px 6px; border: 2px solid #f59e0b; background: #fff; color: #92400e; border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit; transition: transform .08s, box-shadow .12s; }
 .cmp-meal-btn:active { transform: scale(0.96); }
 .cmp-meal-btn.on { background: #d97706; color: #fff; border-color: #b45309; box-shadow: 0 3px 10px rgba(217,119,6,0.45); }
-/* 食事の入手元ピッカー: 食事モードの時だけ表示 (手料理/コンビニ・スーパー購入/外食) */
+/* 食事の入手元ピッカー: 食事モードの時だけ表示 (手料理/コンビニ・スーパー購入/外食・配達弁当) */
 #cmp-src-picker { display: none; margin-bottom: 10px; }
 .composer.is-food #cmp-src-picker { display: block; }
 #cmp-src-picker .mp-label { font-size: 13px; font-weight: 800; color: #0f766e; margin-bottom: 8px; }
@@ -514,7 +514,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <div class="mp-btns">
           <button type="button" class="cmp-src-btn" data-src="homemade">🍳 手料理</button>
           <button type="button" class="cmp-src-btn" data-src="conbini">🏪 コンビニ・スーパー</button>
-          <button type="button" class="cmp-src-btn" data-src="eatout">🍽️ 外食</button>
+          <button type="button" class="cmp-src-btn" data-src="eatout">🍽️ 外食・配達弁当</button>
         </div>
       </div>
       <div class="body-nudge" id="body-nudge">
@@ -532,7 +532,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <div class="st-conbini" id="st-conbini">📋 <b>成分表示のラベルを一緒に写してください。</b>推定ではなく<b>実際の数値</b>で計算できるので、精度が最高になります（信憑性★★★）。<br>
           <b>コツ</b>: フタの裏やラベル面を商品の横に置いて<b>1枚に収める</b>。全部入らないときは<b>ラベルを優先</b>してください。</div>
       </div>
-      <div class="src-need-msg" id="src-need-msg">⬆️ まず<b>「手料理／コンビニ・スーパー／外食」</b>のどれかを選んでください。<br>選んだ内容で助言が変わります。</div>
+      <div class="src-need-msg" id="src-need-msg">⬆️ まず<b>「手料理／コンビニ・スーパー／外食・配達弁当」</b>のどれかを選んでください。<br>選んだ内容で助言が変わります。</div>
       <button class="food-photo-cta" id="food-photo-cta" onclick="openShotPicker()">
         <span class="ico">📷</span>
         <span>食事の写真を撮る／選ぶ<span class="sub" id="cta-sub">タップでカメラ起動</span></span>
@@ -626,7 +626,7 @@ document.addEventListener('click', function (e) {
 });
 try { _paintMeal(); } catch (e) {}  // 既定(時間帯推測)を初期ハイライト
 // 食事の入手元 (手料理/コンビニ・スーパー購入/外食)。既定は未選択(選ぶと助言が入手元向けに変わる)。
-const SRC_LABELS = { homemade: '手料理', conbini: 'コンビニ・スーパー', eatout: '外食' };
+const SRC_LABELS = { homemade: '手料理', conbini: 'コンビニ・スーパー', eatout: '外食・配達弁当' };
 const SRC_EMOJI = { homemade: '🍳', conbini: '🏪', eatout: '🍽️' };
 let _curSrc = '';
 function _paintSrc() {
