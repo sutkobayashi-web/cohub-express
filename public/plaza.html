@@ -148,7 +148,9 @@ body { padding-bottom: 80px !important; }
 .shot-tip .st-b { font-size: 12.5px; line-height: 1.6; color: #334155; }
 .shot-tip .st-obj { display: inline-block; background: #fff; border: 1px solid #99f6e4; border-radius: 999px; padding: 2px 9px; margin: 4px 5px 0 0; font-size: 12px; font-weight: 800; color: #0f766e; white-space: nowrap; }
 .shot-tip .st-conbini { display: none; margin-top: 9px; padding-top: 8px; border-top: 1px dashed #5eead4; font-size: 12.5px; line-height: 1.6; color: #7c2d12; }
-.shot-tip.src-conbini .st-conbini { display: block; background: #fff7ed; border-radius: 8px; padding: 8px 10px; border-top: none; }
+.shot-tip.src-conbini .st-conbini { display: block; background: #fff7ed; border: 2px solid #fb923c; border-radius: 10px; padding: 10px 12px; border-top: none; font-size: 13.5px; font-weight: 700; color: #7c2d12; }
+/* ラベルが撮れるなら基準物より優先度が高いので、コツ側を控えめにする */
+.shot-tip.src-conbini .st-h, .shot-tip.src-conbini .st-b { opacity: .62; }
 .src-badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px; margin-left: 5px; vertical-align: middle; white-space: nowrap; background: #ccfbf1; color: #0f766e; }  /* 入手元: ティール */
 .cat-bdg.相談 { background: #fee2e2; color: #b91c1c; }
 .cat-bdg.雑談 { background: #ecfeff; color: #0e7490; }
@@ -512,7 +514,8 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <div class="st-h">📐 精度を上げるコツ</div>
         <div class="st-b">大きさの基準になる物を<b>いっしょに写す</b>と、量の推定がぐっと正確になります。<br>
           <span class="st-obj">🥢 箸</span><span class="st-obj">🍚 茶碗</span><span class="st-obj">☕ コップ</span><span class="st-obj">🪙 500円玉</span><span class="st-obj">📱 スマホ</span></div>
-        <div class="st-conbini" id="st-conbini">🏪 <b>コンビニのものなら、成分表示のラベルも撮ってください。</b>推定ではなく<b>実際の数値</b>で計算できます（別々に2回投稿でもOK）。</div>
+        <div class="st-conbini" id="st-conbini">📋 <b>成分表示のラベルを一緒に写してください。</b>推定ではなく<b>実際の数値</b>で計算できるので、精度が最高になります（信憑性★★★）。<br>
+          <b>コツ</b>: フタの裏やラベル面を商品の横に置いて<b>1枚に収める</b>。全部入らないときは<b>ラベルを優先</b>してください。</div>
       </div>
       <button class="food-photo-cta" id="food-photo-cta" onclick="document.getElementById('cmp-file').click()">
         <span class="ico">📷</span>
@@ -606,9 +609,10 @@ const SRC_EMOJI = { eatout: '🍽️', homemade: '🍳', conbini: '🏪' };
 let _curSrc = '';
 function _paintSrc() {
   document.querySelectorAll('.cmp-src-btn').forEach(b => b.classList.toggle('on', b.dataset.src === _curSrc));
-  // コンビニ選択時だけ「成分表示も撮って」を出す(2026-07-26)。成分表示が読めれば推定でなく実測値になる。
+  // コンビニ/外食で「成分表示も撮って」を出す。成分表示が読めれば推定でなく実測値になる。
+  // ⚠️ 自炊にはラベルが無いので出さない (代わりに基準物のコツが効く)。
   const tip = document.getElementById('shot-tip');
-  if (tip) tip.classList.toggle('src-conbini', _curSrc === 'conbini');
+  if (tip) tip.classList.toggle('src-conbini', _curSrc === 'conbini' || _curSrc === 'eatout');
 }
 document.addEventListener('click', function (e) {
   const b = e.target && e.target.closest && e.target.closest('.cmp-src-btn');
