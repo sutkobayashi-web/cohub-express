@@ -36,7 +36,14 @@ router.setOnNewAlert = setOnNewAlert;
 // 取込み (メール本文をパースして1件登録)。IMAP連携時もこの処理を共用予定
 function ingestText(text) {
   const a = parseAlert(text);
-  if (!a.notice && !a.vehicle_number) return { ok: false, reason: 'アラート項目が見つかりません' };
+  // ⚠️ 2026-07-30 修正: 以前は「車両番号があれば notice(通知内容)が空でも取り込む」判定だったため、
+  //    ITPの「(メッセージ応答)通知」(乗務員がメッセージに返信するとITPが送るメール)がすべて
+  //    アラート扱いになり、管理職にサイレンが連発した(暴走)。
+  //    違反/イベント内容が無いものはアラートではないので取り込まない。
+  //    実測(修正時点): notice有り101件=すべて実際の違反(急減速/長時間運転事前警告/ドラレコ取得 等)、
+  //                    notice空23件=すべてメッセージ応答。例外は0件。
+  if (!a.notice) return { ok: false, reason: '通知内容なし(メッセージ応答等)のため対象外' };
+  if (!a.vehicle_number) return { ok: false, reason: 'アラート項目が見つかりません' };
   a.dedup_key = [a.vehicle_number, a.occurred_at, a.notice].join('|');
   const r = getDb().prepare(`INSERT OR IGNORE INTO driving_alerts
     (vehicle_number, vehicle_name, plate, driver_code, driver_name, occurred_at, notice, raw, dedup_key)
@@ -66,7 +73,7 @@ router.get('/', authUser, requireManager, (req, res) => {
   const days = Math.min(parseInt(req.query.days, 10) || 30, 180);
   const type = (req.query.type || '').trim();
   const q = (req.query.q || '').trim();
-  let sql = `SELECT * FROM driving_alerts WHERE substr(occurred_at,1,10) >= ?`;
+  let sql = `SELECT da.*, (SELECT u.avatar_url FROM users u WHERE u.avatar_url IS NOT NULL AND u.avatar_url <> '' AND REPLACE(REPLACE(u.display_name,' ',''),'　','') = REPLACE(REPLACE(da.driver_name,' ',''),'　','') LIMIT 1) AS driver_avatar FROM driving_alerts da WHERE substr(da.occurred_at,1,10) >= ?`;
   // occurred_at は "YYYY/MM/DD HH:MM:SS"。N日前(スラッシュ形式)を生成
   const d = new Date(); d.setDate(d.getDate() - days);
   const from = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
@@ -87,6 +94,24 @@ router.get('/unhandled', authUser, requireManager, (req, res) => {
   res.json({ success: true, alerts: rows });
 });
 
+// ドライバー本人が「自分の当日運転アラート」を確認(帰庫点呼で葵が やさしく言及)。管理者権限は不要。
+// driving_alerts に user_id は無いので display_name と driver_name を突合(空白差を無視)。当日(ローカル)分のみ。
+router.get('/mine', authUser, (req, res) => {
+  const u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+  const name = (u && u.display_name) || '';
+  if (!name) return res.json({ success: true, count: 0, alerts: [] });
+  // occurred_at は "YYYY/MM/DD HH:MM:SS"。当日のスラッシュ日付を生成して先頭10桁と比較。
+  const today = getDb().prepare("SELECT strftime('%Y/%m/%d','now','localtime') AS d").get().d;
+  const rows = getDb().prepare(
+    `SELECT id, occurred_at, notice, vehicle_name, plate
+       FROM driving_alerts
+      WHERE REPLACE(REPLACE(driver_name,' ',''),'　','') = REPLACE(REPLACE(?,' ',''),'　','')
+        AND substr(occurred_at,1,10) = ?
+      ORDER BY occurred_at DESC LIMIT 20`
+  ).all(name, today);
+  res.json({ success: true, count: rows.length, alerts: rows });
+});
+
 // 対応/未対応 切替。対応済みにすると発火(ループ警報)が止まる
 router.post('/:id/handle', authUser, requireManager, express.json(), (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -98,12 +123,20 @@ router.post('/:id/handle', authUser, requireManager, express.json(), (req, res) 
   } else {
     getDb().prepare(`UPDATE driving_alerts SET handled = 0, handled_at = NULL, handled_by = NULL, handled_by_name = NULL WHERE id = ?`).run(id);
   }
-  // 管理職全員に状態変化を通知 → 各端末のループ警報を止める/再開
+  // 管理職全員 + 事務中心人物に状態変化を通知 → 各端末のループ警報を止める/再開
+  // ⚠️ DRIVE_ALERT_EXTRA_UIDS は index.js の配信側と同一に保つこと(片方だけだと鳴り止まなくなる)。
+  const DRIVE_ALERT_EXTRA_UIDS = [
+    '0a7ef4f4-4478-44cc-b1f2-2903ece6316f', // 小林 昌子 (SU_SAITAMA・事務)
+    '7039611c-be6d-4409-a7e3-460cf86458d1', // 卯月 正美 (IBA_KASHIMA・事務)
+    '702dff81-4a62-4c69-af8a-ae7e42822da3', // 牧田 弥生 (SU_MKANTO・事務)
+  ];
   try {
     const io = req.app.locals.io;
     if (io) {
       const mgrs = getDb().prepare('SELECT id FROM users WHERE is_manager = 1').all();
-      for (const m of mgrs) io.to('user:' + m.id).emit('alert:handled', { id, handled, by: name });
+      const recipientIds = new Set(mgrs.map((m) => m.id));
+      for (const uid of DRIVE_ALERT_EXTRA_UIDS) recipientIds.add(uid);
+      for (const uid of recipientIds) io.to('user:' + uid).emit('alert:handled', { id, handled, by: name });
     }
   } catch (e) {}
   res.json({ success: true, id, handled });
