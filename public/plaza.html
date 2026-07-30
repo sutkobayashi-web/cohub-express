@@ -713,7 +713,7 @@ function relTime(iso) {
 }
 
 // CoWell 栄養エビデンス対比バーチャート (admin-food.js 移植)
-function buildNutritionBar(sc) {
+function buildNutritionBar(sc, isMine) {
   if (!sc) return '';
   // 旧形式 (1〜5 int) 検出 → 推定値に変換
   const isLegacy = (typeof sc.protein === 'number' && sc.protein <= 5 && !sc.calories);
@@ -873,7 +873,10 @@ function buildNutritionBar(sc) {
   // ★いつもと比べて (2026-07-26)
   // 写真推定は絶対値の誤差が大きい(量の見積りが主因)が、同じ人・同じ食器なら誤差の方向が揃うため
   // 「自分の平均との差」は絶対値よりはるかに信頼できる。だから相対を主役として見せる。
-  html += _cmpVsUsualHtml(sc);
+  // ⚠️ 2026-07-30 修正: 以前は他人の投稿にも「いつもと比べて」を出していたため、
+  //    他人の食事を「閲覧者自身の平均」と引き算した無意味な数値が表示されていた。
+  //    比較の基準は閲覧者本人の平均なので、本人の投稿だけに出す。
+  if (isMine) html += _cmpVsUsualHtml(sc);
   // 信憑性バッジ (基準物検出時は緑「★★★ 基準物あり」)
   const conf = sc.confidence;
   if (conf && conf.level) {
@@ -2027,7 +2030,7 @@ function postHtml(p) {
   if (p.nutrition_scores) {
     try {
       let ns = typeof p.nutrition_scores === 'string' ? JSON.parse(p.nutrition_scores) : p.nutrition_scores;
-      nutri = buildNutritionBar(ns);
+      nutri = buildNutritionBar(ns, !!p.is_mine);
       // AI コメント (CoWell Classic の analysis or 新規の ai_comment)
       let cmt = p.ai_comment;
       if (cmt && typeof cmt === 'object') cmt = Object.values(cmt).filter(v => typeof v === 'string').join(' / ');
