@@ -5,6 +5,7 @@ const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
+const { audit } = require('../services/audit');
 
 const LEVELS = ['normal', 'important', 'urgent'];
 
@@ -21,6 +22,33 @@ const ALLOWED_CREATORS = new Set([
 function canCreate(uid) { return ALLOWED_CREATORS.has(uid); }
 router.get('/can-create', authUser, (req, res) => {
   res.json({ success: true, can_create: canCreate(req.uid) });
+});
+
+// 親会社グループ (旧 group: target の後方互換用): company_code 接頭辞で判定
+function groupOf(code) {
+  const c = String(code || '');
+  if (/^SUZUE/.test(c)) return 'SUZUE';
+  if (/^SU(_|$)/.test(c)) return 'SU';
+  if (/^IBA/.test(c)) return 'IBA';
+  return 'ETC';
+}
+
+// 送付先ディレクトリ (作成者のみ): 営業所(DM分類 dm_group)→役職職種(job_role)→個人 のカスケード用
+router.get('/directory', authUser, (req, res) => {
+  if (!canCreate(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  const db = getDb();
+  const rows = db.prepare(`SELECT id, display_name, dm_group, job_role
+                           FROM users
+                           WHERE role != 'bot' AND COALESCE(status, 'active') = 'active'
+                           ORDER BY display_name`).all();
+  const users = rows.map(u => ({ id: u.id, name: u.display_name, office: u.dm_group || '', role: u.job_role || '' }));
+  // 営業所(dm_group)一覧 — 実在するもののみ、未設定は末尾
+  const officeCount = {};
+  for (const u of users) officeCount[u.office] = (officeCount[u.office] || 0) + 1;
+  const offices = Object.keys(officeCount)
+    .map(k => ({ key: k, name: k || '（営業所未設定）', count: officeCount[k] }))
+    .sort((a, b) => (a.key === '' ? 1 : b.key === '' ? -1 : String(a.name).localeCompare(String(b.name), 'ja')));
+  res.json({ success: true, offices, users });
 });
 
 // 添付ファイル保存
@@ -65,12 +93,28 @@ function parseAttachments(row) {
 // 対象判定: target='all' | 'company:CODE' | 'building:office|field' | 'role:admin' など
 function userMatchesTarget(uid, target) {
   if (!target || target === 'all') return true;
-  const u = getDb().prepare('SELECT company_code, role, employee_type FROM users WHERE id = ?').get(uid);
+  const u = getDb().prepare('SELECT company_code, role, employee_type, dm_group, job_role FROM users WHERE id = ?').get(uid);
   if (!u) return false;
-  const [kind, val] = String(target).split(':');
+  // 値に日本語(空白含む)が入るため split(':') ではなく最初の ':' で分割
+  const t = String(target);
+  const ci = t.indexOf(':');
+  const kind = ci < 0 ? t : t.slice(0, ci);
+  const val = ci < 0 ? '' : t.slice(ci + 1);
+  // 現行方式: 営業所(DM分類) → 役職職種 → 個人
+  if (kind === 'user') return uid === val;                       // 個人宛(単数)
+  if (kind === 'users') return val.split(',').includes(uid);     // 個人宛(複数)
+  if (kind === 'dmg') return (u.dm_group || '') === val;         // 営業所 (dm_group)
+  if (kind === 'jobrole') return (u.job_role || '') === val;     // 役職・職種 (全社横断)
+  if (kind === 'dmgr') {                                         // 営業所 × 役職職種
+    const at = val.indexOf('@');
+    if (at < 0) return false;
+    return (u.dm_group || '') === val.slice(0, at) && (u.job_role || '') === val.slice(at + 1);
+  }
+  // 旧方式 (既存通達の後方互換)
   if (kind === 'company') return u.company_code === val;
-  if (kind === 'building') return u.employee_type === val;  // office | field | admin
+  if (kind === 'building') return u.employee_type === val;      // office | field | admin
   if (kind === 'role') return u.role === val;
+  if (kind === 'group') return groupOf(u.company_code) === val; // 親会社グループ
   return false;
 }
 
@@ -178,7 +222,7 @@ router.post('/', authUser, (req, res, next) => {
   if (!title || !body) return res.status(400).json({ success: false, msg: 'タイトルと本文は必須' });
   const level = LEVELS.includes(b.level) ? b.level : 'normal';
   const requiresAck = (b.requires_ack === '1' || b.requires_ack === 'true' || b.requires_ack === true) ? 1 : 0;
-  const target = String(b.target || 'all').slice(0, 50);
+  const target = String(b.target || 'all').slice(0, 4000);  // users: 複数IDで長くなるため
   const expiresAt = b.expires_at ? String(b.expires_at).slice(0, 30) : null;
   const atts = (req.files || []).map(f => ({
     url: '/uploads/announcements/' + f.filename,
@@ -192,6 +236,7 @@ router.post('/', authUser, (req, res, next) => {
     (author_id, title, body, level, requires_ack, target, expires_at, attachments)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, title, body, level, requiresAck, target, expiresAt, attsJson);
   const id = ins.lastInsertRowid;
+  audit(req, 'announce_create', { target: 'id=' + id + ' [' + level + '] ' + title.slice(0, 40) });
 
   // 全社realtime + Push通知
   const io = req.app && req.app.locals && req.app.locals.io;
@@ -232,7 +277,7 @@ router.put('/:id', authUser, express.json(), (req, res) => {
   if (b.body !== undefined) { updates.push('body = ?'); params.push(String(b.body).slice(0, 4000)); }
   if (b.level !== undefined && LEVELS.includes(b.level)) { updates.push('level = ?'); params.push(b.level); }
   if (b.requires_ack !== undefined) { updates.push('requires_ack = ?'); params.push(b.requires_ack ? 1 : 0); }
-  if (b.target !== undefined) { updates.push('target = ?'); params.push(String(b.target).slice(0, 50)); }
+  if (b.target !== undefined) { updates.push('target = ?'); params.push(String(b.target).slice(0, 4000)); }
   if (b.expires_at !== undefined) { updates.push('expires_at = ?'); params.push(b.expires_at || null); }
   if (!updates.length) return res.json({ success: true, msg: '変更なし' });
   params.push(id);
@@ -250,6 +295,7 @@ router.delete('/:id', authUser, (req, res) => {
     return res.status(403).json({ success: false, msg: '権限なし' });
   }
   db.prepare("UPDATE announcements SET deleted_at = datetime('now') WHERE id = ?").run(id);
+  audit(req, 'announce_delete', { target: 'id=' + id });
   res.json({ success: true });
 });
 
@@ -287,3 +333,5 @@ router.get('/:id/reads', authUser, (req, res) => {
 });
 
 module.exports = router;
+// 共有タブレットの未読バッジ(routes/tablet.js)から対象判定を再利用するため公開 (2026-07-30)
+module.exports.userMatchesTarget = userMatchesTarget;

@@ -4,36 +4,87 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>📱 CoWell タブレットログイン</title>
-<link rel="manifest" href="/manifest.json">
+<!-- タブレット専用manifest: ホーム画面に追加すると start_url=/tablet で起動(ID/PWログインを回避) -->
+<link rel="manifest" href="/tablet-manifest.json?v=1">
+<meta name="theme-color" content="#0e7490">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CoWellタブレット">
+<link rel="apple-touch-icon" href="/img/icon-192.png">
 <style>
 :root {
-  --bg: #f8fafc; --fg: #0f172a; --mute: #64748b;
+  --bg: #dbf1ec; --fg: #0f172a; --mute: #64748b;
   --card: #fff; --border: #e2e8f0;
-  --accent: #14b8a6; --accent-d: #0f766e;
+  --accent: #0891b2; --accent-d: #0e7490;
   --danger: #ef4444;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 18px; }
-.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, #ecfeff, #f0fdfa); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
-.hd .ttl { flex: 1; font-weight: 800; font-size: 20px; color: var(--accent-d); }
-.hd .sub { color: var(--mute); font-size: 13px; }
-.bar { padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.bar input, .bar select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; background: #fff; }
+html, body { margin: 0; padding: 0; background: linear-gradient(180deg, #bceae3 0%, #dbf1ec 320px) no-repeat, #dbf1ec; color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 18px; }
+.hd { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #0e7490 0%, #0891b2 60%, #22c3d6 100%); border-bottom: none; padding: 18px 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 3px 14px rgba(13,148,136,.28); }
+.hd .ttl { flex: 1; font-weight: 800; font-size: 23px; color: #fff; letter-spacing: .3px; }
+.hd .sub { color: rgba(255,255,255,.92); font-size: 13.5px; margin-top: 3px; }
+.bar { padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.bar input, .bar select { padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 14px; font-size: 16px; background: #fff; }
+.bar select { font-weight: 700; color: var(--accent-d); }
 .bar input { flex: 1; min-width: 180px; }
-.list { padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
-.cell { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 8px 12px; cursor: pointer; text-align: center; transition: all .12s; min-height: 170px; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+.list { padding: 14px 20px 8px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; max-width: min(1560px, 97vw); margin: 0 auto; }
+@media (max-width: 720px) { .list { grid-template-columns: repeat(3, 1fr); } }
+.cell { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 8px 12px; cursor: pointer; text-align: center; transition: transform .12s, box-shadow .12s, border-color .12s; min-height: 134px; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
 .cell.disabled { opacity: .5; }
+.cell:not(.disabled):hover { box-shadow: 0 8px 20px rgba(13,148,136,.14); border-color: #5ecfc8; transform: translateY(-2px); }
 .cell:not(.disabled):active { transform: scale(.96); border-color: var(--accent); }
-.cell .av { width: 84px; height: 84px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 36px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(15,23,42,.08); }
+.cell .av { width: 70px; height: 70px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 30px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(15,23,42,.12), 0 0 0 2px #cffafe; }
 .cell .av img { width: 100%; height: 100%; object-fit: cover; }
-.cell .nm { font-weight: 700; font-size: 16px; line-height: 1.3; }
-.cell .co { color: var(--mute); font-size: 12px; }
-.cell .nopin { position: absolute; top: 8px; right: 8px; background: #fef3c7; color: #92400e; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+/* 出勤(体調チェック)済みバッジ */
+.avwrap { position: relative; display: inline-flex; }
+.avwrap .checkin { position: absolute; bottom: -2px; right: -2px; min-width: 24px; height: 24px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; background: #16a34a; color: #fff; font-size: 15px; font-weight: 900; display: flex; align-items: center; justify-content: center; border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+/* 未読バッジ (2026-07-30): 共有画面なので件数は出さず種類だけ。左上=通達 / 左下=メッセージ */
+.avwrap .unb { position: absolute; left: -4px; min-width: 26px; height: 26px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; color: #fff; font-size: 14px; font-weight: 900; display: flex; align-items: center; justify-content: center; border: 2.5px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.4); animation: unbPulse 1.6s ease-in-out infinite; }
+.avwrap .unb-a { top: -4px; background: #dc2626; }
+.avwrap .unb-d { bottom: -2px; background: #2563eb; }
+@keyframes unbPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .avwrap .unb { animation: none; } }
+.cell .nm { font-weight: 800; font-size: 15px; line-height: 1.25; }
+.cell .co { color: var(--mute); font-size: 10.5px; line-height: 1.2; }
+.cell .nopin { position: absolute; top: 8px; right: 8px; background: #fef3c7; color: #92400e; font-size: 10px; padding: 2px 6px; border-radius: 8px; font-weight: 700; }
 .empty { padding: 60px 20px; text-align: center; color: var(--mute); }
+/* 上部の日付・時計 (ヘッダー内・白文字) 2026-07-11 */
+.tclock { flex: 0 0 auto; color: #fff; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.tclock .tc-date { font-size: 17px; font-weight: 800; opacity: .95; }
+.tclock .tc-time { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+/* 天気予報(設置拠点・時計の横に横並び) */
+.twx { flex: 0 0 auto; color: #fff; display: flex; align-items: center; gap: 9px; }
+.twx:empty { display: none; }
+.twx .wx-ic { font-size: 42px; line-height: 1; }
+.twx .wx-main { text-align: left; line-height: 1.1; }
+.twx .wx-t { font-size: 34px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.twx .wx-sub { font-size: 15px; font-weight: 700; opacity: .92; white-space: nowrap; }
+/* CoWell紹介ムービー ボタン + 全画面オーバーレイ */
+.intro-btn { flex-shrink: 0; background: #fff; color: var(--accent-d); border: none; border-radius: 14px; padding: 12px 16px; font-size: 16px; font-weight: 800; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.14); }
+.intro-btn:active { transform: scale(.96); }
+/* ログイン画面の言語切替(未認証・その場で翻訳。ログイン前に自分を探しやすく) */
+.lang-sw { flex: 0 0 auto; display: flex; gap: 5px; }
+.lang-b { border: 2px solid rgba(255,255,255,.55); background: rgba(255,255,255,.15); color: #fff; border-radius: 10px; padding: 7px 11px; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.lang-b.on { background: #fff; border-color: #fff; color: #0e7490; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+.lang-b:active { transform: scale(.94); }
+/* ヘッダーに移動したスマホQR(濃色背景に合わせ白文字) */
+.hd .qr-mini { flex: 0 0 auto; text-align: center; }
+.hd .qr-mini .qr-img { width: 64px; height: 64px; background: #fff; border-radius: 8px; padding: 3px; box-sizing: border-box; }
+.hd .qr-mini .qr-img img, .hd .qr-mini .qr-img svg { width: 100%; height: 100%; display: block; }
+.hd .qr-mini .qr-cap { font-size: 11px; color: #fff; font-weight: 800; margin-top: 2px; }
+.intro-ov { display: none; position: fixed; inset: 0; z-index: 1000; background: #000; flex-direction: column; }
+.intro-ov.show { display: flex; }
+.intro-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #0f172a; color: #fff; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+.intro-close { background: var(--danger); color: #fff; border: none; border-radius: 12px; padding: 10px 20px; font-size: 16px; font-weight: 800; cursor: pointer; }
+.intro-close:active { transform: scale(.96); }
+.intro-ov iframe { flex: 1; width: 100%; border: none; background: #000; }
 /* PINモーダル */
-.modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+/* タブレット横向き固定運用では、モーダルを「背景ごとスクロール」にしないと下部の登録ボタンが画面外に消える。
+   align-items:flex-start + overflow-y:auto(bg) + margin:auto(modal) で「収まる時は中央・はみ出す時は上寄せでスクロール」。 */
+.modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); display: none; align-items: flex-start; justify-content: center; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 100; padding: 16px; }
 .modal-bg.show { display: flex; }
-.modal { background: #fff; width: 100%; max-width: 380px; border-radius: 18px; padding: 24px 20px; text-align: center; }
+.modal { background: #fff; width: 100%; max-width: 380px; border-radius: 18px; padding: 24px 20px; text-align: center; margin: auto; max-height: none; }
 .modal .who { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 18px; }
 .modal .who .av { width: 80px; height: 80px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 36px; overflow: hidden; }
 .modal .who .av img { width: 100%; height: 100%; object-fit: cover; }
@@ -45,19 +96,47 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
 .pin-dot.err { border-color: var(--danger); background: var(--danger); animation: shake .25s; }
 @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.key { padding: 18px 0; font-size: 22px; font-weight: 700; background: #f1f5f9; border: none; border-radius: 12px; cursor: pointer; transition: all .08s; }
-.key:active { background: #ccfbf1; transform: scale(.96); }
+.key { padding: 18px 0; font-size: 22px; font-weight: 700; background: #f1f5f9; border: none; border-radius: 16px; cursor: pointer; transition: all .08s; }
+.key:active { background: #cffafe; transform: scale(.96); }
 .key.fn { background: #fee2e2; color: #991b1b; font-size: 16px; font-weight: 600; }
 .key.fn.ok { background: var(--accent); color: #fff; }
 .msg { color: var(--danger); font-size: 13px; min-height: 18px; margin: 6px 0 10px 0; }
 .msg.info { color: var(--mute); }
 .foot { text-align: center; padding: 14px; color: var(--mute); font-size: 12px; }
 .foot a { color: var(--accent-d); text-decoration: none; font-weight: 600; }
+/* 所属選択＋ロック(五十音行の右) */
+.kana-row #f-co { flex: 0 0 auto; min-width: 150px; max-width: 230px; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 15px; font-weight: 700; color: var(--accent-d); background: #fff; }
+.kana-row .lockbtn { flex: 0 0 auto; padding: 9px 11px; border: 1.5px solid #cbd5e1; border-radius: 12px; background: #fff; font-size: 16px; cursor: pointer; }
+/* 五十音タブ */
+/* 五十音タブ＋所属選択＋ロックを1行に(「他」の右に控えめに) */
+.kana-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--border); }
+.kana-tabs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.kana-tab { min-width: 46px; padding: 10px 6px; border: 2px solid #cbd5e1; border-radius: 12px; background: #fff; font-size: 20px; font-weight: 800; color: #334; cursor: pointer; }
+.kana-tab.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* ===== 個人スマホ(?personal=1)の名前選択UI: 五十音を主役に・拠点は使わず全員から・片手で押しやすい1列の大きな行 ===== */
+body.personal #f-co,
+body.personal .lockbtn { display: none !important; }   /* 拠点セレクト/固定は個人スマホでは使わない(ロックで選べなくなるのを防ぐ) */
+body.personal .kana-tabs { position: sticky; top: 0; z-index: 6; gap: 8px; padding: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+body.personal .kana-tab { min-width: 52px; padding: 12px 8px; font-size: 22px; border-radius: 14px; }
+body.personal .kana-hint { text-align: center; font-size: 15px; font-weight: 800; color: #0f766e; padding: 10px 12px 2px; }
+body.personal .list { display: block; max-width: 620px; padding: 8px 12px 12px; }
+body.personal .cell { flex-direction: row; text-align: left; align-items: center; min-height: 0; gap: 14px; padding: 14px 16px; margin-bottom: 10px; border-radius: 18px; }
+body.personal .cell .av { width: 62px; height: 62px; font-size: 28px; flex: 0 0 auto; }
+body.personal .cell .pinfo { flex: 1; min-width: 0; }
+body.personal .cell .nm { font-size: 22px; }
+body.personal .cell .co { font-size: 13px; margin-top: 2px; }
+body.personal .cell .go { flex: 0 0 auto; color: var(--accent); font-size: 26px; font-weight: 900; }
+body.personal .cell .nopin { position: static; margin-left: auto; }
+/* ページャ */
+.pager { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 6px 10px 16px; }
+.pager button { min-width: 72px; padding: 12px 18px; font-size: 20px; font-weight: 800; border: none; border-radius: 12px; background: var(--accent); color: #fff; cursor: pointer; }
+.pager button:disabled { background: #cbd5e1; cursor: default; }
+.pager .pg { font-size: 18px; font-weight: 800; color: #334; }
 
 /* 個人スマホ誘導パネル (QR + Wi-Fi) */
 .invite-panel {
-  background: linear-gradient(135deg, #f0fdfa, #ecfeff);
-  border-bottom: 2px solid #99f6e4;
+  background: linear-gradient(135deg, #ecfeff, #d5f2ee);
+  border-bottom: 2px solid #9ee5df;
   padding: 14px 18px;
   display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap;
 }
@@ -67,64 +146,61 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
   flex: 1; min-width: 280px;
   box-shadow: 0 2px 6px rgba(15,23,42,0.05);
 }
-.invite-box .qr-img { width: 130px; height: 130px; background: #fff; border-radius: 8px; flex-shrink: 0; }
+.invite-box .qr-img { width: 130px; height: 130px; background: #fff; border-radius: 12px; flex-shrink: 0; }
 .invite-box .qr-img img, .invite-box .qr-img svg { width: 100%; height: 100%; display: block; }
 .invite-box .qr-meta { flex: 1; min-width: 0; }
 .invite-box .qr-meta .title { font-size: 16px; font-weight: 800; color: var(--accent-d); margin-bottom: 4px; }
 .invite-box .qr-meta .desc { font-size: 12px; color: var(--mute); line-height: 1.55; margin-bottom: 6px; }
 .invite-box .qr-meta .url { font-size: 13px; color: #0f172a; font-weight: 700; word-break: break-all; }
-.invite-box.wifi .title { color: #1e40af; }
+.invite-box.wifi .title { color: #0b4f52; }
 .invite-box.wifi .ssid { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
-.invite-box.wifi .pw { font-size: 14px; color: #475569; font-family: ui-monospace, "Menlo", monospace; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; display: inline-block; }
+.invite-box.wifi .pw { font-size: 14px; color: #475569; font-family: ui-monospace, "Menlo", monospace; background: #f1f5f9; padding: 2px 8px; border-radius: 10px; display: inline-block; }
 .invite-box.wifi .empty-msg { font-size: 12px; color: #94a3b8; line-height: 1.6; }
 .invite-box .pw-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-.invite-box .pw-toggle { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; color: #475569; }
+.invite-box .pw-toggle { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 10px; font-size: 11px; cursor: pointer; color: #475569; }
 .invite-box .meta-foot { font-size: 10px; color: #94a3b8; margin-top: 4px; }
 @media (max-width: 720px) {
   .invite-box .qr-img { width: 100px; height: 100px; }
 }
 </style>
 <script src="/version-check.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <div class="hd">
-  <div>
+  <div style="flex:1;min-width:0;">
     <div class="ttl">📱 CoWell タブレットログイン</div>
     <div class="sub">自分のアバターをタップしてPINを入力してください</div>
   </div>
-</div>
-<div class="invite-panel">
-  <div class="invite-box">
+  <div id="tabletClock" class="tclock"></div>
+  <div id="tabletWx" class="twx"></div>
+  <div class="lang-sw" id="langSw" data-no-translate>
+    <button type="button" class="lang-b on" data-lang="ja" onclick="setLoginLang('ja')">日本語</button>
+    <button type="button" class="lang-b" data-lang="pt" onclick="setLoginLang('pt')">Português</button>
+    <button type="button" class="lang-b" data-lang="en" onclick="setLoginLang('en')">English</button>
+  </div>
+  <button type="button" class="intro-btn" onclick="openIntro()">▶ CoWellってなに？</button>
+  <div class="qr-mini">
     <div class="qr-img" id="qr-url"></div>
-    <div class="qr-meta">
-      <div class="title">📱 個人スマホからもOK</div>
-      <div class="desc">タブレットが混雑する時は、ご自身のスマホで読み取ってログイン (拠点Wi-Fi経由)。</div>
-      <div class="url" id="qr-url-text"></div>
-    </div>
-  </div>
-  <div class="invite-box wifi" id="wifi-box">
-    <div class="qr-img" id="qr-wifi"></div>
-    <div class="qr-meta" id="wifi-meta">
-      <div class="title">📶 拠点Wi-Fi</div>
-      <div class="empty-msg" id="wifi-empty">拠点を選択するとWi-Fi情報が表示されます。<br>未登録の場合は推進メンバーへ連絡。</div>
-      <div id="wifi-content" style="display:none;">
-        <div class="ssid" id="wifi-ssid"></div>
-        <div class="pw-row">
-          <span class="pw" id="wifi-pw">●●●●●●●●</span>
-          <button class="pw-toggle" onclick="toggleWifiPw()">表示</button>
-        </div>
-        <div class="meta-foot" id="wifi-updated"></div>
-      </div>
-    </div>
+    <div class="qr-cap">📱スマホ</div>
+    <span id="qr-url-text" style="display:none"></span>
   </div>
 </div>
-<div class="bar">
-  <select id="f-co">
-    <option value="">全拠点</option>
-  </select>
-  <input id="f-q" type="search" placeholder="名前で検索">
+<div class="kana-row">
+  <div class="kana-tabs" id="kanaTabs"></div>
+  <select id="f-co"><option value="">全拠点</option></select>
+  <button type="button" id="co-lock" title="この端末を選択中の拠点に固定（他拠点の氏名を隠す）" onclick="toggleCoLock()" class="lockbtn">🔓</button>
 </div>
 <div id="list" class="list"><div class="empty">読み込み中…</div></div>
+<div id="pager" class="pager"></div>
 
 <div id="modal" class="modal-bg" onclick="if(event.target.id==='modal') closeModal()">
   <div class="modal">
@@ -154,24 +230,148 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); fon
     </div>
   </div>
 </div>
-<div class="foot">PIN未設定の方は推進メンバーまたは管理者に発行を依頼してください。</div>
+<!-- 初回設定モーダル: アバタータップ→顔写真撮影+ニックネーム+PIN→そのままログイン (本人確認なし/生年月日はマイページ) -->
+<div id="setup-modal" class="modal-bg" onclick="if(event.target.id==='setup-modal') closeSetup()">
+  <div class="modal">
+    <div class="who">
+      <div class="av" id="s-av">👤</div>
+      <div class="nm" id="s-nm">…</div>
+    </div>
+    <h3 id="s-title" style="margin:4px 0 6px 0;">はじめての方の初回設定</h3>
+    <div id="s-desc" style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.5;">顔写真を撮影し、ニックネームと4桁PINを決めてください。次回からはアバターをタップ→PINでログインできます。</div>
+    <!-- 顔写真撮影 (任意) -->
+    <div id="s-cam-wrap" style="margin-bottom:12px;">
+      <div style="position:relative;width:160px;height:160px;margin:0 auto;border-radius:16px;overflow:hidden;background:#0f172a;">
+        <video id="s-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+        <img id="s-photo" alt="" style="width:100%;height:100%;object-fit:cover;display:none;">
+      </div>
+      <canvas id="s-canvas" style="display:none;"></canvas>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
+        <button type="button" id="s-shot" class="key fn" style="padding:8px 16px;border-radius:10px;" onclick="capturePhoto()">📸 撮影</button>
+        <button type="button" id="s-gen" style="padding:8px 16px;border-radius:10px;display:none;background:#7c3aed;color:#fff;border:none;font-weight:800;cursor:pointer;" onclick="genAvatar()">✨ AIアバターを作成</button>
+        <button type="button" id="s-retake" class="key fn" style="padding:8px 16px;border-radius:10px;display:none;" onclick="retakePhoto()">↺ 撮り直す</button>
+      </div>
+      <div id="s-cam-msg" style="font-size:11px;color:#94a3b8;text-align:center;margin-top:4px;">※ 顔写真を撮って「AIアバターを作成」すると似顔絵アバターになります（任意）</div>
+    </div>
+    <div style="text-align:left;display:flex;flex-direction:column;gap:11px;">
+      <label id="s-nick-wrap" style="font-size:12px;font-weight:700;color:#0f172a;">ニックネーム
+        <input id="s-nick" type="text" maxlength="20" placeholder="2〜20文字" style="width:100%;box-sizing:border-box;margin-top:4px;padding:12px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:16px;">
+      </label>
+      <label style="font-size:12px;font-weight:700;color:#0f172a;">新しいPIN（4桁）
+        <input id="s-pin" type="tel" inputmode="numeric" maxlength="4" placeholder="4桁の数字" style="width:100%;box-sizing:border-box;margin-top:4px;padding:12px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:18px;letter-spacing:6px;">
+      </label>
+      <label style="font-size:12px;font-weight:700;color:#0f172a;">PIN（確認）
+        <input id="s-pin2" type="tel" inputmode="numeric" maxlength="4" placeholder="もう一度入力" style="width:100%;box-sizing:border-box;margin-top:4px;padding:12px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:18px;letter-spacing:6px;">
+      </label>
+      <label id="s-birth-wrap" style="font-size:12px;font-weight:700;color:#0f172a;">生年月日（和暦）
+        <div style="display:flex;gap:6px;margin-top:4px;align-items:stretch;">
+          <select id="s-era"   style="flex:1.3;min-width:0;box-sizing:border-box;padding:12px 4px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:18px;font-weight:700;color:#0f172a;background:#fff;text-align:center;"></select>
+          <select id="s-eyear" style="flex:1;min-width:0;box-sizing:border-box;padding:12px 4px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:18px;font-weight:700;color:#0f172a;background:#fff;text-align:center;"></select>
+          <select id="s-month" style="flex:1;min-width:0;box-sizing:border-box;padding:12px 4px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:18px;font-weight:700;color:#0f172a;background:#fff;text-align:center;"></select>
+          <select id="s-day"   style="flex:1;min-width:0;box-sizing:border-box;padding:12px 4px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:18px;font-weight:700;color:#0f172a;background:#fff;text-align:center;"></select>
+        </div>
+        <span style="display:block;font-weight:400;color:#94a3b8;font-size:11px;margin-top:2px;">健康チェックに使います（本人が入力）</span>
+      </label>
+    </div>
+    <div class="msg" id="s-msg" style="margin-top:10px;"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="key fn" style="flex:1;padding:14px;border-radius:12px;" onclick="closeSetup()">戻る</button>
+      <button type="button" id="s-go" style="flex:2;padding:14px;border-radius:12px;background:#0e7490;color:#fff;border:none;font-weight:800;font-size:16px;cursor:pointer;" onclick="submitSetup()">設定して入る</button>
+    </div>
+  </div>
+</div>
 
+<div class="foot">はじめての方は自分のアバターをタップ →「初回設定」で顔写真・ニックネーム・PINを登録してください。</div>
+
+<!-- CoWell紹介ムービー (app-intro) を画面内オーバーレイで再生。ログイン不要・見終わったら✕でログイン画面に戻る -->
+<div id="intro-ov" class="intro-ov">
+  <div class="intro-bar">
+    <span>📺 CoWell 紹介ムービー</span>
+    <button type="button" class="intro-close" onclick="closeIntro()">✕ 閉じてログインへ</button>
+  </div>
+  <iframe id="intro-frame" title="CoWell 紹介ムービー" allow="autoplay; fullscreen"></iframe>
+</div>
+
+<script>
+// 紹介ムービー オーバーレイ開閉 (app-intro は手動「▶再生」式。iframe内のタップで音声再生されます)
+function openIntro() {
+  var f = document.getElementById('intro-frame');
+  f.src = '/app-intro/index.html';
+  document.getElementById('intro-ov').classList.add('show');
+}
+function closeIntro() {
+  document.getElementById('intro-ov').classList.remove('show');
+  document.getElementById('intro-frame').src = 'about:blank';  // 音声を確実に停止
+}
+</script>
 <script>
 let users = [];
 let companyCodes = new Set();
 let currentUid = null;
 let pin = '';
 let submitting = false;
+let greeting = false;   // ログイン後あいさつ再生中(この間は入力を受け付けず自動入室・エンター等での早期入室を防ぐ)
+// 個人スマホ(BYOD)からのPINログイン。?personal=1 で有効。
+//  共用タブレット(キオスク)と同じ名簿+PINログインを使うが、この端末は「キオスク」印(cohub_kiosk)を付けない
+//  → tablet-home が個人モードで動く(無操作オートログアウトしない/詳しい表示に切替可)。届けたい現場一般社員が
+//     ID/パスワードでなく PIN だけで自分のスマホから入れるようにする狙い。
+const PERSONAL = (function(){ try { return new URLSearchParams(location.search).get('personal') === '1'; } catch(e) { return false; } })();
 
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// ログイン成功後の端末モード確定。
+//  個人スマホ(PERSONAL): キオスク印を付けない=かんたんモードが個人モードで動く。かんたん表示を既定にし、
+//    この端末に本人を記憶(次回は名簿を出さず本人のPIN入力から)。
+//  共用タブレット: キオスク印を付ける(無操作自動ログアウト/Push抑制の判定に使用)。
+function applyLoginMode(token, uid){
+  try {
+    if (PERSONAL) {
+      localStorage.removeItem('cohub_kiosk');
+      localStorage.removeItem('cohub_kiosk_token');
+      localStorage.setItem('cohub_view_pref', 'simple');
+      if (uid) localStorage.setItem('cohub_personal_uid', uid);
+    } else {
+      localStorage.setItem('cohub_kiosk', '1');
+      localStorage.setItem('cohub_kiosk_token', token);
+    }
+  } catch (e) {}
+}
+
+// 拠点コード→日本語名 (フォールバック。正はDB /api/field-enroll/companies で上書き)
+let CO_NAMES = {
+  SU_HQ: 'スタンダード運輸 海老名', SU_SAITAMA: 'スタンダード運輸 埼玉', SU_ZAMA: 'スタンダード運輸 座間',
+  SU_MKANTO: 'スタンダード運輸 南関東', SU_KANRI: '管理課',
+  SUZUE: 'スズエ電機', IBA_SANWA: '茨運(三和)', IBA_KASHIMA: '茨運(鹿島)', TEST: 'テスト'
+};
+let ALL_COMPANIES = []; // DBの会社一覧(空拠点も含む)。ドロップダウン生成に使用
+function coName(c){ return CO_NAMES[c] || c || '-'; }
+// 所属(company_code)別の背景色分け [背景, 枠]。未定義は無色(白)。
+var CO_COLOR = {
+  SU_HQ:['#e0f2fe','#7dd3fc'], SU_SAITAMA:['#dcfce7','#86efac'], SU_ZAMA:['#fef9c3','#fde047'],
+  SU_MKANTO:['#ffe4e6','#fda4af'], SU_KANRI:['#e0e7ff','#a5b4fc'],
+  SUZUE:['#f3e8ff','#d8b4fe'], IBA_SANWA:['#ffedd5','#fdba74'], IBA_KASHIMA:['#ccfbf1','#5eead4'],
+  ADMIN:['#e2e8f0','#cbd5e1'], UNIVERSITY:['#fae8ff','#f0abfc'], NPO:['#dbeafe','#93c5fd'], TEST:['#f1f5f9','#e2e8f0']
+};
+function coStyle(c){ var x=CO_COLOR[c]; return x ? ('background:'+x[0]+';border-color:'+x[1]) : ''; }
+// DBの会社一覧を取得し、名称(CO_NAMES)を最新化。1回だけ。
+async function loadCompanies() {
+  if (ALL_COMPANIES.length) return;
+  try {
+    const cr = await fetch('/api/field-enroll/companies').then(x => x.json()).catch(() => null);
+    if (cr && cr.success && Array.isArray(cr.companies)) {
+      ALL_COMPANIES = cr.companies;
+      cr.companies.forEach(c => { if (c && c.code) CO_NAMES[c.code] = c.name; });
+    }
+  } catch (e) {}
+}
 
 // 拠点別Wi-Fi (タブレットキオスク用)
 let branchWifi = {};
 let wifiPwRevealed = false;
 
 function setQrUrl() {
-  // 個人スマホ向けログイン誘導
-  const url = location.origin + '/';
+  // 個人スマホ向けログイン誘導 → PINだけで入れる個人ログイン(?personal=1)。ID/パスワード不要。
+  const url = location.origin + '/tablet?personal=1';
   document.getElementById('qr-url-text').textContent = url;
   const img = document.createElement('img');
   img.src = '/api/branch-wifi/qr?t=' + encodeURIComponent(url);
@@ -193,6 +393,7 @@ async function loadBranchWifi() {
 }
 
 function updateWifiPanel() {
+  return; // Wi-Fiパネル廃止 (2026-06-30) — 以下は未到達
   const code = document.getElementById('f-co').value;
   // 全拠点(空) or 該当拠点なし
   const w = code ? branchWifi[code] : null;
@@ -244,87 +445,520 @@ function toggleWifiPw() {
 }
 
 async function init() {
-  // ?demo=1 ならログイン済みでもキオスク画面を表示 (PC版からのプレビュー用)
-  const demoMode = new URLSearchParams(location.search).get('demo') === '1';
-  if (!demoMode && localStorage.getItem('cohub_token')) {
-    try {
-      const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + localStorage.getItem('cohub_token') }});
-      if (r.ok) { location.replace('/m'); return; }
-    } catch (e) {}
+  if (PERSONAL) {
+    document.body.classList.add('personal');   // 個人スマホ用の名前選択UI(五十音主役・拠点なし)を有効化
+    // ★個人スマホ(自分の端末)で既に有効なログインが残っていれば、名前選択もPINも省いてそのままホームへ。
+    //   共用タブレット(PERSONALでない)は従来どおり常に名簿を表示(前の人が残っていても次の人が選べるように)。
+    var _tk = '';
+    try { _tk = localStorage.getItem('cohub_token') || ''; } catch (e) {}
+    if (_tk) {
+      try {
+        var _me = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + _tk } }).then(function (x) { return x.json(); }).catch(function () { return null; });
+        if (_me && _me.success) { location.replace('/tablet-home.html'); return; }   // 有効ログイン→直行(名前選択スキップ)
+      } catch (e) {}
+    }
   }
+  // ?demo=1 ならログイン済みでもキオスク画面を表示 (PC版からのプレビュー用)
+  const params = new URLSearchParams(location.search);
+  const urlCo = (params.get('co') || '').trim();   // 営業所専用URL: ?co=拠点コード でその拠点に固定
+  const demoMode = params.get('demo') === '1';
+  // /tablet は常に名簿を表示する (ログイン済みでも自分のホームへ自動遷移しない・余計なリンクも出さない)。
+  // ＝設置者がログイン中でも拠点選択に到達でき、前の人のセッションが残っていても名簿に戻れる。
+  // 個人端末で自分のホームを見たい人は /home を直接開けばよい。
   if (demoMode) {
     const banner = document.createElement('div');
     banner.style.cssText = 'background:#fef3c7;color:#92400e;padding:8px 14px;font-size:12px;text-align:center;border-bottom:1px solid #fde68a;';
-    banner.innerHTML = '👀 プレビューモード (PC版からの表示確認)　<a href="/home" style="color:#0f766e;font-weight:700;">← ホームに戻る</a>';
+    banner.innerHTML = '👀 プレビューモード (PC版からの表示確認)　<a href="/home" style="color:#0e7490;font-weight:700;">← ホームに戻る</a>';
     document.body.insertBefore(banner, document.body.firstChild);
   }
   setQrUrl();
-  await loadRoster();
-  await loadBranchWifi();
-  // 前回選択した拠点を復元
-  try {
-    const saved = localStorage.getItem('cohub_tablet_co');
-    if (saved && document.querySelector('#f-co option[value="' + saved + '"]')) {
-      document.getElementById('f-co').value = saved;
-      render();
-      updateWifiPanel();
-    }
-  } catch (e) {}
-  document.getElementById('f-q').addEventListener('input', render);
+  await loadRoster(urlCo);
+  loadCheckedIn();
+  loadUnread();      // 通達/メッセージの未読バッジ   // 出勤(ログイン)済みのアバターにバッジ
+  setInterval(loadCheckedIn, 90 * 1000);
+  setInterval(loadUnread, 90 * 1000);   // 90秒ごと更新(誰かが後からログインしても反映)
+  startTabletClock();   // 上部に日付・時計
+  loadWeather();   // 設置拠点の天気
+  setInterval(loadWeather, 30 * 60 * 1000);   // 30分ごと更新
+  // URL ?co= が指定されていれば、その拠点に固定（営業所専用URL）。指定が最優先。
+  if (urlCo) {
+    try { localStorage.setItem('cohub_tablet_co', urlCo); localStorage.setItem('cohub_tablet_co_lock', '1'); } catch (e) {}
+  } else {
+    // 前回選択した拠点を復元
+    try {
+      const saved = localStorage.getItem('cohub_tablet_co');
+      if (saved && document.querySelector('#f-co option[value="' + saved + '"]')) {
+        document.getElementById('f-co').value = saved;
+        render();
+        updateWifiPanel();
+      }
+    } catch (e) {}
+  }
+  applyCoLock();  // 拠点固定が設定されていれば適用 (他拠点の氏名露出を防ぐ)
   document.getElementById('f-co').addEventListener('change', () => {
+    curPage = 0;
     render();
     updateWifiPanel();
     try { localStorage.setItem('cohub_tablet_co', document.getElementById('f-co').value); } catch (e) {}
+    loadWeather();   // 拠点変更で天気も更新
   });
   // 数字キー対応 (BTキーボード/外付け用)
   document.addEventListener('keydown', e => {
     if (!document.getElementById('modal').classList.contains('show')) return;
+    if (submitting || greeting) { e.preventDefault(); return; }   // 認証中/あいさつ中は入力無効(自動入室のみ・早期入室防止)
     if (/^[0-9]$/.test(e.key)) { kp(parseInt(e.key)); }
     else if (e.key === 'Backspace') kpBack();
     else if (e.key === 'Escape') closeModal();
+    else if (e.key === 'Enter') e.preventDefault();   // PINは4桁で自動確定・Enter不要。Enterでの早期入室を無効化
   });
+
+  // ===== 個人スマホ(?personal=1): 自分の端末なので使い勝手を最適化 =====
+  if (PERSONAL) {
+    // 「📱スマホ」QRは自分のスマホ上では無意味なので隠す。
+    var _qm = document.querySelector('.qr-mini'); if (_qm) _qm.style.display = 'none';
+    var _sub = document.querySelector('.hd .sub'); if (_sub) _sub.textContent = '自分の名前をタップしてPINを入力してください';
+    // 前回この端末でログインした本人を記憶していれば、名簿を出さずいきなりPIN入力へ(=PINだけで入れる)。
+    // 別の人が使う時はPINモーダルを閉じれば名簿に戻れる。
+    try {
+      var _puid = localStorage.getItem('cohub_personal_uid') || '';
+      if (_puid && users.some(function (u) { return u.id === _puid; })) { openPin(_puid); }
+    } catch (e) {}
+  }
 }
 
-async function loadRoster() {
-  const r = await fetch('/api/auth/tablet-roster').then(x => x.json()).catch(()=>null);
+// ===== 上部の日付・時計 =====
+// ログイン画面の言語切替。translate.js(cohubSetLang)でその場でUIを翻訳。未認証なので保存はされず、
+// ログイン後は各自のマイページ言語(users.lang)が自動適用される。外国籍の方がログイン前に自分を探しやすく。
+function setLoginLang(lang) {
+  try { if (window.cohubSetLang) window.cohubSetLang(lang); } catch (e) {}
+  var g = document.getElementById('langSw');
+  if (g) [].forEach.call(g.children, function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
+}
+// 設置拠点(選択/ロック中のco)の天気を取得して時計の横に表示。サーバー(Open-Meteo)経由・30分キャッシュ。
+function loadWeather() {
+  try {
+    var co = ''; try { co = localStorage.getItem('cohub_tablet_co') || ''; } catch (e) {}
+    fetch('/api/weather?loc=' + encodeURIComponent(co)).then(function (x) { return x.json(); }).then(function (d) {
+      var el = document.getElementById('tabletWx'); if (!el) return;
+      if (!d || d.success === false || d.temp == null) { el.innerHTML = ''; return; }
+      el.innerHTML = '<div class="wx-ic">' + d.icon + '</div>'
+        + '<div class="wx-main"><div class="wx-t">' + d.temp + '°</div>'
+        + '<div class="wx-sub">↑' + d.hi + '° ↓' + d.lo + '°　' + (d.place || '') + '</div></div>';
+    }).catch(function () {});
+  } catch (e) {}
+}
+function startTabletClock() {
+  const el = document.getElementById('tabletClock'); if (!el) return;
+  function tick() {
+    const d = new Date();
+    const w = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    const hh = ('0' + d.getHours()).slice(-2), mm = ('0' + d.getMinutes()).slice(-2);
+    el.innerHTML = '<div class="tc-date">' + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + w + '）</div><div class="tc-time">' + hh + ':' + mm + '</div>';
+  }
+  tick();
+  if (window._tabletClockTimer) clearInterval(window._tabletClockTimer);
+  window._tabletClockTimer = setInterval(tick, 1000);
+}
+
+var CHECKED_IN = {};   // 今日 体調チェック(出勤)を済ませた人 id→1
+// 未読バッジ: 名簿の各人に通達/メッセージの未読が「あるか」だけ取得 (件数・送信者・本文は取得しない)
+var UNREAD = {};
+async function loadUnread(){
+  try {
+    var el = document.getElementById('f-co');
+    var co = el ? (el.value || '') : '';
+    var qs = co ? ('?co=' + encodeURIComponent(co)) : '';
+    var r = await fetch('/api/tablet/roster-unread' + qs).then(function(x){ return x.json(); }).catch(function(){ return null; });
+    UNREAD = (r && r.success && r.unread) ? r.unread : {};
+  } catch (e) { UNREAD = {}; }
+  render();
+}
+function unbHtml(id){
+  var u = UNREAD[id]; if (!u) return '';
+  var h = '';
+  if (u.a) h += '<span class="unb unb-a" title="\u672A\u8AAD\u306E\u901A\u9054\u304C\u3042\u308A\u307E\u3059">\uD83D\uDCE2</span>';
+  if (u.d) h += '<span class="unb unb-d" title="\u672A\u8AAD\u306E\u30E1\u30C3\u30BB\u30FC\u30B8\u304C\u3042\u308A\u307E\u3059">\u2709</span>';
+  return h;
+}
+async function loadCheckedIn(){
+  try {
+    var r = await fetch('/api/tenko/checkedin-today').then(function(x){ return x.json(); }).catch(function(){ return null; });
+    CHECKED_IN = {};
+    ((r && r.ids) || []).forEach(function(id){ CHECKED_IN[id] = 1; });
+  } catch (e) { CHECKED_IN = {}; }
+  render();   // バッジ付きで再描画
+}
+async function loadRoster(co) {
+  const qs = co ? ('?co=' + encodeURIComponent(co)) : '';
+  const r = await fetch('/api/auth/tablet-roster' + qs).then(x => x.json()).catch(()=>null);
   if (!r || !r.success) { document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
   users = r.users || [];
   companyCodes = new Set(users.map(u => u.company_code || ''));
+  await loadCompanies(); // DB会社名・空拠点(天竜工場など)をセレクタへ
   const sel = document.getElementById('f-co');
-  for (const c of [...companyCodes].sort()) {
-    if (!c) continue;
+  // 名簿に居る会社 ∪ DB登録の全拠点(空でも選べる) を統合
+  const codes = new Set([...companyCodes].filter(Boolean));
+  ALL_COMPANIES.forEach(c => { if (c && c.code) codes.add(c.code); });
+  sel.innerHTML = '<option value="">全拠点</option>';
+  for (const c of [...codes].sort((a, b) => coName(a).localeCompare(coName(b), 'ja'))) {
     const opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
+    opt.value = c; opt.textContent = coName(c);
     sel.appendChild(opt);
   }
+  if (!Object.keys(ROSTER_YOMI).length) {
+    try { ROSTER_YOMI = (await fetch('/assets/roster_yomi.json').then(x => x.json()).catch(function(){ return {}; })) || {}; } catch (e) {}
+  }
+  buildKanaTabs();
   render();
 }
 
+// ===== 五十音ソート/ページング (名前検索の代わり) =====
+var ROSTER_YOMI = {}, curKana = 'すべて', curPage = 0, PER = 18;   // 6列×3行(新着ティッカー撤去で1行増)
+var KANA_ORDER = ['すべて','あ','か','さ','た','な','は','ま','や','ら','わ','他'];
+function kanaRow(y){
+  var c = (y || '').charAt(0);
+  var G = { 'あ':'アイウエオヴ','か':'カキクケコガギグゲゴ','さ':'サシスセソザジズゼゾ','た':'タチツテトダヂヅデドッ','な':'ナニヌネノ','は':'ハヒフヘホバビブベボパピプペポ','ま':'マミムメモ','や':'ヤユヨャュョ','ら':'ラリルレロ','わ':'ワヲンヰヱ' };
+  for (var k in G) { if (G[k].indexOf(c) >= 0) return k; }
+  return '他';
+}
+function buildKanaTabs(){
+  var el = document.getElementById('kanaTabs'); if (!el) return;
+  el.innerHTML = KANA_ORDER.map(function(k){ return '<button class="kana-tab'+(k===curKana?' on':'')+'" onclick="setKana(\''+k+'\')">'+k+'</button>'; }).join('');
+}
+function setKana(k){ curKana = k; curPage = 0; buildKanaTabs(); render(); }
+function pageStep(d){ curPage += d; render(); }
 function render() {
-  const co = document.getElementById('f-co').value;
-  const q = (document.getElementById('f-q').value || '').trim().toLowerCase();
-  let arr = users.slice();
-  if (co) arr = arr.filter(u => (u.company_code || '') === co);
-  if (q) arr = arr.filter(u => (u.display_name || '').toLowerCase().includes(q));
-  const el = document.getElementById('list');
-  if (!arr.length) { el.innerHTML = '<div class="empty">該当者が見つかりません</div>'; return; }
-  el.innerHTML = arr.map(u => {
-    const av = u.avatar_url ? `<img src="${escapeHtml(u.avatar_url)}" alt="">` : '👤';
-    const dis = u.has_pin ? '' : 'disabled';
-    const badge = u.has_pin ? '' : '<div class="nopin">PIN未設定</div>';
-    const click = u.has_pin ? `onclick="openPin('${escapeHtml(u.id)}')"` : '';
-    return `<div class="cell ${dis}" ${click}>
-      ${badge}
-      <div class="av">${av}</div>
-      <div class="nm">${escapeHtml(u.display_name)}</div>
-      <div class="co">${escapeHtml(u.company_code || '-')}</div>
-    </div>`;
+  var co = document.getElementById('f-co').value;
+  var arr = users.slice().filter(function(u){ return !co || (u.company_code || '') === co; });
+  arr.sort(function(a, b){ var ya = ROSTER_YOMI[a.id] || ('んん'+(a.display_name||'')), yb = ROSTER_YOMI[b.id] || ('んん'+(b.display_name||'')); return String(ya).localeCompare(String(yb), 'ja'); });
+  if (curKana !== 'すべて') arr = arr.filter(function(u){ return kanaRow(ROSTER_YOMI[u.id]) === curKana; });
+  var el = document.getElementById('list'), pgEl = document.getElementById('pager');
+  // ===== 個人スマホ: 拠点を使わず全員から五十音で。1列の大きな行・ページャなし(スクロール)・行に「もどる」矢印 =====
+  if (PERSONAL) {
+    if (pgEl) pgEl.innerHTML = '';
+    var hint = (curKana === 'すべて')
+      ? '<div class="kana-hint">上の 頭文字（あ・か・さ…）を押すと 探しやすくなります</div>'
+      : '<div class="kana-hint">「'+escapeHtml(curKana)+'」で 始まる お名前</div>';
+    if (!arr.length) { el.innerHTML = hint + '<div class="empty">該当者が見つかりません</div>'; return; }
+    el.innerHTML = hint + arr.map(function(u){
+      var av = u.avatar_url ? ('<img src="'+escapeHtml(u.avatar_url)+'" alt="">') : '👤';
+      var badge = u.has_pin ? '<span class="go">›</span>' : ('<span class="nopin">' + ((u.avatar_url && u.nickname) ? 'PIN設定' : '初回設定') + '</span>');
+      var click = u.has_pin ? ('onclick="openPin(\''+escapeHtml(u.id)+'\')"') : ('onclick="openSetup(\''+escapeHtml(u.id)+'\')"');
+      return '<div class="cell" style="'+coStyle(u.company_code)+'" '+click+'><div class="avwrap"><div class="av">'+av+'</div>'+(CHECKED_IN[u.id]?'<span class="checkin" title="出勤済">✓</span>':'')+unbHtml(u.id)+'</div><div class="pinfo"><div class="nm">'+escapeHtml(u.display_name)+'</div><div class="co">'+escapeHtml(coName(u.company_code))+'</div></div>'+badge+'</div>';
+    }).join('');
+    return;
+  }
+  if (!arr.length) { el.innerHTML = '<div class="empty">該当者が見つかりません</div>'; if (pgEl) pgEl.innerHTML = ''; return; }
+  var pages = Math.max(1, Math.ceil(arr.length / PER));
+  if (curPage >= pages) curPage = pages - 1; if (curPage < 0) curPage = 0;
+  var slice = arr.slice(curPage * PER, (curPage + 1) * PER);
+  el.innerHTML = slice.map(function(u){
+    var av = u.avatar_url ? ('<img src="'+escapeHtml(u.avatar_url)+'" alt="">') : '👤';
+    var badge = u.has_pin ? '' : ('<div class="nopin">' + ((u.avatar_url && u.nickname) ? 'PIN設定' : '初回設定') + '</div>');
+    var click = u.has_pin ? ('onclick="openPin(\''+escapeHtml(u.id)+'\')"') : ('onclick="openSetup(\''+escapeHtml(u.id)+'\')"');
+    return '<div class="cell" style="'+coStyle(u.company_code)+'" '+click+'>'+badge+'<div class="avwrap"><div class="av">'+av+'</div>'+(CHECKED_IN[u.id]?'<span class="checkin" title="出勤済">✓</span>':'')+unbHtml(u.id)+'</div><div class="nm">'+escapeHtml(u.display_name)+'</div><div class="co">'+escapeHtml(coName(u.company_code))+'</div></div>';
   }).join('');
+  if (pgEl) pgEl.innerHTML = pages > 1 ? ('<button onclick="pageStep(-1)"'+(curPage<=0?' disabled':'')+'>‹ 前</button><span class="pg">'+(curPage+1)+' / '+pages+'</span><button onclick="pageStep(1)"'+(curPage>=pages-1?' disabled':'')+'>次 ›</button>') : '';
+}
+
+// 拠点固定: この端末の名簿を1拠点に限定し、他拠点の氏名露出を防ぐ
+function applyCoLock() {
+  // 個人スマホは拠点で絞らない(ロックで自分が選べなくなるのを防ぐ)。常に全員から五十音で探す。
+  if (PERSONAL) {
+    var s = document.getElementById('f-co'); if (s) { s.value = ''; s.style.display = 'none'; }
+    var b0 = document.getElementById('co-lock'); if (b0) b0.style.display = 'none';
+    render();
+    return;
+  }
+  var locked = false, co = '';
+  try { locked = localStorage.getItem('cohub_tablet_co_lock') === '1'; co = localStorage.getItem('cohub_tablet_co') || ''; } catch (e) {}
+  var sel = document.getElementById('f-co');
+  var btn = document.getElementById('co-lock');
+  if (locked && co && sel.querySelector('option[value="' + co + '"]')) {
+    sel.value = co;
+    sel.style.display = 'none';      // 全拠点へ戻せないよう隠す
+    btn.textContent = '🔒';
+    btn.title = '拠点固定中: ' + coName(co) + '（タップで解除）';
+  } else {
+    sel.style.display = '';
+    btn.textContent = '🔓';
+    btn.title = 'この端末を選択中の拠点に固定（他拠点の氏名を隠す）';
+  }
+  render();
+  updateWifiPanel();
+}
+function toggleCoLock() {
+  var locked = false;
+  try { locked = localStorage.getItem('cohub_tablet_co_lock') === '1'; } catch (e) {}
+  if (locked) {
+    if (!confirm('拠点の固定を解除しますか？\n（全拠点の氏名が表示できるようになります）')) return;
+    try { localStorage.removeItem('cohub_tablet_co_lock'); } catch (e) {}
+  } else {
+    var co = document.getElementById('f-co').value;
+    if (!co) { alert('先に固定したい拠点を選んでください（「全拠点」では固定できません）。'); return; }
+    try { localStorage.setItem('cohub_tablet_co', co); localStorage.setItem('cohub_tablet_co_lock', '1'); } catch (e) {}
+  }
+  applyCoLock();
+}
+
+// ===== 初回設定 (PIN未設定者): 顔写真撮影+ニックネーム+PIN =====
+let setupUid = null;
+let setupSubmitting = false;
+let setupStream = null;
+let setupPhoto = null;
+let setupProfileMode = false;  // アバター+ニックネーム両方あり(管理者など)=PINだけ
+let setupHasNick = false;       // ニックネーム既存→ニックネーム欄は出さない
+let setupHasAvatar = false;     // アバター既存→カメラ(アバター設定)は出さない
+let setupAvatarGenerated = null; // AIアバター生成済みならそのURL(サーバー側で保存済→setupではphotoを送らない)
+
+// 設定モーダルの表示を切替。「既に設定済みの項目は出さない」= 足りない項目 + PIN のみ表示。
+//  ・avatar+nickname両方あり = PINだけ
+//  ・avatarのみあり          = (ニックネーム,)生年月日+PIN ※カメラは出さない
+//  ・nicknameのみあり        = 写真+生年月日+PIN
+//  ・どちらも無し            = 写真+ニックネーム+生年月日+PIN
+function applySetupMode(u) {
+  var pm = setupProfileMode;
+  var showCam = !pm && !setupHasAvatar;   // アバター未設定のときだけカメラ
+  var showNick = !pm && !setupHasNick;    // ニックネーム未設定のときだけ入力
+  var showBirth = !pm;                    // PINだけモード以外は生年月日
+  document.getElementById('s-cam-wrap').style.display = showCam ? '' : 'none';
+  document.getElementById('s-nick-wrap').style.display = showNick ? '' : 'none';
+  document.getElementById('s-birth-wrap').style.display = showBirth ? '' : 'none';
+  document.getElementById('s-title').textContent = pm ? 'PINの設定' : 'はじめての方の初回設定';
+  if (pm) {
+    document.getElementById('s-desc').innerHTML = '<b>' + escapeHtml(u.nickname || u.display_name) + '</b> さんのプロフィールで入ります。<br>4桁のPINを決めてください。次回からはアバターをタップ→PINでログインできます。';
+  } else {
+    var parts = [];
+    if (showCam) parts.push('顔写真');
+    if (showNick) parts.push('ニックネーム');
+    if (showBirth) parts.push('生年月日');
+    parts.push('4桁PIN');
+    var who = (setupHasAvatar || setupHasNick) ? ('<b>' + escapeHtml(u.nickname || u.display_name) + '</b> さんの初回設定です。<br>') : '';
+    document.getElementById('s-desc').innerHTML = who + parts.join('・') + 'を設定してください。次回からはアバターをタップ→PINでログインできます。';
+  }
+  document.getElementById('s-go').textContent = pm ? 'PINを設定して入る' : '設定して入る';
+}
+async function startSetupCam() {
+  const msg = document.getElementById('s-cam-msg');
+  try {
+    setupStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    const v = document.getElementById('s-video');
+    v.srcObject = setupStream;
+    document.getElementById('s-video').style.display = '';
+    document.getElementById('s-photo').style.display = 'none';
+    document.getElementById('s-shot').style.display = '';
+    document.getElementById('s-gen').style.display = 'none';
+    document.getElementById('s-retake').style.display = 'none';
+    msg.textContent = '※ 顔写真を撮って「AIアバターを作成」できます（任意）';
+  } catch (e) {
+    msg.textContent = 'カメラを使えません。写真なしで設定できます。';
+    document.getElementById('s-shot').style.display = 'none';
+  }
+}
+function stopSetupCam() {
+  if (setupStream) { try { setupStream.getTracks().forEach(t => t.stop()); } catch (e) {} setupStream = null; }
+}
+function capturePhoto() {
+  const v = document.getElementById('s-video');
+  if (!v.videoWidth) return;
+  const side = Math.min(v.videoWidth, v.videoHeight);
+  const c = document.getElementById('s-canvas');
+  c.width = 480; c.height = 480;
+  const ctx = c.getContext('2d');
+  const sx = (v.videoWidth - side) / 2, sy = (v.videoHeight - side) / 2;
+  ctx.drawImage(v, sx, sy, side, side, 0, 0, 480, 480);
+  setupPhoto = c.toDataURL('image/jpeg', 0.85);
+  setupAvatarGenerated = null;
+  const img = document.getElementById('s-photo');
+  img.src = setupPhoto;
+  img.style.display = '';
+  v.style.display = 'none';
+  document.getElementById('s-shot').style.display = 'none';
+  document.getElementById('s-gen').style.display = '';   // 撮影後にAIアバター作成を出す
+  document.getElementById('s-retake').style.display = '';
+  document.getElementById('s-cam-msg').textContent = '「AIアバターを作成」で似顔絵に。そのまま写真でもOK';
+  stopSetupCam();
+}
+function retakePhoto() {
+  setupPhoto = null;
+  setupAvatarGenerated = null;
+  document.getElementById('s-gen').style.display = 'none';
+  document.getElementById('s-gen').disabled = false;
+  document.getElementById('s-gen').textContent = '✨ AIアバターを作成';
+  startSetupCam();
+}
+// 撮った顔写真からAIアバター(似顔絵)を生成。サーバーが即avatar_urlをDB保存するのでsetup時はphotoを送らない。
+async function genAvatar() {
+  if (!setupPhoto || !setupUid) return;
+  const gen = document.getElementById('s-gen');
+  const camMsg = document.getElementById('s-cam-msg');
+  gen.disabled = true; gen.textContent = '✨ 作成中…';
+  camMsg.textContent = 'AIがアバターを作成しています（10〜20秒）…';
+  try {
+    const r = await fetch('/api/field-enroll/tablet-avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: setupUid, photo: setupPhoto }),
+    }).then(x => x.json());
+    if (r && r.success && r.avatar_url) {
+      setupAvatarGenerated = r.avatar_url;
+      const img = document.getElementById('s-photo');
+      img.src = r.avatar_url + '?t=' + (setupUid || '').slice(0, 8);
+      img.style.display = '';
+      gen.style.display = 'none';
+      camMsg.textContent = '✨ AIアバターを作成しました。気に入らなければ「撮り直す」';
+    } else {
+      gen.disabled = false; gen.textContent = '✨ AIアバターを作成';
+      camMsg.textContent = (r && r.msg) || 'アバター作成に失敗しました。写真のまま進めます';
+    }
+  } catch (e) {
+    gen.disabled = false; gen.textContent = '✨ AIアバターを作成';
+    camMsg.textContent = '通信エラー。写真のまま進めます';
+  }
+}
+// ===== 和暦 生年月日ダイヤル (元号・年・月・日) =====
+var WAREKI_ERAS = [
+  { key: '昭和', base: 1925, max: 64 }, // 昭和1=1926
+  { key: '平成', base: 1988, max: 31 }, // 平成1=1989
+  { key: '令和', base: 2018, max: 8  }, // 令和1=2019 (2026=令和8)
+  { key: '大正', base: 1911, max: 15 }, // 大正1=1912
+];
+function eraByKey(k) { return WAREKI_ERAS.find(function (e) { return e.key === k; }) || WAREKI_ERAS[0]; }
+function fillSelect(sel, items) {
+  sel.innerHTML = '';
+  items.forEach(function (it) { var o = document.createElement('option'); o.value = it.v; o.textContent = it.t; sel.appendChild(o); });
+}
+function initWarekiBirth() {
+  var eraSel = document.getElementById('s-era');
+  if (eraSel.dataset.init) return;
+  fillSelect(eraSel, WAREKI_ERAS.map(function (e) { return { v: e.key, t: e.key }; }));
+  fillSelect(document.getElementById('s-month'), Array.from({ length: 12 }, function (_, i) { return { v: i + 1, t: (i + 1) + '月' }; }));
+  eraSel.addEventListener('change', function () { syncWarekiYear(); syncWarekiDay(); });
+  document.getElementById('s-eyear').addEventListener('change', syncWarekiDay);
+  document.getElementById('s-month').addEventListener('change', syncWarekiDay);
+  eraSel.dataset.init = '1';
+}
+function syncWarekiYear() {
+  var era = eraByKey(document.getElementById('s-era').value);
+  var cur = parseInt(document.getElementById('s-eyear').value) || 1;
+  var ys = []; for (var y = 1; y <= era.max; y++) ys.push({ v: y, t: y + '年' });
+  fillSelect(document.getElementById('s-eyear'), ys);
+  document.getElementById('s-eyear').value = Math.min(Math.max(cur, 1), era.max);
+}
+function syncWarekiDay() {
+  var era = eraByKey(document.getElementById('s-era').value);
+  var ey = parseInt(document.getElementById('s-eyear').value) || 1;
+  var mo = parseInt(document.getElementById('s-month').value) || 1;
+  var dim = new Date(era.base + ey, mo, 0).getDate(); // その月の日数
+  var cur = parseInt(document.getElementById('s-day').value) || 1;
+  var ds = []; for (var d = 1; d <= dim; d++) ds.push({ v: d, t: d + '日' });
+  fillSelect(document.getElementById('s-day'), ds);
+  document.getElementById('s-day').value = Math.min(cur, dim);
+}
+// デフォルト 昭和60年1月1日
+function setWarekiDefault() {
+  initWarekiBirth();
+  document.getElementById('s-era').value = '昭和';
+  syncWarekiYear();
+  document.getElementById('s-eyear').value = 60;
+  document.getElementById('s-month').value = 1;
+  syncWarekiDay();
+  document.getElementById('s-day').value = 1;
+}
+// 和暦→西暦 YYYY-MM-DD
+function wafuBirthValue() {
+  var era = eraByKey(document.getElementById('s-era').value);
+  var ey = parseInt(document.getElementById('s-eyear').value) || 1;
+  var mo = parseInt(document.getElementById('s-month').value) || 1;
+  var da = parseInt(document.getElementById('s-day').value) || 1;
+  var y = era.base + ey;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(da).padStart(2, '0');
+}
+function openSetup(uid) {
+  setupUid = uid;
+  setupPhoto = null;
+  setupAvatarGenerated = null;
+  const u = users.find(x => x.id === uid);
+  if (!u) return;
+  setupHasNick = !!(u.nickname && String(u.nickname).trim());
+  setupHasAvatar = !!(u.avatar_url && String(u.avatar_url).trim());
+  setupProfileMode = setupHasAvatar && setupHasNick;
+  document.getElementById('s-av').innerHTML = u.avatar_url ? `<img src="${escapeHtml(u.avatar_url)}" alt="">` : '👤';
+  document.getElementById('s-nm').textContent = u.display_name;
+  document.getElementById('s-nick').value = u.nickname || '';
+  document.getElementById('s-pin').value = '';
+  document.getElementById('s-pin2').value = '';
+  const msg = document.getElementById('s-msg'); msg.textContent = ''; msg.className = 'msg';
+  setWarekiDefault(); // 生年月日ダイヤルを昭和60年1月1日に初期化
+  applySetupMode(u);
+  document.getElementById('setup-modal').classList.add('show');
+  // アバター未設定のときだけカメラ起動(既にアバターがある人はアバター設定から始めない)
+  if (!setupProfileMode && !setupHasAvatar) startSetupCam();
+}
+function closeSetup() {
+  stopSetupCam();
+  document.getElementById('setup-modal').classList.remove('show');
+  setupUid = null;
+}
+async function submitSetup() {
+  if (setupSubmitting) return;
+  const pin = document.getElementById('s-pin').value || '';
+  const pin2 = document.getElementById('s-pin2').value || '';
+  const msg = document.getElementById('s-msg');
+  const fail = (t) => { msg.textContent = t; msg.className = 'msg'; };
+  if (!/^\d{4}$/.test(pin)) return fail('PINは4桁の数字です');
+  if (pin !== pin2) return fail('PIN（確認）が一致しません');
+  // プロフィール登録済み(管理者など)はPINだけ。未登録者は写真+生年月日+PIN(+ニックネームは既存が無ければ入力)
+  let nickname = '', birth = '';
+  if (!setupProfileMode) {
+    birth = wafuBirthValue();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return fail('生年月日を選択してください');
+    if (!setupHasNick) {
+      nickname = (document.getElementById('s-nick').value || '').trim();
+      if (nickname.length < 2 || nickname.length > 20) return fail('ニックネームは2〜20文字で入力してください');
+    }
+  }
+  setupSubmitting = true;
+  msg.textContent = '設定中…'; msg.className = 'msg info';
+  try {
+    // AIアバター生成済みならサーバー側で保存済み→photoを送らず既存(生成)avatarを保持
+    const photoToSend = setupAvatarGenerated ? null : setupPhoto;
+    // PINだけモード/ニックネーム既存はnicknameを送らない→サーバー側は既存の値を保持
+    const payload = setupProfileMode
+      ? { user_id: setupUid, pin }
+      : (setupHasNick
+          ? { user_id: setupUid, pin, photo: photoToSend }
+          : { user_id: setupUid, nickname, pin, photo: photoToSend });
+    const r = await fetch('/api/auth/tablet-setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(x => x.json());
+    if (r && r.success && r.token) {
+      stopSetupCam();
+      localStorage.setItem('cohub_token', r.token);
+      if (!setupProfileMode && birth) {
+        try { await fetch('/api/auth/birth-date', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + r.token }, body: JSON.stringify({ birth_date: birth }) }); } catch (e) {}
+      }
+      if (r.user) localStorage.setItem('cohub_user', JSON.stringify(r.user));
+      applyLoginMode(r.token, setupUid);
+      msg.textContent = '✅ 設定しました。ログインします';
+      msg.className = 'msg info';
+      setTimeout(() => location.replace('/tablet-home.html'), 400);
+      return;
+    }
+    fail((r && r.msg) || '設定に失敗しました');
+  } catch (e) {
+    fail('通信エラーが発生しました');
+  } finally {
+    setupSubmitting = false;
+  }
 }
 
 function openPin(uid) {
   currentUid = uid;
   pin = '';
+  greeting = false;
   const u = users.find(x => x.id === uid);
   if (!u) return;
   document.getElementById('m-av').innerHTML = u.avatar_url ? `<img src="${escapeHtml(u.avatar_url)}" alt="">` : '👤';
@@ -333,11 +967,23 @@ function openPin(uid) {
   document.getElementById('m-msg').className = 'msg';
   updateDots(false);
   document.getElementById('modal').classList.add('show');
+  speakKioskPrompt(uid);   // 女性の声で名前を呼んでPIN入力を促す (タップ=ジェスチャ内なので再生可)
+}
+
+// タップ時(認証前): 「○○さん。PINコードを入力してください。」を女性の声で。
+// 公開エンドポイント(/api/voice/tts-kiosk・uidごとキャッシュ・実在ユーザーのみ・文言固定)。
+function speakKioskPrompt(uid) {
+  try {
+    if (!greetAudio) greetAudio = new Audio();
+    greetAudio.onended = null; greetAudio.onerror = null;
+    greetAudio.src = '/api/voice/tts-kiosk?uid=' + encodeURIComponent(uid) + '&v=4';
+    greetAudio.play().catch(function () {});
+  } catch (e) {}
 }
 
 function closeModal() {
   document.getElementById('modal').classList.remove('show');
-  currentUid = null; pin = '';
+  currentUid = null; pin = ''; greeting = false;
 }
 
 function updateDots(err) {
@@ -348,6 +994,7 @@ function updateDots(err) {
 }
 
 function kp(n) {
+  unlockGreetAudio();   // タップ(ユーザー操作)のうちに音声を解錠しておく(自動再生規制対策)
   if (submitting) return;
   if (pin.length >= 4) return;
   pin += String(n);
@@ -374,8 +1021,10 @@ async function trySubmit() {
     if (r && r.success && r.token) {
       localStorage.setItem('cohub_token', r.token);
       if (r.user) localStorage.setItem('cohub_user', JSON.stringify(r.user));
-      document.getElementById('m-msg').textContent = '✅ ログイン成功';
-      setTimeout(() => location.replace('/m'), 300);
+      applyLoginMode(r.token, currentUid);
+      document.getElementById('m-msg').textContent = '✅ ようこそ！';
+      greeting = true;   // 以降は入力無効(エンター等での早期入室を防ぎ、あいさつ後に自動入室)
+      greetThenHome(r.user, r.token);
       return;
     }
     updateDots(true);
@@ -392,8 +1041,60 @@ async function trySubmit() {
   }
 }
 
+// ===== ログイン後の音声あいさつ (女性の声=葵 ja-JP-Neural2-B) =====
+// 個人情報(未読件数)はPIN認証成功後にのみ読み上げる。失敗/無音/タイムアウトでも必ずホームへ遷移。
+let greetAudio = null;
+function unlockGreetAudio() {
+  if (greetAudio) return;
+  try {
+    greetAudio = new Audio();
+    // 無音WAVを一度再生し、この要素をユーザー操作内で解錠 (以後この要素で鳴らせばiPad/Androidでも再生可)
+    greetAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
+    greetAudio.play().then(function () { try { greetAudio.pause(); greetAudio.currentTime = 0; } catch (e) {} }).catch(function () {});
+  } catch (e) { greetAudio = null; }
+}
+async function greetThenHome(user, token) {
+  // 名前はタップ時に既に呼んでいるため、あいさつでは繰り返さない(諄さ回避・2026-07-01)
+  const auth = { Authorization: 'Bearer ' + token };
+  const _to = (ms) => new Promise((r) => setTimeout(() => r(null), ms));   // 未読取得が遅くても声を待たせない(テンポ優先)
+  let parts = [];
+  try {
+    const [aR, cR] = await Promise.all([
+      Promise.race([fetch('/api/announcements/unread-count', { headers: auth }).then(x => x.json()).catch(() => null), _to(600)]),
+      Promise.race([fetch('/api/chat/unread-count', { headers: auth }).then(x => x.json()).catch(() => null), _to(600)]),
+    ]);
+    const aN = aR ? (aR.count != null ? aR.count : (aR.unread || 0)) : 0;
+    const cN = cR ? (cR.count != null ? cR.count : (cR.unread || 0)) : 0;
+    if (aN > 0) parts.push('新しい通達が' + aN + '件あります');
+    if (cN > 0) parts.push('未読のメッセージが' + cN + '件あります');
+  } catch (e) {}
+  let speech = parts.length ? (parts.join('。') + '。ご確認ください。') : '新しいお知らせはありません。';
+
+  let moved = false;
+  const go = function () { if (moved) return; moved = true; location.replace('/tablet-home.html'); };
+  const safety = setTimeout(go, 8000); // 最大8秒で必ず遷移
+  try {
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ text: speech, voice: 'ja-JP-Neural2-B', speed: 1.2, pitch: 1.0 }),
+    });
+    if (!res.ok) { clearTimeout(safety); go(); return; }
+    const url = URL.createObjectURL(await res.blob());
+    const audio = greetAudio || new Audio();
+    audio.src = url;
+    audio.onended = function () { clearTimeout(safety); setTimeout(go, 150); };
+    audio.onerror = function () { clearTimeout(safety); go(); };
+    audio.play().catch(function () { clearTimeout(safety); go(); });
+  } catch (e) { clearTimeout(safety); go(); }
+}
+
+// 葵の受付あいさつ音声(未認証ページゆえ静的MP3)。ブラウザ自動再生規制のため最初のタッチで再生。
+var _aoiGreeted = false;
+// あいさつは名前タップ時のPIN案内音声(/api/voice/tts-kiosk)に一本化(「お疲れさまです。○○さん。PINコードを入力してください。」を通しで再生)。
+
 init();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
 </body>
 </html>

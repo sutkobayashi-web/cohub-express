@@ -353,6 +353,7 @@ app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/board', require('./routes/board'));
 app.use('/api/wellness-materials', require('./routes/wellness_materials'));
 app.use('/api/announcements', require('./routes/announcements'));
+app.use('/api/tablet', require('./routes/tablet'));   // 共有タブレット名簿の未読バッジ (2026-07-30)
 app.use('/api/ops', require('./routes/ops'));
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/cw-archive', require('./routes/cw_archive'));
@@ -417,7 +418,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-07-29-dmvoice2"
+const APP_VERSION = "2026-07-29-admin2"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
