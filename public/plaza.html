@@ -168,26 +168,28 @@ body { padding-bottom: 80px !important; }
 .ng-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 14px 2px 8px; }
 .ng-head b { font-size: 12px; font-weight: 800; color: #41514a; }
 .ng-head span { font-size: 10px; color: #8b9a93; white-space: nowrap; }
-.ng-rows { display: grid; gap: 10px; }
+.ng-rows { display: grid; gap: 14px; }
 .ng-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: baseline; }
-.ng-name { font-size: 13px; font-weight: 800; color: #14211c; display: flex; align-items: center; gap: 5px; min-width: 0; }
-.ng-val { font-size: 12px; font-weight: 800; color: #41514a; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ng-val i { font-style: normal; font-weight: 600; color: #8b9a93; font-size: 10.5px; }
-.ng-track { grid-column: 1/-1; position: relative; height: 16px; margin-top: 2px; }
-.ng-zones { position: absolute; left: 0; right: 0; top: 3px; bottom: 3px; display: flex; border-radius: 4px; overflow: hidden; background: #e7ece6; }
+.ng-name { font-size: 16px; font-weight: 900; color: #14211c; display: flex; align-items: center; gap: 7px; min-width: 0; }
+.ng-name .ng-ico { font-size: 25px; line-height: 1.1; }
+.ng-val { font-size: 13.5px; font-weight: 800; color: #41514a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ng-val i { font-style: normal; font-weight: 600; color: #8b9a93; font-size: 11px; }
+/* スライダーは短く固定幅。3領域(少ない/適量/過剰)を色で分け、針の位置に過不足%を出す */
+.ng-gauge { grid-column: 1/-1; justify-self: start; position: relative; width: 100%; max-width: 216px; padding-top: 20px; }
+.ng-track { display: flex; height: 13px; border-radius: 4px; overflow: hidden; }
 .ng-z { height: 100%; }
-.ng-z-bad { background: rgba(207,59,59,.10); }
-.ng-z-ok { background: rgba(12,163,12,.14); }
-.ng-z-fine { background: rgba(12,163,12,.06); }
-.ng-band { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(12,163,12,.55); border-right: 1px solid rgba(12,163,12,.55); }
-.ng-mark { position: absolute; top: 50%; width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.10); }
-.ng-mark.ng-tri { border-radius: 3px; transform: rotate(45deg); }
-.ng-st { grid-column: 1/-1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.ng-tag { font-size: 12px; font-weight: 900; white-space: nowrap; }
-.ng-tag .ng-dev { font-variant-numeric: tabular-nums; font-weight: 800; }
-.ng-hint { font-size: 11.5px; color: #7b8b84; text-align: right; line-height: 1.4; }
+.ng-z-low { background: #f6dfb4; }
+.ng-z-ok { background: #b9e3b9; }
+.ng-z-hi { background: #f4c3c1; }
+.ng-z-mute { background: #e2e7e2; }
+.ng-needle { position: absolute; left: 0; top: 18px; height: 17px; width: 4px; margin-left: -2px; border-radius: 3px; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,.3); }
+.ng-zlbl { display: flex; margin-top: 4px; }
+.ng-zlbl span { font-size: 10.5px; font-weight: 800; text-align: center; line-height: 1.2; }
+.ng-zlbl .l-low { color: #97640f; } .ng-zlbl .l-ok { color: #0a7a0a; } .ng-zlbl .l-hi { color: #a32e2e; } .ng-zlbl .l-mute { color: #79887f; }
+.ng-pt { position: absolute; top: 0; font-size: 11.5px; font-weight: 900; padding: 1px 7px; border-radius: 999px; background: #fff; border: 1.5px solid currentColor; white-space: nowrap; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.ng-cmt { grid-column: 1/-1; margin-top: 8px; font-size: 13.5px; font-weight: 800; line-height: 1.5; padding: 7px 11px; border-radius: 10px; border-left: 3px solid currentColor; }
 .ng-oks { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; padding-top: 11px; border-top: 1px solid #eaefe9; }
-.ng-chip { font-size: 11.5px; font-weight: 800; color: #41514a; background: rgba(12,163,12,.07); border: 1px solid #e2e8e5; border-radius: 999px; padding: 3px 9px; }
+.ng-chip { font-size: 13.5px; font-weight: 800; color: #41514a; background: rgba(12,163,12,.07); border: 1px solid #e2e8e5; border-radius: 999px; padding: 4px 11px; }
 .ng-chip b { color: #0ca30c; font-weight: 900; }
 .ng-more { margin-top: 12px; width: 100%; font-family: inherit; font-size: 12px; font-weight: 800; color: #1b4034; background: #fff; border: 1px dashed #cfdad4; border-radius: 10px; padding: 7px 10px; cursor: pointer; }
 .ng-more:hover { background: rgba(12,163,12,.06); }
@@ -713,7 +715,7 @@ function buildNutritionBar(sc) {
   const NG_HINT = {
     calories: ['おにぎり1個ぶん足りません', 'ごはんを少し残す'],
     protein:  ['卵1個か納豆1パック足す', ''],
-    fat:      ['', '揚げ物かドレッシングを半分に'],
+    fat:      ['ナッツや魚、オリーブ油を少し足す', '揚げ物かドレッシングを半分に'],
     carbs:    ['ごはんをもう半分', 'ごはんを一口残す'],
     vitamin:  ['サラダか具の多いみそ汁を1品', ''],
     mineral:  ['牛乳かヨーグルトを1つ', ''],
@@ -747,29 +749,34 @@ function buildNutritionBar(sc) {
     + '<div class="nv-tx"><div class="nv-hl">' + vHl + '</div><div class="nv-act">' + vAct + '</div></div></div>';
 
   // ---- 提案B: 共通軸ゲージ (気になる項目を上に、適量は畳む) ----
+  // 3領域のラベルと色。どちら側が問題かは物差しで変わるので、問題にならない側は無彩色にする。
+  const NG_ZLBL = { range: ['少ない', '適量', '多い'], min: ['少ない', '適量', 'しっかり'], max: ['控えめ', '適量', '多い'] };
+  const NG_ZCLS = { range: ['low', 'ok', 'hi'], min: ['low', 'ok', 'mute'], max: ['mute', 'ok', 'hi'] };
+  const NG_ZW = [B0, B1 - B0, 100 - B1];
   const ngRowHtml = (r) => {
-    const c = NG_COL[r.sev], it = r.item;
-    // 帯の左右どちらが「良い」かは物差しで変わる。ゾーンの色で示す。
-    const z = r.t === 'max' ? ['ng-z-fine', 'ng-z-ok', 'ng-z-bad']
-      : r.t === 'min' ? ['ng-z-bad', 'ng-z-ok', 'ng-z-fine']
-      : ['ng-z-bad', 'ng-z-ok', 'ng-z-bad'];
-    const dev = r.sev === 0 ? '' : ' <span class="ng-dev">' + (r.dir === 'high' ? '+' : '−') + r.dev + '%</span>';
+    const c = NG_COL[r.sev], it = r.item, z = NG_ZCLS[r.t], zl = NG_ZLBL[r.t];
+    const pt = r.sev === 0 ? ('✓ ' + NG_TAG[r.dir]) : ((r.dir === 'high' ? '▲ +' : '▼ −') + r.dev + '%');
+    // 針が端に寄ったときはバッジを内側に寄せてはみ出しを防ぐ
+    const tf = r.x < 17 ? 'translateX(0)' : (r.x > 83 ? 'translateX(-100%)' : 'translateX(-50%)');
+    const cmt = ngHint(r);
     return '<div class="ng-row">'
-      + '<div class="ng-name"><span>' + it.icon + '</span>' + escapeHtml(it.label) + '</div>'
+      + '<div class="ng-name"><span class="ng-ico">' + it.icon + '</span>' + escapeHtml(it.label) + '</div>'
       + '<div class="ng-val">' + ngNum(r.val) + '<i>' + it.unit + ' ／ 目安 ' + ngTgt(r) + '</i></div>'
-      + '<div class="ng-track"><div class="ng-zones">'
-        + '<div class="ng-z ' + z[0] + '" style="width:' + B0 + '%"></div>'
-        + '<div class="ng-z ' + z[1] + '" style="width:' + (B1 - B0) + '%"></div>'
-        + '<div class="ng-z ' + z[2] + '" style="width:' + (100 - B1) + '%"></div></div>'
-        + '<div class="ng-band" style="left:' + B0 + '%;width:' + (B1 - B0) + '%"></div>'
-        + '<div class="ng-mark' + (r.sev ? ' ng-tri' : '') + '" style="left:' + r.x + '%;background:' + c + ';"></div></div>'
-      + '<div class="ng-st"><div class="ng-tag" style="color:' + c + ';">' + NG_GLY[r.dir] + ' ' + NG_TAG[r.dir] + dev + '</div>'
-        + '<div class="ng-hint">' + escapeHtml(ngHint(r)) + '</div></div>'
+      + '<div class="ng-gauge">'
+        + '<div class="ng-pt" style="left:' + r.x + '%;transform:' + tf + ';color:' + c + ';">' + pt + '</div>'
+        + '<div class="ng-track">'
+          + z.map((k, i) => '<div class="ng-z ng-z-' + k + '" style="width:' + NG_ZW[i] + '%"></div>').join('')
+        + '</div>'
+        + '<div class="ng-needle" style="left:' + r.x + '%;background:' + c + ';"></div>'
+        + '<div class="ng-zlbl">'
+          + z.map((k, i) => '<span class="l-' + k + '" style="width:' + NG_ZW[i] + '%">' + zl[i] + '</span>').join('')
+        + '</div></div>'
+      + (cmt ? '<div class="ng-cmt" style="color:' + c + ';background:' + c + '14;">💡 ' + escapeHtml(cmt) + '</div>' : '')
       + '</div>';
   };
   const ngNg = nrows.filter(r => r.sev > 0).sort((a, b) => (b.sev - a.sev) || (b.dev - a.dev));
   const ngOk = nrows.filter(r => r.sev === 0);
-  const NG_LEGEND = '<span>◀ 足りない ｜ 緑の帯＝適量 ｜ 多い ▶</span>';
+  const NG_LEGEND = '<span>針の位置＝いまの量</span>';
   if (ngNg.length) {
     html += '<div class="ng-head"><b>気になる項目</b>' + NG_LEGEND + '</div>';
     html += '<div class="ng-rows">' + ngNg.map(ngRowHtml).join('') + '</div>';
