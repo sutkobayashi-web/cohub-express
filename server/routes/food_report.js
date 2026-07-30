@@ -6,7 +6,15 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
-const { generateText } = require('../services/ai');
+const { generateText, computeNutritionTargets, ageFromBirth } = require('../services/ai');
+
+// 対象ユーザーの個別1食目標 (未入力なら一律目標)。集計/プロンプトで使用。
+function getUserTargets(uid) {
+  const db = getDb();
+  const u = db.prepare('SELECT sex, height_cm, activity_pal, birth_date FROM users WHERE id = ?').get(uid) || {};
+  const w = db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(uid) || {};
+  return computeNutritionTargets({ sex: u.sex, height_cm: u.height_cm, weight_kg: w.weight_kg, age: ageFromBirth(u.birth_date), pal: u.activity_pal });
+}
 
 const MIN_MEALS = 10; // 「ある程度蓄積」の目安
 // 1食あたりの目標値 (analyzeFoodImage と統一)
@@ -83,32 +91,140 @@ function aggregateMonth(uid, ym) {
   const alcoholTotalG = Math.round(meals.reduce((a, m) => a + (Number(m.alc) || 0), 0) * 10) / 10;
   const alcoholPerDrinkDay = alcoholDays ? Math.round(alcoholTotalG / alcoholDays * 10) / 10 : 0;
 
+  const TGT = getUserTargets(uid); // 個別目標 (未入力なら一律)
   return {
     ym, meal_count: n, days_logged: days,
     avg: { kcal: avg('kcal'), protein: avg('protein'), fat: avg('fat'), carbs: avg('carbs'), veg: avg('veg'), ca: avg('ca'), salt: avg('salt'), fiber: avg('fiber'), alc: avg('alc') },
     counts: {
-      veg_low: meals.filter(m => m.veg < TARGETS.veg.min).length,
-      salt_high: meals.filter(m => m.salt > TARGETS.salt.max).length,
-      fiber_low: meals.filter(m => m.fiber < TARGETS.fiber.min).length,
-      ca_low: meals.filter(m => m.ca < TARGETS.ca.min).length,
-      cal_high: meals.filter(m => m.kcal > TARGETS.kcal.max).length,
-      fat_high: meals.filter(m => m.fat > TARGETS.fat.max).length,
+      veg_low: meals.filter(m => m.veg < TGT.veg.min).length,
+      salt_high: meals.filter(m => m.salt > TGT.salt.max).length,
+      fiber_low: meals.filter(m => m.fiber < TGT.fiber.min).length,
+      ca_low: meals.filter(m => m.ca < TGT.ca.min).length,
+      cal_high: meals.filter(m => m.kcal > TGT.kcal.max).length,
+      fat_high: meals.filter(m => m.fat > TGT.fat.max).length,
       alcohol_meals: alcoholMeals, alcohol_days: alcoholDays,
       alcohol_total_g: alcoholTotalG, alcohol_per_drink_day: alcoholPerDrinkDay,
     },
-    targets: TARGETS,
+    targets: TGT,
     meals,
   };
 }
+
+// ===== 受診用 食事傾向シート (2026-07-30) =====
+// 定期受診している社員が、食事の傾向を医師に見せられるようにする。
+// ⚠️ 数値は写真からの推定。AIの助言は含めず、集計した事実だけを返す。
+// ⚠️ 本人のみ (推進メンバー/管理職は canAccess 経由で支援目的の閲覧可)。
+function aggregateDoctor(uid, days) {
+  const db = getDb();
+  const d = Math.min(Math.max(parseInt(days, 10) || 90, 14), 365);
+  const rows = db.prepare(
+    `SELECT created_at, content, meal_type, food_source, nutrition_scores, COALESCE(extra_alcohol_g,0) AS extra_alc
+       FROM plaza_posts
+      WHERE author_id=? AND category='食事' AND nutrition_scores IS NOT NULL AND deleted_at IS NULL
+        AND created_at >= datetime('now', ?)
+      ORDER BY created_at ASC`).all(uid, '-' + d + ' days');
+
+  const meals = [];
+  for (const r of rows) {
+    let s; try { s = JSON.parse(r.nutrition_scores); } catch (e) { continue; }
+    if (!s) continue;
+    const kcal = numOf(s.calories);
+    if (!(kcal > 0)) continue;                 // 解析失敗/飲み物のみ(0kcal)は平均から除く
+    const carbs = numOf(s.carbs), fiber = numOf(s.fiber);
+    meals.push({
+      at: r.created_at, date: (r.created_at || '').slice(0, 10),
+      hour: Number((r.created_at || '').slice(11, 13)) + 9,   // created_atはUTC → JST
+      meal_type: r.meal_type || null, food_source: r.food_source || null,
+      kcal, protein: numOf(s.protein), fat: numOf(s.fat), carbs,
+      veg: numOf(s.vitamin), ca: numOf(s.mineral), salt: numOf(s.salt), fiber,
+      sugar: Math.round((carbs - fiber) * 10) / 10,           // 糖質=炭水化物-食物繊維 (表示上の導出値)
+      alc: Math.round((numOf(s.alcohol) + Number(r.extra_alc || 0)) * 10) / 10,
+      conf: (s.confidence && Number(s.confidence.level)) || null,
+    });
+  }
+  const n = meals.length;
+  const avg = (k) => n ? Math.round((meals.reduce((a, m) => a + (Number(m[k]) || 0), 0) / n) * 10) / 10 : 0;
+  const KEYS = ['kcal', 'protein', 'fat', 'carbs', 'sugar', 'veg', 'ca', 'salt', 'fiber'];
+  const A = {}; KEYS.forEach(k => { A[k] = avg(k); });
+
+  const targets = getUserTargets(uid);
+  // 目安から外れた食事の件数 (医師が「頻度」で判断できるように)
+  const over = {
+    salt: meals.filter(m => m.salt > targets.salt.max).length,
+    kcal_high: meals.filter(m => m.kcal > targets.kcal.max).length,
+    kcal_low: meals.filter(m => m.kcal < targets.kcal.min).length,
+    fat_high: meals.filter(m => m.fat > targets.fat.max).length,
+    fiber_low: meals.filter(m => m.fiber < targets.fiber.min).length,
+    veg_low: meals.filter(m => m.veg < targets.veg.min).length,
+    ca_low: meals.filter(m => m.ca < targets.ca.min).length,
+  };
+  // 食事区分・入手元・信憑性の内訳
+  const cnt = (arr, key) => arr.reduce((o, m) => { const k = m[key] || '(未設定)'; o[k] = (o[k] || 0) + 1; return o; }, {});
+  const days_logged = new Set(meals.map(m => m.date)).size;
+  // 飲酒
+  const alcDays = new Set(meals.filter(m => m.alc > 0).map(m => m.date));
+  const alcTotal = Math.round(meals.reduce((a, m) => a + m.alc, 0) * 10) / 10;
+  // 日別の食塩・エネルギー (医師が推移を見るため)
+  const byDate = {};
+  for (const m of meals) {
+    const o = byDate[m.date] || (byDate[m.date] = { date: m.date, n: 0, kcal: 0, salt: 0, sugar: 0, alc: 0 });
+    o.n++; o.kcal += m.kcal; o.salt += m.salt; o.sugar += m.sugar; o.alc += m.alc;
+  }
+  const daily = Object.values(byDate).map(o => ({
+    date: o.date, n: o.n,
+    kcal: Math.round(o.kcal), salt: Math.round(o.salt * 10) / 10,
+    sugar: Math.round(o.sugar * 10) / 10, alc: Math.round(o.alc * 10) / 10,
+  }));
+  // 血圧 (あれば同じ紙に載せる。医師にとって食塩と併せて見る価値が高い)
+  const bp = db.prepare(
+    `SELECT COUNT(*) n, ROUND(AVG(systolic),0) sys, ROUND(AVG(diastolic),0) dia,
+            MAX(substr(measured_at,1,10)) last
+       FROM bp_records WHERE user_id=? AND measured_at >= datetime('now', ?)`).get(uid, '-' + d + ' days') || {};
+
+  return {
+    days: d, meal_count: n, days_logged,
+    period: { from: meals.length ? meals[0].date : null, to: meals.length ? meals[n - 1].date : null },
+    avg: A, targets, over,
+    meal_types: cnt(meals, 'meal_type'), sources: cnt(meals, 'food_source'),
+    confidence: meals.reduce((o, m) => { const k = 'lv' + (m.conf || 0); o[k] = (o[k] || 0) + 1; return o; }, {}),
+    alcohol: { days: alcDays.size, total_g: alcTotal, per_drink_day: alcDays.size ? Math.round(alcTotal / alcDays.size * 10) / 10 : 0 },
+    daily,
+    bp: (bp.n > 0) ? bp : null,
+  };
+}
+
+// GET /api/food-report/doctor?days=90&user_id=(任意・推進のみ)
+router.get('/doctor', authUser, (req, res) => {
+  const target = (req.query.user_id || req.uid).toString();
+  if (target !== req.uid && !canAccess(req.uid, target)) {
+    return res.status(403).json({ success: false, msg: '閲覧権限がありません' });
+  }
+  const u = getDb().prepare('SELECT display_name, birth_date, sex, height_cm FROM users WHERE id=?').get(target) || {};
+  const w = getDb().prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id=?').get(target) || {};
+  const data = aggregateDoctor(target, req.query.days);
+  res.json({
+    success: true,
+    person: {
+      name: u.display_name || '', birth_date: u.birth_date || null,
+      age: ageFromBirth(u.birth_date), sex: u.sex || null,
+      height_cm: u.height_cm || null, weight_kg: w.weight_kg || null,
+    },
+    ...data,
+  });
+});
 
 // 集計から Gemini 用プロンプト
 function buildPrompt(name, metrics) {
   const a = metrics.avg, c = metrics.counts, n = metrics.meal_count;
   const line = (m) => `${m.date}: ${m.kcal}kcal P${m.protein} F${m.fat} C${m.carbs} 野菜${m.veg}g Ca${m.ca}mg 塩${m.salt}g 繊維${m.fiber}g 酒${m.alc}g`;
   const mealLines = metrics.meals.slice(0, 45).map(line).join('\n');
+  const t = metrics.targets || {};
+  const tgtLine = (t && t.kcal)
+    ? `カロリー${t.kcal.min}-${t.kcal.max}kcal / たんぱく質${t.protein.min}g / 脂質${t.fat.min}-${t.fat.max}g / 炭水化物${t.carbs.min}-${t.carbs.max}g / 野菜${t.veg.min}g / カルシウム${t.ca.min}mg / 食塩${t.salt.max}g未満 / 食物繊維${t.fiber.min}g`
+    : `カロリー450-650kcal / たんぱく質20g / 脂質12-18g / 炭水化物69-89g / 野菜120g / カルシウム227mg / 食塩2.5g未満 / 食物繊維7g`;
   return `あなたは管理栄養士兼ヘルスアドバイザーです。社員「${name}」さんの${ymLabel(metrics.ym)}の食事記録(${n}件)を分析し、月次レポートを作成してください。温かく前向きに、しかし健康課題は事実として誠実に伝えます。専門用語は避け、本人が読んで行動したくなる文章で。
-
-【1食あたりの目標(参考)】カロリー450-650kcal / たんぱく質20g / 脂質12-18g / 炭水化物69-89g / 野菜120g / カルシウム227mg / 食塩2.5g未満 / 食物繊維7g
+${t.personalized ? '※目標はこの方の体格に合わせた個別目安です。栄養分析はこの個別目標を基準に評価してください。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値はレポート本文に一切書かないこと。\n' : ''}
+【1食あたりの目標${t.personalized ? '(この方の体格に合わせた個別目安)' : '(一般の参考値)'}】${tgtLine}
 
 【今月の平均(1食あたり)】
 カロリー${a.kcal}kcal / たんぱく質${a.protein}g / 脂質${a.fat}g / 炭水化物${a.carbs}g / 野菜${a.veg}g / カルシウム${a.ca}mg / 食塩${a.salt}g / 食物繊維${a.fiber}g / アルコール${a.alc}g

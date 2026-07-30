@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>食事傾向シート（受診用） | CoWell</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef1f4; color: #14211c;
+         font-family: "BIZ UDPGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif; }
+  .bar { background: linear-gradient(135deg,#0d9488,#0ea5a3); color: #fff; padding: 12px 16px;
+         display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5; }
+  .bar h1 { font-size: 17px; margin: 0; font-weight: 800; flex: 1; }
+  .bar button, .bar select { font-family: inherit; font-size: 13px; font-weight: 700; border-radius: 10px;
+         border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.2); color: #fff; padding: 7px 12px; cursor: pointer; }
+  .bar select { background: #fff; color: #0f766e; }
+  .bar .go { background: #fff; color: #0f766e; border-color: #fff; }
+  .wrap { max-width: 820px; margin: 14px auto 40px; padding: 0 10px; }
+
+  /* ===== A4 1枚に収める用紙 ===== */
+  .sheet { background: #fff; padding: 14mm 13mm; box-shadow: 0 2px 12px rgba(0,0,0,.10); }
+  .hd { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2.5px solid #14211c; padding-bottom: 7px; }
+  .hd h2 { font-size: 19px; margin: 0; font-weight: 900; letter-spacing: -.01em; }
+  .hd .sub { font-size: 11px; color: #52736a; }
+  .who { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 9px 0 0; font-size: 12.5px; }
+  .who b { font-weight: 800; }
+  .who .k { color: #6b7f78; margin-right: 4px; }
+
+  .note { margin: 10px 0 0; padding: 9px 11px; border: 1.5px solid #f0b429; background: #fffbeb;
+          border-radius: 6px; font-size: 11px; line-height: 1.65; color: #7c4a03; }
+  .note b { font-weight: 900; }
+
+  h3 { font-size: 13px; font-weight: 900; margin: 14px 0 5px; padding-left: 7px; border-left: 4px solid #0d9488; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th, td { border: 1px solid #cfd8d4; padding: 4px 6px; text-align: right; }
+  th { background: #f2f6f5; font-weight: 800; text-align: center; font-size: 10.5px; }
+  td.l, th.l { text-align: left; }
+  td.n { font-variant-numeric: tabular-nums; }
+  tr.bad td { background: #fdf2f2; }
+  tr.bad td.l { font-weight: 800; }
+  .flag { font-weight: 900; color: #b3221f; }
+  .ok { color: #0a7a0a; font-weight: 800; }
+  .two { display: grid; grid-template-columns: 1.45fr 1fr; gap: 16px; }
+  .kv { font-size: 11.5px; line-height: 1.75; }
+  .kv > div { display: flex; gap: 8px; align-items: baseline; }
+  .kv span { flex: 0 0 6.6em; color: #6b7f78; }
+  .foot { margin-top: 12px; padding-top: 7px; border-top: 1px solid #cfd8d4; font-size: 9.5px; color: #8b9a93; display: flex; justify-content: space-between; }
+  .msg { padding: 20px; text-align: center; color: #6b7f78; font-size: 13px; }
+
+  @media print {
+    body { background: #fff; }
+    .bar, .noprint { display: none !important; }
+    .wrap { margin: 0; padding: 0; max-width: none; }
+    .sheet { box-shadow: none; padding: 0; }
+    @page { size: A4 portrait; margin: 12mm; }
+  }
+</style>
+<script src="/version-check.js" defer></script>
+</head>
+<body>
+<div class="bar">
+  <button onclick="goBack()">← 戻る</button>
+  <h1>🩺 食事傾向シート（受診用）</h1>
+  <select id="days" onchange="load()">
+    <option value="30">直近1か月</option>
+    <option value="60">直近2か月</option>
+    <option value="90" selected>直近3か月</option>
+    <option value="180">直近6か月</option>
+  </select>
+  <button class="go" onclick="window.print()">🖨 印刷 / PDF</button>
+</div>
+<div class="wrap"><div class="sheet" id="sheet"><div class="msg">読み込み中…</div></div></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+if (!token) location.href = '/';
+const QS = new URLSearchParams(location.search);
+function goBack(){ if (history.length > 1) history.back(); else location.href = '/'; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function n1(v){ return (Number(v) % 1 === 0) ? String(Number(v)) : Number(v).toFixed(1); }
+function jdate(s){ if (!s) return '—'; const p = String(s).split('-'); return p[0] + '/' + p[1] + '/' + p[2]; }
+
+// 目安の文言 (targets は {min,max} 形式)
+function tgt(t, unit){
+  if (!t) return '—';
+  if (t.min != null && t.max != null) return t.min + '〜' + t.max + unit;
+  if (t.max != null) return t.max + unit + '未満';
+  return t.min + unit + '以上';
+}
+// 平均が目安から外れているか
+function judge(v, t){
+  if (!t) return '';
+  if (t.max != null && v > t.max) return 'high';
+  if (t.min != null && v < t.min) return 'low';
+  return '';
+}
+
+const ROWS = [
+  ['kcal',    'エネルギー',   'kcal', 'kcal'],
+  ['protein', 'たんぱく質',   'g',    'protein'],
+  ['fat',     '脂質',         'g',    'fat'],
+  ['carbs',   '炭水化物',     'g',    'carbs'],
+  ['sugar',   '　うち糖質（炭水化物−食物繊維）', 'g', null],
+  ['fiber',   '食物繊維',     'g',    'fiber'],
+  ['veg',     '野菜',         'g',    'veg'],
+  ['ca',      'カルシウム',   'mg',   'ca'],
+  ['salt',    '食塩相当量',   'g',    'salt'],
+];
+const OVER_LABEL = {
+  salt: '食塩が目安超過', kcal_high: 'エネルギー超過', kcal_low: 'エネルギー不足',
+  fat_high: '脂質が目安超過', fiber_low: '食物繊維が目安未満', veg_low: '野菜が目安未満', ca_low: 'カルシウムが目安未満',
+};
+const MEAL_JA = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食', '(未設定)': '区分なし' };
+const SRC_JA = { homemade: '手料理', conbini: 'コンビニ・スーパー', eatout: '外食・配達弁当', '(未設定)': '未選択' };
+
+async function load(){
+  const days = document.getElementById('days').value;
+  const uid = QS.get('user_id');
+  const url = '/api/food-report/doctor?days=' + days + (uid ? ('&user_id=' + encodeURIComponent(uid)) : '');
+  const el = document.getElementById('sheet');
+  el.innerHTML = '<div class="msg">読み込み中…</div>';
+  let d;
+  try {
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 401) { location.href = '/'; return; }
+    d = await r.json();
+  } catch (e) { el.innerHTML = '<div class="msg">通信エラー: ' + esc(e.message || e) + '</div>'; return; }
+  if (!d || !d.success) { el.innerHTML = '<div class="msg">' + esc((d && d.msg) || '取得できませんでした') + '</div>'; return; }
+  if (!d.meal_count) { el.innerHTML = '<div class="msg">この期間の食事記録がありません。期間を広げてお試しください。</div>'; return; }
+  el.innerHTML = render(d);
+}
+
+function render(d){
+  const p = d.person, T = d.targets, A = d.avg;
+  const today = new Date();
+  const stamp = today.getFullYear() + '/' + String(today.getMonth()+1).padStart(2,'0') + '/' + String(today.getDate()).padStart(2,'0');
+
+  // 本人情報
+  const bits = [];
+  if (p.age != null) bits.push('<span class="k">年齢</span><b>' + p.age + '歳</b>');
+  if (p.sex) bits.push('<span class="k">性別</span><b>' + (p.sex === 'male' ? '男性' : '女性') + '</b>');
+  if (p.height_cm) bits.push('<span class="k">身長</span><b>' + n1(p.height_cm) + 'cm</b>');
+  if (p.weight_kg) bits.push('<span class="k">体重</span><b>' + n1(p.weight_kg) + 'kg</b>');
+
+  // 栄養の表
+  const rows = ROWS.map(function(r){
+    const key = r[0], label = r[1], unit = r[2], tk = r[3];
+    const t = tk ? T[tk] : null;
+    const v = A[key];
+    const j = judge(v, t);
+    const mark = !t ? '' : (j === 'high' ? '<span class="flag">↑ 多い</span>' : (j === 'low' ? '<span class="flag">↓ 少ない</span>' : '<span class="ok">範囲内</span>'));
+    return '<tr class="' + (j ? 'bad' : '') + '"><td class="l">' + label + '</td>'
+      + '<td class="n"><b>' + n1(v) + '</b> ' + unit + '</td>'
+      + '<td class="n">' + (t ? tgt(t, unit) : '—') + '</td>'
+      + '<td>' + mark + '</td></tr>';
+  }).join('');
+
+  // 目安を外れた食事の件数
+  const overRows = Object.keys(OVER_LABEL).filter(k => d.over[k] > 0)
+    .sort((a,b) => d.over[b] - d.over[a])
+    .map(k => '<tr><td class="l">' + OVER_LABEL[k] + '</td><td class="n"><b>' + d.over[k] + '</b> / ' + d.meal_count + ' 食</td>'
+      + '<td class="n">' + Math.round(100 * d.over[k] / d.meal_count) + '%</td></tr>').join('');
+
+  // 記録の内訳
+  const mt = Object.keys(d.meal_types).map(k => (MEAL_JA[k] || k) + ' ' + d.meal_types[k]).join('／');
+  const sc = Object.keys(d.sources).map(k => (SRC_JA[k] || k) + ' ' + d.sources[k]).join('／');
+  const cf = d.confidence || {};
+  const cfTxt = ['lv3','lv2','lv1'].filter(k => cf[k]).map(k => ({lv3:'成分表示・基準物あり',lv2:'定番料理',lv1:'目視推定'})[k] + ' ' + cf[k] + '件').join('／');
+
+  // 血圧
+  const bpBlock = d.bp ? ('<h3>血圧（同期間・本人記録）</h3><div class="kv">'
+      + '<div><span>測定回数</span><b>' + d.bp.n + '回</b></div>'
+      + '<div><span>平均</span><b>' + d.bp.sys + ' / ' + d.bp.dia + ' mmHg</b></div>'
+      + '<div><span>最終測定</span>' + jdate(d.bp.last) + '</div></div>') : '';
+
+  // 日別（食塩・糖質の多い日が分かるよう全日を載せる。多い場合は直近40日）
+  const dl = d.daily.slice(-40);
+  const dRows = dl.map(x => '<tr><td class="l">' + jdate(x.date) + '</td><td class="n">' + x.n + '</td>'
+    + '<td class="n">' + x.kcal + '</td><td class="n">' + n1(x.salt) + '</td><td class="n">' + n1(x.sugar) + '</td>'
+    + '<td class="n">' + (x.alc ? n1(x.alc) : '—') + '</td></tr>').join('');
+
+  return ''
+  + '<div class="hd"><div><h2>食事傾向シート</h2>'
+  +   '<div class="sub">' + jdate(d.period.from) + ' 〜 ' + jdate(d.period.to) + '（' + d.days + '日間）</div></div>'
+  +   '<div class="sub" style="text-align:right">作成日 ' + stamp + '<br>' + esc(p.name) + ' 様</div></div>'
+  + (bits.length ? '<div class="who">' + bits.join('') + '</div>' : '')
+
+  + '<div class="note"><b>この資料の性質について（ご確認ください）</b><br>'
+  +   '・数値は<b>本人がスマートフォンで撮影した食事写真から推定</b>したものです。実測・秤量ではありません。'
+  +   'パッケージの成分表示が写っている場合はその値を読み取っています（下表「推定の根拠」参照）。<br>'
+  +   '・<b>記録された食事のみ</b>の集計です。記録していない食事・間食・飲料は含まれません（内訳は下表）。<br>'
+  +   '・「目安」は日本人の食事摂取基準2025'
+  +   (T && T.personalized ? '<b>を本人の体格（性別・身長・体重・年齢）で個別化した1食あたりの値</b>' : 'に基づく一般的な1食あたりの値（体格未登録のため全員共通値）')
+  +   'です。診断・治療の基準ではありません。</div>'
+
+  + '<h3>1食あたりの平均（記録' + d.meal_count + '食 / ' + d.days_logged + '日）</h3>'
+  + '<table><thead><tr><th class="l">項目</th><th>平均</th><th>目安（1食）</th><th>判定</th></tr></thead><tbody>' + rows + '</tbody></table>'
+
+  + (overRows ? ('<h3>目安を外れた食事の頻度</h3>'
+      + '<table><thead><tr><th class="l">内容</th><th>件数</th><th>割合</th></tr></thead><tbody>' + overRows + '</tbody></table>') : '')
+
+  + '<div class="two">'
+  +   '<div><h3>記録の内訳</h3><div class="kv">'
+  +     '<div><span>食事区分</span>' + esc(mt || '—') + '</div>'
+  +     '<div><span>入手元</span>' + esc(sc || '—') + '</div>'
+  +     '<div><span>推定の根拠</span>' + esc(cfTxt || '—') + '</div>'
+  +   '</div></div>'
+  +   '<div><h3>飲酒（純アルコール換算）</h3><div class="kv">'
+  +     '<div><span>飲酒した日</span><b>' + d.alcohol.days + '日</b> / 記録' + d.days_logged + '日</div>'
+  +     '<div><span>期間合計</span>' + n1(d.alcohol.total_g) + ' g</div>'
+  +     '<div><span>飲酒日の平均</span><b>' + n1(d.alcohol.per_drink_day) + ' g/日</b></div>'
+  +   '</div></div>'
+  + '</div>'
+  + bpBlock
+
+  + '<h3>日別の記録' + (d.daily.length > 40 ? '（直近40日）' : '') + '</h3>'
+  + '<table><thead><tr><th class="l">日付</th><th>食数</th><th>エネルギー<br>kcal</th><th>食塩<br>g</th><th>糖質<br>g</th><th>純アルコール<br>g</th></tr></thead><tbody>' + dRows + '</tbody></table>'
+
+  + '<div class="foot"><span>CoWell 食事傾向シート／記録は本人が任意で登録したものです</span>'
+  +   '<span>© ビズテラス株式会社</span></div>';
+}
+load();
+</script>
+</body>
+</html>
