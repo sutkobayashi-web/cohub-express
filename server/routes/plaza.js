@@ -420,11 +420,15 @@ router.get('/posts', authUser, (req, res) => {
 });
 
 // 投稿
-router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) => {
+router.post('/posts', authUser, plazaUpload.array('image', 5), async (req, res) => {
   const category = String((req.body && req.body.category) || '').trim();
   if (!CATEGORIES.includes(category)) return res.status(400).json({ success: false, msg: 'カテゴリ不正' });
   const content = String((req.body && req.body.content) || '').slice(0, MAX_CONTENT).trim();
-  const imageUrl = req.file ? '/uploads/plaza/' + req.file.filename : null;
+  // 複数枚対応: 1枚目を image_url (既存の表示/互換用)、全枚を image_urls(JSON) に保存
+  const upFiles = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+  const imageUrls = upFiles.map(f => '/uploads/plaza/' + f.filename);
+  const imageUrl = imageUrls.length ? imageUrls[0] : null;
+  const imageUrlsJson = imageUrls.length > 1 ? JSON.stringify(imageUrls) : null;
   if (!content && !imageUrl) return res.status(400).json({ success: false, msg: '本文または画像が必要' });
   const isAnonymous = (req.body && (req.body.is_anonymous === '1' || req.body.is_anonymous === 'true')) ? 1 : 0;
   // 食事区分 (朝食/昼食/夕食/おやつ)。おやつはAI評価で「一食」でなく「間食」として扱う。
@@ -440,10 +444,10 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   // CoWell 互換フォーマット ({calories:{value,unit}, protein:{value,unit}, ... confidence:{level,reason}}) で保存
   let nutritionScores = null;
   let aiComment = null;
-  if (category === '食事' && req.file) {
-    console.log('[plaza] AI analysis start: file=' + req.file.filename + ' mime=' + req.file.mimetype);
+  if (category === '食事' && upFiles.length) {
+    console.log('[plaza] AI analysis start: files=' + upFiles.length + ' ' + upFiles.map(f => f.filename).join(','));
     try {
-      const buf = fs.readFileSync(req.file.path);
+      const buf = upFiles.map(f => ({ buffer: fs.readFileSync(f.path), mimeType: f.mimetype }));
       // 過去7日の食事ログを収集 (CoHub plaza_posts + CoWell Classic ミラー cw_posts)
       const recentMeals = collectRecentMeals(req.uid);
       console.log('[plaza] recent meals for trend:', recentMeals.length);
@@ -453,7 +457,7 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
       const _bw = _db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};
       const foodTargets = computeNutritionTargets({ sex: _bu.sex, height_cm: _bu.height_cm, weight_kg: _bw.weight_kg, age: ageFromBirth(_bu.birth_date), pal: _bu.activity_pal });
       console.log('[plaza] targets personalized=' + foodTargets.personalized);
-      const r = await analyzeFoodImage(buf, req.file.mimetype, content, recentMeals, foodTargets, mealType, foodSource);
+      const r = await analyzeFoodImage(buf, upFiles[0].mimetype, content, recentMeals, foodTargets, mealType, foodSource);
       if (r && typeof r === 'object') {
         // 5セクション形式 (good/bad/improve/trend/try) を結合保存
         // 旧形式 (comment_nutrition/comment_health/comment) もフォールバック
@@ -481,8 +485,8 @@ router.post('/posts', authUser, plazaUpload.single('image'), async (req, res) =>
   }
 
   const db = getDb();
-  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, nutrition_scores, ai_comment, is_anonymous, meal_type, food_source)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, nutritionScores, aiComment, isAnonymous, mealType, foodSource);
+  const ins = db.prepare(`INSERT INTO plaza_posts (author_id, category, content, image_url, image_urls, nutrition_scores, ai_comment, is_anonymous, meal_type, food_source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(req.uid, category, content, imageUrl, imageUrlsJson, nutritionScores, aiComment, isAnonymous, mealType, foodSource);
   const post = db.prepare(`SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company, u.nickname AS author_nickname
                            FROM plaza_posts p LEFT JOIN users u ON u.id = p.author_id WHERE p.id = ?`).get(ins.lastInsertRowid);
   post.kind = 'plaza';
@@ -863,7 +867,7 @@ router.post('/posts/:id/rediagnose', authUser, express.json(), async (req, res) 
 router.post('/posts/:id/clarify', authUser, express.json(), async (req, res) => {
   try {
     const db = getDb();
-    const post = db.prepare("SELECT id, author_id, category, content, image_url, nutrition_scores, meal_type, food_source FROM plaza_posts WHERE id = ? AND deleted_at IS NULL").get(req.params.id);
+    const post = db.prepare("SELECT id, author_id, category, content, image_url, image_urls, nutrition_scores, meal_type, food_source FROM plaza_posts WHERE id = ? AND deleted_at IS NULL").get(req.params.id);
     if (!post) return res.status(404).json({ success: false, msg: '投稿が見つかりません' });
     if (post.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人の投稿のみ対象です' });
     if (post.category !== '食事' || !post.image_url) return res.status(400).json({ success: false, msg: '写真のある食事投稿のみ対象です' });
@@ -875,12 +879,23 @@ router.post('/posts/:id/clarify', authUser, express.json(), async (req, res) => 
       .slice(0, 3);
     if (!answers.length) return res.status(400).json({ success: false, msg: '回答がありません' });
     // 画像を読む (image_url = /uploads/plaza/xxx)
-    const rel = String(post.image_url).replace(/^\/+/, '');
-    if (!/^uploads\/plaza\/[\w.\-]+$/.test(rel)) return res.status(400).json({ success: false, msg: '画像を特定できません' });
-    const abs = path.join(__dirname, '..', '..', rel);
-    if (!fs.existsSync(abs)) return res.status(400).json({ success: false, msg: '画像が見つかりません' });
-    const buf = fs.readFileSync(abs);
-    const mime = /\.png$/i.test(abs) ? 'image/png' : (/\.webp$/i.test(abs) ? 'image/webp' : 'image/jpeg');
+    // 複数枚あれば全部渡す
+    let urls = [post.image_url];
+    try { const a = post.image_urls ? JSON.parse(post.image_urls) : null; if (Array.isArray(a) && a.length) urls = a; } catch (e) {}
+    const imgs = [];
+    for (const u of urls) {
+      const rel = String(u || '').replace(/^\/+/, '');
+      if (!/^uploads\/plaza\/[\w.\-]+$/.test(rel)) continue;
+      const abs = path.join(__dirname, '..', '..', rel);
+      if (!fs.existsSync(abs)) continue;
+      imgs.push({
+        buffer: fs.readFileSync(abs),
+        mimeType: /\.png$/i.test(abs) ? 'image/png' : (/\.webp$/i.test(abs) ? 'image/webp' : 'image/jpeg'),
+      });
+    }
+    if (!imgs.length) return res.status(400).json({ success: false, msg: '画像が見つかりません' });
+    const buf = imgs;
+    const mime = imgs[0].mimeType;
     // 本人の個別目標
     const bu = db.prepare('SELECT sex, height_cm, activity_pal, birth_date FROM users WHERE id = ?').get(req.uid) || {};
     const bw = db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};

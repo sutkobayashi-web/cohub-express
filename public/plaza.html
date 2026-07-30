@@ -74,6 +74,20 @@ body { padding-bottom: 80px !important; }
 .ai-tip.show { display: block; }
 .ai-tip b { color: #92400e; }
 /* 食事モード: 大きな写真CTA (撮影/選択を一発で) */
+/* 複数枚撮影 (最大5枚) */
+.shots { display: none; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.composer.is-food .shots.on { display: flex; }
+.shot { position: relative; width: 84px; height: 84px; border-radius: 12px; overflow: hidden; border: 2px solid #a7f3d0; background: #f0fdf4; }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shot .rm { position: absolute; top: 2px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(15,23,42,.72); color: #fff; font-size: 15px; font-weight: 900; line-height: 1; cursor: pointer; }
+.shot .no { position: absolute; bottom: 0; left: 0; padding: 1px 6px; background: rgba(15,23,42,.72); color: #fff; font-size: 11px; font-weight: 800; border-radius: 0 8px 0 0; }
+.shot-acts { display: none; gap: 8px; margin: 0 0 12px; }
+.composer.is-food .shot-acts.on { display: flex; }
+.shot-add { flex: 1; padding: 13px 10px; border-radius: 14px; border: 2px solid #0d9488; background: #fff; color: #0f766e; font-family: inherit; font-size: 14.5px; font-weight: 900; cursor: pointer; }
+.shot-add:disabled { border-color: #cbd5e1; color: #94a3b8; }
+.shot-end { flex: 1; padding: 13px 10px; border-radius: 14px; border: none; background: #0d9488; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(13,148,136,.35); }
+.shot-done { display: none; margin: 0 0 12px; padding: 11px 13px; border-radius: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-size: 13px; font-weight: 800; line-height: 1.6; }
+.composer.is-food .shot-done.on { display: block; }
 .food-photo-cta { display: none; width: 100%; padding: 20px 18px; margin: 4px 0 12px; background: linear-gradient(135deg,#0d9488,#10b981); color: #fff; border: none; border-radius: 18px; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 0 6px 18px rgba(13,148,136,0.40); align-items: center; justify-content: center; gap: 12px; transition: transform 0.1s, box-shadow 0.2s; text-align: left; }
 .food-photo-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(13,148,136,0.5); }
 .food-photo-cta:active { transform: translateY(0); }
@@ -100,7 +114,7 @@ body { padding-bottom: 80px !important; }
 .cmp-meal-btn { flex: 1 1 auto; padding: 12px 6px; border: 2px solid #f59e0b; background: #fff; color: #92400e; border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit; transition: transform .08s, box-shadow .12s; }
 .cmp-meal-btn:active { transform: scale(0.96); }
 .cmp-meal-btn.on { background: #d97706; color: #fff; border-color: #b45309; box-shadow: 0 3px 10px rgba(217,119,6,0.45); }
-/* 食事の入手元ピッカー: 食事モードの時だけ表示 (外食/自炊/コンビニ) */
+/* 食事の入手元ピッカー: 食事モードの時だけ表示 (手料理/コンビニ・スーパー購入/外食) */
 #cmp-src-picker { display: none; margin-bottom: 10px; }
 .composer.is-food #cmp-src-picker { display: block; }
 #cmp-src-picker .mp-label { font-size: 13px; font-weight: 800; color: #0f766e; margin-bottom: 8px; }
@@ -157,6 +171,10 @@ body { padding-bottom: 80px !important; }
 .cat-bdg.健康Tips { background: #ecfdf5; color: #047857; }
 .post-content { font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; }
 .post-image { margin-top: 10px; max-width: 100%; max-height: 480px; border-radius: 14px; cursor: pointer; }
+/* 2枚目以降 (成分表示ラベルや品数が多いときの追加写真) */
+.post-subimgs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.post-subimgs img { width: 74px; height: 74px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer; }
+.post-imgcount { font-size: 11.5px; font-weight: 800; color: #64748b; margin-top: 5px; }
 .del-btn { background: transparent; border: none; color: #cbd5e1; font-size: 16px; cursor: pointer; padding: 4px 8px; }
 .del-btn:hover { color: #ef4444; }
 
@@ -494,11 +512,11 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         </div>
       </div>
       <div id="cmp-src-picker">
-        <div class="mp-label">🛒 どこで食べた（買った）？（選ぶと助言が変わります）</div>
+        <div class="mp-label">🛒 どれですか？（選ぶと助言が変わります）</div>
         <div class="mp-btns">
+          <button type="button" class="cmp-src-btn" data-src="homemade">🍳 手料理</button>
+          <button type="button" class="cmp-src-btn" data-src="conbini">🏪 コンビニ・スーパー</button>
           <button type="button" class="cmp-src-btn" data-src="eatout">🍽️ 外食</button>
-          <button type="button" class="cmp-src-btn" data-src="homemade">🍳 自炊</button>
-          <button type="button" class="cmp-src-btn" data-src="conbini">🏪 コンビニ</button>
         </div>
       </div>
       <a class="menu-link" href="/menu-plan.html?v=mp1"><img class="ml-face" src="/assets/calorie/_advisor_face.jpg?v=cal2" alt="ヘルス"><span class="ml-txt"><b>何を食べようか？</b><small>今日の献立を一緒に決めましょう</small></span><span class="arw">→</span></a>
@@ -526,9 +544,15 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <img id="cmp-preview-img" class="preview-img">
         <button class="preview-clear" onclick="clearImage()">×</button>
       </div>
+      <div class="shots" id="shots"></div>
+      <div class="shot-acts" id="shot-acts">
+        <button type="button" class="shot-add" id="shot-add" onclick="document.getElementById('cmp-file').click()">📷 もう1枚追加</button>
+        <button type="button" class="shot-end" onclick="endShooting()">✅ 撮影を終わる</button>
+      </div>
+      <div class="shot-done" id="shot-done"></div>
       <div class="composer-bar">
         <button class="btn-icon" onclick="document.getElementById('cmp-file').click()" title="写真を追加">📷</button>
-        <input type="file" id="cmp-file" accept="image/*" capture="environment" style="display:none;" onchange="onPickImage(event)">
+        <input type="file" id="cmp-file" accept="image/*" multiple style="display:none;" onchange="onPickImage(event)">
         <label class="anon-toggle" title="本名ではなくニックネームで投稿します。投稿者本人だけは自分の投稿として閲覧/削除できます">
           <input type="checkbox" id="cmp-anon" checked> <span>🎭 ニックネームで投稿</span>
         </label>
@@ -589,7 +613,7 @@ function showEitaro() {
 
 let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
 let me = null;
-let _imageFile = null;
+
 let _curCat = '雑談';
 // 食事区分 (朝食/昼食/夕食/おやつ)。時間帯から既定を推測し、ユーザーがタップで変更。おやつは間食として評価。
 const MEAL_LABELS = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: 'おやつ' };
@@ -603,14 +627,14 @@ document.addEventListener('click', function (e) {
   _paintMeal();
 });
 try { _paintMeal(); } catch (e) {}  // 既定(時間帯推測)を初期ハイライト
-// 食事の入手元 (外食/自炊/コンビニ)。既定は未選択(選ぶと助言が入手元向けに変わる)。
-const SRC_LABELS = { eatout: '外食', homemade: '自炊', conbini: 'コンビニ' };
-const SRC_EMOJI = { eatout: '🍽️', homemade: '🍳', conbini: '🏪' };
+// 食事の入手元 (手料理/コンビニ・スーパー購入/外食)。既定は未選択(選ぶと助言が入手元向けに変わる)。
+const SRC_LABELS = { homemade: '手料理', conbini: 'コンビニ・スーパー', eatout: '外食' };
+const SRC_EMOJI = { homemade: '🍳', conbini: '🏪', eatout: '🍽️' };
 let _curSrc = '';
 function _paintSrc() {
   document.querySelectorAll('.cmp-src-btn').forEach(b => b.classList.toggle('on', b.dataset.src === _curSrc));
   // コンビニ/外食で「成分表示も撮って」を出す。成分表示が読めれば推定でなく実測値になる。
-  // ⚠️ 自炊にはラベルが無いので出さない (代わりに基準物のコツが効く)。
+  // ⚠️ 手料理にはラベルが無いので出さない (代わりに基準物のコツが効く)。
   const tip = document.getElementById('shot-tip');
   if (tip) tip.classList.toggle('src-conbini', _curSrc === 'conbini' || _curSrc === 'eatout');
 }
@@ -1514,19 +1538,68 @@ async function loadEvents() {
 
 document.getElementById('cmp-text').addEventListener('input', e => { document.getElementById('cmp-count').textContent = e.target.value.length; });
 
+// ===== 複数枚撮影 (2026-07-30) =====
+// 1食を複数枚(商品+成分表示ラベル、品数が多い場合)に分けて撮れる。最大5枚。
+const SHOT_MAX = 5;
+var _shots = [];        // File の配列
+var _shotEnded = false; // 「撮影を終わる」を押したか
 function onPickImage(ev) {
-  const f = ev.target.files[0];
-  if (!f) return;
-  if (f.size > 10 * 1024 * 1024) { alert('10MB以下'); return; }
-  _imageFile = f;
-  const reader = new FileReader();
-  reader.onload = e => { document.getElementById('cmp-preview-img').src = e.target.result; document.getElementById('cmp-preview').style.display = 'inline-block'; };
-  reader.readAsDataURL(f);
-  document.getElementById('composer').classList.add('has-image');
+  const files = Array.prototype.slice.call(ev.target.files || []);
+  ev.target.value = '';            // 同じファイルを続けて選べるように毎回クリア
+  if (!files.length) return;
+  for (const f of files) {
+    if (_shots.length >= SHOT_MAX) { alert('写真は' + SHOT_MAX + '枚までです'); break; }
+    if (f.size > 10 * 1024 * 1024) { alert('10MB以下にしてください: ' + (f.name || '')); continue; }
+    _shots.push(f);
+  }
+  _shotEnded = false;
+  paintShots();
+}
+function removeShot(i) { _shots.splice(i, 1); _shotEnded = false; paintShots(); }
+function endShooting() {
+  if (!_shots.length) return;
+  _shotEnded = true;
+  paintShots();
+  const t = document.getElementById('cmp-text');
+  if (t) t.focus();
+}
+function paintShots() {
+  const box = document.getElementById('shots');
+  const acts = document.getElementById('shot-acts');
+  const done = document.getElementById('shot-done');
+  const comp = document.getElementById('composer');
+  const n = _shots.length;
+  // サムネ
+  box.innerHTML = '';
+  _shots.forEach(function (f, i) {
+    const d = document.createElement('div');
+    d.className = 'shot';
+    d.innerHTML = '<span class="no">' + (i + 1) + '</span><button type="button" class="rm" onclick="removeShot(' + i + ')">×</button>';
+    const img = document.createElement('img');
+    const rd = new FileReader();
+    rd.onload = function (e) { img.src = e.target.result; };
+    rd.readAsDataURL(f);
+    d.appendChild(img);
+    box.appendChild(d);
+  });
+  box.classList.toggle('on', n > 0);
+  // 撮影中は「もう1枚 / 終わる」、締めたら添付の確認文
+  acts.classList.toggle('on', n > 0 && !_shotEnded);
+  document.getElementById('shot-add').disabled = n >= SHOT_MAX;
+  document.getElementById('shot-add').textContent = n >= SHOT_MAX ? ('📷 ' + SHOT_MAX + '枚まで') : '📷 もう1枚追加';
+  done.classList.toggle('on', n > 0 && _shotEnded);
+  if (n > 0 && _shotEnded) {
+    done.innerHTML = '✅ 写真<b>' + n + '枚</b>を添付しました。内容を確認して［投稿］を押してください。'
+      + '<br><span style="font-weight:700;color:#0f766e;">追加したいときは下の 📷 からもう1枚選べます。</span>';
+  }
+  comp.classList.toggle('has-image', n > 0);
+  // 旧1枚プレビューは使わない
+  document.getElementById('cmp-preview').style.display = 'none';
 }
 function clearImage() {
-  _imageFile = null;
+  _shots = []; _shotEnded = false;
   document.getElementById('cmp-file').value = '';
+  paintShots();
   document.getElementById('cmp-preview').style.display = 'none';
   document.getElementById('composer').classList.remove('has-image');
 }
@@ -1535,10 +1608,10 @@ async function submitPost() {
   const errEl = document.getElementById('cmp-err');
   errEl.textContent = '';
   const text = document.getElementById('cmp-text').value.trim();
-  if (!text && !_imageFile) { errEl.textContent = '本文か画像を入力してください'; return; }
-  if (_curCat === '食事' && !_imageFile && !text) { errEl.textContent = '食事カテゴリは写真付きをおすすめ'; return; }
+  if (!text && !_shots.length) { errEl.textContent = '本文か画像を入力してください'; return; }
+  if (_curCat === '食事' && !_shots.length && !text) { errEl.textContent = '食事カテゴリは写真付きをおすすめ'; return; }
   const btn = document.getElementById('cmp-submit');
-  const isAI = _curCat === '食事' && _imageFile;
+  const isAI = _curCat === '食事' && _shots.length > 0;
   btn.disabled = true; btn.textContent = isAI ? '🧠 AI分析中…' : '投稿中…';
   try {
     const fd = new FormData();
@@ -1547,7 +1620,7 @@ async function submitPost() {
     if (_curCat === '食事') fd.append('meal_type', _curMeal);
     if (_curCat === '食事' && _curSrc) fd.append('food_source', _curSrc);
     if (document.getElementById('cmp-anon').checked) fd.append('is_anonymous', '1');
-    if (_imageFile) fd.append('image', _imageFile);
+    for (const f of _shots) fd.append('image', f);   // 同名で複数 = サーバー側は array で受ける
     const r = await fetch('/api/plaza/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
     if (!r.ok) {
       let msg = 'HTTP ' + r.status;
@@ -1563,7 +1636,7 @@ async function submitPost() {
     _curSrc = ''; try { _paintSrc(); } catch (e) {}   // 入手元の選択をリセット
     clearImage();
     // 食事+AI が成功してれば nutrition_scores が入っている
-    if (_curCat === '食事' && _imageFile && !d.post.nutrition_scores) {
+    if (_curCat === '食事' && _shots.length && !d.post.nutrition_scores) {
       errEl.style.color = '#b45309';
       errEl.textContent = '⚠ AI栄養分析に失敗しました(投稿は保存済)。画像が食事と認識されなかった可能性。';
       setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#dc2626'; }, 6000);
@@ -1899,7 +1972,19 @@ function postHtml(p) {
       (ct ? `<span class="ct">${ct}</span>` : '') +
       `</button>`;
   }).join('');
-  const img = p.image_url ? `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">` : '';
+  // 複数枚 (image_urls) があれば 1枚目を大きく、残りをサムネで並べる
+  let _urls = [];
+  try { const a = typeof p.image_urls === 'string' ? JSON.parse(p.image_urls) : p.image_urls; if (Array.isArray(a)) _urls = a.filter(Boolean); } catch (e) {}
+  if (!_urls.length && p.image_url) _urls = [p.image_url];
+  const img = _urls.length
+    ? `<img class="post-image" src="${escapeHtml(_urls[0])}" onclick="openImgModal('${escapeHtml(_urls[0])}')">`
+      + (_urls.length > 1
+        ? `<div class="post-imgcount">📷 写真 ${_urls.length}枚（1食ぶんをまとめて分析）</div>`
+          + '<div class="post-subimgs">'
+          + _urls.slice(1).map(u => `<img src="${escapeHtml(u)}" onclick="openImgModal('${escapeHtml(u)}')">`).join('')
+          + '</div>'
+        : '')
+    : '';
   const delBtn = p.can_delete ? `<button class="del-btn" onclick="deletePost(${p.id})" title="削除">🗑</button>` : '';
   const cnt = p.comment_count || 0;
   const isArchive = p.kind === 'archive';

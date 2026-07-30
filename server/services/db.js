@@ -37,8 +37,16 @@ function getDb() {
   // 職種 (driver/warehouse/office/construction/manufacturing) — enroll登録時の細分化 (2026-05-08)
   // employee_type(office/field/admin) は権限軸として温存し、職種は別軸で管理
   ensureColumn(_db, 'users', 'job_role', 'job_role TEXT');
+  ensureColumn(_db, 'users', 'lang', 'lang TEXT');  // 表示言語(ja/en/pt) 2026-07-09
+  // からだの情報 — 食事栄養診断の個別化(性別・身長・活動レベル)。体重は user_activity_prefs.weight_kg を再利用 (2026-07-17)
+  ensureColumn(_db, 'users', 'sex', 'sex TEXT');
+  ensureColumn(_db, 'users', 'height_cm', 'height_cm REAL');
+  ensureColumn(_db, 'users', 'activity_pal', 'activity_pal REAL');
   // タブレットキオスク用4桁PIN (bcryptハッシュ)。NULL=未設定。事務所設置タブレットからログイン (2026-05-12)
   ensureColumn(_db, 'users', 'tablet_pin_hash', 'tablet_pin_hash TEXT');
+  // 4桁PIN総当たり対策のロック状態をDB永続化 (旧: プロセス内メモリで再起動消失。2026-06-24)
+  ensureColumn(_db, 'users', 'tablet_pin_fail_count', 'tablet_pin_fail_count INTEGER DEFAULT 0');
+  ensureColumn(_db, 'users', 'tablet_pin_lock_until', 'tablet_pin_lock_until INTEGER');
   // ヘルスリテラシー調査 (2026-05-09): 西村さん依頼。CCHL 5項目4段階尺度
   // q1〜q5 は 1=全くできない / 2=あまりできない / 3=どちらともいえない / 4=とてもそう思う
   _db.exec(`CREATE TABLE IF NOT EXISTS health_literacy (
@@ -283,6 +291,8 @@ function getDb() {
       ['IBA_KASHIMA', 'IBA鹿島',  '茨運(鹿島)'],
       ['IBA_SANWA',   'IBA三和',  '茨運(三和)'],
       ['SUZUE',       'スズエ',   'スズエ電機'],
+      // 2026-07-07: スズエ電機を2拠点(工場)に分割。既存SUZUEは豊田工場、天竜工場は新設(SUZUE_TENRYU)。
+      ['SUZUE',       'スズエ電機', 'スズエ電機 豊田工場'],
     ];
     const updCompany = _db.prepare('UPDATE companies SET name = ? WHERE code = ? AND name != ?');
     const updGroup   = _db.prepare("UPDATE chat_groups SET name = ? WHERE name = ? AND category = 'branch'");
@@ -400,48 +410,48 @@ function getDb() {
     if (!_db.prepare('SELECT COUNT(*) c FROM appr_roles').get().c) {
       // 役職階層 (rank昇順=承認順)。office_specific=1 は営業所別(MGR=所長)
       const roles = [
-        ['KCH','課長',1,0],['MGR','所長',2,1],['ADM','管理課長',3,0],['BRM','支社長',4,0],
-        ['EXE','執行役員',5,0],['HOB','事業本部長',6,0],['HQA','経営管理本部長',7,0],['SVP','専務',8,0],['PRES','社長',9,0],
+        ['KCH','課長',1,0],['MGR','所長',2,1],['MBD','管理部長',3,0],['DIR','取締役',4,0],
+        ['HOB','事業本部長',6,0],['HQA','経営管理本部長',7,0],['SVP','専務取締役',8,0],['PRES','代表取締役社長',9,0],
       ];
       const ir = _db.prepare('INSERT INTO appr_roles (code,name,rank,office_specific) VALUES (?,?,?,?)');
       roles.forEach(r => ir.run(...r));
       // 役職→担当者(login_id) ※PDFユーザーマスタより。MGRは営業所別(CoHub company_code)。空営業所/役職は管理画面で割当。
       const asg = [
         ['PRES','ALL','taketake'],['SVP','ALL','chikara'],['HQA','ALL','y_gotoh'],
-        ['HOB','ALL','y_okada'],['ADM','ALL','y_yoshizawa'],
+        ['HOB','ALL','y_okada'],['MBD','ALL','y_yoshizawa'],
         ['MGR','SU_HQ','a_yamada'],['MGR','SU_MKANTO','y_aoki'],['MGR','SU_ZAMA','ts_hamamichi'],
         ['MGR','IBA_KASHIMA','t_tsuchiko'],['MGR','IBA_SANWA','e_sugai'],
       ];
       const ia = _db.prepare('INSERT INTO appr_role_assignments (role_code,office_code,user_login_id) VALUES (?,?,?)');
       asg.forEach(a => ia.run(...a));
-      // ルート(決裁基準表 SU・茨運共通)。chain=役職コードを承認順(下位→上位)で。(●)所長不在=支社長 等の代理は省略しBRM/EXE/KCH等未割当ロールは申請時にスキップ。
-      const ALL = 'KCH,MGR,ADM,BRM,EXE,HOB,HQA,SVP,PRES';
+      // ルート(決裁基準表 SU・茨運共通)。chain=役職コードを承認順(下位→上位)で。(●)所長不在=取締役 等の代理は省略しDIR/KCH等未割当ロールは申請時にスキップ。
+      const ALL = 'KCH,MGR,MBD,DIR,HOB,HQA,SVP,PRES';
       const routes = [
-        ['届書(休暇・時間外等)',0,0,'KCH,MGR,ADM'],
-        ['時間外申請',0,0,'KCH,MGR,ADM'],
-        ['人事変更届',0,0,'KCH,MGR,ADM'],
-        ['休日手当支給申請',0,0,'KCH,MGR,ADM'],
-        ['出張申請・旅費清算',0,0,'KCH,MGR,ADM,HQA'],
-        ['慶弔見舞金支払申請',0,0,'KCH,MGR,ADM'],
-        ['事故報告書',0,0,'KCH,MGR,ADM'],
-        ['接待交際費清算',0,0,'KCH,MGR,ADM'],
-        ['取引条件変更(締日等)',0,0,'KCH,MGR,ADM'],
-        ['新規協力会社取引・取引条件変更',0,0,'KCH,MGR,ADM,EXE,HOB,HQA'],
-        ['車検申請',0,0,'KCH,MGR,ADM'],
-        ['タイヤ・バッテリー・シート申請',0,0,'KCH,MGR,ADM,EXE,HOB'],
-        ['車両修理(30万円以下)',0,300000,'KCH,MGR,ADM,EXE,HOB,HQA,SVP'],
+        ['届書(休暇・時間外等)',0,0,'KCH,MGR,MBD'],
+        ['時間外申請',0,0,'KCH,MGR,MBD'],
+        ['人事変更届',0,0,'KCH,MGR,MBD'],
+        ['休日手当支給申請',0,0,'KCH,MGR,MBD'],
+        ['出張申請・旅費清算',0,0,'KCH,MGR,MBD,HQA'],
+        ['慶弔見舞金支払申請',0,0,'KCH,MGR,MBD'],
+        ['事故報告書',0,0,'KCH,MGR,MBD'],
+        ['接待交際費清算',0,0,'KCH,MGR,MBD'],
+        ['取引条件変更(締日等)',0,0,'KCH,MGR,MBD'],
+        ['新規協力会社取引・取引条件変更',0,0,'KCH,MGR,MBD,HOB,HQA'],
+        ['車検申請',0,0,'KCH,MGR,MBD'],
+        ['タイヤ・バッテリー・シート申請',0,0,'KCH,MGR,MBD,HOB'],
+        ['車両修理(30万円以下)',0,300000,'KCH,MGR,MBD,HOB,HQA,SVP'],
         ['車両修理(30万円超)',300001,0,ALL],
         ['車両移動申請',0,0,ALL],
         ['車両購入(新規・代替)',0,0,ALL],
-        ['物品購入・修理(3万円以下)',0,30000,'KCH,MGR,ADM,EXE,HOB'],
-        ['物品購入(3万円超〜5万円)',30001,50000,'KCH,MGR,ADM,EXE,HOB'],
-        ['物品購入(5万円超〜10万円)',50001,100000,'KCH,MGR,ADM,EXE,HOB,HQA,SVP'],
+        ['物品購入・修理(3万円以下)',0,30000,'KCH,MGR,MBD,HOB'],
+        ['物品購入(3万円超〜5万円)',30001,50000,'KCH,MGR,MBD,HOB'],
+        ['物品購入(5万円超〜10万円)',50001,100000,'KCH,MGR,MBD,HOB,HQA,SVP'],
         ['物品購入(10万円超)',100001,0,ALL],
-        ['社員募集広告',0,0,'KCH,MGR,ADM,EXE,HOB,HQA,SVP,PRES'],
+        ['社員募集広告',0,0,'KCH,MGR,MBD,HOB,HQA,SVP,PRES'],
         ['資格取得申請',0,0,ALL],
         ['土地購入等大型投資',0,0,ALL],
         ['社外企業との契約',0,0,ALL],
-        ['稟議(一般)',0,0,'KCH,MGR,ADM,HOB,HQA,SVP,PRES'],
+        ['稟議(一般)',0,0,'KCH,MGR,MBD,HOB,HQA,SVP,PRES'],
       ];
       const irt = _db.prepare("INSERT INTO appr_routes (apply_type,office_code,amount_min,amount_max,chain,priority,active) VALUES (?,?,?,?,?,100,1)");
       routes.forEach(r => irt.run(r[0],'ALL',r[1],r[2],r[3]));
@@ -451,6 +461,8 @@ function getDb() {
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('UNIVERSITY', '大学・研究機関', '#7c3aed')").run();
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('NPO', 'NPO法人', '#0891b2')").run();
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('GUEST', 'ゲスト', '#94a3b8')").run();
+  // スズエ電機 天竜工場 (2026-07-07: 2拠点化。豊田工場=既存SUZUE)
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('SUZUE_TENRYU', 'スズエ電機 天竜工場', '#0d9488')").run();
   // 拠点ごとのWi-Fi情報 (タブレット表示用 — 個人スマホがWi-Fi経由でCoWellへ接続できるよう推進メンバーが入力)
   ensureColumn(_db, 'companies', 'wifi_ssid', 'wifi_ssid TEXT');
   ensureColumn(_db, 'companies', 'wifi_password', 'wifi_password TEXT');
@@ -475,6 +487,10 @@ function getDb() {
   // 聞き取りカード方式 (2026-05-08): 被聞き取り者と構造化回答JSON
   ensureColumn(_db, 'wellness_posts', 'subject_user_id', "subject_user_id TEXT");
   ensureColumn(_db, 'wellness_posts', 'structured_json', "structured_json TEXT");
+  // 点呼POST一括管理 (2026-06-25): 確認/対応の状態。未対応/確認済/対応済
+  ensureColumn(_db, 'wellness_posts', 'ack_status', "ack_status TEXT DEFAULT '未対応'");
+  ensureColumn(_db, 'wellness_posts', 'ack_by', "ack_by TEXT");
+  ensureColumn(_db, 'wellness_posts', 'ack_at', "ack_at TEXT");
   // ============================================================
   // 点呼・朝礼 (2026-05-27): タブレットキオスクで運行管理者が営業所メンバーを1人ずつ記録
   // 点呼=ドライバー(東海電子で点呼/アルコール/免許/血圧 実施済み確認 + 体調聞き取り)
@@ -827,6 +843,7 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_pc_post ON plaza_comments(post_id, created_at);`);
   // 既存DBに is_anonymous 追加 (idempotent migration)
   ensureColumn(_db, 'plaza_posts', 'is_anonymous', 'is_anonymous INTEGER DEFAULT 0');
+  ensureColumn(_db, 'plaza_posts', 'image_urls', 'image_urls TEXT');   // 複数枚撮影 (2026-07-30)
   // イベント (Phase7) — 健康チャレンジ等の「開催中」リスト
   _db.exec(`CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1138,15 +1155,8 @@ function getDb() {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
       .run(OPS_GROUP_ID, '🚛 業務連絡', '🚛', null);
   }
-  // 事業本部グループ (2026-05-23): 経営層+事業推進中核メンバー専用
-  const HQ_GROUP_ID = 'g_jigyo_honbu';
-  const hqExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(HQ_GROUP_ID);
-  if (!hqExists) {
-    _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by, category) VALUES (?, ?, ?, ?, ?)")
-      .run(HQ_GROUP_ID, '🏛 事業本部', '🏛', null, 'hq');
-  } else {
-    _db.prepare("UPDATE chat_groups SET category = 'hq' WHERE id = ? AND (category IS NULL OR category = '')").run(HQ_GROUP_ID);
-  }
+  // 事業本部グループ (2026-05-23 作成) は 2026-07-29 に廃止。
+  // 再作成しないこと (管理部・経営管理部も同日廃止。ここで復活させると削除が無効になる)。
   // メンバー: 推進メンバー + 全管理者を自動加入 (推進系GC両方共通、既加入はスキップ)
   const promoterRows = _db.prepare("SELECT id FROM users WHERE is_field_promoter = 1 OR role = 'admin'").all();
   const memInsert = _db.prepare('INSERT OR IGNORE INTO chat_group_members (group_id, user_id) VALUES (?, ?)');
@@ -1165,15 +1175,7 @@ function getDb() {
   for (const r of opsAdminRows) {
     memInsert.run(OPS_GROUP_ID, r.id);
   }
-  // 事業本部GC: 事業本部所属メンバーのみ (login_idで列挙、未在席ユーザは無視)
-  // 2026-05-27: 濱道(ts_hamamichi)が事業本部所属。池邊と入れ替え(池邊は座間のみに)。
-  const HQ_LOGIN_IDS = ['ts_hamamichi'];
-  const hqUserRows = _db.prepare(
-    `SELECT id FROM users WHERE login_id IN (${HQ_LOGIN_IDS.map(() => '?').join(',')})`
-  ).all(...HQ_LOGIN_IDS);
-  for (const r of hqUserRows) {
-    memInsert.run(HQ_GROUP_ID, r.id);
-  }
+  // 2026-07-29: 事業本部GCの廃止に伴い、HQ_LOGIN_IDS による自動加入は削除 (再追加しないこと)。
   // 営業所カテゴリ自動付与 (idempotent): 旧名(SU*/IBA*/スズエ) + 新実社名(スタンダード運輸*/茨運*/スズエ電機)
   _db.prepare(`UPDATE chat_groups SET category = 'branch'
                WHERE (name LIKE 'SU%' OR name LIKE 'IBA%' OR name = 'スズエ'
@@ -1184,7 +1186,6 @@ function getDb() {
     [OPS_GROUP_ID, 10],
     [WELLNESS_DISC_ID, 30],
     [PROMOTER_GROUP_ID, 40],
-    [HQ_GROUP_ID, 45], // 事業本部: 現場の声(40)と営業所(60〜)の中間
   ];
   for (const [gid, n] of specialOrders) {
     _db.prepare('UPDATE chat_groups SET sort_order = ? WHERE id = ?').run(n, gid);
@@ -1386,6 +1387,7 @@ function getDb() {
   // 承認まで非公開 (報告者本人・所属所長・本社管理職のみ閲覧)。
   // 「報告/コメントの形骸化」対策として 直接原因/根本原因/再発防止策/組織的歯止め を構造化必須化し、提出時にAI見解で採点。
   for (const _t of ['vehicle_accident_reports', 'kbc_accident_reports']) {
+    ensureColumn(_db, _t, 'reporter_id', 'reporter_id TEXT');                         // 報告者uid (製品事故の未公開閲覧可否を自由記述reporter_nameでなくidで判定)
     ensureColumn(_db, _t, 'branch_code', 'branch_code TEXT');                         // 報告者の所属拠点 (承認スコープ)
     ensureColumn(_db, _t, 'direct_cause', 'direct_cause TEXT');                       // 直接原因 (何が起きたか)
     ensureColumn(_db, _t, 'root_cause', 'root_cause TEXT');                           // 根本原因 (なぜ起きたか/なぜなぜ)

@@ -474,7 +474,7 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, ta
     ? '\n## この投稿は【おやつ（間食）】です\nこれは一食（主食＋主菜＋副菜が揃った完全な食事）ではなく「間食」です。**一食としては評価しないこと。**\n- 「野菜がない」「たんぱく質が不足」「一食としてバランスが悪い」など、完全な食事を前提にした指摘はしない。\n- 評価軸は間食として: 量・エネルギー(kcal)・糖分・塩分・脂質・食べる時間帯・一日全体の中での位置づけ。\n- good=間食としての良い選び方/楽しみ方、bad=摂り過ぎ・糖分/塩分など間食で気になる点、improve=より良い間食や量の工夫、try=次の間食の具体案(果物・素焼きナッツ・ヨーグルト等)や摂り方。\n- 文中の呼び方は「一食」でなく「おやつ」「間食」とする。\n'
     : (mealLabel ? `\n## この投稿は【${mealLabel}】です\n${mealLabel}として評価すること。good/bad/improve/try は${mealLabel}の文脈で述べる。\n` : '');
   // 食事の入手元 (外食/自炊/コンビニ)。improve/try の助言を入手元に合わせて「刺さる」具体策にする。
-  const SRC_LABELS = { conbini: 'コンビニ', homemade: '自炊', eatout: '外食' };
+  const SRC_LABELS = { conbini: 'コンビニ・スーパー', homemade: '手料理', eatout: '外食' };
   const srcLabel = SRC_LABELS[foodSource] || '';
   const sourceBlock = foodSource === 'conbini'
     ? '\n## この食事は【コンビニ・スーパー】で買ったものです\n'
@@ -488,7 +488,7 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, ta
       + '- **同じ店で完結する**提案にする。「家で作る」「持参する」を前提にしない。\n'
       + '- 良い選択ができている時は「この選び方は正解」とはっきり認める。\n'
     : foodSource === 'homemade'
-    ? '\n## この食事は【自炊】です\nimprove と try は必ず、次に作る時の"味付け・調理法"の工夫にする。刺さる具体策で: 減塩は「かける→少量つける」「出汁・酢・レモン・生姜・大葉・胡椒で塩を減らす」、揚げる→焼く/蒸す/茹でる、油は小さじで量る、野菜は先に炒めてかさ増し、作り置き/下味冷凍。「自炊してるあなたなら、この一手間で見違える」と努力を認めて後押しする。\n'
+    ? '\n## この食事は【手料理】です\nimprove と try は必ず、次に作る時の"味付け・調理法"の工夫にする。刺さる具体策で: 減塩は「かける→少量つける」「出汁・酢・レモン・生姜・大葉・胡椒で塩を減らす」、揚げる→焼く/蒸す/茹でる、油は小さじで量る、野菜は先に炒めてかさ増し、作り置き/下味冷凍。「手料理をしているあなたなら、この一手間で見違える」と努力を認めて後押しする。\n'
     : foodSource === 'eatout'
     ? '\n## この食事は【外食】です\n'
       + '★この人は店のメニューから選ぶしかない。**作り方の助言は書かない**。\n'
@@ -512,7 +512,20 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, ta
       + '\n→ 栄養価の推定・bad/improve/try・actions は必ずこの回答を反映すること。回答と矛盾する推測は捨てる。'
       + '\n→ 確認済みなので questions は空配列 [] にすること。\n'
     : '';
-  const base64 = Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer;
+  // 画像は1枚(Buffer)でも複数枚([{buffer,mimeType}])でも受ける。複数は同じ一食の写真。
+  const imgs = Array.isArray(imageBuffer)
+    ? imageBuffer.map(x => ({
+        data: Buffer.isBuffer(x.buffer) ? x.buffer.toString('base64') : (Buffer.isBuffer(x) ? x.toString('base64') : x),
+        mimeType: (x && x.mimeType) || mimeType || 'image/jpeg',
+      }))
+    : [{ data: Buffer.isBuffer(imageBuffer) ? imageBuffer.toString('base64') : imageBuffer, mimeType: mimeType || 'image/jpeg' }];
+  const multiBlock = imgs.length > 1
+    ? '\n## 写真が' + imgs.length + '枚あります\n'
+      + '- **すべて同じ一食**の写真です。合計で1食ぶんとして算出すること。**同じ料理を重複して数えない**。\n'
+      + '- 商品の写真と成分表示ラベルの写真が別々に写っている場合は**組み合わせて解釈**し、成分表示の数値を優先する。\n'
+      + '- 商品が複数あってそれぞれにラベルがある場合は**合算**する。\n'
+      + '- 品数が多くて分けて撮られている場合も、1食として合計する。\n'
+    : '';
   const trendBlock = (Array.isArray(recentMeals) && recentMeals.length)
     ? `\n## この投稿者の最近の食事ログ (新しい順、最大7件)\n` +
       recentMeals.slice(0, 7).map(m =>
@@ -525,7 +538,7 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, ta
 国立長寿医療研究センター「栄養改善パック」(2020) およびスマートミール基準に基づき分析。
 ${TGT.personalized ? '★この方の体格に合わせた個別目安で評価します。good/bad/improveは必ずこの個別目安を基準に判断し、bad/improveでは「あなたの体格に合わせた目安より多め/少なめ」のように述べる。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値は解説文に一切書かないこと(体格に触れる時も数値・属性を出さず「あなたに合わせた目安では」と表現)。\n' : ''}${memoBlock}画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
 それ以外は箸/茶碗/手等の基準物から実重量を推定し、食品成分表で算出。
-${mealBlock}${sourceBlock}${clarifyBlock}${trendBlock}
+${mealBlock}${sourceBlock}${multiBlock}${clarifyBlock}${trendBlock}
 ★絶対形式: 純粋なJSON のみ。前置き・コードフェンス・説明文禁止。マークダウン禁止。改行は \\n で。
 
 {"good":"良い点 (120-180字)。具体食材を挙げ、栄養面で何が良いかをポジティブに。","bad":"気になる点 (100-160字)。目安から実際に外れている栄養素を数値根拠つきで1-2点。攻撃的にならず事実を淡々と。★外れが無ければ『特に問題は見つかりませんでした』と正直に書き、指摘を作らない。","improve":"改善点 (120-180字)。今日の食事に対して実行可能な提案。★写真や本人コメントで確認できたことだけを根拠にする。既に控えているものを更に減らせとは言わない。整っている場合は『この形を続けよう』でよい。","trend":"あなたの傾向 (140-200字)。過去ログから読み取れる習慣的な過不足や曜日パターン。データなしなら「記録を続けると傾向が見えてくる」旨。","try":"やってみよう！(100-160字)。次回〜数日内の具体行動。実在する料理名 1-2品 (例: 「ほうれん草のおひたし」「鯖の塩焼き」) で背中を押す。","actions":{"栄養素キー":"全角12字以内の一手"},"questions":[{"id":"短い識別子","q":"全角20字以内の質問","choices":["選択肢1","選択肢2"]}],"calories":{"value":数値,"unit":"kcal"},"protein":{"value":数値,"unit":"g"},"fat":{"value":数値,"unit":"g"},"carbs":{"value":数値,"unit":"g"},"vitamin":{"value":数値,"unit":"g"},"mineral":{"value":数値,"unit":"mg"},"salt":{"value":数値,"unit":"g"},"fiber":{"value":数値,"unit":"g"},"alcohol":{"value":数値,"unit":"g"},"has_alcohol":true,"confidence":{"level":数値,"reason":"理由","reference_object":"検出した基準物 or null"}}
@@ -599,10 +612,7 @@ confidence.reference_object: 実際に使った基準物名 (例「箸」「マ�
   const body = {
     contents: [{
       role: 'user',
-      parts: [
-        { inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } },
-        { text: prompt },
-      ],
+      parts: imgs.map(im => ({ inlineData: { mimeType: im.mimeType, data: im.data } })).concat([{ text: prompt }]),
     }],
     // thinkingBudget=0 で内部 thinking 無効化 (JSON出力のみで思考不要、出力トークン枯渇防止)
     // 2人体制コメント (各260字) + 9栄養素 → 余裕持って 6000
