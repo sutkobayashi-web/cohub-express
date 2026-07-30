@@ -62,11 +62,15 @@
   .ng-name{font-size:18px;font-weight:900;color:#14211c;line-height:1.25}
   .ng-sub{font-size:12.5px;font-weight:700;color:#8b9a93;font-variant-numeric:tabular-nums;margin-top:2px}
   .ng-sub b{font-size:15px;font-weight:900;color:#41514a}
-  .ng-cmt{font-size:14.5px;font-weight:800;line-height:1.35;margin-top:4px}
+  .ng-cmt{font-size:17px;font-weight:900;line-height:1.35;letter-spacing:-.01em;margin-top:3px}
   .ng-fig{text-align:right;white-space:nowrap}
   .ng-dev{font-size:30px;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .ng-dev .u{font-size:17px}
   .ng-state{font-size:13px;font-weight:900;margin-top:3px}
+  .ng-dev.ng-alarm{font-size:35px}
+  @keyframes ngAlarm{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.09);opacity:.68}}
+  .ng-alarm{animation:ngAlarm 1.05s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.ng-alarm{animation:none;text-decoration:underline}}
   .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:11px;border-top:1px solid #eaefe9}
   .ng-chip{font-size:14px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:4px 12px}
   .ng-chip b{color:#0ca30c;font-weight:900}
@@ -176,7 +180,13 @@ var NUT_DEF=[
 ];
 var NG_TAG={in:'適量',plenty:'しっかり',low:'足りない',high:'多い'};
 var NG_GLY={in:'✓',plenty:'✓',low:'◀',high:'▶'};
-var NG_COL=['#0ca30c','#d98411','#cf3b3b'];
+// 色は「向き」で分ける: 不足=青 / 過剰=赤(軽いうちは橙) / 適量=緑。
+// 濃さは外れの大きさ (1=軽い / 2=大きい / 3=大きく外れている=点滅)
+function ngColor(dir,sev){
+  if(!sev) return '#0ca30c';
+  if(dir==='low') return sev>=3?'#1740b8':(sev===2?'#1d63c9':'#3f86d4');
+  return sev>=3?'#b3221f':(sev===2?'#cf3b3b':'#e07b1a');
+}
 // スライダー右に1行で収める長さにする (全角10文字程度まで)
 var NG_HINT={
   kcal:['おにぎり1個ぶん','少し量を減らす'],
@@ -203,7 +213,8 @@ function nutEval(d,v,tgt){
   if(d.type==='max'){ if(v>hi){ dev=(v-hi)/hi; dir='high'; } }
   else if(v<lo){ dev=lo?(lo-v)/lo:0; dir='low'; }
   else if(v>hi){ if(d.type==='min'){ dir='plenty'; } else { dev=(v-hi)/hi; dir='high'; } }
-  var sev=(dir==='low'||dir==='high')?(dev<0.25?1:2):0;
+  // dev 60%以上は「明らかに過剰/不足」= 異常値として点滅させる
+  var sev=(dir==='low'||dir==='high')?(dev<0.25?1:(dev<0.6?2:3)):0;
   return {lo:lo,hi:hi,dir:dir,sev:sev,dev:Math.round(dev*100)};
 }
 function nutTgtText(d,e){
@@ -214,16 +225,17 @@ function nutTgtText(d,e){
 function nutNum(v){ return (v%1===0)?String(v):Number(v).toFixed(1); }
 function nutHint(d,e){ return e.sev===0?'':((NG_HINT[d.k]||['',''])[e.dir==='low'?0:1]||''); }
 function nutRowHtml(r){
-  var d=r.d, e=r.e, c=NG_COL[e.sev], cmt=nutHint(d,e);
+  var d=r.d, e=r.e, c=ngColor(e.dir,e.sev), cmt=nutHint(d,e);
+  var al=e.sev>=3?' ng-alarm':'';
   var fig=e.sev===0?'✓':((e.dir==='high'?'▲':'▼')+e.dev+'<span class="u">%</span>');
   return '<div class="ng-row">'
-    +'<div class="ng-rail" style="background:'+c+';"></div>'
+    +'<div class="ng-rail'+al+'" style="background:'+c+';"></div>'
     +'<div class="ng-ico">'+d.ico+'</div>'
     +'<div class="ng-tx"><div class="ng-name">'+d.label+'</div>'
-      +'<div class="ng-sub"><b>'+nutNum(r.v)+d.unit+'</b> ／ 目安 '+nutTgtText(d,e)+'</div>'
-      +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')+'</div>'
-    +'<div class="ng-fig" style="color:'+c+';"><div class="ng-dev">'+fig+'</div>'
-      +'<div class="ng-state">'+NG_TAG[e.dir]+'</div></div>'
+      +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')
+      +'<div class="ng-sub"><b>'+nutNum(r.v)+d.unit+'</b> ／ 目安 '+nutTgtText(d,e)+'</div></div>'
+    +'<div class="ng-fig" style="color:'+c+';"><div class="ng-dev'+al+'">'+fig+'</div>'
+      +'<div class="ng-state">'+(e.sev>=3?'‼ ':'')+NG_TAG[e.dir]+'</div></div>'
     +'</div>';
 }
 function ngToggleTable(btn){
@@ -234,15 +246,17 @@ function ngToggleTable(btn){
 }
 function chartHtml(avg,tgt){
   var rs=NUT_DEF.map(function(d){ var v=Number(avg[d.k]||0); return {d:d,v:v,e:nutEval(d,v,tgt)}; });
-  var bad=rs.filter(function(r){return r.e.sev===2;}), warn=rs.filter(function(r){return r.e.sev===1;});
-  var worst=bad.concat(warn).sort(function(a,b){return b.e.dev-a.e.dev;})[0];
+  var bad=rs.filter(function(r){return r.e.sev>=2;}), warn=rs.filter(function(r){return r.e.sev===1;});
+  var alarm=rs.filter(function(r){return r.e.sev>=3;});
+  var worst=bad.concat(warn).sort(function(a,b){return (b.e.sev-a.e.sev)||(b.e.dev-a.e.dev);})[0];
   var vCls,vSig,vHl;
-  if(bad.length){ vCls='#cf3b3b'; vSig='!'; vHl='今月、直したいのは '+bad.length+'つ'+(warn.length?'<span class="nv-sub"> ＋気になる '+warn.length+'つ</span>':''); }
-  else if(warn.length){ vCls='#d98411'; vSig='△'; vHl='おしい。気になるのは '+warn.length+'つ'; }
+  if(bad.length){ vCls=ngColor(worst.e.dir,worst.e.sev); vSig=alarm.length?'‼':'!';
+    vHl=(alarm.length?'今月、大きく外れています ':'今月、直したいのは ')+bad.length+'つ'+(warn.length?'<span class="nv-sub"> ＋気になる '+warn.length+'つ</span>':''); }
+  else if(warn.length){ vCls=ngColor(worst.e.dir,worst.e.sev); vSig='△'; vHl='おしい。気になるのは '+warn.length+'つ'; }
   else { vCls='#0ca30c'; vSig='◎'; vHl='今月はよい食べ方でした'; }
   var vAct=worst?('<b>'+esc(worst.d.label)+'が'+NG_TAG[worst.e.dir]+'</b>'+(nutHint(worst.d,worst.e)?' — '+nutHint(worst.d,worst.e):''))
     :(rs.length+'項目すべて目安の範囲でした。この食べ方を続けられると理想的です。');
-  var h='<div class="nv"><div class="nv-sig" style="background:'+vCls+';">'+vSig+'</div>'
+  var h='<div class="nv"><div class="nv-sig'+(alarm.length?' ng-alarm':'')+'" style="background:'+vCls+';">'+vSig+'</div>'
     +'<div class="nv-tx"><div class="nv-hl">'+vHl+'</div><div class="nv-act">'+vAct+'</div></div></div>';
   var ng=rs.filter(function(r){return r.e.sev>0;}).sort(function(a,b){return (b.e.sev-a.e.sev)||(b.e.dev-a.e.dev);});
   var ok=rs.filter(function(r){return r.e.sev===0;});
@@ -261,8 +275,8 @@ function chartHtml(avg,tgt){
   h+='<button type="button" class="ng-more" onclick="ngToggleTable(this)">数値で見る ▾</button>'
     +'<div class="ng-tbl" style="display:none;"><table><thead><tr><th>項目</th><th>1食平均</th><th>目安</th><th>判定</th></tr></thead><tbody>'
     +rs.map(function(r){ return '<tr><td>'+r.d.ico+' '+r.d.label+'</td><td class="n">'+nutNum(r.v)+r.d.unit+'</td>'
-      +'<td class="n">'+nutTgtText(r.d,r.e)+'</td><td style="color:'+NG_COL[r.e.sev]+';font-weight:800;">'
-      +NG_GLY[r.e.dir]+' '+NG_TAG[r.e.dir]+(r.e.sev===0?'':' '+(r.e.dir==='high'?'+':'−')+r.e.dev+'%')+'</td></tr>'; }).join('')
+      +'<td class="n">'+nutTgtText(r.d,r.e)+'</td><td style="color:'+ngColor(r.e.dir,r.e.sev)+';font-weight:800;">'
+      +(r.e.sev>=3?'‼ ':'')+NG_GLY[r.e.dir]+' '+NG_TAG[r.e.dir]+(r.e.sev===0?'':' '+(r.e.dir==='high'?'+':'−')+r.e.dev+'%')+'</td></tr>'; }).join('')
     +'</tbody></table></div>';
   h+='<div class="ng-basis">'+((tgt&&tgt.personalized)
     ? '目安は<b>あなたの体格に合わせた個別の値</b>です（マイページの「からだの情報」から算出）。'

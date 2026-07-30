@@ -285,11 +285,15 @@
   .ng-name{font-size:22px;font-weight:900;color:#14211c;line-height:1.25}
   .ng-sub{font-size:15px;font-weight:700;color:#8b9a93;font-variant-numeric:tabular-nums;margin-top:3px}
   .ng-sub b{font-size:18px;font-weight:900;color:#41514a}
-  .ng-cmt{font-size:18px;font-weight:800;line-height:1.35;margin-top:5px}
+  .ng-cmt{font-size:22px;font-weight:900;line-height:1.35;letter-spacing:-.01em;margin-top:4px}
   .ng-fig{text-align:right;white-space:nowrap}
   .ng-dev{font-size:38px;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .ng-dev .u{font-size:22px}
   .ng-state{font-size:16px;font-weight:900;margin-top:4px}
+  .ng-dev.ng-alarm{font-size:44px}
+  @keyframes ngAlarm{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.09);opacity:.68}}
+  .ng-alarm{animation:ngAlarm 1.05s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.ng-alarm{animation:none;text-decoration:underline}}
   .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid #eaefe9}
   .ng-chip{font-size:17px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:5px 13px}
   .ng-chip b{color:#0ca30c;font-weight:900}
@@ -1913,12 +1917,19 @@ function buildNutritionBar(sc){
     if(t==='max'){ if(val>hi){ dev=(val-hi)/hi; dir='high'; } }
     else if(val<lo){ dev=(lo-val)/lo; dir='low'; }
     else if(val>hi){ if(t==='min'){ dir='plenty'; } else { dev=(val-hi)/hi; dir='high'; } }
-    var sev=(dir==='low'||dir==='high')?(dev<0.25?1:2):0;
+    // dev 60%以上は「明らかに過剰/不足」= 異常値として点滅させる
+    var sev=(dir==='low'||dir==='high')?(dev<0.25?1:(dev<0.6?2:3)):0;
     nrows.push({item:item,t:t,lo:lo,hi:hi,val:val,dir:dir,sev:sev,dev:Math.round(dev*100)});
   }
   var NG_TAG={in:'適量',plenty:'しっかり',low:'足りない',high:'多い'};
   var NG_GLY={in:'✓',plenty:'✓',low:'◀',high:'▶'};
-  var NG_COL=['#0ca30c','#d98411','#cf3b3b'];
+  // 色は「向き」で分ける: 不足=青 / 過剰=赤(軽いうちは橙) / 適量=緑。
+  // 濃さは外れの大きさ (1=軽い / 2=大きい / 3=大きく外れている=点滅)
+  function ngColor(dir,sev){
+    if(!sev) return '#0ca30c';
+    if(dir==='low') return sev>=3?'#1740b8':(sev===2?'#1d63c9':'#3f86d4');
+    return sev>=3?'#b3221f':(sev===2?'#cf3b3b':'#e07b1a');
+  }
   // スライダー右に1行で収める長さにする (全角10文字程度まで)
   var NG_HINT={
     calories:['おにぎり1個ぶん','ごはんを少し残す'],
@@ -1937,28 +1948,31 @@ function buildNutritionBar(sc){
 
   var html='<div class="nutri-card">';
   // 結論を1行
-  var ngBad=nrows.filter(function(r){return r.sev===2;}), ngWarn=nrows.filter(function(r){return r.sev===1;});
-  var worst=ngBad.concat(ngWarn).sort(function(a,b){return b.dev-a.dev;})[0];
+  var ngBad=nrows.filter(function(r){return r.sev>=2;}), ngWarn=nrows.filter(function(r){return r.sev===1;});
+  var ngAlarm=nrows.filter(function(r){return r.sev>=3;});
+  var worst=ngBad.concat(ngWarn).sort(function(a,b){return (b.sev-a.sev)||(b.dev-a.dev);})[0];
   var vCls,vSig,vHl;
-  if(ngBad.length){ vCls='#cf3b3b'; vSig='!'; vHl='直したいのは '+ngBad.length+'つ'+(ngWarn.length?'<span class="nv-sub"> ＋気になる '+ngWarn.length+'つ</span>':''); }
-  else if(ngWarn.length){ vCls='#d98411'; vSig='△'; vHl='おしい。気になるのは '+ngWarn.length+'つ'; }
+  if(ngBad.length){ vCls=ngColor(worst.dir,worst.sev); vSig=ngAlarm.length?'‼':'!';
+    vHl=(ngAlarm.length?'大きく外れています ':'直したいのは ')+ngBad.length+'つ'+(ngWarn.length?'<span class="nv-sub"> ＋気になる '+ngWarn.length+'つ</span>':''); }
+  else if(ngWarn.length){ vCls=ngColor(worst.dir,worst.sev); vSig='△'; vHl='おしい。気になるのは '+ngWarn.length+'つ'; }
   else { vCls='#0ca30c'; vSig='◎'; vHl='よい一皿です'; }
   var vAct=worst?('<b>'+esc(worst.item.label)+'が'+NG_TAG[worst.dir]+'</b>'+(ngHint(worst)?' — '+ngHint(worst):''))
     :(nrows.length+'項目すべて目安の範囲。同じ組み合わせを覚えておくと楽です。');
-  html+='<div class="nv"><div class="nv-sig" style="background:'+vCls+';">'+vSig+'</div>'
+  html+='<div class="nv"><div class="nv-sig'+(ngAlarm.length?' ng-alarm':'')+'" style="background:'+vCls+';">'+vSig+'</div>'
     +'<div class="nv-tx"><div class="nv-hl">'+vHl+'</div><div class="nv-act">'+vAct+'</div></div></div>';
   // 共通軸ゲージ (気になる項目を上に、適量は畳む)
   function ngRowHtml(r){
-    var c=NG_COL[r.sev], it=r.item, cmt=ngHint(r);
+    var c=ngColor(r.dir,r.sev), it=r.item, cmt=ngHint(r);
+    var al=r.sev>=3?' ng-alarm':'';
     var fig=r.sev===0?'✓':((r.dir==='high'?'▲':'▼')+r.dev+'<span class="u">%</span>');
     return '<div class="ng-row">'
-      +'<div class="ng-rail" style="background:'+c+';"></div>'
+      +'<div class="ng-rail'+al+'" style="background:'+c+';"></div>'
       +'<div class="ng-ico">'+it.icon+'</div>'
       +'<div class="ng-tx"><div class="ng-name">'+esc(it.label)+'</div>'
-        +'<div class="ng-sub"><b>'+ngNum(r.val)+it.unit+'</b> ／ 目安 '+ngTgt(r)+'</div>'
-        +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')+'</div>'
-      +'<div class="ng-fig" style="color:'+c+';"><div class="ng-dev">'+fig+'</div>'
-        +'<div class="ng-state">'+NG_TAG[r.dir]+'</div></div>'
+        +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')
+        +'<div class="ng-sub"><b>'+ngNum(r.val)+it.unit+'</b> ／ 目安 '+ngTgt(r)+'</div></div>'
+      +'<div class="ng-fig" style="color:'+c+';"><div class="ng-dev'+al+'">'+fig+'</div>'
+        +'<div class="ng-state">'+(r.sev>=3?'‼ ':'')+NG_TAG[r.dir]+'</div></div>'
       +'</div>';
   }
   var ngNg=nrows.filter(function(r){return r.sev>0;}).sort(function(a,b){return (b.sev-a.sev)||(b.dev-a.dev);});
