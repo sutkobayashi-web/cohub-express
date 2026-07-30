@@ -745,6 +745,19 @@ function buildNutritionBar(sc, isMine) {
     { key: 'salt',     icon: '🧂', label: '塩分',         unit: 'g',    target: 2.5, reverse: true },
     { key: 'alcohol',  icon: '🍺', label: 'アルコール',   unit: 'g',    target: 20, reverse: true, optional: true },
   ];
+  // ★投稿に保存された目安(分析時点)があればそれを使う。無い過去の投稿は一律値のまま。
+  // これでAIの判定と画面の判定が食い違わない (2026-07-30)。
+  const _T = (sc.targets && typeof sc.targets === 'object') ? sc.targets : null;
+  const _TMAP = { calories: 'kcal', protein: 'protein', fat: 'fat', carbs: 'carbs', vitamin: 'veg', mineral: 'ca', fiber: 'fiber', salt: 'salt' };
+  if (_T) {
+    for (const it of items) {
+      const t = _T[_TMAP[it.key]];
+      if (!t) continue;
+      if (it.range) { if (t.min != null) it.min = t.min; if (t.max != null) it.max = t.max; }
+      else if (it.reverse) { if (t.max != null) it.target = t.max; }
+      else if (t.min != null) it.target = t.min;
+    }
+  }
   // ---- 全項目を同じ考え方で判定 (足りない / 適量 / 多い) ----
   // calories の値を fat/carbs %→g 変換に使う
   const calRaw = sc.calories;
@@ -843,7 +856,7 @@ function buildNutritionBar(sc, isMine) {
       + '<div class="ng-ico">' + it.icon + '</div>'
       + '<div class="ng-tx"><div class="ng-name">' + escapeHtml(it.label) + '</div>'
         + (cmt ? '<div class="ng-cmt" style="color:' + c + ';">💡 ' + escapeHtml(cmt) + '</div>' : '')
-        + '<div class="ng-sub"><b>' + ngNum(r.val) + it.unit + '</b> ／ 目安 ' + ngTgt(r) + '</div></div>'
+        + '<div class="ng-sub"><b>' + ngNum(r.val) + it.unit + '</b>' + (isMine ? (' ／ 目安 ' + ngTgt(r)) : '') + '</div></div>'
       + '<div class="ng-fig" style="color:' + c + ';"><div class="ng-dev' + al + '">' + fig + '</div>'
         + '<div class="ng-state">' + (r.sev >= 3 ? '‼ ' : '') + NG_TAG[r.dir] + '</div></div>'
       + '</div>';
@@ -866,7 +879,7 @@ function buildNutritionBar(sc, isMine) {
   html += '<button type="button" class="ng-more" onclick="ngToggleTable(this)">数値で見る ▾</button>'
     + '<div class="ng-tbl" style="display:none;"><table><thead><tr><th>項目</th><th>実測</th><th>目安</th><th>判定</th></tr></thead><tbody>'
     + nrows.map(r => '<tr><td>' + r.item.icon + ' ' + escapeHtml(r.item.label) + '</td>'
-      + '<td class="n">' + ngNum(r.val) + r.item.unit + '</td><td class="n">' + ngTgt(r) + '</td>'
+      + '<td class="n">' + ngNum(r.val) + r.item.unit + '</td><td class="n">' + (isMine ? ngTgt(r) : '—') + '</td>'
       + '<td style="color:' + ngColor(r.dir, r.sev) + ';font-weight:800;">' + (r.sev >= 3 ? '‼ ' : '') + NG_GLY[r.dir] + ' ' + NG_TAG[r.dir]
       + (r.sev === 0 ? '' : ' ' + (r.dir === 'high' ? '+' : '−') + r.dev + '%') + '</td></tr>').join('')
     + '</tbody></table></div>';

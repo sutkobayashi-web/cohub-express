@@ -175,6 +175,20 @@ router.get('/meta', authUser, (req, res) => {
   res.json({ success: true, categories: CATEGORIES });
 });
 
+// 分析に使った目安のうち、表示に必要な範囲だけを取り出す (2026-07-30)
+// ⚠️ basis は個人属性(性別/年齢/身長/体重)を含むため絶対に含めない。
+function _pickTargets(t) {
+  if (!t) return null;
+  const pick = (o) => (o && typeof o === 'object')
+    ? Object.assign({}, (o.min != null ? { min: o.min } : {}), (o.max != null ? { max: o.max } : {}))
+    : null;
+  return {
+    personalized: !!t.personalized,
+    kcal: pick(t.kcal), protein: pick(t.protein), fat: pick(t.fat), carbs: pick(t.carbs),
+    veg: pick(t.veg), ca: pick(t.ca), salt: pick(t.salt), fiber: pick(t.fiber),
+  };
+}
+
 // AI 応答 (5セクション/旧形式) を統一フォーマット文字列に整形
 // 出力例: "【良い点】\n...\n\n【悪い点】\n...\n\n..."
 function formatAdvisorSections(r) {
@@ -475,6 +489,9 @@ router.post('/posts', authUser, plazaUpload.array('image', 5), async (req, res) 
         if (r.has_alcohol != null) scores.has_alcohol = !!r.has_alcohol;
         if (r.confidence != null) scores.confidence = r.confidence;
         // 栄養素ごとの一手 (写真に写っているものだけを根拠にAIが作る)。表示側の固定文言より優先する。
+        // ★分析に使った目安を保存する。表示側がこれを使うことで、AIの判定と画面が必ず一致する。
+        // ⚠️ basis(性別/年齢/身長/体重の文字列)は入れない。派生値の範囲だけ。
+        scores.targets = _pickTargets(foodTargets);
         if (r.actions && typeof r.actions === 'object' && Object.keys(r.actions).length) scores.actions = r.actions;
         // 写真だけでは確定できない点。本人にタップで答えてもらい /clarify で再分析する。
         if (Array.isArray(r.questions) && r.questions.length) scores.ask = r.questions;
@@ -910,6 +927,7 @@ router.post('/posts/:id/clarify', authUser, express.json(), async (req, res) => 
     if (!hasAny) return res.status(500).json({ success: false, msg: '再分析の数値が取れませんでした' });
     if (r.has_alcohol != null) scores.has_alcohol = !!r.has_alcohol;
     if (r.confidence != null) scores.confidence = r.confidence;
+    scores.targets = _pickTargets(targets);   // 分析に使った目安 (表示と一致させる)
     if (r.actions && typeof r.actions === 'object' && Object.keys(r.actions).length) scores.actions = r.actions;
     // 確認済み: ask は畳み、回答内容を残す (何を答えたか本人が見返せるように)
     scores.asked = answers;

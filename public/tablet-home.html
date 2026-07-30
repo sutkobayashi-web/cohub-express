@@ -1879,7 +1879,7 @@ function openSafetyDoc(i){
 }
 // 栄養分析: 詳細ページ(plaza.html)の buildNutritionBar を流用(塗り絵風アイコン＋基準比較＋信憑性)。
 // nutrition_scores はオブジェクト or JSON文字列の両対応。escapeHtml→esc に置換。
-function buildNutritionBar(sc){
+function buildNutritionBar(sc, isMine){
   if(!sc) return '';
   if(typeof sc==='string'){ try{ sc=JSON.parse(sc); }catch(e){ return ''; } }
   if(!sc || typeof sc!=='object') return '';
@@ -1898,6 +1898,18 @@ function buildNutritionBar(sc){
     {key:'salt',icon:'🧂',label:'塩分',unit:'g',target:2.5,reverse:true},
     {key:'alcohol',icon:'🍺',label:'アルコール',unit:'g',target:20,reverse:true,optional:true}
   ];
+  // ★投稿に保存された目安(分析時点)があればそれを使う。無い過去の投稿は一律値のまま。
+  var _T=(sc.targets&&typeof sc.targets==='object')?sc.targets:null;
+  var _TMAP={calories:'kcal',protein:'protein',fat:'fat',carbs:'carbs',vitamin:'veg',mineral:'ca',fiber:'fiber',salt:'salt'};
+  if(_T){
+    for(var _ti=0;_ti<items.length;_ti++){
+      var _it=items[_ti], _t=_T[_TMAP[_it.key]];
+      if(!_t) continue;
+      if(_it.range){ if(_t.min!=null) _it.min=_t.min; if(_t.max!=null) _it.max=_t.max; }
+      else if(_it.reverse){ if(_t.max!=null) _it.target=_t.max; }
+      else if(_t.min!=null) _it.target=_t.min;
+    }
+  }
   // 全項目を同じ考え方で判定 (足りない / 適量 / 多い)
   var calRaw=sc.calories, calV=(calRaw&&typeof calRaw==='object')?Number(calRaw.value):(typeof calRaw==='number'?calRaw:550);
   var nrows=[];
@@ -1978,7 +1990,7 @@ function buildNutritionBar(sc){
       +'<div class="ng-ico">'+it.icon+'</div>'
       +'<div class="ng-tx"><div class="ng-name">'+esc(it.label)+'</div>'
         +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')
-        +'<div class="ng-sub"><b>'+ngNum(r.val)+it.unit+'</b> ／ 目安 '+ngTgt(r)+'</div></div>'
+        +'<div class="ng-sub"><b>'+ngNum(r.val)+it.unit+'</b>'+(isMine?(' ／ 目安 '+ngTgt(r)):'')+'</div></div>'
       +'<div class="ng-fig" style="color:'+c+';"><div class="ng-dev'+al+'">'+fig+'</div>'
         +'<div class="ng-state">'+(r.sev>=3?'‼ ':'')+NG_TAG[r.dir]+'</div></div>'
       +'</div>';
@@ -2018,7 +2030,7 @@ function openPlaza(i){
   var img=p.image_url?'<img src="'+esc(p.image_url)+'" style="display:block;max-width:100%;max-height:36vh;margin:0 auto;object-fit:contain;border-radius:14px;background:#f1f5f9;cursor:zoom-in" onclick="dmgLightbox(\''+esc(p.image_url)+'\')">':'';
   var ai=String(p.ai_comment||'').trim();
   if(isMeal && (ai || p.nutrition_scores)){
-    var nut=buildNutritionBar(p.nutrition_scores);
+    var nut=buildNutritionBar(p.nutrition_scores, !!p.is_mine);
     var aiHtml=ai?'<div class="aicard"><div class="aihd">🩺 ヘルスアドバイザーの 解説</div><div class="aibody">'+esc(ai)+'</div></div>':'';
     openModal('🍽 食事の 分析'+(mealLbl?'（'+esc(mealLbl)+'）':''),
       img+nut+aiHtml+(ai?'<button class="btn-go btn-sub" onclick="openAdvisor('+i+')">🔊 解説を 聞く</button>':''));
