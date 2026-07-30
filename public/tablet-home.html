@@ -278,26 +278,18 @@
   .ng-head b{font-size:15px;font-weight:800;color:#41514a}
   .ng-head span{font-size:12px;color:#8b9a93;white-space:nowrap}
   .ng-rows{display:grid;gap:18px}
-  .ng-row{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:baseline;text-align:left}
-  .ng-name{font-size:21px;font-weight:900;color:#14211c;display:flex;align-items:center;gap:9px;min-width:0}
-  .ng-name .ng-ico{font-size:32px;line-height:1.1}
-  .ng-val{font-size:17px;font-weight:800;color:#41514a;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .ng-val i{font-style:normal;font-weight:600;color:#8b9a93;font-size:14px}
-  /* スライダーは短く固定幅。3領域を色で分け、針の位置に過不足%を出す */
-  .ng-line2{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin-top:2px}
-  .ng-gauge{flex:none;position:relative;width:236px;padding-top:26px}
-  .ng-track{display:flex;height:17px;border-radius:5px;overflow:hidden}
-  .ng-z{height:100%}
-  .ng-z-low{background:#f6dfb4}
-  .ng-z-ok{background:#b9e3b9}
-  .ng-z-hi{background:#f4c3c1}
-  .ng-z-mute{background:#e2e7e2}
-  .ng-needle{position:absolute;left:0;top:23px;height:23px;width:5px;margin-left:-2.5px;border-radius:3px;box-shadow:0 0 0 2px #fff,0 1px 3px rgba(0,0,0,.3)}
-  .ng-zlbl{display:flex;margin-top:5px}
-  .ng-zlbl span{font-size:13px;font-weight:800;text-align:center;line-height:1.2}
-  .ng-zlbl .l-low{color:#97640f} .ng-zlbl .l-ok{color:#0a7a0a} .ng-zlbl .l-hi{color:#a32e2e} .ng-zlbl .l-mute{color:#79887f}
-  .ng-pt{position:absolute;top:0;font-size:16px;font-weight:900;padding:2px 10px;border-radius:999px;background:#fff;border:2px solid currentColor;white-space:nowrap;line-height:1.4;font-variant-numeric:tabular-nums}
-  .ng-cmt{flex:1;min-width:0;font-size:18px;font-weight:800;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ng-row{display:grid;grid-template-columns:5px auto 1fr auto;column-gap:15px;align-items:center;text-align:left}
+  .ng-rail{align-self:stretch;border-radius:4px;min-height:60px}
+  .ng-ico{font-size:40px;line-height:1}
+  .ng-tx{min-width:0}
+  .ng-name{font-size:22px;font-weight:900;color:#14211c;line-height:1.25}
+  .ng-sub{font-size:15px;font-weight:700;color:#8b9a93;font-variant-numeric:tabular-nums;margin-top:3px}
+  .ng-sub b{font-size:18px;font-weight:900;color:#41514a}
+  .ng-cmt{font-size:18px;font-weight:800;line-height:1.35;margin-top:5px}
+  .ng-fig{text-align:right;white-space:nowrap}
+  .ng-dev{font-size:38px;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .ng-dev .u{font-size:22px}
+  .ng-state{font-size:16px;font-weight:900;margin-top:4px}
   .ng-oks{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid #eaefe9}
   .ng-chip{font-size:17px;font-weight:800;color:#41514a;background:rgba(12,163,12,.07);border:1px solid #e2e8e5;border-radius:999px;padding:5px 13px}
   .ng-chip b{color:#0ca30c;font-weight:900}
@@ -1902,8 +1894,7 @@ function buildNutritionBar(sc){
     {key:'salt',icon:'🧂',label:'塩分',unit:'g',target:2.5,reverse:true},
     {key:'alcohol',icon:'🍺',label:'アルコール',unit:'g',target:20,reverse:true,optional:true}
   ];
-  // 全項目を共通軸で判定。B0〜B1 が「適量帯」で、この位置は全項目で固定。
-  var B0=36, B1=64;
+  // 全項目を同じ考え方で判定 (足りない / 適量 / 多い)
   var calRaw=sc.calories, calV=(calRaw&&typeof calRaw==='object')?Number(calRaw.value):(typeof calRaw==='number'?calRaw:550);
   var nrows=[];
   for(var ii=0;ii<items.length;ii++){
@@ -1918,16 +1909,12 @@ function buildNutritionBar(sc){
     var t=item.range?'range':(item.reverse?'max':'min');
     var lo=item.range?item.min:(t==='min'?item.target:0);
     var hi=item.range?item.max:(t==='max'?item.target:item.target*1.5);
-    var x, dir='in', dev=0;
-    if(t==='max'){
-      if(val<=hi){ x=B1*(hi?val/hi:0); }
-      else { dev=(val-hi)/hi; x=B1+(100-B1)*Math.min(1,dev); dir='high'; }
-    } else if(val<lo){ dev=(lo-val)/lo; x=B0*(lo?val/lo:0); dir='low'; }
-    else if(val<=hi){ x=B0+(B1-B0)*((val-lo)/((hi-lo)||1)); }
-    else if(t==='min'){ x=B1+(100-B1)*Math.min(1,val/(hi||1)-1); dir='plenty'; }
-    else { dev=(val-hi)/hi; x=B1+(100-B1)*Math.min(1,dev); dir='high'; }
+    var dir='in', dev=0;
+    if(t==='max'){ if(val>hi){ dev=(val-hi)/hi; dir='high'; } }
+    else if(val<lo){ dev=(lo-val)/lo; dir='low'; }
+    else if(val>hi){ if(t==='min'){ dir='plenty'; } else { dev=(val-hi)/hi; dir='high'; } }
     var sev=(dir==='low'||dir==='high')?(dev<0.25?1:2):0;
-    nrows.push({item:item,t:t,lo:lo,hi:hi,val:val,dir:dir,sev:sev,dev:Math.round(dev*100),x:Math.max(2,Math.min(98,x))});
+    nrows.push({item:item,t:t,lo:lo,hi:hi,val:val,dir:dir,sev:sev,dev:Math.round(dev*100)});
   }
   var NG_TAG={in:'適量',plenty:'しっかり',low:'足りない',high:'多い'};
   var NG_GLY={in:'✓',plenty:'✓',low:'◀',high:'▶'};
@@ -1961,35 +1948,22 @@ function buildNutritionBar(sc){
   html+='<div class="nv"><div class="nv-sig" style="background:'+vCls+';">'+vSig+'</div>'
     +'<div class="nv-tx"><div class="nv-hl">'+vHl+'</div><div class="nv-act">'+vAct+'</div></div></div>';
   // 共通軸ゲージ (気になる項目を上に、適量は畳む)
-  // 3領域のラベルと色。どちら側が問題かは物差しで変わるので、問題にならない側は無彩色にする。
-  var NG_ZLBL={range:['少ない','適量','多い'],min:['少ない','適量','しっかり'],max:['控えめ','適量','多い']};
-  var NG_ZCLS={range:['low','ok','hi'],min:['low','ok','mute'],max:['mute','ok','hi']};
-  var NG_ZW=[B0,B1-B0,100-B1];
   function ngRowHtml(r){
-    var c=NG_COL[r.sev], it=r.item, z=NG_ZCLS[r.t], zl=NG_ZLBL[r.t];
-    var pt=r.sev===0?('✓ '+NG_TAG[r.dir]):((r.dir==='high'?'▲ +':'▼ −')+r.dev+'%');
-    // 針が端に寄ったときはバッジを内側に寄せてはみ出しを防ぐ
-    var tf=r.x<24?'translateX(0)':(r.x>76?'translateX(-100%)':'translateX(-50%)');
-    var cmt=ngHint(r);
-    var zones='', labels='';
-    for(var zi=0;zi<3;zi++){
-      zones+='<div class="ng-z ng-z-'+z[zi]+'" style="width:'+NG_ZW[zi]+'%"></div>';
-      labels+='<span class="l-'+z[zi]+'" style="width:'+NG_ZW[zi]+'%">'+zl[zi]+'</span>';
-    }
+    var c=NG_COL[r.sev], it=r.item, cmt=ngHint(r);
+    var fig=r.sev===0?'✓':((r.dir==='high'?'▲':'▼')+r.dev+'<span class="u">%</span>');
     return '<div class="ng-row">'
-      +'<div class="ng-name"><span class="ng-ico">'+it.icon+'</span>'+esc(it.label)+'</div>'
-      +'<div class="ng-val">'+ngNum(r.val)+'<i>'+it.unit+' ／ 目安 '+ngTgt(r)+'</i></div>'
-      +'<div class="ng-line2"><div class="ng-gauge">'
-        +'<div class="ng-pt" style="left:'+r.x+'%;transform:'+tf+';color:'+c+';">'+pt+'</div>'
-        +'<div class="ng-track">'+zones+'</div>'
-        +'<div class="ng-needle" style="left:'+r.x+'%;background:'+c+';"></div>'
-        +'<div class="ng-zlbl">'+labels+'</div></div>'
-      +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')
-      +'</div></div>';
+      +'<div class="ng-rail" style="background:'+c+';"></div>'
+      +'<div class="ng-ico">'+it.icon+'</div>'
+      +'<div class="ng-tx"><div class="ng-name">'+esc(it.label)+'</div>'
+        +'<div class="ng-sub"><b>'+ngNum(r.val)+it.unit+'</b> ／ 目安 '+ngTgt(r)+'</div>'
+        +(cmt?'<div class="ng-cmt" style="color:'+c+';">💡 '+esc(cmt)+'</div>':'')+'</div>'
+      +'<div class="ng-fig" style="color:'+c+';"><div class="ng-dev">'+fig+'</div>'
+        +'<div class="ng-state">'+NG_TAG[r.dir]+'</div></div>'
+      +'</div>';
   }
   var ngNg=nrows.filter(function(r){return r.sev>0;}).sort(function(a,b){return (b.sev-a.sev)||(b.dev-a.dev);});
   var ngOk=nrows.filter(function(r){return r.sev===0;});
-  var NG_LEGEND='<span>針の位置＝いまの量</span>';
+  var NG_LEGEND='<span>目安と比べた過不足</span>';
   if(ngNg.length){
     html+='<div class="ng-head"><b>気になる項目</b>'+NG_LEGEND+'</div>';
     html+='<div class="ng-rows">'+ngNg.map(ngRowHtml).join('')+'</div>';
