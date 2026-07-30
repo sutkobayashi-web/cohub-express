@@ -113,6 +113,12 @@ body { padding-bottom: 80px !important; }
 .composer.is-food .cal-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 11px 14px; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 12px; color: #0e7490; font-size: 13px; font-weight: 800; text-decoration: none; }
 .composer.is-food .cal-link:active { background: #cffafe; }
 .cal-link .arw { color: #06b6d4; font-weight: 800; }
+/* からだの情報 未入力の促し (食事モードのみ・未入力のときだけ .on が付く) */
+.body-nudge { display: none; }
+.composer.is-food .body-nudge.on { display: block; margin-bottom: 10px; padding: 11px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; color: #92400e; font-size: 12.5px; font-weight: 700; line-height: 1.6; text-decoration: none; }
+.body-nudge b { font-weight: 900; }
+.body-nudge .bn-go { display: inline-block; margin-top: 7px; padding: 7px 13px; border-radius: 11px; background: #b45309; color: #fff; font-size: 12.5px; font-weight: 900; text-decoration: none; }
+.body-nudge .bn-go:active { background: #92400e; }
 .composer.is-food .menu-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 12px 14px; background: linear-gradient(135deg,#0d9488,#0f766e); border: 0; border-radius: 12px; color: #fff; font-size: 13.5px; font-weight: 800; text-decoration: none; box-shadow: 0 3px 10px rgba(13,148,136,.35); }
 .menu-link { display: none; }
 .composer.is-food .menu-link:active { transform: translateY(1px); }
@@ -494,6 +500,11 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         </div>
       </div>
       <a class="menu-link" href="/menu-plan.html?v=mp1"><img class="ml-face" src="/assets/calorie/_advisor_face.jpg?v=cal2" alt="ヘルス"><span class="ml-txt"><b>何を食べようか？</b><small>今日の献立を一緒に決めましょう</small></span><span class="arw">→</span></a>
+      <div class="body-nudge" id="body-nudge">
+        📐 <b>からだの情報が未入力です。</b>いま出ている「適量」は<b>全員共通の目安</b>のため、あなたの体格には合っていない可能性があります。<br>
+        性別・身長・体重を入れると、あなたの体格に合わせた目安で診断します（本人だけが見られます）。
+        <a class="bn-go" href="/mypage.html#body-sex">マイページで入力する →</a>
+      </div>
       <a class="cal-link" href="/calorie-guide.html?v=cal1" target="_blank" rel="noopener"><span>🍽️ メニュー別 カロリーの目安を見る</span><span class="arw">→</span></a>
       <!-- 撮影のコツ (2026-07-26): 写真推定の誤差は「量(g)の見積り」がほぼ全て。
            基準物が写っていれば実測に近づき、成分表示が読めれば推定ではなく実測値になる。 -->
@@ -1401,6 +1412,7 @@ function setTab(t) {
   const composer = document.getElementById('composer');
   composer.classList.remove('is-food', 'is-相談', 'is-雑談', 'is-健康Tips');
   if (_curCat === '食事') composer.classList.add('is-food');
+  if (_curCat === '食事') checkBodyInfo();   // からだの情報 未入力なら促す
   else if (_curCat === '相談') composer.classList.add('is-相談');
   else if (_curCat === '雑談') composer.classList.add('is-雑談');
   else if (_curCat === '健康Tips') composer.classList.add('is-健康Tips');
@@ -1454,6 +1466,7 @@ document.addEventListener('click', (e) => {
   const composer = document.getElementById('composer');
   composer.classList.remove('is-food', 'is-相談', 'is-雑談', 'is-健康Tips');
   if (_curCat === '食事') composer.classList.add('is-food');
+  if (_curCat === '食事') checkBodyInfo();   // からだの情報 未入力なら促す
   else if (_curCat === '相談') composer.classList.add('is-相談');
   else if (_curCat === '雑談') composer.classList.add('is-雑談');
   else if (_curCat === '健康Tips') composer.classList.add('is-健康Tips');
@@ -1592,6 +1605,22 @@ function finalizePostDisplay(post) {
     errEl.textContent = '✓ 投稿しました ([' + _curCat + ']タブで確認)';
     setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#dc2626'; }, 4000);
   }
+}
+
+// ===== からだの情報 未入力の促し (2026-07-30) =====
+// 性別・身長・体重が揃っていないと computeNutritionTargets が一律目標に落ちるため、
+// 食事を投稿する場面で入力を促す。判定は1セッション1回だけ問い合わせる。
+var _bodyChecked = false;
+async function checkBodyInfo() {
+  if (_bodyChecked) return;
+  _bodyChecked = true;
+  try {
+    const r = await api('/api/myhealth/body');
+    if (!r || !r.success) return;
+    const done = !!(r.sex && r.height_cm && r.weight_kg);
+    const el = document.getElementById('body-nudge');
+    if (el && !done) el.classList.add('on');
+  } catch (e) { /* 促しは出さない */ }
 }
 
 // ===== 写真で分からない点のQ&A (2026-07-30) =====
