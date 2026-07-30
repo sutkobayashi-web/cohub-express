@@ -18,73 +18,87 @@ header .spacer { flex: 1; }
 header a { color: #fff; text-decoration: none; font-size: 12px; opacity: 0.9; }
 main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 
-.tabs { display: flex; gap: 4px; background: #fff; border-radius: 10px; padding: 4px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.tab { flex: 1; padding: 10px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 8px; cursor: pointer; }
+.tabs { display: flex; gap: 4px; background: #fff; border-radius: 14px; padding: 4px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.tab { flex: 1; padding: 10px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; border-radius: 12px; cursor: pointer; }
 .tab.active { background: #dc2626; color: #fff; }
-.tab .b { display: inline-block; background: #fff; color: #dc2626; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+.tab .b { display: inline-block; background: #fff; color: #dc2626; padding: 1px 6px; border-radius: 14px; font-size: 11px; margin-left: 4px; }
 .tab.active .b { background: #fff; color: #dc2626; }
+/* 作成タブを目立たせる (管理部のみ表示) */
+#tab-create { flex: 0 0 auto; padding: 10px 18px; background: linear-gradient(135deg,#dc2626,#b91c1c); color: #fff; box-shadow: 0 2px 8px rgba(220,38,38,0.4); }
+#tab-create.active { box-shadow: 0 3px 10px rgba(220,38,38,0.55); transform: translateY(-1px); }
 
-.card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); position: relative; }
+.card { background: #fff; border-radius: 16px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); position: relative; }
 .card.unread { border-left: 4px solid #dc2626; }
 .card.urgent { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-left-color: #b91c1c; }
 .card.important { border-left-color: #ea580c; }
 .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.lvl { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.lvl { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 14px; color: #fff; }
 .lvl.normal { background: #94a3b8; }
 .lvl.important { background: #ea580c; }
 .lvl.urgent { background: #b91c1c; }
 .title { font-weight: 800; font-size: 15px; flex: 1; }
 .meta { font-size: 11px; color: #94a3b8; }
 .body { font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; margin: 8px 0; }
-.btn { padding: 9px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn { padding: 9px 18px; background: #dc2626; color: #fff; border: none; border-radius: 12px; cursor: pointer; font-size: 13px; font-weight: 700; }
 .btn-ghost { background: #e2e8f0; color: #0f172a; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 10px; }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 
 .empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
 .empty .ico { font-size: 48px; margin-bottom: 12px; }
 
 /* 作成フォーム */
-.composer { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.composer { background: #fff; border-radius: 16px; padding: 14px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
 .composer h3 { margin: 0 0 10px; font-size: 14px; }
 .field { margin-bottom: 10px; }
 .field label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; }
-.field input, .field textarea, .field select { width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; }
+.field input, .field textarea, .field select { width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 13px; font-family: inherit; outline: none; }
 .field textarea { min-height: 80px; resize: vertical; }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220,38,38,0.1); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 8px 10px; background: #f8fafc; border-radius: 8px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 8px 10px; background: #f8fafc; border-radius: 12px; }
+.chip-person { display: inline-flex; align-items: center; gap: 6px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; border-radius: 14px; padding: 4px 6px 4px 10px; font-size: 12px; font-weight: 700; }
+.chip-person button { background: #c7d2fe; color: #3730a3; border: none; border-radius: 10px; width: 20px; height: 20px; cursor: pointer; font-size: 11px; line-height: 1; padding: 0; }
 
 /* 既読率モーダル */
 #reads-modal { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 200; display: none; align-items: center; justify-content: center; padding: 12px; }
 #reads-modal.open { display: flex; }
 .modal-body { background: #fff; border-radius: 14px; max-width: 600px; width: 100%; max-height: 88vh; overflow-y: auto; }
 .modal-head { padding: 14px 18px; background: linear-gradient(135deg,#dc2626,#b91c1c); color: #fff; display: flex; align-items: center; gap: 10px; }
-.modal-head .close { margin-left: auto; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 18px; }
+.modal-head .close { margin-left: auto; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 12px; cursor: pointer; font-size: 18px; }
 .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
-.stat { background: #f8fafc; border-radius: 10px; padding: 12px; text-align: center; }
+.stat { background: #f8fafc; border-radius: 14px; padding: 12px; text-align: center; }
 .stat .n { font-size: 26px; font-weight: 800; color: #dc2626; }
 .stat .l { font-size: 11px; color: #64748b; font-weight: 700; }
 .reads-tbl { padding: 0 14px 14px; }
 .reads-tbl table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .reads-tbl th, .reads-tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
 .reads-tbl th { background: #f8fafc; color: #475569; }
-.bdg-r { background: #d1fae5; color: #065f46; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
-.bdg-u { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+.bdg-r { background: #d1fae5; color: #065f46; padding: 1px 6px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+.bdg-u { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 12px; font-size: 10px; font-weight: 700; }
 
 /* ログイン */
 .login { max-width: 380px; margin: 60px auto; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .login h2 { margin: 0 0 16px; }
-.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
-.login button { width: 100%; padding: 12px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #dc2626; color: #fff; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
 </style>
 <script src="/font-zoom.js?v=20260728d" defer></script>
-<script src="/global-notif.js?v=20260611d" defer></script>
+<script src="/global-notif.js?v=20260730c-dmname" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 
@@ -130,7 +144,7 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
         <input type="file" id="cmp-files" multiple accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv">
         <div id="cmp-files-preview" style="margin-top:6px;font-size:11px;color:#475569;"></div>
       </div>
-      <div class="row3">
+      <div class="row2">
         <div class="field">
           <label>優先度</label>
           <select id="cmp-level">
@@ -140,24 +154,28 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
           </select>
         </div>
         <div class="field">
-          <label>対象</label>
-          <select id="cmp-target">
-            <option value="all">全員</option>
-            <option value="building:office">事務所棟のみ</option>
-            <option value="building:field">現場棟のみ</option>
-            <option value="company:SU_HQ">スタンダード運輸 海老名</option>
-            <option value="company:SU_SAITAMA">スタンダード運輸 埼玉</option>
-            <option value="company:SU_MKANTO">スタンダード運輸 南関東</option>
-            <option value="company:SU_ZAMA">スタンダード運輸 座間</option>
-            <option value="company:IBA_KASHIMA">茨運(鹿島)</option>
-            <option value="company:IBA_SANWA">茨運(三和)</option>
-            <option value="company:SUZUE">スズエ電機</option>
-          </select>
-        </div>
-        <div class="field">
           <label>掲載期限</label>
           <input type="date" id="cmp-expires">
         </div>
+      </div>
+      <div class="field">
+        <label>送付先 <span style="color:#dc2626">（必須）</span></label>
+        <div class="row2">
+          <select id="cmp-t1" onchange="onTargetChange(1)" data-no-translate>
+            <option value="" selected disabled>① 営業所</option>
+          </select>
+          <select id="cmp-t2" onchange="onTargetChange(2)" disabled data-no-translate>
+            <option value="">② 役職・職種</option>
+          </select>
+        </div>
+        <div style="margin-top:8px;">
+          <input id="cmp-t3" type="text" list="cmp-people" autocomplete="off" data-no-translate
+                 oninput="onPersonInput()" placeholder="③ 個人名で検索して追加（複数人OK・任意）">
+          <datalist id="cmp-people"></datalist>
+          <div id="cmp-people-chips" style="display:none;flex-wrap:wrap;gap:6px;margin-top:6px;" data-no-translate></div>
+        </div>
+        <div id="cmp-target-preview" style="font-size:12px;margin-top:6px;font-weight:700;" data-no-translate></div>
+        <div class="small" style="color:#64748b;margin-top:2px">① 営業所 → ② 役職・職種 で絞り込むか、③ に<b>個人名を入力し候補から選んで追加</b>（複数人OK）。個人を選ぶとその人たちだけに送ります。②③は「全員」のままでも送れます。</div>
       </div>
       <div class="field">
         <label class="chk"><input type="checkbox" id="cmp-ack"> ✅ 確認ボタンを必須化 (受信者全員に押させる)</label>
@@ -251,6 +269,201 @@ const ALLOWED_CREATORS = new Set([
   '4c170870-33f5-45d6-a0dd-760adee79526', // 岡田
 ]);
 
+// ===== 送付先 3段階カスケード (営業所[DM分類] → 役職・職種 → 個人) =====
+const JOB_ROLE_NAMES = {
+  driver: 'ドライバー', warehouse: '倉庫', manufacturing: '製造',
+  office: '事務', executive: '役員', manager: '管理者', '': '（職種未設定）',
+};
+const JOB_ROLE_ORDER = ['driver', 'warehouse', 'manufacturing', 'office', 'manager', 'executive', ''];
+let _dir = null; // {offices:[{key,name,count}], users:[{id,name,office,role}]}
+let _peopleByLabel = new Map(); // "氏名（営業所）" → user id (全ユーザーで固定)
+let _selectedPeople = [];        // 複数個人宛: [{id, label}]
+
+function roleName(r) { return (JOB_ROLE_NAMES[r] != null) ? JOB_ROLE_NAMES[r] : (r || '（職種未設定）'); }
+function roleOrder(r) { const i = JOB_ROLE_ORDER.indexOf(r); return i < 0 ? 99 : i; }
+function userName(id) {
+  if (_dir) { const u = _dir.users.find(x => x.id === id); if (u) return u.name; }
+  return null;
+}
+function personLabel(u) { return u.name + '（' + (u.office || '未設定') + '）'; }
+
+async function loadDirectory() {
+  try {
+    const d = await api('/api/announcements/directory');
+    if (!d || !d.success) return;
+    _dir = d;
+    // 個人名→id の対応表を全ユーザーで固定作成 (絞り込みで消えても解決できるように)
+    _peopleByLabel = new Map();
+    (d.users || []).forEach(u => { _peopleByLabel.set(personLabel(u), u.id); });
+    populateT1();
+    populatePeople(_dir.users);
+  } catch (e) { /* 権限なし等は無視 */ }
+}
+
+// 個人検索の候補(datalist)を母集団に応じて更新
+function populatePeople(pool) {
+  const dl = document.getElementById('cmp-people');
+  if (!dl) return;
+  dl.innerHTML = (pool || []).map(u => `<option value="${escapeHtml(personLabel(u))}"></option>`).join('');
+}
+
+// t1(営業所)・t2(役職職種) の選択に応じた個人の母集団
+function peoplePool() {
+  if (!_dir) return [];
+  const v1 = (document.getElementById('cmp-t1') || {}).value || '';
+  const v2 = (document.getElementById('cmp-t2') || {}).value || '';
+  const office = v1.startsWith('office:') ? v1.slice(7) : null; // 'all'/'' はフィルタ無し=全員
+  const role = v2.startsWith('role:') ? v2.slice(5) : null;
+  return _dir.users.filter(u => (office === null || u.office === office) && (role === null || u.role === role));
+}
+
+// 個人検索欄で候補(氏名（営業所）)に一致したら選択リストへ追加し、欄をクリア
+function onPersonInput() {
+  const inp = document.getElementById('cmp-t3');
+  const v = inp ? inp.value.trim() : '';
+  if (v && _peopleByLabel.has(v)) {
+    const id = _peopleByLabel.get(v);
+    if (!_selectedPeople.some(p => p.id === id)) _selectedPeople.push({ id, label: v });
+    inp.value = '';
+    renderPeopleChips();
+  }
+  updateTargetPreview();
+}
+
+function renderPeopleChips() {
+  const box = document.getElementById('cmp-people-chips');
+  if (!box) return;
+  box.innerHTML = _selectedPeople.map((p, i) =>
+    `<span class="chip-person">${escapeHtml(p.label)}<button type="button" onclick="removePerson(${i})" aria-label="削除">✕</button></span>`
+  ).join('');
+  box.style.display = _selectedPeople.length ? 'flex' : 'none';
+}
+
+function removePerson(i) {
+  _selectedPeople.splice(i, 1);
+  renderPeopleChips();
+  updateTargetPreview();
+}
+
+function populateT1() {
+  const t1 = document.getElementById('cmp-t1');
+  if (!t1 || !_dir) return;
+  let html = '<option value="" selected disabled>① 営業所を選ぶ</option>';
+  html += '<option value="all">🌐 全社（全員）</option>';
+  html += '<optgroup label="営業所（DM分類）">'
+        + (_dir.offices || []).map(o => `<option value="office:${escapeHtml(o.key)}">🏢 ${escapeHtml(o.name)}（${o.count}名）</option>`).join('')
+        + '</optgroup>';
+  t1.innerHTML = html;
+}
+
+function onTargetChange(level) {
+  const t1 = document.getElementById('cmp-t1');
+  const t2 = document.getElementById('cmp-t2');
+  const v1 = t1.value;
+  if (level <= 1) {
+    // 営業所が変わったら役職・職種を組み直す
+    t2.innerHTML = '<option value="">② 役職・職種（全員）</option>'; t2.disabled = true;
+    if (_dir && (v1 === 'all' || v1.startsWith('office:'))) {
+      const office = v1.startsWith('office:') ? v1.slice(7) : null;
+      const pool = _dir.users.filter(u => office === null || u.office === office);
+      const roles = [...new Set(pool.map(u => u.role))].sort((a, b) => roleOrder(a) - roleOrder(b));
+      t2.innerHTML = '<option value="">② 役職・職種（全員）</option>'
+        + roles.map(r => `<option value="role:${escapeHtml(r)}">${escapeHtml(roleName(r))}（${pool.filter(u => u.role === r).length}名）</option>`).join('');
+      t2.disabled = false;
+    }
+  }
+  // 個人検索の候補を、現在の絞り込み(営業所・役職職種)に合わせて更新
+  if (level <= 2) populatePeople(peoplePool());
+  updateTargetPreview();
+}
+
+function computeTarget() {
+  if (_selectedPeople.length) return 'users:' + _selectedPeople.map(p => p.id).join(','); // 複数個人宛が最優先
+  const v1 = (document.getElementById('cmp-t1') || {}).value || '';
+  const v2 = (document.getElementById('cmp-t2') || {}).value || '';
+  const role = v2.startsWith('role:') ? v2.slice(5) : '';
+  if (v1 === 'all') return role ? ('jobrole:' + role) : 'all';
+  if (v1.startsWith('office:')) {
+    const off = v1.slice(7);
+    return role ? ('dmgr:' + off + '@' + role) : ('dmg:' + off);
+  }
+  return '';
+}
+
+function resetTargetSelects() {
+  populateT1();
+  const t2 = document.getElementById('cmp-t2');
+  const t3 = document.getElementById('cmp-t3');
+  if (t2) { t2.innerHTML = '<option value="">② 役職・職種</option>'; t2.disabled = true; }
+  if (t3) t3.value = '';
+  _selectedPeople = [];
+  renderPeopleChips();
+  if (_dir) populatePeople(_dir.users);
+  updateTargetPreview();
+}
+
+function clientMatch(u, t) {
+  if (!t || t === 'all') return true;
+  if (t.startsWith('users:')) return t.slice(6).split(',').includes(u.id);
+  if (t.startsWith('user:')) return u.id === t.slice(5);
+  if (t.startsWith('dmg:')) return (u.office || '') === t.slice(4);
+  if (t.startsWith('jobrole:')) return (u.role || '') === t.slice(8);
+  if (t.startsWith('dmgr:')) {
+    const v = t.slice(5), at = v.indexOf('@');
+    return (u.office || '') === v.slice(0, at) && (u.role || '') === v.slice(at + 1);
+  }
+  return false;
+}
+
+function targetLabel(t) {
+  if (t === 'all') return '全社（全員）';
+  if (t.startsWith('users:')) {
+    const ids = t.slice(6).split(',').filter(Boolean);
+    const names = ids.map(id => userName(id)).filter(Boolean);
+    if (names.length) { const s = names.slice(0, 3).join('、'); return s + (names.length > 3 ? ` 他${names.length - 3}名` : '') + `（個人${ids.length}名）`; }
+    return '個人' + ids.length + '名';
+  }
+  if (t.startsWith('user:')) { const n = userName(t.slice(5)); return (n || '個人') + ' さん（個人宛）'; }
+  if (t.startsWith('dmg:')) { return t.slice(4) || '（営業所未設定）'; }
+  if (t.startsWith('jobrole:')) return roleName(t.slice(8)) + '（全社）';
+  if (t.startsWith('dmgr:')) {
+    const v = t.slice(5), at = v.indexOf('@');
+    return (v.slice(0, at) || '（営業所未設定）') + ' ・ ' + roleName(v.slice(at + 1));
+  }
+  // 旧方式ラベル (既存通達の後方互換)
+  if (t === 'building:field') return '現場棟';
+  if (t === 'building:office') return '事務所棟';
+  if (t.startsWith('group:')) return t.slice(6);
+  if (t.startsWith('company:')) return t.slice(8);
+  return t;
+}
+
+function cardTargetLabel(t) {
+  if (!t) return '';
+  if (t.startsWith('user:')) { const n = userName(t.slice(5)); return n ? n + ' さん' : 'あなた宛'; }
+  if (t.startsWith('users:')) { const ids = t.slice(6).split(',').filter(Boolean); const names = ids.map(id => userName(id)).filter(Boolean); return names.length ? (names.slice(0, 3).join('、') + (names.length > 3 ? ` 他${names.length - 3}名` : '')) : ('個人' + ids.length + '名宛'); }
+  return targetLabel(t);
+}
+
+function updateTargetPreview() {
+  const el = document.getElementById('cmp-target-preview');
+  if (!el) return;
+  if (_selectedPeople.length) {
+    const names = _selectedPeople.map(p => p.label.replace(/（[^（]*）\s*$/, ''));
+    const shown = names.slice(0, 6).join('、') + (names.length > 6 ? ` 他${names.length - 6}名` : '');
+    el.innerHTML = `📮 送付先: <span style="color:#dc2626">個人 ${_selectedPeople.length}名</span> <span style="color:#64748b;font-weight:400;">（${escapeHtml(shown)}）</span>`;
+    return;
+  }
+  const t = computeTarget();
+  if (!t) { el.textContent = ''; return; }
+  let cnt = '';
+  if (_dir && _dir.users) {
+    const n = _dir.users.filter(u => clientMatch(u, t)).length;
+    cnt = ` <span style="color:#64748b;font-weight:400;">（約${n}名）</span>`;
+  }
+  el.innerHTML = '📮 送付先: <span style="color:#dc2626">' + escapeHtml(targetLabel(t)) + '</span>' + cnt;
+}
+
 function initApp() {
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -258,6 +471,7 @@ function initApp() {
   // 管理部6名のみ作成タブ表示
   if (me && ALLOWED_CREATORS.has(me.uid)) {
     document.getElementById('tab-create').style.display = 'inline-block';
+    loadDirectory();
   }
   loadList();
   setupSocket();
@@ -398,10 +612,7 @@ function card(a) {
   const needsAck = a.requires_ack && !a.acked_at;
   const cls = ['card', a.level, (isUnread || needsAck) ? 'unread' : ''].join(' ');
   const lvlLabel = a.level === 'urgent' ? '🚨 緊急' : a.level === 'important' ? '⚠ 重要' : '普通';
-  const tgt = a.target === 'all' ? '全員'
-    : a.target.startsWith('company:') ? a.target.slice(8)
-    : a.target.startsWith('building:') ? (a.target.slice(9) === 'office' ? '事務所棟' : a.target.slice(9) === 'field' ? '現場棟' : a.target.slice(9))
-    : a.target;
+  const tgt = cardTargetLabel(a.target);
   let actions = '';
   if (needsAck) {
     actions += `<button class="btn btn-sm" onclick="ackOne(${a.id})">✅ 確認しました</button>`;
@@ -417,7 +628,7 @@ function card(a) {
     actions += `<button class="btn btn-sm btn-ghost" style="color:#dc2626;" onclick="delAnnouncement(${a.id})">🗑</button>`;
   }
   const expIcon = a.expires_at ? `<span style="font-size:10px;color:#94a3b8;">期限: ${escapeHtml(a.expires_at.slice(0,10))}</span>` : '';
-  const ackBadge = a.requires_ack ? '<span style="font-size:10px;background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:6px;font-weight:700;">要確認</span>' : '';
+  const ackBadge = a.requires_ack ? '<span style="font-size:10px;background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:10px;font-weight:700;">要確認</span>' : '';
   // 添付ファイル表示 (画像はサムネ、PDF/Office等はアイコン+リンク)
   let attHtml = '';
   if (Array.isArray(a.attachments) && a.attachments.length) {
@@ -425,7 +636,7 @@ function card(a) {
       a.attachments.map(f => {
         const isImg = /^image\//.test(f.mime || '');
         if (isImg) {
-          return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.name)}" style="display:inline-block;"><img src="${escapeHtml(f.url)}" alt="${escapeHtml(f.name)}" style="height:84px;max-width:140px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;"></a>`;
+          return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.name)}" style="display:inline-block;"><img src="${escapeHtml(f.url)}" alt="${escapeHtml(f.name)}" style="height:84px;max-width:140px;object-fit:cover;border-radius:12px;border:1px solid #e2e8f0;"></a>`;
         }
         const icon = /pdf/.test(f.mime) ? '📄'
                    : /sheet|excel/.test(f.mime) ? '📊'
@@ -434,7 +645,7 @@ function card(a) {
                    : /text|csv/.test(f.mime) ? '📃' : '📎';
         const kb = f.size ? Math.max(1, Math.round(f.size / 1024)) : 0;
         const sizeStr = kb >= 1024 ? (kb / 1024).toFixed(1) + 'MB' : kb + 'KB';
-        return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;color:#0f172a;text-decoration:none;font-weight:600;">${icon} <span>${escapeHtml(f.name)}</span><span style="color:#94a3b8;font-size:10px;font-weight:500;">${sizeStr}</span></a>`;
+        return `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:12px;font-size:12px;color:#0f172a;text-decoration:none;font-weight:600;">${icon} <span>${escapeHtml(f.name)}</span><span style="color:#94a3b8;font-size:10px;font-weight:500;">${sizeStr}</span></a>`;
       }).join('') + '</div>';
   }
   return `<article class="card ${cls}" id="a-${a.id}">
@@ -443,7 +654,7 @@ function card(a) {
       ${ackBadge}
       <div class="title">${escapeHtml(a.title)}</div>
     </div>
-    <div class="meta">${escapeHtml(a.author_name || '不明')} · ${relTime(a.created_at)} · 対象: ${escapeHtml(tgt)} ${expIcon}</div>
+    <div class="meta">${escapeHtml(a.author_name || '不明')} · ${relTime(a.created_at)} · 対象: <span data-no-translate>${escapeHtml(tgt)}</span> ${expIcon}</div>
     <div class="body">${escapeHtml(a.body)}</div>
     ${attHtml}
     <div class="actions">${actions}</div>
@@ -491,11 +702,18 @@ async function submitCreate() {
   if (files.length > 5) { errEl.textContent = '添付は最大5件まで'; return; }
   const oversize = files.find(f => f.size > 10 * 1024 * 1024);
   if (oversize) { errEl.textContent = '10MBを超えるファイル: ' + oversize.name; return; }
+  const target = computeTarget();
+  if (!target) {
+    const t3inp = document.getElementById('cmp-t3');
+    const leftover = t3inp && t3inp.value.trim();
+    errEl.textContent = leftover ? '個人名は候補一覧から選んで追加してください' : '送付先を選んでください（① 営業所は必須）';
+    (leftover ? t3inp : document.getElementById('cmp-t1')).focus(); return;
+  }
   const fd = new FormData();
   fd.append('title', title);
   fd.append('body', body);
   fd.append('level', document.getElementById('cmp-level').value);
-  fd.append('target', document.getElementById('cmp-target').value);
+  fd.append('target', target);
   fd.append('requires_ack', document.getElementById('cmp-ack').checked ? '1' : '0');
   const exp = document.getElementById('cmp-expires').value;
   if (exp) fd.append('expires_at', exp);
@@ -510,7 +728,7 @@ async function submitCreate() {
     document.getElementById('cmp-ack').checked = false;
     document.getElementById('cmp-expires').value = '';
     document.getElementById('cmp-level').value = 'normal';
-    document.getElementById('cmp-target').value = 'all';
+    resetTargetSelects();
     document.getElementById('cmp-files').value = '';
     document.getElementById('cmp-files-preview').textContent = '';
     switchTab('all');
@@ -564,6 +782,7 @@ function closeReads() { document.getElementById('reads-modal').classList.remove(
 })();
 </script>
 <script src="/overlay-history.js?v=3"></script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

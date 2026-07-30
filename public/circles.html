@@ -11,7 +11,7 @@
   html, body { margin: 0; padding: 0; min-height: 100vh; overscroll-behavior-x: contain; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: linear-gradient(180deg, #f0fdfa, #f8fafc); color: #0f172a; }
 header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 10px rgba(13,148,136,0.20); }
   header h1 { margin: 0; font-size: 19px; font-weight: 800; flex: 1; }
-  header .btn { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  header .btn { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 8px 12px; border-radius: 14px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; }
   header .btn:hover { background: rgba(255,255,255,0.32); }
   main { max-width: 960px; margin: 0 auto; padding: 18px 14px 80px; }
   .intro { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; border-left: 4px solid #0d9488; font-size: 13.5px; line-height: 1.7; color: #334155; }
@@ -71,7 +71,7 @@ header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135d
   .badge-state.recruit { background: #ccfbf1; color: #0f766e; }
   .badge-state.closed { background: #f1f5f9; color: #64748b; }
   .card.closed { opacity: 0.7; }
-  .empty { background: #fff; border-radius: 12px; padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 14px; }
+  .empty { background: #fff; border-radius: 16px; padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 14px; }
 
   /* モーダル */
   .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; overflow-y: auto; }
@@ -86,21 +86,38 @@ header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135d
   .modal .sec h3 { font-size: 13px; font-weight: 800; color: #334155; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
   .modal .desc-text { font-size: 14px; line-height: 1.7; color: #1e293b; white-space: pre-wrap; }
   .member-list { display: flex; flex-direction: column; gap: 8px; }
-  .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; }
+  .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 14px; }
   .member-row img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #e2e8f0; }
   .member-row .fb { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#cbd5e1,#94a3b8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; }
   .member-row .nm { flex: 1; font-size: 13.5px; font-weight: 700; }
   .member-row .badge { font-size: 10px; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 999px; font-weight: 800; }
-  .member-row .btn-rm { background: transparent; border: 1px solid #fecaca; color: #b91c1c; padding: 3px 8px; border-radius: 6px; font-size: 10px; cursor: pointer; }
-  .req-row { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; margin-bottom: 6px; }
+  .member-row .btn-rm { background: transparent; border: 1px solid #fecaca; color: #b91c1c; padding: 3px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; }
+  /* 活動報告(掲示板反映) */
+  .cp-compose { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:10px; margin-bottom:12px; }
+  .cp-compose textarea { width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:10px; padding:9px 11px; font-size:14px; min-height:56px; resize:vertical; font-family:inherit; }
+  .cp-row { display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .cp-photo { font-size:12.5px; font-weight:700; color:#0f766e; background:#ccfbf1; padding:6px 12px; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .cp-photo input { display:none; }
+  .cp-imgname { font-size:11px; color:#64748b; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cp-post { margin-left:auto; background:#0d9488; color:#fff; border:none; border-radius:10px; padding:8px 18px; font-size:13.5px; font-weight:800; cursor:pointer; }
+  .cp-post:disabled { opacity:.6; }
+  .cp-list { display:flex; flex-direction:column; gap:10px; }
+  .cp-item { background:#fff; border:1px solid #eef2f6; border-radius:14px; padding:10px 12px; }
+  .cp-item-head { display:flex; align-items:center; gap:8px; }
+  .cp-item-head img, .cp-item-head .fb { width:30px; height:30px; border-radius:50%; object-fit:cover; font-size:13px; }
+  .cp-item-meta { flex:1; line-height:1.3; } .cp-item-meta b { font-size:13px; } .cp-item-meta span { display:block; font-size:10.5px; color:#94a3b8; }
+  .cp-del { background:transparent; border:none; cursor:pointer; font-size:14px; opacity:.6; }
+  .cp-item-body { font-size:13.5px; line-height:1.6; margin-top:6px; white-space:pre-wrap; word-break:break-word; }
+  .cp-img-thumb { margin-top:8px; max-width:100%; max-height:260px; border-radius:12px; cursor:pointer; display:block; }
+  .req-row { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; margin-bottom: 6px; }
   .req-row img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
   .req-row .fb { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#cbd5e1,#94a3b8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; }
   .req-row .msg { font-size: 12px; color: #475569; flex: 1; min-width: 0; }
-  .req-row .btn-ok { background: #10b981; color: #fff; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
-  .req-row .btn-ng { background: #f1f5f9; color: #475569; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer; flex-shrink: 0; }
+  .req-row .btn-ok { background: #10b981; color: #fff; border: none; padding: 5px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .req-row .btn-ng { background: #f1f5f9; color: #475569; border: none; padding: 5px 10px; border-radius: 10px; font-size: 11.5px; cursor: pointer; flex-shrink: 0; }
   /* 予定リスト */
   .ev-list { display: flex; flex-direction: column; gap: 8px; }
-  .ev-row { display: flex; gap: 12px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #94a3b8; position: relative; }
+  .ev-row { display: flex; gap: 12px; padding: 10px 12px; background: #f8fafc; border-radius: 14px; border-left: 4px solid #94a3b8; position: relative; }
   .ev-row.past { opacity: 0.55; border-left-color: #cbd5e1; }
   .ev-row .date-block { flex-shrink: 0; text-align: center; min-width: 52px; }
   .ev-row .date-block .md { font-size: 16px; font-weight: 800; line-height: 1.2; color: #0f172a; }
@@ -112,18 +129,18 @@ header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135d
   .ev-row .ev-memo { font-size: 12px; color: #334155; margin-top: 4px; white-space: pre-wrap; }
   .ev-row .ev-del { background: transparent; border: none; color: #cbd5e1; font-size: 14px; cursor: pointer; align-self: flex-start; }
   .ev-row .ev-del:hover { color: #ef4444; }
-  .ev-add { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #fffbeb; border: 1.5px dashed #fcd34d; border-radius: 10px; margin-top: 6px; }
+  .ev-add { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #fffbeb; border: 1.5px dashed #fcd34d; border-radius: 14px; margin-top: 6px; }
   .ev-add.hidden { display: none; }
-  .ev-add input, .ev-add textarea { width: 100%; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .ev-add input, .ev-add textarea { width: 100%; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-family: inherit; }
   .ev-add textarea { min-height: 44px; resize: vertical; }
   .ev-add .ev-add-row { display: flex; gap: 6px; }
   .ev-add .ev-add-row > * { flex: 1; }
   .ev-add .btn-row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
-  .ev-add .btn-row button { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
-  .btn-add-event { background: #fef9c3; border: 1.5px dashed #fcd34d; color: #92400e; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; width: 100%; }
+  .ev-add .btn-row button { padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+  .btn-add-event { background: #fef9c3; border: 1.5px dashed #fcd34d; color: #92400e; padding: 8px 12px; border-radius: 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; width: 100%; }
   .btn-add-event:hover { background: #fef3c7; }
   .actions { display: flex; gap: 8px; margin-top: 14px; }
-  .actions .btn { flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 800; border: none; cursor: pointer; }
+  .actions .btn { flex: 1; padding: 12px; border-radius: 14px; font-size: 14px; font-weight: 800; border: none; cursor: pointer; }
   .btn-primary { background: linear-gradient(135deg,#0d9488,#14b8a6); color: #fff; }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-secondary { background: #f1f5f9; color: #334155; }
@@ -132,25 +149,34 @@ header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135d
   /* フォーム */
   .form-row { margin-bottom: 12px; }
   .form-row label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: #334155; }
-  .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-family: inherit; }
+  .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 15px; font-family: inherit; }
   .form-row textarea { min-height: 90px; resize: vertical; }
   .form-row .hint { font-size: 10.5px; color: #94a3b8; margin-top: 3px; }
   .form-row.inline { display: flex; gap: 10px; }
   .form-row.inline > div { flex: 1; }
   .err { color: #dc2626; font-size: 12px; padding: 6px 0; text-align: center; min-height: 16px; }
-  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.92); color: #fff; padding: 10px 18px; border-radius: 14px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
   .toast.show { opacity: 1; }
   /* テーマカラー (10種) */
   .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-  .palette button { aspect-ratio: 1.4; border: 2px solid transparent; border-radius: 10px; cursor: pointer; padding: 0; position: relative; transition: transform 0.1s; }
+  .palette button { aspect-ratio: 1.4; border: 2px solid transparent; border-radius: 14px; cursor: pointer; padding: 0; position: relative; transition: transform 0.1s; }
   .palette button:hover { transform: scale(1.05); }
   .palette button.active { border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,0.10); }
   .palette button .chk { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: 900; opacity: 0; transition: opacity 0.1s; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
   .palette button.active .chk { opacity: 1; }
 </style>
 <script src="/font-zoom.js?v=20260728d" defer></script>
-<script src="/global-notif.js?v=20260611d" defer></script>
+<script src="/global-notif.js?v=20260730c-dmname" defer></script>
 <script src="/version-check.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 
@@ -376,13 +402,13 @@ async function openDetail(id) {
     const rmBtn = (d.can_manage && !isLeader) ? `<button class="btn-rm" onclick="removeMember('${c.id}','${m.id}','${escapeHtml(m.display_name)}')">外す</button>` : '';
     return `<div class="member-row">
       ${avatarHtml(m.avatar_url, m.display_name)}
-      <div class="nm">${escapeHtml(m.display_name)}${m.nickname && m.nickname !== m.display_name ? ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">/' + escapeHtml(m.nickname) + '</span>' : ''}</div>
+      <div class="nm">${escapeHtml(m.display_name)}</div>
       ${isLeader ? '<span class="badge">👑 リーダー</span>' : ''}
       ${rmBtn}
     </div>`;
   }).join('');
   let requestsBlock = '';
-  if (d.can_manage && d.requests.length) {
+  if (d.can_approve && d.requests.length) {
     requestsBlock = `<div class="sec">
       <h3>📨 参加申請 (${d.requests.length}件)</h3>
       ${d.requests.map(r => `<div class="req-row">
@@ -444,6 +470,20 @@ async function openDetail(id) {
           </div>
         ` : ''}
       </div>
+      <div class="sec" id="cp-sec">
+        <h3>📣 活動報告 <span style="font-weight:600;font-size:11px;color:#94a3b8;">（掲示板に反映されます）</span></h3>
+        ${d.is_member ? `
+          <div class="cp-compose">
+            <textarea id="cp-text" maxlength="280" placeholder="活動の様子を書いて掲示板にアップ…（写真も添付できます）"></textarea>
+            <div class="cp-row">
+              <label class="cp-photo">📷 写真 <input type="file" id="cp-img" accept="image/*" onchange="cpPhotoPicked(this)"></label>
+              <span class="cp-imgname" id="cp-imgname"></span>
+              <button class="cp-post" id="cp-post-btn" onclick="submitCirclePost('${c.id}', event)">投稿する</button>
+            </div>
+          </div>
+        ` : ''}
+        <div class="cp-list" id="cp-list"><div style="color:#94a3b8;font-size:12px;padding:6px;">読み込み中…</div></div>
+      </div>
       <div class="sec">
         <h3>👥 メンバー (${d.members.length}人)</h3>
         <div class="member-list">${memberList || '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだメンバーがいません</div>'}</div>
@@ -459,6 +499,7 @@ async function openDetail(id) {
   // 予定一覧をロード
   window._lastDetail = d;
   loadEvents(c.id);
+  loadCirclePosts(c.id);
 }
 
 const WD = ['日','月','火','水','木','金','土'];
@@ -582,6 +623,61 @@ async function leaveCircle(id, name) {
   await load();
 }
 
+// ===== 活動報告（掲示板 board_posts に circle_id 付きで反映） =====
+function cpTime(s){ if(!s) return ''; const t=new Date(String(s).replace(' ','T')+'Z').getTime(); if(!t) return ''; const diff=Date.now()-t; const m=Math.floor(diff/60000); if(m<1) return 'たった今'; if(m<60) return m+'分前'; const h=Math.floor(m/60); if(h<24) return h+'時間前'; const dd=Math.floor(h/24); if(dd<7) return dd+'日前'; return new Date(t).toLocaleDateString('ja-JP'); }
+async function loadCirclePosts(circleId) {
+  const list = document.getElementById('cp-list');
+  if (!list) return;
+  const r = await api('/api/board/posts?circle_id=' + encodeURIComponent(circleId) + '&limit=30');
+  if (!r || !r.success) { list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:6px;">取得に失敗しました</div>'; return; }
+  const posts = r.posts || [];
+  if (!posts.length) { list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">まだ活動報告はありません。メンバーは上の欄から投稿できます（掲示板にも載ります）。</div>'; return; }
+  list.innerHTML = posts.map(p => {
+    const img = (p.image_url && !/\.pdf$/i.test(p.image_url)) ? `<img class="cp-img-thumb" src="${escapeHtml(p.image_url)}" onclick="window.open('${escapeHtml(p.image_url)}','_blank')">` : '';
+    const del = p.can_delete ? `<button class="cp-del" onclick="deleteCirclePost(${p.id},'${circleId}')" title="削除">🗑</button>` : '';
+    return `<div class="cp-item">
+      <div class="cp-item-head">${avatarHtml(p.author_avatar, p.author_name)}<div class="cp-item-meta"><b>${escapeHtml(p.author_name||'不明')}</b><span>${cpTime(p.created_at)}</span></div>${del}</div>
+      ${p.content ? `<div class="cp-item-body">${escapeHtml(p.content)}</div>` : ''}
+      ${img}
+    </div>`;
+  }).join('');
+}
+let _cpImgFile = null;
+function cpPhotoPicked(input) {
+  _cpImgFile = (input.files && input.files[0]) || null;
+  const el = document.getElementById('cp-imgname');
+  if (el) el.textContent = _cpImgFile ? _cpImgFile.name : '';
+}
+async function submitCirclePost(circleId, ev) {
+  if (ev) ev.preventDefault();
+  const btn = document.getElementById('cp-post-btn');
+  const ta = document.getElementById('cp-text');
+  const content = ((ta && ta.value) || '').trim();
+  if (!content && !_cpImgFile) { showToast('本文または写真を入れてください'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '投稿中…'; }
+  const fd = new FormData();
+  fd.append('content', content);
+  fd.append('circle_id', circleId);
+  if (_cpImgFile) fd.append('image', _cpImgFile);
+  const r = await api('/api/board/posts', { method: 'POST', body: fd });
+  if (btn) { btn.disabled = false; btn.textContent = '投稿する'; }
+  if (r && r.success) {
+    if (ta) ta.value = '';
+    _cpImgFile = null;
+    const nm = document.getElementById('cp-imgname'); if (nm) nm.textContent = '';
+    const im = document.getElementById('cp-img'); if (im) im.value = '';
+    showToast('掲示板に投稿しました');
+    loadCirclePosts(circleId);
+  } else {
+    showToast((r && r.msg) || '投稿に失敗しました');
+  }
+}
+async function deleteCirclePost(postId, circleId) {
+  if (!confirm('この活動報告を削除しますか？（掲示板からも消えます）')) return;
+  const r = await api('/api/board/posts/' + postId, { method: 'DELETE' });
+  if (r && r.success) { showToast('削除しました'); loadCirclePosts(circleId); }
+  else showToast((r && r.msg) || '削除に失敗しました');
+}
 async function decideRequest(circleId, reqId, decision) {
   const r = await api(`/api/circles/${circleId}/requests/${reqId}/decision`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -696,6 +792,7 @@ async function saveCircle() {
 
 init();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

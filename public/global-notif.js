@@ -540,8 +540,21 @@
     '小林 猛': 'コバヤシ タケシ', '小林　猛': 'コバヤシ タケシ', '小林猛': 'コバヤシ タケシ',
     '金子 力': 'カネコ チカラ', '金子　力': 'カネコ チカラ', '金子力': 'カネコ チカラ',
     '岡田 恭司': 'オカダ ヤスジ', '岡田　恭司': 'オカダ ヤスジ', '岡田恭司': 'オカダ ヤスジ',
-    '土古 辰雄': 'ツチコ タツオ', '土古　辰雄': 'ツチコ タツオ', '土古辰雄': 'ツチコ タツオ'
+    '土古 辰雄': 'ツチコ タツオ', '土古　辰雄': 'ツチコ タツオ', '土古辰雄': 'ツチコ タツオ',
+    '鈴木 有博': 'スズキ アリヒロ', '鈴木　有博': 'スズキ アリヒロ', '鈴木有博': 'スズキ アリヒロ'
   };
+  // 全社員分の読みはサーバー(roster_yomi.json)が正。取得できるまでは上の手動辞書で動く。
+  var _NR_ALL = null;
+  (function () {
+    try {
+      var _tk = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+      if (!_tk) return;
+      fetch('/api/chat/name-readings', { headers: { Authorization: 'Bearer ' + _tk } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.success && d.readings) _NR_ALL = d.readings; })
+        .catch(function () {});
+    } catch (e) {}
+  })();
   function readingOf(name) {
     if (!name) return name;
     if (NAME_READINGS[name]) return NAME_READINGS[name];
@@ -549,6 +562,7 @@
     for (var k in NAME_READINGS) {
       if (NAME_READINGS.hasOwnProperty(k) && k.replace(/\s+/g, '').replace(/　/g, '') === norm) return NAME_READINGS[k];
     }
+    if (_NR_ALL && _NR_ALL[norm]) return _NR_ALL[norm];   // 全社員分の名簿(サーバー配布)
     return name;
   }
   function buildAccidentAnnounce(p) {

@@ -699,7 +699,7 @@
   }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js?v=20260728-dmname" defer></script>
+<script src="/global-notif.js?v=20260730c-dmname" defer></script>
 <script src="/fukuri-hint.js?v=2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2001,8 +2001,8 @@ async function init() {
     // ここに来る現場一般社員は「詳しい表示」を選んだ人(既定はかんたん表示へ自動転送)。かんたん表示へ戻すボタンを出す。
     try { addSimpleViewSwitch(); } catch (e) { console.warn('[simpleswitch]', e); }
   }
-  // 管理画面ボタンは役員5名+IT推進の6名のみ (2026-07-21 限定。server/middleware/auth.js の ADMIN_CONSOLE_LOGIN_IDS と同期させること)
-  const ADMIN_CONSOLE_IDS = ['taketake', 'e_sugai', 'y_gotoh', 'y_yoshizawa', 'y_okada', 'm_tateishi'];
+  // 管理画面ボタンは会長+管理部長の2名のみ (2026-07-29 限定。server/middleware/auth.js の ADMIN_CONSOLE_LOGIN_IDS と同期させること)
+  const ADMIN_CONSOLE_IDS = ['taketake', 'y_yoshizawa'];
   if (ADMIN_CONSOLE_IDS.includes(me.login_id)) $('hd-admin-btn').style.display = 'inline-flex';
   // 点呼者・管理者 (点呼・朝礼を実施する人): 推進メンバー(運管/倉庫) / 管理職 / manager / systemadmin
   const isTenkoOp = isListeningRecorder || isAdmin || me.employee_type === 'admin' || me.job_role === 'manager';

@@ -6,6 +6,20 @@ const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser, authAdmin } = require('../middleware/auth');
+const { allReadings, readingsVersion } = require('../services/name-readings');
+
+// 人名読みの一覧 (読み上げ用)。クライアント側の辞書は5名分しかなく、
+// 名簿(roster_yomi.json)を見ていないため辞書外の社員が当て推量で読まれていた (2026-07-30)。
+// 正規化した表示名 -> カナ。ver は名簿の更新時刻で、変われば読みを直したという意味。
+router.get('/name-readings', authUser, (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, ver: readingsVersion(), readings: allReadings() });
+  } catch (e) {
+    console.warn('[name-readings]', e && e.message);
+    res.json({ success: false, readings: {} });
+  }
+});
 
 // 管理者(role=admin かつ employee_type=admin)かどうか
 function isManager(uid) {

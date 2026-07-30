@@ -11,12 +11,12 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Hiragino Sans,system-ui,sans-serif}
 header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
-header .back{background:none;border:none;font-size:22px;color:var(--ink);cursor:pointer;padding:4px 8px;border-radius:8px}
+header .back{background:none;border:none;font-size:22px;color:var(--ink);cursor:pointer;padding:4px 8px;border-radius:12px}
 header .back:hover{background:#f1f5f9}
 header h1{font-size:17px;font-weight:800;margin:0;flex:1}
 header .count{font-size:12px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:999px;font-weight:700}
 .toolbar{padding:12px 16px 8px;display:flex;flex-direction:column;gap:10px;max-width:1100px;margin:0 auto;width:100%}
-.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;box-shadow:0 1px 3px rgba(15,23,42,0.04)}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px 14px;box-shadow:0 1px 3px rgba(15,23,42,0.04)}
 .search input{flex:1;border:none;outline:none;font-size:15px;background:transparent}
 .search .ico{color:var(--sub)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -27,10 +27,6 @@ header .count{font-size:12px;background:#e0f2fe;color:#0369a1;padding:3px 10px;b
 main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
 .section{margin-top:16px}
 .section h2{font-size:13px;font-weight:800;color:var(--sub);margin:0 0 10px;padding-left:8px;border-left:3px solid var(--accent);letter-spacing:0.3px}
-.section.hq-parent h2{font-size:15px;color:var(--ink);border-left-width:4px}
-.section.hq-child{margin-left:16px;padding-left:12px;border-left:2px dashed var(--line)}
-.section.hq-child h2{font-size:12px;border-left-color:#94a3b8}
-.section.hq-child::before{content:'└';color:#94a3b8;font-weight:700;margin-right:2px;font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .member{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 10px 12px;text-align:center;cursor:default;position:relative}
 .member.role-admin{background:linear-gradient(180deg,#fef3c7 0%,#fff 35%)}
@@ -39,6 +35,7 @@ main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
 .member.com-KBC .ava{box-shadow:0 0 0 2px #2563eb,0 2px 6px rgba(15,23,42,0.08)}
 .member.com-SZE .ava{box-shadow:0 0 0 2px #059669,0 2px 6px rgba(15,23,42,0.08)}
 .member .ava img{width:100%;height:100%;object-fit:cover}
+.member .ava.ph{color:#fff;font-size:34px;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.18)}
 .member .nm{font-size:13px;font-weight:800;color:var(--ink);line-height:1.3;margin-bottom:2px;word-break:break-all}
 .member .nk{font-size:11px;color:var(--sub);font-weight:600;min-height:14px;line-height:1.2}
 .member .gp{font-size:10px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:999px;display:inline-block;margin-top:6px;font-weight:700}
@@ -48,15 +45,25 @@ main{max-width:1100px;margin:0 auto;padding:8px 16px 40px}
 .empty .em{font-size:42px;margin-bottom:10px}
 @media (max-width:600px){
   .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
-  .member{padding:12px 6px 10px;border-radius:12px}
+  .member{padding:12px 6px 10px;border-radius:16px}
   .member .ava{width:60px;height:60px;font-size:24px;margin-bottom:6px}
+  .member .ava.ph{font-size:28px}
   .member .nm{font-size:12px}
   .member .nk{font-size:10px}
   .member .gp{font-size:9px;padding:1px 6px}
 }
 </style>
-<script src="/global-notif.js" defer></script>
+<script src="/global-notif.js?v=20260730c-dmname" defer></script>
 <script src="/version-check.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <header>
@@ -84,15 +91,8 @@ if (!token) { location.href = '/'; }
 let allMembers = [];
 let currentFilter = '';
 
-// 組織ツリー: 事業本部(親)の配下にスタンダード運輸の各営業所(子)をぶら下げる
-const HQ_GROUP = '🏛 事業本部';
-const HQ_CHILDREN = ['スタンダード運輸 海老名','スタンダード運輸 埼玉','スタンダード運輸 座間','スタンダード運輸 南関東'];
-// 事業本部所属だが営業所に勤務する人は、所属(事業本部)ラベルのままその営業所セクション末尾に表示 (company_code=勤務地)
-// 例: 濱道(事業本部長)は座間勤務 → 座間セクションの池邊の右隣に出る
-const COMPANY_TO_BRANCH = {
-  'SU_HQ':'スタンダード運輸 海老名', 'SU_SAITAMA':'スタンダード運輸 埼玉',
-  'SU_ZAMA':'スタンダード運輸 座間', 'SU_MKANTO':'スタンダード運輸 南関東',
-};
+// 2026-07-29: 事業本部グループの廃止に伴い、営業所を親(事業本部)配下にぶら下げる入れ子表示をやめ、
+// 各営業所を通常のセクションとして並列表示する。
 
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
@@ -129,36 +129,38 @@ function renderList(){
   }
 
   const byGroup = {};
-  const relocate = [];
   list.forEach(m => {
     const g = m.group || '(未設定)';
-    // 事業本部所属で営業所勤務(company_code)の人は、その営業所セクション末尾へ移して表示 (例: 濱道=事業本部/座間勤務)
-    if (g === HQ_GROUP && COMPANY_TO_BRANCH[m.company]) { relocate.push(m); return; }
     (byGroup[g] = byGroup[g] || []).push(m);
   });
-  relocate.forEach(m => { const g = COMPANY_TO_BRANCH[m.company]; (byGroup[g] = byGroup[g] || []).push(m); });
 
-  // 事業本部の下に各営業所をぶら下げる入れ子ツリー (営業所は主所属=事業本部配下であり兼務ではない)
-  const childSet = new Set(HQ_CHILDREN);
-  let topGroups = Object.keys(byGroup).filter(g => !childSet.has(g));
-  // 子(営業所)だけが該当する絞り込み時でも、親=事業本部の見出しを文脈として表示
-  if (HQ_CHILDREN.some(c => byGroup[c]) && !topGroups.includes(HQ_GROUP)) topGroups.push(HQ_GROUP);
-  topGroups.sort((a,b)=>{
+  // 管理職を先頭、以降は人数の多い順。(未設定)は末尾。
+  const topGroups = Object.keys(byGroup).sort((a,b)=>{
     if (a==='管理職') return -1;
     if (b==='管理職') return 1;
-    if (a===HQ_GROUP) return -1;
-    if (b===HQ_GROUP) return 1;
+    if (a==='(未設定)') return 1;
+    if (b==='(未設定)') return -1;
     return (byGroup[b]||[]).length - (byGroup[a]||[]).length;
   });
 
+  const AVA_PALETTE = ['#0ea5e9','#6366f1','#8b5cf6','#ec4899','#f43f5e','#f59e0b','#10b981','#14b8a6','#0891b2','#7c3aed','#d946ef','#2563eb'];
+  function avaColor(name){
+    const s = name || '?';
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return AVA_PALETTE[h % AVA_PALETTE.length];
+  }
   function cardHtml(m){
     const initial = (m.name||'?').trim().charAt(0);
-    const ava = m.avatar
-      ? '<img src="'+escapeHtml(m.avatar)+'" alt="" onerror="this.replaceWith(document.createTextNode(\''+escapeHtml(initial)+'\'))">'
+    const hasImg = !!m.avatar;
+    const ava = hasImg
+      ? '<img src="'+escapeHtml(m.avatar)+'" alt="" onerror="this.parentNode.classList.add(\'ph\');this.parentNode.style.background=\''+avaColor(m.name)+'\';this.replaceWith(document.createTextNode(\''+escapeHtml(initial)+'\'))">'
       : escapeHtml(initial);
+    const avaCls = hasImg ? 'ava' : 'ava ph';
+    const avaStyle = hasImg ? '' : ' style="background:'+avaColor(m.name)+'"';
     return '<div class="member com-'+escapeHtml(m.company)+' role-'+escapeHtml(m.role)+'">'
       + (m.promoter ? '<span class="pro-badge">推進</span>' : '')
-      + '<div class="ava">'+ava+'</div>'
+      + '<div class="'+avaCls+'"'+avaStyle+'>'+ava+'</div>'
       + '<div class="nm">'+escapeHtml(m.name)+'</div>'
       + (m.group ? '<div class="gp">'+escapeHtml(m.group)+'</div>' : '')
       + ((m.concurrent||[]).map(c => '<div class="gp kenmu">兼務 '+escapeHtml(c)+'</div>').join(''))
@@ -173,14 +175,7 @@ function renderList(){
   }
 
   let html = '';
-  topGroups.forEach(g => {
-    if (g === HQ_GROUP) {
-      html += sectionHtml(g, byGroup[g], 'hq-parent');
-      HQ_CHILDREN.forEach(c => { if ((byGroup[c]||[]).length) html += sectionHtml(c, byGroup[c], 'hq-child'); });
-    } else {
-      html += sectionHtml(g, byGroup[g], '');
-    }
-  });
+  topGroups.forEach(g => { html += sectionHtml(g, byGroup[g], ''); });
   document.getElementById('app').innerHTML = html;
 }
 
@@ -201,6 +196,7 @@ async function load(){
 document.getElementById('q').addEventListener('input', renderList);
 load();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

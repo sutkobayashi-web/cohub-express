@@ -30,7 +30,7 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 }
 .composer textarea {
   width: 100%; min-height: 64px; max-height: 200px;
-  padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px;
+  padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 14px;
   font-size: 15px; font-family: inherit; resize: vertical; outline: none;
 }
 .composer textarea:focus { border-color: #06b6d4; box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
@@ -38,12 +38,12 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
   display: flex; align-items: center; gap: 8px; margin-top: 8px;
 }
 .composer-meta { flex: 1; font-size: 11px; color: #94a3b8; }
-.btn { padding: 9px 16px; background: #06b6d4; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn { padding: 9px 16px; background: #06b6d4; color: #fff; border: none; border-radius: 12px; cursor: pointer; font-size: 13px; font-weight: 700; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-icon { padding: 8px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; }
+.btn-icon { padding: 8px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; cursor: pointer; font-size: 18px; line-height: 1; }
 .btn-icon:hover { background: #e2e8f0; }
 .preview-img-wrap { position: relative; margin-top: 8px; display: inline-block; }
-.preview-img { max-width: 200px; max-height: 200px; border-radius: 8px; }
+.preview-img { max-width: 200px; max-height: 200px; border-radius: 12px; }
 .preview-clear { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
 
 /* 投稿カード */
@@ -57,14 +57,15 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .post-meta { flex: 1; min-width: 0; }
 .post-author { font-weight: 700; font-size: 14px; }
 .post-time { font-size: 11px; color: #94a3b8; }
+.circle-badge { display: inline-block; font-size: 10.5px; font-weight: 800; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 9px; margin-left: 6px; vertical-align: middle; }
 .post-content { font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
-.post-image { margin-top: 10px; max-width: 100%; max-height: 480px; border-radius: 10px; cursor: pointer; }
+.post-image { margin-top: 10px; max-width: 100%; max-height: 480px; border-radius: 14px; cursor: pointer; }
 .post-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; align-items: stretch; }
 .react-btn {
   position: relative;
   display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
   min-width: 54px; padding: 6px 8px 5px;
-  background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px;
+  background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 16px;
   cursor: pointer; line-height: 1;
   transition: transform 0.1s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
   box-shadow: 0 1px 2px rgba(15,23,42,0.04);
@@ -97,7 +98,7 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .del-btn:hover { color: #ef4444; }
 
 .comments {
-  margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; display: none;
+  margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 14px; display: none;
 }
 .comments.open { display: block; }
 .cmt {
@@ -124,14 +125,34 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 #img-modal img { max-width: 100%; max-height: 100%; }
 #img-modal .close { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; }
 
+/* PDF添付カード (一覧のサムネ) */
+.post-pdf-card { display: inline-block; margin-top: 10px; cursor: pointer; max-width: 220px; }
+.post-pdf-thumb { display: block; width: 100%; max-width: 220px; max-height: 280px; object-fit: cover; object-position: top; border-radius: 12px 12px 0 0; border: 1px solid #fca5a5; border-bottom: none; background: #fff; }
+.post-pdf-label { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: linear-gradient(135deg,#fee2e2,#fecaca); color: #991b1b; border-radius: 0 0 12px 12px; border: 1px solid #fca5a5; font-size: 13px; font-weight: 600; }
+.post-pdf-card.no-thumb .post-pdf-label { border-radius: 12px; }
+.post-pdf-label .fn { font-size: 11px; color: #7f1d1d; font-weight: 400; }
+
+/* PDF閲覧モーダル (アプリ内・全画面・常時「閉じる」表示=スマホでも戻れる) */
+#pdf-modal { position: fixed; inset: 0; background: rgba(15,15,20,0.96); display: none; flex-direction: column; z-index: 300; }
+#pdf-modal.open { display: flex; }
+#pdf-modal .pdf-bar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: rgba(0,0,0,0.5); color: #fff; }
+#pdf-modal .pdf-bar .title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pdf-modal .pdf-bar .acts { display: flex; gap: 8px; flex: 0 0 auto; }
+#pdf-modal .pdf-bar a, #pdf-modal .pdf-bar button { color: #fff; background: rgba(255,255,255,0.18); border: none; border-radius: 20px; padding: 8px 16px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
+#pdf-modal .pdf-bar .close { background: rgba(239,68,68,0.85); }
+#pdf-modal .pdf-body { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#pdf-modal .pdf-page { max-width: 100%; width: 820px; height: auto; background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+#pdf-modal .pdf-fallback { color: #fff; text-align: center; padding: 48px 20px; line-height: 1.8; }
+#pdf-modal .pdf-fallback a { color: #93c5fd; }
+
 /* ログイン */
 .login {
   max-width: 380px; margin: 60px auto; background: #fff;
   border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 .login h2 { margin: 0 0 16px; }
-.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 10px; outline: none; }
-.login button { width: 100%; padding: 12px; background: #06b6d4; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.login input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; margin-bottom: 10px; outline: none; }
+.login button { width: 100%; padding: 12px; background: #06b6d4; color: #fff; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
 
 @media (min-width: 700px) {
@@ -140,8 +161,17 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 </style>
 <script src="/font-zoom.js?v=20260728d" defer></script>
 <script src="/image-zoom.js" defer></script>
-<script src="/global-notif.js?v=20260611d" defer></script>
+<script src="/global-notif.js?v=20260730c-dmname" defer></script>
 <script src="/version-check.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 
@@ -189,6 +219,17 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 <div id="img-modal" onclick="closeImgModal()">
   <button class="close" onclick="closeImgModal()">×</button>
   <img id="img-modal-img" alt="">
+</div>
+
+<div id="pdf-modal">
+  <div class="pdf-bar">
+    <span class="title" id="pdf-modal-title">PDF</span>
+    <div class="acts">
+      <a id="pdf-modal-dl" href="#" download>⬇ 保存</a>
+      <button class="close" onclick="closePdfModal()">✕ 閉じる</button>
+    </div>
+  </div>
+  <div class="pdf-body" id="pdf-modal-body"></div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -313,7 +354,7 @@ function onPickImage(ev) {
     if (!pdfBadge) {
       pdfBadge = document.createElement('div');
       pdfBadge.id = 'cmp-preview-pdf';
-      pdfBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:#fee2e2;color:#991b1b;border-radius:8px;font-size:13px;font-weight:600;';
+      pdfBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:#fee2e2;color:#991b1b;border-radius:12px;font-size:13px;font-weight:600;';
       document.getElementById('cmp-preview').insertBefore(pdfBadge, document.getElementById('cmp-preview').firstChild);
     }
     pdfBadge.innerHTML = '📄 ' + (f.name || 'PDF') + ' <span style="font-size:11px;color:#7f1d1d;font-weight:400;">(' + Math.round(f.size/1024) + 'KB)</span>';
@@ -389,7 +430,13 @@ function postHtml(p) {
   if (p.image_url) {
     if (/\.pdf$/i.test(p.image_url)) {
       const fname = (p.image_url.split('/').pop() || 'document.pdf').replace(/^\d+_[a-z0-9]+/, '添付ファイル');
-      attach = `<a class="post-pdf" href="${escapeHtml(p.image_url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;margin-top:10px;padding:12px 16px;background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b;border-radius:10px;text-decoration:none;font-weight:600;border:1px solid #fca5a5;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(220,38,38,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">📄 PDFを開く <span style="font-size:11px;color:#7f1d1d;font-weight:400;">${escapeHtml(fname)}</span></a>`;
+      const u = escapeHtml(p.image_url);
+      // サムネ画像(1ページ目)+ラベル。タップでアプリ内ビューア(closePdfModalで戻れる)。
+      // サムネ未生成時は onerror でカードを no-thumb 表示に切替。
+      attach = `<div class="post-pdf-card" onclick="openPdfModal('${u}','${escapeHtml(fname)}')">`
+        + `<img class="post-pdf-thumb" src="${u}.thumb.jpg" alt="PDFプレビュー" onerror="this.style.display='none';this.parentNode.classList.add('no-thumb')">`
+        + `<div class="post-pdf-label">📄 PDFを開く <span class="fn">${escapeHtml(fname)}</span></div>`
+        + `</div>`;
     } else {
       attach = `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">`;
     }
@@ -401,7 +448,7 @@ function postHtml(p) {
     <div class="post-head">
       ${avatarHtml(p.author_avatar, p.author_name)}
       <div class="post-meta">
-        <div class="post-author">${escapeHtml(p.author_name || '不明')}</div>
+        <div class="post-author">${escapeHtml(p.author_name || '不明')}${p.circle_name ? ` <span class="circle-badge">${escapeHtml(p.circle_icon || '🎯')} ${escapeHtml(p.circle_name)}</span>` : ''}</div>
         <div class="post-time">${relTime(p.created_at)}</div>
       </div>
       ${delBtn}
@@ -539,6 +586,39 @@ function closeImgModal() {
   document.getElementById('img-modal').classList.remove('open');
 }
 
+// PDFをアプリ内で開く。ページ画像(.p1.jpg..)を順次読み込み。ページ切れ(onerror)で停止。
+// 画面遷移しないので、スマホ(PWA standalone)でも「✕ 閉じる」で必ず掲示板に戻れる。
+function openPdfModal(url, fname) {
+  const body = document.getElementById('pdf-modal-body');
+  body.innerHTML = '';
+  document.getElementById('pdf-modal-title').textContent = fname || 'PDF';
+  document.getElementById('pdf-modal-dl').href = url;
+  let n = 1, loaded = 0;
+  const loadNext = () => {
+    const img = document.createElement('img');
+    img.className = 'pdf-page';
+    img.alt = 'PDF ' + n + 'ページ目';
+    img.onload = () => { loaded++; n++; loadNext(); };
+    img.onerror = () => {
+      img.remove();
+      if (loaded === 0) {
+        // まだ画像が生成されていない(投稿直後など) → 元PDFへの導線を出す
+        body.innerHTML = '<div class="pdf-fallback">プレビューを準備中です。<br>少し時間をおいて開き直すか、<a href="' + url + '" target="_blank" rel="noopener">PDFを直接開く</a></div>';
+      }
+    };
+    img.src = url + '.p' + n + '.jpg';
+    body.appendChild(img);
+  };
+  loadNext();
+  document.getElementById('pdf-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePdfModal() {
+  document.getElementById('pdf-modal').classList.remove('open');
+  document.getElementById('pdf-modal-body').innerHTML = '';
+  document.body.style.overflow = '';
+}
+
 // 自動ログイン
 (async function() {
   if (!token) { showLogin(''); return; }
@@ -549,7 +629,8 @@ function closeImgModal() {
   } catch (e) { showLogin(''); }
 })();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
   <script src="/voice-input.js" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>
