@@ -470,20 +470,20 @@ async function openDetail(id) {
           </div>
         ` : ''}
       </div>
+      ${d.is_member ? `
       <div class="sec" id="cp-sec">
-        <h3>📣 活動報告 <span style="font-weight:600;font-size:11px;color:#94a3b8;">（掲示板に反映されます）</span></h3>
-        ${d.is_member ? `
-          <div class="cp-compose">
-            <textarea id="cp-text" maxlength="280" placeholder="活動の様子を書いて掲示板にアップ…（写真も添付できます）"></textarea>
-            <div class="cp-row">
-              <label class="cp-photo">📷 写真 <input type="file" id="cp-img" accept="image/*" onchange="cpPhotoPicked(this)"></label>
-              <span class="cp-imgname" id="cp-imgname"></span>
-              <button class="cp-post" id="cp-post-btn" onclick="submitCirclePost('${c.id}', event)">投稿する</button>
-            </div>
+        <h3>📣 活動報告 <span style="font-weight:600;font-size:11px;color:#94a3b8;">（このサークルのメンバーだけが見られます）</span></h3>
+        <div class="cp-compose">
+          <textarea id="cp-text" maxlength="280" placeholder="活動の様子を書く…（写真も添付できます／サークル内のみ）"></textarea>
+          <div class="cp-row">
+            <label class="cp-photo">📷 写真 <input type="file" id="cp-img" accept="image/*" onchange="cpPhotoPicked(this)"></label>
+            <span class="cp-imgname" id="cp-imgname"></span>
+            <button class="cp-post" id="cp-post-btn" onclick="submitCirclePost('${c.id}', event)">投稿する</button>
           </div>
-        ` : ''}
+        </div>
         <div class="cp-list" id="cp-list"><div style="color:#94a3b8;font-size:12px;padding:6px;">読み込み中…</div></div>
       </div>
+      ` : ''}
       <div class="sec">
         <h3>👥 メンバー (${d.members.length}人)</h3>
         <div class="member-list">${memberList || '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだメンバーがいません</div>'}</div>
@@ -499,7 +499,7 @@ async function openDetail(id) {
   // 予定一覧をロード
   window._lastDetail = d;
   loadEvents(c.id);
-  loadCirclePosts(c.id);
+  if (d.is_member) loadCirclePosts(c.id);
 }
 
 const WD = ['日','月','火','水','木','金','土'];
@@ -623,7 +623,7 @@ async function leaveCircle(id, name) {
   await load();
 }
 
-// ===== 活動報告（掲示板 board_posts に circle_id 付きで反映） =====
+// ===== 活動報告（サークル内のみ・board_posts に circle_id 付きで保存 / 2026-07-31 掲示板・What's new には出さない） =====
 function cpTime(s){ if(!s) return ''; const t=new Date(String(s).replace(' ','T')+'Z').getTime(); if(!t) return ''; const diff=Date.now()-t; const m=Math.floor(diff/60000); if(m<1) return 'たった今'; if(m<60) return m+'分前'; const h=Math.floor(m/60); if(h<24) return h+'時間前'; const dd=Math.floor(h/24); if(dd<7) return dd+'日前'; return new Date(t).toLocaleDateString('ja-JP'); }
 async function loadCirclePosts(circleId) {
   const list = document.getElementById('cp-list');
@@ -631,7 +631,7 @@ async function loadCirclePosts(circleId) {
   const r = await api('/api/board/posts?circle_id=' + encodeURIComponent(circleId) + '&limit=30');
   if (!r || !r.success) { list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:6px;">取得に失敗しました</div>'; return; }
   const posts = r.posts || [];
-  if (!posts.length) { list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">まだ活動報告はありません。メンバーは上の欄から投稿できます（掲示板にも載ります）。</div>'; return; }
+  if (!posts.length) { list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">まだ活動報告はありません。メンバーは上の欄から投稿できます。</div>'; return; }
   list.innerHTML = posts.map(p => {
     const img = (p.image_url && !/\.pdf$/i.test(p.image_url)) ? `<img class="cp-img-thumb" src="${escapeHtml(p.image_url)}" onclick="window.open('${escapeHtml(p.image_url)}','_blank')">` : '';
     const del = p.can_delete ? `<button class="cp-del" onclick="deleteCirclePost(${p.id},'${circleId}')" title="削除">🗑</button>` : '';
@@ -673,7 +673,7 @@ async function submitCirclePost(circleId, ev) {
   }
 }
 async function deleteCirclePost(postId, circleId) {
-  if (!confirm('この活動報告を削除しますか？（掲示板からも消えます）')) return;
+  if (!confirm('この活動報告を削除しますか？')) return;
   const r = await api('/api/board/posts/' + postId, { method: 'DELETE' });
   if (r && r.success) { showToast('削除しました'); loadCirclePosts(circleId); }
   else showToast((r && r.msg) || '削除に失敗しました');

@@ -82,7 +82,8 @@ router.get('/public', (req, res) => {
       items.push({ icon: a.level === 'urgent' ? '🚨' : '📢', label: '通達', text: a.title || '', summary: null, thumb: null, time: a.created_at });
     });
     db.prepare(`SELECT content, image_url, created_at FROM board_posts
-      WHERE deleted_at IS NULL AND created_at >= datetime('now','-30 days')
+      WHERE deleted_at IS NULL AND (circle_id IS NULL OR circle_id = '')
+        AND created_at >= datetime('now','-30 days')
       ORDER BY created_at DESC LIMIT 10`).all().forEach(b => {
       items.push({ icon: '📋', label: '掲示板', text: b.content || '', summary: null, thumb: thumbFor(b.image_url), time: b.created_at });
     });
@@ -113,6 +114,8 @@ router.get('/', authUser, (req, res) => {
   //   = 告知 / 掲示板 / 承認済みの事故報告 / 新機能のお知らせ。
   //   外したもの: ひろばの投稿(食事が大半を占め他が埋もれる。ひろば側で見る)、
   //   サークル、業務週報の提出。⚠️運転アラートは従来どおり残す(管理職のみ表示・社長 2026-07-28)。
+  // ⭐2026-07-31 追加(社長指示): サークルの活動報告(board_posts.circle_id 付き)はトップに出さない。
+  //   サークルは任意参加のため全員のトップに流すと通達/掲示が埋もれる。投稿はサークル内に限定する。
 
 
   // board_posts (掲示板)
@@ -121,6 +124,7 @@ router.get('/', authUser, (req, res) => {
       SELECT id, author_id, content, image_url, created_at
       FROM board_posts
       WHERE deleted_at IS NULL
+        AND (circle_id IS NULL OR circle_id = '')
         AND created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at DESC LIMIT 5
     `).all(days);

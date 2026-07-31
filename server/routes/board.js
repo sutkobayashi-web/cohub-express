@@ -2,14 +2,61 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const { execFile, execFileSync } = require('child_process');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
+
+// ===== PDF サムネ / 閲覧ページ画像生成 (poppler pdftoppm) =====
+// 命名規則: 添付が /uploads/board/F.pdf のとき
+//   サムネ  = F.pdf.thumb.jpg (1ページ目・小)
+//   各ページ = F.pdf.p1.jpg, F.pdf.p2.jpg ... (アプリ内ビューア用)
+const PDF_MAX_PAGES = 20;
+function pdfPageCount(absPdf) {
+  try {
+    const out = execFileSync('pdfinfo', [absPdf], { timeout: 15000 }).toString();
+    const m = out.match(/^Pages:\s+(\d+)/m);
+    return m ? parseInt(m[1], 10) : 0;
+  } catch (_) { return 0; }
+}
+// 1ページ目サムネを同期生成 (軽量・投稿直後の一覧表示に間に合わせる)
+function generatePdfThumb(absPdf) {
+  try {
+    execFileSync('pdftoppm', ['-jpeg', '-singlefile', '-f', '1', '-l', '1', '-scale-to', '480', absPdf, absPdf + '.thumb'], { timeout: 20000 });
+    return true;
+  } catch (_) { return false; }
+}
+// 閲覧用の各ページ画像を非同期で順次生成 (イベントループを塞がない)
+function generatePdfPages(absPdf) {
+  const pages = Math.min(pdfPageCount(absPdf) || 1, PDF_MAX_PAGES);
+  let n = 1;
+  const next = () => {
+    if (n > pages) return;
+    const p = n++;
+    execFile('pdftoppm', ['-jpeg', '-singlefile', '-f', String(p), '-l', String(p), '-scale-to', '1100', absPdf, absPdf + '.p' + p], { timeout: 30000 }, () => next());
+  };
+  next();
+}
 
 // 反応セット (8種): 👍いいね/❤️推し/😊共感/💪応援/👏すごい/💡参考/🙏ありがとう/😢心配
 // 🎉は旧データ互換のため許容（UIには表示しない）
 const ALLOWED_EMOJIS = ['👍', '❤️', '😊', '💪', '👏', '💡', '🙏', '😢', '🎉'];
 const MAX_CONTENT = 280;
+// サークル活動を掲示板に反映(circle_id付き)。既存DBへ列を後付け。
+try { getDb().prepare('ALTER TABLE board_posts ADD COLUMN circle_id TEXT').run(); } catch (e) {}
+
+// ⭐2026-07-31 (社長指示): サークルの投稿は「サークル内だけ」に限定する。
+//   掲示板一覧・What's new・掲示板の未読カウントには出さない (circle_id 付きは除外)。
+//   見えるのは circles.html の活動報告 (?circle_id=... 指定) で、かつ そのサークルのメンバーのみ。
+function isCircleMember(db, circleId, uid) {
+  try {
+    const c = db.prepare('SELECT id, lead_uid FROM chat_groups WHERE id = ? AND is_circle = 1').get(circleId);
+    if (!c) return false;
+    if (c.lead_uid === uid) return true;
+    return !!db.prepare('SELECT 1 FROM chat_group_members WHERE group_id = ? AND user_id = ?').get(circleId, uid);
+  } catch (e) { return false; }
+}
+
 const MAX_COMMENT = 280;
 
 // 掲示板画像保存 (チャット添付と分離)
@@ -36,12 +83,23 @@ router.get('/posts', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const before = parseInt(req.query.before) || null;
   const db = getDb();
-  let sql = `SELECT p.id, p.author_id, p.content, p.image_url, p.created_at,
-                    u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
+  let sql = `SELECT p.id, p.author_id, p.content, p.image_url, p.created_at, p.circle_id,
+                    u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
+                    g.name AS circle_name, g.icon AS circle_icon, g.lead_uid AS circle_lead
              FROM board_posts p LEFT JOIN users u ON u.id = p.author_id
+             LEFT JOIN chat_groups g ON g.id = p.circle_id AND g.is_circle = 1
              WHERE p.deleted_at IS NULL`;
   const params = [];
   if (before) { sql += ' AND p.id < ?'; params.push(before); }
+  const circleId = (req.query.circle_id || '').toString();
+  if (circleId) {
+    // サークル指定 = そのサークルのメンバーだけが読める
+    if (!isCircleMember(db, circleId, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ閲覧できます' });
+    sql += ' AND p.circle_id = ?'; params.push(circleId);
+  } else {
+    // 通常の掲示板一覧にはサークルの投稿を出さない
+    sql += " AND (p.circle_id IS NULL OR p.circle_id = '')";
+  }
   sql += ' ORDER BY p.id DESC LIMIT ?';
   params.push(limit);
   const posts = db.prepare(sql).all(...params);
@@ -68,7 +126,7 @@ router.get('/posts', authUser, (req, res) => {
       reactions: counts,
       my_reactions: mine,
       comment_count: ccMap[p.id] || 0,
-      can_delete: p.author_id === me,
+      can_delete: p.author_id === me || (!!p.circle_lead && p.circle_lead === me),
     };
   });
   res.json({ success: true, posts: enriched });
@@ -79,12 +137,29 @@ router.post('/posts', authUser, boardUpload.single('image'), (req, res) => {
   const content = String((req.body && req.body.content) || '').slice(0, MAX_CONTENT).trim();
   const imageUrl = req.file ? '/uploads/board/' + req.file.filename : null;
   if (!content && !imageUrl) return res.status(400).json({ success: false, msg: '本文または添付ファイルが必要です' });
+  // PDF添付ならサムネ(同期)+閲覧ページ(非同期)を生成
+  if (req.file && /\.pdf$/i.test(req.file.filename)) {
+    const absPdf = path.join(boardDir, req.file.filename);
+    generatePdfThumb(absPdf);
+    generatePdfPages(absPdf);
+  }
   const db = getDb();
-  const ins = db.prepare(`INSERT INTO board_posts (author_id, content, image_url) VALUES (?, ?, ?)`)
-    .run(req.uid, content, imageUrl);
-  const post = db.prepare(`SELECT p.id, p.author_id, p.content, p.image_url, p.created_at,
-                                  u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company
-                           FROM board_posts p LEFT JOIN users u ON u.id = p.author_id WHERE p.id = ?`).get(ins.lastInsertRowid);
+  // サークル活動として反映する場合: circle_id を検証(実在サークル & 投稿者がメンバー)
+  let validCircle = null;
+  const reqCircle = String((req.body && req.body.circle_id) || '').trim();
+  if (reqCircle) {
+    const c = db.prepare('SELECT id FROM chat_groups WHERE id = ? AND is_circle = 1').get(reqCircle);
+    const isMember = c && db.prepare('SELECT 1 FROM chat_group_members WHERE group_id = ? AND user_id = ?').get(reqCircle, req.uid);
+    if (!c || !isMember) return res.status(403).json({ success: false, msg: 'このサークルに投稿できるのはメンバーのみです' });
+    validCircle = reqCircle;
+  }
+  const ins = db.prepare(`INSERT INTO board_posts (author_id, content, image_url, circle_id) VALUES (?, ?, ?, ?)`)
+    .run(req.uid, content, imageUrl, validCircle);
+  const post = db.prepare(`SELECT p.id, p.author_id, p.content, p.image_url, p.created_at, p.circle_id,
+                                  u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
+                                  g.name AS circle_name, g.icon AS circle_icon, g.lead_uid AS circle_lead
+                           FROM board_posts p LEFT JOIN users u ON u.id = p.author_id
+                           LEFT JOIN chat_groups g ON g.id = p.circle_id AND g.is_circle = 1 WHERE p.id = ?`).get(ins.lastInsertRowid);
   // 全社realtime通知 (Socket.IO)
   const io = req.app && req.app.locals && req.app.locals.io;
   if (io) io.emit('board:new', { post });
@@ -95,9 +170,14 @@ router.post('/posts', authUser, boardUpload.single('image'), (req, res) => {
 router.delete('/posts/:id', authUser, (req, res) => {
   const id = parseInt(req.params.id);
   const db = getDb();
-  const p = db.prepare('SELECT author_id FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  const p = db.prepare('SELECT author_id, circle_id FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!p) return res.status(404).json({ success: false, msg: '見つかりません' });
-  if (p.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人のみ削除可' });
+  let allowed = p.author_id === req.uid;
+  if (!allowed && p.circle_id) {
+    const g = db.prepare('SELECT lead_uid FROM chat_groups WHERE id = ?').get(p.circle_id);
+    if (g && g.lead_uid === req.uid) allowed = true;   // サークル投稿は発起人(リーダー)も削除可
+  }
+  if (!allowed) return res.status(403).json({ success: false, msg: '本人または発起人のみ削除可' });
   db.prepare("UPDATE board_posts SET deleted_at = datetime('now') WHERE id = ?").run(id);
   const io = req.app && req.app.locals && req.app.locals.io;
   if (io) io.emit('board:delete', { id });
@@ -110,8 +190,9 @@ router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
   const emoji = String((req.body && req.body.emoji) || '');
   if (!ALLOWED_EMOJIS.includes(emoji)) return res.status(400).json({ success: false, msg: 'リアクション不正' });
   const db = getDb();
-  const post = db.prepare('SELECT id, author_id, content FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  const post = db.prepare('SELECT id, author_id, content, circle_id FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (post.circle_id && !isCircleMember(db, post.circle_id, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ操作できます' });
   const exists = db.prepare('SELECT 1 FROM board_reactions WHERE post_id=? AND user_id=? AND emoji=?').get(id, req.uid, emoji);
   let added;
   if (exists) {
@@ -140,9 +221,18 @@ router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
 // コメント一覧
 router.get('/posts/:id/comments', authUser, (req, res) => {
   const id = parseInt(req.params.id);
+  {
+    const db0 = getDb();
+    const pp = db0.prepare('SELECT circle_id FROM board_posts WHERE id = ?').get(id);
+    if (pp && pp.circle_id && !isCircleMember(db0, pp.circle_id, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ閲覧できます' });
+  }
+  // 掲示板は業務用のため投稿もコメントも実名(display_name)で統一 (2026-07-17 小林指示: 中途半端な匿名は本人が特定できてしまうため実名化)。
   const rows = getDb().prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                       ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
-                                FROM board_comments c LEFT JOIN users u ON u.id = c.author_id
+                                       COALESCE(NULLIF(u.display_name, ''), NULLIF(u.nickname, ''), '匿名') AS author_name,
+                                       NULL AS author_avatar
+                                FROM board_comments c
+                                LEFT JOIN users u ON u.id = c.author_id
+                                LEFT JOIN board_posts p ON p.id = c.post_id
                                 WHERE c.post_id = ? AND c.deleted_at IS NULL
                                 ORDER BY c.id ASC LIMIT 200`).all(id);
   res.json({ success: true, comments: rows });
@@ -154,12 +244,17 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const content = String((req.body && req.body.content) || '').slice(0, MAX_COMMENT).trim();
   if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
   const db = getDb();
-  const post = db.prepare('SELECT id, author_id, content FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  const post = db.prepare('SELECT id, author_id, content, circle_id FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (post.circle_id && !isCircleMember(db, post.circle_id, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ操作できます' });
   const ins = db.prepare('INSERT INTO board_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
   const comment = db.prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                     ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
-                              FROM board_comments c LEFT JOIN users u ON u.id = c.author_id WHERE c.id = ?`).get(ins.lastInsertRowid);
+                                     COALESCE(NULLIF(u.display_name, ''), NULLIF(u.nickname, ''), '匿名') AS author_name,
+                                     NULL AS author_avatar
+                              FROM board_comments c
+                              LEFT JOIN users u ON u.id = c.author_id
+                              LEFT JOIN board_posts p ON p.id = c.post_id
+                              WHERE c.id = ?`).get(ins.lastInsertRowid);
   // 投稿者通知
   if (post.author_id !== req.uid) {
     const sendPush = req.app && req.app.locals && req.app.locals.sendPushToUser;
@@ -208,7 +303,8 @@ router.get('/unread-count', authUser, (req, res) => {
     return res.json({ success: true, count: 0 });
   }
   const row = db.prepare(`SELECT COUNT(*) AS n FROM board_posts
-                          WHERE deleted_at IS NULL AND author_id != ? AND created_at > ?`)
+                          WHERE deleted_at IS NULL AND (circle_id IS NULL OR circle_id = '')
+                            AND author_id != ? AND created_at > ?`)
                 .get(req.uid, u.last_board_seen_at);
   res.json({ success: true, count: Math.min(row.n || 0, 99) });
 });
