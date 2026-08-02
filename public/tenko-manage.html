@@ -162,14 +162,17 @@
         <table>
           <tr><th>目安</th><th>数値（上／下）</th><th>その場ですること</th></tr>
           <tr><td style="color:#b91c1c;font-weight:800">🚫 乗務不可</td><td>180以上 ／ 110以上</td>
-              <td>本日の乗務は見合わせ。安静にして受診を勧め、「指導・乗務禁止」タブに記録を残す。</td></tr>
+              <td><b>15分安静にしてから、1回だけ再測。</b>再測でも超えていれば本日の乗務は見合わせ、受診を勧め「指導・乗務禁止」タブに記録を残す。<b>再測で下がっても、その日は長距離・夜間の乗務から外す</b>（一度出た値をなかったことにしない）。</td></tr>
           <tr><td style="color:#9a3412;font-weight:800">⚠️ 要再測</td><td>160〜179 ／ 100〜109</td>
               <td><b>15分安静にしてから再測。</b>再測でも超えている場合は長距離・夜間の乗務から外す。再測値も必ず記録する。</td></tr>
           <tr><td style="color:#854d0e;font-weight:800">注意</td><td>140〜159 ／ 90〜99</td>
               <td>乗務は可。体調をひとこと確認し、続くようなら受診を勧める。</td></tr>
           <tr><td style="color:#047857;font-weight:800">基準内</td><td>140未満 かつ 90未満</td><td>通常どおり。</td></tr>
         </table>
-        <div style="margin-top:6px;"><b>数値によらず🚫にするもの：</b>本人が<b>「体調が悪い」</b>と申告したとき／健康点検で<b>「強い痛み」</b>を選んだとき。頭痛・めまい・見えづらさ・胸の痛みの訴えがあるときも、数値に関係なく乗務させないでください。</div>
+        <div style="margin-top:6px;"><b>再測のルール：</b><b>再測は1回まで</b>です（低い値が出るまで測り直すのは判断ではありません）。<b>1回目・2回目の両方を記録</b>してください。<b>再測で下がっても、その日一度180/110を超えた人は長距離・夜間から外します</b>（画面には <span style="background:#ea580c;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px">⚠️長距離・夜間NG</span> と出ます）。</div>
+        <div style="margin-top:6px;"><b>過去のトレンドの使い方：</b>点呼カードにその人の<b>直近2週間の平均</b>を表示します。使い方は<b>「普段は基準内なのに今日だけ高い＝急な変化を疑う」</b>方向だけです。<b style="color:#b91c1c">「この人はいつも高いから今日も想定内」という使い方はしないでください。</b>慢性的に高い人はリスクが低いのではなく、累積で高い人です。</div>
+        <div style="margin-top:6px;"><b>「受診している」は判断材料にしません：</b>本人の「病院に行っています」という申告は、目の前の数値が安全であることを保証しません。基準を緩められるのは、<b>主治医が書面で示した意見</b>がある場合だけです。</div>
+        <div style="margin-top:6px;"><b>数値によらず🚫にするもの（再測の対象外）：</b>本人が<b>「体調が悪い」</b>と申告したとき／健康点検で<b>「強い痛み」</b>を選んだとき。頭痛・めまい・見えづらさ・胸の痛みの訴えがあるときも、数値に関係なく乗務させないでください。</div>
         <div style="margin-top:6px;"><b>正しく測るために：</b>いすに座って背もたれに寄りかかり、足を組まず<b>1〜2分安静にしてから</b>測る／腕帯（カフ）は<b>心臓の高さ</b>／<b>乗務直後・飲食・喫煙・カフェインの直後は避ける</b>（実際より高く出ます）／会話しながら測らない。</div>
         <div style="margin-top:6px;color:#475569;font-size:12.5px;">
           ※ この表は<b>職場（点呼時）で測った値</b>に対する運用の目安です。自宅で測る場合の高血圧の基準は<b>135／85</b>で、職場より低めになります（📈血圧の推移の画面もこの基準です）。<br>
@@ -453,8 +456,9 @@ function renderSummary(j){
     ['warn', t.urgency.mid, '不調 中🟡'],
     ['alert', t.urgency.high, '不調 高🔴'],
     ['alert', t.bp_high, '高血圧'],
-    ['alert', t.gate_stop || 0, '🚫乗務不可'],
+    ['alert', t.gate_stop || 0, '🚫乗務不可/要再測'],
     ['warn', t.gate_recheck || 0, '⚠️要再測'],
+    ['warn', t.gate_restrict || 0, '⚠️長距離・夜間NG'],
     ['alert', j.unhandled, '未対応'],
   ].map(([cls,v,l]) => '<div class="scard '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>').join('');
   document.getElementById('summary').innerHTML = html;
@@ -655,13 +659,16 @@ let BANS = {};        // uid -> {reason, from, until}  当日表バッジ用(指
 let SHIDO = null;     // overview データ
 let selDriver = '';   // 履歴表示中のドライバーid
 
-// 乗務ゲートのバッジ (2026-08-03 社長判断)。ドライバーのみ・レベル2以上で表示。
+// 乗務ゲートのバッジ (2026-08-03 社長判断)。ドライバーのみ。
+// ⚠️status で出し分ける(levelでは判定しない)。再測で数値が下がっても、その日一度180/110を
+//   超えていれば restrict(長距離・夜間NG)が残る=「なかったこと」にしないため。
 // ⚠️あくまで判断の目安表示。実際の乗務禁止登録は「指導・乗務禁止」タブ(driver_guidance)で行う。
+const GATE_COLOR = { stop_final: '#dc2626', stop_recheck: '#dc2626', restrict: '#ea580c', recheck: '#ea580c' };
 function gateBadge(g){
-  if (!g || !g.driver || g.level < 2) return '';
-  const stop = g.level >= 3;
-  const t = g.reasons && g.reasons.length ? (g.reasons.join(' ／ ') + ' — ' + (g.action||'')) : (g.action||'');
-  return '<span title="'+esc(t)+'" style="display:inline-block;margin-left:6px;background:'+(stop?'#dc2626':'#ea580c')
+  if (!g || !g.driver || !GATE_COLOR[g.status]) return '';
+  const t = (g.reasons && g.reasons.length ? g.reasons.join(' ／ ') + ' — ' : '') + (g.action||'')
+          + (g.count ? '（本日 ' + g.count + '回測定）' : '');
+  return '<span title="'+esc(t)+'" style="display:inline-block;margin-left:6px;background:'+GATE_COLOR[g.status]
     +';color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;vertical-align:middle">'+esc(g.pill)+'</span>';
 }
 function banBadge(uid){

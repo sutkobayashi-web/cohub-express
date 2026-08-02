@@ -85,11 +85,13 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   // 乗務ゲート (2026-08-03 社長判断)。180/110以上=🚫乗務不可 / 160/100以上=⚠️要再測。
   // 判定はサーバー(routes/tenko.js dutyGate)が返す gate をそのまま出す=基準を画面側に複製しない。
+  // ⚠️status で出し分ける(levelでは判定しない)。再測で下がっても、その日一度180/110を超えていれば
+  //   restrict(長距離・夜間NG)が残る=「なかったこと」にしないため。
+  var GATE_COLOR = { stop_final:'#dc2626', stop_recheck:'#dc2626', restrict:'#ea580c', recheck:'#ea580c' };
   function gateBadge(g){
-    if (!g || !g.driver || g.level < 2) return '';
-    var stop = g.level >= 3;
+    if (!g || !g.driver || !GATE_COLOR[g.status]) return '';
     var t = (g.reasons && g.reasons.length ? g.reasons.join(' ／ ') + ' — ' : '') + (g.action||'');
-    return '<span title="'+esc(t)+'" style="display:inline-block;margin-left:6px;background:'+(stop?'#dc2626':'#ea580c')
+    return '<span title="'+esc(t)+'" style="display:inline-block;margin-left:6px;background:'+GATE_COLOR[g.status]
       +';color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;vertical-align:middle">'+esc(g.pill)+'</span>';
   }
   var VAL = {
@@ -140,7 +142,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       + '<div class="kpi ' + (j.not_done? 'warn':'') + '"><div class="n">' + j.not_done + '</div><div class="l">未実施</div></div>'
       + '<div class="kpi ' + ((j.urgency.mid+j.urgency.high)? 'bad':'') + '"><div class="n">' + (j.urgency.high) + ' / ' + (j.urgency.mid) + '</div><div class="l">不調 高 / 中</div></div>'
       + '<div class="kpi ' + (j.bp_high? 'bad':'') + '"><div class="n">' + j.bp_high + '</div><div class="l">高血圧(160/100↑)</div></div>'
-      + '<div class="kpi ' + ((j.gate_stop||0)? 'bad':'') + '"><div class="n">' + (j.gate_stop||0) + ' / ' + (j.gate_recheck||0) + '</div><div class="l">🚫乗務不可 / ⚠️要再測</div></div>'
+      + '<div class="kpi ' + ((j.gate_stop||0)? 'bad':'') + '"><div class="n">' + (j.gate_stop||0) + ' / ' + ((j.gate_recheck||0)+(j.gate_restrict||0)) + '</div><div class="l">🚫乗務不可 / ⚠️要再測・制限</div></div>'
       + '</div>';
     // 未実施者 (毎日励行のフォロー)
     html += '<div class="sec"><h2>🔔 未実施 ' + miss.length + '名（要フォロー）</h2>';

@@ -323,9 +323,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   // 血圧が 180/110 以上(または体調不良の申告)なら「本日の乗務は見合わせ」、160/100 以上なら「15分安静後に再測」。
   // 判定はサーバー(routes/tenko.js dutyGate)が返す gate をそのまま表示する。基準を2箇所に書かない。
   // ドライバー以外には出さない(乗務の話ではないため)。責める文言にしない=事実と次の一手だけ。
+  var GATE_SHOW = { stop_final:1, stop_recheck:1, restrict:1, recheck:1 };
   function showGateCard(gate, next){
-    if (!gate || !gate.driver || gate.level < 2) { next(); return; }
-    var stop = gate.level >= 3;
+    if (!gate || !gate.driver || !GATE_SHOW[gate.status]) { next(); return; }
+    var stop = (gate.status === 'stop_final' || gate.status === 'stop_recheck');
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
     ov.innerHTML = '<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;padding:20px 18px;border-top:8px solid '+(stop?'#dc2626':'#ea580c')+'">'
@@ -333,7 +334,8 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       + '<div style="font-size:14px;color:#475569;margin-top:4px">'+esc((gate.reasons||[]).join(' ／ '))+'</div>'
       + '<div style="font-size:16px;line-height:1.7;margin-top:12px">'+esc(gate.action)+'</div>'
       + '<div style="font-size:13px;color:#475569;margin-top:12px;background:#f8fafc;border-radius:12px;padding:10px;line-height:1.6">'
-      + (stop ? '乗務の前に、必ず点呼担当者へこの数値を伝えてください。' : '再測した数値も、そのまま記録してください。')
+      + (stop ? '乗務の前に、必ず点呼担当者へこの数値を伝えてください。<br>再測した数値も、下がった場合でもそのまま記録してください。'
+              : '再測した数値も、そのまま記録してください。')
       + '</div>'
       + '<button id="gate-ok" style="width:100%;margin-top:14px;background:#0f172a;color:#fff;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:800">確認しました</button></div>';
     document.body.appendChild(ov);

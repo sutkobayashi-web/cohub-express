@@ -213,6 +213,7 @@ async function saveBrief(){
 let form = {};
 let pendingDraft = null;   // 送信中の入力内容(401時の保全用)
 let curName = '';          // 対象者名(ドラフト復元の表示用)
+let RECENT = null;         // 対象者の直近2週間の平均血圧 (/bp-recent)
 function openCard(m){
   curName = m.name || '';
   const self = m.self || null;   // 本人がタブレットで自己申告済みの内容(あれば)
@@ -242,6 +243,30 @@ function openCard(m){
   document.getElementById('ov').classList.add('show');
   buildBpWheels(self ? self.bp : null);
   if (self) prefillHealth();   // 自己申告の該当ボタンを選択状態に
+  if (m.mode==='tenko') loadBpRecent(m.id);
+}
+// 直近2週間の平均血圧を点呼カードに出す (2026-08-03 社長指示)。
+// ⚠️⚠️目的は「いつもは基準内なのに今日だけ高い＝急変の可能性」を拾うこと。
+//    平均が高いことは今日の高値を見逃す理由にならない。その旨を必ず画面に併記する。
+async function loadBpRecent(uid){
+  const box = document.getElementById('bp_recent'); if (!box) return;
+  box.style.display='none'; RECENT = null;
+  const r = await api('/bp-recent?uid=' + encodeURIComponent(uid));
+  if (!r) return;
+  const j = await r.json().catch(()=>null);
+  if (!j || !j.success) return;
+  if (!j.n){ box.style.display='block';
+    box.innerHTML = '<b>直近2週間の記録なし</b>　今日の数値だけで判断することになります。'; return; }
+  RECENT = j;
+  const lvTxt = j.avg_level>=2 ? '<span style="color:#b91c1c;font-weight:800">平均の時点で基準を超えています</span>'
+              : j.avg_level===1 ? '<span style="color:#854d0e;font-weight:800">平均が高めです</span>'
+              : '<span style="color:#047857;font-weight:800">平均は基準内</span>';
+  box.style.display='block';
+  box.innerHTML = '📊 <b>直近2週間の平均 ' + j.avg_s + '／' + j.avg_d + '</b>（' + j.n + '回・最高 ' + j.max_s + '／' + j.max_d + '）　' + lvTxt
+    + '<div style="margin-top:4px;color:#64748b;font-size:11.5px;line-height:1.6">'
+    + '※ 普段の値と比べて<b>今日だけ大きく高い</b>ときは、急な変化の可能性があります。<br>'
+    + '※ <b>平均が高いことは、今日の数値を見逃してよい理由にはなりません。</b>「この人はいつも高いから」で通さないでください。</div>';
+  bpCheck();
 }
 // 本人の自己申告(form.health)を点呼モーダルの該当ボタンにプリフィル
 function prefillHealth(){
@@ -324,6 +349,7 @@ function tenkoLegal(){
     </div>
     <input type="hidden" id="f_bp_sys"><input type="hidden" id="f_bp_dia"><input type="hidden" id="f_pulse">
     <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;border-radius:14px;padding:8px 10px"></div>
+    <div id="bp_recent" style="display:none;margin-top:8px;font-size:12.5px;border-radius:12px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;color:#334155"></div>
   </div>`;
 }
 // 聞き取り8項目 (投票決定5項目[Yes/No] + 観察3項目) — 点呼・朝礼で共通
@@ -370,7 +396,7 @@ document.getElementById('ov').addEventListener('click',e=>{ if(e.target.id==='ov
 //  ⚠️サーバー側 routes/tenko.js の bpGateLevel と同じ基準。片方だけ変えないこと。
 function gateOf(sys, dia){
   if (sys>=180 || dia>=110) return { lv:3, bg:'#fee2e2', fg:'#7f1d1d',
-    msg:'🚫 本日の乗務は見合わせてください（180/110以上）。安静にして受診を勧めてください。' };
+    msg:'🚫 180/110以上です。15分安静にしてから1回だけ再測してください。再測でも超える場合は本日の乗務を見合わせてください。' };
   if (sys>=160 || dia>=100) return { lv:2, bg:'#ffedd5', fg:'#9a3412',
     msg:'⚠️ 15分安静にしてから再測してください。再測でも超えている場合は長距離・夜間の乗務から外してください。' };
   if (sys>=140 || dia>=90) return { lv:1, bg:'#fefce8', fg:'#854d0e',
@@ -383,8 +409,17 @@ function bpCheck(){
   const w = document.getElementById('bp_warn');
   if (!w) return;
   const g = gateOf(sys, dia);
-  if (!g.lv){ w.style.display='none'; return; }
-  w.style.display='block'; w.style.background=g.bg; w.style.color=g.fg; w.textContent=g.msg;
+  // 普段の値から大きく外れた日は、レベルに関わらず「急な変化」として伝える(直近2週間の平均と比較)
+  let jump = '';
+  if (RECENT && RECENT.n >= 3 && sys && dia
+      && (sys - RECENT.avg_s >= 30 || dia - RECENT.avg_d >= 15)) {
+    jump = '<div style="margin-top:5px;font-weight:800">📈 普段（' + RECENT.avg_s + '／' + RECENT.avg_d
+         + '）より大きく高い値です。急な変化の可能性があります。安静にして再測し、体調も確かめてください。</div>';
+  }
+  if (!g.lv && !jump){ w.style.display='none'; return; }
+  const st = g.lv ? g : { bg:'#fefce8', fg:'#854d0e', msg:'' };
+  w.style.display='block'; w.style.background=st.bg; w.style.color=st.fg;
+  w.innerHTML = esc(st.msg) + jump;
 }
 async function submitCard(){
   form.note = document.getElementById('f_note').value;

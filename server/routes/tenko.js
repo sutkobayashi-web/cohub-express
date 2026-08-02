@@ -35,6 +35,12 @@ try { getDb().exec("ALTER TABLE tenko_kiko ADD COLUMN job_kind TEXT"); } catch (
 try { getDb().exec("ALTER TABLE tenko_kiko ADD COLUMN extra_json TEXT"); } catch (e) {}
 // 🔴高リスク者への対応時に点呼者が記録する「声かけ・処置内容」メモ
 try { getDb().exec("ALTER TABLE wellness_posts ADD COLUMN ack_note TEXT"); } catch (e) {}
+// 2026-08-03: 乗務ゲートの「15分安静後の再測1回」を扱うための当日値。
+//  bp_peak_sys/dia = その日に出た最も悪い値 (再測で下がっても「一度出た事実」を消さない)
+//  bp_count        = その日に血圧を記録した回数 (再測は1回まで=2回目で判断確定)
+try { getDb().exec("ALTER TABLE tenko_records ADD COLUMN bp_peak_sys INTEGER"); } catch (e) {}
+try { getDb().exec("ALTER TABLE tenko_records ADD COLUMN bp_peak_dia INTEGER"); } catch (e) {}
+try { getDb().exec("ALTER TABLE tenko_records ADD COLUMN bp_count INTEGER DEFAULT 0"); } catch (e) {}
 
 const FIELD_VOICE_GROUP = 'g_field_voice';
 // JST(+9h)基準の当日 YYYY-MM-DD
@@ -112,11 +118,17 @@ function bpSeverity(sys, dia) {
 //    実際の乗務可否・乗務禁止の登録は従来どおり driver_guidance(指導・乗務禁止)で行う。
 //  ⚠️ドライバー以外にも数値の判定は返すが、乗務に関する文言(action)は出さない。
 // ============================================================
-const DUTY_GATE = {
-  3: { code: 'stop',    pill: '🚫乗務不可', action: '本日の乗務は見合わせ、受診を勧めてください。' },
-  2: { code: 'recheck', pill: '⚠️要再測',  action: '15分安静にしてから再測してください。再測でも超えている場合は長距離・夜間の乗務から外してください。' },
-  1: { code: 'watch',   pill: '注意',      action: '数値が高めです。経過を確認してください。' },
-  0: { code: 'ok',      pill: '',          action: '' },
+// 2026-08-03 追記: 1回の数値で決め打たない。数値によるものは「15分安静後の再測1回」を挟む。
+//  ⚠️ただし再測で下がっても、その日に一度出た事実は消さない(bp_peak_*)＝長距離・夜間からは外す。
+//  ⚠️再測は1回まで(bp_count>=2で確定)。低い値が出るまで測り直すのは判断ではなく数字合わせ。
+//  ⚠️自覚症状(体調不良の申告・強い痛み)は再測の対象外＝即 stop。症状は測り直しても消えない。
+const GATE_STATUS = {
+  stop_final:   { pill: '🚫乗務不可',   action: '再測でも基準を超えています。本日の乗務は見合わせ、受診を勧めてください。' },
+  stop_recheck: { pill: '🚫要再測',     action: '15分安静にしてから、1回だけ再測してください。再測でも 180/110 以上なら本日の乗務は見合わせてください。' },
+  restrict:     { pill: '⚠️長距離・夜間NG', action: '本日は長距離・夜間の乗務から外してください（この日一度、基準を大きく超えた記録があります）。' },
+  recheck:      { pill: '⚠️要再測',     action: '15分安静にしてから再測してください。再測でも超えている場合は長距離・夜間の乗務から外してください。' },
+  watch:        { pill: '注意',         action: '数値が高めです。体調をひとこと確認してください。' },
+  ok:           { pill: '',             action: '' },
 };
 function bpGateLevel(sys, dia) {
   if ((sys && sys >= 180) || (dia && dia >= 110)) return 3;
@@ -130,17 +142,48 @@ function symptomStop(health, condition) {
   if (health && health.pain === 'severe') return '強い痛み';
   return null;
 }
-function dutyGate(jobRole, sys, dia, health, condition) {
+// opts = { peakSys, peakDia, count }  当日の最悪値と測定回数 (tenko_records の bp_peak_*/bp_count)
+function dutyGate(jobRole, sys, dia, health, condition, opts) {
+  opts = opts || {};
   const isDriver = jobRole === 'driver';
-  let level = bpGateLevel(sys, dia);
+  const count = opts.count || 0;
+  let level = bpGateLevel(sys, dia);                       // 今の値
   const reasons = [];
   if (level >= 1) reasons.push(`血圧 ${sys || '-'}/${dia || '-'}`);
   const sym = symptomStop(health, condition);
   if (sym) { level = 3; reasons.push(sym); }
-  const g = DUTY_GATE[level];
+  // その日の最悪レベル。再測で下がっても一度出た事実は残す。
+  const peakLevel = Math.max(level, bpGateLevel(opts.peakSys, opts.peakDia));
+
+  let status;
+  if (level >= 3) status = (sym || count >= 2) ? 'stop_final' : 'stop_recheck';
+  else if (peakLevel >= 3) { status = 'restrict'; reasons.push('本日ピーク ' + (opts.peakSys || '-') + '/' + (opts.peakDia || '-')); }
+  else if (level === 2) status = (count >= 2) ? 'restrict' : 'recheck';
+  else if (level === 1) status = 'watch';
+  else status = 'ok';
+
+  const g = GATE_STATUS[status];
   // 乗務の文言(pill/action)はドライバーにだけ返す。事務・倉庫に「乗務不可」と出ると意味が通らない。
-  return { level, code: g.code, pill: isDriver ? g.pill : '', action: isDriver ? g.action : '',
+  return { level, peak_level: peakLevel, count, status,
+           pill: isDriver ? g.pill : '', action: isDriver ? g.action : '',
            driver: isDriver, reasons };
+}
+// 当日の最悪値・測定回数を更新する。
+// ⚠️同じ数値の再送信(メモだけ直して再保存 等)は測定回数に数えない=再測1回のカウントが狂わないように。
+function bpProgress(prior, sys, dia) {
+  const pc = (prior && prior.bp_count) || 0;
+  const same = !!(prior && prior.bp_systolic === sys && prior.bp_diastolic === dia);
+  let count = pc;
+  if (sys && dia && !same) count = pc + 1;
+  else if (sys && dia && !pc) count = 1;                    // 既存データ(列追加前)の救済
+  let ps = (prior && prior.bp_peak_sys) || null;
+  let pd = (prior && prior.bp_peak_dia) || null;
+  if (!ps && prior && prior.bp_systolic) { ps = prior.bp_systolic; pd = prior.bp_diastolic; }
+  if (sys && dia) {
+    const a = bpGateLevel(ps, pd), b = bpGateLevel(sys, dia);
+    if (!ps || b > a || (b === a && sys > (ps || 0))) { ps = sys; pd = dia; }
+  }
+  return { count, peakSys: ps, peakDia: pd };
 }
 // 2026-08-01 (社長指摘): 「血圧が正常なのに🔴高のPOSTが来る」。
 //   判定は血圧だけでなく健康点検の回答(痛み/顔色/体調)からも上がるが、POST本文には血圧しか
@@ -333,7 +376,10 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
 
   const bpText = (bpSys || bpDia) ? `血圧 ${bpSys || '-'}/${bpDia || '-'}${pulse ? ` 脈${pulse}` : ''}` : '';
   const bpHigh = bpSeverity(bpSys, bpDia) >= 2;
-  const gate = dutyGate(target.job_role, bpSys, bpDia, health, condition);
+  // 当日の最悪値・測定回数を引き継ぐ(再測1回の判定に使う)
+  const priorRec = db.prepare('SELECT bp_systolic, bp_diastolic, bp_peak_sys, bp_peak_dia, bp_count FROM tenko_records WHERE rec_date = ? AND target_id = ?').get(date, target.id);
+  const prog = bpProgress(priorRec, bpSys, bpDia);
+  const gate = dutyGate(target.job_role, bpSys, bpDia, health, condition, prog);
 
   // 不調 → 現場の声(運管/倉庫POST)へ連携
   let wpId = null;
@@ -365,16 +411,18 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
 
   db.prepare(`INSERT INTO tenko_records
     (rec_date, target_id, operator_id, company_code, mode, tokai_done, condition, health_json, urgency, note,
-     bp_systolic, bp_diastolic, pulse, wellness_post_id, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+     bp_systolic, bp_diastolic, pulse, bp_peak_sys, bp_peak_dia, bp_count, wellness_post_id, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
     ON CONFLICT(rec_date, target_id) DO UPDATE SET
       operator_id = excluded.operator_id, mode = excluded.mode, tokai_done = excluded.tokai_done,
       condition = excluded.condition, health_json = excluded.health_json, urgency = excluded.urgency,
       note = excluded.note, bp_systolic = excluded.bp_systolic, bp_diastolic = excluded.bp_diastolic, pulse = excluded.pulse,
+      bp_peak_sys = excluded.bp_peak_sys, bp_peak_dia = excluded.bp_peak_dia, bp_count = excluded.bp_count,
       wellness_post_id = COALESCE(excluded.wellness_post_id, tenko_records.wellness_post_id),
       updated_at = datetime('now')`)
     .run(date, target.id, op.id, target.company_code || '', mode, tokaiDone, condition,
-         health ? JSON.stringify(health) : null, urgency, note, bpSys, bpDia, pulse, wpId);
+         health ? JSON.stringify(health) : null, urgency, note, bpSys, bpDia, pulse,
+         prog.peakSys, prog.peakDia, prog.count, wpId);
 
   res.json({ success: true, urgency, escalated: !!wpId, bp_high: bpHigh, gate });
 });
@@ -400,7 +448,7 @@ router.post('/self-checkin', authUser, express.json(), (req, res) => {
   // 当日の既存self記録を取得し「部分更新」する=今回送られなかった項目(健康点検/血圧/メモ/体調)は
   // 既存値を保持(例: 血圧だけ入れ直しても朝の健康点検が消えない・逆も同様)。urgencyは実効値で再計算。
   const URANK = { '低': 0, '中': 1, '高': 2 };
-  const prior = db.prepare("SELECT health_json, condition, note, bp_systolic, bp_diastolic, pulse, wellness_post_id FROM tenko_records WHERE rec_date = ? AND target_id = ? AND mode = 'self'").get(date, me.id);
+  const prior = db.prepare("SELECT health_json, condition, note, bp_systolic, bp_diastolic, pulse, bp_peak_sys, bp_peak_dia, bp_count, wellness_post_id FROM tenko_records WHERE rec_date = ? AND target_id = ? AND mode = 'self'").get(date, me.id);
   let priorHealth = null;
   if (prior && prior.health_json) { try { priorHealth = JSON.parse(prior.health_json); } catch (e) {} }
   const effHealth = health || priorHealth;
@@ -413,7 +461,9 @@ router.post('/self-checkin', authUser, express.json(), (req, res) => {
   const urgency = deriveUrgency('tenko', effHealth, effCondition, { sys: effBpSys, dia: effBpDia }); // 'tenko'指定でbpも加味
   const bpText = (effBpSys || effBpDia) ? `血圧 ${effBpSys || '-'}/${effBpDia || '-'}${effPulse ? ` 脈${effPulse}` : ''}` : '';
   const bpHigh = bpSeverity(effBpSys, effBpDia) >= 2;
-  const gate = dutyGate(me.job_role, effBpSys, effBpDia, effHealth, effCondition);
+  // 再測1回の判定用。今回送られてきた値(bpSys/bpDia)で回数を数える=既存値の持ち回りは数えない。
+  const prog = bpProgress(prior, bpSys, bpDia);
+  const gate = dutyGate(me.job_role, effBpSys, effBpDia, effHealth, effCondition, prog);
 
   // 同日2回目以降は新規バッジを作らず既存postを再利用(都度配信の防止)。
   // ただし悪化(中→高)時のみ既存postを高へ引き上げ・未対応へ戻し、現場の声へ1回だけ通知(急変見落とし防止)。
@@ -457,15 +507,17 @@ router.post('/self-checkin', authUser, express.json(), (req, res) => {
 
   db.prepare(`INSERT INTO tenko_records
     (rec_date, target_id, operator_id, company_code, mode, tokai_done, condition, health_json, urgency, note,
-     bp_systolic, bp_diastolic, pulse, wellness_post_id, updated_at)
-    VALUES (?,?,?,?,'self',0,?,?,?,?,?,?,?,?,datetime('now'))
+     bp_systolic, bp_diastolic, pulse, bp_peak_sys, bp_peak_dia, bp_count, wellness_post_id, updated_at)
+    VALUES (?,?,?,?,'self',0,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
     ON CONFLICT(rec_date, target_id) DO UPDATE SET
       operator_id = excluded.operator_id, condition = excluded.condition, health_json = excluded.health_json,
       urgency = excluded.urgency, note = excluded.note, bp_systolic = excluded.bp_systolic,
       bp_diastolic = excluded.bp_diastolic, pulse = excluded.pulse,
+      bp_peak_sys = excluded.bp_peak_sys, bp_peak_dia = excluded.bp_peak_dia, bp_count = excluded.bp_count,
       wellness_post_id = COALESCE(excluded.wellness_post_id, tenko_records.wellness_post_id), updated_at = datetime('now')
     WHERE tenko_records.mode = 'self'`)
-    .run(date, me.id, me.id, me.company_code || '', effCondition, effHealth ? JSON.stringify(effHealth) : null, urgency, effNote, effBpSys, effBpDia, effPulse, wpId);
+    .run(date, me.id, me.id, me.company_code || '', effCondition, effHealth ? JSON.stringify(effHealth) : null, urgency, effNote,
+         effBpSys, effBpDia, effPulse, prog.peakSys, prog.peakDia, prog.count, wpId);
 
   if (bpSys && bpDia) {
     try {
@@ -661,7 +713,7 @@ router.get('/board', authUser, (req, res) => {
   const customItems = getHealthCustomItems();
   const itemLabels = Object.assign({}, HC_LABELS);
   customItems.forEach(it => { if (it && it.key) itemLabels[it.key] = it.q; });
-  const tally = {}; let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0;
+  const tally = {}; let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0, gRestrict = 0;
   const entries = roster.map(m => {
     const r = byTarget[m.id];
     if (!r) return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: false };
@@ -672,8 +724,13 @@ router.get('/board', authUser, (req, res) => {
     if ((r.bp_systolic && r.bp_systolic >= 160) || (r.bp_diastolic && r.bp_diastolic >= 100)) bpHigh++;
     let h = {}; try { h = JSON.parse(r.health_json || '{}') || {}; } catch (e) {}
     // 乗務ゲート (ドライバーのみ件数に計上)
-    const gate = dutyGate(m.job_role, r.bp_systolic, r.bp_diastolic, h, r.condition);
-    if (gate.driver) { if (gate.level >= 3) gStop++; else if (gate.level === 2) gRecheck++; }
+    const gate = dutyGate(m.job_role, r.bp_systolic, r.bp_diastolic, h, r.condition,
+      { peakSys: r.bp_peak_sys, peakDia: r.bp_peak_dia, count: r.bp_count });
+    if (gate.driver) {
+      if (gate.status === 'stop_final' || gate.status === 'stop_recheck') gStop++;
+      else if (gate.status === 'restrict') gRestrict++;
+      else if (gate.status === 'recheck') gRecheck++;
+    }
     Object.keys(itemLabels).forEach(k => { if (h[k] != null && h[k] !== '') { tally[k] = tally[k] || {}; tally[k][h[k]] = (tally[k][h[k]] || 0) + 1; } });
     return { uid: m.id, name: m.display_name, company_code: m.company_code, done: checkDone,
       source: r.mode, urgency: r.urgency, done_at: jstHM(r.updated_at),
@@ -688,7 +745,8 @@ router.get('/board', authUser, (req, res) => {
   const trendAccess = BP_TREND_VIEWERS.includes(req.uid);
   res.json({ success: true, date, hq, co, total, done, not_done: total - done,
     rate: total ? Math.round(done * 1000 / total) / 10 : 0, trend_access: trendAccess,
-    urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh, gate_stop: gStop, gate_recheck: gRecheck,
+    urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh,
+    gate_stop: gStop, gate_recheck: gRecheck, gate_restrict: gRestrict,
     item_labels: itemLabels, tally, entries, companies });
 });
 
@@ -736,7 +794,7 @@ router.get('/manage', authUser, (req, res) => {
       });
   }
   const byTarget = {}; recs.forEach(r => { byTarget[r.target_id] = r; });
-  let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0;
+  let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0, gRestrict = 0;
   const entries = roster.map(m => {
     const r = byTarget[m.id];
     if (!r) return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: false };
@@ -745,8 +803,13 @@ router.get('/manage', authUser, (req, res) => {
     if ((r.bp_systolic && r.bp_systolic >= 160) || (r.bp_diastolic && r.bp_diastolic >= 100)) bpHigh++;
     let h = {}; try { h = JSON.parse(r.health_json || '{}') || {}; } catch (e) {}
     // 乗務ゲート (2026-08-03)。当日表の血圧欄に 🚫/⚠️ を出すための判定。件数はドライバーのみ。
-    const gate = dutyGate(m.job_role, r.bp_systolic, r.bp_diastolic, h, r.condition);
-    if (gate.driver) { if (gate.level >= 3) gStop++; else if (gate.level === 2) gRecheck++; }
+    const gate = dutyGate(m.job_role, r.bp_systolic, r.bp_diastolic, h, r.condition,
+      { peakSys: r.bp_peak_sys, peakDia: r.bp_peak_dia, count: r.bp_count });
+    if (gate.driver) {
+      if (gate.status === 'stop_final' || gate.status === 'stop_recheck') gStop++;
+      else if (gate.status === 'restrict') gRestrict++;
+      else if (gate.status === 'recheck') gRecheck++;
+    }
     return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: true,
       source: r.mode, urgency: r.urgency, done_at: jstHM(r.updated_at),
       bp: (r.bp_systolic || r.bp_diastolic) ? { s: r.bp_systolic, d: r.bp_diastolic, p: r.pulse } : null,
@@ -803,7 +866,7 @@ router.get('/manage', authUser, (req, res) => {
     success: true, date, period, since, hq, co,
     today: { total, done, not_done: total - done, rate: total ? Math.round(done * 1000 / total) / 10 : 0,
       urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh,
-      gate_stop: gStop, gate_recheck: gRecheck, entries },
+      gate_stop: gStop, gate_recheck: gRecheck, gate_restrict: gRestrict, entries },
     unhandled, queue,
     cumulative: { item_labels: HC_LABELS, rate_series, frequent, tally },
     companies,
@@ -1256,6 +1319,36 @@ router.get('/care-board', authUser, (req, res) => {
   res.json({ success: true, hq, co, companies,
     totals: { pending: sumPending, cared30: sumCared30 },
     pending, by_office: byOffice, by_handler: byHandler, high_fatigue: highFatigue });
+});
+
+// ============================================================
+// 点呼時の参考: その人の直近2週間の平均血圧 (2026-08-03 社長指示)
+//  目的は「いつもは基準内なのに今日だけ高い＝急変の可能性」を拾うこと。
+//  ⚠️⚠️平均が高いことは、今日の高値を見逃してよい理由には絶対にならない。
+//     「この人はいつも高いから」は健康起因事故の典型的な前段。画面にも明記する。
+//  権限: 点呼者・管理者、かつ自拠点のみ(本社admin/推進は全拠点)。
+//        推移そのもの(全記録)は従来どおり BP_TREND_VIEWERS の2名限定=ここでは平均値だけ返す。
+// ============================================================
+router.get('/bp-recent', authUser, (req, res) => {
+  const op = getOperator(req.uid);
+  if (!isOperator(op)) return res.status(403).json({ success: false, msg: '点呼者・管理者のみ利用できます' });
+  const db = getDb();
+  const uid = String(req.query.uid || '');
+  const target = db.prepare('SELECT id, company_code FROM users WHERE id = ?').get(uid);
+  if (!target) return res.status(404).json({ success: false, msg: '対象が見つかりません' });
+  if (!canCrossCompany(op) && String(target.company_code || '') !== String(op.company_code || '')) {
+    return res.status(403).json({ success: false, msg: '他拠点の社員は参照できません' });
+  }
+  const days = 14;
+  const since = new Date(Date.now() + 32400000 - (days - 1) * 86400000).toISOString().slice(0, 10);
+  const rows = db.prepare(`SELECT systolic s, diastolic d FROM bp_records
+    WHERE user_id = ? AND substr(measured_at,1,10) >= ? AND systolic > 0 AND diastolic > 0`).all(uid, since);
+  if (!rows.length) return res.json({ success: true, days, n: 0 });
+  const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+  const S = rows.map(r => r.s), D = rows.map(r => r.d);
+  const avgS = avg(S), avgD = avg(D);
+  res.json({ success: true, days, n: rows.length, avg_s: avgS, avg_d: avgD,
+    max_s: Math.max(...S), max_d: Math.max(...D), avg_level: bpGateLevel(avgS, avgD) });
 });
 
 // 個人の血圧推移を確認する (2026-07-18・健康点検ボードからのドリルイン)。
