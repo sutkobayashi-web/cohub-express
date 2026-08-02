@@ -403,6 +403,8 @@ function renderSummary(j){
     ['warn', t.urgency.mid, '不調 中🟡'],
     ['alert', t.urgency.high, '不調 高🔴'],
     ['alert', t.bp_high, '高血圧'],
+    ['alert', t.gate_stop || 0, '🚫乗務不可'],
+    ['warn', t.gate_recheck || 0, '⚠️要再測'],
     ['alert', j.unhandled, '未対応'],
   ].map(([cls,v,l]) => '<div class="scard '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>').join('');
   document.getElementById('summary').innerHTML = html;
@@ -479,6 +481,8 @@ function renderToday(j){
     if (!e.done) return '<tr class="done-no"><td></td><td>'+banBadge(e.uid)+esc(e.name)+'</td><td></td><td><span class="pill no">未実施</span></td><td colspan="3"></td><td></td></tr>';
     const u = e.urgency==='高'?'<span class="pill u-high">高🔴</span>':(e.urgency==='中'?'<span class="pill u-mid">中🟡</span>':'<span class="pill ok">良</span>');
     const bp = e.bp ? (e.bp.s||'-')+'/'+(e.bp.d||'-')+(e.bp.p?' 脈'+e.bp.p:'') : '';
+    // 乗務ゲート (2026-08-03)。180/110以上=🚫乗務不可 / 160/100以上=⚠️要再測。判定はサーバー(dutyGate)
+    const gate = gateBadge(e.gate);
     const cb = e.wp_id ? '<input type="checkbox" class="chk-today" value="'+e.wp_id+'">' : '';
     const acts = ackSteps(e.wp_id, e.ack_status, e.urgency);
     const noteHtml = e.ack_note ? '<div style="font-size:11px;color:#475569;margin-top:3px;max-width:220px;white-space:normal">💬 '+esc(e.ack_note)+'</div>' : '';
@@ -488,7 +492,7 @@ function renderToday(j){
       : '';
     return '<tr><td>'+cb+'</td><td>'+banBadge(e.uid)+esc(e.name)+'</td>'
       + '<td style="white-space:nowrap;color:#475569">'+esc(e.done_at||'')+'</td>'
-      + '<td>'+u+'</td><td>'+esc(bp)+'</td><td>'+(healthBrief(e.health,labels)|| (e.condition?esc(e.condition):''))+'</td>'
+      + '<td>'+u+'</td><td style="white-space:nowrap">'+esc(bp)+gate+'</td><td>'+(healthBrief(e.health,labels)|| (e.condition?esc(e.condition):''))+'</td>'
       + '<td>'+ackPill(e.ack_status)+whoHtml+noteHtml+'</td><td>'+acts+'</td></tr>';
   };
   // 管轄別グループ見出し付きで出力
@@ -601,6 +605,15 @@ let BANS = {};        // uid -> {reason, from, until}  当日表バッジ用(指
 let SHIDO = null;     // overview データ
 let selDriver = '';   // 履歴表示中のドライバーid
 
+// 乗務ゲートのバッジ (2026-08-03 社長判断)。ドライバーのみ・レベル2以上で表示。
+// ⚠️あくまで判断の目安表示。実際の乗務禁止登録は「指導・乗務禁止」タブ(driver_guidance)で行う。
+function gateBadge(g){
+  if (!g || !g.driver || g.level < 2) return '';
+  const stop = g.level >= 3;
+  const t = g.reasons && g.reasons.length ? (g.reasons.join(' ／ ') + ' — ' + (g.action||'')) : (g.action||'');
+  return '<span title="'+esc(t)+'" style="display:inline-block;margin-left:6px;background:'+(stop?'#dc2626':'#ea580c')
+    +';color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;vertical-align:middle">'+esc(g.pill)+'</span>';
+}
 function banBadge(uid){
   const b = uid && BANS[uid];
   if (!b) return '';

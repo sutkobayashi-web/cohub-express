@@ -99,6 +99,49 @@ function bpSeverity(sys, dia) {
   if ((sys && sys >= 140) || (dia && dia >= 90)) return 1;
   return 0;
 }
+
+// ============================================================
+// 乗務ゲート (2026-08-03 社長判断)
+//  点呼・自己チェックで測った血圧から「当日の乗務可否」の目安フラグを立てる。
+//  数値は日本高血圧学会の分類に合わせる (Ⅲ度=180/110以上・Ⅱ度=160/100以上)。
+//    3 stop    : 収縮期180以上 or 拡張期110以上 → 当日の乗務は見合わせ・受診勧奨
+//    2 recheck : 収縮期160以上 or 拡張期100以上 → 15分安静後に再測。再測でも超過なら長距離・夜間から外す
+//    1 watch   : 収縮期140以上 or 拡張期 90以上 → 経過観察
+//  ⚠️自覚症状(体調=悪い / 強い痛み)は数値にかかわらず stop 扱い。
+//  ⚠️これは運行管理者の判断を支援する「表示フラグ」であり、システムが乗務を自動的に止めるものではない。
+//    実際の乗務可否・乗務禁止の登録は従来どおり driver_guidance(指導・乗務禁止)で行う。
+//  ⚠️ドライバー以外にも数値の判定は返すが、乗務に関する文言(action)は出さない。
+// ============================================================
+const DUTY_GATE = {
+  3: { code: 'stop',    pill: '🚫乗務不可', action: '本日の乗務は見合わせ、受診を勧めてください。' },
+  2: { code: 'recheck', pill: '⚠️要再測',  action: '15分安静にしてから再測してください。再測でも超えている場合は長距離・夜間の乗務から外してください。' },
+  1: { code: 'watch',   pill: '注意',      action: '数値が高めです。経過を確認してください。' },
+  0: { code: 'ok',      pill: '',          action: '' },
+};
+function bpGateLevel(sys, dia) {
+  if ((sys && sys >= 180) || (dia && dia >= 110)) return 3;
+  if ((sys && sys >= 160) || (dia && dia >= 100)) return 2;
+  if ((sys && sys >= 140) || (dia && dia >= 90)) return 1;
+  return 0;
+}
+// 数値にかかわらず乗務を止める自覚症状。該当すれば理由の文字列を返す
+function symptomStop(health, condition) {
+  if (condition === 'bad') return '体調不良の申告';
+  if (health && health.pain === 'severe') return '強い痛み';
+  return null;
+}
+function dutyGate(jobRole, sys, dia, health, condition) {
+  const isDriver = jobRole === 'driver';
+  let level = bpGateLevel(sys, dia);
+  const reasons = [];
+  if (level >= 1) reasons.push(`血圧 ${sys || '-'}/${dia || '-'}`);
+  const sym = symptomStop(health, condition);
+  if (sym) { level = 3; reasons.push(sym); }
+  const g = DUTY_GATE[level];
+  // 乗務の文言(pill/action)はドライバーにだけ返す。事務・倉庫に「乗務不可」と出ると意味が通らない。
+  return { level, code: g.code, pill: isDriver ? g.pill : '', action: isDriver ? g.action : '',
+           driver: isDriver, reasons };
+}
 // 2026-08-01 (社長指摘): 「血圧が正常なのに🔴高のPOSTが来る」。
 //   判定は血圧だけでなく健康点検の回答(痛み/顔色/体調)からも上がるが、POST本文には血圧しか
 //   書いていなかったため、受け取った側が高の理由を読み取れなかった。
@@ -142,6 +185,10 @@ function healthRefNotes(health) {
 // POST本文の共通組み立て。血圧/メモ に 根拠 と 参考 を足す。
 function buildConditionDetail(o) {
   const lines = [];
+  // 乗務ゲート該当は本文の先頭に明記する (受け取った側が「何をすべきか」を即断できるように)
+  if (o.gate && o.gate.level >= 2 && o.gate.driver) {
+    lines.push(o.gate.pill + '（' + o.gate.reasons.join(' ／ ') + '）' + o.gate.action);
+  }
   const head = [o.bpHigh ? ('⚠️' + o.bpText + '(高血圧)') : o.bpText, o.note].filter(Boolean).join(' / ');
   if (head) lines.push(head);
   const reasons = urgencyReasons(o.health, o.condition);
@@ -286,13 +333,14 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
 
   const bpText = (bpSys || bpDia) ? `血圧 ${bpSys || '-'}/${bpDia || '-'}${pulse ? ` 脈${pulse}` : ''}` : '';
   const bpHigh = bpSeverity(bpSys, bpDia) >= 2;
+  const gate = dutyGate(target.job_role, bpSys, bpDia, health, condition);
 
   // 不調 → 現場の声(運管/倉庫POST)へ連携
   let wpId = null;
   if (urgency === '中' || urgency === '高') {
     try {
       const sourceType = mode === 'tenko' ? '運管' : '倉庫';
-      const detail = buildConditionDetail({ bpText: bpText, bpHigh: bpHigh, note: note, health: health, condition: condition });
+      const detail = buildConditionDetail({ bpText: bpText, bpHigh: bpHigh, note: note, health: health, condition: condition, gate: gate });
       const memo = `【${mode === 'tenko' ? '点呼' : '朝礼'}】${target.display_name}さんの体調確認: ${detail}`;
       const ins = db.prepare(`INSERT INTO wellness_posts
         (poster_id, company_code, category, urgency, identity_mode, memo, source_type, subject_user_id, structured_json)
@@ -328,7 +376,7 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
     .run(date, target.id, op.id, target.company_code || '', mode, tokaiDone, condition,
          health ? JSON.stringify(health) : null, urgency, note, bpSys, bpDia, pulse, wpId);
 
-  res.json({ success: true, urgency, escalated: !!wpId, bp_high: bpHigh });
+  res.json({ success: true, urgency, escalated: !!wpId, bp_high: bpHigh, gate });
 });
 
 // ============================================================
@@ -365,6 +413,7 @@ router.post('/self-checkin', authUser, express.json(), (req, res) => {
   const urgency = deriveUrgency('tenko', effHealth, effCondition, { sys: effBpSys, dia: effBpDia }); // 'tenko'指定でbpも加味
   const bpText = (effBpSys || effBpDia) ? `血圧 ${effBpSys || '-'}/${effBpDia || '-'}${effPulse ? ` 脈${effPulse}` : ''}` : '';
   const bpHigh = bpSeverity(effBpSys, effBpDia) >= 2;
+  const gate = dutyGate(me.job_role, effBpSys, effBpDia, effHealth, effCondition);
 
   // 同日2回目以降は新規バッジを作らず既存postを再利用(都度配信の防止)。
   // ただし悪化(中→高)時のみ既存postを高へ引き上げ・未対応へ戻し、現場の声へ1回だけ通知(急変見落とし防止)。
@@ -376,7 +425,7 @@ router.post('/self-checkin', authUser, express.json(), (req, res) => {
   if (urgency === '中' || urgency === '高') {
     try {
       const worsened = !priorWp || URANK[urgency] > URANK[priorWp.urgency || '低'];
-      const detail = buildConditionDetail({ bpText: bpText, bpHigh: bpHigh, note: effNote, health: effHealth, condition: effCondition });
+      const detail = buildConditionDetail({ bpText: bpText, bpHigh: bpHigh, note: effNote, health: effHealth, condition: effCondition, gate: gate });
       const memo = `【自己チェック】${me.display_name}さんの体調: ${detail}`;
       const sj = JSON.stringify({ health: effHealth, condition: effCondition, bp: { sys: effBpSys, dia: effBpDia, pulse: effPulse } });
       if (!priorWp) {
@@ -424,7 +473,7 @@ router.post('/self-checkin', authUser, express.json(), (req, res) => {
         .run(me.id, bpSys, bpDia, pulse, new Date(Date.now() + 32400000).toISOString().slice(0, 19).replace('T', ' '), '自己チェック'); // measured_atはJST(+9h)で保存(履歴は生表示のため)
     } catch (e) {}
   }
-  res.json({ success: true, urgency, escalated: !!wpId, bp_high: bpHigh });
+  res.json({ success: true, urgency, escalated: !!wpId, bp_high: bpHigh, gate });
 });
 
 // 体調チェック「実施(済)」判定。⚠️「行が存在する」だけでは済にしない:
@@ -612,7 +661,7 @@ router.get('/board', authUser, (req, res) => {
   const customItems = getHealthCustomItems();
   const itemLabels = Object.assign({}, HC_LABELS);
   customItems.forEach(it => { if (it && it.key) itemLabels[it.key] = it.q; });
-  const tally = {}; let done = 0, uMid = 0, uHigh = 0, bpHigh = 0;
+  const tally = {}; let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0;
   const entries = roster.map(m => {
     const r = byTarget[m.id];
     if (!r) return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: false };
@@ -622,11 +671,14 @@ router.get('/board', authUser, (req, res) => {
     if (r.urgency === '中') uMid++; else if (r.urgency === '高') uHigh++;
     if ((r.bp_systolic && r.bp_systolic >= 160) || (r.bp_diastolic && r.bp_diastolic >= 100)) bpHigh++;
     let h = {}; try { h = JSON.parse(r.health_json || '{}') || {}; } catch (e) {}
+    // 乗務ゲート (ドライバーのみ件数に計上)
+    const gate = dutyGate(m.job_role, r.bp_systolic, r.bp_diastolic, h, r.condition);
+    if (gate.driver) { if (gate.level >= 3) gStop++; else if (gate.level === 2) gRecheck++; }
     Object.keys(itemLabels).forEach(k => { if (h[k] != null && h[k] !== '') { tally[k] = tally[k] || {}; tally[k][h[k]] = (tally[k][h[k]] || 0) + 1; } });
     return { uid: m.id, name: m.display_name, company_code: m.company_code, done: checkDone,
       source: r.mode, urgency: r.urgency, done_at: jstHM(r.updated_at),
       bp: (r.bp_systolic || r.bp_diastolic) ? { s: r.bp_systolic, d: r.bp_diastolic, p: r.pulse } : null,
-      health: h, condition: r.condition, note: r.note };
+      gate, health: h, condition: r.condition, note: r.note };
   });
   const total = roster.length;
   const companies = hq
@@ -636,7 +688,8 @@ router.get('/board', authUser, (req, res) => {
   const trendAccess = BP_TREND_VIEWERS.includes(req.uid);
   res.json({ success: true, date, hq, co, total, done, not_done: total - done,
     rate: total ? Math.round(done * 1000 / total) / 10 : 0, trend_access: trendAccess,
-    urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh, item_labels: itemLabels, tally, entries, companies });
+    urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh, gate_stop: gStop, gate_recheck: gRecheck,
+    item_labels: itemLabels, tally, entries, companies });
 });
 
 // ============================================================
@@ -683,7 +736,7 @@ router.get('/manage', authUser, (req, res) => {
       });
   }
   const byTarget = {}; recs.forEach(r => { byTarget[r.target_id] = r; });
-  let done = 0, uMid = 0, uHigh = 0, bpHigh = 0;
+  let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0;
   const entries = roster.map(m => {
     const r = byTarget[m.id];
     if (!r) return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: false };
@@ -691,10 +744,13 @@ router.get('/manage', authUser, (req, res) => {
     if (r.urgency === '中') uMid++; else if (r.urgency === '高') uHigh++;
     if ((r.bp_systolic && r.bp_systolic >= 160) || (r.bp_diastolic && r.bp_diastolic >= 100)) bpHigh++;
     let h = {}; try { h = JSON.parse(r.health_json || '{}') || {}; } catch (e) {}
+    // 乗務ゲート (2026-08-03)。当日表の血圧欄に 🚫/⚠️ を出すための判定。件数はドライバーのみ。
+    const gate = dutyGate(m.job_role, r.bp_systolic, r.bp_diastolic, h, r.condition);
+    if (gate.driver) { if (gate.level >= 3) gStop++; else if (gate.level === 2) gRecheck++; }
     return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: true,
       source: r.mode, urgency: r.urgency, done_at: jstHM(r.updated_at),
       bp: (r.bp_systolic || r.bp_diastolic) ? { s: r.bp_systolic, d: r.bp_diastolic, p: r.pulse } : null,
-      health: h, condition: r.condition, note: r.note,
+      gate, health: h, condition: r.condition, note: r.note,
       wp_id: r.wellness_post_id || null,
       ack_status: r.wellness_post_id ? (ackMap[r.wellness_post_id] || '未対応') : null,
       ack_note: r.wellness_post_id ? (ackNoteMap[r.wellness_post_id] || '') : '',
@@ -746,7 +802,8 @@ router.get('/manage', authUser, (req, res) => {
   res.json({
     success: true, date, period, since, hq, co,
     today: { total, done, not_done: total - done, rate: total ? Math.round(done * 1000 / total) / 10 : 0,
-      urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh, entries },
+      urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh,
+      gate_stop: gStop, gate_recheck: gRecheck, entries },
     unhandled, queue,
     cumulative: { item_labels: HC_LABELS, rate_series, frequent, tally },
     companies,

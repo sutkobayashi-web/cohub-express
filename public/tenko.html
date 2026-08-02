@@ -323,7 +323,7 @@ function tenkoLegal(){
       </div>
     </div>
     <input type="hidden" id="f_bp_sys"><input type="hidden" id="f_bp_dia"><input type="hidden" id="f_pulse">
-    <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:14px;padding:8px 10px">⚠️ 血圧が高めです。運行可否を確認してください。</div>
+    <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;border-radius:14px;padding:8px 10px"></div>
   </div>`;
 }
 // 聞き取り8項目 (投票決定5項目[Yes/No] + 観察3項目) — 点呼・朝礼で共通
@@ -365,11 +365,26 @@ function toggleTokai(){ form.tokai_done=!form.tokai_done;
 function closeOv(){ document.getElementById('ov').classList.remove('show'); }
 document.getElementById('ov').addEventListener('click',e=>{ if(e.target.id==='ov') closeOv(); });
 
+// 乗務ゲート (2026-08-03 社長判断)。数値を回した瞬間に、その場で何をすべきかを出す。
+//  180/110以上 = 当日乗務見合わせ / 160/100以上 = 15分安静後に再測
+//  ⚠️サーバー側 routes/tenko.js の bpGateLevel と同じ基準。片方だけ変えないこと。
+function gateOf(sys, dia){
+  if (sys>=180 || dia>=110) return { lv:3, bg:'#fee2e2', fg:'#7f1d1d',
+    msg:'🚫 本日の乗務は見合わせてください（180/110以上）。安静にして受診を勧めてください。' };
+  if (sys>=160 || dia>=100) return { lv:2, bg:'#ffedd5', fg:'#9a3412',
+    msg:'⚠️ 15分安静にしてから再測してください。再測でも超えている場合は長距離・夜間の乗務から外してください。' };
+  if (sys>=140 || dia>=90) return { lv:1, bg:'#fefce8', fg:'#854d0e',
+    msg:'数値が高めです。体調を確認してください。' };
+  return { lv:0 };
+}
 function bpCheck(){
   const sys = parseInt((document.getElementById('f_bp_sys')||{}).value)||0;
   const dia = parseInt((document.getElementById('f_bp_dia')||{}).value)||0;
   const w = document.getElementById('bp_warn');
-  if (w) w.style.display = (sys>=160||dia>=100) ? 'block' : 'none';
+  if (!w) return;
+  const g = gateOf(sys, dia);
+  if (!g.lv){ w.style.display='none'; return; }
+  w.style.display='block'; w.style.background=g.bg; w.style.color=g.fg; w.textContent=g.msg;
 }
 async function submitCard(){
   form.note = document.getElementById('f_note').value;
@@ -389,6 +404,11 @@ async function submitCard(){
   try { localStorage.removeItem('tenko_draft_v1'); } catch(e){}  // 記録成功 → ドラフト破棄
   closeOv();
   if (j.escalated) { /* 不調を現場の声へ連携した旨は静かに */ }
+  // 乗務ゲート該当は記録後に必ず一度止めて知らせる (点呼者が見落とさないように)
+  if (j.gate && j.gate.driver && j.gate.level >= 2) {
+    alert(j.gate.pill + '\n' + curName + ' さん（' + (j.gate.reasons||[]).join(' ／ ') + '）\n\n'
+      + j.gate.action + '\n\n※これは判断の目安です。乗務可否は運行管理者が判断してください。');
+  }
   reload();
 }
 
