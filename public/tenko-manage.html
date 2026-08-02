@@ -60,6 +60,22 @@
   .pill.ack-0 { background: #fee2e2; color: #dc2626; }
   .pill.ack-1 { background: #e0f2fe; color: #0369a1; }
   .pill.ack-2 { background: #dcfce7; color: #047857; }
+  /* 血圧の目安 (2026-08-03)。点呼者が当日の判断に使う基準を常時1行で見せる */
+  .bpg { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; margin: 0 0 10px; }
+  .bpg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .bpg-ttl { font-size: 12.5px; font-weight: 800; color: #0f172a; margin-right: 2px; }
+  .bpc { display: inline-flex; align-items: baseline; gap: 5px; border-radius: 999px; padding: 3px 10px;
+    font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .bpc b { font-size: 12.5px; }
+  .bpc span { font-weight: 700; font-size: 11.5px; opacity: .95; }
+  .bpc.l3 { background: #fee2e2; color: #b91c1c; }
+  .bpc.l2 { background: #ffedd5; color: #9a3412; }
+  .bpc.l1 { background: #fefce8; color: #854d0e; }
+  .bpc.l0 { background: #dcfce7; color: #047857; }
+  .bpg table { border-collapse: collapse; margin: 8px 0 4px; font-size: 12.5px; }
+  .bpg th, .bpg td { border: 1px solid #e2e8f0; padding: 4px 8px; text-align: left; }
+  .bpg th { background: #f8fafc; font-weight: 700; color: #475569; }
+  @media (max-width: 480px) { .bpc { font-size: 11px; padding: 2px 8px; } .bpg { padding: 7px 9px; } }
   /* 確認/対応を「①見た → ②処置した」の順番付きステッパーで表示 */
   .ack-steps { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   .stp { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 4px 9px; font-size: 12px; font-weight: 800; cursor: pointer; line-height: 1.3; }
@@ -129,6 +145,40 @@
       </div>
     </div>
   </details>
+  <!-- 血圧管理の目安 (2026-08-03 社長指示)。数値の意味と当日やることを、点呼管理の画面上で完結させる。
+       ⚠️しきい値は server/routes/tenko.js の dutyGate() が正。ここを直したら必ずサーバー側も合わせること。 -->
+  <div class="bpg">
+    <div class="bpg-row">
+      <span class="bpg-ttl">🩺 血圧の目安（点呼時の測定値）</span>
+      <span class="bpc l3">🚫乗務不可 <b>上180↑</b> または <b>下110↑</b></span>
+      <span class="bpc l2">⚠️要再測 <b>上160↑</b> または <b>下100↑</b></span>
+      <span class="bpc l1">注意 <b>上140↑</b> または <b>下90↑</b></span>
+      <span class="bpc l0">基準内 <b>上140未満</b> かつ <b>下90未満</b></span>
+    </div>
+    <details style="margin-top:7px;font-size:13px;">
+      <summary style="cursor:pointer;font-weight:800;color:#0f766e;list-style:none;">❓ この基準の使い方・測り方（くわしく）</summary>
+      <div style="margin-top:8px;line-height:1.8;color:#334155;">
+        <div><b>読み方：</b>上（収縮期）と下（拡張期）の<b>どちらか一方でも該当すれば、その段の扱い</b>になります。上が140でも下が112なら🚫です。</div>
+        <table>
+          <tr><th>目安</th><th>数値（上／下）</th><th>その場ですること</th></tr>
+          <tr><td style="color:#b91c1c;font-weight:800">🚫 乗務不可</td><td>180以上 ／ 110以上</td>
+              <td>本日の乗務は見合わせ。安静にして受診を勧め、「指導・乗務禁止」タブに記録を残す。</td></tr>
+          <tr><td style="color:#9a3412;font-weight:800">⚠️ 要再測</td><td>160〜179 ／ 100〜109</td>
+              <td><b>15分安静にしてから再測。</b>再測でも超えている場合は長距離・夜間の乗務から外す。再測値も必ず記録する。</td></tr>
+          <tr><td style="color:#854d0e;font-weight:800">注意</td><td>140〜159 ／ 90〜99</td>
+              <td>乗務は可。体調をひとこと確認し、続くようなら受診を勧める。</td></tr>
+          <tr><td style="color:#047857;font-weight:800">基準内</td><td>140未満 かつ 90未満</td><td>通常どおり。</td></tr>
+        </table>
+        <div style="margin-top:6px;"><b>数値によらず🚫にするもの：</b>本人が<b>「体調が悪い」</b>と申告したとき／健康点検で<b>「強い痛み」</b>を選んだとき。頭痛・めまい・見えづらさ・胸の痛みの訴えがあるときも、数値に関係なく乗務させないでください。</div>
+        <div style="margin-top:6px;"><b>正しく測るために：</b>いすに座って背もたれに寄りかかり、足を組まず<b>1〜2分安静にしてから</b>測る／腕帯（カフ）は<b>心臓の高さ</b>／<b>乗務直後・飲食・喫煙・カフェインの直後は避ける</b>（実際より高く出ます）／会話しながら測らない。</div>
+        <div style="margin-top:6px;color:#475569;font-size:12.5px;">
+          ※ この表は<b>職場（点呼時）で測った値</b>に対する運用の目安です。自宅で測る場合の高血圧の基準は<b>135／85</b>で、職場より低めになります（📈血圧の推移の画面もこの基準です）。<br>
+          ※ <b>目安であって診断ではありません。</b>乗務可否の最終判断は運行管理者が行ってください。治療中・服薬中の方は<b>主治医の指示が優先</b>です。<br>
+          ※ 1回の数値だけで判断せず、<b>推移（平均の流れ）</b>もあわせて確認してください（<a href="/health-check-board.html" style="color:#0f766e;font-weight:800">健康点検ボード</a>の氏名📈から見られます／閲覧できるのは指定者のみ）。
+        </div>
+      </div>
+    </details>
+  </div>
   <div class="cards" id="summary"></div>
   <div class="tabs">
     <button data-t="today" class="active">本日</button>
