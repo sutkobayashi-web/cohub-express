@@ -4,24 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>点呼・健康点検 - CoWell</title>
-<link rel="icon" href="/favicon.ico">
+<link rel="icon" href="/img/cowell-favicon-32-v2.png">
 <link rel="manifest" href="/manifest.json">
 <style>
 :root{--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;--ink:#0f172a;--sub:#64748b;--accent:#0d9488;--accent2:#0f766e}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Hiragino Sans,system-ui,sans-serif}
 header{position:sticky;top:0;z-index:10;background:linear-gradient(135deg, #0284c7, #0369a1);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 3px 12px rgba(15,118,110,.25)}
-header .back{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:20px;cursor:pointer;border-radius:10px;padding:6px 12px}
+header .back{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:20px;cursor:pointer;border-radius:14px;padding:6px 12px}
 header h1{font-size:19px;font-weight:800;margin:0;flex:1}
 .toolbar{max-width:1100px;margin:0 auto;padding:14px 16px 4px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.sel{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.sel{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:8px 12px}
 .sel select{border:none;outline:none;font-size:16px;font-weight:700;background:transparent;color:var(--ink)}
 .prog{margin-left:auto;font-size:15px;font-weight:800;color:var(--accent2);background:#ccfbf1;padding:8px 16px;border-radius:999px}
 .brief{max-width:1100px;margin:8px auto 0;padding:0 16px}
 .brief .box{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px 14px}
 .brief .ttl{font-size:13px;font-weight:800;color:#92400e;margin-bottom:6px}
-.brief textarea{width:100%;border:1px solid #fcd34d;border-radius:10px;padding:9px 11px;font-size:15px;min-height:48px;resize:vertical;font-family:inherit}
-.brief .save{margin-top:8px;background:#d97706;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer}
+.brief textarea{width:100%;border:1px solid #fcd34d;border-radius:14px;padding:9px 11px;font-size:15px;min-height:48px;resize:vertical;font-family:inherit}
+.brief .save{margin-top:8px;background:#d97706;color:#fff;border:none;border-radius:14px;padding:8px 16px;font-weight:800;cursor:pointer}
 main{max-width:1100px;margin:0 auto;padding:12px 16px 60px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 .mem{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px 10px 14px;text-align:center;cursor:pointer;position:relative;transition:transform .1s,border-color .15s}
@@ -47,24 +47,47 @@ main{max-width:1100px;margin:0 auto;padding:12px 16px 60px}
 .fld{margin-bottom:16px}
 .fld>label{display:block;font-size:14px;font-weight:800;color:#334155;margin-bottom:8px}
 .opts{display:flex;flex-wrap:wrap;gap:8px}
-.opt{flex:1;min-width:80px;border:2px solid var(--line);background:#fff;border-radius:12px;padding:12px 8px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+.opt{flex:1;min-width:80px;border:2px solid var(--line);background:#fff;border-radius:16px;padding:12px 8px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
 .opt.on{border-color:var(--accent);background:#ccfbf1;color:var(--accent2)}
 .opt.warn.on{border-color:#dc2626;background:#fee2e2;color:#b91c1c}
 .chk{display:flex;align-items:center;gap:12px;border:2px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:14px;cursor:pointer}
 .chk.on{border-color:#2563eb;background:#dbeafe}
-.chk .bx{width:28px;height:28px;border-radius:8px;border:2px solid #2563eb;display:flex;align-items:center;justify-content:center;font-size:18px;color:#2563eb;flex:none}
+.chk .bx{width:28px;height:28px;border-radius:12px;border:2px solid #2563eb;display:flex;align-items:center;justify-content:center;font-size:18px;color:#2563eb;flex:none}
 .chk .tx{font-size:14px;font-weight:800;color:#1e3a8a;line-height:1.35}
-.note{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;font-size:15px;min-height:54px;resize:vertical;font-family:inherit}
+.note{width:100%;border:1px solid var(--line);border-radius:16px;padding:11px;font-size:15px;min-height:54px;resize:vertical;font-family:inherit}
 .bprow{display:flex;gap:10px;align-items:center}
-.bp{flex:1;min-width:0;border:2px solid var(--line);border-radius:12px;padding:13px 8px;font-size:20px;font-weight:800;text-align:center;font-family:inherit}
+.bp{flex:1;min-width:0;border:2px solid var(--line);border-radius:16px;padding:13px 8px;font-size:20px;font-weight:800;text-align:center;font-family:inherit}
 .bp:focus{outline:none;border-color:var(--accent)}
 .bpslash{font-size:22px;font-weight:800;color:#94a3b8}
+/* ダイヤル(ホイール)式 血圧入力 — タブレットでタップ/フリック入力 */
+.bpdial{display:flex;gap:12px;align-items:flex-start;justify-content:center;margin-top:6px}
+.bpcol{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.bpcol .cap{font-size:13px;font-weight:800;color:#475569}
+.bpcol .unit{font-size:11px;font-weight:700;color:#94a3b8;margin-top:-2px}
+.bpwrap{position:relative;width:100%;max-width:96px}
+.bpwheel{position:relative;height:132px;overflow-y:scroll;scroll-snap-type:y mandatory;border:2px solid var(--line);border-radius:16px;background:#f8fafc;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bpwheel::-webkit-scrollbar{display:none}
+.bpwheel .it{height:44px;line-height:44px;text-align:center;font-size:22px;font-weight:800;color:#cbd5e1;scroll-snap-align:center;cursor:pointer;transition:color .1s,font-size .1s}
+.bpwheel .it.sel{color:#0f172a;font-size:27px}
+.bpwheel .it.pad{cursor:default}
+.bpband{position:absolute;left:0;right:0;top:44px;height:44px;border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);background:rgba(20,184,166,.06);pointer-events:none;border-radius:6px}
+.bpnudge{width:100%;max-width:96px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:6px 0;font-size:18px;font-weight:800;color:var(--accent);cursor:pointer;line-height:1}
+.bpnudge:active{background:#f1f5f9}
 .submit{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:16px;font-size:18px;font-weight:800;cursor:pointer;margin-top:6px}
-.cancel{width:100%;background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:12px;padding:11px;font-weight:700;cursor:pointer;margin-top:10px}
+.cancel{width:100%;background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:16px;padding:11px;font-weight:700;cursor:pointer;margin-top:10px}
 .note-ttl{font-size:14px;font-weight:800;color:#334155;margin-bottom:8px}
 .deny{max-width:560px;margin:40px auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px;text-align:center;color:var(--sub)}
-.briefshow{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;font-size:14px;color:#92400e;font-weight:700;margin-bottom:16px;white-space:pre-wrap}
+.briefshow{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:10px 12px;font-size:14px;color:#92400e;font-weight:700;margin-bottom:16px;white-space:pre-wrap}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <header>
@@ -105,8 +128,18 @@ let state = { date:'', company:'', items:[], me:null };
 
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function api(path, opt){
-  const r = await fetch('/api/tenko'+path, Object.assign({ headers:{ Authorization:'Bearer '+token } }, opt||{}));
-  if (r.status === 401){ localStorage.removeItem('cohub_token'); location.href='/'; return null; }
+  const tk = localStorage.getItem('cohub_token') || token || '';
+  opt = opt || {};
+  opt.headers = Object.assign({ Authorization:'Bearer '+tk }, opt.headers||{});
+  const r = await fetch('/api/tenko'+path, opt);
+  if (r.status === 401){
+    // セッション切れ(別端末ログイン等)で入力が消える事故を防ぐ: 送信中の内容を保存してから再ログインへ
+    if (pendingDraft){
+      try { localStorage.setItem('tenko_draft_v1', JSON.stringify(pendingDraft)); } catch(e){}
+      alert('別の端末で同じアカウントがログインされたため、セッションが切れました。\n入力内容は保存しました。再ログイン後に「点呼・健康点検」を開くと自動で復元されます。');
+    }
+    localStorage.removeItem('cohub_token'); location.href='/'; return null;
+  }
   return r;
 }
 
@@ -128,7 +161,8 @@ async function init(){
   const codes = j.companies.map(c=>c.code);
   const eff = codes.includes(j.company) ? j.company : (codes[0] || j.company);
   sel.value = eff;
-  if (eff !== j.company) { reload(); } else { applyData(j); loadBrief(); }
+  if (eff !== j.company) { await reload(); } else { applyData(j); loadBrief(); }
+  restoreDraft();
 }
 
 function applyData(j){
@@ -140,13 +174,18 @@ function applyData(j){
   grid.innerHTML = j.items.map(m=>{
     const initial = (m.name||'?').trim().charAt(0);
     const ava = m.avatar ? `<img src="${esc(m.avatar)}" onerror="this.replaceWith(document.createTextNode('${esc(initial)}'))">` : esc(initial);
-    const uCls = m.done && m.urgency==='高' ? 'urgent-hi' : (m.done && m.urgency==='中' ? 'urgent' : '');
-    const ub = m.done && (m.urgency==='高'||m.urgency==='中') ? `<span class="ubadge" style="background:${m.urgency==='高'?'#dc2626':'#f59e0b'}">${m.urgency==='高'?'要対応':'注意'}</span>` : '';
+    const hasRec = m.done || m.self_done;
+    const uCls = hasRec && m.urgency==='高' ? 'urgent-hi' : (hasRec && m.urgency==='中' ? 'urgent' : '');
+    const ub = hasRec && (m.urgency==='高'||m.urgency==='中') ? `<span class="ubadge" style="background:${m.urgency==='高'?'#dc2626':'#f59e0b'}">${m.urgency==='高'?'要対応':'注意'}</span>` : '';
+    // 本人が自己申告済み(運管の点呼はまだ)。運管が開いて内容確認→点呼記録する対象。
+    const selfB = (!m.done && m.self_done && !(m.urgency==='高'||m.urgency==='中')) ? `<span class="ubadge" style="background:#0ea5e9">🩸申告済</span>` : '';
+    // 未読の通達が残っている人は点呼で口頭伝達すべき → 件数を出す
+    const nb = m.unread_notices ? `<div style="margin-top:5px;font-size:11px;font-weight:800;color:#b45309;background:#fef3c7;border-radius:999px;padding:2px 8px;display:inline-block">📣 未読通達 ${m.unread_notices}</div>` : '';
     return `<div class="mem ${m.done?'done':''} ${uCls}" onclick='openCard(${JSON.stringify(m)})'>
-      ${m.done?'<span class="status">✅</span>':''}${ub}
+      ${m.done?'<span class="status">✅</span>':''}${ub}${selfB}
       <div class="ava">${ava}</div>
       <div class="nm">${esc(m.name)}</div>
-      <span class="mode ${m.mode}">${m.mode==='tenko'?'点呼':'朝礼'}</span>
+      <span class="mode ${m.mode}">${m.mode==='tenko'?'点呼':'朝礼'}</span>${nb}
     </div>`;
   }).join('');
 }
@@ -172,16 +211,26 @@ async function saveBrief(){
 
 // ---- 記録モーダル ----
 let form = {};
+let pendingDraft = null;   // 送信中の入力内容(401時の保全用)
+let curName = '';          // 対象者名(ドラフト復元の表示用)
 function openCard(m){
-  form = { target_id:m.id, mode:m.mode, tokai_done:false, condition:(m.mode==='chorei'?'good':null), health:{}, note:'', health_state:'good' };
+  curName = m.name || '';
+  const self = m.self || null;   // 本人がタブレットで自己申告済みの内容(あれば)
+  form = { target_id:m.id, mode:m.mode, tokai_done:false,
+    condition: (self && self.condition) ? self.condition : (m.mode==='chorei'?'good':null),
+    health: (self && self.health) ? Object.assign({}, self.health) : {},
+    note:'', health_state:'good' };
   const brief = document.getElementById('briefText').value.trim();
   const briefHtml = brief ? `<div class="briefshow">📢 ${esc(brief)}</div>` : '';
+  // 点呼は健康点検だけでなく「指示・伝達」も法定要件。未読通達が残っていれば点呼者に伝達を促す。
+  const noticeHtml = m.unread_notices ? `<div class="briefshow" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412">📣 この方は<b>未読の通達が ${m.unread_notices}件</b>あります。点呼で内容を伝え、後で本人にも確認してもらってください。</div>` : '';
+  const selfHtml = self ? `<div class="briefshow" style="background:#e0f2fe;border-color:#7dd3fc;color:#075985">🩸 本人がタブレットで自己申告済み${self.at?`（${esc(String(self.at).slice(11,16))}）`:''}。下の内容は本人の申告です。確認・修正して点呼を記録してください。</div>` : '';
   const legal = m.mode==='tenko' ? tenkoLegal() : '';            // 点呼の法定部(東海電子+血圧)は常時表示
   const detail = m.mode==='tenko' ? tenkoDetail() : choreiDetail(); // 「気になる」時だけ展開
   document.getElementById('modal').innerHTML =
     `<h2>${m.mode==='tenko'?'🚦 点呼・健康点検':'📣 朝礼・健康点検'}</h2>
      <div class="who">${esc(m.name)} さん</div>
-     ${briefHtml}${legal}
+     ${briefHtml}${noticeHtml}${selfHtml}${legal}
      <div class="fld" style="margin-bottom:2px;">
        <label>健康点検（8項目）</label>
        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">本日の状態をタップで選んでください。問題なければ「はい／なし」でOK。</div>
@@ -191,6 +240,58 @@ function openCard(m){
      <button class="submit" onclick="submitCard()">${m.mode==='tenko'?'点呼・点検を記録':'記録（出席・点検）'}</button>
      <button class="cancel" onclick="closeOv()">キャンセル</button>`;
   document.getElementById('ov').classList.add('show');
+  buildBpWheels(self ? self.bp : null);
+  if (self) prefillHealth();   // 自己申告の該当ボタンを選択状態に
+}
+// 本人の自己申告(form.health)を点呼モーダルの該当ボタンにプリフィル
+function prefillHealth(){
+  const d = document.getElementById('healthDetail'); if (!d) return;
+  Object.keys(form.health||{}).forEach(k=>{
+    const v = form.health[k];
+    const btn = d.querySelector('.opt[data-k="'+k+'"][data-v="'+v+'"]');
+    if (btn){ btn.parentElement.querySelectorAll('.opt').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+  });
+}
+
+// ===== ダイヤル(ホイール)式 血圧入力 =====
+// 値は hidden input (#f_bp_sys/#f_bp_dia/#f_pulse) に入れるので submitCard/bpCheck は無改修。
+const BP_ROW = 44;
+function buildWheel(wid, hid, min, max, onChange, def){
+  const w = document.getElementById(wid); if (!w) return;
+  const vals = ['']; for (let n = min; n <= max; n++) vals.push(String(n)); // 先頭は「—」(未測定=null)
+  let html = '<div class="it pad"></div>';
+  vals.forEach((v, i) => { html += '<div class="it" data-i="' + i + '">' + (v === '' ? '—' : v) + '</div>'; });
+  html += '<div class="it pad"></div>';
+  w.innerHTML = html;
+  const hidden = document.getElementById(hid);
+  const items = w.querySelectorAll('.it[data-i]');
+  function apply(){
+    let idx = Math.round(w.scrollTop / BP_ROW);
+    if (idx < 0) idx = 0; if (idx > vals.length - 1) idx = vals.length - 1;
+    items.forEach(el => el.classList.remove('sel'));
+    if (items[idx]) items[idx].classList.add('sel');
+    hidden.value = vals[idx] || '';
+    if (onChange) onChange();
+  }
+  let t; w.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(apply, 80); }, { passive: true });
+  items.forEach(el => el.addEventListener('click', () => { w.scrollTo({ top: (+el.dataset.i) * BP_ROW, behavior: 'smooth' }); }));
+  let di = (def != null && def !== '') ? vals.indexOf(String(def)) : 0; // 既定値の位置 (無指定は「—」)
+  if (di < 0) di = 0;
+  w.scrollTop = di * BP_ROW; apply();
+}
+function bpNudge(wid, d){
+  const w = document.getElementById(wid); if (!w) return;
+  const idx = Math.round(w.scrollTop / BP_ROW) + d;
+  w.scrollTo({ top: Math.max(0, idx * BP_ROW), behavior: 'smooth' });
+}
+function buildBpWheels(bp){
+  if (!document.getElementById('w_bp_sys')) return; // 点呼モードのみ
+  const dSys = (bp && bp.sys) ? bp.sys : 120;    // 本人が自己申告で血圧を入れていればその値を初期表示
+  const dDia = (bp && bp.dia) ? bp.dia : 70;
+  const dPulse = (bp && bp.pulse) ? bp.pulse : '';
+  buildWheel('w_bp_sys', 'f_bp_sys', 70, 220, bpCheck, dSys);
+  buildWheel('w_bp_dia', 'f_bp_dia', 40, 140, bpCheck, dDia);
+  buildWheel('w_bp_pulse', 'f_pulse', 35, 160, null, dPulse);
 }
 function tenkoLegal(){
   return `
@@ -200,13 +301,29 @@ function tenkoLegal(){
   </div>
   <div class="fld">
     <label>血圧の記入 <span style="font-weight:600;color:#94a3b8">※点呼システム非連動・管理者が測定値を記入</span></label>
-    <div class="bprow">
-      <input class="bp" id="f_bp_sys" type="number" inputmode="numeric" placeholder="上" min="50" max="300" oninput="bpCheck()">
-      <span class="bpslash">/</span>
-      <input class="bp" id="f_bp_dia" type="number" inputmode="numeric" placeholder="下" min="30" max="200" oninput="bpCheck()">
-      <input class="bp" id="f_pulse" type="number" inputmode="numeric" placeholder="脈拍(任意)" min="20" max="250">
+    <div style="font-size:11px;color:#94a3b8;margin:2px 0 4px;">ダイヤルを上下にフリック、または＋／−で合わせます（未測定は「—」のまま）</div>
+    <div class="bpdial">
+      <div class="bpcol">
+        <div class="cap">収縮期</div><div class="unit">上 mmHg</div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_bp_sys',1)">＋</button>
+        <div class="bpwrap"><div class="bpwheel" id="w_bp_sys"></div><div class="bpband"></div></div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_bp_sys',-1)">−</button>
+      </div>
+      <div class="bpcol">
+        <div class="cap">拡張期</div><div class="unit">下 mmHg</div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_bp_dia',1)">＋</button>
+        <div class="bpwrap"><div class="bpwheel" id="w_bp_dia"></div><div class="bpband"></div></div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_bp_dia',-1)">−</button>
+      </div>
+      <div class="bpcol">
+        <div class="cap">脈拍</div><div class="unit">任意 /分</div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_bp_pulse',1)">＋</button>
+        <div class="bpwrap"><div class="bpwheel" id="w_bp_pulse"></div><div class="bpband"></div></div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_bp_pulse',-1)">−</button>
+      </div>
     </div>
-    <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:10px;padding:8px 10px">⚠️ 血圧が高めです。運行可否を確認してください。</div>
+    <input type="hidden" id="f_bp_sys"><input type="hidden" id="f_bp_dia"><input type="hidden" id="f_pulse">
+    <div id="bp_warn" style="display:none;margin-top:8px;font-size:14px;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:14px;padding:8px 10px">⚠️ 血圧が高めです。運行可否を確認してください。</div>
   </div>`;
 }
 // 聞き取り8項目 (投票決定5項目[Yes/No] + 観察3項目) — 点呼・朝礼で共通
@@ -219,7 +336,7 @@ function healthDetail(){
   ${optFld('🌅 朝の目覚めスッキリ','wakeup',[['はい','yes'],['いいえ','no']])}
   ${optFld('🌡️ 顔色','facial_color',[['普通','normal'],['疲れ気味','tired',1],['赤い','red',1],['青白い','pale',1],['不明','unknown']])}
   ${optFld('🦴 体の痛み','pain',[['なし','no'],['腰','low_back',1],['肩・首','shoulder',1],['関節','joint',1],['強い痛み','severe',1]])}
-  ${optFld('⚠️ 気になる','concern',[['なし','no'],['体調','health',1],['家族','family',1],['職場','work',1],['お金','money',1],['その他','other',1]])}`;
+  ${optFld('💭 気になる','concern',[['なし','no'],['体調','health'],['家族','family'],['職場','work'],['お金','money'],['その他','other']])}`;
 }
 function tenkoDetail(){ return healthDetail(); }
 function choreiDetail(){ return healthDetail(); }
@@ -262,14 +379,45 @@ async function submitCard(){
     form.bp_diastolic = (document.getElementById('f_bp_dia')||{}).value || null;
     form.pulse = (document.getElementById('f_pulse')||{}).value || null;
   }
+  // 送信直前にドラフトを確保 (401でセッションが切れても入力を失わない)
+  pendingDraft = Object.assign({}, form, { _name: curName });
   const r = await api('/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
-  if (!r) return; const j = await r.json();
+  if (!r) return;            // 401時: api()内でドラフト保存&再ログインへ
+  pendingDraft = null;
+  const j = await r.json();
   if (!j.success){ alert(j.msg||'記録に失敗しました'); return; }
+  try { localStorage.removeItem('tenko_draft_v1'); } catch(e){}  // 記録成功 → ドラフト破棄
   closeOv();
   if (j.escalated) { /* 不調を現場の声へ連携した旨は静かに */ }
   reload();
 }
+
+// ---- セッション切れで保存したドラフトを再ログイン後に復元 ----
+function applyDraftToModal(d){
+  Object.entries(d.health||{}).forEach(([k,v])=>{
+    const b = document.querySelector('.opt[data-k="'+k+'"][data-v="'+v+'"]');
+    if (b){ b.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
+  });
+  if (d.tokai_done){ const c=document.getElementById('chk_tokai'); if(c){ c.classList.add('on'); const bx=document.getElementById('bx_tokai'); if(bx) bx.textContent='✓'; } }
+  const n=document.getElementById('f_note'); if(n) n.value = d.note||'';
+  if (document.getElementById('w_bp_sys')){
+    buildWheel('w_bp_sys','f_bp_sys',70,220,bpCheck, (d.bp_systolic!=null&&d.bp_systolic!=='')?d.bp_systolic:120);
+    buildWheel('w_bp_dia','f_bp_dia',40,140,bpCheck, (d.bp_diastolic!=null&&d.bp_diastolic!=='')?d.bp_diastolic:70);
+    buildWheel('w_bp_pulse','f_pulse',35,160,null, (d.pulse!=null&&d.pulse!=='')?d.pulse:'');
+  }
+}
+function restoreDraft(){
+  let d; try { d = JSON.parse(localStorage.getItem('tenko_draft_v1')||'null'); } catch(e){ d=null; }
+  if (!d || !d.target_id) return;
+  const m = (state.items||[]).find(x=>x.id===d.target_id) || { id:d.target_id, name:d._name||'対象者', mode:d.mode||'tenko' };
+  openCard(m);
+  form = Object.assign(form, d); delete form._name;
+  applyDraftToModal(d);
+  bpCheck();
+  setTimeout(()=>alert('前回セッションが切れたため、入力内容を復元しました。\n内容をご確認のうえ「記録」を押してください。'), 50);
+}
 init();
 </script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

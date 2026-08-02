@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>点呼管理</title>
+<style>
+  * { box-sizing: border-box; }
+  /* 横はみ出しを禁止し、端スワイプでの「戻る」=画面消失を抑止 */
+  html, body { overflow-x: hidden; overscroll-behavior-x: none; }
+  body { margin: 0; font-family: system-ui, -apple-system, "BIZ UDPGothic", sans-serif; background: #f1f5f9; color: #0f172a; }
+  header { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; }
+  header .title { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; flex: 1; }
+  header button.nav { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff;
+    border-radius: 10px; padding: 6px 11px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  #app { max-width: 1000px; margin: 0 auto; padding: 12px 12px 60px; }
+  .ctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 12px; }
+  .ctrls input[type=date], .ctrls select { padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 9px; font-size: 13px; background: #fff; }
+  .seg { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 9px; overflow: hidden; }
+  .seg button { border: none; background: #fff; padding: 6px 12px; font-size: 13px; font-weight: 700; cursor: pointer; color: #475569; }
+  .seg button.active { background: #0d9488; color: #fff; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .scard { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 9px 8px; text-align: center; }
+  .scard .v { font-size: 22px; font-weight: 800; line-height: 1.1; }
+  .scard .l { font-size: 11px; color: #64748b; font-weight: 700; margin-top: 2px; }
+  .scard.alert .v { color: #dc2626; }
+  .scard.warn .v { color: #b45309; }
+  .scard.ok .v { color: #047857; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
+  .tabs button { border: none; background: #f1f5f9; padding: 12px 20px; font-size: 17px; font-weight: 800; color: #475569; cursor: pointer; border-bottom: 4px solid transparent; margin-bottom: -2px; white-space: nowrap; border-radius: 10px 10px 0 0; transition: background .12s, color .12s; }
+  .tabs button:hover { background: #e2e8f0; color: #0f766e; }
+  .tabs button.active { color: #fff; background: #0f766e; border-bottom-color: #0f766e; }
+  .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 21px; height: 21px; padding: 0 6px;
+    margin-left: 6px; font-size: 13px; font-weight: 900; color: #fff; background: #dc2626; border-radius: 999px; }
+  /* テーブルは専用枠の中だけで横スクロール (ページ自体は はみ出さない) */
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 13px; }
+  .tbl-wrap table { min-width: 460px; }
+  th, td { padding: 8px 8px; text-align: left; border-bottom: 1px solid #eef2f7; vertical-align: middle; white-space: nowrap; }
+  th { background: #f8fafc; font-size: 11px; color: #64748b; font-weight: 800; white-space: nowrap; }
+  tr.done-no td { color: #94a3b8; }
+  @media (max-width: 560px) {
+    #app { padding: 10px 10px 60px; }
+    .cards { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .scard { padding: 7px 3px; }
+    .scard .v { font-size: 18px; }
+    .scard .l { font-size: 10px; }
+    th, td { padding: 6px 6px; font-size: 12px; }
+    .tabs button { padding: 10px 14px; font-size: 15px; }
+    .ctrls { gap: 6px; }
+    .ctrls input[type=date], .ctrls select { font-size: 12px; padding: 5px 7px; }
+  }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+  .pill.u-mid { background: #fef3c7; color: #b45309; }
+  .pill.u-high { background: #fee2e2; color: #dc2626; }
+  .pill.ok { background: #dcfce7; color: #047857; }
+  .pill.no { background: #f1f5f9; color: #94a3b8; }
+  .pill.ack-0 { background: #fee2e2; color: #dc2626; }
+  .pill.ack-1 { background: #e0f2fe; color: #0369a1; }
+  .pill.ack-2 { background: #dcfce7; color: #047857; }
+  /* 確認/対応を「①見た → ②処置した」の順番付きステッパーで表示 */
+  .ack-steps { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .stp { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 4px 9px; font-size: 12px; font-weight: 800; cursor: pointer; line-height: 1.3; }
+  .stp-1 { color: #0369a1; border-color: #7dd3fc; background: #f0f9ff; }
+  .stp-1:hover { background: #e0f2fe; }
+  .stp-2 { color: #94a3b8; background: #f8fafc; }                                   /* "見た"前=控えめ */
+  .stp-2on { color: #fff; background: #16a34a; border-color: #16a34a; }             /* "見た"後=強調 */
+  .stp-2on:hover { background: #15803d; }
+  .stp-done { color: #0369a1; background: #e0f2fe; border-color: #bae6fd; cursor: default; }
+  .stp-arrow { color: #94a3b8; font-weight: 900; font-size: 13px; }
+  /* 🔴高リスク者の対応内容 入力オーバーレイ */
+  .ovl { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+  .ovl-card { background: #fff; border-radius: 14px; padding: 16px; width: 100%; max-width: 440px; box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+  .bulkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; position: sticky; top: 50px; z-index: 20; }
+  .bulkbar .sel { font-size: 13px; font-weight: 700; color: #334155; flex: 1; }
+  .bulkbar button { border: none; border-radius: 9px; padding: 7px 12px; font-size: 13px; font-weight: 800; cursor: pointer; }
+  .b-ack1 { background: #0ea5e9; color: #fff; }
+  .b-ack2 { background: #16a34a; color: #fff; }
+  .b-clear { background: #f1f5f9; color: #475569; }
+  .qitem { display: flex; align-items: flex-start; gap: 9px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; margin-bottom: 7px; }
+  .qitem input { margin-top: 3px; transform: scale(1.2); }
+  .qitem .body { flex: 1; min-width: 0; }
+  .qitem .meta { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+  .bar-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; font-size: 12px; }
+  .bar-row .d { width: 64px; color: #64748b; flex-shrink: 0; }
+  .bar-row .track { flex: 1; height: 16px; background: #eef2f7; border-radius: 5px; overflow: hidden; position: relative; }
+  .bar-row .fill { height: 100%; background: linear-gradient(90deg, #34d399, #0d9488); }
+  .bar-row .pct { width: 70px; text-align: right; font-weight: 700; flex-shrink: 0; }
+  .bar-row .ab { font-size: 11px; color: #dc2626; flex-shrink: 0; }
+  .sec-h { font-size: 13px; font-weight: 800; color: #334155; margin: 16px 0 6px; }
+  .freq li { display: flex; justify-content: space-between; padding: 6px 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; margin-bottom: 5px; font-size: 13px; list-style: none; }
+  .freq { padding: 0; margin: 0; }
+  .freq .c { font-weight: 800; color: #b45309; }
+  .muted { color: #94a3b8; font-size: 13px; padding: 18px; text-align: center; }
+  .row-actions button { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 3px; }
+</style>
+</head>
+<body>
+<header id="header">
+  <button class="nav" onclick="location.href='/home'">‹ ホーム</button>
+  <span class="title">🩺 点呼管理</span>
+</header>
+<div id="app">
+  <div class="ctrls">
+    <input type="date" id="f-date">
+    <div class="seg" id="seg-period">
+      <button data-p="week">週</button>
+      <button data-p="month" class="active">月</button>
+    </div>
+    <select id="f-co" style="display:none"></select>
+    <button id="f-refresh" type="button" style="border:none;background:#0f766e;color:#fff;font-weight:800;padding:8px 12px;border-radius:8px;cursor:pointer;">↻ 更新</button>
+    <span id="f-updated" style="font-size:11px;color:#94a3b8;align-self:center;"></span>
+  </div>
+  <details id="ackHelp" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:9px 13px;margin:0 0 10px;font-size:13px;">
+    <summary style="cursor:pointer;font-weight:800;color:#0f766e;list-style:none;">❓ 「①確認 → ②対応済み」の使い方（体調フラグへの対応）</summary>
+    <div style="margin-top:9px;line-height:1.85;color:#334155;">
+      <div style="margin-bottom:6px;">点呼・自己チェックで <b>要注意サイン（🟡中／🔴高・高血圧など）</b> が出た人にだけ、行に <b>①確認 → ②対応済み</b> の2ステップが表示されます。左から順に進めてください。異常なしの方には表示されず、対応も不要です。</div>
+      <div style="margin:2px 0;"><span class="pill ack-0">未対応</span> 要注意サインが出たが、<b>まだ手をつけていない</b>状態。</div>
+      <div style="margin:2px 0;"><span class="pill ack-1">👀 確認済</span> ＝ <b>ステップ①</b>：<b>内容を見て把握した</b>だけの段階（まだ本人には動いていない）。</div>
+      <div style="margin:2px 0;"><span class="pill ack-2">✅ 対応済み</span> ＝ <b>ステップ②</b>：本人への連絡・声かけ、就業可否の判断、受診勧奨・休養指示など<b>実際に手を打ち終えた</b>段階。ここまで来たら完了です。<b>🔴高の人は対応時に「何をしたか（声かけ・対応内容）」の入力が必須</b>、🟡中の人も任意で記録できます（問題の有無に関わらず、対処した内容を残せます）。</div>
+      <div style="margin-top:6px;font-size:12.5px;color:#475569;">※「確認」を押さずに直接「対応済み」を押してもOK（対応＝確認も兼ねます）。気になる人が多いときは、まず「確認」で仕分けし、実際に動いた人を「対応済み」にすると管理しやすくなります。</div>
+      <div style="margin-top:7px;padding-top:7px;border-top:1px dashed #e2e8f0;font-size:12.5px;color:#475569;">
+        <b>誰が：</b>拠点の運行管理者・管理職・所長・推進担当（本社は全拠点を閲覧）。
+        <b>いつ：</b>🔴高は発生時に即チャット＋Push通知 → すぐ確認・対応。🟡中は通知を出さず本一覧に「未対応」で蓄積 → その日のうちに一覧を見て対応。
+        <b>「承認」との違い：</b>🚚帰庫点呼タブの<b>「点呼を承認」</b>は別物で、乗務後点呼を運管が実施済みにする操作です（体調フラグの①②とは無関係）。
+      </div>
+    </div>
+  </details>
+  <div class="cards" id="summary"></div>
+  <div class="tabs">
+    <button data-t="today" class="active">本日</button>
+    <button data-t="kiko">🚚 帰庫（帰社）点呼<span class="tab-badge" id="badge-k" style="display:none">0</span></button>
+    <button data-t="queue">未対応<span class="tab-badge" id="badge-q" style="display:none">0</span></button>
+    <button data-t="cum">累計</button>
+    <button data-t="shido">🚫指導・乗務禁止<span class="tab-badge" id="badge-s" style="display:none">0</span></button>
+  </div>
+  <div id="tab-today"></div>
+  <div id="tab-kiko" style="display:none">
+    <div id="kiko-notice-editor" style="margin:0 0 12px"></div>
+    <div id="kiko-section"></div>
+    <div id="jobrole-editor" style="margin:14px 0 0"></div>
+  </div>
+  <div id="tab-queue" style="display:none"></div>
+  <div id="tab-cum" style="display:none"></div>
+  <div id="tab-shido" style="display:none"></div>
+</div>
+
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let DATA = null, period = 'month', curTab = 'today';
+const ACK_LBL = { '未対応': 0, '確認済': 1, '対応済': 2 };
+// DB値(未対応/確認済/対応済)はそのまま、画面表示だけ点呼者に分かりやすい日常語に。
+const ACK_DISP = { '未対応': '未対応', '確認済': '👀 確認済', '対応済': '✅ 対応済み' };
+// 拠点コード→漢字表記(見出し用)。未登録コードはコードのまま表示。
+const CO_NAMES = {
+  'SU_HQ':'スタンダード運輸 海老名', 'SU_ZAMA':'スタンダード運輸 座間',
+  'SU_SAITAMA':'スタンダード運輸 埼玉', 'SU_MKANTO':'スタンダード運輸 南関東',
+  'SU_KANRI':'管理課', 'KOJI':'施工事業係',
+  'SUZUE':'スズエ電機 豊田工場', 'SUZUE_TENRYU':'スズエ電機 天竜工場',
+  'IBA_SANWA':'茨運(三和)', 'IBA_KASHIMA':'茨運(鹿島)',
+  'NPO':'NPO法人', 'GUEST':'ゲスト', 'UNIVERSITY':'大学・研究機関', 'ADMIN':'管理職'
+};
+function coName(code){ return CO_NAMES[code] || code || '(拠点未設定)'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function api(p, opts){
+  opts = opts || {}; opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  opts.cache = 'no-store'; // ブラウザHTTPキャッシュの使い回しを禁止し常に最新を取得
+  const r = await fetch(p, opts);
+  if (r.status === 401) { location.href = '/home'; throw new Error('401'); }
+  return r.json();
+}
+function todayStr(){ return new Date(Date.now() + 9*3600*1000).toISOString().slice(0,10); }
+
+async function load(){
+  const date = document.getElementById('f-date').value || todayStr();
+  const co = document.getElementById('f-co').value || '';
+  let url = '/api/tenko/manage?period=' + period + '&date=' + date;
+  if (co) url += '&co=' + encodeURIComponent(co);
+  let j;
+  try { j = await api(url); } catch(e){ return; }
+  if (!j || !j.success) { document.getElementById('summary').innerHTML = '<div class="muted">権限がないか、読み込みに失敗しました</div>'; return; }
+  DATA = j;
+  await loadBans(date, co);
+  renderHeader(j);
+  renderSummary(j);
+  renderToday(j);
+  renderQueue(j);
+  renderCum(j);
+  loadKiko(date, co);
+  loadKikoNotice();
+  loadJobRoles(co);
+  updateFreshness();
+}
+
+// ===== 🧰 職種の設定 (2026-07-27) =====
+// 「帰る前のチェック」の内容は職種で決まる。既存社員の職種を直せるのは管理画面(6名限定)だけだったため、
+// 点呼者・管理職・推進・所長が自拠点ぶんを直せるようにする。⚠️管理職・役員は表示のみ(権限に直結)。
+var JR_LABEL = { driver:'🚚 ドライバー', warehouse:'📦 倉庫荷役', manufacturing:'🏭 製造', office:'🏢 事務・管理' , manager:'管理職', executive:'役員' };
+async function loadJobRoles(co){
+  const box = document.getElementById('jobrole-editor'); if (!box) return;
+  let j; try { j = await api('/api/tenko/job-roles' + (co ? ('?co=' + encodeURIComponent(co)) : '')); } catch(e){ box.innerHTML=''; return; }
+  const items = (j && j.items) || [];
+  const editable = (j && j.editable) || [];
+  const unset = items.filter(u => !u.job_role).length;
+  const rows = items.map(u => {
+    const locked = (u.job_role === 'manager' || u.job_role === 'executive');
+    const sel = locked
+      ? '<span style="color:#64748b">' + esc(JR_LABEL[u.job_role]) + '<span style="font-size:11px;color:#94a3b8">（管理画面のみ）</span></span>'
+      : '<select onchange="saveJobRole(this,\'' + esc(u.id) + '\')" style="font-size:13px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px">'
+        + '<option value=""' + (u.job_role ? '' : ' selected') + '>― 未設定 ―</option>'
+        + editable.map(v => '<option value="' + v + '"' + (u.job_role === v ? ' selected' : '') + '>' + esc(JR_LABEL[v]) + '</option>').join('')
+        + '</select>';
+    return '<tr style="border-top:1px solid #eef2f6' + (u.job_role ? '' : ';background:#fffbeb') + '">'
+      + '<td style="padding:6px 8px;white-space:nowrap">' + esc(u.display_name) + '</td>'
+      + '<td style="padding:6px 8px;color:#94a3b8;font-size:12px;white-space:nowrap">' + esc(coName(u.company_code)) + '</td>'
+      + '<td style="padding:6px 8px">' + sel + '</td></tr>';
+  }).join('');
+  box.innerHTML = '<details' + (unset ? ' open' : '') + ' style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px">'
+    + '<summary style="cursor:pointer;font-weight:800;color:#0f172a">🧰 職種の設定'
+    + (unset ? '<span style="margin-left:8px;background:#f59e0b;color:#fff;border-radius:999px;padding:1px 9px;font-size:12px">未設定 ' + unset + '</span>' : '')
+    + '</summary>'
+    + '<div style="font-size:12px;color:#64748b;margin:6px 0 10px">「帰る前のチェック」の質問内容は職種で切り替わります（ドライバーのみ法定の帰庫点呼）。'
+    + '変更するとその方の次回から反映されます。<b>管理職・役員は管理画面でのみ変更できます。</b></div>'
+    + (items.length
+      ? '<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#64748b;text-align:left">'
+        + '<th style="padding:0 8px">氏名</th><th style="padding:0 8px">拠点</th><th style="padding:0 8px">職種</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      : '<div class="muted">対象者がいません</div>')
+    + '<div id="jr-msg" style="font-size:12px;font-weight:700;margin-top:8px"></div></details>';
+}
+async function saveJobRole(sel, uid){
+  const msg = document.getElementById('jr-msg');
+  const v = sel.value;
+  if (!v) { sel.value = sel.dataset.prev || ''; return; }   // 「未設定」へは戻せない(空にする操作は管理画面で)
+  sel.disabled = true;
+  try {
+    const r = await api('/api/tenko/job-role', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: uid, job_role: v }) });
+    if (r && r.success) { if (msg) { msg.textContent = '✅ 職種を変更しました'; msg.style.color = '#059669'; } sel.dataset.prev = v; }
+    else { if (msg) { msg.textContent = '⚠️ ' + ((r && r.msg) || '変更できませんでした'); msg.style.color = '#dc2626'; } }
+  } catch(e) { if (msg) { msg.textContent = '⚠️ 変更できませんでした'; msg.style.color = '#dc2626'; } }
+  sel.disabled = false;
+}
+
+// ===== 📢 帰庫点呼のお知らせ (管理者が入力→帰庫点呼画面で葵が読み上げ) 2026-07-09 =====
+var _kikoNoticeServer = '';   // 直近にサーバーから読み込んだお知らせ本文(未保存編集の判定用)
+async function loadKikoNotice(){
+  const box = document.getElementById('kiko-notice-editor'); if (!box) return;
+  // 入力中(フォーカス中)や 未保存の編集がある間は、自動更新でtextareaを作り直さない(入力が消える不具合の対策)
+  const existing = document.getElementById('kiko-notice-txt');
+  if (existing && (document.activeElement === existing || existing.value !== _kikoNoticeServer)) return;
+  let j; try { j = await api('/api/tenko/kiko/notice'); } catch(e){ return; }
+  const cur = (j && j.notice) || '';
+  _kikoNoticeServer = cur;
+  const meta = (j && j.updated_by_name) ? '最終更新: '+esc(j.updated_by_name)+' '+esc(j.updated_at||'') : '未設定';
+  box.innerHTML = '<div style="background:#fffdf3;border:1px solid #fde68a;border-radius:14px;padding:14px">'
+    + '<div style="font-weight:800;font-size:15px;margin-bottom:6px">📢 帰庫（帰社）点呼のお知らせ<span style="font-size:12px;color:#94a3b8;font-weight:500;margin-left:6px">ドライバーの帰庫点呼画面で葵が読み上げます</span></div>'
+    + '<textarea id="kiko-notice-txt" style="width:100%;box-sizing:border-box;min-height:90px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;line-height:1.6;resize:vertical" placeholder="例）本日はお疲れさまでした。明日は道路凍結の恐れがあります。出発前に必ず点検してください。">'+esc(cur)+'</textarea>'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-top:8px">'
+    +   '<button id="kiko-notice-save" onclick="saveKikoNotice(this)" style="border:none;background:#0f766e;color:#fff;font-weight:800;padding:9px 18px;border-radius:10px;cursor:pointer">保存する</button>'
+    +   '<button onclick="clearKikoNotice(this)" style="border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:700;padding:9px 14px;border-radius:10px;cursor:pointer">クリア</button>'
+    +   '<span id="kiko-notice-meta" style="font-size:12px;color:#94a3b8">'+meta+'</span>'
+    + '</div></div>';
+}
+async function saveKikoNotice(btn){
+  const ta = document.getElementById('kiko-notice-txt'); if (!ta) return;
+  if (btn){ btn.disabled = true; btn.textContent = '保存中…'; }
+  const r = await api('/api/tenko/kiko/notice', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ notice: ta.value }) });
+  if (btn){ btn.disabled = false; btn.textContent = '保存する'; }
+  if (r && r.success) {
+    _kikoNoticeServer = ta.value;   // 保存済み=未保存編集ではない、として扱う(自動更新の上書き対象外)
+    const m = document.getElementById('kiko-notice-meta');
+    if (m) m.textContent = '最終更新: ' + esc(r.updated_by_name||'') + ' ' + esc(r.updated_at||'') + ' ✅保存しました';
+  } else { alert('保存に失敗しました'); }
+}
+function clearKikoNotice(btn){
+  const ta = document.getElementById('kiko-notice-txt'); if (ta) ta.value = '';
+  saveKikoNotice(document.getElementById('kiko-notice-save'));
+}
+
+// ===== 🚚 帰庫点呼(乗務後・ドライバー自己申告) の確認・承認 (2026-07-09) =====
+async function loadKiko(date, co){
+  const box = document.getElementById('kiko-section'); if (!box) return;
+  const kEsc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let url = '/api/tenko/kiko?date=' + encodeURIComponent(date || todayStr());
+  if (co) url += '&co=' + encodeURIComponent(co);
+  let j; try { j = await api(url); } catch(e){ return; }
+  const items = (j && j.items) || [];
+  // 出庫(乗務前点呼)〜帰庫までの稼働時間。work_minutes はサーバーで算出済み。
+  const fmtDur = m => { m = Math.round(m); const h = Math.floor(m/60), mm = m%60; return h + '時間' + (mm ? (' ' + mm + '分') : ''); };
+  const validW = wm => (wm != null && wm > 0 && wm <= 24*60);   // 0〜24h内のみ有効(出庫記録欠落や日跨ぎ異常値を除外)
+  const rows = items.map(x => {
+    // アルコールチェックはドライバーのみ実施(alcohol_used=0=対象外は「—」)
+    const alc = (x.alcohol_used === 0) ? '<span style="color:#cbd5e1">—</span>'
+      : (x.alcohol_detected ? '<span style="color:#dc2626;font-weight:800">🔴検知あり</span>' : '<span style="color:#059669;font-weight:700">🟢検知なし</span>');
+    const op = x.operation_issue ? '<span style="color:#b45309;font-weight:800">⚠️異常あり</span>' + (x.operation_note ? '（'+kEsc(x.operation_note)+'）' : '') : '<span style="color:#94a3b8">異常なし</span>';
+    const FAT = { fine:'<span style="color:#059669;font-weight:700">😀元気</span>', tired:'<span style="color:#b45309;font-weight:700">😐少し疲れ</span>', very_tired:'<span style="color:#dc2626;font-weight:800">😫かなり疲れ</span>' };
+    const sBadge = (n)=>{ if(n==null) return '—'; const c = n<=5?'#059669':n<=7?'#b45309':n<=8?'#ea580c':'#dc2626'; return '<b style="color:'+c+';font-size:15px">'+n+'</b>'; };  // 5=いつも通り基準(5以下=緑)
+    // 本人の平常値(直近30日平均・3件以上)を併記。当日値が平常±1以内なら「平常域」＝その人にとっては普通、と運管が判断できる。
+    const bTag = (b)=> b!=null ? '<span style="color:#94a3b8;font-size:10px;margin-left:1px">(平常'+b+')</span>' : '';
+    const nrmTag = (n,b)=> (n!=null && b!=null && Math.abs(n-b)<=1) ? '<span style="color:#94a3b8;font-size:10px;margin-left:2px">平常域</span>' : '';
+    const fat = (x.fatigue_score!=null || x.body_score!=null)
+      ? '<span style="white-space:nowrap">疲 '+sBadge(x.fatigue_score)+bTag(x.fatigue_base)+nrmTag(x.fatigue_score,x.fatigue_base)+' ／ 体 '+sBadge(x.body_score)+bTag(x.body_base)+nrmTag(x.body_score,x.body_base)+'</span>'
+      : (FAT[x.fatigue_level] || '<span style="color:#94a3b8">—</span>');
+    // 2026-07-27: 帰宅前の申告を全職種へ。職種バッジ＋職種固有の回答(extra_json)を表示。
+    const KIND = { driver:['🚚','乗務'], warehouse:['📦','倉庫'], manufacturing:['🏭','製造'], office:['🏢','事務'] };
+    const kd = KIND[x.job_kind||'driver'] || KIND.driver;
+    const kindTag = '<span style="white-space:nowrap;background:#eef2f7;color:#334155;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800">'+kd[0]+' '+kd[1]+'</span>';
+    let ex = {}; try { ex = x.extra_json ? JSON.parse(x.extra_json) : {}; } catch(e) { ex = {}; }
+    // 職種固有(腰痛/体調異変/時間外/目肩腰/こころ)。無い職種は空欄。
+    const PAIN = { none:'', mild:'<span style="color:#b45309">💪 痛み 少し</span>', hard:'<span style="color:#dc2626;font-weight:800">💪 痛み つらい</span>' };
+    const SYM  = { none:'', dizzy:'<span style="color:#dc2626;font-weight:800">😵 めまい・頭痛</span>', irritation:'<span style="color:#dc2626;font-weight:800">😵 目・のどの刺激</span>' };
+    const OT   = { none:'', lt1:'<span style="color:#64748b">⏰ 時間外 1h</span>', gt2:'<span style="color:#b45309;font-weight:800">⏰ 時間外 2h+</span>' };
+    const EYE  = { none:'', mild:'<span style="color:#64748b">👀 少し</span>', hard:'<span style="color:#b45309;font-weight:800">👀 つらい</span>' };
+    const exBits = [PAIN[ex.pain]||'', SYM[ex.symptom]||'', OT[ex.overtime]||'', EYE[ex.eye]||'',
+      (ex.mind_score!=null ? '<span style="color:'+(ex.mind_score>=8?'#dc2626':'#64748b')+'">🫧 こころ '+ex.mind_score+'</span>' : '')].filter(Boolean);
+    const exNote = [ex.pain_note, ex.symptom_note].filter(Boolean).join(' / ');
+    const extraCell = exBits.length
+      ? exBits.join('<br>') + (exNote ? '<div style="font-size:11px;color:#475569;white-space:normal;max-width:180px">'+kEsc(exNote)+'</div>' : '')
+      : '<span style="color:#cbd5e1">—</span>';
+    // 「交替連絡」(2運行なし=廃止)に代えて ヒヤリハット / 荷待ち・荷役時間 を表示。
+    const hiya = x.hiyari
+      ? '<span style="color:#b45309;font-weight:800">😨 あり</span>' + (x.hiyari_note ? '<div style="font-size:11px;color:#475569;white-space:normal;max-width:200px">'+kEsc(x.hiyari_note)+'</div>' : '')
+      : (x.hiyari === 0 ? '<span style="color:#94a3b8">なし</span>' : '<span style="color:#cbd5e1">—</span>');
+    const WAITL = { none:'<span style="color:#94a3b8">30分未満</span>', lt60:'<span style="color:#b45309;font-weight:700">30分〜1時間</span>', gt60:'<span style="color:#dc2626;font-weight:800">1時間以上</span>' };
+    const wait = x.wait_level
+      ? (WAITL[x.wait_level] || '—') + (x.wait_note ? '<div style="font-size:11px;color:#475569;white-space:normal;max-width:160px">'+kEsc(x.wait_note)+'</div>' : '')
+      : '<span style="color:#cbd5e1">—</span>';
+    const appr = x.approved_by_name
+      ? '<span style="color:#059669;font-weight:700">✅ '+kEsc(x.approved_by_name)+' '+kEsc((x.approved_at||'').slice(11,16))+'</span>'
+      : '<button onclick="approveKiko('+x.id+',this)" title="乗務後(帰庫)点呼を運行管理者が実施済みにします。体調フラグの①確認/②対応とは別の操作です。" style="border:none;background:#0f766e;color:#fff;font-weight:800;padding:7px 14px;border-radius:10px;cursor:pointer">🖊 点呼を承認</button>';
+    const work = validW(x.work_minutes)
+      ? '<span style="white-space:nowrap"><b style="font-size:14px;color:#0f766e">'+fmtDur(x.work_minutes)+'</b>'
+        + (x.depart_at ? '<br><span style="color:#94a3b8;font-size:11px">'+kEsc((x.depart_at||'').slice(11,16))+'→'+kEsc((x.kiko_at||'').slice(11,16))+'</span>' : '')
+        + '</span>'
+      : '<span style="color:#94a3b8" title="当日の乗務前点呼(出庫)記録がないため算出できません">—</span>';
+    return '<tr style="border-top:1px solid #eef2f6"><td style="white-space:nowrap;padding:7px 6px">'+kEsc((x.kiko_at||'').slice(11,16))+'</td><td style="padding:7px 6px">'+kEsc(x.driver_name)+' <span style="color:#94a3b8;font-size:11px;white-space:nowrap">'+kEsc(coName(x.company_code))+'</span> '+kindTag+(x.note?'<div style="font-size:11px;color:#475569;margin-top:2px;white-space:normal;max-width:200px">💬 '+kEsc(x.note)+'</div>':'')+'</td><td style="padding:7px 6px">'+work+'</td><td style="padding:7px 6px">'+alc+'</td><td style="padding:7px 6px">'+op+'</td><td style="padding:7px 6px">'+fat+'</td><td style="padding:7px 6px">'+extraCell+'</td><td style="padding:7px 6px">'+hiya+'</td><td style="padding:7px 6px">'+wait+'</td><td style="padding:7px 6px">'+appr+'</td></tr>';
+  }).join('');
+  const withW = items.filter(i => validW(i.work_minutes));
+  const totW = withW.reduce((s,i)=>s+i.work_minutes,0);
+  const kpiWork = withW.length
+    ? '<span style="font-size:12px;color:#0f766e;font-weight:800;margin-left:8px">合計稼働 '+fmtDur(totW)+'（'+withW.length+'名・平均 '+fmtDur(totW/withW.length)+'）</span>'
+    : '';
+  const withF = items.filter(i=>i.fatigue_score!=null), withB = items.filter(i=>i.body_score!=null);
+  const avgOf = (arr,k)=> arr.length ? (arr.reduce((s,i)=>s+i[k],0)/arr.length) : null;
+  const avgF = avgOf(withF,'fatigue_score'), avgB = avgOf(withB,'body_score');
+  const kpi = (avgF!=null||avgB!=null)
+    ? '<span style="font-size:12px;color:#475569;font-weight:700;margin-left:8px">平均 疲 '+(avgF!=null?avgF.toFixed(1):'—')+' ／ 体 '+(avgB!=null?avgB.toFixed(1):'—')+'（5=いつも通り／10=げんかい・'+withF.length+'名）</span>'
+    : '';
+  box.innerHTML = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px">'
+    + '<div style="font-weight:800;font-size:15px;margin-bottom:8px">🚚 帰庫（帰社）点呼（乗務後・自己申告の補助）<span style="font-size:12px;color:#94a3b8;font-weight:500;margin-left:6px">'+items.length+'件 ／ 承認＝点呼執行者</span>'+kpiWork+kpi+'</div>'
+    + (items.length ? '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#64748b;text-align:left"><th style="padding:0 6px">帰庫（帰社）</th><th style="padding:0 6px">運転者</th><th style="padding:0 6px">稼働時間<br><span style="font-weight:400;font-size:11px">出庫（出社）→帰庫（帰社）</span></th><th style="padding:0 6px">アルコール</th><th style="padding:0 6px">運行・設備</th><th style="padding:0 6px">体調</th><th style="padding:0 6px">職種別</th><th style="padding:0 6px">ヒヤリハット</th><th style="padding:0 6px">荷待ち・荷役</th><th style="padding:0 6px">点呼執行者(承認)</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+       : '<div style="color:#94a3b8">本日の帰庫（帰社）点呼はまだありません。</div>')
+    + '</div>';
+  // 未承認の帰庫点呼件数をタブに赤バッジ表示(スクロールせず気づけるように)
+  const pend = items.filter(i => !i.approved_by_name).length;
+  const kb = document.getElementById('badge-k');
+  if (kb) { kb.textContent = pend; kb.style.display = pend ? '' : 'none'; }
+}
+async function approveKiko(id, btn){
+  if (btn){ btn.disabled = true; btn.textContent = '…'; }
+  const r = await api('/api/tenko/kiko/'+id+'/approve', { method:'POST' });
+  if (r && r.success) { load(); } else { if (btn){ btn.disabled=false; btn.textContent='🖊 点呼を承認'; } alert('承認に失敗しました'); }
+}
+
+// ===== 自動更新 (2026-06-30): 入力後に開きっぱなしでも最新が出るよう定期再取得 =====
+const AUTO_REFRESH_MS = 45000;
+let _autoTimer = null;
+function updateFreshness(){
+  const el = document.getElementById('f-updated');
+  if (!el) return;
+  const d = new Date(Date.now() + 9*3600*1000);
+  const hh = String(d.getUTCHours()).padStart(2,'0'), mm = String(d.getUTCMinutes()).padStart(2,'0'), ss = String(d.getUTCSeconds()).padStart(2,'0');
+  el.textContent = '最終更新 ' + hh + ':' + mm + ':' + ss + ' · 自動更新ON';
+}
+function startAutoRefresh(){
+  if (_autoTimer) clearInterval(_autoTimer);
+  _autoTimer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, AUTO_REFRESH_MS);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+
+function renderHeader(j){
+  // 拠点フィルタ (本社ADMINのみ)
+  const sel = document.getElementById('f-co');
+  if (j.hq) {
+    if (!sel.options.length) {
+      sel.style.display = '';
+      sel.innerHTML = '<option value="">全拠点</option>' + (j.companies||[]).map(c => '<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+      sel.value = j.co || '';
+    }
+  }
+  const b = document.getElementById('badge-q');
+  if (j.unhandled > 0) { b.textContent = j.unhandled; b.style.display = ''; } else b.style.display = 'none';
+}
+function renderSummary(j){
+  const t = j.today;
+  const html = [
+    ['ok', t.rate + '%', '実施率'],
+    ['', t.done + '/' + t.total, '実施'],
+    ['', t.not_done, '未実施'],
+    ['warn', t.urgency.mid, '不調 中🟡'],
+    ['alert', t.urgency.high, '不調 高🔴'],
+    ['alert', t.bp_high, '高血圧'],
+    ['alert', j.unhandled, '未対応'],
+  ].map(([cls,v,l]) => '<div class="scard '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>').join('');
+  document.getElementById('summary').innerHTML = html;
+}
+
+// ===== 本日タブ =====
+function ackPill(s){ if(s==null) return ''; const n = ACK_LBL[s]||0; return '<span class="pill ack-'+n+'">'+esc(ACK_DISP[s]||s)+'</span>'; }
+// 「①見た → ②処置した」の順番付きボタン。状態(確認済/対応済)に応じて①を済み表示・②を強調。
+// ②は"見た"前でも押せる(直接処置=見たも兼ねる)が、控えめ表示で順番を示す。
+function ackSteps(wp, status, urgency){
+  if (!wp) return '';
+  const seen = status==='確認済' || status==='対応済';
+  const done = status==='対応済';
+  if (done) return '';   // 状態列に「✅対応済み」が出るのでボタン不要
+  const isHigh = urgency==='高';
+  const step1 = seen
+    ? '<span class="stp stp-done" title="内容を確認済み（見た・受領した）">①✓ 確認</span>'
+    : '<button class="stp stp-1" title="まず内容を確認したら押す（見た・受領した）" onclick="ackOne('+wp+',\'確認済\')">①👀 確認</button>';
+  // 対応内容メモ: 🔴高=必須 / それ以外(中/低)=任意。問題の有無に関わらず対処した内容を残せる。
+  const s2title = isHigh ? '🔴高リスク：本人への声かけ・対応内容の入力が必要です' : '本人へ連絡・対応したら押す（対応内容のメモも残せます・任意）';
+  const step2 = '<button class="stp stp-2'+(seen?' stp-2on':'')+'" title="'+s2title+'" onclick="ackDone('+wp+','+(isHigh?'true':'false')+')">②✅ 対応済み 💬</button>';
+  return '<span class="ack-steps">'+step1+'<span class="stp-arrow">→</span>'+step2+'</span>';
+}
+// ②対応済み: 高も中も入力窓を出す(高=必須・中=任意)。対処内容を残せるように。
+function ackDone(wp, required){ openAckNote(wp, required); }
+function openAckNote(wp, required){
+  let ov = document.getElementById('ackNoteOv');
+  if (!ov){ ov = document.createElement('div'); ov.id = 'ackNoteOv'; ov.className = 'ovl'; document.body.appendChild(ov); }
+  const title = required ? '🔴 高リスク者への対応内容' : '📝 対応内容の記録';
+  const desc = required
+    ? '声かけ・確認したこと・就業可否の判断・受診/休養の指示など、<b>実際に行った対応</b>を記録してください（必須）。'
+    : '行った対応（声かけ・確認・指示など）を残せます。<b>問題の有無にかかわらず</b>、対処した内容を記録できます（任意・空欄のままでもOK）。';
+  const ph = required ? '例）本人に電話。頭痛と睡眠不足を確認。本日は乗務を見合わせ、受診するよう指示。' : '例）声をかけて体調を確認。問題なし。';
+  ov.innerHTML = '<div class="ovl-card">'
+    + '<div style="font-weight:800;font-size:16px;margin-bottom:4px">'+title+'</div>'
+    + '<div style="font-size:12.5px;color:#64748b;margin-bottom:9px;line-height:1.6">'+desc+'</div>'
+    + '<textarea id="ackNoteTa" style="width:100%;box-sizing:border-box;min-height:96px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;line-height:1.6;resize:vertical" placeholder="'+ph+'"></textarea>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'
+    +   '<button onclick="closeAckNote()" style="border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:700;padding:9px 16px;border-radius:10px;cursor:pointer">キャンセル</button>'
+    +   '<button id="ackNoteSave" onclick="submitAckNote('+wp+','+(required?'true':'false')+')" style="border:none;background:#16a34a;color:#fff;font-weight:800;padding:9px 18px;border-radius:10px;cursor:pointer">✅ 対応済みにする</button>'
+    + '</div></div>';
+  ov.style.display = 'flex';
+}
+function closeAckNote(){ const ov = document.getElementById('ackNoteOv'); if (ov) ov.style.display = 'none'; }
+async function submitAckNote(wp, required){
+  const ta = document.getElementById('ackNoteTa');
+  const note = (ta && ta.value || '').trim();
+  if (required && !note){ alert('対応内容を入力してください'); if (ta) ta.focus(); return; }
+  const btn = document.getElementById('ackNoteSave');
+  if (btn){ btn.disabled = true; btn.textContent = '保存中…'; }
+  const r = await api('/api/tenko/ack', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ post_ids:[wp], status:'対応済', note }) });
+  if (r && r.success){ closeAckNote(); load(); }
+  else { alert((r && r.msg) || '失敗しました'); if (btn){ btn.disabled = false; btn.textContent = '✅ 対応済みにする'; } }
+}
+function healthBrief(h, labels){
+  if (!h) return '';
+  const bad = [];
+  Object.keys(labels||{}).forEach(k => { const v = h[k]; if (v && (v==='悪い'||v==='いいえ'||v==='ある'||v==='気になる'||v==='不良')) bad.push(labels[k]); });
+  return bad.length ? '<span style="color:#b45309">'+esc(bad.join('・'))+'</span>' : '';
+}
+function renderToday(j){
+  const labels = j.cumulative.item_labels || {};
+  const COLS = 8; // 拠点は行ではなく管轄グループ見出しに集約(氏名の後に実施時刻列を追加)
+  // 管轄(拠点)→倉庫荷役区分→氏名 の順に整列
+  const whOf = e => (e.job_role === 'warehouse') ? 1 : 0; // 倉庫荷役は拠点内で分離
+  const entries = (j.today.entries||[]).slice().sort((a,b) => {
+    const c = String(a.company_code||'').localeCompare(String(b.company_code||''));
+    if (c) return c;
+    const w = whOf(a) - whOf(b);
+    if (w) return w;
+    return String(a.name||'').localeCompare(String(b.name||''), 'ja');
+  });
+  const rowHtml = e => {
+    if (!e.done) return '<tr class="done-no"><td></td><td>'+banBadge(e.uid)+esc(e.name)+'</td><td></td><td><span class="pill no">未実施</span></td><td colspan="3"></td><td></td></tr>';
+    const u = e.urgency==='高'?'<span class="pill u-high">高🔴</span>':(e.urgency==='中'?'<span class="pill u-mid">中🟡</span>':'<span class="pill ok">良</span>');
+    const bp = e.bp ? (e.bp.s||'-')+'/'+(e.bp.d||'-')+(e.bp.p?' 脈'+e.bp.p:'') : '';
+    const cb = e.wp_id ? '<input type="checkbox" class="chk-today" value="'+e.wp_id+'">' : '';
+    const acts = ackSteps(e.wp_id, e.ack_status, e.urgency);
+    const noteHtml = e.ack_note ? '<div style="font-size:11px;color:#475569;margin-top:3px;max-width:220px;white-space:normal">💬 '+esc(e.ack_note)+'</div>' : '';
+    // 誰が確認・対応(声かけ)したか。状態バッジの右わきに出す (2026-07-28 社長指示)
+    const whoHtml = e.ack_by_name
+      ? '<span style="font-size:11px;color:#0f766e;font-weight:700;margin-left:6px;white-space:nowrap">👤'+esc(e.ack_by_name)+(e.ack_at?'<span style="color:#94a3b8;font-weight:600;margin-left:3px">'+esc(e.ack_at)+'</span>':'')+'</span>'
+      : '';
+    return '<tr><td>'+cb+'</td><td>'+banBadge(e.uid)+esc(e.name)+'</td>'
+      + '<td style="white-space:nowrap;color:#475569">'+esc(e.done_at||'')+'</td>'
+      + '<td>'+u+'</td><td>'+esc(bp)+'</td><td>'+(healthBrief(e.health,labels)|| (e.condition?esc(e.condition):''))+'</td>'
+      + '<td>'+ackPill(e.ack_status)+whoHtml+noteHtml+'</td><td>'+acts+'</td></tr>';
+  };
+  // 管轄別グループ見出し付きで出力
+  let out = '', curKey = null, curCo = null, curWh = 0, buf = [], gTotal = 0, gDone = 0;
+  const flush = () => {
+    if (curKey === null) return;
+    const bg = curWh ? '#b45309' : '#0f766e'; // 倉庫荷役はオレンジ系で識別
+    const label = '📍 ' + esc(coName(curCo)) + (curWh ? ' ／ 倉庫荷役' : '');
+    out += '<tr class="grp"><td colspan="'+COLS+'" style="background:'+bg+';color:#fff;font-weight:800;font-size:12px;padding:6px 10px;">'
+      + label
+      + '<span style="float:right;font-weight:600;opacity:.9;">実施 '+gDone+'/'+gTotal+'</span></td></tr>'
+      + buf.join('');
+    buf = []; gTotal = 0; gDone = 0;
+  };
+  entries.forEach(e => {
+    const co = e.company_code || '';
+    const wh = whOf(e);
+    const key = co + '#' + wh;
+    if (key !== curKey) { flush(); curKey = key; curCo = co; curWh = wh; }
+    gTotal++; if (e.done) gDone++;
+    buf.push(rowHtml(e));
+  });
+  flush();
+  document.getElementById('tab-today').innerHTML =
+    '<div class="bulkbar"><span class="sel">選択した不調者を一括</span>'
+    + '<button class="b-ack1" title="内容を確認した（見た・受領した）＝ステップ①" onclick="bulkAck(\'today\',\'確認済\')">①👀 確認</button>'
+    + '<button class="b-ack2" title="本人へ連絡・就業可否の判断・受診/休養の案内など実際に対応した＝ステップ②" onclick="bulkAck(\'today\',\'対応済\')">②✅ 対応済み</button>'
+    + '<button class="b-clear" onclick="toggleAll(\'chk-today\')">全選択</button></div>'
+    + '<div class="tbl-wrap"><table><thead><tr><th></th><th>氏名</th><th>時刻</th><th>体調</th><th>血圧</th><th>所見</th><th>状態</th><th></th></tr></thead><tbody>'
+    + (out || '<tr><td colspan="'+COLS+'" class="muted">対象がありません</td></tr>') + '</tbody></table></div>';
+}
+
+// ===== 未対応タブ =====
+function renderQueue(j){
+  const items = (j.queue||[]).map(q => {
+    const u = q.urgency==='高'?'<span class="pill u-high">高🔴</span>':(q.urgency==='中'?'<span class="pill u-mid">中🟡</span>':'<span class="pill no">低</span>');
+    return '<label class="qitem"><input type="checkbox" class="chk-q" value="'+q.id+'">'
+      + '<div class="body"><div>'+u+' <b>'+esc(q.subject||'')+'</b></div>'
+      + '<div>'+esc(q.memo||'')+'</div>'
+      + '<div class="meta">#'+q.id+' · '+esc(q.source_type||'')+' · '+esc(q.company_code||'')+' · '+esc(q.at||'')+'</div></div></label>';
+  }).join('');
+  document.getElementById('tab-queue').innerHTML =
+    '<div class="bulkbar"><span class="sel">選択した未対応を一括</span>'
+    + '<button class="b-ack1" title="内容を確認した（見た・受領した）＝ステップ①" onclick="bulkAck(\'q\',\'確認済\')">①👀 確認</button>'
+    + '<button class="b-ack2" title="本人へ連絡・就業可否の判断・受診/休養の案内など実際に対応した＝ステップ②" onclick="bulkAck(\'q\',\'対応済\')">②✅ 対応済み</button>'
+    + '<button class="b-clear" onclick="toggleAll(\'chk-q\')">全選択</button></div>'
+    + (items || '<div class="muted">未対応はありません 🎉</div>');
+}
+
+// ===== 累計タブ =====
+function renderCum(j){
+  const c = j.cumulative, labels = c.item_labels || {};
+  const maxRate = 100;
+  const rateBars = (c.rate_series||[]).map(d => {
+    const ab = (d.mid||d.high) ? '<span class="ab">不調 中'+d.mid+'/高'+d.high+'</span>' : '';
+    return '<div class="bar-row"><span class="d">'+esc(d.date.slice(5))+'</span>'
+      + '<div class="track"><div class="fill" style="width:'+Math.min(100,d.rate)+'%"></div></div>'
+      + '<span class="pct">'+d.rate+'% ('+d.done+')</span>'+ab+'</div>';
+  }).join('');
+  const freq = (c.frequent||[]).filter(f=>f.count>0);
+  const freqHtml = freq.length ? '<ul class="freq">' + freq.map(f => '<li><span>'+esc(f.name)+'</span><span class="c">'+f.count+'回</span></li>').join('') + '</ul>' : '<div class="muted">期間内の不調はありません</div>';
+  // 項目傾向 (悪い回答の件数)
+  const tallyHtml = Object.keys(labels).map(k => {
+    const t = c.tally[k] || {};
+    const bad = (t['悪い']||0)+(t['いいえ']||0)+(t['ある']||0)+(t['気になる']||0)+(t['不良']||0);
+    if (!bad) return '';
+    return '<div class="bar-row"><span class="d">'+esc(labels[k])+'</span><div class="track"></div><span class="pct">'+bad+'件</span></div>';
+  }).filter(Boolean).join('') || '<div class="muted">特記事項なし</div>';
+  document.getElementById('tab-cum').innerHTML =
+    '<div class="sec-h">📈 実施率の推移（'+(period==='week'?'直近7日':'直近30日')+'）</div>' + (rateBars || '<div class="muted">記録なし</div>')
+    + '<div class="sec-h">🔁 不調が多い人（期間内の中/高回数）</div>' + freqHtml
+    + '<div class="sec-h">📋 気になる項目（要注意回答の件数）</div>' + tallyHtml;
+}
+
+// ===== 操作 =====
+function toggleAll(cls){ const cs = document.getElementsByClassName(cls); const any = [...cs].some(c=>!c.checked); [...cs].forEach(c=>c.checked=any); }
+async function postAck(ids, status){
+  if (!ids.length) { alert('対象を選択してください'); return; }
+  const r = await api('/api/tenko/ack', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ post_ids: ids, status }) });
+  if (r && r.success) load(); else alert((r&&r.msg)||'失敗しました');
+}
+function ackOne(id, status){ postAck([id], status); }
+function bulkAck(which, status){
+  const cls = which==='q' ? 'chk-q' : 'chk-today';
+  const ids = [...document.getElementsByClassName(cls)].filter(c=>c.checked).map(c=>parseInt(c.value,10));
+  postAck(ids, status);
+}
+
+// ===== タブ/コントロール =====
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  curTab = b.dataset.t;
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active', x===b));
+  ['today','kiko','queue','cum','shido'].forEach(t => document.getElementById('tab-'+t).style.display = (t===curTab?'':'none'));
+  if (curTab === 'shido') loadShido();
+});
+document.querySelectorAll('#seg-period button').forEach(b => b.onclick = () => {
+  period = b.dataset.p;
+  document.querySelectorAll('#seg-period button').forEach(x=>x.classList.toggle('active', x===b));
+  load();
+});
+document.getElementById('f-date').onchange = load;
+document.getElementById('f-co').onchange = load;
+document.getElementById('f-refresh').onclick = load;
+
+document.getElementById('f-date').value = todayStr();
+if (!token) location.href = '/home'; else { load(); startAutoRefresh(); loadShido(); }
+
+// ===== 🚫 指導・乗務禁止 =====
+let BANS = {};        // uid -> {reason, from, until}  当日表バッジ用(指定日にアクティブな乗務禁止)
+let SHIDO = null;     // overview データ
+let selDriver = '';   // 履歴表示中のドライバーid
+
+function banBadge(uid){
+  const b = uid && BANS[uid];
+  if (!b) return '';
+  const t = '乗務禁止' + (b.reason ? '：'+b.reason : '') + (b.until ? '（〜'+b.until+'）' : '（無期限）');
+  return '<span title="'+esc(t)+'" style="display:inline-block;background:#dc2626;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:8px;margin-right:5px;vertical-align:middle">🚫乗務禁止</span>';
+}
+async function loadBans(date, co){
+  BANS = {};
+  try {
+    let u = '/api/guidance/bans?date=' + encodeURIComponent(date||todayStr());
+    if (co) u += '&co=' + encodeURIComponent(co);
+    const j = await api(u);
+    if (j && j.success) BANS = j.bans || {};
+  } catch(e){}
+}
+function consentLabel(it){
+  if (it.consent_status === 'agreed') return '<span style="color:#047857;font-weight:700">✔ 本人承諾済</span>'
+    + (it.consent_method==='self'?'（本人）':'（対面代理）') + (it.consent_at?' '+esc(it.consent_at.slice(0,16)):'');
+  if (it.consent_status === 'refused') return '<span style="color:#b45309;font-weight:700">✖ 本人が承諾せず</span>'
+    + (it.consent_at?' '+esc(it.consent_at.slice(0,16)):'');
+  return '<span style="color:#94a3b8;font-weight:700">⏳ 承諾待ち</span>';
+}
+function banLabel(it){
+  if (!it.ban_flag) return '';
+  if (it.ban_lifted_at) return '<span style="color:#94a3b8">乗務禁止（解除済 '+esc((it.ban_lifted_at||"").slice(0,10))+'）</span>';
+  const period = esc(it.ban_from||'') + '〜' + (it.ban_until?esc(it.ban_until):'無期限');
+  const tag = it.ban_active ? '<span style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:6px;font-weight:800">🚫乗務禁止</span>'
+    : '<span style="background:#fca5a5;color:#7f1d1d;padding:1px 6px;border-radius:6px;font-weight:800">🚫予定</span>';
+  return tag + ' <span style="font-size:12px;color:#475569">'+period+'</span>';
+}
+async function loadShido(){
+  const co = document.getElementById('f-co').value || '';
+  const box = document.getElementById('tab-shido');
+  if (box.innerHTML === '') box.innerHTML = '<div class="muted">読み込み中…</div>';
+  let j; try { j = await api('/api/guidance/overview' + (co?('?co='+encodeURIComponent(co)):'')); } catch(e){ return; }
+  if (!j || !j.success){ box.innerHTML = '<div class="muted">権限がないか、読み込みに失敗しました</div>'; return; }
+  SHIDO = j;
+  const bs = document.getElementById('badge-s');
+  if (bs){ if (j.pending && j.pending.length){ bs.style.display=''; bs.textContent = j.pending.length; } else bs.style.display='none'; }
+
+  const banRows = (j.bans||[]).map(it =>
+    '<tr><td style="padding:7px 8px">'+banLabel(it)+'</td>'
+    + '<td style="padding:7px 8px;font-weight:700">'+esc(it.driver_name)+'</td>'
+    + '<td style="padding:7px 8px">'+esc(it.reason||'')+'</td>'
+    + '<td style="padding:7px 8px;font-size:12px;color:#64748b">'+esc((it.guided_at||'').slice(0,16))+' '+esc(it.guided_by_name)+'</td>'
+    + '<td style="padding:7px 8px">'+consentLabel(it)+'</td>'
+    + '<td style="padding:7px 8px"><button onclick="liftBan('+it.id+')" style="border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer">解除</button></td></tr>').join('');
+  const pendRows = (j.pending||[]).map(it =>
+    '<tr><td style="padding:7px 8px;font-weight:700">'+esc(it.driver_name)+'</td>'
+    + '<td style="padding:7px 8px">'+esc(it.reason||'')+'</td>'
+    + '<td style="padding:7px 8px;font-size:13px">'+esc((it.content||'').slice(0,60))+'</td>'
+    + '<td style="padding:7px 8px;font-size:12px;color:#64748b">'+esc((it.guided_at||'').slice(0,16))+'</td>'
+    + '<td style="padding:7px 8px;white-space:nowrap"><button onclick="proxyConsent('+it.id+',\'agreed\')" style="border:1px solid #10b981;color:#047857;background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer">対面で承諾を得た</button> '
+    + '<button onclick="proxyConsent('+it.id+',\'refused\')" style="border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer">承諾せず</button></td></tr>').join('');
+  const opts = ['<option value="">― ドライバーを選択 ―</option>'].concat(
+    (j.roster||[]).map(r => '<option value="'+r.id+'"'+(r.id===selDriver?' selected':'')+'>'+esc(r.display_name)+(j.hq?(' ['+esc(coName(r.company_code))+']'):'')+'</option>')).join('');
+
+  box.innerHTML =
+    '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:14px">'
+    + '<div style="font-weight:800;font-size:15px;margin-bottom:8px">🚫 乗務禁止中 / 予定 <span style="font-size:12px;color:#94a3b8;font-weight:500">（点呼画面に🚫バッジで表示されます）</span></div>'
+    + (banRows ? '<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:#64748b;font-size:12px"><th style="padding:6px 8px">状態</th><th style="padding:6px 8px">氏名</th><th style="padding:6px 8px">理由</th><th style="padding:6px 8px">指導</th><th style="padding:6px 8px">承諾</th><th></th></tr></thead><tbody>'+banRows+'</tbody></table></div>' : '<div class="muted">現在、乗務禁止はありません</div>')
+    + '</div>'
+    + '<div style="background:#fffdf3;border:1px solid #fde68a;border-radius:14px;padding:14px;margin-bottom:14px">'
+    + '<div style="font-weight:800;font-size:15px;margin-bottom:8px">⏳ 本人の承諾待ち <span style="font-size:12px;color:#94a3b8;font-weight:500">（本人がアプリで承諾するとここから消えます／対面で得た場合は代理記録）</span></div>'
+    + (pendRows ? '<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:#64748b;font-size:12px"><th style="padding:6px 8px">氏名</th><th style="padding:6px 8px">理由</th><th style="padding:6px 8px">内容</th><th style="padding:6px 8px">指導日時</th><th></th></tr></thead><tbody>'+pendRows+'</tbody></table></div>' : '<div class="muted">承諾待ちはありません</div>')
+    + '</div>'
+    + '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px">'
+    + '<div style="font-weight:800;font-size:15px;margin-bottom:8px">📋 ドライバー別の指導履歴 ／ 新規記録</div>'
+    + '<select id="shido-driver" onchange="onSelDriver()" style="width:100%;max-width:420px;padding:9px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px">'+opts+'</select>'
+    + '<div id="shido-detail" style="margin-top:12px"></div>'
+    + '</div>';
+  if (selDriver) onSelDriver();
+}
+function onSelDriver(){
+  const sel = document.getElementById('shido-driver');
+  selDriver = sel ? sel.value : '';
+  const box = document.getElementById('shido-detail');
+  if (!selDriver){ box.innerHTML=''; return; }
+  loadHistory();
+}
+async function loadHistory(){
+  const box = document.getElementById('shido-detail');
+  box.innerHTML = '<div class="muted">読み込み中…</div>';
+  let j; try { j = await api('/api/guidance/?driver_id='+encodeURIComponent(selDriver)); } catch(e){ return; }
+  if (!j || !j.success){ box.innerHTML='<div class="muted">読み込みに失敗しました</div>'; return; }
+  const hist = (j.items||[]).map(it =>
+    '<div style="border:1px solid #eef2f6;border-radius:12px;padding:11px;margin-bottom:8px">'
+    + '<div style="font-size:12px;color:#64748b">'+esc((it.guided_at||'').slice(0,16))+' ／ 指導者: '+esc(it.guided_by_name)+(it.reason?' ／ 理由: '+esc(it.reason):'')+(it.method?' ／ '+esc(it.method):'')+'</div>'
+    + '<div style="margin:5px 0;font-size:14px;white-space:pre-wrap">'+esc(it.content)+'</div>'
+    + '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13px">'+consentLabel(it)+' '+(it.ban_flag?banLabel(it):'')
+    + (it.ban_flag && !it.ban_lifted_at ? ' <button onclick="liftBan('+it.id+')" style="border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer">禁止を解除</button>' : '')
+    + ' <button onclick="delGuidance('+it.id+')" style="border:none;background:none;color:#cbd5e1;font-size:12px;cursor:pointer;margin-left:auto">削除</button>'
+    + '</div></div>').join('') || '<div class="muted">指導履歴はまだありません</div>';
+  box.innerHTML =
+    '<div style="font-weight:700;margin-bottom:6px">'+esc(j.driver.name)+' さんの指導履歴</div>'
+    + hist
+    + '<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;color:#0f766e">＋ 指導を記録する</summary>'
+    + '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-top:8px;background:#f8fafc">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+    + '<input id="g-reason" placeholder="理由・背景（例: 高血圧・健診レッド）" style="flex:1;min-width:200px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px">'
+    + '<select id="g-method" style="padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px"><option value="面談">面談</option><option value="口頭">口頭</option><option value="文書">文書</option><option value="電話">電話</option></select>'
+    + '</div>'
+    + '<textarea id="g-content" placeholder="指導内容（どのように指導したか）" style="width:100%;box-sizing:border-box;min-height:80px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;line-height:1.6"></textarea>'
+    + '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:700"><input type="checkbox" id="g-ban" onchange="document.getElementById(\'g-banrow\').style.display=this.checked?\'flex\':\'none\'"> 🚫 乗務禁止フラグを立てる</label>'
+    + '<div id="g-banrow" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><span style="font-size:13px;color:#475569">開始</span><input type="date" id="g-banfrom" value="'+todayStr()+'" style="padding:7px;border:1px solid #e2e8f0;border-radius:8px"><span style="font-size:13px;color:#475569">終了(空=無期限)</span><input type="date" id="g-banuntil" style="padding:7px;border:1px solid #e2e8f0;border-radius:8px"></div>'
+    + '<div style="margin-top:10px;font-size:13px;color:#475569">本人承諾：<label style="margin:0 10px 0 0"><input type="radio" name="g-consent" value="" checked> 本人がアプリで承諾（既定）</label><label style="margin:0 10px 0 0"><input type="radio" name="g-consent" value="agreed"> 対面で承諾を得た</label><label><input type="radio" name="g-consent" value="refused"> 承諾を得られず</label></div>'
+    + '<div style="text-align:right;margin-top:10px"><button onclick="submitGuidance()" style="background:#0f766e;color:#fff;border:none;border-radius:10px;padding:9px 18px;font-weight:800;cursor:pointer">記録する</button></div>'
+    + '</div></details>';
+}
+async function submitGuidance(){
+  const content = (document.getElementById('g-content').value||'').trim();
+  if (!content){ alert('指導内容を入力してください'); return; }
+  const body = {
+    driver_id: selDriver,
+    reason: document.getElementById('g-reason').value||'',
+    method: document.getElementById('g-method').value||'',
+    content,
+    ban_flag: document.getElementById('g-ban').checked,
+    ban_from: document.getElementById('g-banfrom').value||'',
+    ban_until: document.getElementById('g-banuntil').value||''
+  };
+  const cv = (document.querySelector('input[name="g-consent"]:checked')||{}).value||'';
+  if (cv === 'agreed' || cv === 'refused') body.consent = { status: cv };
+  const j = await api('/api/guidance', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (j && j.success){ loadHistory(); loadShido(); load(); }
+  else alert((j&&j.msg)||'記録に失敗しました');
+}
+async function liftBan(id){
+  if (!confirm('この乗務禁止を解除しますか？')) return;
+  const j = await api('/api/guidance/'+id+'/lift-ban', { method:'POST' });
+  if (j && j.success){ loadShido(); if (selDriver) loadHistory(); load(); }
+  else alert('解除に失敗しました');
+}
+async function proxyConsent(id, status){
+  const label = status==='agreed'?'対面で承諾を得た':'承諾を得られなかった';
+  if (!confirm('「'+label+'」として記録しますか？')) return;
+  const j = await api('/api/guidance/'+id+'/consent-proxy', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+  if (j && j.success){ loadShido(); if (selDriver) loadHistory(); }
+  else alert('記録に失敗しました');
+}
+async function delGuidance(id){
+  if (!confirm('この指導記録を削除しますか？（誤登録の取り消し）')) return;
+  const j = await api('/api/guidance/'+id, { method:'DELETE' });
+  if (j && j.success){ loadShido(); if (selDriver) loadHistory(); load(); }
+  else alert('削除に失敗しました');
+}
+</script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

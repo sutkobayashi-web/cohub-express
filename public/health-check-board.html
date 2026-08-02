@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>健康点検ボード - CoWell</title>
+<style>
+  :root { --accent:#0f766e; --line:#e2e8f0; --sub:#64748b; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#f1f5f9; color:#0f172a;
+    font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  header { background:linear-gradient(135deg,#5b21b6,#7c3aed); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:17px; font-weight:800; flex:1; }
+  header a { color:#fff; text-decoration:none; background:rgba(255,255,255,.2); border-radius:10px; padding:6px 12px; font-size:13px; font-weight:700; }
+  .wrap { max-width:760px; margin:0 auto; padding:14px 14px 40px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .bar input, .bar select { border:1.5px solid #cbd5e1; border-radius:12px; padding:9px 12px; font-size:14px; font-family:inherit; background:#fff; }
+  .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px 10px; text-align:center; box-shadow:0 2px 6px rgba(15,23,42,.04); }
+  .kpi .n { font-size:24px; font-weight:800; line-height:1.1; }
+  .kpi .l { font-size:11px; color:var(--sub); margin-top:4px; font-weight:700; }
+  .kpi.warn .n { color:#b45309; } .kpi.bad .n { color:#b91c1c; } .kpi.ok .n { color:#047857; }
+  .sec { background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:14px; box-shadow:0 2px 6px rgba(15,23,42,.04); }
+  .sec h2 { margin:0 0 10px; font-size:15px; font-weight:800; }
+  .pill { display:inline-block; padding:5px 12px; border-radius:999px; font-size:13px; font-weight:700; margin:3px 4px 3px 0; background:#f1f5f9; color:#334155; }
+  .pill.miss { background:#fef2f2; color:#b91c1c; }
+  .tally-item { padding:9px 0; border-bottom:1px solid #f1f5f9; }
+  .tally-item:last-child { border-bottom:none; }
+  .tally-item .tl { font-size:13px; font-weight:700; color:#334155; margin-bottom:5px; }
+  .tchip { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; margin:2px 4px 2px 0; background:#ecfdf5; color:#047857; }
+  .tchip.neg { background:#fef3c7; color:#92400e; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #f1f5f9; }
+  th { color:var(--sub); font-size:11px; font-weight:700; }
+  .u { font-weight:800; padding:2px 8px; border-radius:999px; font-size:11px; }
+  .u.高 { background:#fee2e2; color:#b91c1c; } .u.中 { background:#fef3c7; color:#92400e; } .u.低 { background:#ecfdf5; color:#047857; }
+  .src { font-size:10px; color:#fff; padding:1px 6px; border-radius:6px; font-weight:700; }
+  .src.self { background:#0ea5e9; } .src.tenko { background:#7c3aed; } .src.chorei { background:#a78bfa; }
+  .empty { color:#94a3b8; padding:14px; text-align:center; }
+  .note { font-size:11px; color:#94a3b8; margin-top:10px; line-height:1.6; }
+  @media (max-width:560px){ .cards{ grid-template-columns:repeat(2,1fr); } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
+</head>
+<body>
+<header>
+  <h1>🩺 健康点検ボード</h1>
+  <a href="/home">← ホーム</a>
+</header>
+<div class="wrap">
+  <div class="bar">
+    <input type="date" id="f-date">
+    <select id="f-co" style="display:none;"></select>
+    <span id="scope-note" style="font-size:12px;color:#64748b;"></span>
+  </div>
+  <div class="sec" id="ce-sec" style="margin-bottom:14px;">
+    <h2 style="cursor:pointer;user-select:none;" onclick="toggleCe()">➕ 健康チェックの追加質問 <span id="ce-caret" style="font-size:12px;color:#64748b;">（開く）</span></h2>
+    <div id="ce-body" style="display:none;">
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px;">管理者が任意の質問を追加できます。ドライバーの朝の体調チェック（かんたんモード）に、標準8項目の後に続けて表示され、回答はボードの「項目別の傾向」に集計されます。回答は「はい／いいえ」など複数の選択肢から選ぶ形式です。</div>
+      <div id="ce-rows"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" onclick="ceAddRow()" style="background:#e0e7ff;border:1px solid #6366f1;color:#3730a3;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer;">＋ 質問を追加</button>
+        <button type="button" onclick="ceSave()" style="background:#7c3aed;border:none;color:#fff;border-radius:10px;padding:8px 18px;font-weight:800;cursor:pointer;">保存する</button>
+        <span id="ce-msg" style="font-size:13px;align-self:center;"></span>
+      </div>
+    </div>
+  </div>
+  <div id="body"><div class="empty">読み込み中…</div></div>
+  <div class="note">健康情報は要配慮個人情報です。閲覧は推進メンバー・管理職に限定し、健康・安全管理および施策立案の目的でご利用ください。<br>
+    「未実施」の方には自己チェック（ホーム→体調・血圧チェック）または点呼での健康点検をご案内ください。</div>
+</div>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<script>
+  var TOKEN = localStorage.getItem('cohub_token') || '';
+  if (!TOKEN) location.replace('/');
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var VAL = {
+    hydration:{yes:'はい',no:'いいえ'}, breakfast:{yes:'はい',no:'いいえ'}, three_meals:{yes:'はい',no:'いいえ'},
+    sleep6h:{yes:'はい',no:'いいえ'}, wakeup:{yes:'はい',no:'いいえ'},
+    facial_color:{normal:'普通',tired:'疲れ気味',red:'赤い',pale:'青白い',unknown:'不明'},
+    pain:{no:'なし',low_back:'腰',shoulder:'肩・首',joint:'関節',severe:'強い痛み'},
+    concern:{no:'なし',health:'体調',family:'家族',work:'職場',money:'お金',other:'その他'}
+  };
+  // 「気になる/不調寄り」の回答(施策で注目)
+  var NEG = { hydration:['no'], breakfast:['no'], three_meals:['no'], sleep6h:['no'], wakeup:['no'],
+    facial_color:['tired','red','pale'], pain:['low_back','shoulder','joint','severe'],
+    concern:['health','family','work','money','other'] };
+
+  var DATA = null;
+  async function load(){
+    var date = $('f-date').value;
+    var co = $('f-co').value || '';
+    var r = await fetch('/api/tenko/board?date=' + encodeURIComponent(date) + (co?('&co='+encodeURIComponent(co)):''),
+      { headers:{ 'Authorization':'Bearer '+TOKEN } }).catch(function(){ return null; });
+    if (r && r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return; }
+    if (r && r.status === 403) { $('body').innerHTML = '<div class="sec"><div class="empty">🔒 この画面は推進メンバー・管理職のみ閲覧できます。</div></div>'; return; }
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (!j || !j.success) { $('body').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
+    DATA = j;
+    // 拠点フィルタ (本社ADMINのみ)
+    if (j.hq) {
+      var sel = $('f-co');
+      if (!sel.dataset.built) {
+        var opts = '<option value="">全拠点</option>' + (j.companies||[]).map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+        sel.innerHTML = opts; sel.value = co; sel.style.display = ''; sel.dataset.built = '1';
+      }
+      $('scope-note').textContent = '本社ADMIN：全拠点を閲覧可';
+    } else {
+      $('scope-note').textContent = '拠点: ' + (j.co || '-');
+    }
+    render(j);
+  }
+
+  function render(j){
+    var miss = j.entries.filter(function(e){ return !e.done; });
+    var doneList = j.entries.filter(function(e){ return e.done; });
+    var TA = !!j.trend_access;   // 推進メンバーだけ 血圧推移(本人以外)へドリルイン可
+    var html = '';
+    // KPI
+    html += '<div class="cards">'
+      + '<div class="kpi ok"><div class="n">' + j.done + '/' + j.total + '</div><div class="l">実施 ('+ j.rate +'%)</div></div>'
+      + '<div class="kpi ' + (j.not_done? 'warn':'') + '"><div class="n">' + j.not_done + '</div><div class="l">未実施</div></div>'
+      + '<div class="kpi ' + ((j.urgency.mid+j.urgency.high)? 'bad':'') + '"><div class="n">' + (j.urgency.high) + ' / ' + (j.urgency.mid) + '</div><div class="l">不調 高 / 中</div></div>'
+      + '<div class="kpi ' + (j.bp_high? 'bad':'') + '"><div class="n">' + j.bp_high + '</div><div class="l">高血圧(160/100↑)</div></div>'
+      + '</div>';
+    // 未実施者 (毎日励行のフォロー)
+    html += '<div class="sec"><h2>🔔 未実施 ' + miss.length + '名（要フォロー）</h2>';
+    if (!miss.length) html += '<div class="empty">全員チェック済みです 👏</div>';
+    else html += miss.map(function(e){
+      var co = j.hq?(' <small>'+esc(e.company_code)+'</small>'):'';
+      return TA
+        ? '<a class="pill miss" href="/bp-trend.html?uid=' + encodeURIComponent(e.uid) + '" style="text-decoration:none;" title="血圧の推移を見る">' + esc(e.name) + ' 📈' + co + '</a>'
+        : '<span class="pill miss">' + esc(e.name) + co + '</span>';
+    }).join('');
+    html += '</div>';
+    // 項目別傾向 (施策立案)
+    html += '<div class="sec"><h2>📊 項目別の傾向（施策の参考）</h2>';
+    var keys = Object.keys(j.item_labels);
+    var any = keys.some(function(k){ return j.tally[k]; });
+    if (!any) html += '<div class="empty">当日の回答がありません</div>';
+    else html += keys.map(function(k){
+      var t = j.tally[k]; if (!t) return '';
+      var chips = Object.keys(t).map(function(v){
+        var neg = (NEG[k]||[]).indexOf(v) >= 0;
+        var lbl = (VAL[k] && VAL[k][v]) ? VAL[k][v] : v;
+        return '<span class="tchip ' + (neg?'neg':'') + '">' + esc(lbl) + ' ' + t[v] + '</span>';
+      }).join('');
+      return '<div class="tally-item"><div class="tl">' + esc(j.item_labels[k]) + '</div>' + chips + '</div>';
+    }).join('');
+    html += '</div>';
+    // 実施者一覧 (業務管理)
+    html += '<div class="sec"><h2>📋 実施一覧</h2>' + (TA ? '<div style="font-size:12px;color:#64748b;margin:-4px 2px 8px;">氏名（📈）をタップすると、その人の<b>血圧の推移</b>を確認できます。1回の数値でなく流れで見ましょう。</div>' : '');
+    if (!doneList.length) html += '<div class="empty">当日の実施記録がありません</div>';
+    else {
+      html += '<table><thead><tr><th>氏名</th>' + (j.hq?'<th>拠点</th>':'') + '<th>区分</th><th>状態</th><th>血圧</th><th>気になる</th></tr></thead><tbody>';
+      html += doneList.map(function(e){
+        var srcLbl = e.source==='self'?'セルフ':(e.source==='tenko'?'点呼':'朝礼');
+        var bp = e.bp ? ((e.bp.s||'-')+'/'+(e.bp.d||'-')+(e.bp.p?(' 脈'+e.bp.p):'')) : '-';
+        var bpHi = e.bp && ((e.bp.s>=160)||(e.bp.d>=100));
+        var concern = (e.health && e.health.concern && e.health.concern!=='no') ? (VAL.concern[e.health.concern]||e.health.concern) : '';
+        var pain = (e.health && e.health.pain && e.health.pain!=='no') ? (VAL.pain[e.health.pain]||e.health.pain) : '';
+        var flags = [concern, pain].filter(Boolean).join('・');
+        var nameCell = TA
+          ? '<a href="/bp-trend.html?uid=' + encodeURIComponent(e.uid) + '" style="color:#0f766e;font-weight:800;text-decoration:none;" title="血圧の推移を見る">' + esc(e.name) + ' 📈</a>'
+          : esc(e.name);
+        return '<tr><td>' + nameCell + '</td>'
+          + (j.hq?('<td>'+esc(e.company_code)+'</td>'):'')
+          + '<td><span class="src ' + esc(e.source) + '">' + srcLbl + '</span></td>'
+          + '<td><span class="u ' + esc(e.urgency||'低') + '">' + esc(e.urgency||'低') + '</span></td>'
+          + '<td' + (bpHi?' style="color:#b91c1c;font-weight:800;"':'') + '>' + esc(bp) + '</td>'
+          + '<td>' + esc(flags) + '</td></tr>';
+      }).join('');
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    $('body').innerHTML = html;
+  }
+
+  // ===== 健康チェックの追加質問エディタ =====
+  var CE_ITEMS = [];
+  function toggleCe(){
+    var b = $('ce-body'), c = $('ce-caret');
+    var open = b.style.display === 'none';
+    b.style.display = open ? '' : 'none';
+    c.textContent = open ? '（閉じる）' : '（開く）';
+    if (open && !b.dataset.loaded){ b.dataset.loaded = '1'; ceLoad(); }
+  }
+  async function ceLoad(){
+    var r = await fetch('/api/tenko/health-items', { headers:{ 'Authorization':'Bearer '+TOKEN } }).catch(function(){ return null; });
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    CE_ITEMS = (j && j.items) ? j.items.slice() : [];
+    ceRender();
+  }
+  function ceRender(){
+    var wrap = $('ce-rows');
+    if (!CE_ITEMS.length){ wrap.innerHTML = '<div class="empty" style="padding:10px;">追加質問はまだありません。「＋ 質問を追加」で作成してください。</div>'; return; }
+    wrap.innerHTML = CE_ITEMS.map(function(it, idx){
+      var optStr = (it.opts || []).map(function(o){ return o[0]; }).join('、');
+      return '<div class="ce-row" data-key="' + esc(it.key||'') + '" style="border:1px solid #e2e8f0;border-radius:12px;padding:10px;margin-bottom:8px;">'
+        + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">'
+        + '<span style="font-size:12px;color:#94a3b8;font-weight:700;">Q' + (idx+1) + '</span>'
+        + '<input class="ce-q" value="' + esc(it.q||'') + '" placeholder="質問文（例：今日の服薬はしましたか？）" maxlength="100" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">'
+        + '<button type="button" onclick="ceDel(' + idx + ')" style="background:#fee2e2;border:1px solid #ef4444;color:#b91c1c;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer;">削除</button>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px;align-items:center;">'
+        + '<span style="font-size:12px;color:#64748b;min-width:64px;">答えの選択肢</span>'
+        + '<input class="ce-opts" value="' + esc(optStr) + '" placeholder="はい、いいえ（読点「、」で区切る／空欄なら はい・いいえ）" maxlength="160" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">'
+        + '</div></div>';
+    }).join('');
+  }
+  // 画面上の入力値を CE_ITEMS に取り込む(保存/追加/削除の前に呼ぶ)
+  function ceSync(){
+    var rows = document.querySelectorAll('#ce-rows .ce-row');
+    var next = [];
+    rows.forEach(function(row){
+      var q = (row.querySelector('.ce-q').value || '').trim();
+      if (!q) return;
+      var raw = (row.querySelector('.ce-opts').value || '').trim();
+      var labels = raw ? raw.split(/[、,]/).map(function(s){ return s.trim(); }).filter(Boolean) : [];
+      var opts = labels.length ? labels.map(function(l){ return [l, l]; }) : [['はい','yes'],['いいえ','no']];
+      next.push({ key: row.dataset.key || '', q: q, opts: opts });
+    });
+    CE_ITEMS = next;
+  }
+  function ceAddRow(){ ceSync(); CE_ITEMS.push({ key:'', q:'', opts:[['はい','yes'],['いいえ','no']] }); ceRender(); }
+  function ceDel(i){ ceSync(); CE_ITEMS.splice(i,1); ceRender(); }
+  async function ceSave(){
+    ceSync();
+    var msg = $('ce-msg'); msg.textContent = '保存中…'; msg.style.color = '#64748b';
+    var r = await fetch('/api/tenko/health-items', { method:'POST',
+      headers:{ 'Authorization':'Bearer '+TOKEN, 'Content-Type':'application/json' },
+      body: JSON.stringify({ items: CE_ITEMS }) }).catch(function(){ return null; });
+    if (r && r.status === 403){ msg.textContent = '🔒 編集は推進メンバー・管理職のみです'; msg.style.color = '#b91c1c'; return; }
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (j && j.success){ CE_ITEMS = j.items || []; ceRender(); msg.textContent = '✅ 保存しました'; msg.style.color = '#15803d'; }
+    else { msg.textContent = '保存に失敗しました'; msg.style.color = '#b91c1c'; }
+  }
+
+  // 既定=今日(JST)
+  var now = new Date(Date.now() + 9*3600*1000);
+  $('f-date').value = now.toISOString().slice(0,10);
+  $('f-date').addEventListener('change', load);
+  $('f-co').addEventListener('change', load);
+  load();
+</script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

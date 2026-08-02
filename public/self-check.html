@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>体調・血圧チェック - CoWell</title>
+<style>
+  :root { --accent:#0f766e; --line:#cbd5e1; --sub:#64748b; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#f1f5f9; color:#0f172a;
+    font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  header { background:linear-gradient(135deg, #0284c7, #0369a1); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:17px; font-weight:800; flex:1; }
+  header a { color:#fff; text-decoration:none; background:rgba(255,255,255,.2); border-radius:10px; padding:6px 12px; font-size:13px; font-weight:700; }
+  .wrap { max-width:560px; margin:0 auto; padding:16px 14px 40px; }
+  .who { font-size:13px; color:var(--sub); margin:4px 2px 14px; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:18px 16px; margin-bottom:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+  .card h2 { margin:0 0 6px; font-size:16px; font-weight:800; color:#0f172a; }
+  .hint { font-size:12px; color:#94a3b8; margin-bottom:10px; }
+  /* 健康点検 (点呼・健康点検と同一項目) */
+  .hcrow { padding:11px 0; border-bottom:1px solid #f1f5f9; }
+  .hcrow:last-child { border-bottom:none; }
+  .hclabel { font-size:14px; font-weight:700; color:#334155; margin-bottom:8px; }
+  .hcopts { display:flex; flex-wrap:wrap; gap:8px; }
+  .hcopt { border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:10px 15px; font-size:14px; font-weight:700; color:#334155; cursor:pointer; font-family:inherit; }
+  .hcopt.on { border-color:var(--accent); background:#ecfdf5; color:var(--accent); }
+  .hcopt.warn.on { border-color:#dc2626; background:#fef2f2; color:#b91c1c; }
+  /* 血圧ダイヤル */
+  .bpdial { display:flex; gap:12px; align-items:flex-start; justify-content:center; margin-top:4px; }
+  .bpcol { display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
+  .bpcol .cap { font-size:13px; font-weight:800; color:#475569; }
+  .bpcol .unit { font-size:11px; font-weight:700; color:#94a3b8; margin-top:-2px; }
+  .bpwrap { position:relative; width:100%; max-width:96px; }
+  .bpwheel { position:relative; height:132px; overflow-y:scroll; scroll-snap-type:y mandatory; border:2px solid var(--line); border-radius:16px; background:#f8fafc; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .bpwheel::-webkit-scrollbar { display:none; }
+  .bpwheel .it { height:44px; line-height:44px; text-align:center; font-size:22px; font-weight:800; color:#cbd5e1; scroll-snap-align:center; cursor:pointer; }
+  .bpwheel .it.sel { color:#0f172a; font-size:27px; }
+  .bpwheel .it.pad { cursor:default; }
+  .bpband { position:absolute; left:0; right:0; top:44px; height:44px; border-top:2px solid var(--accent); border-bottom:2px solid var(--accent); background:rgba(20,184,166,.06); pointer-events:none; border-radius:6px; }
+  .bpnudge { width:100%; max-width:96px; border:1px solid var(--line); background:#fff; border-radius:12px; padding:6px 0; font-size:18px; font-weight:800; color:var(--accent); cursor:pointer; line-height:1; font-family:inherit; }
+  .bpnudge:active { background:#f1f5f9; }
+  #bp_warn { display:none; margin-top:10px; font-size:14px; font-weight:800; color:#b91c1c; background:#fee2e2; border-radius:14px; padding:8px 10px; text-align:center; }
+  /* 血圧「測定なし」一括トグル */
+  .bpskip { display:block; width:100%; margin:0 0 10px; border:1.5px solid var(--line); background:#fff; border-radius:14px; padding:11px 14px; font-size:14px; font-weight:800; color:#475569; cursor:pointer; font-family:inherit; }
+  .bpskip.on { border-color:var(--accent); background:#ecfdf5; color:var(--accent); }
+  .bp-btn-row { display:flex; gap:10px; margin:0 0 10px; }
+  .bp-btn-row .bpskip { flex:1; width:auto; margin:0; padding:11px 10px; }
+  .bp-measure { border-color:#0d9488; background:#f0fdfa; color:#0f766e; }
+  .bp-none { border-color:#cbd5e1; background:#f8fafc; color:#64748b; }
+  .bp-none.on { border-color:#f59e0b; background:#fffbeb; color:#b45309; }
+  .bpdial.skipped { opacity:.35; pointer-events:none; }
+  /* 血圧の推移への導線 (測った瞬間に"流れ"を意識してもらう) */
+  .bp-trend-link { display:flex; align-items:center; gap:10px; text-decoration:none; margin-top:14px;
+    background:linear-gradient(135deg,#ecfdf5,#d1fae5); border:1px solid #99f6e4; border-radius:14px; padding:12px 14px; }
+  .bp-trend-link .ic { font-size:24px; line-height:1; }
+  .bp-trend-link .tx { flex:1; }
+  .bp-trend-link .t1 { font-size:15px; font-weight:800; color:#047857; }
+  .bp-trend-link .t2 { font-size:12px; font-weight:700; color:#0f766e; margin-top:1px; }
+  .bp-trend-link .arw { color:#0d9488; font-weight:800; font-size:18px; }
+  textarea { width:100%; border:2px solid var(--line); border-radius:14px; padding:12px; font-size:15px; font-family:inherit; resize:vertical; min-height:70px; }
+  .submit { width:100%; background:var(--accent); color:#fff; border:none; border-radius:16px; padding:17px; font-size:18px; font-weight:800; cursor:pointer; font-family:inherit; }
+  .submit:disabled { opacity:.5; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:#0f172a; color:#fff; padding:14px 22px; border-radius:14px; font-weight:800; font-size:15px; box-shadow:0 6px 20px rgba(0,0,0,.3); opacity:0; transition:opacity .2s; z-index:50; }
+  .toast.show { opacity:1; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
+</head>
+<body>
+<header>
+  <h1>🩺 今日の体調・血圧チェック</h1>
+  <a href="/home">← ホーム</a>
+</header>
+<div class="wrap">
+  <div class="who" id="who"></div>
+
+  <div class="card">
+    <h2>健康点検</h2>
+    <div class="hint">今日の状態をタップで選んでください（点呼・健康点検と同じ項目です）</div>
+    <div id="hc"></div>
+  </div>
+
+  <div class="card">
+    <h2>🩸 血圧（任意）</h2>
+    <div class="hint">ダイヤルを上下にフリック、または ＋／− で合わせます。測っていない時は下のボタンを押してください。</div>
+    <div class="bp-btn-row">
+      <button type="button" id="bp_ocr_btn" class="bpskip bp-measure" onclick="document.getElementById('bp_ocr_file').click()">📷 血圧計を撮影</button>
+      <button type="button" id="bp_skip_btn" class="bpskip bp-none" onclick="bpSkipToggle()">🩸 未測定</button>
+    </div>
+    <input type="file" id="bp_ocr_file" accept="image/*" capture="environment" style="display:none" onchange="bpOcr(this)">
+    <div id="bp_ocr_msg" style="font-size:12.5px;font-weight:700;margin:-4px 0 10px;display:none;"></div>
+    <div class="bpdial">
+      <div class="bpcol">
+        <div class="cap">収縮期</div><div class="unit">上 mmHg</div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_sys',1)">＋</button>
+        <div class="bpwrap"><div class="bpwheel" id="w_sys"></div><div class="bpband"></div></div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_sys',-1)">−</button>
+      </div>
+      <div class="bpcol">
+        <div class="cap">拡張期</div><div class="unit">下 mmHg</div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_dia',1)">＋</button>
+        <div class="bpwrap"><div class="bpwheel" id="w_dia"></div><div class="bpband"></div></div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_dia',-1)">−</button>
+      </div>
+      <div class="bpcol">
+        <div class="cap">脈拍</div><div class="unit">任意 /分</div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_pulse',1)">＋</button>
+        <div class="bpwrap"><div class="bpwheel" id="w_pulse"></div><div class="bpband"></div></div>
+        <button type="button" class="bpnudge" onclick="bpNudge('w_pulse',-1)">−</button>
+      </div>
+    </div>
+    <div id="bp_warn">⚠️ 血圧が高めです。無理せず、気になる時は相談してください。</div>
+    <a href="/bp-trend.html" class="bp-trend-link">
+      <span class="ic">📈</span>
+      <span class="tx"><span class="t1">これまでの血圧の推移を見る</span><span class="t2">1回の数字ではなく、平均の“流れ”で見ましょう</span></span>
+      <span class="arw">›</span>
+    </a>
+  </div>
+
+  <div class="card">
+    <h2>📝 メモ（任意）</h2>
+    <textarea id="memo" placeholder="体調や気づいたことがあれば記入"></textarea>
+  </div>
+
+  <button class="submit" id="btn-submit" onclick="submitCheck()">記録する</button>
+</div>
+
+<!-- 記録後に必ず出す「出発前の確認」— 健康点検だけで点呼が終わらないようにする -->
+<div class="wrap" id="briefStep" style="display:none">
+  <div class="card" style="background:linear-gradient(135deg,#ecfeff,#f0fdfa);border-color:#99f6e4">
+    <h2>📋 出発前の確認</h2>
+    <div class="hint" style="color:#0f766e;font-weight:700">体調の記録はできました。最後に、今日の連絡事項を確認してください。</div>
+  </div>
+  <div id="briefBody"></div>
+  <button class="submit" id="btn-brief" onclick="confirmBriefing()">確認しました</button>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<script>
+  var TOKEN = localStorage.getItem('cohub_token') || '';
+  if (!TOKEN) location.replace('/');
+  function $(id){ return document.getElementById(id); }
+  async function api(path, opt){
+    opt = opt || {};
+    opt.headers = Object.assign({ 'Authorization':'Bearer '+TOKEN }, opt.headers||{});
+    const r = await fetch(path, opt).catch(()=>null);
+    if (r && r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+    return r;
+  }
+  (async () => {
+    const r = await api('/api/auth/me'); if (!r) return;
+    const j = await r.json().catch(()=>null);
+    if (j && j.success && j.user) $('who').textContent = (j.user.display_name || '') + ' さん';
+  })();
+
+  // ===== 健康点検 8項目 (点呼・健康点検 tenko.html と同一内容) =====
+  // [ラベル, キー, [[表示, 値, warn?], ...]]
+  var HC_ITEMS = [
+    ['💧 こまめに水分補給','hydration',[['はい','yes'],['いいえ','no']]],
+    ['🍚 朝食を食べた','breakfast',[['はい','yes'],['いいえ','no']]],
+    ['🍽️ 3食きちんと食べた','three_meals',[['はい','yes'],['いいえ','no']]],
+    ['🛌 6時間以上寝た','sleep6h',[['はい','yes'],['いいえ','no']]],
+    ['🌅 朝の目覚めスッキリ','wakeup',[['はい','yes'],['いいえ','no']]],
+    ['🌡️ 顔色','facial_color',[['普通','normal'],['疲れ気味','tired',1],['赤い','red',1],['青白い','pale',1],['不明','unknown']]],
+    ['🦴 体の痛み','pain',[['なし','no'],['腰','low_back',1],['肩・首','shoulder',1],['関節','joint',1],['強い痛み','severe',1]]],
+    ['💭 気になる','concern',[['なし','no'],['体調','health'],['家族','family'],['職場','work'],['お金','money'],['その他','other']]]
+  ];
+  var hcAns = {};   // key -> {v, label}
+  var hcText = {};  // key -> 表示用ラベル
+  (function buildHc(){
+    var box = $('hc'); var html = '';
+    HC_ITEMS.forEach(function(item, ri){
+      var label = item[0], key = item[1], opts = item[2];
+      html += '<div class="hcrow"><div class="hclabel">' + label + '</div><div class="hcopts">';
+      opts.forEach(function(o, oi){
+        html += '<button type="button" class="hcopt' + (o[2]?' warn':'') + '" data-ri="' + ri + '" data-oi="' + oi + '">' + o[0] + '</button>';
+      });
+      html += '</div></div>';
+      hcText[key] = label.replace(/^[^\s]+\s/, ''); // 絵文字を除いた短いラベル
+    });
+    box.innerHTML = html;
+    box.querySelectorAll('.hcopt').forEach(function(b){
+      b.addEventListener('click', function(){
+        var ri = +b.dataset.ri, oi = +b.dataset.oi;
+        var item = HC_ITEMS[ri], key = item[1], opt = item[2][oi];
+        // 同じ行の選択を切り替え
+        b.parentNode.querySelectorAll('.hcopt').forEach(function(x){ x.classList.remove('on'); });
+        b.classList.add('on');
+        hcAns[key] = { v: opt[1], label: opt[0] };
+      });
+    });
+  })();
+
+  // ===== 血圧ダイヤル(ホイール) =====
+  var BP_ROW = 44;
+  function buildWheel(wid, min, max, onChange, def){
+    var w = $(wid); if (!w) return;
+    var vals = ['']; for (var n=min; n<=max; n++) vals.push(String(n));
+    var html = '<div class="it pad"></div>';
+    vals.forEach(function(v,i){ html += '<div class="it" data-i="'+i+'">'+(v===''?'—':v)+'</div>'; });
+    html += '<div class="it pad"></div>';
+    w.innerHTML = html;
+    w._vals = vals; w._val = '';
+    var items = w.querySelectorAll('.it[data-i]');
+    function apply(){
+      var idx = Math.round(w.scrollTop/BP_ROW);
+      if (idx<0) idx=0; if (idx>vals.length-1) idx=vals.length-1;
+      items.forEach(function(el){ el.classList.remove('sel'); });
+      if (items[idx]) items[idx].classList.add('sel');
+      w._val = vals[idx] || '';
+      if (onChange) onChange();
+    }
+    var t; w.addEventListener('scroll', function(){ clearTimeout(t); t=setTimeout(apply,80); }, {passive:true});
+    items.forEach(function(el){ el.addEventListener('click', function(){ w.scrollTo({top:(+el.dataset.i)*BP_ROW, behavior:'smooth'}); }); });
+    var di = (def!=null && def!=='') ? vals.indexOf(String(def)) : 0; // 既定値(無指定は「—」)
+    if (di < 0) di = 0;
+    w.scrollTop = di*BP_ROW; apply();
+  }
+  function bpNudge(wid, d){
+    var w = $(wid); if (!w) return;
+    var idx = Math.round(w.scrollTop/BP_ROW) + d;
+    w.scrollTo({ top: Math.max(0, idx*BP_ROW), behavior:'smooth' });
+  }
+  // 「血圧測定なし」一括トグル: 3つのダイヤルをまとめて「—」に
+  var bpSkipped = false;
+  function bpSetEmpty(wid){
+    var w = $(wid); if (!w) return;
+    w.scrollTo({ top:0, behavior:'smooth' });   // index 0 = 「—」
+  }
+  function bpSkipToggle(){
+    bpSkipped = !bpSkipped;
+    var btn = $('bp_skip_btn'), dial = document.querySelector('.bpdial');
+    if (bpSkipped){
+      bpSetEmpty('w_sys'); bpSetEmpty('w_dia'); bpSetEmpty('w_pulse');
+      btn.classList.add('on'); btn.textContent = '✓ 未測定（タップで戻す）';
+      dial.classList.add('skipped');
+      $('bp_warn').style.display = 'none';
+    } else {
+      btn.classList.remove('on'); btn.textContent = '🩸 未測定';
+      dial.classList.remove('skipped');
+    }
+  }
+  function bpCheck(){
+    var sys = parseInt($('w_sys')._val)||0, dia = parseInt($('w_dia')._val)||0;
+    $('bp_warn').style.display = (sys>=160 || dia>=100) ? 'block' : 'none';
+  }
+  // ===== 血圧計の写真をAIで読取り → ダイヤルに反映 (健康管理室wellnessと同じ /bp/ocr を流用) =====
+  function bpSetValue(wid, n){
+    var w = $(wid); if (!w || n == null || n === '') return;
+    var idx = (w._vals || []).indexOf(String(parseInt(n)));
+    if (idx < 0) return;              // 範囲外は無視 (誤読対策)
+    w.scrollTop = idx * BP_ROW;       // scrollイベントで apply→_val に反映
+  }
+  async function bpOcr(input){
+    var f = input.files && input.files[0]; if (!f) return;
+    var msg = $('bp_ocr_msg'); msg.style.display = 'block'; msg.style.color = '#64748b';
+    msg.textContent = '🧠 AIが血圧計を読み取り中…';
+    try {
+      var fd = new FormData(); fd.append('image', f);
+      var r = await fetch('/api/myhealth/bp/ocr', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+      var j = await r.json();
+      if (!j || !j.success || !j.data) throw new Error((j && j.msg) || '読取失敗');
+      var v = j.data;
+      if (v.systolic == null && v.diastolic == null){
+        msg.style.color = '#b91c1c'; msg.textContent = '⚠️ 数値を読み取れませんでした。ダイヤルで手入力してください';
+        input.value = ''; return;
+      }
+      if (bpSkipped) bpSkipToggle();   // 「測定なし」を解除して入力に戻す
+      if (v.systolic != null) bpSetValue('w_sys', v.systolic);
+      if (v.diastolic != null) bpSetValue('w_dia', v.diastolic);
+      if (v.pulse != null) bpSetValue('w_pulse', v.pulse);
+      setTimeout(bpCheck, 200);
+      msg.style.color = '#15803d';
+      msg.textContent = '🧠 AI読取完了: ' + (v.systolic || '-') + '/' + (v.diastolic || '-') + (v.pulse ? ' 脈' + v.pulse : '') + '　数値を確認して「記録する」を押してください';
+    } catch (e){
+      msg.style.color = '#b91c1c'; msg.textContent = '⚠️ AI読取に失敗しました。ダイヤルで手入力してください';
+    }
+    input.value = '';
+  }
+  buildWheel('w_sys', 70, 220, bpCheck, 120);  // 既定 120
+  buildWheel('w_dia', 40, 140, bpCheck, 70);   // 既定 70
+  buildWheel('w_pulse', 35, 160, null);        // 脈拍は「—」既定
+
+  function showToast(msg){ var t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2200); }
+
+  async function submitCheck(){
+    var sys = $('w_sys')._val, dia = $('w_dia')._val, pulse = $('w_pulse')._val;
+    var memo = $('memo').value.trim();
+    var answered = Object.keys(hcAns).length;
+    if (!answered && !(sys && dia)) { showToast('健康点検または血圧を入力してください'); return; }
+    if ((sys && !dia) || (!sys && dia)) { showToast('血圧は上・下の両方を合わせてください'); return; }
+    // 8項目を {key: value} 形式に (点呼・健康点検と同じ health_json)
+    var health = {}; Object.keys(hcAns).forEach(function(k){ health[k] = hcAns[k].v; });
+    var btn = $('btn-submit'); btn.disabled = true;
+    // 点呼基盤へ合流 (tenko_records mode='self' ＋ 不調エスカレ ＋ 本人血圧履歴)
+    var r = await api('/api/tenko/self-checkin', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        health: answered ? health : null,
+        bp_systolic: sys ? +sys : null, bp_diastolic: dia ? +dia : null, pulse: pulse ? +pulse : null,
+        note: memo
+      }) });
+    btn.disabled = false;
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (j && j.success) {
+      // 血圧を入力していたら、記録後にそのまま"推移"を見せる (測った瞬間に流れを意識してもらう)
+      var goTrend = !!(sys && dia);
+      showToast(j.escalated ? '✅ 記録しました（体調を担当へ連携しました）' : '✅ 記録しました');
+      showBriefing(goTrend);
+    } else {
+      showToast((j && j.msg) || '記録に失敗しました。通信状況をご確認ください');
+    }
+  }
+
+  // ===== 出発前の確認 (通達・営業所の連絡・未読メッセージ) =====
+  // 健康点検だけで終わらせず、記録の直後に必ず伝達事項を出す。
+  // 確認するものが何も無い日は素通り (毎日の余計な1タップを増やさない)。
+  var _briefIds = [], _briefGoTrend = false;
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function briefDone(){ location.href = _briefGoTrend ? '/bp-trend.html' : '/home'; }
+  async function showBriefing(goTrend){
+    _briefGoTrend = !!goTrend;
+    var r = await api('/api/tenko/briefing');
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (!j || !j.success) { setTimeout(briefDone, 1200); return; }
+    var notices = j.notices || [];
+    var msgs = (j.dm_unread||0) + (j.group_unread||0);
+    if (!j.brief && !notices.length && !msgs) { setTimeout(briefDone, 1200); return; }  // 確認事項なし
+    _briefIds = notices.map(function(n){ return n.id; });
+    var html = '';
+    if (j.brief) {
+      html += '<div class="card" style="background:#fffbeb;border-color:#fde68a">'
+        + '<h2 style="color:#92400e">📢 今日の連絡・安全一言</h2>'
+        + '<div style="font-size:15px;line-height:1.6;color:#78350f;white-space:pre-wrap">'+esc(j.brief)+'</div></div>';
+    }
+    notices.forEach(function(n){
+      var lv = n.level==='urgent' ? ['#fef2f2','#fecaca','#b91c1c','🚨 緊急'] :
+               n.level==='important' ? ['#fff7ed','#fed7aa','#c2410c','⚠️ 重要'] : ['#fff','#e2e8f0','#334155','📣 通達'];
+      html += '<div class="card" style="background:'+lv[0]+';border-color:'+lv[1]+'">'
+        + '<div style="font-size:12px;font-weight:800;color:'+lv[2]+'">'+lv[3]+(n.requires_ack?'（要確認）':'')+'</div>'
+        + '<h2 style="margin-top:4px">'+esc(n.title)+'</h2>'
+        + '<div style="font-size:15px;line-height:1.6;white-space:pre-wrap">'+esc(n.body)+'</div>'
+        + (n.attachments ? '<div style="margin-top:8px"><a href="/announcements.html" style="font-weight:800;color:#0f766e">📎 添付'+n.attachments+'件を見る ›</a></div>' : '')
+        + '<div class="hint" style="margin:8px 0 0">'+esc(n.author_name)+'　'+esc(String(n.created_at||'').slice(0,10))+'</div></div>';
+    });
+    if (msgs) {
+      html += '<div class="card" style="background:#eff6ff;border-color:#bfdbfe">'
+        + '<h2 style="color:#1d4ed8">💬 未読のメッセージ '+msgs+'件</h2>'
+        + '<div class="hint">出発前に目を通しておいてください。</div>'
+        + '<a href="/chat" style="display:block;text-align:center;background:#2563eb;color:#fff;border-radius:14px;padding:13px;font-weight:800;text-decoration:none">チャットを開く</a></div>';
+    }
+    $('briefBody').innerHTML = html;
+    document.querySelectorAll('.wrap').forEach(function(w){ if (w.id !== 'briefStep') w.style.display = 'none'; });
+    $('briefStep').style.display = 'block';
+    window.scrollTo(0,0);
+  }
+  async function confirmBriefing(){
+    var b = $('btn-brief'); b.disabled = true; b.textContent = '確認を記録しています…';
+    if (_briefIds.length) {
+      await api('/api/tenko/briefing/confirm', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ids: _briefIds }) });
+    }
+    briefDone();
+  }
+</script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>
