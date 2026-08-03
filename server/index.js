@@ -277,6 +277,30 @@ app.use('/api/', (req, res, next) => {
 // API応答の ETag を無効化 (304 Not Modified を発生させない)
 app.set('etag', false);
 
+// ============================================================
+// /assets/roster_yomi.json = 全社員の氏名(読み)の名簿。研究閲覧の社外ゲストには渡さない。
+//  ⚠️2026-08-03 社長の確認で発覚: 画面の氏名は匿名化していたのに、葵の読み上げだけ実名を
+//    声に出していた。読み上げはこの静的ファイルを uid で引いており、APIを通らないため
+//    middleware/authz.js の匿名化が効いていなかった。
+//  空を返すとクライアントは表示名(=匿名化済み)をそのまま読むので、声も匿名になる。
+//  ⚠️共用タブレットの名前選択画面は"ログイン前"にこれを読む(読み間違い防止)ので、
+//    未ログインは従来どおり配信する=ここではゲストだけを止める。
+// ============================================================
+app.get('/assets/roster_yomi.json', (req, res, next) => {
+  res.setHeader('Vary', 'Cookie');
+  try {
+    const uid = sessionUserId(req);
+    if (uid) {
+      const u = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
+      if (u && u.is_guest_reviewer) {
+        res.setHeader('Cache-Control', 'private, no-store');
+        return res.json({});
+      }
+    }
+  } catch (e) { /* 判定できないときは従来どおり配信 */ }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   etag: false,
   index: false,  // ルート '/' で index.html を自動配信させない (MINIMAL_MODE 切替のため SPA fallback で制御)
@@ -441,7 +465,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-03-hlhist"
+const APP_VERSION = "2026-08-04-yomi"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -473,7 +497,7 @@ app.get('/api/config', (req, res) => {
 });
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
-const { authUser, hasValidSession } = require('./middleware/auth');
+const { authUser, hasValidSession, sessionUserId } = require('./middleware/auth');
 // ===== 外部相談窓口 (NPO等の第三者へ匿名相談を転送) =====
 // 設計: 本文はサーバ内でメール送信 → DB に永続化しない
 // 管理者でも内容は閲覧不可。件数+カテゴリ集計のみ
