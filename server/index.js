@@ -288,17 +288,22 @@ app.set('etag', false);
 // ============================================================
 app.get('/assets/roster_yomi.json', (req, res, next) => {
   res.setHeader('Vary', 'Cookie');
-  try {
-    const uid = sessionUserId(req);
-    if (uid) {
-      const u = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
-      if (u && u.is_guest_reviewer) {
-        res.setHeader('Cache-Control', 'private, no-store');
-        return res.json({});
-      }
-    }
-  } catch (e) { /* 判定できないときは従来どおり配信 */ }
-  next();
+  let uid = null;
+  try { uid = sessionUserId(req); } catch (e) { uid = null; }
+  if (uid) {
+    let guest = false;
+    try { const u = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid); guest = !!(u && u.is_guest_reviewer); } catch (e) {}
+    if (guest) { res.setHeader('Cache-Control', 'private, no-store'); return res.json({}); }
+    return next();                       // ログイン済みの社員は従来どおり
+  }
+  // ⚠️未ログインは共用タブレットの名前選択画面だけが読む。社外から誰でも全社員の氏名(読み)を
+  //   ダウンロードできる状態だったので、事業所ネットワークからに限る (2026-08-04)。
+  // 登録済みの設置端末(共用タブレット)は、IPが変わっても読める。
+  try { if (deviceOf(getDb(), req)) return next(); } catch (e) {}
+  // ⚠️未登録の端末はまだ検知モード(通すが記録する)。
+  //   各拠点のタブレットの登録が一周したら enforce に切り替える。
+  if (!officeIp(req)) console.warn('[roster-yomi] outside allowlist', trustedClientIp(req));
+  return next();
 });
 
 app.use(express.static(path.join(__dirname, '..', 'public'), {
@@ -465,7 +470,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-04-yomi"
+const APP_VERSION = "2026-08-04-device"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -497,7 +502,8 @@ app.get('/api/config', (req, res) => {
 });
 
 // モバイル用: 指定フロアに今いる人の一覧 (m.html の人リスト・ビュー用)
-const { authUser, hasValidSession, sessionUserId } = require('./middleware/auth');
+const { authUser, hasValidSession, sessionUserId, officeIp } = require('./middleware/auth');
+const { trustedClientIp, deviceOf } = require('./services/net');
 // ===== 外部相談窓口 (NPO等の第三者へ匿名相談を転送) =====
 // 設計: 本文はサーバ内でメール送信 → DB に永続化しない
 // 管理者でも内容は閲覧不可。件数+カテゴリ集計のみ

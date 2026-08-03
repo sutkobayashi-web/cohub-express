@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoWell 管理</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/img/cowell-favicon-16-v2.png">
+<link rel="apple-touch-icon" href="/img/cowell-apple-touch-v6.png">
 <link rel="manifest" href="/manifest.json?v=4">
 <meta name="theme-color" content="#0f172a">
 <style>
@@ -17,22 +17,31 @@ header h1 { margin: 0; font-size: 16px; }
 header .spacer { flex: 1; }
 header a { color: #94a3b8; text-decoration: none; font-size: 13px; }
 main { max-width: 1000px; margin: 0 auto; padding: 20px; }
-.card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
 .card h2 { margin: 0 0 12px; font-size: 15px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.row input, .row select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; min-width: 140px; }
-.btn { padding: 8px 16px; background: #06b6d4; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.row input, .row select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; min-width: 140px; }
+.btn { padding: 8px 16px; background: #06b6d4; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-danger { background: #ef4444; }
 .btn-ghost { background: #e2e8f0; color: #0f172a; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
 th { background: #f8fafc; font-weight: 600; color: #475569; }
-.chip { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; }
+.chip { padding: 2px 8px; border-radius: 14px; font-size: 11px; font-weight: 600; color: #fff; }
 .chip-role-admin { background: #fef3c7; color: #92400e; }
-textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 12px; min-height: 120px; }
+textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: monospace; font-size: 12px; min-height: 120px; }
 .err { color: #dc2626; font-size: 12px; margin-top: 6px; }
 .ok { color: #059669; font-size: 12px; margin-top: 6px; }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <header>
@@ -97,10 +106,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       </select>
       <input type="date" id="new-birth" title="生年月日 (健診Box連携・年齢別分析用)" style="max-width:160px;">
       <input type="text" id="new-guest-org" placeholder="所属組織 (例: 帝京大学公衆衛生)" style="max-width:200px;">
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fef3c7;padding:6px 10px;border-radius:6px;cursor:pointer;" title="施策ボードのレビュー権限を付与 (大学/NPOの専門家用)">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fef3c7;padding:6px 10px;border-radius:10px;cursor:pointer;" title="施策ボードのレビュー権限を付与 (大学/NPOの専門家用)">
         <input type="checkbox" id="new-guest-rev"> 🎓ゲストレビュアー
       </label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fee2e2;padding:6px 10px;border-radius:6px;cursor:pointer;" title="ONなら部署内DMのみ可 (chat_group_membersで共通グループ必要)。一般社員はデフォルトON">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fee2e2;padding:6px 10px;border-radius:10px;cursor:pointer;" title="ONなら部署内DMのみ可 (chat_group_membersで共通グループ必要)。一般社員はデフォルトON">
         <input type="checkbox" id="new-dm-restricted" checked> 🚪 部署内DMのみ
       </label>
       <button class="btn" onclick="addUser()">追加</button>
@@ -112,14 +121,25 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div id="add-msg"></div>
   </div>
 
+  <div class="card" style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border-left:4px solid #dc2626;">
+    <h2 style="color:#b91c1c;">🆕 お知らせ（新機能お知らせ）<span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">トップの新着情報に出る機能紹介。編集して「更新する」で即反映</span></h2>
+    <div style="font-size:11.5px;color:#94a3b8;display:grid;grid-template-columns:52px 1fr 1fr 130px 40px;gap:6px;margin-bottom:4px;"><span style="text-align:center;">絵文字</span><span>タイトル</span><span>説明文</span><span>リンク先</span><span></span></div>
+    <div id="wnf-list" style="display:flex;flex-direction:column;gap:8px;margin:4px 0 10px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" style="background:#64748b;" onclick="wnfAddRow()">＋ 行を追加</button>
+      <button class="btn" style="background:#dc2626;" onclick="wnfSave()">🔄 更新する</button>
+    </div>
+    <div id="wnf-msg" style="margin-top:8px;font-size:13px;font-weight:700;"></div>
+  </div>
+
   <div class="card" id="bulk-enroll" style="background:linear-gradient(135deg,#fef3c7,#fef9c3);border-left:4px solid #f59e0b;">
     <h2 style="color:#78350f;">📥 CSV一括登録 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">事務局専用。大量登録時はこちら</span></h2>
     <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.7;">
       <b>列順 (1行目はヘッダ):</b><br>
-      <code style="background:#fff;padding:4px 8px;border-radius:4px;border:1px solid #fcd34d;display:inline-block;margin:4px 0;">login_id, display_name, nickname, company_code, job_role, dm_group, birth_date</code><br>
+      <code style="background:#fff;padding:4px 8px;border-radius:8px;border:1px solid #fcd34d;display:inline-block;margin:4px 0;">login_id, display_name, nickname, company_code, job_role, dm_group, birth_date</code><br>
       • <b>login_id</b>: 半角小文字英数・<code>_ . -</code>・3〜30文字・全社員で一意。<b>社内標準は「名前の頭文字_苗字」</b>(例: 山田太郎=<code>t_yamada</code>)<br>
       • <b>company_code</b> (会社コード。子会社も下表のコードで指定):<br>
-      <span style="display:inline-block;background:#fff;padding:6px 10px;border-radius:4px;border:1px solid #fcd34d;margin:4px 0;line-height:1.9;">
+      <span style="display:inline-block;background:#fff;padding:6px 10px;border-radius:8px;border:1px solid #fcd34d;margin:4px 0;line-height:1.9;">
         スタンダード運輸 海老名=<code>SU_HQ</code> / 埼玉=<code>SU_SAITAMA</code> / 南関東=<code>SU_MKANTO</code> / 座間=<code>SU_ZAMA</code><br>
         <b>茨運(鹿島)</b>=<code>IBA_KASHIMA</code> / <b>茨運(三和)</b>=<code>IBA_SANWA</code> ・ <b>スズエ電機</b>=<code>SUZUE</code> ・ 管理職=<code>ADMIN</code>
       </span><br>
@@ -128,7 +148,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       • <b>dm_group</b>: 所属DMグループ名。<b>空欄推奨</b>(空欄なら上表の会社名で支店グループに自動所属)。指定する場合は既存グループ名と完全一致させること(例: <code>スタンダード運輸 海老名</code>)。新名で勝手に作ると別グループに分かれます<br>
       • <b>nickname</b>: 2-20文字、大小無視で全社員一意<br>
       • 1行でもエラーがあれば <b>全件中止</b>。修正してから本登録してください。<br>
-      <span style="color:#92400e;">⚠ 初期パスワードは本登録時に1回だけ表示されます (DLボタンで保存)。</span>
+      <span style="color:#92400e;">💡 初期パスワードは全社共通 <code style='background:#fef3c7;padding:1px 6px;border-radius:8px;'>00112233</code> (個別登録と統一)。ログイン後に本人が変更します。</span>
     </div>
     <div class="row" style="align-items:flex-start;">
       <input type="file" id="bulk-csv-file" accept=".csv,text/csv" style="display:none;">
@@ -166,7 +186,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <button class="btn" style="background:#7c3aed;" onclick="addGuest()">🎓 ゲスト追加</button>
     </div>
     <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.6;">
-      💡 自動付与: パスワード=<code style="background:#fef3c7;padding:1px 6px;border-radius:4px;">00112233</code> (デフォルト) / 雇用区分=事務 / ロール=一般 / ☑施策レビュー権限<br>
+      💡 自動付与: パスワード=<code style="background:#fef3c7;padding:1px 6px;border-radius:8px;">00112233</code> (デフォルト) / 雇用区分=事務 / ロール=一般 / ☑施策レビュー権限<br>
       💡 ログイン後、本人が「設定 → パスワード変更」から変更できます
     </div>
     <div id="g-msg"></div>
@@ -182,12 +202,24 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
     <div id="cw-migrate-area" style="margin-top:14px;"></div>
   </div>
 
+  <!-- 設置端末の管理 (2026-08-04) -->
+  <div class="card" style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-left:4px solid #475569;">
+    <h2 style="color:#334155;">📟 設置端末 (共用タブレット) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">名前選択画面を開ける端末の一覧</span></h2>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.7;">
+      共用タブレットは、ログイン前に社員名簿(氏名の一覧)を表示します。<b>事業所のネットワークから1回だけ登録した端末</b>だけがこれを開けます。<br>
+      盗難・廃棄・入れ替えのときは <b>失効</b> してください。失効した端末では名簿が出なくなります (社員のログイン自体には影響しません)。
+    </div>
+    <button class="btn" onclick="loadKioskDevices()">🔄 端末一覧を読込</button>
+    <div id="kiosk-dev-area" style="margin-top:14px;"></div>
+  </div>
+
   <div class="card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border-left:4px solid #10b981;">
     <h2 style="color:#047857;">🏥 健康管理室 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">現場の声・施策ボード・AI集約は専用ページに移動しました</span></h2>
     <div style="font-size:13px;color:#065f46;line-height:1.8;margin-bottom:12px;">
       ドライバーの体調・睡眠・食事に関わる<b>個人情報を含む内容</b>は、管理職と推進メンバーのみが閲覧する専用ページに分離しました。
     </div>
     <a href="/wellness.html" class="btn" style="background:#10b981;text-decoration:none;display:inline-block;">🏥 健康管理室ページを開く</a>
+    <a href="/bp-import.html" class="btn" style="background:#0891b2;text-decoration:none;display:inline-block;margin-left:8px;">🩸 点呼血圧CSV取込</a>
     <span style="margin-left:10px;font-size:11px;color:#64748b;">※ 管理職 (employee_type=admin) または 推進メンバー (is_field_promoter) のみ閲覧可</span>
   </div>
 
@@ -200,7 +232,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <input type="date" id="att-until">
       <button class="btn" onclick="loadAttendance()">検索</button>
     </div>
-    <div style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+    <div style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;">
       <table style="margin:0;">
         <thead style="position:sticky;top:0;"><tr><th style="width:140px;">日時</th><th style="width:160px;">社員</th><th style="width:120px;">フロア</th><th style="width:80px;">イベント</th></tr></thead>
         <tbody id="att-tbody"></tbody>
@@ -209,11 +241,49 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   </div>
 
   <div class="card">
-    <h2>🗨 グループチャット管理 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">LINE代替。作成・編集は管理者のみ</span></h2>
+    <h2>🔐 ログイン・ログアウト履歴 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">誰がいつどこから出入りしたかの監査記録。役員・IT推進のみ閲覧できます</span></h2>
+    <div class="row">
+      <select id="aud-action">
+        <option value="">すべての操作</option>
+        <option value="login">ログイン（ID・パスワード）</option>
+        <option value="tablet_login">ログイン（タブレット・PIN）</option>
+        <option value="logout">ログアウト</option>
+        <option value="login_fail">ログイン失敗</option>
+        <option value="tablet_login_fail">PIN失敗</option>
+        <option value="tablet_login_locked">PINロック</option>
+        <option value="admin_denied">管理画面の拒否</option>
+        <option value="admin_group_view_nonmember">グループ会話の閲覧（非メンバー）</option>
+        <option value="admin_group_view">グループ会話の閲覧（メンバー）</option>
+        <option value="tablet_setup">初回PIN設定</option>
+        <option value="tablet_setup_denied">初回PIN設定の拒否</option>
+      </select>
+      <input type="text" id="aud-name" placeholder="氏名で絞り込み" style="min-width:160px;">
+      <select id="aud-limit">
+        <option value="100">直近100件</option>
+        <option value="300">直近300件</option>
+        <option value="500">直近500件</option>
+      </select>
+      <button class="btn" onclick="loadAudit()">検索</button>
+      <span id="aud-note" style="font-size:11px;color:#64748b;"></span>
+    </div>
+    <div style="max-height:340px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;">
+      <table style="margin:0;">
+        <thead style="position:sticky;top:0;"><tr><th style="width:150px;">日時</th><th style="width:150px;">社員</th><th style="width:150px;">操作</th><th style="width:130px;">接続元IP</th><th>詳細</th></tr></thead>
+        <tbody id="aud-tbody"></tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:#94a3b8;margin-top:6px;">
+      ※記録は2026年6月22日以降。ログアウトは2026年7月21日以降。<br>
+      ※ログイン記録が増えるのは「新しくログインした時」のみです。ログインしたまま使い続けている人は記録が増えないため、利用状況の確認にはユーザー一覧の最終アクセス日時をご覧ください。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🗨 グループチャット管理 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">LINE代替。作成・編集は管理者のみ。「👁️ 閲覧」は参加していないグループの会話も確認できます（既読は付かず、閲覧した記録が下の監査ログに残ります）</span></h2>
     <div class="row">
       <button class="btn" onclick="openNewGroupModal()">+ 新しいグループを作成</button>
     </div>
-    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;margin-top:8px;">
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:8px;">
       <table style="margin:0;">
         <thead style="position:sticky;top:0;"><tr><th>名前</th><th style="width:100px;">メンバー</th><th style="width:140px;">作成日時</th><th>操作</th></tr></thead>
         <tbody id="grp-tbody"></tbody>
@@ -242,7 +312,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <button class="btn btn-ghost" onclick="exportChatCsv()">CSV出力</button>
     </div>
     <div style="font-size:12px;color:#64748b;margin-bottom:6px;" id="chat-meta"></div>
-    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;">
       <table style="margin:0;">
         <thead style="position:sticky;top:0;"><tr><th style="width:140px;">日時</th><th style="width:160px;">送信者</th><th style="width:140px;">部屋</th><th>内容</th><th style="width:60px;">メンション</th></tr></thead>
         <tbody id="chat-tbody"></tbody>
@@ -257,7 +327,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div class="card">
     <h2>ユーザー一覧 <span id="user-count" style="color:#64748b;font-weight:400;font-size:13px;"></span></h2>
     <!-- フィルタ + 一括操作ツールバー -->
-    <div class="row" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;align-items:center;flex-wrap:wrap;gap:8px;">
+    <div class="row" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:8px 10px;align-items:center;flex-wrap:wrap;gap:8px;">
       <input type="text" id="user-search" placeholder="🔎 名前・ログインIDで絞込" oninput="filterUsers()" style="flex:1;min-width:200px;">
       <select id="user-company-filter" onchange="filterUsers()">
         <option value="">所属すべて</option>
@@ -276,13 +346,13 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       <button class="btn" onclick="autoAssignFromCompany()" style="font-size:11px;padding:6px 12px;background:linear-gradient(135deg,#10b981,#059669);" title="dm_group未設定者を会社名で自動振分">🏢 会社で自動振分</button>
       <button class="btn" onclick="syncDmGroupsToChats()" style="font-size:11px;padding:6px 12px;background:linear-gradient(135deg,#0891b2,#06b6d4);" title="dm_group(部門)に基づいてGCを再同期">🔄 部門→GC振分</button>
     </div>
-    <div id="bulk-action-bar" style="display:none;margin-top:8px;background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:#fff;padding:10px 14px;border-radius:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 4px 12px rgba(14,165,233,0.30);">
+    <div id="bulk-action-bar" style="display:none;margin-top:8px;background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:#fff;padding:10px 14px;border-radius:14px;display:none;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 4px 12px rgba(14,165,233,0.30);">
       <span style="font-weight:800;flex:1;">📋 <strong id="bulk-sel-count">0</strong> 名選択中</span>
       <button onclick="bulkChangeGroup()" style="background:rgba(255,255,255,0.20);color:#fff;border:1px solid rgba(255,255,255,0.40);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;">🗨 DMグループ変更</button>
       <button onclick="bulkDelete()" style="background:#dc2626;color:#fff;border:none;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;">🗑 一括削除</button>
       <button onclick="clearBulkSelection()" style="background:rgba(0,0,0,0.20);color:#fff;border:1px solid rgba(0,0,0,0.30);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;">解除</button>
     </div>
-    <div style="margin-top:8px;max-height:520px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;">
+    <div style="margin-top:8px;max-height:520px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:10px;">
       <table style="margin:0;">
         <thead style="position:sticky;top:0;background:#f9fafb;">
           <tr>
@@ -303,25 +373,25 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div style="background:#fff;border-radius:14px;max-width:620px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
     <div style="padding:14px 18px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;display:flex;align-items:center;gap:10px;">
       <div style="font-weight:800;font-size:15px;flex:1;"><span id="grp-modal-title">🗨 グループ作成</span></div>
-      <button onclick="closeGroupModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+      <button onclick="closeGroupModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:12px;cursor:pointer;font-size:18px;">×</button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:18px 22px;">
       <input type="hidden" id="grp-edit-id">
       <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;margin-bottom:14px;">
         <div><label style="font-size:12px;font-weight:600;color:#475569;">グループ名</label>
-          <input type="text" id="grp-edit-name" placeholder="例: 🚛 SU本社 現場" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+          <input type="text" id="grp-edit-name" placeholder="例: 🚛 SU本社 現場" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
         </div>
         <div><label style="font-size:12px;font-weight:600;color:#475569;">アイコン</label>
-          <input type="text" id="grp-edit-icon" maxlength="4" value="💬" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;text-align:center;font-size:18px;">
+          <input type="text" id="grp-edit-icon" maxlength="4" value="💬" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;text-align:center;font-size:18px;">
         </div>
       </div>
       <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
         <label style="font-size:12px;font-weight:700;color:#0f172a;flex:1;">👥 メンバー (<span id="grp-edit-count">0</span>名選択中)</label>
-        <input type="text" id="grp-edit-search" placeholder="🔎 名前で絞込" oninput="filterGroupMembers()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;min-width:180px;">
+        <input type="text" id="grp-edit-search" placeholder="🔎 名前で絞込" oninput="filterGroupMembers()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:10px;font-size:12px;min-width:180px;">
         <button class="btn btn-ghost" onclick="toggleAllMembers(true)" style="font-size:11px;padding:6px 10px;">全員</button>
         <button class="btn btn-ghost" onclick="toggleAllMembers(false)" style="font-size:11px;padding:6px 10px;">解除</button>
       </div>
-      <div id="grp-member-list" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;"></div>
+      <div id="grp-member-list" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;padding:6px;"></div>
       <div id="grp-edit-err" style="color:#dc2626;font-size:12px;margin-top:10px;min-height:14px;"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;background:#f8fafc;">
@@ -336,7 +406,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div style="background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
     <div style="padding:14px 18px;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;display:flex;align-items:center;gap:10px;">
       <div style="font-weight:800;font-size:15px;flex:1;">👁️ <span id="grp-viewer-title">グループ閲覧</span></div>
-      <button onclick="closeGroupViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+      <button onclick="closeGroupViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:12px;cursor:pointer;font-size:18px;">×</button>
     </div>
     <div style="padding:8px 14px;background:#fef3c7;color:#78350f;font-size:11px;border-bottom:1px solid #fde68a;">
       ⚠ 内部統制目的の閲覧。閲覧記録はサーバ側で監査ログ対象です。
@@ -355,15 +425,15 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
     <div style="padding:14px 18px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;display:flex;align-items:center;gap:10px;">
       <div style="font-weight:800;font-size:15px;flex:1;">✏️ メンバー編集: <span id="edit-user-title"></span></div>
-      <button onclick="closeEditModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+      <button onclick="closeEditModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:12px;cursor:pointer;font-size:18px;">×</button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:18px 22px;">
       <input type="hidden" id="edit-user-id">
-      <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">ログインID</label><input type="text" id="edit-login-id" disabled style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#94a3b8;margin-top:4px;"></div>
-      <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">表示名</label><input type="text" id="edit-display-name" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;"></div>
+      <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">ログインID</label><input type="text" id="edit-login-id" disabled style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#94a3b8;margin-top:4px;"></div>
+      <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">表示名</label><input type="text" id="edit-display-name" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div><label style="font-size:12px;font-weight:600;color:#475569;">所属会社</label>
-          <select id="edit-company" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+          <select id="edit-company" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
             <option value="SU_HQ">スタンダード運輸 海老名</option>
             <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
             <option value="SU_MKANTO">スタンダード運輸 南関東</option>
@@ -378,7 +448,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
           </select>
         </div>
         <div><label style="font-size:12px;font-weight:600;color:#475569;">権限</label>
-          <select id="edit-role" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+          <select id="edit-role" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
             <option value="member">一般</option>
             <option value="admin">管理者 (DM階層無視)</option>
           </select>
@@ -386,13 +456,13 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div><label style="font-size:12px;font-weight:600;color:#475569;">権限種別</label>
-          <select id="edit-employee-type" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+          <select id="edit-employee-type" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
             <option value="office">一般</option>
             <option value="admin">管理職</option>
           </select>
         </div>
         <div><label style="font-size:12px;font-weight:600;color:#475569;">職種</label>
-          <select id="edit-job-role" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+          <select id="edit-job-role" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
             <option value="office">事務</option>
             <option value="driver">ドライバー</option>
             <option value="warehouse">倉庫荷役</option>
@@ -405,11 +475,11 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔒 DM権限 (レポートライン)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
           <div><label style="font-size:12px;font-weight:600;color:#475569;">DMグループ</label>
-            <input type="text" id="edit-dm-group" list="dm-group-suggestions" placeholder="空欄=無制限" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <input type="text" id="edit-dm-group" list="dm-group-suggestions" placeholder="空欄=無制限" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
             <datalist id="dm-group-suggestions"></datalist>
           </div>
           <div><label style="font-size:12px;font-weight:600;color:#475569;">階層ランク</label>
-            <select id="edit-dm-rank" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-top:4px;">
+            <select id="edit-dm-rank" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
               <option value="0">0 一般</option>
               <option value="1">1 主任/係長</option>
               <option value="2">2 課長/部長</option>
@@ -421,7 +491,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎂 生年月日 <span style="font-size:10px;font-weight:400;color:#64748b;">健診Box連携・年齢別分析用</span></div>
-        <input type="date" id="edit-birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+        <input type="date" id="edit-birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;">
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🚪 DM制限 (部署内DM限定)</div>
@@ -448,34 +518,44 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
         <div style="font-size:10px;color:#64748b;line-height:1.6;"><b>運行管理者</b>は自拠点のドライバーを点呼時に点検（自拠点なら他職種も代行可）。<b>所長・副所長</b>は自拠点全員（倉庫・ドライバー・事務）を点検できます。いずれも<b>自拠点のメンバーのみ</b>が対象です。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
-        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🗓 管理職 (共有カレンダー・業務週報・運転アラート)</div>
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🗓 管理職 (カレンダー・業務週報・運転アラート)</div>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
           <input type="checkbox" id="edit-manager"> 管理職として扱う (is_manager)
         </label>
-        <div style="font-size:10px;color:#64748b;line-height:1.6;">ONにすると 共有カレンダー(/calendar.html) の閲覧・登録、業務週報、運転アラートを利用できます。役員・各営業所長・システム管理者向け。</div>
+        <div style="font-size:10px;color:#64748b;line-height:1.6;">ONにすると カレンダー(/calendar.html) の全件閲覧・登録、業務週報、運転アラートを利用できます。役員・各営業所長・システム管理者向け。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🎓 ゲストレビュアー (大学/NPO等の外部専門家)</div>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;">
           <input type="checkbox" id="edit-guest-rev"> 施策ボードのレビュー権限を付与 (閲覧+コメント可、起票/編集/承認は不可)
         </label>
-        <input type="text" id="edit-guest-org" placeholder="所属組織 (例: 帝京大学公衆衛生学研究科 / NPO法人ヘルスケアネットワーク)" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+        <input type="text" id="edit-guest-org" placeholder="所属組織 (例: 帝京大学公衆衛生学研究科 / NPO法人ヘルスケアネットワーク)" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;">
         <div style="font-size:10px;color:#64748b;margin-top:4px;">ゲストは社員と区別して表示されます。健康管理室の運営タブから施策にコメント可能。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:10px;">🔑 パスワードリセット (任意)</div>
-        <input type="text" id="edit-new-password" placeholder="空欄ならパスワード変更なし" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+        <input type="text" id="edit-new-password" placeholder="空欄ならパスワード変更なし" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;">
         <div style="font-size:10px;color:#64748b;margin-top:4px;">入力すると保存時に新パスワードに置き換えます (8文字以上)。</div>
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:8px;">🔔 通知購読: <span id="edit-push-status" style="font-weight:700;">…</span></div>
         <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:6px;">📱 タブレットPIN (4桁、/tablet ログイン用)</div>
         <div style="font-size:11px;color:#64748b;margin-bottom:8px;">現在: <span id="edit-tpin-status">…</span></div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <input type="text" id="edit-tpin" inputmode="numeric" maxlength="4" placeholder="数字4桁" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+          <input type="text" id="edit-tpin" inputmode="numeric" maxlength="4" placeholder="数字4桁" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;">
           <button type="button" onclick="adminSetTabletPin()" class="btn" style="padding:8px 12px;font-size:12px;">PIN発行</button>
           <button type="button" onclick="adminClearTabletPin()" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;">削除</button>
         </div>
         <div style="font-size:10px;color:#64748b;margin-top:4px;">発行したPINは口頭/紙で本人に伝えてください (画面には2度と表示されません)。</div>
+      </div>
+      <!-- 端末のログアウト (2026-08-04): 紛失・盗難・退職時にその端末から見えなくする -->
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:6px;">🚪 端末のログアウト</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:8px;line-height:1.6;">
+          スマホの紛失・盗難・退職のときに使います。押すとその人の<b>全端末がログアウト</b>し、CoHubの中身は見えなくなります。<br>
+          パスワードとPINは変わりません。本人はログインし直せば元どおり使えます。
+        </div>
+        <button type="button" onclick="adminForceLogout()" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;color:#b91c1c;border-color:#fecaca;">この人の端末をログアウト</button>
       </div>
       <div id="edit-err" style="color:#dc2626;font-size:12px;margin-top:10px;min-height:14px;"></div>
     </div>
@@ -490,8 +570,8 @@ textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius:
   <div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
     <div style="padding:14px 18px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;display:flex;align-items:center;gap:10px;">
       <div style="font-weight:800;font-size:15px;flex:1;">📝 AI議事録</div>
-      <button onclick="copyTranscript()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;">📋 コピー</button>
-      <button onclick="closeTranscript()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;">×</button>
+      <button onclick="copyTranscript()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:10px;cursor:pointer;font-size:12px;">📋 コピー</button>
+      <button onclick="closeTranscript()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:12px;cursor:pointer;font-size:18px;">×</button>
     </div>
     <div id="transcript-body" style="flex:1;overflow-y:auto;padding:20px 24px;font-size:13px;line-height:1.7;color:#334155;white-space:pre-wrap;font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;"></div>
   </div>
@@ -575,8 +655,10 @@ function showPanel(user) {
   loadChatLog(0);
   loadRecordings();
   loadAttendance();
+  loadAudit();
   loadGroups();
   loadReportSummary();
+  wnfLoad();
   // 出退勤打刻は完全削除 (2026-05-25)
 }
 
@@ -601,17 +683,62 @@ async function loadReportSummary() {
     }
     let html = '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px;">';
     html += '<div style="font-size:24px;font-weight:800;color:#047857;">過去30日 ' + d.total + '件</div>';
-    if (urgent) html += '<div style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:8px;font-weight:800;font-size:12px;">🚨 即対応 ' + urgent + '件</div>';
-    if (failed) html += '<div style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-weight:700;font-size:12px;">⚠ 送信失敗 ' + failed + '件</div>';
+    if (urgent) html += '<div style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:12px;font-weight:800;font-size:12px;">🚨 即対応 ' + urgent + '件</div>';
+    if (failed) html += '<div style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:12px;font-weight:700;font-size:12px;">⚠ 送信失敗 ' + failed + '件</div>';
     html += '</div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
     for (const k of Object.keys(labels)) {
       const c = byCat[k] || 0;
-      html += '<div style="background:#fff;border:1px solid #d1fae5;padding:6px 10px;border-radius:8px;font-size:11px;color:' + (c ? '#065f46' : '#94a3b8') + ';"><b>' + labels[k] + '</b>: ' + c + '</div>';
+      html += '<div style="background:#fff;border:1px solid #d1fae5;padding:6px 10px;border-radius:12px;font-size:11px;color:' + (c ? '#065f46' : '#94a3b8') + ';"><b>' + labels[k] + '</b>: ' + c + '</div>';
     }
     html += '</div>';
-    if (d.total >= 10) html += '<div style="margin-top:10px;background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;font-size:11px;">⚠ 30日で10件以上の相談あり。組織課題の兆候の可能性 (具体内容は外部窓口で対応中)</div>';
+    if (d.total >= 10) html += '<div style="margin-top:10px;background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:12px;font-size:11px;">⚠ 30日で10件以上の相談あり。組織課題の兆候の可能性 (具体内容は外部窓口で対応中)</div>';
     el.innerHTML = html;
   } catch (e) { el.textContent = '通信エラー: ' + e.message; }
+}
+
+// ===== What's new「新機能お知らせ」編集 (2026-07-03) =====
+function wnfEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function wnfRow(item) {
+  item = item || { icon: '🆕', title: '', summary: '', link: '/' };
+  const inp = 'padding:8px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;min-width:0;font-family:inherit;';
+  const d = document.createElement('div');
+  d.className = 'wnf-row';
+  d.style.cssText = 'display:grid;grid-template-columns:52px 1fr 1fr 130px 40px;gap:6px;align-items:center;';
+  d.innerHTML =
+    '<input class="wnf-icon" value="' + wnfEsc(item.icon) + '" placeholder="🆕" style="' + inp + 'text-align:center;">' +
+    '<input class="wnf-title" value="' + wnfEsc(item.title) + '" placeholder="タイトル" style="' + inp + '">' +
+    '<input class="wnf-summary" value="' + wnfEsc(item.summary) + '" placeholder="説明文" style="' + inp + '">' +
+    '<input class="wnf-link" value="' + wnfEsc(item.link) + '" placeholder="/xxx.html" style="' + inp + '">' +
+    '<button type="button" onclick="this.parentElement.remove()" style="background:#fee2e2;color:#b91c1c;border:none;border-radius:8px;padding:8px;cursor:pointer;font-weight:800;">✕</button>';
+  return d;
+}
+async function wnfLoad() {
+  const list = document.getElementById('wnf-list'); if (!list) return;
+  try {
+    const r = await fetch('/api/whats-new/features', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    list.innerHTML = '';
+    ((d && d.items) || []).forEach(function (it) { list.appendChild(wnfRow(it)); });
+    if (!list.children.length) list.appendChild(wnfRow());
+  } catch (e) {}
+}
+function wnfAddRow() { const list = document.getElementById('wnf-list'); if (list) list.appendChild(wnfRow()); }
+async function wnfSave() {
+  const rows = Array.prototype.map.call(document.querySelectorAll('#wnf-list .wnf-row'), function (r) {
+    return {
+      icon: r.querySelector('.wnf-icon').value.trim() || '🆕',
+      title: r.querySelector('.wnf-title').value.trim(),
+      summary: r.querySelector('.wnf-summary').value.trim(),
+      link: r.querySelector('.wnf-link').value.trim() || '/',
+    };
+  }).filter(function (x) { return x.title; });
+  const msg = document.getElementById('wnf-msg');
+  try {
+    const r = await fetch('/api/whats-new/features', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ items: rows }) });
+    const d = await r.json();
+    if (d && d.success) { msg.style.color = '#15803d'; msg.textContent = '✅ 更新しました（' + d.count + '件）。トップの新着情報に反映されます'; }
+    else { msg.style.color = '#b91c1c'; msg.textContent = '⚠️ 更新できませんでした: ' + ((d && d.msg) || ''); }
+  } catch (e) { msg.style.color = '#b91c1c'; msg.textContent = '⚠️ 通信エラー'; }
 }
 
 async function loadGroups() {
@@ -701,14 +828,14 @@ function renderGroupMemberList() {
   let html = '';
   const groupKeys = Object.keys(byGroup).sort();
   for (const k of groupKeys) {
-    html += `<div style="padding:4px 8px;background:#f1f5f9;font-size:11px;font-weight:700;color:#475569;margin-top:4px;border-radius:4px;">${escapeHtml(k)} (${byGroup[k].length}名)</div>`;
+    html += `<div style="padding:4px 8px;background:#f1f5f9;font-size:11px;font-weight:700;color:#475569;margin-top:4px;border-radius:8px;">${escapeHtml(k)} (${byGroup[k].length}名)</div>`;
     for (const u of byGroup[k]) {
       const checked = _grpEditSelected.has(u.id) ? 'checked' : '';
       const cur = _grpEditCurrentIds.has(u.id);
       const avatar = u.avatar_url
         ? `<img src="${escapeHtml(u.avatar_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`
         : `<div style="width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#475569;">${escapeHtml((u.display_name || '?').slice(0,2))}</div>`;
-      html += `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
         <input type="checkbox" ${checked} onchange="toggleMember('${u.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;">
         ${avatar}
         <div style="flex:1;min-width:0;">
@@ -913,6 +1040,49 @@ async function loadTimecardDiscrepancies() {
     document.getElementById('tc-meta').textContent = '直近7日 ⚠15分以上ラグ: ' + d.rows.length + '件';
   } catch (e) {
     tb.innerHTML = '<tr><td colspan="6" style="color:#dc2626;">通信エラー</td></tr>';
+  }
+}
+
+// ===== ログイン・ログアウト履歴 (監査ログ) 2026-07-21 =====
+// 取得APIは authAdmin (役員5名+立石) 限定。他の社員は403で一切取得できない。
+const AUDIT_LABEL = {
+  login: '🟢 ログイン', tablet_login: '🟢 ログイン(PIN)', logout: '🔴 ログアウト',
+  login_fail: '⚠ ログイン失敗', tablet_login_fail: '⚠ PIN失敗', tablet_login_locked: '⛔ PINロック',
+  admin_denied: '⛔ 管理画面を拒否', tablet_setup: '🆕 初回PIN設定', tablet_setup_denied: '⛔ 初回PIN設定を拒否',
+  announce_create: '📢 通達を作成', announce_delete: '🗑 通達を削除',
+  admin_group_view: '👁 グループ会話を閲覧', admin_group_view_nonmember: '👁 グループ会話を閲覧(非メンバー)',
+};
+async function loadAudit() {
+  const tb = document.getElementById('aud-tbody');
+  const note = document.getElementById('aud-note');
+  const action = document.getElementById('aud-action').value;
+  const limit = document.getElementById('aud-limit').value || 100;
+  const name = (document.getElementById('aud-name').value || '').trim();
+  const params = new URLSearchParams({ limit: limit });
+  if (action) params.set('action', action);
+  tb.innerHTML = '<tr><td colspan="5" style="color:#64748b;">読み込み中…</td></tr>';
+  try {
+    const r = await fetch('/api/admin/audit?' + params.toString(), { headers:{'Authorization':'Bearer '+token} });
+    const d = await r.json();
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="5" style="color:#dc2626;">取得できませんでした</td></tr>'; return; }
+    let rows = d.entries || [];
+    if (name) rows = rows.filter(e => (e.actor_name || '').indexOf(name) !== -1);
+    note.textContent = rows.length + '件';
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" style="color:#64748b;">該当する記録はありません</td></tr>'; return; }
+    tb.innerHTML = '';
+    for (const e of rows) {
+      const label = AUDIT_LABEL[e.action] || e.action;
+      const warn = /fail|locked|denied/.test(e.action);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="font-size:11px;color:#64748b;white-space:nowrap;">${escapeHtml(e.jst || '')}</td>
+                      <td style="font-size:12px;">${escapeHtml(e.actor_name || '（不明）')}</td>
+                      <td style="font-size:11px;${warn ? 'color:#b91c1c;font-weight:700;' : ''}">${escapeHtml(label)}</td>
+                      <td style="font-size:11px;color:#475569;word-break:break-all;">${escapeHtml(e.ip || '')}</td>
+                      <td style="font-size:11px;color:#64748b;word-break:break-all;">${escapeHtml(e.target || '')}</td>`;
+      tb.appendChild(tr);
+    }
+  } catch (err) {
+    tb.innerHTML = '<tr><td colspan="5">通信エラー</td></tr>';
   }
 }
 
@@ -1496,7 +1666,7 @@ function renderBulkResult(d, dryRun) {
       // 初期パスワードは本登録(ok)時のみ。画面で直接読める/コピーできるよう等幅・選択可で表示
       // (CSVをExcelで開かなくても確認できるようにする 2026-05-25)
       const pwCell = (r.status === 'ok' && r.initial_password)
-        ? '<span style="font-family:\'Consolas\',monospace;font-weight:800;font-size:14px;letter-spacing:1px;color:#0f172a;background:#fef3c7;padding:2px 8px;border-radius:4px;user-select:all;">' + escapeHtml(r.initial_password) + '</span>'
+        ? '<span style="font-family:\'Consolas\',monospace;font-weight:800;font-size:14px;letter-spacing: 0.3px;color:#0f172a;background:#fef3c7;padding:2px 8px;border-radius:8px;user-select:all;">' + escapeHtml(r.initial_password) + '</span>'
         : '<span style="color:#cbd5e1;">—</span>';
       html += '<tr><td style="padding:4px;border:1px solid #cbd5e1;text-align:center;">' + r.line + '</td><td style="padding:4px;border:1px solid #cbd5e1;font-family:monospace;">' + (r.login_id || '') + '</td><td style="padding:4px;border:1px solid #cbd5e1;color:' + color + ';font-weight:700;">' + r.status + '</td><td style="padding:4px;border:1px solid #cbd5e1;text-align:center;">' + pwCell + '</td><td style="padding:4px;border:1px solid #cbd5e1;">' + detail + '</td></tr>';
     }
@@ -1599,6 +1769,8 @@ function openEditModal(id) {
   document.getElementById('edit-new-password').value = '';
   document.getElementById('edit-tpin').value = '';
   document.getElementById('edit-tpin-status').textContent = (u.has_tablet_pin || u.tablet_pin_set) ? '設定済み' : '未設定';
+  var pushEl = document.getElementById('edit-push-status');
+  if (pushEl) { pushEl.textContent = u.has_push ? '✅ 購読済み' : '🔕 未購読（スマホで通知許可を案内）'; pushEl.style.color = u.has_push ? '#15803d' : '#b45309'; }
   document.getElementById('edit-err').textContent = '';
   // DMグループのdatalistを既存メンバーから収集
   const groups = Array.from(new Set((cachedUsers || []).map(x => x.dm_group).filter(Boolean))).sort();
@@ -1627,6 +1799,53 @@ async function adminSetTabletPin() {
   } else {
     alert('❌ ' + (r && r.msg || '失敗'));
   }
+}
+// ===== 設置端末 (共用タブレット) の一覧・失効 =====
+async function loadKioskDevices() {
+  const area = document.getElementById('kiosk-dev-area');
+  area.innerHTML = '<div style="color:#94a3b8;font-size:12px;">読み込み中…</div>';
+  const r = await fetch('/api/admin/kiosk-devices', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(x => x.json()).catch(() => null);
+  if (!r || !r.success) { area.innerHTML = '<div style="color:#dc2626;font-size:12px;">読み込みに失敗しました</div>'; return; }
+  if (!r.devices.length) {
+    area.innerHTML = '<div style="font-size:12px;color:#64748b;">まだ登録された端末はありません。各拠点のタブレットで /tablet を開くと、事業所ネットワークからの初回アクセス時に自動登録されます。</div>';
+    return;
+  }
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const dt = s => s ? String(s).slice(0, 16) : '-';
+  area.innerHTML = '<table style="font-size:12px;width:100%;"><thead><tr>'
+    + '<th>拠点</th><th>登録</th><th>最終利用</th><th>最終IP</th><th>状態</th><th style="width:90px;"></th>'
+    + '</tr></thead><tbody>' + r.devices.map(d => {
+      const dead = !!d.revoked_at;
+      return '<tr style="' + (dead ? 'opacity:.55;' : '') + '">'
+        + '<td>' + esc(d.company_name || d.company_code || '(未設定)') + '</td>'
+        + '<td>' + dt(d.created_at) + '</td>'
+        + '<td>' + dt(d.last_seen_at) + '</td>'
+        + '<td style="font-size:11px;color:#64748b;">' + esc(d.last_seen_ip || d.created_ip || '-') + '</td>'
+        + '<td>' + (dead ? '<span style="color:#b91c1c;font-weight:700;">失効</span>' : '<span style="color:#059669;font-weight:700;">有効</span>') + '</td>'
+        + '<td><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="revokeKioskDevice(\'' + d.id + '\',' + (dead ? 'true' : 'false') + ')">'
+        + (dead ? '戻す' : '失効') + '</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+async function revokeKioskDevice(id, undo) {
+  if (!undo && !confirm('この端末を失効します。\nその端末では名前選択画面の名簿が出なくなります。よろしいですか？')) return;
+  const r = await fetch('/api/admin/kiosk-devices/' + id + '/revoke', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ undo: !!undo }),
+  }).then(x => x.json()).catch(() => null);
+  if (r && r.success) loadKioskDevices(); else alert('❌ ' + ((r && r.msg) || '失敗'));
+}
+
+async function adminForceLogout() {
+  const id = document.getElementById('edit-user-id').value;
+  const nm = (document.getElementById('edit-display-name') || {}).value || 'この人';
+  if (!confirm(nm + ' の端末をすべてログアウトします。\n(PC・スマホ・共有タブレット)\n\nパスワードとPINは変わりません。よろしいですか？')) return;
+  const r = await fetch('/api/admin/users/' + id + '/logout-devices', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ scope: 'all' }),
+  }).then(x => x.json()).catch(() => null);
+  alert(r && r.success ? '🚪 ' + r.msg : '❌ ' + ((r && r.msg) || '失敗'));
 }
 async function adminClearTabletPin() {
   const id = document.getElementById('edit-user-id').value;
@@ -1769,7 +1988,7 @@ async function addGuest() {
   if (!d.success) { msg.className = 'err'; msg.textContent = d.msg || '失敗'; return; }
   msg.className = 'ok';
   msg.innerHTML = '✅ <b>' + escapeHtml(display_name) + '</b> (' + escapeHtml(login_id) + ') を登録しました<br>'
-    + '<span style="font-family:monospace;background:#fef3c7;padding:3px 8px;border-radius:4px;">パスワード: ' + escapeHtml(password) + '</span>'
+    + '<span style="font-family:monospace;background:#fef3c7;padding:3px 8px;border-radius:8px;">パスワード: ' + escapeHtml(password) + '</span>'
     + '<br><span style="font-size:11px;">→ 本人にログインIDとパスワードをお知らせください</span>';
   document.getElementById('g-login').value = '';
   document.getElementById('g-name').value = '';
@@ -1794,7 +2013,7 @@ async function loadUnmappedCw() {
   const r = await fetch('/api/cw-archive/unmapped-users', { headers: { 'Authorization': 'Bearer ' + token } });
   const d = await r.json();
   if (!d.success) { area.innerHTML = '<div style="color:#dc2626;">取得失敗</div>'; return; }
-  if (!d.users.length) { area.innerHTML = '<div style="color:#10b981;font-weight:700;padding:14px;text-align:center;background:#ecfdf5;border-radius:8px;">🎉 すべてマップ済です</div>'; return; }
+  if (!d.users.length) { area.innerHTML = '<div style="color:#10b981;font-weight:700;padding:14px;text-align:center;background:#ecfdf5;border-radius:12px;">🎉 すべてマップ済です</div>'; return; }
   // CoWell既存ユーザー (link 用)
   const cohubUsers = (cachedUsers || []).slice().sort((a,b) => (a.display_name || '').localeCompare(b.display_name || ''));
   const cohubOpts = '<option value="">- CoWellユーザー選択 -</option>' + cohubUsers.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.display_name)} (${escapeHtml(u.login_id)})</option>`).join('');
@@ -1814,19 +2033,19 @@ async function loadUnmappedCw() {
       <td style="font-size:11px;color:#475569;">投稿${u.post_count}<br>会話${u.msg_count}<br>血圧${u.bp_count}</td>
       <td>
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <input type="text" value="${escapeHtml(suggestLoginId(u))}" id="mig-login-${i}" placeholder="ログインID" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
-          <input type="text" value="${escapeHtml(u.real_name || u.nickname || '')}" id="mig-name-${i}" placeholder="表示名" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+          <input type="text" value="${escapeHtml(suggestLoginId(u))}" id="mig-login-${i}" placeholder="ログインID" style="padding:5px;border:1px solid #cbd5e1;border-radius:9px;font-size:11px;">
+          <input type="text" value="${escapeHtml(u.real_name || u.nickname || '')}" id="mig-name-${i}" placeholder="表示名" style="padding:5px;border:1px solid #cbd5e1;border-radius:9px;font-size:11px;">
           <div style="display:flex;gap:3px;">
-            <input type="text" value="00112233" id="mig-pw-${i}" placeholder="パスワード" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;font-family:monospace;">
+            <input type="text" value="00112233" id="mig-pw-${i}" placeholder="パスワード" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:9px;font-size:11px;font-family:monospace;">
             <button class="btn btn-ghost" style="padding:3px 6px;font-size:10px;" onclick="document.getElementById('mig-pw-${i}').value='00112233'" title="既定に戻す">↺</button>
           </div>
           <div style="display:flex;gap:3px;">
-            <select id="mig-co-${i}" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+            <select id="mig-co-${i}" style="flex:1;padding:5px;border:1px solid #cbd5e1;border-radius:9px;font-size:11px;">
               <option value="SU_HQ">スタンダード運輸 海老名</option><option value="SU_SAITAMA">スタンダード運輸 埼玉</option><option value="SU_MKANTO">スタンダード運輸 南関東</option>
               <option value="SU_ZAMA">スタンダード運輸 座間</option><option value="IBA_KASHIMA">茨運(鹿島)</option><option value="IBA_SANWA">茨運(三和)</option>
               <option value="SUZUE">スズエ電機</option><option value="ADMIN">管理職</option>
             </select>
-            <select id="mig-type-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;">
+            <select id="mig-type-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:9px;font-size:11px;">
               <option value="office">事務</option><option value="field">現場</option><option value="admin">管理職</option>
             </select>
           </div>
@@ -1835,7 +2054,7 @@ async function loadUnmappedCw() {
       </td>
       <td>
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <select id="mig-link-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;max-width:180px;">${cohubOpts}</select>
+          <select id="mig-link-${i}" style="padding:5px;border:1px solid #cbd5e1;border-radius:9px;font-size:11px;max-width:180px;">${cohubOpts}</select>
           <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px;" onclick="linkExisting('${escapeHtml(u.cw_id)}', ${i})">🔗 既存に紐付け</button>
         </div>
       </td>
@@ -1973,6 +2192,7 @@ async function exportChatCsv() {
   } catch(e) {}
 })();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

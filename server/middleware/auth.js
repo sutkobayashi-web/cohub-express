@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../services/db');
+const { trustedClientIp, ipAllowed } = require('../services/net');
 
 const JWT_SECRET = () => {
   if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
@@ -114,6 +115,17 @@ function hasValidSession(req) {
   return false;
 }
 
+// 事業所ネットワークからのアクセスか (.env TABLET_SETUP_ALLOW_IPS・前方一致)。
+// ⚠️ログイン前に社員名簿を出す画面(共用タブレットの名前選択)を社外から叩かせないための判定。
+//   routes/auth.js の isSetupAllowedIp と同じ土俵。どちらかを直したらもう一方も直すこと。
+//   未設定なら true (締め出し事故の防止) — 設定漏れは "守れていない" ので運用で確認する。
+function officeIp(req) {
+  const list = String(process.env.TABLET_SETUP_ALLOW_IPS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  if (!list.length) return true;
+  return ipAllowed(trustedClientIp(req), list);   // ⚠️X-Forwarded-Forは信じない(services/net.js参照)
+}
+
 // Cookie(またはBearer)から「誰か」を引く。静的ファイルの配信ゲート用
 // (hasValidSession は可否だけなので、本人を見て出し分けたい時はこちら)。
 // ⚠️共用タブレットは kiosk_session_token を使うのでここも見る。
@@ -134,4 +146,4 @@ function sessionUserId(req) {
   return null;
 }
 
-module.exports = { generateToken, verifyToken, authUser, authAdmin, setSessionCookie, hasValidSession, sessionUserId };
+module.exports = { generateToken, verifyToken, authUser, authAdmin, setSessionCookie, hasValidSession, sessionUserId, officeIp };

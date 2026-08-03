@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>📱 CoWell タブレットログイン</title>
 <!-- タブレット専用manifest: ホーム画面に追加すると start_url=/tablet で起動(ID/PWログインを回避) -->
-<link rel="manifest" href="/tablet-manifest.json?v=1">
+<link rel="manifest" href="/tablet-manifest.json?v=2">
 <meta name="theme-color" content="#0369a1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CoWellタブレット">
-<link rel="apple-touch-icon" href="/img/icon-192.png">
+<link rel="apple-touch-icon" href="/img/cowell-icon-192-v6.png">
 <style>
 :root {
   --bg: #dbf1ec; --fg: #0f172a; --mute: #64748b;
@@ -50,8 +50,12 @@ html, body { margin: 0; padding: 0; background: linear-gradient(180deg, #bceae3 
 .cell .nopin { position: absolute; top: 8px; right: 8px; background: #fef3c7; color: #92400e; font-size: 10px; padding: 2px 6px; border-radius: 8px; font-weight: 700; }
 .empty { padding: 60px 20px; text-align: center; color: var(--mute); }
 /* 上部の日付・時計 (ヘッダー内・白文字) 2026-07-11 */
+/* 2026-08-01 (社長): 日付の左にCoWellのロゴ(PC版ヘッダーと同じ icon-192) */
+.hd-brand { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+.hd-brand img { height: 46px; width: auto; display: block; }   /* 公式ロゴ(マーク＋COWELL)の白版 2026-08-01 */
+
 .tclock { flex: 0 0 auto; color: #fff; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
-.tclock .tc-date { font-size: 17px; font-weight: 800; opacity: .95; }
+.tclock .tc-date { font-size: 40px; font-weight: 900; opacity: .95; font-variant-numeric: tabular-nums; letter-spacing: .5px; }   /* 時刻と同じ大きさに (2026-08-01) */
 .tclock .tc-time { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
 /* 天気予報(設置拠点・時計の横に横並び) */
 .twx { flex: 0 0 auto; color: #fff; display: flex; align-items: center; gap: 9px; }
@@ -127,6 +131,30 @@ body.personal .cell .nm { font-size: 22px; }
 body.personal .cell .co { font-size: 13px; margin-top: 2px; }
 body.personal .cell .go { flex: 0 0 auto; color: var(--accent); font-size: 26px; font-weight: 900; }
 body.personal .cell .nopin { position: static; margin-left: auto; }
+/* ⭐2026-08-02: この端末が覚えている本人と違う人が使う時の逃げ道。
+   QRから来ると覚えている本人のPINをいきなり聞くため、名簿へ戻る道を必ず出す。 */
+.other-btn { display:block; margin: 8px auto 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px;
+  font-family:inherit; font-weight:800; font-size:13px; color:#475569; padding:8px 16px; cursor:pointer; }
+/* 2026-08-01 (社長): QRから来た人は『自分のアバターを見つけるだけ』にする。
+   時計・天気・言語切替・紹介動画など、ログインに要らないものは個人スマホでは隠し、
+   名前検索とアバターを大きくして探しやすくする。 */
+body.personal .tclock,
+body.personal .twx,
+body.personal .lang-sw,
+body.personal .intro-btn { display: none !important; }
+body.personal .hd { padding: 12px 14px; }
+body.personal .hd .ttl { font-size: 20px; }
+body.personal .hd .sub { font-size: 15px; font-weight: 700; }
+body.personal .cell { padding: 16px 16px; margin-bottom: 12px; background: #fff; border: 2px solid #e2e8f0; box-shadow: 0 2px 8px rgba(15,23,42,.06); }
+body.personal .cell:active { background: #f0f9ff; border-color: #38bdf8; }
+body.personal .cell .av { width: 78px; height: 78px; font-size: 34px; }
+body.personal .cell .nm { font-size: 25px; font-weight: 900; }
+body.personal .cell .co { font-size: 13px; color: #64748b; }
+body.personal .cell .checkin, body.personal .cell .unb { display: none !important; }   /* 出勤済✓・未読バッジはログイン前には不要 */
+body.personal .psearch { position: sticky; top: 0; z-index: 7; background: #f8fafc; padding: 10px 12px 8px; }
+body.personal .psearch input { width: 100%; box-sizing: border-box; font-size: 20px; font-weight: 700; padding: 14px 16px; border: 2px solid #94a3b8; border-radius: 14px; outline: none; }
+body.personal .psearch input:focus { border-color: #0284c7; }
+body.personal .psearch .pshint { font-size: 13px; font-weight: 700; color: #475569; padding: 6px 2px 0; }
 /* ページャ */
 .pager { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 6px 10px 16px; }
 .pager button { min-width: 72px; padding: 12px 18px; font-size: 20px; font-weight: 800; border: none; border-radius: 12px; background: var(--accent); color: #fff; cursor: pointer; }
@@ -176,10 +204,11 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
 </head>
 <body>
 <div class="hd">
-  <div style="flex:1;min-width:0;">
-    <div class="ttl">📱 CoWell タブレットログイン</div>
-    <div class="sub">自分のアバターをタップしてPINを入力してください</div>
-  </div>
+  <!-- 2026-08-01 (社長): 見出しと説明文は削除。名簿と時計に集中させる。
+       ⚠️個人スマホ(?personal=1)では .hd .sub を書き換えていた処理があるため、
+       参照が無くても落ちないよう JS 側は null チェック済み。 -->
+  <div class="hd-brand"><img src="/assets/brand/cowell-logo-white-v3.png" alt="CoWell"></div>
+  <div style="flex:1;min-width:0;"></div>
   <div id="tabletClock" class="tclock"></div>
   <div id="tabletWx" class="twx"></div>
   <div class="lang-sw" id="langSw" data-no-translate>
@@ -207,6 +236,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div class="who">
       <div class="av" id="m-av">👤</div>
       <div class="nm" id="m-nm">…</div>
+      <button type="button" class="other-btn" onclick="pickOtherPerson()">別の人が つかう</button>
     </div>
     <h3>4桁PINを入力</h3>
     <div class="pin-dots" id="m-dots">
@@ -293,6 +323,66 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
 </div>
 
 <script>
+
+/* ===== ⭐2026-08-02 (社長): タップしたら音で手応えを返す =====
+   入力に慣れない社員に「押せた」ことを伝えるのが目的。
+   ⚠️音声ファイルは使わない(読み込み待ち・CDNキャッシュ・自動再生規制を避ける)。
+     WebAudioで約90msの短い音をその場で作る。葵/なぎさの読み上げとは別系統なので声を邪魔しない。
+   ⚠️音量は控えめ(0.18)。共有端末なので鳴り続けても耳障りにならない範囲にすること。
+   止めたいときは localStorage の cohub_tap_sound を '0' にする。 */
+var _TAP_WAV='data:audio/wav;base64,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';
+var _GO_WAV='data:audio/wav;base64,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';
+var _tapEl=null, _goEl=null, _tapCtx=null;
+function tapSoundOn(){ try{ return localStorage.getItem('cohub_tap_sound')!=='0'; }catch(e){ return true; } }
+// ⚠️2026-08-02: WebAudioだけでは端末によって鳴らなかった。読み上げと同じ<audio>方式を主にする。
+//   ⚠️最初のタップの中で1回鳴らして「枠」を押さえること([[autoplay_audio_prime]]と同じ理屈)。
+function _tapPrime(){
+  try{
+    if(!_tapEl){ _tapEl=new Audio(_TAP_WAV); _tapEl.preload='auto'; _tapEl.volume=0.85; }
+    if(!_goEl){  _goEl =new Audio(_GO_WAV);  _goEl.preload='auto';  _goEl.volume=0.85; }
+    [_tapEl,_goEl].forEach(function(el){ el.muted=true; var p=el.play(); if(p&&p.then)p.then(function(){ try{el.pause();el.currentTime=0;el.muted=false;}catch(e){} }).catch(function(){ el.muted=false; }); });
+    if(!_tapCtx){ var AC=window.AudioContext||window.webkitAudioContext; if(AC){ _tapCtx=new AC(); } }
+    if(_tapCtx && _tapCtx.state!=='running' && _tapCtx.resume){ _tapCtx.resume().catch(function(){}); }
+  }catch(e){}
+}
+function tapSound(kind){
+  if(!tapSoundOn()) return;
+  var el=(kind==='go')?_goEl:_tapEl;
+  try{
+    if(!el){ _tapPrime(); el=(kind==='go')?_goEl:_tapEl; }
+    if(el){ el.muted=false; el.currentTime=0; var p=el.play(); if(p&&p.catch)p.catch(function(){ _tapBeep(kind); }); }
+    else { _tapBeep(kind); }
+  }catch(e){ _tapBeep(kind); }
+  try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}   // 音を切っていても手応えは残す
+}
+// 予備: <audio>が鳴らせない時だけWebAudioで作る
+function _tapBeep(kind){
+  try{
+    if(!_tapCtx){ var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; _tapCtx=new AC(); }
+    var ctx=_tapCtx, go=function(){
+      var t=ctx.currentTime+0.005, o=ctx.createOscillator(), g=ctx.createGain();
+      var f=(kind==='go')?900:660;
+      o.type='triangle'; o.frequency.setValueAtTime(f,t);
+      o.frequency.exponentialRampToValueAtTime(f*0.75, t+0.08);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3, t+0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+0.13);
+    };
+    if(ctx.state==='running') go(); else if(ctx.resume) ctx.resume().then(go).catch(function(){});
+  }catch(e){}
+}
+['pointerdown','touchstart','mousedown'].forEach(function(ev){
+  document.addEventListener(ev, function(){ _tapPrime(); }, {passive:true, capture:true, once:true});
+});
+// 個々のonclickには手を入れず、押された要素をまとめて拾う(取りこぼし・二重付けが起きない)
+document.addEventListener('pointerdown', function(ev){
+  var t=ev.target; if(!t || !t.closest) return;
+  var el=t.closest('button, a, .tile, .pgtab, .key, .listitem, [onclick]');
+  if(!el || el.disabled) return;
+  var c=el.classList;
+  tapSound((c && (c.contains('btn-go')||c.contains('pnav')))?'go':'tap');
+}, {passive:true, capture:true});
+
 // 紹介ムービー オーバーレイ開閉 (app-intro は手動「▶再生」式。iframe内のタップで音声再生されます)
 function openIntro() {
   var f = document.getElementById('intro-frame');
@@ -315,7 +405,17 @@ let greeting = false;   // ログイン後あいさつ再生中(この間は入�
 //  共用タブレット(キオスク)と同じ名簿+PINログインを使うが、この端末は「キオスク」印(cohub_kiosk)を付けない
 //  → tablet-home が個人モードで動く(無操作オートログアウトしない/詳しい表示に切替可)。届けたい現場一般社員が
 //     ID/パスワードでなく PIN だけで自分のスマホから入れるようにする狙い。
+var PQ = '';   // 個人スマホの名前検索キーワード
 const PERSONAL = (function(){ try { return new URLSearchParams(location.search).get('personal') === '1'; } catch(e) { return false; } })();
+// ⭐2026-08-02 (社長): 事故報告のQR導線。読込→自分を選ぶ→PIN→『報告書作成ページ』へ直行させる。
+//   ⚠️外部サイトへ飛ばされないよう、同一サイト内のパス(/で始まる)しか受け付けない。
+const NEXT = (function(){
+  try {
+    var n = new URLSearchParams(location.search).get('next') || '';
+    return (/^\/[^\s]*$/.test(n) && n.indexOf('//') !== 0) ? n : '';
+  } catch (e) { return ''; }
+})();
+function goAfterLogin(){ location.replace(NEXT || '/tablet-home.html'); }
 
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
@@ -333,6 +433,9 @@ function applyLoginMode(token, uid){
     } else {
       localStorage.setItem('cohub_kiosk', '1');
       localStorage.setItem('cohub_kiosk_token', token);
+      // 共用タブレットとして使われた端末は、この時点で設置端末として登録しておく。
+      // 以後は拠点のグローバルIPが変わっても名前選択画面を開ける (2026-08-04)。
+      try { var _co = (document.getElementById('f-co') || {}).value || ''; ensureDeviceToken(_co); } catch (e) {}
     }
   } catch (e) {}
 }
@@ -454,7 +557,7 @@ async function init() {
     if (_tk) {
       try {
         var _me = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + _tk } }).then(function (x) { return x.json(); }).catch(function () { return null; });
-        if (_me && _me.success) { location.replace('/tablet-home.html'); return; }   // 有効ログイン→直行(名前選択スキップ)
+        if (_me && _me.success) { goAfterLogin(); return; }   // 有効ログイン→直行(名前選択もPINも省く)
       } catch (e) {}
     }
   }
@@ -482,7 +585,8 @@ async function init() {
   setInterval(loadWeather, 30 * 60 * 1000);   // 30分ごと更新
   // URL ?co= が指定されていれば、その拠点に固定（営業所専用URL）。指定が最優先。
   if (urlCo) {
-    try { localStorage.setItem('cohub_tablet_co', urlCo); localStorage.setItem('cohub_tablet_co_lock', '1'); } catch (e) {}
+    // ?co= は初期選択のみ。端末を拠点に固定しない (2026-08-01)
+    try { var _s=document.getElementById('f-co'); if(_s) _s.value=urlCo; } catch (e) {}
   } else {
     // 前回選択した拠点を復元
     try {
@@ -516,7 +620,18 @@ async function init() {
   if (PERSONAL) {
     // 「📱スマホ」QRは自分のスマホ上では無意味なので隠す。
     var _qm = document.querySelector('.qr-mini'); if (_qm) _qm.style.display = 'none';
-    var _sub = document.querySelector('.hd .sub'); if (_sub) _sub.textContent = '自分の名前をタップしてPINを入力してください';
+    var _sub = document.querySelector('.hd .sub'); if (_sub) _sub.textContent = '自分の写真をタップしてください';
+    // 名前でしぼり込む欄を名簿の上に置く (166名から自分を探すのが一番の手間だったため)
+    try {
+      var _lst = document.getElementById('list');
+      if (_lst && !document.getElementById('pSearch')) {
+        var _w = document.createElement('div'); _w.className = 'psearch';
+        _w.innerHTML = '<input id="pSearch" type="search" inputmode="text" autocomplete="off" placeholder="名前を 入れて さがす">'
+          + '<div class="pshint">ひらがな・漢字のどちらでも さがせます</div>';
+        _lst.parentNode.insertBefore(_w, _lst);
+        document.getElementById('pSearch').addEventListener('input', function(){ PQ = this.value.trim(); render(); });
+      }
+    } catch (e) {}
     // 前回この端末でログインした本人を記憶していれば、名簿を出さずいきなりPIN入力へ(=PINだけで入れる)。
     // 別の人が使う時はPINモーダルを閉じれば名簿に戻れる。
     try {
@@ -588,9 +703,37 @@ async function loadCheckedIn(){
   } catch (e) { CHECKED_IN = {}; }
   render();   // バッジ付きで再描画
 }
+// ===== 設置端末の登録 (2026-08-04) =====
+//  ログイン前の名前選択は全社員の氏名を出すため、「正規の設置端末か」を見分ける必要がある。
+//  事業所ネットワークから1回だけ登録して端末トークンを保存し、以後はそれで名乗る。
+//  ⚠️IPで見分ける方式は続かない(実測で拠点のグローバルIPは1か月半に2回入れ替わっていた)。
+//  ⚠️個人スマホでこの画面を開いても、事業所ネットワーク外なら登録できない=名簿は出せない。
+var DEVICE_KEY = 'cohub_device_token';
+function devHeaders() {
+  var t = '';
+  try { t = localStorage.getItem(DEVICE_KEY) || ''; } catch (e) {}
+  return t ? { 'X-Device-Token': t } : {};
+}
+async function ensureDeviceToken(co) {
+  try {
+    if (localStorage.getItem(DEVICE_KEY)) return;
+    // ⚠️登録するのは「共用タブレットとして使われている端末」だけ。
+    //   事業所ネットワークにある個人PCが /tablet を開いただけで登録されると、
+    //   その後どこへ持ち出しても名簿が開ける端末が増えてしまう(2026-08-04 実際に2台登録された)。
+    //   キオスク印(cohub_kiosk)は共用タブレットでPINログインしたときに付く。
+    if (PERSONAL || localStorage.getItem('cohub_kiosk') !== '1') return;
+    var r = await fetch('/api/auth/device-register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ co: co || '', label: (navigator.userAgent || '').slice(0, 60) }),
+    }).then(function (x) { return x.json(); }).catch(function () { return null; });
+    if (r && r.success && r.device_token) localStorage.setItem(DEVICE_KEY, r.device_token);
+  } catch (e) { /* 登録できなくても従来どおり動く(事業所ネットワーク判定にフォールバック) */ }
+}
+
 async function loadRoster(co) {
+  await ensureDeviceToken(co);
   const qs = co ? ('?co=' + encodeURIComponent(co)) : '';
-  const r = await fetch('/api/auth/tablet-roster' + qs).then(x => x.json()).catch(()=>null);
+  const r = await fetch('/api/auth/tablet-roster' + qs, { headers: devHeaders() }).then(x => x.json()).catch(()=>null);
   if (!r || !r.success) { document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
   users = r.users || [];
   companyCodes = new Set(users.map(u => u.company_code || ''));
@@ -606,7 +749,7 @@ async function loadRoster(co) {
     sel.appendChild(opt);
   }
   if (!Object.keys(ROSTER_YOMI).length) {
-    try { ROSTER_YOMI = (await fetch('/assets/roster_yomi.json').then(x => x.json()).catch(function(){ return {}; })) || {}; } catch (e) {}
+    try { ROSTER_YOMI = (await fetch('/assets/roster_yomi.json', { headers: devHeaders() }).then(x => x.json()).catch(function(){ return {}; })) || {}; } catch (e) {}
   }
   buildKanaTabs();
   render();
@@ -632,6 +775,15 @@ function render() {
   var arr = users.slice().filter(function(u){ return !co || (u.company_code || '') === co; });
   arr.sort(function(a, b){ var ya = ROSTER_YOMI[a.id] || ('んん'+(a.display_name||'')), yb = ROSTER_YOMI[b.id] || ('んん'+(b.display_name||'')); return String(ya).localeCompare(String(yb), 'ja'); });
   if (curKana !== 'すべて') arr = arr.filter(function(u){ return kanaRow(ROSTER_YOMI[u.id]) === curKana; });
+  // 個人スマホの名前検索 (氏名 or よみ の部分一致)
+  if (PERSONAL && PQ) {
+    var _q = PQ.replace(/[\s　]/g, '');
+    arr = arr.filter(function(u){
+      var nm = String(u.display_name || '').replace(/[\s　]/g, '');
+      var ym = String(ROSTER_YOMI[u.id] || '').replace(/[\s　]/g, '');
+      return nm.indexOf(_q) >= 0 || ym.indexOf(_q) >= 0;
+    });
+  }
   var el = document.getElementById('list'), pgEl = document.getElementById('pager');
   // ===== 個人スマホ: 拠点を使わず全員から五十音で。1列の大きな行・ページャなし(スクロール)・行に「もどる」矢印 =====
   if (PERSONAL) {
@@ -670,6 +822,15 @@ function applyCoLock() {
     render();
     return;
   }
+  // ⭐2026-08-01 社長指示: 既定は「全拠点」(ロックなし)。ただし🔒で固定したら次回以降も効く。
+  //   以前から固定されていた端末は初回だけ解除する(移行処理・1回きり)。
+  try {
+    if (localStorage.getItem('cohub_tablet_unlocked_20260801') !== '1') {
+      localStorage.removeItem('cohub_tablet_co_lock');
+      localStorage.removeItem('cohub_tablet_co');
+      localStorage.setItem('cohub_tablet_unlocked_20260801', '1');
+    }
+  } catch (e) {}
   var locked = false, co = '';
   try { locked = localStorage.getItem('cohub_tablet_co_lock') === '1'; co = localStorage.getItem('cohub_tablet_co') || ''; } catch (e) {}
   var sel = document.getElementById('f-co');
@@ -932,7 +1093,7 @@ async function submitSetup() {
     const r = await fetch('/api/auth/tablet-setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(Object.assign({}, payload, { personal: PERSONAL })),
     }).then(x => x.json());
     if (r && r.success && r.token) {
       stopSetupCam();
@@ -944,7 +1105,7 @@ async function submitSetup() {
       applyLoginMode(r.token, setupUid);
       msg.textContent = '✅ 設定しました。ログインします';
       msg.className = 'msg info';
-      setTimeout(() => location.replace('/tablet-home.html'), 400);
+      setTimeout(goAfterLogin, 400);
       return;
     }
     fail((r && r.msg) || '設定に失敗しました');
@@ -955,6 +1116,11 @@ async function submitSetup() {
   }
 }
 
+// この端末が覚えている本人以外が使うとき。記憶を消して名簿から選び直す。
+function pickOtherPerson(){
+  try { localStorage.removeItem('cohub_personal_uid'); } catch (e) {}
+  closeModal();
+}
 function openPin(uid) {
   currentUid = uid;
   pin = '';
@@ -1016,7 +1182,7 @@ async function trySubmit() {
     const r = await fetch('/api/auth/tablet-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: currentUid, pin }),
+      body: JSON.stringify({ user_id: currentUid, pin, personal: PERSONAL }),   // 個人スマホは モバイル枠 / 共用タブレットは キオスク枠
     }).then(x => x.json());
     if (r && r.success && r.token) {
       localStorage.setItem('cohub_token', r.token);
@@ -1024,6 +1190,7 @@ async function trySubmit() {
       applyLoginMode(r.token, currentUid);
       document.getElementById('m-msg').textContent = '✅ ようこそ！';
       greeting = true;   // 以降は入力無効(エンター等での早期入室を防ぎ、あいさつ後に自動入室)
+      if (NEXT) { goAfterLogin(); return; }   // 報告書などへ直行する時は あいさつを挟まない
       greetThenHome(r.user, r.token);
       return;
     }
@@ -1071,7 +1238,7 @@ async function greetThenHome(user, token) {
   let speech = parts.length ? (parts.join('。') + '。ご確認ください。') : '新しいお知らせはありません。';
 
   let moved = false;
-  const go = function () { if (moved) return; moved = true; location.replace('/tablet-home.html'); };
+  const go = function () { if (moved) return; moved = true; goAfterLogin(); };
   const safety = setTimeout(go, 8000); // 最大8秒で必ず遷移
   try {
     const res = await fetch('/api/voice/tts', {

@@ -8,6 +8,7 @@ const router = express.Router();
 const { getDb } = require('../services/db');
 const { authAdmin } = require('../middleware/auth');
 const { transcribeRecording } = require('../services/ai');
+const { audit } = require('../services/audit');
 
 // === dm_group → 自動グループチャット同期 ===
 // dm_group ラベルと同名の chat_groups を自動作成 + 同ラベルの全ユーザーをメンバーに
@@ -52,8 +53,33 @@ const recUpload = multer({
 router.get('/users', authAdmin, (req, res) => {
   const rows = getDb().prepare(`SELECT u.id, u.login_id, u.display_name, u.company_code, u.role, u.employee_type, u.job_role, u.dm_group, u.dm_rank, u.dm_restricted, u.avatar_url, u.birth_date, u.is_guest_reviewer, u.guest_org, u.is_field_promoter, u.is_warehouse_promoter, u.is_manager, u.is_ops_manager, u.is_branch_head,
     CASE WHEN u.tablet_pin_hash IS NOT NULL AND u.tablet_pin_hash <> '' THEN 1 ELSE 0 END AS has_tablet_pin,
+    CASE WHEN EXISTS(SELECT 1 FROM push_subscriptions ps WHERE ps.user_id = u.id) THEN 1 ELSE 0 END AS has_push,
     u.last_seen_at, p.status FROM users u LEFT JOIN positions p ON p.user_id = u.id WHERE u.role != 'bot' ORDER BY u.created_at DESC`).all();
   res.json({ success: true, users: rows });
+});
+
+// プッシュ通知のカバレッジ (未購読者の可視化・フォロー用)
+router.get('/push-coverage', authAdmin, (req, res) => {
+  const db = getDb();
+  const members = db.prepare("SELECT COUNT(*) c FROM users WHERE role != 'bot'").get().c;
+  const subscribed = db.prepare('SELECT COUNT(DISTINCT user_id) c FROM push_subscriptions').get().c;
+  const unsubscribed = db.prepare(`SELECT display_name, company_code FROM users
+    WHERE role != 'bot' AND id NOT IN (SELECT user_id FROM push_subscriptions)
+    ORDER BY company_code, display_name`).all();
+  res.json({ success: true, members, subscribed, rate: members ? Math.round(subscribed / members * 100) : 0, unsubscribed });
+});
+
+// 監査ログ閲覧 (直近・管理者のみ)。?action=login 等で絞り込み可
+router.get('/audit', authAdmin, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  const action = req.query.action ? String(req.query.action).slice(0, 60) : null;
+  try {
+    const db = getDb();
+    const sql = "SELECT id, actor_id, actor_name, action, target, ip, datetime(created_at,'+9 hours') AS jst FROM audit_log"
+      + (action ? ' WHERE action = ?' : '') + ' ORDER BY id DESC LIMIT ?';
+    const rows = action ? db.prepare(sql).all(action, limit) : db.prepare(sql).all(limit);
+    res.json({ success: true, entries: rows });
+  } catch (e) { res.json({ success: true, entries: [], note: '監査ログはまだありません' }); }
 });
 
 function normalizeRank(r) {
@@ -279,8 +305,55 @@ router.post('/users/:id/password', authAdmin, (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ success: false, msg: 'パスワードを指定してください' });
   const hash = bcrypt.hashSync(password, 10);
-  const r = getDb().prepare('UPDATE users SET password_hash = ?, session_token = NULL WHERE id = ?').run(hash, req.params.id);
+  const r = getDb().prepare('UPDATE users SET password_hash = ?, session_token = NULL, pc_session_token = NULL, mobile_session_token = NULL WHERE id = ?').run(hash, req.params.id);
   res.json({ success: r.changes > 0 });
+});
+
+// ============================================================
+// 設置端末(共用タブレット)の一覧・失効 (2026-08-04)
+//  端末トークンを持つ端末は、事業所ネットワークの外からでも名前選択画面(=氏名一覧)を開ける。
+//  盗難・廃棄・入れ替えのときに管理側から止められないと、その口が開いたままになる。
+// ============================================================
+router.get('/kiosk-devices', authAdmin, (req, res) => {
+  const db = getDb();
+  require('../services/net').ensureDeviceTable(db);
+  const rows = db.prepare(`SELECT d.id, d.company_code, d.label, d.created_at, d.created_ip,
+      d.last_seen_at, d.last_seen_ip, d.revoked_at, c.name AS company_name
+    FROM kiosk_devices d LEFT JOIN companies c ON c.code = d.company_code
+    ORDER BY d.revoked_at IS NOT NULL, COALESCE(d.last_seen_at, d.created_at) DESC`).all();
+  res.json({ success: true, devices: rows });
+});
+router.post('/kiosk-devices/:id/revoke', authAdmin, (req, res) => {
+  const db = getDb();
+  require('../services/net').ensureDeviceTable(db);
+  const undo = !!(req.body && req.body.undo);
+  const r = db.prepare(`UPDATE kiosk_devices SET revoked_at = ${undo ? 'NULL' : "datetime('now')"} WHERE id = ?`)
+    .run(req.params.id);
+  if (!r.changes) return res.status(404).json({ success: false, msg: '端末が見つかりません' });
+  require('../services/audit').audit(req, undo ? 'device_unrevoke' : 'device_revoke', { target: 'device=' + req.params.id });
+  res.json({ success: true, msg: undo ? '端末の登録を戻しました' : '端末を失効しました' });
+});
+
+// ============================================================
+// 端末のログアウト = セッション失効 (2026-08-04)
+//  紛失・盗難・退職のときに「その人の端末から見えなくする」手段が無く、
+//  パスワードを強制変更するしか止める方法が無かった(本人にも影響が出る)。
+//  ⚠️CoHubは端末にデータを持たない(表示のたびにサーバーから取る)ので、
+//    セッションを切れば その端末からは何も見えなくなる=これが遠隔消去の代わりになる。
+//  ⚠️PIN・パスワードは変えない。本人は次に自分でログインし直せば元どおり使える。
+// ============================================================
+router.post('/users/:id/logout-devices', authAdmin, (req, res) => {
+  const db = getDb();
+  const u = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(req.params.id);
+  if (!u) return res.status(404).json({ success: false, msg: '対象が見つかりません' });
+  const scope = String((req.body && req.body.scope) || 'all');   // all | pc | mobile | kiosk
+  const cols = scope === 'pc' ? ['pc_session_token']
+    : scope === 'mobile' ? ['mobile_session_token']
+    : scope === 'kiosk' ? ['kiosk_session_token']
+    : ['session_token', 'pc_session_token', 'mobile_session_token', 'kiosk_session_token'];
+  db.prepare(`UPDATE users SET ${cols.map(c => c + ' = NULL').join(', ')} WHERE id = ?`).run(u.id);
+  require('../services/audit').audit(req, 'force_logout', { target: `uid=${u.id} scope=${scope}` });
+  res.json({ success: true, msg: u.display_name + ' の端末をログアウトしました (' + scope + ')' });
 });
 
 // タブレットPIN管理者発行/リセット (2026-05-12)
@@ -467,7 +540,7 @@ router.post('/users/bulk-enroll', authAdmin, express.json({ limit: '2mb' }), (re
   const tx = db.transaction(() => {
     for (const v of valid) {
       const id = crypto.randomUUID();
-      const password = genBulkPassword();
+      const password = '00112233'; // 一括登録も全社共通デフォルト(個別登録と統一・控え不要)
       const hash = bcrypt.hashSync(password, 10);
       insStmt.run(id, v.loginId, hash, v.displayName, v.nickname, v.companyCode, v.employeeType, v.jobRole, v.dmGroup || null, v.birth);
       try { syncDmGroupMembership(id, v.dmGroup || null, null, req.uid); } catch (e) { console.warn('[bulk-enroll dm_group sync]', e.message); }
@@ -747,6 +820,8 @@ router.delete('/groups/:gid', authAdmin, (req, res) => {
 
 // グループチャット 全文閲覧 (管理者のみ。メンバーシップ不問)
 // 営業所別GCを管理者が監督するための統制機能。
+// 2026-07-29: 非メンバーの会話を読む唯一の正規手段のため、閲覧のたびに監査ログへ記録する。
+//   既読(group_reads)は付けない = 現場からは「見られた」ことが見えない代わりに、記録が残る。
 router.get('/groups/:gid/messages', authAdmin, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
   const before = (req.query.before || '').toString().trim();
@@ -763,6 +838,15 @@ router.get('/groups/:gid/messages', authAdmin, (req, res) => {
   sql += ' ORDER BY m.created_at DESC LIMIT ?';
   params.push(limit);
   const rows = db.prepare(sql).all(...params);
+  try {
+    const me = db.prepare('SELECT display_name FROM users WHERE id = ?').get(req.uid);
+    const isMember = db.prepare('SELECT 1 FROM chat_group_members WHERE group_id = ? AND user_id = ?')
+      .get(req.params.gid, req.uid);
+    audit(req, isMember ? 'admin_group_view' : 'admin_group_view_nonmember', {
+      actor_name: me && me.display_name,
+      target: `${g.name} (${g.id}) ${rows.length}件${before ? ' 遡り' : ''}`,
+    });
+  } catch (e) { /* 監査失敗で閲覧は止めない */ }
   res.json({ success: true, group: g, messages: rows.reverse() });
 });
 

@@ -3,7 +3,21 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
-const { generateToken, authUser } = require('../middleware/auth');
+const { generateToken, authUser, hasValidSession } = require('../middleware/auth');
+const { audit, clientIp } = require('../services/audit');
+const { issueDeviceToken, deviceOf } = require('../services/net');
+
+// 2026-07-21: 初回PIN設定(tablet-setup)を事業所ネットワークからのみ許可する。
+// 従来は無認証で user_id を渡すだけでPIN未設定者のアカウントを乗っ取れた。
+// 許可IPは .env の TABLET_SETUP_ALLOW_IPS (カンマ区切り) で運用中に追加できる。
+// 各要素は前方一致のため "116.67." や IPv6 の "240d:0:6736:2700:" も書ける。
+function isSetupAllowedIp(req) {
+  const list = String(process.env.TABLET_SETUP_ALLOW_IPS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  if (!list.length) return true; // 未設定なら従来動作 (締め出し事故の防止)
+  const ip = String(clientIp(req) || '').replace(/^::ffff:/, '');
+  return list.some(a => ip === a || ip.indexOf(a) === 0);
+}
 
 // 利用規約・プライバシーポリシー バージョン
 // ポリシー本文を変更したらここを更新 → 全ユーザーに再同意を要求
@@ -44,10 +58,12 @@ router.post('/login', (req, res) => {
   if (!login_id || !password) return res.status(400).json({ success: false, msg: 'IDとパスワードを入力してください' });
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE login_id = ?').get(login_id);
-  if (!user) return res.status(401).json({ success: false, msg: 'IDまたはパスワードが違います' });
+  if (!user) { audit(req, 'login_fail', { target: 'id=' + login_id }); return res.status(401).json({ success: false, msg: 'IDまたはパスワードが違います' }); }
   if (!bcrypt.compareSync(password, user.password_hash)) {
+    audit(req, 'login_fail', { actor_id: user.id, actor_name: user.display_name, target: 'wrong_pw' });
     return res.status(401).json({ success: false, msg: 'IDまたはパスワードが違います' });
   }
+  audit(req, 'login', { actor_id: user.id, actor_name: user.display_name, target: 'password' });
   const sid = crypto.randomBytes(16).toString('hex');
   const dev = deviceTypeFromUA(req.headers['user-agent']);
   // 同一デバイス種別の旧セッションは上書き (PC+モバイルは並行ログイン可、PC2台目は旧PCをキック)
@@ -270,33 +286,87 @@ router.post('/check-password', authUser, express.json(), (req, res) => {
 // ============================================================
 
 // 全社員ロスター (タブレット選択画面用、認証不要だが個人情報は最小限)
+// ?co=拠点コード が付くと、その拠点の社員のみ返す (営業所専用タブレットでの他拠点氏名露出を防ぐ)
+// 設置端末(共用タブレット)の登録 (2026-08-04)。
+// 事業所ネットワークからの1回きりの登録で端末トークンを発行し、以後はIPが変わっても名簿を読めるようにする。
+// ※実測で拠点のグローバルIPは1か月半に2回入れ替わっていたため、IP許可リストの運用は続かない。
+router.post('/device-register', express.json(), (req, res) => {
+  if (!isSetupAllowedIp(req)) {
+    audit(req, 'device_register_denied', { target: 'ip=' + clientIp(req) });
+    return res.status(403).json({ success: false, msg: '端末の登録は事業所のネットワークから行ってください' });
+  }
+  const b = req.body || {};
+  const token = issueDeviceToken(getDb(), {
+    companyCode: String(b.co || '').trim() || null,
+    label: String(b.label || '').trim() || null,
+    ip: clientIp(req),
+  });
+  audit(req, 'device_register', { target: 'co=' + String(b.co || '-') });
+  res.json({ success: true, device_token: token });
+});
+
 router.get('/tablet-roster', (req, res) => {
+  // ⚠️この名簿はログイン前(共用タブレットの名前選択)に読むため無認証だが、
+  //   全社員の氏名がそのまま返る。URLを知っていれば社外からも取得できたので、
+  //   事業所ネットワーク(TABLET_SETUP_ALLOW_IPS)かログイン済みに限る (2026-08-04)。
+  // ⚠️2026-08-04: 一度403にしたところ、許可リストに入っていない拠点の端末が実利用で弾かれた。
+  //   まずは検知モード(通すが記録する)でどのIPが必要かを集め、.envを揃えてから閉める。
+  //   authz.js の POLICY と同じ手順(検知→確認→enforce)。
+  const dev = deviceOf(getDb(), req);
+  if (!dev && !isSetupAllowedIp(req) && !hasValidSession(req)) {
+    audit(req, 'tablet_roster_outside', { target: 'ip=' + clientIp(req) });
+  }
+  // 端末に拠点が紐づいていればその拠点だけ返す(万一漏れても被害をその拠点に限る)。
+  const co = (dev && dev.company_code) ? dev.company_code : (req.query.co || '').toString().trim();
   const rows = getDb().prepare(`
     SELECT id, display_name, company_code, avatar_url,
            CASE WHEN tablet_pin_hash IS NOT NULL AND tablet_pin_hash <> '' THEN 1 ELSE 0 END AS has_pin
     FROM users
     WHERE role != 'bot'
       AND is_guest_reviewer = 0
+      ${co ? 'AND company_code = ?' : ''}
     ORDER BY company_code, display_name
-  `).all();
+  `).all(...(co ? [co] : []));
   res.json({ success: true, users: rows });
 });
 
 // タブレットPINログイン
+// 4桁PINの総当たり対策: 対象者ごとの連続失敗をDBに永続化 (再起動でリセットされない) + /tablet-login にIP制限(index.js)
+const PIN_MAX_FAILS = 5, PIN_LOCK_MS = 10 * 60 * 1000;
 router.post('/tablet-login', express.json(), (req, res) => {
   const { user_id, pin } = req.body || {};
   if (!user_id || !pin) return res.status(400).json({ success: false, msg: '対象者とPINを入力してください' });
   if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ success: false, msg: 'PINは4桁の数字です' });
+  const now = Date.now();
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
   if (!user) return res.status(401).json({ success: false, msg: '対象者が見つかりません' });
+  if (user.tablet_pin_lock_until && now < user.tablet_pin_lock_until) {
+    audit(req, 'tablet_login_locked', { actor_id: user_id });
+    return res.status(429).json({ success: false, msg: 'PINの誤りが続いたため一時的にロックされています。約' + Math.ceil((user.tablet_pin_lock_until - now) / 60000) + '分後に再度お試しください' });
+  }
   if (!user.tablet_pin_hash) return res.status(401).json({ success: false, msg: 'PIN未設定です。管理者に連絡してください' });
   if (!bcrypt.compareSync(String(pin), user.tablet_pin_hash)) {
+    let count = (user.tablet_pin_fail_count || 0) + 1;
+    let until = null;
+    if (count >= PIN_MAX_FAILS) { until = now + PIN_LOCK_MS; count = 0; }
+    db.prepare('UPDATE users SET tablet_pin_fail_count = ?, tablet_pin_lock_until = ? WHERE id = ?').run(count, until, user.id);
+    audit(req, 'tablet_login_fail', { actor_id: user.id, actor_name: user.display_name });
     return res.status(401).json({ success: false, msg: 'PINが違います' });
   }
+  db.prepare('UPDATE users SET tablet_pin_fail_count = 0, tablet_pin_lock_until = NULL WHERE id = ?').run(user.id); // 成功でリセット
+  audit(req, 'tablet_login', { actor_id: user.id, actor_name: user.display_name });
   const sid = crypto.randomBytes(16).toString('hex');
-  const dev = 'mobile'; // タブレットキオスクログインは常にモバイル種別
-  db.prepare("UPDATE users SET mobile_session_token = ?, session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, sid, user.id);
+  // ⭐2026-08-02 (社長): 個人スマホ(?personal=1)は『モバイル枠』、共用タブレットは『キオスク枠』。
+  //   ⚠️以前は両方モバイル扱いで、同じ人がタブレットと自分のスマホを使うと互いを蹴り合い、
+  //     書きかけの事故報告が消えていた。枠を分けることで併用できる。
+  const personal = !!(req.body && req.body.personal);
+  const dev = personal ? 'mobile' : 'kiosk';
+  if (personal) {
+    db.prepare("UPDATE users SET mobile_session_token = ?, session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, sid, user.id);
+  } else {
+    db.prepare("UPDATE users SET kiosk_session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  }
   db.prepare(`INSERT INTO positions (user_id, x, y, status) VALUES (?, ?, ?, 'online')
     ON CONFLICT(user_id) DO UPDATE SET status='online', updated_at=datetime('now')`)
     .run(user.id, 400 + Math.floor(Math.random() * 200) - 100, 300 + Math.floor(Math.random() * 200) - 100);
@@ -356,7 +426,13 @@ router.post('/logout', (req, res) => {
   try {
     const jwt = require('jsonwebtoken');
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    getDb().prepare("UPDATE users SET session_token = NULL WHERE id = ?").run(payload.uid);
+    // 2026-07-21: pc/mobile のセッションが残り、ログアウト後も旧トークンが最大30日有効だった
+    getDb().prepare("UPDATE users SET session_token = NULL, pc_session_token = NULL, mobile_session_token = NULL WHERE id = ?").run(payload.uid);
+    // 2026-07-21: ログアウトが監査ログに残っていなかった (ログインだけ記録されていた)
+    try {
+      const _u = getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(payload.uid);
+      audit(req, 'logout', { actor_id: payload.uid, actor_name: _u && _u.display_name, target: 'dev=' + (payload.dev || 'unknown') });
+    } catch (e) { /* 監査失敗で本処理は止めない */ }
     getDb().prepare("UPDATE positions SET status='offline', updated_at=datetime('now') WHERE user_id = ?").run(payload.uid);
     // 該当uidの全socketを切断 (plaza:new等の継続通知を止める)
     const io = req.app && req.app.locals && req.app.locals.io;
@@ -378,6 +454,106 @@ router.post('/logout', (req, res) => {
     }
   } catch (e) {}
   res.json({ success: true });
+});
+
+
+// ============================================================
+// タブレット初回設定: PIN未設定者がタブレットで顔写真を撮影し、
+// 自分でニックネーム＋4桁PINを設定してそのままログインする。
+// 本人確認は事務所運用前提で省略(タップした本人が設定)。生年月日はマイページで本人入力。
+// ============================================================
+router.post('/tablet-setup', express.json({ limit: '8mb' }), (req, res) => {
+  if (!isSetupAllowedIp(req)) {
+    audit(req, 'tablet_setup_denied', { target: 'ip=' + clientIp(req) });
+    return res.status(403).json({ success: false, msg: '初回のPIN設定は事業所のネットワークから行ってください。設置端末で設定するか、担当者にご連絡ください' });
+  }
+  audit(req, 'tablet_setup', { target: 'user_id=' + String((req.body || {}).user_id || '') });
+  const fs = require('fs');
+  const path = require('path');
+  const { user_id, nickname, pin, photo } = req.body || {};
+  if (!user_id || !pin) return res.status(400).json({ success: false, msg: '必要項目を入力してください' });
+  const db = getDb();
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
+  if (!user) return res.status(404).json({ success: false, msg: '対象者が見つかりません' });
+  if (user.role === 'bot' || user.is_guest_reviewer) return res.status(403).json({ success: false, msg: '対象外のアカウントです' });
+  if (user.tablet_pin_hash) return res.status(409).json({ success: false, msg: '既にPIN設定済みです。アバターをタップしてPINでログインしてください' });
+  // PIN強度チェック (tablet-pin と同基準)
+  const p = String(pin);
+  if (!/^\d{4}$/.test(p)) return res.status(400).json({ success: false, msg: 'PINは4桁の数字です' });
+  if (/^(.)\1{3}$/.test(p)) return res.status(400).json({ success: false, msg: '同じ数字4桁は使えません (例: 0000)' });
+  if ('0123456789'.includes(p) || '9876543210'.includes(p)) return res.status(400).json({ success: false, msg: '連続した数字は使えません (例: 1234)' });
+  // ニックネーム: 入力があれば検証して更新、無ければ既存維持
+  let nick = user.nickname;
+  const nn = String(nickname || '').trim();
+  if (nn) {
+    if (nn.length < 2 || nn.length > 20) return res.status(400).json({ success: false, msg: 'ニックネームは2〜20文字です' });
+    if (/[\x00-\x1f\x7f]/.test(nn)) return res.status(400).json({ success: false, msg: 'ニックネームに使えない文字があります' });
+    const dup = db.prepare('SELECT id FROM users WHERE LOWER(nickname) = LOWER(?) AND id != ?').get(nn, user_id);
+    if (dup) return res.status(409).json({ success: false, msg: 'そのニックネームは既に使われています' });
+    nick = nn;
+  }
+  // 顔写真(任意): dataURL を検証して /uploads/avatars/ に保存しアバターに
+  let avatarUrl = user.avatar_url;
+  if (photo && typeof photo === 'string' && photo.indexOf('data:image/') === 0) {
+    try {
+      const m = photo.match(/^data:image\/(png|jpe?g);base64,(.+)$/);
+      if (m) {
+        const ext = m[1].charAt(0) === 'j' ? 'jpg' : 'png';
+        const buf = Buffer.from(m[2], 'base64');
+        const isJpg = buf.length > 3 && buf[0] === 0xFF && buf[1] === 0xD8;
+        const isPng = buf.length > 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+        if (buf.length > 0 && buf.length <= 6 * 1024 * 1024 && ((ext === 'jpg' && isJpg) || (ext === 'png' && isPng))) {
+          const dir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+          fs.mkdirSync(dir, { recursive: true });
+          const filename = 'tablet_' + user.id.slice(0, 8) + '_' + Date.now() + '.' + ext;
+          fs.writeFileSync(path.join(dir, filename), buf);
+          avatarUrl = '/uploads/avatars/' + filename;
+        }
+      }
+    } catch (e) { console.warn('[tablet-setup avatar]', e.message); }
+  }
+  const hash = bcrypt.hashSync(p, 10);
+  db.prepare('UPDATE users SET nickname = ?, tablet_pin_hash = ?, avatar_url = ? WHERE id = ?').run(nick, hash, avatarUrl, user_id);
+  // そのままログイン (tablet-login と同等のセッション発行)
+  const sid = crypto.randomBytes(16).toString('hex');
+  const setupPersonal = !!(req.body && req.body.personal);   // 初回設定も個人スマホと共用タブレットで枠を分ける
+  const setupDev = setupPersonal ? 'mobile' : 'kiosk';
+  if (setupPersonal) {
+    db.prepare("UPDATE users SET mobile_session_token = ?, session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, sid, user.id);
+  } else {
+    db.prepare("UPDATE users SET kiosk_session_token = ?, last_seen_at = datetime('now') WHERE id = ?").run(sid, user.id);
+  }
+  db.prepare("INSERT INTO positions (user_id, x, y, status) VALUES (?, ?, ?, 'online') ON CONFLICT(user_id) DO UPDATE SET status='online', updated_at=datetime('now')")
+    .run(user.id, 400 + Math.floor(Math.random() * 200) - 100, 300 + Math.floor(Math.random() * 200) - 100);
+  const token = generateToken({ uid: user.id, role: user.role, sid, dev: setupDev });
+  const needsConsent = user.role !== 'bot' && user.consent_version !== CONSENT_VERSION;
+  res.json({
+    success: true,
+    token,
+    user: {
+      uid: user.id, login_id: user.login_id, display_name: user.display_name,
+      company_code: user.company_code, role: user.role,
+      employee_type: user.employee_type || 'office', avatar_url: avatarUrl,
+      job_role: user.job_role || null,
+      is_field_promoter: !!user.is_field_promoter, is_warehouse_promoter: !!user.is_warehouse_promoter,
+      is_guest_reviewer: !!user.is_guest_reviewer,
+      nickname: nick || null, needs_nickname_setup: !nick,
+      consent_version: user.consent_version || null, needs_consent: needsConsent,
+      current_consent_version: CONSENT_VERSION,
+    },
+  });
+});
+
+// 本人による生年月日の入力/更新 (マイページ)
+router.post('/birth-date', authUser, express.json(), (req, res) => {
+  const raw = String((req.body && req.body.birth_date) || '').trim();
+  const m = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (!m) return res.status(400).json({ success: false, msg: '生年月日は YYYY-MM-DD 形式で入力してください' });
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1900 || y > 2200) return res.status(400).json({ success: false, msg: '日付が不正です' });
+  const norm = m[1] + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  getDb().prepare('UPDATE users SET birth_date = ? WHERE id = ?').run(norm, req.uid);
+  res.json({ success: true, birth_date: norm, msg: '生年月日を保存しました' });
 });
 
 module.exports = router;
