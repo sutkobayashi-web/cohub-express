@@ -276,6 +276,7 @@ function prefillHealth(){
     const btn = d.querySelector('.opt[data-k="'+k+'"][data-v="'+v+'"]');
     if (btn){ btn.parentElement.querySelectorAll('.opt').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
   });
+  togglePainFollow((form.health||{}).pain);   // 本人が「強い痛み」を申告済みなら追加2問も開く
 }
 
 // ===== ダイヤル(ホイール)式 血圧入力 =====
@@ -362,7 +363,20 @@ function healthDetail(){
   ${optFld('🌅 朝の目覚めスッキリ','wakeup',[['はい','yes'],['いいえ','no']])}
   ${optFld('🌡️ 顔色','facial_color',[['普通','normal'],['疲れ気味','tired',1],['赤い','red',1],['青白い','pale',1],['不明','unknown']])}
   ${optFld('🦴 体の痛み','pain',[['なし','no'],['腰','low_back',1],['肩・首','shoulder',1],['関節','joint',1],['強い痛み','severe',1]])}
+  ${painFollow()}
   ${optFld('💭 気になる','concern',[['なし','no'],['体調','health'],['家族','family'],['職場','work'],['お金','money'],['その他','other']])}`;
+}
+// 「強い痛み」を選んだときだけ聞く追加2問 (2026-08-03)。
+// ⚠️聞くのは「乗務への影響」。病名・診断・治療内容は聞かない。「答えたくない」を必ず用意し、
+//   選んでも不利益にしない(🔶要確認として運管が口頭で確かめる)。
+function painFollow(){
+  return `<div id="pain_follow" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:9px 11px;margin:0 0 10px">
+    <div style="font-size:11.5px;color:#92400e;line-height:1.6;margin-bottom:6px">
+      乗務の可否を判断するためにお聞きします。<b>病名や治療の内容はお聞きしません。</b>答えたくない場合は「答えたくない」で構いません。
+    </div>
+    ${optFld('　どこが痛みますか','pain_site',[['腰','back'],['肩・首','shoulder'],['脚・ひざ','leg'],['腕・手','arm'],['胸','chest',1],['頭','head',1],['おなか','abdomen'],['その他','other'],['答えたくない','skip']])}
+    ${optFld('　運転に支障がありますか','pain_drive',[['支障なし','no'],['支障あり','yes',1],['わからない','unsure',1]])}
+  </div>`;
 }
 function tenkoDetail(){ return healthDetail(); }
 function choreiDetail(){ return healthDetail(); }
@@ -384,6 +398,17 @@ function pick(el){
   el.parentElement.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
   if (el.dataset.cond==='1') form.condition=v; else form.health[k]=v;
+  if (k==='pain') togglePainFollow(v);
+}
+// 「強い痛み」以外に切り替えたら追加2問は隠し、回答も消す(不要な健康情報を持たない)
+function togglePainFollow(v){
+  const box = document.getElementById('pain_follow'); if (!box) return;
+  const on = (v === 'severe');
+  box.style.display = on ? 'block' : 'none';
+  if (!on){
+    delete form.health.pain_site; delete form.health.pain_drive;
+    box.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
+  }
 }
 function toggleTokai(){ form.tokai_done=!form.tokai_done;
   document.getElementById('chk_tokai').classList.toggle('on',form.tokai_done);
@@ -453,6 +478,7 @@ function applyDraftToModal(d){
     const b = document.querySelector('.opt[data-k="'+k+'"][data-v="'+v+'"]');
     if (b){ b.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
   });
+  togglePainFollow((d.health||{}).pain);
   if (d.tokai_done){ const c=document.getElementById('chk_tokai'); if(c){ c.classList.add('on'); const bx=document.getElementById('bx_tokai'); if(bx) bx.textContent='✓'; } }
   const n=document.getElementById('f_note'); if(n) n.value = d.note||'';
   if (document.getElementById('w_bp_sys')){

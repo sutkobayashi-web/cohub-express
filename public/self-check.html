@@ -170,6 +170,11 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     ['🌅 朝の目覚めスッキリ','wakeup',[['はい','yes'],['いいえ','no']]],
     ['🌡️ 顔色','facial_color',[['普通','normal'],['疲れ気味','tired',1],['赤い','red',1],['青白い','pale',1],['不明','unknown']]],
     ['🦴 体の痛み','pain',[['なし','no'],['腰','low_back',1],['肩・首','shoulder',1],['関節','joint',1],['強い痛み','severe',1]]],
+    // 「強い痛み」のときだけ出る追加2問 (2026-08-03)。第4要素 = [依存キー, 依存値]
+    // ⚠️聞くのは「乗務への影響」。病名・診断・治療内容は聞かない。「答えたくない」を必ず用意し、
+    //   選んでも不利益にしない(🔶要確認として点呼担当者が口頭で確かめる)。
+    ['　どこが痛みますか','pain_site',[['腰','back'],['肩・首','shoulder'],['脚・ひざ','leg'],['腕・手','arm'],['胸','chest',1],['頭','head',1],['おなか','abdomen'],['その他','other'],['答えたくない','skip']],['pain','severe']],
+    ['　運転に支障がありますか','pain_drive',[['支障なし','no'],['支障あり','yes',1],['わからない','unsure',1]],['pain','severe']],
     ['💭 気になる','concern',[['なし','no'],['体調','health'],['家族','family'],['職場','work'],['お金','money'],['その他','other']]]
   ];
   var hcAns = {};   // key -> {v, label}
@@ -177,15 +182,30 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   (function buildHc(){
     var box = $('hc'); var html = '';
     HC_ITEMS.forEach(function(item, ri){
-      var label = item[0], key = item[1], opts = item[2];
-      html += '<div class="hcrow"><div class="hclabel">' + label + '</div><div class="hcopts">';
+      var label = item[0], key = item[1], opts = item[2], dep = item[3];
+      html += '<div class="hcrow" data-row="' + key + '"' + (dep ? ' style="display:none;background:#fffbeb;border-radius:10px"' : '') + '>';
+      if (dep && key === 'pain_site') html += '<div style="font-size:11.5px;color:#92400e;line-height:1.6;padding:6px 4px 2px">乗務の可否を判断するためにお聞きします。<b>病名や治療の内容はお聞きしません。</b>答えたくない場合は「答えたくない」で構いません。</div>';
+      html += '<div class="hclabel">' + label + '</div><div class="hcopts">';
       opts.forEach(function(o, oi){
         html += '<button type="button" class="hcopt' + (o[2]?' warn':'') + '" data-ri="' + ri + '" data-oi="' + oi + '">' + o[0] + '</button>';
       });
       html += '</div></div>';
-      hcText[key] = label.replace(/^[^\s]+\s/, ''); // 絵文字を除いた短いラベル
+      hcText[key] = label.replace(/^[^\s]+\s/, '').trim(); // 絵文字を除いた短いラベル
     });
     box.innerHTML = html;
+    // 依存行(強い痛みのときだけ出る2問)の表示切替。隠すときは回答も消す=不要な健康情報を持たない。
+    function syncDeps(){
+      HC_ITEMS.forEach(function(item){
+        var dep = item[3]; if (!dep) return;
+        var row = box.querySelector('.hcrow[data-row="' + item[1] + '"]'); if (!row) return;
+        var on = hcAns[dep[0]] && hcAns[dep[0]].v === dep[1];
+        row.style.display = on ? '' : 'none';
+        if (!on){
+          delete hcAns[item[1]];
+          row.querySelectorAll('.hcopt').forEach(function(x){ x.classList.remove('on'); });
+        }
+      });
+    }
     box.querySelectorAll('.hcopt').forEach(function(b){
       b.addEventListener('click', function(){
         var ri = +b.dataset.ri, oi = +b.dataset.oi;
@@ -194,6 +214,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         b.parentNode.querySelectorAll('.hcopt').forEach(function(x){ x.classList.remove('on'); });
         b.classList.add('on');
         hcAns[key] = { v: opt[1], label: opt[0] };
+        syncDeps();
       });
     });
   })();
@@ -323,7 +344,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   // 血圧が 180/110 以上(または体調不良の申告)なら「本日の乗務は見合わせ」、160/100 以上なら「15分安静後に再測」。
   // 判定はサーバー(routes/tenko.js dutyGate)が返す gate をそのまま表示する。基準を2箇所に書かない。
   // ドライバー以外には出さない(乗務の話ではないため)。責める文言にしない=事実と次の一手だけ。
-  var GATE_SHOW = { stop_final:1, stop_recheck:1, restrict:1, recheck:1 };
+  var GATE_SHOW = { stop_final:1, stop_recheck:1, symptom_check:1, restrict:1, recheck:1 };
   function showGateCard(gate, next){
     if (!gate || !gate.driver || !GATE_SHOW[gate.status]) { next(); return; }
     var stop = (gate.status === 'stop_final' || gate.status === 'stop_recheck');

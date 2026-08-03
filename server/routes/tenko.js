@@ -123,6 +123,7 @@ function bpSeverity(sys, dia) {
 //  ⚠️再測は1回まで(bp_count>=2で確定)。低い値が出るまで測り直すのは判断ではなく数字合わせ。
 //  ⚠️自覚症状(体調不良の申告・強い痛み)は再測の対象外＝即 stop。症状は測り直しても消えない。
 const GATE_STATUS = {
+  symptom_check: { pill: '🔶要確認',    action: '本人に状況を確認し、乗務の可否を判断してください。確認するまで乗務させないでください。確認した内容は対応記録に残してください。' },
   stop_final:   { pill: '🚫乗務不可',   action: '再測でも基準を超えています。本日の乗務は見合わせ、受診を勧めてください。' },
   stop_recheck: { pill: '🚫要再測',     action: '15分安静にしてから、1回だけ再測してください。再測でも 180/110 以上なら本日の乗務は見合わせてください。' },
   restrict:     { pill: '⚠️長距離・夜間NG', action: '本日は長距離・夜間の乗務から外してください（この日一度、基準を大きく超えた記録があります）。' },
@@ -136,36 +137,57 @@ function bpGateLevel(sys, dia) {
   if ((sys && sys >= 140) || (dia && dia >= 90)) return 1;
   return 0;
 }
-// 数値にかかわらず乗務を止める自覚症状。該当すれば理由の文字列を返す
-function symptomStop(health, condition) {
-  if (condition === 'bad') return '体調不良の申告';
-  if (health && health.pain === 'severe') return '強い痛み';
-  return null;
+// 症状の扱い (2026-08-03 見直し)
+//  ⚠️血圧180/110は客観的な数値なので機械が判定できる。一方「強い痛み」「体調が悪い」は本人の
+//    主観申告で、部位も程度も分からない。これを同じ🚫にすると運行管理者に「痛いと言われたら
+//    必ず乗務不可」を強いることになり、実務に合わず、やがて申告されなくなる。
+//    (2026-08-03 宮内さんの例=慢性腰痛がベースにあり、severe は年数回の悪化サイン)
+//    → 症状は原則 🔶要確認(運管が本人に確認して判断)。運転中の意識障害に直結するものだけ 🚫。
+//  ⚠️⚠️聞くのは「症状の中身」ではなく「乗務への影響」。病名・診断・治療内容は聞かない・持たない。
+//    部位を聞くのは、胸/頭(急性の循環器・神経症状の可能性)を拾うために必要な最小限だから。
+//    「答えたくない」(skip)を選べる。選んでも不利益にはせず、🔶要確認として運管が口頭で確かめる。
+const HARD_PAIN_SITE = { chest: '胸', head: '頭' };
+function symptomAssess(health, condition) {
+  const h = health || {};
+  const hard = [], check = [];
+  if (h.pain === 'severe') {
+    if (HARD_PAIN_SITE[h.pain_site]) hard.push('強い痛み（' + HARD_PAIN_SITE[h.pain_site] + '）');
+    else if (h.pain_drive === 'yes') hard.push('強い痛み（運転に支障あり）');
+    else check.push('強い痛み');
+  }
+  if (condition === 'bad') check.push('体調不良の申告');
+  return { hard: hard.length ? hard : null, check: check.length ? check : null };
 }
 // opts = { peakSys, peakDia, count }  当日の最悪値と測定回数 (tenko_records の bp_peak_*/bp_count)
 function dutyGate(jobRole, sys, dia, health, condition, opts) {
   opts = opts || {};
   const isDriver = jobRole === 'driver';
   const count = opts.count || 0;
-  let level = bpGateLevel(sys, dia);                       // 今の値
+  const level = bpGateLevel(sys, dia);                     // 数値だけのレベル(症状は加えない)
   const reasons = [];
   if (level >= 1) reasons.push(`血圧 ${sys || '-'}/${dia || '-'}`);
-  const sym = symptomStop(health, condition);
-  if (sym) { level = 3; reasons.push(sym); }
-  // その日の最悪レベル。再測で下がっても一度出た事実は残す。
+  const sym = symptomAssess(health, condition);
+  if (sym.hard) reasons.push(...sym.hard);
+  if (sym.check) reasons.push(...sym.check);
+  // その日の最悪レベル。再測で下がっても一度出た事実は残す。⚠️症状ではピークを上げない。
   const peakLevel = Math.max(level, bpGateLevel(opts.peakSys, opts.peakDia));
 
   let status;
-  if (level >= 3) status = (sym || count >= 2) ? 'stop_final' : 'stop_recheck';
+  if (sym.hard) status = 'stop_final';                     // 胸/頭の強い痛み・運転に支障あり
+  else if (level >= 3) status = (count >= 2) ? 'stop_final' : 'stop_recheck';
   else if (peakLevel >= 3) { status = 'restrict'; reasons.push('本日ピーク ' + (opts.peakSys || '-') + '/' + (opts.peakDia || '-')); }
+  else if (sym.check) status = 'symptom_check';            // 運管が本人に確認して判断
   else if (level === 2) status = (count >= 2) ? 'restrict' : 'recheck';
   else if (level === 1) status = 'watch';
   else status = 'ok';
 
   const g = GATE_STATUS[status];
+  // 🔶要確認のときも、血圧側の指示(再測など)があれば併記する
+  let action = g.action;
+  if (status === 'symptom_check' && level >= 1) action += ' ' + GATE_STATUS[level === 2 ? 'recheck' : 'watch'].action;
   // 乗務の文言(pill/action)はドライバーにだけ返す。事務・倉庫に「乗務不可」と出ると意味が通らない。
   return { level, peak_level: peakLevel, count, status,
-           pill: isDriver ? g.pill : '', action: isDriver ? g.action : '',
+           pill: isDriver ? g.pill : '', action: isDriver ? action : '',
            driver: isDriver, reasons };
 }
 // 当日の最悪値・測定回数を更新する。
@@ -228,9 +250,12 @@ function healthRefNotes(health) {
 // POST本文の共通組み立て。血圧/メモ に 根拠 と 参考 を足す。
 function buildConditionDetail(o) {
   const lines = [];
-  // 乗務ゲート該当は本文の先頭に明記する (受け取った側が「何をすべきか」を即断できるように)
-  if (o.gate && o.gate.level >= 2 && o.gate.driver) {
-    lines.push(o.gate.pill + '（' + o.gate.reasons.join(' ／ ') + '）' + o.gate.action);
+  // 乗務ゲート該当は本文の先頭に明記する (受け取った側が「何をすべきか」を即断できるように)。
+  // ⚠️⚠️プライバシー: この本文は「現場の声」グループ(推進メンバー複数名)のチャットに流れる。
+  //   痛みの部位など症状の細かい内容は載せず、判定と次の一手だけにする。
+  //   詳細(pain_site/pain_drive)は health_json に持ち、点呼管理の当日表(運管・管理職)でのみ見せる。
+  if (o.gate && o.gate.driver && o.gate.status !== 'ok' && o.gate.status !== 'watch') {
+    lines.push(o.gate.pill + ' ' + o.gate.action);
   }
   const head = [o.bpHigh ? ('⚠️' + o.bpText + '(高血圧)') : o.bpText, o.note].filter(Boolean).join(' / ');
   if (head) lines.push(head);
@@ -713,7 +738,7 @@ router.get('/board', authUser, (req, res) => {
   const customItems = getHealthCustomItems();
   const itemLabels = Object.assign({}, HC_LABELS);
   customItems.forEach(it => { if (it && it.key) itemLabels[it.key] = it.q; });
-  const tally = {}; let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0, gRestrict = 0;
+  const tally = {}; let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0, gRestrict = 0, gCheck = 0;
   const entries = roster.map(m => {
     const r = byTarget[m.id];
     if (!r) return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: false };
@@ -728,6 +753,7 @@ router.get('/board', authUser, (req, res) => {
       { peakSys: r.bp_peak_sys, peakDia: r.bp_peak_dia, count: r.bp_count });
     if (gate.driver) {
       if (gate.status === 'stop_final' || gate.status === 'stop_recheck') gStop++;
+      else if (gate.status === 'symptom_check') gCheck++;
       else if (gate.status === 'restrict') gRestrict++;
       else if (gate.status === 'recheck') gRecheck++;
     }
@@ -746,7 +772,7 @@ router.get('/board', authUser, (req, res) => {
   res.json({ success: true, date, hq, co, total, done, not_done: total - done,
     rate: total ? Math.round(done * 1000 / total) / 10 : 0, trend_access: trendAccess,
     urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh,
-    gate_stop: gStop, gate_recheck: gRecheck, gate_restrict: gRestrict,
+    gate_stop: gStop, gate_recheck: gRecheck, gate_restrict: gRestrict, gate_check: gCheck,
     item_labels: itemLabels, tally, entries, companies });
 });
 
@@ -794,7 +820,7 @@ router.get('/manage', authUser, (req, res) => {
       });
   }
   const byTarget = {}; recs.forEach(r => { byTarget[r.target_id] = r; });
-  let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0, gRestrict = 0;
+  let done = 0, uMid = 0, uHigh = 0, bpHigh = 0, gStop = 0, gRecheck = 0, gRestrict = 0, gCheck = 0;
   const entries = roster.map(m => {
     const r = byTarget[m.id];
     if (!r) return { uid: m.id, name: m.display_name, company_code: m.company_code, job_role: m.job_role, done: false };
@@ -807,6 +833,7 @@ router.get('/manage', authUser, (req, res) => {
       { peakSys: r.bp_peak_sys, peakDia: r.bp_peak_dia, count: r.bp_count });
     if (gate.driver) {
       if (gate.status === 'stop_final' || gate.status === 'stop_recheck') gStop++;
+      else if (gate.status === 'symptom_check') gCheck++;
       else if (gate.status === 'restrict') gRestrict++;
       else if (gate.status === 'recheck') gRecheck++;
     }
@@ -866,7 +893,7 @@ router.get('/manage', authUser, (req, res) => {
     success: true, date, period, since, hq, co,
     today: { total, done, not_done: total - done, rate: total ? Math.round(done * 1000 / total) / 10 : 0,
       urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh,
-      gate_stop: gStop, gate_recheck: gRecheck, gate_restrict: gRestrict, entries },
+      gate_stop: gStop, gate_recheck: gRecheck, gate_restrict: gRestrict, gate_check: gCheck, entries },
     unhandled, queue,
     cumulative: { item_labels: HC_LABELS, rate_series, frequent, tally },
     companies,
