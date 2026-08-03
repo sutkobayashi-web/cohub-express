@@ -116,6 +116,58 @@ router.post('/proxy-submit', authUser, express.json(), (req, res) => {
   res.json({ success: true, id: ins.lastInsertRowid, total, avg_score: avg });
 });
 
+// ============================================================
+// 回答履歴 (2026-08-03 帝京大 西村さんの確認を受けて追加)
+//  ヘルスリテラシーは上書きせず毎回1行ずつ全部残る(INSERTのみ)。にもかかわらず、
+//  集計・一覧は各人の最新1件だけを使っており(all-latest / stats の MAX(id))、
+//  過去の回答を管理側で見る導線が無かった=「残っているのに読めない」状態だった。
+//  → 研究の前後比較のため、人ごとに全回答を時系列で返す。
+//  ⚠️社外ゲスト(研究閲覧)にも開く。氏名は middleware/authz.js が匿名化する。
+// ============================================================
+function canViewHl(uid) {
+  if (isWellnessManager(uid)) return true;
+  const r = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
+  return !!(r && r.is_guest_reviewer);
+}
+router.get('/history-all', authUser, (req, res) => {
+  if (!canViewHl(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
+  const only = String(req.query.uid || '').trim();
+  const multi = String(req.query.multi || '') === '1';       // 2回以上答えた人だけ
+  const rows = getDb().prepare(`
+    SELECT h.id, h.user_id, h.q1, h.q2, h.q3, h.q4, h.q5, h.total, h.avg_score, h.created_at,
+           u.display_name, u.company_code, u.job_role, p.display_name AS proxy_name
+    FROM health_literacy h
+    JOIN users u ON u.id = h.user_id
+    LEFT JOIN users p ON p.id = h.proxy_poster_id
+    ${only ? 'WHERE h.user_id = ?' : ''}
+    ORDER BY h.user_id, h.id`).all(...(only ? [only] : []));
+  const byUser = new Map();
+  for (const r of rows) {
+    if (!byUser.has(r.user_id)) {
+      byUser.set(r.user_id, {
+        user_id: r.user_id, display_name: r.display_name,
+        company_code: r.company_code, job_role: r.job_role, times: 0, responses: [],
+      });
+    }
+    const u = byUser.get(r.user_id);
+    u.times++;
+    u.responses.push({ id: r.id, q: [r.q1, r.q2, r.q3, r.q4, r.q5], total: r.total,
+      avg_score: r.avg_score, at: r.created_at, proxy_name: r.proxy_name });
+  }
+  let users = [...byUser.values()];
+  // 初回→最新の変化 (研究の前後比較で最初に見る数字)
+  users.forEach(u => {
+    const f = u.responses[0], l = u.responses[u.responses.length - 1];
+    u.first = { at: f.at, total: f.total };
+    u.latest = { at: l.at, total: l.total };
+    u.delta = u.times >= 2 ? l.total - f.total : null;
+  });
+  if (multi) users = users.filter(u => u.times >= 2);
+  users.sort((a, b) => b.times - a.times || String(b.latest.at).localeCompare(String(a.latest.at)));
+  res.json({ success: true, rows: rows.length, users: users.length,
+    multi_users: [...byUser.values()].filter(u => u.times >= 2).length, list: users });
+});
+
 // 推進メンバー/管理職向け: 全員の最新回答 (個人別)
 router.get('/all-latest', authUser, (req, res) => {
   if (!isWellnessManager(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });

@@ -731,6 +731,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
       <span style="color:#64748b;font-weight:400;font-size:12px;">CCHL 5問・各ユーザー最新1件で集計</span>
       <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="loadHlStats()" style="font-size:11px;padding:5px 10px;">🔄 再読込</button>
+        <button class="btn btn-ghost" onclick="toggleHlHistory()" style="font-size:11px;padding:5px 10px;">📜 回答履歴</button>
         <button id="btn-hl-announce" class="btn" onclick="openHlAnnounceModal()" style="font-size:12px;padding:6px 14px;background:linear-gradient(135deg,#7c3aed,#5b21b6);">📢 推進メンバーへアナウンス</button>
       </span>
     </h2>
@@ -749,6 +750,8 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
         </div>
       </div>
     </div>
+    <!-- 回答履歴 (2026-08-03): 集計は最新1件だが、回答は毎回残っている。前後比較用に全部見せる -->
+    <div id="hl-history" style="display:none;margin-top:12px;"></div>
     <div style="margin-top:8px;padding:8px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;font-size:11px;color:#0c4a6e;line-height:1.6;">
       💡 推進メンバーは🩺聞き取りカードPOST 画面でHL5問を同時入力できます (PC使えない社員向け代理入力)。
     </div>
@@ -1082,6 +1085,47 @@ async function deleteAiCandidates() {
 }
 
 // ===== HL (ヘルスリテラシー) 集計表示 =====
+// ヘルスリテラシーの回答履歴 (2026-08-03)
+//  ⚠️集計・一覧は各人の「最新1件」だけを使うが、回答自体は毎回1行ずつ残っている。
+//    残っているのに読む導線が無かったので、前後比較ができるよう全回答を出す。
+let _hlHistOpen = false;
+async function toggleHlHistory() {
+  const box = document.getElementById('hl-history');
+  _hlHistOpen = !_hlHistOpen;
+  box.style.display = _hlHistOpen ? '' : 'none';
+  if (!_hlHistOpen) return;
+  box.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:8px;">読み込み中…</div>';
+  const j = await fetch('/api/health-literacy/history-all', { headers: { Authorization: 'Bearer ' + token } })
+    .then(r => r.json()).catch(() => null);
+  if (!j || !j.success) { box.innerHTML = '<div style="color:#dc2626;font-size:12px;padding:8px;">読み込みに失敗しました</div>'; return; }
+  const d = s => (s || '').slice(5, 10).replace('-', '/');
+  const arrow = n => n == null ? '' : (n > 0 ? '<span style="color:#059669;font-weight:700;">+' + n + '</span>'
+    : (n < 0 ? '<span style="color:#dc2626;font-weight:700;">' + n + '</span>' : '<span style="color:#94a3b8;">±0</span>'));
+  const rows = (j.list || []).map(u => {
+    const hist = u.times >= 2
+      ? '<div style="font-size:11px;color:#64748b;margin-top:2px;">'
+        + u.responses.map(r => d(r.at) + ' ' + r.total + '点' + (r.proxy_name ? '(代)' : '')).join(' → ') + '</div>'
+      : '';
+    return '<tr>'
+      + '<td>' + escapeHtml(u.display_name || '') + hist + '</td>'
+      + '<td style="font-size:11px;color:#64748b;">' + escapeHtml(u.company_code || '-') + '</td>'
+      + '<td style="text-align:right;' + (u.times >= 2 ? 'font-weight:700;color:#7c3aed;' : '') + '">' + u.times + '</td>'
+      + '<td style="text-align:right;">' + d(u.first.at) + ' ' + u.first.total + '</td>'
+      + '<td style="text-align:right;">' + d(u.latest.at) + ' ' + u.latest.total + '</td>'
+      + '<td style="text-align:right;">' + arrow(u.delta) + '</td>'
+      + '</tr>';
+  }).join('');
+  box.innerHTML =
+    '<div style="font-size:12px;color:#475569;margin-bottom:6px;">'
+    + '回答 <b>' + j.rows + '</b>件 / <b>' + j.users + '</b>名　'
+    + '<span style="color:#7c3aed;font-weight:700;">2回以上答えた人 ' + j.multi_users + '名</span>'
+    + '<span style="color:#94a3b8;margin-left:8px;">※上の集計は各人の最新1件のみを使用</span></div>'
+    + '<div style="max-height:360px;overflow:auto;"><table style="font-size:12px;width:100%;">'
+    + '<thead><tr><th>氏名</th><th style="width:110px;">拠点</th><th style="text-align:right;width:50px;">回数</th>'
+    + '<th style="text-align:right;width:90px;">初回</th><th style="text-align:right;width:90px;">最新</th>'
+    + '<th style="text-align:right;width:60px;">変化</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
 async function loadHlStats() {
   const summary = document.getElementById('hl-stats-summary');
   const detail = document.getElementById('hl-stats-detail');
