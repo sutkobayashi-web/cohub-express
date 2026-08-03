@@ -865,25 +865,4 @@ router.get('/groups/:gid/messages', authAdmin, (req, res) => {
   res.json({ success: true, group: g, messages: rows.reverse() });
 });
 
-// 出席履歴
-router.get('/attendance', authAdmin, (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 500, 5000);
-  const userId = (req.query.user_id || '').toString().trim();
-  const floor = (req.query.floor || '').toString().trim();
-  const since = (req.query.since || '').toString().trim();
-  const until = (req.query.until || '').toString().trim();
-  let sql = `SELECT a.id, a.user_id, a.floor_code, a.event_type, a.at,
-             u.display_name, u.login_id FROM attendance a
-             LEFT JOIN users u ON u.id = a.user_id WHERE 1=1`;
-  const params = [];
-  if (userId) { sql += ' AND a.user_id = ?'; params.push(userId); }
-  if (floor) { sql += ' AND a.floor_code = ?'; params.push(floor); }
-  if (since) { sql += ' AND a.at >= ?'; params.push(since); }
-  if (until) { sql += " AND a.at <= ? || ' 23:59:59'"; params.push(until); }
-  sql += ' ORDER BY a.at DESC LIMIT ?';
-  params.push(limit);
-  const rows = getDb().prepare(sql).all(...params);
-  res.json({ success: true, events: rows });
-});
-
 module.exports = router;
