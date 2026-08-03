@@ -1813,6 +1813,8 @@ function genTempPw() {
   return p.split('').sort(() => Math.random() - 0.5).join('');
 }
 
+let chatOffset = 0;
+const chatLimit = 200;
 async function loadChatLog(offset, append) {
   const tb = document.getElementById('chat-tbody');
   try {
