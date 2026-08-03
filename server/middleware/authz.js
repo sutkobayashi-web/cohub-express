@@ -64,7 +64,14 @@ const POLICY = [
 //   ② レスポンスに出る社員の氏名は必ずニックネームへ置換・顔写真は外す
 //  ⚠️置換はフィールド名に頼らず、文字列の中身(memo/チャット本文など)まで全部見る。
 //    氏名は本文に埋め込まれて出てくる(例:「【自己チェック】○○さんの体調」)ため。
-const GUEST_WRITE_ALLOW = [/^\/auth(\/|$)/, /^\/voice(\/|$)/, /^\/usage(\/|$)/];
+//  既読の記録だけは許す (2026-08-04 社長判断)。止めると未読バッジが永久に消えず
+//  「壊れている」と見えるため。⚠️発言・投稿・承認など内容を変える書き込みは従来どおり禁止。
+//  ・POST /chat/read           = 自分がどこまで読んだかの記録
+//  ・POST /chat/messages/readers-bulk = 既読者の一覧取得(POSTだが中身は参照のみ)
+const GUEST_WRITE_ALLOW = [
+  /^\/auth(\/|$)/, /^\/voice(\/|$)/, /^\/usage(\/|$)/,
+  /^\/chat\/read$/, /^\/chat\/messages\/readers-bulk$/,
+];
 const GUEST_DROP_KEYS = ['avatar_url', 'subject_avatar', 'poster_avatar', 'avatar', 'login_id'];
 
 let _maskCache = { at: 0, re: null, map: null };
