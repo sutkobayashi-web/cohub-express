@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🔄 健康管理データ運営 — CoWell</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
+<link rel="apple-touch-icon" href="/img/cowell-apple-touch-v6.png">
 <meta name="theme-color" content="#7c3aed">
 <style>
 /* グレートーンテーマ — 視認性重視 (2026-05-07 リファイン: 余白拡大・影緩和) */
@@ -422,6 +422,12 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
 <div id="panel" style="display:none;">
 
   <div id="role-banner" class="banner banner-info"></div>
+  <!-- 守秘の明示 (2026-07-30): 匿名化を外して実名運用にしたため、責務を運用で担保する -->
+  <div class="banner banner-warn" style="margin-bottom:12px;">
+    <b>🔒 この画面は実名で扱います</b> — 社員の実名と、健康に関する相談内容が表示されます。
+    推進メンバーには<b>守秘の責務</b>があります。画面の撮影・転記・社外への持ち出し、
+    および本人や第三者への口外はしないでください。健康施策の検討という目的の範囲でのみ参照してください。
+  </div>
 
   <!-- 🌅 今日のあなた サマリー (常時表示) -->
   <div id="today-summary-box" class="today-summary" style="display:none;">
@@ -472,7 +478,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
           <span class="pillar-icon">🩺</span>
           <div style="flex:1;">
-            <div class="pillar-title">運管・健管POST</div>
+            <div class="pillar-title">現場ポスト</div>
             <div class="pillar-sub">点呼/帰庫時の構造化された声</div>
           </div>
           <div class="pillar-num" id="pillar-unkan-num">…</div>
@@ -558,7 +564,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
           </thead>
           <tbody>
             <tr>
-              <th>🩺 運管/現場<small>声を上げる</small></th>
+              <th>🩺 現場ポスト<small>声を上げる</small></th>
               <td data-stage="候補" class="sl-mark sl-primary" title="現場POSTが候補の元データ"><span class="sl-seq">1</span></td>
               <td data-stage="評議中"></td>
               <td data-stage="推進確定"></td>
@@ -686,9 +692,9 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
   </div>
 
   <div class="card" data-pane="inbox">
-    <h2>🩺 現場の声 (運管/倉庫/総務POST) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
+    <h2>🩺 現場の声 (点呼/倉庫/総務からの投稿) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
     <div class="row">
-      <select id="fv-src-filter"><option value="">投稿元すべて</option><option value="聞き取り">🩺 聞き取り</option><option value="運管">🚛 運管</option><option value="倉庫">📦 倉庫</option><option value="総務">🏢 総務</option><option value="その他">💼 その他</option></select>
+      <select id="fv-src-filter"><option value="">投稿元すべて</option><option value="聞き取り">🩺 聞き取り</option><option value="運管">🚛 点呼</option><option value="倉庫">📦 倉庫</option><option value="総務">🏢 総務</option><option value="その他">💼 その他</option></select>
       <select id="fv-cat-filter"><option value="">カテゴリすべて</option><option value="体調">体調</option><option value="食事">食事</option><option value="睡眠">睡眠</option><option value="職場環境">職場環境</option><option value="その他">その他</option></select>
       <select id="fv-urg-filter"><option value="">緊急度すべて</option><option value="高">🔴 高</option><option value="中">🟡 中</option><option value="低">🟢 低</option></select>
       <input type="number" id="fv-limit" value="50" min="10" max="200" style="max-width:90px;" title="表示件数">
@@ -702,7 +708,6 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
             <th style="width:50px;">#</th>
             <th style="width:140px;">日時</th>
             <th style="width:90px;">投稿元</th>
-            <th style="width:130px;">投稿者</th>
             <th style="width:130px;">対象者</th>
             <th style="width:80px;">営業所</th>
             <th style="width:90px;">カテゴリ</th>
@@ -1421,7 +1426,7 @@ async function startAction(id) {
   loadActions();
 }
 async function completeAction(id) {
-  if (!confirm('完了マーク + 全社アナウンス + 運管へDM配信します。よろしいですか？')) return;
+  if (!confirm('完了マーク + 全社アナウンス + 元になった声の投稿者へDM配信します。よろしいですか？')) return;
   const r = await fetch('/api/wellness/actions/' + id + '/complete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({}) });
   const j = await r.json();
   if (!j.success) { alert('失敗: ' + (j.msg || '')); return; }
@@ -1781,7 +1786,7 @@ async function openPostDetail(source, id) {
   const titleEl = document.getElementById('pdm-title');
   // 系統別ヘッダー色 (グレートーン、識別はアイコンとタイトルで)
   const styleMap = {
-    unkan: { bg: '#1f2937', title: '🩺 運管・健管POST 詳細' },
+    unkan: { bg: '#1f2937', title: '🩺 現場ポスト 詳細' },
     plaza: { bg: '#374151', title: '🌳 一般投稿 詳細' },
     food: { bg: '#4b5563', title: '🍱 食事投稿 詳細' },
     cw_post: { bg: '#6b7280', title: '📦 CoWell移行データ 詳細' },
@@ -1803,7 +1808,12 @@ async function openPostDetail(source, id) {
     let html = '';
     // メタ情報
     const metaItems = [];
-    if (p.poster_name || p.author_name) metaItems.push('👤 ' + escapeHtml(p.poster_name || p.author_name || (p.is_anonymous ? '🎭 匿名' : '不明')));
+    // ⚠️投稿者=対象者が大半なので対象者を主に出す。別人(聞き取り等)のときだけ聞き取り者を併記。
+    const whoMain = p.subject_name || p.poster_name || p.author_name;
+    if (whoMain) metaItems.push('👤 ' + escapeHtml(p.is_anonymous ? '🎭 匿名' : whoMain));
+    if (p.poster_name && p.subject_name && p.poster_name !== p.subject_name) {
+      metaItems.push((p.source_type === '聞き取り' ? '聞き取り: ' : '代理入力: ') + escapeHtml(p.poster_name));
+    }
     if (p.company_code) metaItems.push('🏢 ' + escapeHtml(p.company_code));
     if (p.category) metaItems.push('🏷 ' + escapeHtml(p.category));
     if (p.urgency) metaItems.push('緊急度: ' + escapeHtml(p.urgency));
@@ -1956,7 +1966,7 @@ async function loadPillarRecent() {
       unkanEl.innerHTML = d.unkan.map(p => `<div style="${itemStyle}border-bottom:1px solid #e5e7eb;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'" onclick="openPostDetail('${p.source}', ${JSON.stringify(p.id)})">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6b7280;">
-            ${urgIcon(p.urgency)} <b>${escapeHtml(p.category||'')}</b> · ${escapeHtml(p.poster_name||'-')} · ${rel(p.created_at)}
+            ${urgIcon(p.urgency)} <b>${escapeHtml(p.category||'')}</b> · ${escapeHtml(p.subject_name||p.poster_name||'-')} · ${rel(p.created_at)}
           </div>
           <div style="margin-top:1px;line-height:1.4;">${escapeHtml((p.memo||'').slice(0,70))}${(p.memo||'').length>70?'…':''}</div>
         </div>
@@ -2135,6 +2145,8 @@ function renderPromoterRanking(promoters) {
   });
   const max = Math.max(1, ...scored.map(p => p.score));
   const html = scored.map((p, i) => {
+    // 実名表示 (2026-07-30に匿名化を解除)。自分の行は紫で強調して位置が分かるようにする。
+    const label = escapeHtml(p.display_name || '不明') + (p.is_mine ? ' (あなた)' : '');
     const initial = escapeHtml((p.display_name || '?').slice(0, 1));
     const avatar = p.avatar_url
       ? `<img src="${escapeHtml(p.avatar_url)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #ede9fe;background:#fff;" onerror="this.replaceWith(Object.assign(document.createElement('div'),{style:'width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;',textContent:'${initial}'}))">`
@@ -2145,7 +2157,7 @@ function renderPromoterRanking(promoters) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         ${avatar}
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:12px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${medal}${escapeHtml(p.display_name||'')}</div>
+          <div style="font-weight:700;font-size:12px;color:${p.is_mine ? '#7c3aed' : '#0f172a'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${medal}${label}</div>
           <div style="font-size:10px;color:#94a3b8;">${escapeHtml(p.company_code||'')}</div>
         </div>
         <div style="font-size:18px;font-weight:800;color:#7c3aed;">${p.score}</div>
@@ -2154,11 +2166,11 @@ function renderPromoterRanking(promoters) {
         <div style="background:linear-gradient(90deg,#7c3aed,#a78bfa);height:100%;width:${barW}%;"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:10px;color:#64748b;">
-        <span title="運管・健管POST">🩺 運管POST <b style="color:#0f172a;">${p.post_count||0}</b></span>
-        <span title="声(運管POST)への議論コメント">💬 声議論 <b style="color:#0f172a;">${p.post_disc_count||0}</b></span>
+        <span title="現場ポスト">🩺 現場ポスト <b style="color:#0f172a;">${p.post_count||0}</b></span>
+        <span title="声(現場ポスト)への議論コメント">💬 声議論 <b style="color:#0f172a;">${p.post_disc_count||0}</b></span>
         <span title="施策ボードへの議論コメント">🎯 施策議論 <b style="color:#0f172a;">${p.action_disc_count||0}</b></span>
         <span title="ひろば投稿への推進メンバーコメント">🌳 ひろばコメ <b style="color:#0f172a;">${p.plaza_comment_count||0}</b></span>
-        <span title="声(運管POST)への共感絵文字">❤ 声共感 <b style="color:#0f172a;">${p.react_count||0}</b></span>
+        <span title="声(現場ポスト)への共感絵文字">❤ 声共感 <b style="color:#0f172a;">${p.react_count||0}</b></span>
         <span title="ひろば投稿への共感絵文字">👍 ひろば共感 <b style="color:#0f172a;">${p.plaza_react_count||0}</b></span>
       </div>
     </div>`;
@@ -2311,11 +2323,11 @@ async function loadFieldVoice() {
   const tb = document.getElementById('fv-tbody');
   const cnt = document.getElementById('fv-count');
   const limit = parseInt(document.getElementById('fv-limit').value) || 50;
-  tb.innerHTML = '<tr><td colspan="11" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
+  tb.innerHTML = '<tr><td colspan="10" style="color:#94a3b8;text-align:center;padding:20px;">読み込み中…</td></tr>';
   try {
     const r = await fetch('/api/wellness/posts?limit=' + limit, { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
-    if (!d.success) { tb.innerHTML = '<tr><td colspan="11" style="color:#dc2626;">取得失敗</td></tr>'; return; }
+    if (!d.success) { tb.innerHTML = '<tr><td colspan="10" style="color:#dc2626;">取得失敗</td></tr>'; return; }
     const srcFilter = (document.getElementById('fv-src-filter') || {}).value || '';
     const catFilter = document.getElementById('fv-cat-filter').value;
     const urgFilter = document.getElementById('fv-urg-filter').value;
@@ -2326,7 +2338,7 @@ async function loadFieldVoice() {
     );
     cnt.textContent = filtered.length + '件 / 全' + (d.posts || []).length + '件';
     if (!filtered.length) {
-      tb.innerHTML = '<tr><td colspan="11" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" style="color:#94a3b8;text-align:center;padding:20px;">該当する投稿がありません</td></tr>';
       return;
     }
     const urgIcon = u => u === '高' ? '🔴' : u === '中' ? '🟡' : '🟢';
@@ -2334,6 +2346,8 @@ async function loadFieldVoice() {
     const urgRowBg = u => u === '高' ? '#fef2f2' : u === '中' ? '#fffbeb' : '#fff';
     const idColor = m => m === '本人特定可' ? '#0891b2' : m === '匿名' ? '#7c3aed' : '#64748b';
     const srcIcon = s => s === '聞き取り' ? '🩺' : s === '倉庫' ? '📦' : s === '総務' ? '🏢' : s === 'その他' ? '💼' : '🚛';
+    // 表示だけ言い換える (DBの source_type='運管' は過去の投稿の履歴なので変えない)
+    const srcLabel = s => s === '運管' ? '点呼' : s;
     const srcColor = s => s === '聞き取り' ? '#0d9488' : s === '倉庫' ? '#ea580c' : s === '総務' ? '#0e7490' : s === 'その他' ? '#7c3aed' : '#0891b2';
     const sevColor = s => s === 2 ? '#b91c1c' : s === 1 ? '#b45309' : '#0f172a';
     const cardOpts = (_meta && _meta.card_options) || {};
@@ -2370,17 +2384,19 @@ async function loadFieldVoice() {
         : (answersHtml ? '' : '<span style="color:#cbd5e1;font-size:12px;">(本文なし)</span>');
       const avImg = (url) => `<img src="${escapeHtml(url)}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px;background:#e2e8f0;" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'👤',style:'display:inline-flex;width:22px;height:22px;border-radius:50%;background:#e2e8f0;align-items:center;justify-content:center;font-size:13px;vertical-align:middle;margin-right:5px;'}))">`;
       const avPlaceholder = `<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:#e2e8f0;align-items:center;justify-content:center;font-size:13px;vertical-align:middle;margin-right:5px;">👤</span>`;
-      const posterCell = p.poster_name
-        ? (p.poster_avatar ? avImg(p.poster_avatar) : avPlaceholder) + escapeHtml(p.poster_name)
-        : '-';
+      // ⚠️2026-07-30: 投稿者列を削除。1059件中1012件が投稿者=対象者で列が丸ごと重複していた。
+      //   別人の47件(ほぼ聞き取り)は「誰が聞き取ったか」が情報なので対象者の下に小さく残す。
+      const byOther = !!(p.poster_name && p.subject_name && p.poster_name !== p.subject_name);
+      const byLabel = byOther
+        ? `<div style="font-size:10px;color:#64748b;font-weight:400;margin-top:2px;">${srcType === '聞き取り' ? '聞き取り' : '代理入力'}: ${escapeHtml(p.poster_name)}</div>`
+        : '';
       const subjectCell = p.subject_name
-        ? (p.subject_avatar ? avImg(p.subject_avatar) : avPlaceholder) + escapeHtml(p.subject_name)
-        : '<span style="color:#cbd5e1;">-</span>';
+        ? (p.subject_avatar ? avImg(p.subject_avatar) : avPlaceholder) + escapeHtml(p.subject_name) + byLabel
+        : (p.poster_name ? avPlaceholder + escapeHtml(p.poster_name) : '<span style="color:#cbd5e1;">-</span>');
       return `<tr style="background:${urgRowBg(p.urgency)};">
         <td style="font-size:11px;color:#94a3b8;font-weight:700;vertical-align:top;">#${p.id}</td>
         <td style="font-size:11px;color:#64748b;white-space:nowrap;vertical-align:top;">${dtime}</td>
-        <td style="font-size:11px;color:${srcColor(srcType)};font-weight:700;vertical-align:top;">${srcIcon(srcType)} ${escapeHtml(srcType)}</td>
-        <td style="font-size:12px;white-space:nowrap;vertical-align:top;">${posterCell}</td>
+        <td style="font-size:11px;color:${srcColor(srcType)};font-weight:700;vertical-align:top;">${srcIcon(srcType)} ${escapeHtml(srcLabel(srcType))}</td>
         <td style="font-size:12px;color:#0f172a;font-weight:600;white-space:nowrap;vertical-align:top;">${subjectCell}</td>
         <td style="font-size:11px;color:#64748b;vertical-align:top;">${escapeHtml(p.company_code || '-')}</td>
         <td style="font-size:12px;font-weight:600;vertical-align:top;">${escapeHtml(p.category)}</td>
@@ -2389,12 +2405,12 @@ async function loadFieldVoice() {
         <td style="vertical-align:top;padding:8px 12px;">${answersHtml}${memoHtml}</td>
         <td style="font-size:11px;vertical-align:top;"><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="togglePostDiscuss(${p.id})">💬議論</button></td>
       </tr>
-      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="11" style="background:#f8fafc;padding:10px;">
+      <tr id="post-discuss-${p.id}" style="display:none;"><td colspan="10" style="background:#f8fafc;padding:10px;">
         <div id="post-discuss-area-${p.id}"></div>
       </td></tr>`;
     }).join('');
   } catch (e) {
-    tb.innerHTML = '<tr><td colspan="11" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="color:#dc2626;">通信エラー: ' + escapeHtml(e.message) + '</td></tr>';
   }
 }
 
