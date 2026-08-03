@@ -817,7 +817,7 @@ router.get('/board', authUser, (req, res) => {
 // 中🟡 のチャット非通知化に伴い、ここで未確認バッジ + 一括ack を提供。
 // 対象は点呼由来(運管/倉庫/セルフ)。拠点スコープは canViewBoard 準拠(本社ADMIN=全拠点)。
 // ============================================================
-const TENKO_SOURCES = ['運管', '倉庫', '製造', 'セルフ'];
+const TENKO_SOURCES = ['運管', '倉庫', '製造', '帰庫', 'セルフ'];
 router.get('/manage', authUser, (req, res) => {
   const db = getDb();
   const me = getViewer(req.uid);
@@ -892,7 +892,7 @@ router.get('/manage', authUser, (req, res) => {
   const queue = db.prepare(`SELECT wp.id, wp.urgency, wp.memo, wp.source_type, wp.company_code,
       substr(wp.created_at,1,16) AS at, u.display_name AS subject
     FROM wellness_posts wp LEFT JOIN users u ON u.id = wp.subject_user_id
-    WHERE wp.category='体調' AND COALESCE(wp.ack_status,'未対応')='未対応'
+    WHERE wp.category IN ('体調','帰庫点呼') AND COALESCE(wp.ack_status,'未対応')='未対応'
       AND wp.source_type IN (${srcPh}) AND wp.created_at >= ?${coClause}
     ORDER BY CASE wp.urgency WHEN '高' THEN 0 WHEN '中' THEN 1 ELSE 2 END, wp.id DESC LIMIT 300`).all(...queueArgs);
   const unhandled = queue.length;

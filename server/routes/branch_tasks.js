@@ -12,6 +12,9 @@ const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
 const router = express.Router();
 
+// ⚠️ここに '帰庫' を足さないこと。帰り(退勤前)チェック由来の声は②の承認待ち(tenko_kiko)で
+//   既に同じ出来事を数えているため、①にも入れると同じ1件が拠点の「やること」に二重計上される。
+//   帰り由来の気がかりは 気にかけボード(カテゴリ問わず未対応を表示)と点呼管理の未対応キューで拾う。
 const TENKO_SOURCES = ['運管', '倉庫', '製造', 'セルフ'];
 // 現場拠点のみ対象。管理系(本社/管理課/管理部)・非現場係は除外し「現場のやること」に集中。
 const EXCLUDE = ['ADMIN', 'GUEST', 'NPO', 'UNIVERSITY', 'SU_KANRI', 'SU_KANRIBU', 'KOJI'];
