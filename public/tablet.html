@@ -435,7 +435,7 @@ function applyLoginMode(token, uid){
       localStorage.setItem('cohub_kiosk_token', token);
       // 共用タブレットとして使われた端末は、この時点で設置端末として登録しておく。
       // 以後は拠点のグローバルIPが変わっても名前選択画面を開ける (2026-08-04)。
-      try { var _co = (document.getElementById('f-co') || {}).value || ''; ensureDeviceToken(_co); } catch (e) {}
+      try { var _co = (document.getElementById('f-co') || {}).value || ''; ensureDeviceToken(_co, token); } catch (e) {}
     }
   } catch (e) {}
 }
@@ -714,7 +714,7 @@ function devHeaders() {
   try { t = localStorage.getItem(DEVICE_KEY) || ''; } catch (e) {}
   return t ? { 'X-Device-Token': t } : {};
 }
-async function ensureDeviceToken(co) {
+async function ensureDeviceToken(co, loginToken) {
   try {
     if (localStorage.getItem(DEVICE_KEY)) return;
     // ⚠️登録するのは「共用タブレットとして使われている端末」だけ。
@@ -722,8 +722,11 @@ async function ensureDeviceToken(co) {
     //   その後どこへ持ち出しても名簿が開ける端末が増えてしまう(2026-08-04 実際に2台登録された)。
     //   キオスク印(cohub_kiosk)は共用タブレットでPINログインしたときに付く。
     if (PERSONAL || localStorage.getItem('cohub_kiosk') !== '1') return;
+    // ログイン直後は そのトークンを添える=事業所ネットワークの許可リストに載っていない拠点でも登録できる
+    var hdr = { 'Content-Type': 'application/json' };
+    if (loginToken) hdr['Authorization'] = 'Bearer ' + loginToken;
     var r = await fetch('/api/auth/device-register', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: hdr,
       body: JSON.stringify({ co: co || '', label: (navigator.userAgent || '').slice(0, 60) }),
     }).then(function (x) { return x.json(); }).catch(function () { return null; });
     if (r && r.success && r.device_token) localStorage.setItem(DEVICE_KEY, r.device_token);

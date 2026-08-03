@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const router = express.Router();
 const { getDb } = require('../services/db');
-const { generateToken, authUser, hasValidSession } = require('../middleware/auth');
+const { generateToken, authUser, hasValidSession, verifyToken } = require('../middleware/auth');
 const { audit, clientIp } = require('../services/audit');
 const { issueDeviceToken, deviceOf } = require('../services/net');
 
@@ -291,7 +291,15 @@ router.post('/check-password', authUser, express.json(), (req, res) => {
 // 事業所ネットワークからの1回きりの登録で端末トークンを発行し、以後はIPが変わっても名簿を読めるようにする。
 // ※実測で拠点のグローバルIPは1か月半に2回入れ替わっていたため、IP許可リストの運用は続かない。
 router.post('/device-register', express.json(), (req, res) => {
-  if (!isSetupAllowedIp(req)) {
+  // 事業所ネットワークからの登録に加え、『共用タブレットとしてPINログインできた端末』も認める。
+  // ⚠️許可IPリストが全拠点を網羅できていないため(実測で2拠点が漏れていた)。PINを打って入れた
+  //   端末＝現物が拠点にある端末とみなす。個人スマホ(?personal=1)は dev='mobile' なので通らない。
+  let kioskSession = false;
+  try {
+    const _t = (req.headers.authorization || '').replace('Bearer ', '');
+    if (_t) { const _p = verifyToken(_t); kioskSession = !!(_p && _p.dev === 'kiosk'); }
+  } catch (e) { kioskSession = false; }
+  if (!isSetupAllowedIp(req) && !kioskSession) {
     audit(req, 'device_register_denied', { target: 'ip=' + clientIp(req) });
     return res.status(403).json({ success: false, msg: '端末の登録は事業所のネットワークから行ってください' });
   }
