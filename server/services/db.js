@@ -1138,7 +1138,7 @@ function getDb() {
   const grpExists = _db.prepare('SELECT 1 FROM chat_groups WHERE id = ?').get(PROMOTER_GROUP_ID);
   if (!grpExists) {
     _db.prepare("INSERT INTO chat_groups (id, name, icon, created_by) VALUES (?, ?, ?, ?)")
-      .run(PROMOTER_GROUP_ID, '🩺 現場の声 (運管POST)', '🩺', null);
+      .run(PROMOTER_GROUP_ID, '🩺 現場の声', '🩺', null);
   }
   // 健康管理室ディスカッションGC (Bライン: 事務側からの直接議論)
   const WELLNESS_DISC_ID = 'g_wellness_disc';
