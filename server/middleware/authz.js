@@ -79,13 +79,27 @@ function nameMasker() {
   if (_maskCache.re !== null && now - _maskCache.at < 60000) return _maskCache;
   let rows = [];
   try {
+    // ⚠️botは対象外。葵・ヘルスアドバイザー・健康推進室などの名前まで置換すると本文が壊れる
+    //   (「健康推進室より」→「社員bot_より」)。個人情報でもない。
     rows = getDb().prepare(
-      `SELECT id, display_name, nickname FROM users WHERE COALESCE(display_name,'') <> ''`).all();
+      `SELECT id, display_name, nickname FROM users
+       WHERE COALESCE(display_name,'') <> '' AND COALESCE(role,'') <> 'bot' AND id NOT LIKE 'bot_%'`).all();
   } catch (e) { rows = []; }
   const map = new Map();
+  const owner = new Map();          // 表記 → その表記を持つ人のid集合 (姓の重複を見るため)
+  const put = (k, r, alias) => {
+    if (!k || k.length < 2) return;
+    const o = owner.get(k) || new Set(); o.add(r.id); owner.set(k, o);
+    // ⚠️同じ姓の人が複数いる表記は、特定の誰かのニックネームに寄せず「社員」にする
+    //   (「鈴木さん」を実在の別人のニックネームに置換すると読み手を誤解させる)
+    map.set(k, o.size > 1 ? '社員' : alias);
+  };
   for (const r of rows) {
     const alias = (r.nickname && String(r.nickname).trim()) || ('社員' + String(r.id).slice(0, 4));
-    for (const v of nameVariants(r.display_name)) if (v.length >= 2) map.set(v, alias);
+    for (const v of nameVariants(r.display_name)) put(v, r, alias);
+    // ⚠️姓だけ・名だけの表記も必ず潰す。葵の挨拶やAIの返答は「立石さん」のように姓しか
+    //   使わないため、フルネームだけ見ていると素通りしていた (2026-08-03 社長の確認で発覚)。
+    for (const p of String(r.display_name).split(/[\s　]+/)) put(p, r, alias);
   }
   // 長い表記から先に当てる (「立石　宗貴」を「立石」より優先)
   const keys = [...map.keys()].sort((a, b) => b.length - a.length);
