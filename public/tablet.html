@@ -737,6 +737,9 @@ async function loadRoster(co) {
   await ensureDeviceToken(co);
   const qs = co ? ('?co=' + encodeURIComponent(co)) : '';
   const r = await fetch('/api/auth/tablet-roster' + qs, { headers: devHeaders() }).then(x => x.json()).catch(()=>null);
+  // 失効・不明なトークンを持っていたら捨てる。次にPINログインした時に登録し直される。
+  // ⚠️これが無いと、一度失効させた端末は古いトークンを抱えたまま二度と登録できない。
+  if (r && r.device === 'unknown') { try { localStorage.removeItem(DEVICE_KEY); } catch (e) {} }
   if (!r || !r.success) { document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
   users = r.users || [];
   companyCodes = new Set(users.map(u => u.company_code || ''));

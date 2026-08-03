@@ -323,6 +323,21 @@ router.get('/kiosk-devices', authAdmin, (req, res) => {
     ORDER BY d.revoked_at IS NOT NULL, COALESCE(d.last_seen_at, d.created_at) DESC`).all();
   res.json({ success: true, devices: rows });
 });
+// 端末の拠点・名前を手で直す (登録時に拠点が取れなかった端末、置き場所が分かる名前を付けたい時)
+router.patch('/kiosk-devices/:id', authAdmin, (req, res) => {
+  const db = getDb();
+  require('../services/net').ensureDeviceTable(db);
+  const b = req.body || {};
+  const sets = [], args = [];
+  if (b.company_code !== undefined) { sets.push('company_code = ?'); args.push(String(b.company_code || '').trim() || null); }
+  if (b.label !== undefined) { sets.push('label = ?'); args.push(String(b.label || '').trim().slice(0, 60) || null); }
+  if (!sets.length) return res.status(400).json({ success: false, msg: '変更内容がありません' });
+  args.push(req.params.id);
+  const r = db.prepare(`UPDATE kiosk_devices SET ${sets.join(', ')} WHERE id = ?`).run(...args);
+  if (!r.changes) return res.status(404).json({ success: false, msg: '端末が見つかりません' });
+  require('../services/audit').audit(req, 'device_update', { target: 'device=' + req.params.id });
+  res.json({ success: true });
+});
 router.post('/kiosk-devices/:id/revoke', authAdmin, (req, res) => {
   const db = getDb();
   require('../services/net').ensureDeviceTable(db);

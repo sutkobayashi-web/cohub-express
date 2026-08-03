@@ -294,22 +294,28 @@ router.post('/device-register', express.json(), (req, res) => {
   // 事業所ネットワークからの登録に加え、『共用タブレットとしてPINログインできた端末』も認める。
   // ⚠️許可IPリストが全拠点を網羅できていないため(実測で2拠点が漏れていた)。PINを打って入れた
   //   端末＝現物が拠点にある端末とみなす。個人スマホ(?personal=1)は dev='mobile' なので通らない。
-  let kioskSession = false;
+  let kioskSession = false, kioskUid = null;
   try {
     const _t = (req.headers.authorization || '').replace('Bearer ', '');
-    if (_t) { const _p = verifyToken(_t); kioskSession = !!(_p && _p.dev === 'kiosk'); }
+    if (_t) { const _p = verifyToken(_t); kioskSession = !!(_p && _p.dev === 'kiosk'); kioskUid = _p && _p.uid; }
   } catch (e) { kioskSession = false; }
   if (!isSetupAllowedIp(req) && !kioskSession) {
     audit(req, 'device_register_denied', { target: 'ip=' + clientIp(req) });
     return res.status(403).json({ success: false, msg: '端末の登録は事業所のネットワークから行ってください' });
   }
   const b = req.body || {};
+  // 拠点が指定されていなければ、ログインした人の所属から補う。
+  // (名前選択画面で拠点フィルタを選ばずに使うと空になり、一覧で見分けが付かなかった)
+  let co = String(b.co || '').trim();
+  if (!co && kioskUid) {
+    try { const _u = getDb().prepare('SELECT company_code FROM users WHERE id = ?').get(kioskUid); co = (_u && _u.company_code) || ''; } catch (e) {}
+  }
   const token = issueDeviceToken(getDb(), {
-    companyCode: String(b.co || '').trim() || null,
+    companyCode: co || null,
     label: String(b.label || '').trim() || null,
     ip: clientIp(req),
   });
-  audit(req, 'device_register', { target: 'co=' + String(b.co || '-') });
+  audit(req, 'device_register', { target: 'co=' + (co || '-') });
   res.json({ success: true, device_token: token });
 });
 
@@ -335,7 +341,11 @@ router.get('/tablet-roster', (req, res) => {
       ${co ? 'AND company_code = ?' : ''}
     ORDER BY company_code, display_name
   `).all(...(co ? [co] : []));
-  res.json({ success: true, users: rows });
+  // 端末トークンの状態をクライアントに返す。unknown=失効/知らないトークンを持っている状態。
+  // ⚠️これが無いと、失効させた端末は localStorage に古いトークンを抱えたまま再登録できず、
+  //   永久に未登録のままになる(2026-08-04 実機を失効させて判明)。
+  const devState = dev ? 'ok' : (req.headers['x-device-token'] ? 'unknown' : 'none');
+  res.json({ success: true, users: rows, device: devState });
 });
 
 // タブレットPINログイン
