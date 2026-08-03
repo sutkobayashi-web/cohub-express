@@ -165,6 +165,13 @@ function isGuestReviewer(uid) {
 
 // 健康管理室ページの閲覧権限: 管理職 or 推進メンバー(運管/倉庫) or ゲストレビュアー
 // (一般のシステム管理者は除外 — ドライバーの体調/睡眠/食事POSTを見せない方針)
+// 個人の体調・声そのものを見られるか (2026-08-04)。
+//  ⚠️社外ゲスト(大学)は対象外。公表済みプライバシーポリシー4-2で大学へ渡すのは
+//  「匿名集計のみ」と公表しており、体調メモ・投稿本文は「アクセスできない情報」と明記している。
+//  施策ボード(actions/pipeline/insights)は従来どおり見られる。
+function canSeeIndividualVoices(uid) {
+  return canAccessWellness(uid) && !isGuestReviewer(uid);
+}
 function canAccessWellness(uid) {
   return isWellnessManager(uid) || isFieldPromoter(uid) || isWarehousePromoter(uid) || isGuestReviewer(uid);
 }
@@ -237,7 +244,7 @@ router.post('/post', authUser, express.json(), (req, res) => {
 
 // GET /api/wellness/posts  健康管理室メンバーのみ閲覧可
 router.get('/posts', authUser, (req, res) => {
-  if (!canAccessWellness(req.uid)) {
+  if (!canSeeIndividualVoices(req.uid)) {
     return res.status(403).json({ success: false, msg: '権限なし' });
   }
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -1140,7 +1147,7 @@ function rewriteCwImage(url) {
 
 // 各柱の最新POST (3つの柱に実コンテンツを表示するため、CoWell移行データもマージ)
 router.get('/pillar-recent', authUser, (req, res) => {
-  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  if (!canSeeIndividualVoices(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
   const limit = Math.min(parseInt(req.query.limit) || 5, 20);
   const fetchN = limit * 2; // CoHub+CoWell をマージするため余分に取って後で絞る
   const db = getDb();
@@ -1183,7 +1190,7 @@ router.get('/pillar-recent', authUser, (req, res) => {
 
 // POST詳細 (3柱共通、source+id で1リクエスト)
 router.get('/post-detail/:source/:id', authUser, (req, res) => {
-  if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
+  if (!canSeeIndividualVoices(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
   const src = req.params.source;
   const id = req.params.id;
   const db = getDb();

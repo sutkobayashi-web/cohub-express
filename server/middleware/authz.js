@@ -47,8 +47,7 @@ const POLICY = [
   //   ⚠️登録/削除(POST/DELETE)は管理職のまま。今後アップされるPDFに未処理の個人情報が混じり得るため。
   //   ⚠️AI分析(analysis)は経営判断向けの傾向分析なので管理職のまま。
   //   ⭐2026-08-03 (社長): 共同研究の閲覧アカウントは参照だけ許可 (氏名は研究閲覧モードで匿名化)。
-  { re: /^\/accident\/archive(\/|$)/, methods: ['GET'], need: c => !!c, enforce: true, label: 'accident-archive-read' },
-  { re: /^\/accident\/analysis(\/|$)/, methods: ['GET'], need: c => !!c && (c.is_mgr || c.is_guest), enforce: true, label: 'accident-analysis-read' },
+  { re: /^\/accident\/archive(\/|$)/, methods: ['GET'], need: NEED.notGuest, enforce: true, label: 'accident-archive-read' },
   { re: /^\/accident\/(archive|analysis)(\/|$)/, need: NEED.manager, enforce: true, label: 'accident-archive' },
 
   // 全拠点のWi-Fi設定(パスワード平文)。利用実績ゼロ。社外ゲストにも見えていた。

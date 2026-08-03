@@ -124,10 +124,10 @@ router.post('/proxy-submit', authUser, express.json(), (req, res) => {
 //  → 研究の前後比較のため、人ごとに全回答を時系列で返す。
 //  ⚠️社外ゲスト(研究閲覧)にも開く。氏名は middleware/authz.js が匿名化する。
 // ============================================================
+// ⚠️社外ゲストは対象外 (2026-08-04)。公表済みポリシー4-2で大学へ渡すのは
+//   「性別・年代区分だけの集計」で、個人別の回答履歴は範囲外。
 function canViewHl(uid) {
-  if (isWellnessManager(uid)) return true;
-  const r = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
-  return !!(r && r.is_guest_reviewer);
+  return isWellnessManager(uid);
 }
 router.get('/history-all', authUser, (req, res) => {
   if (!canViewHl(req.uid)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
