@@ -310,6 +310,26 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Cache-Control', 'private, no-store');
   return res.status(401).end();
 });
+// 2026-08-03: 添付は「アップロード時の元のファイル名」で保存させる。
+// /uploads の実体は UUID 名 (例 492c7b68-….pdf) なので、従来は保存すると
+// 492c7b68-….pdf という名前になり、何のファイルか分からなくなっていた。
+// 元の名前は messages.attach_name に控えてあるのでそれを Content-Disposition で返す。
+// inline なので画像/PDF をタブで開くプレビュー(PC版チャット・タブレットのPDFビューア)は従来どおり。
+app.use('/uploads', (req, res, next) => {
+  try {
+    const row = getDb().prepare(
+      'SELECT attach_name FROM messages WHERE attach_url = ? AND attach_name IS NOT NULL LIMIT 1'
+    ).get('/uploads' + req.path);
+    if (row && row.attach_name) {
+      // 日本語名は filename* (RFC 5987) で渡す。percent-encode 済みゆえヘッダーは
+      // ASCII のみになり ERR_INVALID_CHAR を踏まない。
+      res.locals.attachName = row.attach_name;
+      res.setHeader('Content-Disposition',
+        "inline; filename*=UTF-8''" + encodeURIComponent(row.attach_name));
+    }
+  } catch (e) { /* 名前が引けなくても配信自体は続ける */ }
+  next();
+});
 // /uploads は <img>/<video> 等で参照するため Bearer ではなく Cookie で認可する。
 // 能動的コンテンツ(.html/.svg/.js等)は MIME スニッフィングを禁止し必ずダウンロードさせて
 // 同一オリジン実行(保存型XSS)を無害化する (2026-06-24 セキュリティ修正)
@@ -318,7 +338,10 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (/\.(html?|xhtml|svg|svgz|js|mjs|xml)$/i.test(filePath)) {
       res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Disposition', 'attachment');
+      // attachment に上書きしつつ、判明していれば元の名前は残す
+      const nm = res.locals && res.locals.attachName;
+      res.setHeader('Content-Disposition',
+        nm ? "attachment; filename*=UTF-8''" + encodeURIComponent(nm) : 'attachment');
     }
     // アップロード画像/動画(UUIDファイル名=実質不変)は1日キャッシュ。繰り返し表示(事故写真/チャット画像等)の再取得を減らす。
     else if (/\.(png|jpe?g|gif|webp|bmp|mp4|webm|mov|m4v|ogg|mp3|wav)$/i.test(filePath)) {
@@ -418,7 +441,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-07-29-admin2"
+const APP_VERSION = "2026-08-03-prelogout"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -772,9 +795,10 @@ io.use((socket, next) => {
     // デバイス種別ごとのセッション照合 (新しいログインで旧セッションをキック)
     if (payload.sid && payload.role !== 'bot') {
       try {
-        const u = getDb().prepare('SELECT pc_session_token, mobile_session_token, session_token FROM users WHERE id = ?').get(payload.uid);
+        const u = getDb().prepare('SELECT pc_session_token, mobile_session_token, kiosk_session_token, session_token FROM users WHERE id = ?').get(payload.uid);
         let ok = false;
         if (payload.dev === 'mobile') ok = !!(u && u.mobile_session_token && u.mobile_session_token === payload.sid);
+        else if (payload.dev === 'kiosk') ok = !!(u && u.kiosk_session_token && u.kiosk_session_token === payload.sid);   // 共用タブレット専用枠
         else if (payload.dev === 'pc') ok = !!(u && u.pc_session_token && u.pc_session_token === payload.sid);
         else {
           // 旧JWT互換: dev未指定なら3フィールドのいずれかに一致すればOK
@@ -2461,10 +2485,12 @@ async function runFoodMonthlyAuto() {
       if (NO_AUTO_GREETING_UIDS.has(uid)) continue;   // 自動配信を止めている人は除外
       try {
         await foodReport.generateReport(uid, ym);
-        const msg = '📊 ' + foodReport.ymLabel(ym) + 'のマンスリー栄養レポートができました！\nこの1か月の食事の栄養分析・傾向・来月の心がけをまとめています。\n→ /food-report.html で確認できます。';
-        const ins = getDb().prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('bot_health', ?, ?, 'dm')").run(uid, msg);
+        // 要点だけをおしらせに出し、本編(/food-report.html)へ誘導する (2026-08-01 社長指示)。
+        // ⚠️送信元は notice_food。bot_ 名義はチャットのDM一覧から除外され誰にも見えない。
+        const msg = foodReport.noticeText(uid, ym) || ('📊 ' + foodReport.ymLabel(ym) + 'のマンスリー栄養レポートができました。/food-report.html でご覧ください。');
+        const ins = getDb().prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code) VALUES ('notice_food', ?, ?, 'dm')").run(uid, msg);
         const p = presence.get(uid);
-        if (p && p.socketId) { const s = io.sockets.sockets.get(p.socketId); if (s) s.emit('dm:msg', { id: ins.lastInsertRowid, from: 'bot_health', to: uid, content: msg, at: new Date().toISOString(), attach: null }); }
+        if (p && p.socketId) { const s = io.sockets.sockets.get(p.socketId); if (s) s.emit('dm:msg', { id: ins.lastInsertRowid, from: 'notice_food', to: uid, content: msg, at: new Date().toISOString(), attach: null }); }
         sendPushToUser(uid, { title: '📊 マンスリー栄養レポート', body: foodReport.ymLabel(ym) + 'の栄養レポートができました', tag: 'food-monthly', url: '/food-report.html' }).catch(() => {});
         console.log('[food-report] auto-generated', uid, ym);
       } catch (e) { console.warn('[food-report auto] fail', uid, (e.message || '').slice(0, 100)); }
@@ -2474,6 +2500,13 @@ async function runFoodMonthlyAuto() {
 }
 setInterval(runFoodMonthlyAuto, 12 * 60 * 60 * 1000);
 setTimeout(runFoodMonthlyAuto, 90 * 1000);   // 起動後1回 (月初以外はno-op)
+
+// 朝の健康チェック 日次サマリー: 毎朝(既定 10:00 JST)に当日分を集計して
+// 🏥健康管理室ディスカッションへ「健康推進室」名義で配信 (2026-07-31 社長指示)。
+// 10分間隔でtick。配信済みの日付を app_settings に持つので再起動しても二重配信しない。
+const healthDaily = require('./services/health_daily');
+setInterval(() => healthDaily.tick(app.locals), 10 * 60 * 1000);
+setTimeout(() => healthDaily.tick(app.locals), 60 * 1000);   // 起動後1回 (配信済み/時刻前なら no-op)
 
 // 健康管理室: 投票期間 7日経過の施策を自動締切 (1時間ごと)
 setInterval(() => {
