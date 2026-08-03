@@ -46,9 +46,10 @@ const LISTENING_FIELDS = [
 ];
 const CARD_OPTIONS = {
   '聞き取り': { title: '聞き取りカード', fields: LISTENING_FIELDS },
-  // 旧仕様の互換: 既存の運管/倉庫リクエストが来ても新カードで応答
+  // 旧仕様の互換: 既存の運管/倉庫/製造リクエストが来ても新カードで応答
   '運管': { title: '聞き取りカード', fields: LISTENING_FIELDS },
   '倉庫': { title: '聞き取りカード', fields: LISTENING_FIELDS },
+  '製造': { title: '聞き取りカード', fields: LISTENING_FIELDS },
 };
 
 // カード回答から urgency/category を自動推定
@@ -74,12 +75,13 @@ function deriveCardSummary(sourceType, answers) {
   if (!category) category = sourceType === '倉庫' ? '体調' : '体調';
   return { urgency, category };
 }
-// 投稿元区分 (B案): 推進メンバー(運管型) 内の役割区別
-// - 運管: 配車・点呼担当 (ドライバー対応の最前線)
+// 投稿元区分 (B案): 推進メンバー内の役割区別
+// - 運管: 配車・点呼担当 (ドライバー対応の最前線) ※画面表示は「点呼」
 // - 倉庫: 倉庫管理者 (荷役・庫内作業者対応)
+// - 製造: 製造現場の責任者 (2026-08-03 追加。それまで製造スタッフの声は倉庫に入っていた)
 // - 総務: 総務・人事 (オフィス職員対応、産業医連絡担当)
 // - その他: 上記以外 (店舗担当、特殊業務等)
-const SOURCE_TYPES = ['運管', '倉庫', '総務', '聞き取り', 'その他'];
+const SOURCE_TYPES = ['運管', '倉庫', '製造', '総務', '聞き取り', 'その他'];
 // v2 パイプライン: 候補→評議→推進確定→保健師中→役員→投票中→保健師末→実行→完了
 const ACTION_STATUSES = ['候補', '評議中', '推進確定', '保健師中間', '役員決済', '投票中', '保健師最終', '実行中', '完了', '却下'];
 // 段階遷移マップ (どこへ進めるか)
@@ -243,7 +245,7 @@ router.get('/posts', authUser, (req, res) => {
   let sql = `
     SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code,
            wp.source_type, wp.subject_user_id, wp.structured_json, wp.created_at,
-           ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) as poster_name,
+           COALESCE(u.display_name, '不明') as poster_name,
            NULL as poster_avatar,
            CASE WHEN wp.poster_id = ? THEN 1 ELSE 0 END as is_mine,
            s.display_name as subject_name,
@@ -567,11 +569,13 @@ router.get('/promoter-board', authUser, (req, res) => {
     WHERE status IN ('承認待ち','承認済','実行中') ORDER BY id DESC LIMIT 5`).all();
 
   // 推進メンバー貢献 (POST数+議論数+コメント数+ひろば貢献) — 全員返す
-  // ★匿名化(#2): 実名・アバター・会社は出さない(反応数からの本人特定を防ぐ)。🎭ニックネーム+is_mineのみ
+  // ⚠️2026-07-30: 実名表示に統一。もとは「実名・アバター・会社は出さない+🎭ニックネーム」で匿名化して
+  //   いたが、(a)同ページのスケジュールが同じ推進メンバーを実名で列挙しており固定の呼び名は照合の
+  //   足がかりにしかなっていなかった (b)健康戦略室は実名のみに統一する方針になった。3点まとめて解除。
   const promoters = db.prepare(`SELECT
     CASE WHEN u.id = ? THEN 1 ELSE 0 END AS is_mine,
-    ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS display_name,
-    NULL AS avatar_url, NULL AS company_code,
+    u.display_name AS display_name,
+    u.avatar_url AS avatar_url, u.company_code AS company_code,
     (SELECT COUNT(*) FROM wellness_posts WHERE poster_id = u.id AND created_at >= ?) AS post_count,
     (SELECT COUNT(*) FROM wellness_post_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS post_disc_count,
     (SELECT COUNT(*) FROM wellness_action_discussions WHERE author_id = u.id AND deleted_at IS NULL AND created_at >= ?) AS action_disc_count,
@@ -900,7 +904,7 @@ router.get('/insights/:id/threads', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
   const id = parseInt(req.params.id);
   const threads = getDb().prepare(`SELECT t.id, t.candidate_idx, t.author_id, t.type, t.content, t.registered_action_id, t.created_at,
-    ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name FROM wellness_insight_threads t LEFT JOIN users u ON u.id = t.author_id
+    COALESCE(u.display_name, '不明') AS author_name FROM wellness_insight_threads t LEFT JOIN users u ON u.id = t.author_id
     WHERE t.insight_id = ? AND t.deleted_at IS NULL ORDER BY t.id ASC`).all(id);
   res.json({ success: true, threads });
 });
@@ -966,7 +970,7 @@ router.get('/posts/:id/reactions', authUser, (req, res) => {
 
 router.get('/posts/:id/discussions', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
-  const rows = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
+  const rows = getDb().prepare(`SELECT d.*, COALESCE(u.display_name, '不明') AS author_name, NULL AS author_avatar
     FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id
     WHERE d.post_id = ? AND d.deleted_at IS NULL ORDER BY d.id ASC LIMIT 200`).all(parseInt(req.params.id));
   res.json({ success: true, discussions: rows });
@@ -978,7 +982,7 @@ router.post('/posts/:id/discussions', authUser, express.json(), (req, res) => {
   const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
   if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
   const ins = getDb().prepare('INSERT INTO wellness_post_discussions (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
-  const c = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
+  const c = getDb().prepare(`SELECT d.*, COALESCE(u.display_name, '不明') AS author_name, NULL AS author_avatar
     FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id WHERE d.id = ?`).get(ins.lastInsertRowid);
   res.json({ success: true, discussion: c });
 });
@@ -998,7 +1002,7 @@ router.delete('/posts/discussions/:id', authUser, (req, res) => {
 // ============================================================
 router.get('/actions/:id/discussions', authUser, (req, res) => {
   if (!canAccessWellness(req.uid)) return res.status(403).json({ success: false, msg: '権限なし' });
-  const rows = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
+  const rows = getDb().prepare(`SELECT d.*, COALESCE(u.display_name, '不明') AS author_name, NULL AS author_avatar
     FROM wellness_action_discussions d LEFT JOIN users u ON u.id = d.author_id
     WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id ASC LIMIT 200`).all(parseInt(req.params.id));
   res.json({ success: true, discussions: rows });
@@ -1010,7 +1014,7 @@ router.post('/actions/:id/discussions', authUser, express.json(), (req, res) => 
   const content = String((req.body && req.body.content) || '').slice(0, 1000).trim();
   if (!content) return res.status(400).json({ success: false, msg: '本文必須' });
   const ins = getDb().prepare('INSERT INTO wellness_action_discussions (action_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
-  const c = getDb().prepare(`SELECT d.*, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name, NULL AS author_avatar
+  const c = getDb().prepare(`SELECT d.*, COALESCE(u.display_name, '不明') AS author_name, NULL AS author_avatar
     FROM wellness_action_discussions d LEFT JOIN users u ON u.id = d.author_id WHERE d.id = ?`).get(ins.lastInsertRowid);
   res.json({ success: true, discussion: c });
 });
@@ -1024,7 +1028,7 @@ router.post('/actions/:id/ai-council', authUser, async (req, res) => {
   if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
 
   // 議論文脈も含める
-  const discussions = db.prepare(`SELECT d.content, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS name FROM wellness_action_discussions d
+  const discussions = db.prepare(`SELECT d.content, ('参加者' || ROW_NUMBER() OVER (ORDER BY d.id)) AS name FROM wellness_action_discussions d
     LEFT JOIN users u ON u.id = d.author_id WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(id);
   const discText = discussions.length ? discussions.map(d => `${d.name||'匿名'}: ${d.content}`).join('\n') : '(議論なし)';
 
@@ -1141,8 +1145,9 @@ router.get('/pillar-recent', authUser, (req, res) => {
   const db = getDb();
   // 運管POST (CoWellには無い)
   const unkan = db.prepare(`SELECT wp.id, wp.category, wp.urgency, wp.identity_mode, wp.memo, wp.company_code, wp.created_at,
-    u.display_name as poster_name
+    wp.source_type, u.display_name as poster_name, s.display_name as subject_name
     FROM wellness_posts wp LEFT JOIN users u ON u.id = wp.poster_id
+    LEFT JOIN users s ON s.id = wp.subject_user_id
     ORDER BY wp.id DESC LIMIT ?`).all(limit);
   unkan.forEach(p => p.source = 'unkan');
 
@@ -1184,10 +1189,11 @@ router.get('/post-detail/:source/:id', authUser, (req, res) => {
   let post = null, comments = [], promoter_comments = [], discussions = [];
   try {
     if (src === 'unkan') {
-      post = db.prepare(`SELECT wp.*, u.display_name AS poster_name FROM wellness_posts wp
-        LEFT JOIN users u ON u.id = wp.poster_id WHERE wp.id = ?`).get(parseInt(id));
+      post = db.prepare(`SELECT wp.*, u.display_name AS poster_name, s.display_name AS subject_name
+        FROM wellness_posts wp LEFT JOIN users u ON u.id = wp.poster_id
+        LEFT JOIN users s ON s.id = wp.subject_user_id WHERE wp.id = ?`).get(parseInt(id));
       if (post) {
-        discussions = db.prepare(`SELECT d.id, d.content, d.created_at, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
+        discussions = db.prepare(`SELECT d.id, d.content, d.created_at, COALESCE(u.display_name, '不明') AS author_name
           FROM wellness_post_discussions d LEFT JOIN users u ON u.id = d.author_id
           WHERE d.post_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(parseInt(id));
       }
@@ -1195,10 +1201,10 @@ router.get('/post-detail/:source/:id', authUser, (req, res) => {
       post = db.prepare(`SELECT pp.*, u.display_name AS author_name FROM plaza_posts pp
         LEFT JOIN users u ON u.id = pp.author_id WHERE pp.id = ? AND pp.deleted_at IS NULL`).get(parseInt(id));
       if (post) {
-        comments = db.prepare(`SELECT c.id, c.content, c.created_at, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
+        comments = db.prepare(`SELECT c.id, c.content, c.created_at, COALESCE(u.display_name, '不明') AS author_name
           FROM plaza_comments c LEFT JOIN users u ON u.id = c.author_id
           WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id`).all(parseInt(id));
-        promoter_comments = db.prepare(`SELECT c.id, c.content, c.created_at, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
+        promoter_comments = db.prepare(`SELECT c.id, c.content, c.created_at, COALESCE(u.display_name, '不明') AS author_name
           FROM plaza_post_promoter_comments c LEFT JOIN users u ON u.id = c.author_id
           WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id`).all(parseInt(id));
       }
@@ -1345,7 +1351,7 @@ router.post('/actions/:id/final-draft', authUser, express.json(), async (req, re
   const a = db.prepare('SELECT * FROM wellness_actions WHERE id = ?').get(id);
   if (!a) return res.status(404).json({ success: false, msg: '見つかりません' });
   const council = db.prepare('SELECT role, message FROM wellness_action_council WHERE action_id = ? ORDER BY id').all(id);
-  const discs = db.prepare(`SELECT ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS name, d.content FROM wellness_action_discussions d
+  const discs = db.prepare(`SELECT ('参加者' || ROW_NUMBER() OVER (ORDER BY d.id)) AS name, d.content FROM wellness_action_discussions d
     LEFT JOIN users u ON u.id = d.author_id WHERE d.action_id = ? AND d.deleted_at IS NULL ORDER BY d.id`).all(id);
   const prompt = `中小運送業の健康推進施策を、関係者の議論を踏まえて最終的な素案にまとめてください。
 
@@ -1618,7 +1624,7 @@ router.get('/voting-actions', authUser, (req, res) => {
 router.get('/plaza-comments/:postId', authUser, (req, res) => {
   if (!canEditActions(req)) return res.status(403).json({ success: false, msg: '推進メンバー権限が必要です' });
   const postId = parseInt(req.params.postId);
-  const rows = getDb().prepare(`SELECT c.id, c.content, c.created_at, c.author_id, ('🎭 ' || COALESCE(NULLIF(u.nickname, ''), '匿名')) AS author_name
+  const rows = getDb().prepare(`SELECT c.id, c.content, c.created_at, c.author_id, COALESCE(u.display_name, '不明') AS author_name
     FROM plaza_post_promoter_comments c LEFT JOIN users u ON u.id = c.author_id
     WHERE c.post_id = ? AND c.deleted_at IS NULL ORDER BY c.id ASC LIMIT 100`).all(postId);
   res.json({ success: true, comments: rows });

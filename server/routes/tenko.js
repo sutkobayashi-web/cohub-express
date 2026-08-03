@@ -441,11 +441,12 @@ router.post('/checkin', authUser, express.json(), (req, res) => {
   const prog = bpProgress(priorRec, bpSys, bpDia);
   const gate = dutyGate(target.job_role, bpSys, bpDia, health, condition, prog);
 
-  // 不調 → 現場の声(運管/倉庫POST)へ連携
+  // 不調 → 現場の声へ連携。投稿元は本人の職種で分ける
+  // (2026-08-03: 製造スタッフの声が「倉庫」に入っていたため 製造 を追加。事務は従来どおり倉庫扱い)
   let wpId = null;
   if (urgency === '中' || urgency === '高') {
     try {
-      const sourceType = mode === 'tenko' ? '運管' : '倉庫';
+      const sourceType = mode === 'tenko' ? '運管' : (target.job_role === 'manufacturing' ? '製造' : '倉庫');
       const detail = buildConditionDetail({ bpText: bpText, bpHigh: bpHigh, note: note, health: health, condition: condition, gate: gate });
       const memo = `【${mode === 'tenko' ? '点呼' : '朝礼'}】${target.display_name}さんの体調確認: ${detail}`;
       const ins = db.prepare(`INSERT INTO wellness_posts
@@ -816,7 +817,7 @@ router.get('/board', authUser, (req, res) => {
 // 中🟡 のチャット非通知化に伴い、ここで未確認バッジ + 一括ack を提供。
 // 対象は点呼由来(運管/倉庫/セルフ)。拠点スコープは canViewBoard 準拠(本社ADMIN=全拠点)。
 // ============================================================
-const TENKO_SOURCES = ['運管', '倉庫', 'セルフ'];
+const TENKO_SOURCES = ['運管', '倉庫', '製造', 'セルフ'];
 router.get('/manage', authUser, (req, res) => {
   const db = getDb();
   const me = getViewer(req.uid);

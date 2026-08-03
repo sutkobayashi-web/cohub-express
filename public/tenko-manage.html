@@ -585,13 +585,15 @@ function renderToday(j){
 }
 
 // ===== 未対応タブ =====
+// 投稿元は表示だけ言い換える (DBの source_type='運管' は過去の投稿の履歴なので変えない)
+function srcLabel(s){ return s === '運管' ? '点呼' : (s || ''); }
 function renderQueue(j){
   const items = (j.queue||[]).map(q => {
     const u = q.urgency==='高'?'<span class="pill u-high">高🔴</span>':(q.urgency==='中'?'<span class="pill u-mid">中🟡</span>':'<span class="pill no">低</span>');
     return '<label class="qitem"><input type="checkbox" class="chk-q" value="'+q.id+'">'
       + '<div class="body"><div>'+u+' <b>'+esc(q.subject||'')+'</b></div>'
       + '<div>'+esc(q.memo||'')+'</div>'
-      + '<div class="meta">#'+q.id+' · '+esc(q.source_type||'')+' · '+esc(q.company_code||'')+' · '+esc(q.at||'')+'</div></div></label>';
+      + '<div class="meta">#'+q.id+' · '+esc(srcLabel(q.source_type))+' · '+esc(q.company_code||'')+' · '+esc(q.at||'')+'</div></div></label>';
   }).join('');
   document.getElementById('tab-queue').innerHTML =
     '<div class="bulkbar"><span class="sel">選択した未対応を一括</span>'

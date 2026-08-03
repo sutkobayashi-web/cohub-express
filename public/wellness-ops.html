@@ -692,9 +692,9 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
   </div>
 
   <div class="card" data-pane="inbox">
-    <h2>🩺 現場の声 (点呼/倉庫/総務からの投稿) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
+    <h2>🩺 現場の声 (点呼/倉庫/製造/総務からの投稿) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">推進メンバーが点呼/帰庫時に投稿。健康管理室会議の議題ソース</span></h2>
     <div class="row">
-      <select id="fv-src-filter"><option value="">投稿元すべて</option><option value="聞き取り">🩺 聞き取り</option><option value="運管">🚛 点呼</option><option value="倉庫">📦 倉庫</option><option value="総務">🏢 総務</option><option value="その他">💼 その他</option></select>
+      <select id="fv-src-filter"><option value="">投稿元すべて</option><option value="聞き取り">🩺 聞き取り</option><option value="運管">🚛 点呼</option><option value="倉庫">📦 倉庫</option><option value="製造">🏭 製造</option><option value="総務">🏢 総務</option><option value="その他">💼 その他</option></select>
       <select id="fv-cat-filter"><option value="">カテゴリすべて</option><option value="体調">体調</option><option value="食事">食事</option><option value="睡眠">睡眠</option><option value="職場環境">職場環境</option><option value="その他">その他</option></select>
       <select id="fv-urg-filter"><option value="">緊急度すべて</option><option value="高">🔴 高</option><option value="中">🟡 中</option><option value="低">🟢 低</option></select>
       <input type="number" id="fv-limit" value="50" min="10" max="200" style="max-width:90px;" title="表示件数">
@@ -2345,10 +2345,10 @@ async function loadFieldVoice() {
     const urgColor = u => u === '高' ? '#dc2626' : u === '中' ? '#d97706' : '#059669';
     const urgRowBg = u => u === '高' ? '#fef2f2' : u === '中' ? '#fffbeb' : '#fff';
     const idColor = m => m === '本人特定可' ? '#0891b2' : m === '匿名' ? '#7c3aed' : '#64748b';
-    const srcIcon = s => s === '聞き取り' ? '🩺' : s === '倉庫' ? '📦' : s === '総務' ? '🏢' : s === 'その他' ? '💼' : '🚛';
+    const srcIcon = s => s === '聞き取り' ? '🩺' : s === '倉庫' ? '📦' : s === '製造' ? '🏭' : s === '総務' ? '🏢' : s === 'その他' ? '💼' : '🚛';
     // 表示だけ言い換える (DBの source_type='運管' は過去の投稿の履歴なので変えない)
     const srcLabel = s => s === '運管' ? '点呼' : s;
-    const srcColor = s => s === '聞き取り' ? '#0d9488' : s === '倉庫' ? '#ea580c' : s === '総務' ? '#0e7490' : s === 'その他' ? '#7c3aed' : '#0891b2';
+    const srcColor = s => s === '聞き取り' ? '#0d9488' : s === '倉庫' ? '#ea580c' : s === '製造' ? '#b45309' : s === '総務' ? '#0e7490' : s === 'その他' ? '#7c3aed' : '#0891b2';
     const sevColor = s => s === 2 ? '#b91c1c' : s === 1 ? '#b45309' : '#0f172a';
     const cardOpts = (_meta && _meta.card_options) || {};
     tb.innerHTML = filtered.map(p => {
