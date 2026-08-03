@@ -1813,19 +1813,33 @@ async function loadKioskDevices() {
   }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const dt = s => s ? String(s).slice(0, 16) : '-';
+  // 端末名: 登録時に送られるのはブラウザのUA。そのままだと読めないので機種の見当が付く形に直す。
+  const devName = (s) => {
+    const u = String(s || '');
+    if (!u) return '(名称なし)';
+    if (!/Mozilla|AppleWebKit/.test(u)) return u.slice(0, 28);        // 手入力の名前はそのまま
+    if (/iPad/.test(u)) return 'iPad';
+    if (/iPhone/.test(u)) return 'iPhone';
+    if (/Android/.test(u)) return 'Android端末';
+    if (/Windows/.test(u)) return 'Windows PC';
+    if (/Macintosh/.test(u)) return 'Mac';
+    return 'その他ブラウザ';
+  };
   area.innerHTML = '<table style="font-size:12px;width:100%;"><thead><tr>'
-    + '<th>拠点</th><th>登録</th><th>最終利用</th><th>最終IP</th><th>状態</th><th style="width:90px;"></th>'
+    + '<th>拠点</th><th>端末</th><th>登録</th><th>最終利用</th><th>最終IP</th><th>状態</th><th style="width:90px;"></th>'
     + '</tr></thead><tbody>' + r.devices.map(d => {
       const dead = !!d.revoked_at;
       return '<tr style="' + (dead ? 'opacity:.55;' : '') + '">'
         + '<td>' + esc(d.company_name || d.company_code || '(未設定)') + '</td>'
+        + '<td title="' + esc(d.label || '') + '">' + esc(devName(d.label)) + '</td>'
         + '<td>' + dt(d.created_at) + '</td>'
         + '<td>' + dt(d.last_seen_at) + '</td>'
         + '<td style="font-size:11px;color:#64748b;">' + esc(d.last_seen_ip || d.created_ip || '-') + '</td>'
         + '<td>' + (dead ? '<span style="color:#b91c1c;font-weight:700;">失効</span>' : '<span style="color:#059669;font-weight:700;">有効</span>') + '</td>'
         + '<td><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="revokeKioskDevice(\'' + d.id + '\',' + (dead ? 'true' : 'false') + ')">'
         + (dead ? '戻す' : '失効') + '</button></td></tr>';
-    }).join('') + '</tbody></table>';
+    }).join('') + '</tbody></table>'
+    + '<div style="font-size:11px;color:#64748b;margin-top:6px;">有効な端末を上に、失効した端末を下に並べています。端末名はブラウザから分かる機種です (マウスを乗せると詳細)。</div>';
 }
 async function revokeKioskDevice(id, undo) {
   if (!undo && !confirm('この端末を失効します。\nその端末では名前選択画面の名簿が出なくなります。よろしいですか？')) return;
