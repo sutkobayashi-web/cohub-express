@@ -253,6 +253,35 @@ function healthRefNotes(health) {
   }
   return out;
 }
+// ============================================================
+// 気にかけボードに出す「やさしい理由」 (2026-08-03 吉沢さん指摘の是正)
+//  ⚠️⚠️理由は memo の文字列一致で作ってはいけない。自己チェック/朝礼の memo は
+//    血圧を入力していれば値が正常でも必ず「血圧 105/64」の文字を含むため、
+//    /血圧/ に当たった全員が「血圧が高め」と表示されていた
+//    (2026-08-03 立石さん=105/64の正常値・実際の気がかりは肩の痛み)。
+//    → 判定と同じ根拠 (structured_json の health/bp) から作る。
+//  ⚠️プライバシー: このボードは推進メンバーも見る。痛みの部位など症状の中身は出さない
+//    (buildConditionDetail と同じ方針)。部位は点呼管理の当日表(運管)でのみ見せる。
+function careReason(structuredJson) {
+  let sj = null;
+  try { sj = structuredJson ? JSON.parse(structuredJson) : null; } catch (e) { return null; }
+  if (!sj) return null;
+  const h = sj.health || {};
+  const bp = sj.bp || {};
+  const out = [];
+  const bs = bpSeverity(bp.sys, bp.dia);
+  if (bs >= 2) out.push('血圧が高い');
+  else if (bs === 1) out.push('血圧が高め');
+  if (h.pain === 'severe') out.push('強い痛みの訴え');
+  else if (h.pain && h.pain !== 'no') out.push('体の痛みの訴え');
+  if (h.facial_color === 'pale' || h.facial_color === 'red') out.push('顔色が気になる');
+  else if (h.facial_color === 'tired') out.push('疲れて見える');
+  if (h.duty_intent === 'stop' || h.duty_intent === 'consult') out.push('本人から乗務の申し出');
+  if (sj.condition === 'bad') out.push('体調がすぐれない');
+  if (!out.length) return null;         // 根拠が拾えない時はフロントの従来ロジックに任せる
+  return out.slice(0, 2).join('・');
+}
+
 // POST本文の共通組み立て。血圧/メモ に 根拠 と 参考 を足す。
 function buildConditionDetail(o) {
   const lines = [];
@@ -1310,12 +1339,16 @@ router.get('/care-board', authUser, (req, res) => {
   // ① 未対応の気がかり(まだ声をかけていない) 古い順
   const pending = db.prepare(
     `SELECT w.id, w.company_code, w.category, w.urgency, w.source_type, w.memo, w.created_at, w.subject_user_id,
+            w.structured_json,
             u.display_name AS subject_name,
             CAST(julianday('now') - julianday(w.created_at) AS INTEGER) AS days
      FROM wellness_posts w LEFT JOIN users u ON u.id = w.subject_user_id
      WHERE COALESCE(w.ack_status,'未対応')='未対応'` + (scoped ? ' AND w.company_code = ?' : '') +
     ` ORDER BY w.created_at ASC LIMIT 100`
-  ).all(...P);
+  ).all(...P)
+    // 理由は判定と同じ根拠(structured_json)から作る。⚠️memoの文字列一致で作らないこと(careReason参照)。
+    // structured_json 自体は返さない(健康回答の生データをボードに流さない)。
+    .map(({ structured_json, ...r }) => ({ ...r, reason: careReason(structured_json) }));
 
   // ② 営業所別: 未対応 / 直近30日の声かけ(対応済)
   const byOffice = db.prepare(

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>🫶 気にかけ</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#eef4f3; color:#14202b; font-family:"Hiragino Kaku Gothic ProN","BIZ UDPGothic","Meiryo",sans-serif; font-size:15px; line-height:1.6; -webkit-text-size-adjust:100%; }
+  header { background:linear-gradient(135deg, #0284c7, #0369a1); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:8px; position:sticky; top:0; z-index:5; }
+  header h1 { margin:0; font-size:18px; font-weight:900; flex:1; }
+  header a, header button.hbtn { color:#fff; text-decoration:none; background:rgba(255,255,255,.18); border:none; border-radius:10px; padding:7px 12px; font-size:13px; font-weight:800; cursor:pointer; }
+  .wrap { max-width:760px; margin:0 auto; padding:14px; }
+  .lead { background:#fff; border:1px solid #d9e6e4; border-radius:14px; padding:13px 16px; font-size:14px; color:#334155; margin-bottom:14px; }
+  .lead b { color:#0e7490; }
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .bar select { padding:9px 12px; border:1.5px solid #cbd5e1; border-radius:12px; font-size:15px; background:#fff; }
+  .bar .note { font-size:12px; color:#64748b; }
+  .count { font-size:15px; font-weight:900; color:#0e7490; margin:2px 2px 12px; }
+  .count b { font-size:22px; }
+
+  /* --- 声かけリスト(主役) --- */
+  .clist { display:flex; flex-direction:column; gap:10px; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-left:5px solid #cbd5e1; border-radius:14px; padding:13px 14px; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(20,40,60,.05); }
+  .card.hi { border-left-color:#ef4444; }
+  .card .who { flex:1; min-width:0; }
+  .card .nm { font-weight:900; font-size:18px; }
+  .card .rs { font-size:13px; color:#64748b; margin-top:2px; }
+  .card .rs .wait { color:#dc2626; font-weight:800; }
+  .btn-koe { flex:none; background:#0e7490; color:#fff; border:none; border-radius:12px; padding:12px 16px; font-size:15px; font-weight:900; cursor:pointer; min-height:48px; white-space:nowrap; }
+  .btn-koe:active { transform:scale(.97); }
+  .btn-hitokoto { flex:none; background:#fff; color:#0e7490; border:1.5px solid #b6dfdb; border-radius:12px; padding:0 12px; font-size:13px; font-weight:800; cursor:pointer; min-height:48px; white-space:nowrap; }
+  .card.done { border-left-color:#12a150; background:#f2fbf6; }
+  .card.done .nm { color:#12a150; }
+  .btn-undo { flex:none; background:transparent; color:#64748b; border:none; font-size:13px; font-weight:800; cursor:pointer; text-decoration:underline; }
+  .hito { width:100%; margin-top:10px; display:none; gap:8px; }
+  .hito.open { display:flex; }
+  .hito input { flex:1; padding:10px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:15px; }
+  .hito button { background:#0e7490; color:#fff; border:none; border-radius:10px; padding:0 14px; font-weight:800; cursor:pointer; }
+  .alldone { background:#fff; border:1px solid #cdeede; border-radius:16px; padding:26px 16px; text-align:center; color:#12a150; font-weight:900; font-size:17px; }
+  .alldone small { display:block; color:#64748b; font-weight:600; font-size:13px; margin-top:6px; }
+
+  /* --- 詳しく(折りたたみ) --- */
+  #more { display:none; margin-top:18px; }
+  #more.open { display:block; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .kpi { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:14px; }
+  .kpi .n { font-size:30px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
+  .kpi .l { font-size:12px; font-weight:700; color:#64748b; margin-top:6px; }
+  .kpi.warn .n { color:#dc2626; } .kpi.good .n { color:#12a150; }
+  .sec { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:14px 16px; margin-bottom:14px; }
+  .sec h2 { font-size:14px; font-weight:900; margin:0 0 10px; }
+  .sec h2 small { font-weight:700; color:#94a3b8; font-size:11.5px; }
+  .empty { color:#94a3b8; font-size:13px; padding:8px 4px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th, td { text-align:left; padding:7px 8px; border-top:1px solid #f1f5f9; }
+  th { color:#64748b; font-size:11.5px; font-weight:800; border-top:none; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .row2 { display:flex; align-items:center; gap:10px; padding:8px 4px; border-top:1px solid #f1f5f9; }
+  .row2:first-child { border-top:none; }
+  .row2 .medal { font-size:15px; width:20px; }
+  .row2 .nm2 { font-weight:800; flex:1; }
+  .row2 .cnt { font-weight:900; color:#0e7490; }
+  .pd { color:#dc2626; } .cr { color:#12a150; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🫶 気にかけ</h1>
+  <button class="hbtn" id="btn-more" onclick="toggleMore()">📊 詳しく</button>
+  <a href="/home">← ホーム</a>
+</header>
+<div class="wrap">
+  <div class="lead" id="lead">読み込み中…</div>
+  <div class="bar">
+    <select id="f-co" style="display:none;"></select>
+    <span id="scope-note" class="note"></span>
+  </div>
+  <div id="cnt" class="count"></div>
+  <div id="clist" class="clist"></div>
+
+  <div id="more">
+    <div class="kpis">
+      <div class="kpi warn"><div class="n" id="k-pending">-</div><div class="l">まだ声をかけていない</div></div>
+      <div class="kpi good"><div class="n" id="k-cared">-</div><div class="l">今月 声をかけた件数</div></div>
+    </div>
+    <div class="sec"><h2>🏢 営業所別 <small>まだ ／ 今月 声かけ</small></h2><div id="m-office"></div></div>
+    <div class="sec"><h2>💚 声をかけた人 <small>直近30日</small></h2><div id="m-handler"></div></div>
+    <div class="sec"><h2>😫 疲労が高め傾向の運転者 <small>直近7日の帰庫点呼平均・声かけ候補</small></h2><div id="m-fatigue"></div></div>
+  </div>
+</div>
+<script>
+  var TOKEN = localStorage.getItem('cohub_token') || '';
+  if (!TOKEN) location.replace('/');
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  var DATA = null;
+
+  // やさしい日本語の理由。サーバーが判定の根拠から作った p.reason を最優先で使う。
+  // ⚠️以下の文字列一致は自由記述(現場の声)向けの保険。健康点検の投稿に使ってはいけない
+  //   =memoに「血圧 105/64」と書いてあるだけで正常値の人まで「血圧が高め」になる
+  //   (2026-08-03 立石さんの誤表示。サーバー側 careReason() で是正)。
+  function reason(p){
+    if (p.reason) return p.reason;
+    var c = (p.category||'') + ' ' + (p.memo||'');
+    if (/痛/.test(c))      return '体の痛みを訴え';
+    if (/血圧|BP/i.test(c)) return '血圧が高め';
+    if (/体調/.test(c))    return '体調がすぐれない';
+    if (/疲労|疲れ/.test(c)) return '疲れがたまり気味';
+    if (/睡眠|不眠/.test(c)) return '睡眠が不足気味';
+    if (/職場|環境|人間関係|ハラス/.test(c)) return '職場のことで気がかり';
+    return p.category ? p.category : '気がかりあり';
+  }
+
+  function toggleMore(){
+    var m = $('more'); m.classList.toggle('open');
+    $('btn-more').textContent = m.classList.contains('open') ? '📊 とじる' : '📊 詳しく';
+  }
+
+  async function load(){
+    var co = $('f-co').value || '';
+    var r = await fetch('/api/tenko/care-board' + (co?('?co='+encodeURIComponent(co)):''),
+      { headers:{ 'Authorization':'Bearer '+TOKEN } }).catch(function(){ return null; });
+    if (r && r.status === 401){ localStorage.removeItem('cohub_token'); location.replace('/'); return; }
+    if (r && r.status === 403){ $('clist').innerHTML = ''; $('lead').innerHTML = '🔒 この画面は推進メンバー・管理職のみ閲覧できます。'; return; }
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (!j || !j.success){ $('clist').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
+    DATA = j;
+    if (j.hq){
+      var sel = $('f-co');
+      if (!sel.dataset.built){
+        sel.innerHTML = '<option value="">全拠点</option>' + (j.companies||[]).map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+        sel.value = co; sel.style.display=''; sel.dataset.built='1';
+      }
+      $('scope-note').textContent = '本社：拠点を選べます';
+      $('lead').innerHTML = '<b>気になる人に声をかけたら</b>、その人の「声をかけた」を押してください。所轄の所長・運管が本人に声をかけるのが基本です。';
+    } else {
+      $('scope-note').textContent = '担当：' + (j.co || '-');
+      $('lead').innerHTML = '<b>あなたの所轄で、声をかけたい人</b>です。声をかけたら「声をかけた」を押してください。';
+    }
+    renderList(j.pending || []);
+    renderMore(j);
+  }
+
+  function renderList(pending){
+    var cnt = $('cnt');
+    if (!pending.length){
+      cnt.innerHTML = '';
+      $('clist').innerHTML = '<div class="alldone">今日、声をかけるべき人はいません 👏<small>よく気にかけられています。</small></div>';
+      return;
+    }
+    cnt.innerHTML = '声をかけたい人 <b>'+pending.length+'</b> 人';
+    $('clist').innerHTML = pending.map(function(p){
+      var hi = (p.urgency === '高');
+      var wait = p.days >= 3 ? ' <span class="wait">・'+p.days+'日待ち</span>' : '';
+      var who = p.subject_name ? esc(p.subject_name) : '(氏名なし)';
+      return '<div class="card'+(hi?' hi':'')+'" id="c'+p.id+'">'
+        + '<div class="who"><div class="nm">'+who+'</div>'
+        + '<div class="rs">'+esc(reason(p))+wait+'</div></div>'
+        + '<button class="btn-hitokoto" onclick="openHito('+p.id+')">✎ ひとこと</button>'
+        + '<button class="btn-koe" onclick="koe('+p.id+')">声をかけた</button>'
+        + '<div class="hito" id="h'+p.id+'"><input id="hi'+p.id+'" placeholder="かけた言葉・様子（任意）" maxlength="200"><button onclick="koe('+p.id+')">記録</button></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function openHito(id){ var h=$('h'+id); h.classList.toggle('open'); if(h.classList.contains('open')){ var i=$('hi'+id); if(i) i.focus(); } }
+
+  async function koe(id){
+    var inp = $('hi'+id); var note = inp ? inp.value.trim() : '';
+    var card = $('c'+id);
+    var nmEl = card.querySelector('.nm'); var nm = nmEl ? nmEl.textContent : '';
+    var btns = card.querySelectorAll('button'); btns.forEach(function(b){ b.disabled = true; });
+    var r = await fetch('/api/tenko/ack', { method:'POST',
+      headers:{ 'Authorization':'Bearer '+TOKEN, 'Content-Type':'application/json' },
+      body: JSON.stringify({ post_ids:[id], status:'対応済', note: note }) }).catch(function(){ return null; });
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (!j || !j.success){ alert('記録できませんでした。もう一度お試しください。'); btns.forEach(function(b){ b.disabled=false; }); return; }
+    card.className = 'card done';
+    card.innerHTML = '<div class="who"><div class="nm">✓ '+ esc(nm) +' に声をかけました</div>'
+      + (note ? '<div class="rs">「'+esc(note)+'」</div>' : '')
+      + '</div><button class="btn-undo" onclick="undo('+id+')">↩ もどす</button>';
+    // 残り人数を更新
+    var remain = document.querySelectorAll('.card:not(.done)').length;
+    $('cnt').innerHTML = remain ? ('声をかけたい人 <b>'+remain+'</b> 人') : '';
+    if (!remain) $('clist').insertAdjacentHTML('beforeend', '<div class="alldone">すべて声をかけました 👏</div>');
+  }
+
+  async function undo(id){
+    var r = await fetch('/api/tenko/ack', { method:'POST',
+      headers:{ 'Authorization':'Bearer '+TOKEN, 'Content-Type':'application/json' },
+      body: JSON.stringify({ post_ids:[id], status:'未対応' }) }).catch(function(){ return null; });
+    var j = r ? await r.json().catch(function(){ return null; }) : null;
+    if (!j || !j.success){ alert('戻せませんでした'); return; }
+    load();
+  }
+
+  function renderMore(j){
+    $('k-pending').textContent = j.totals.pending;
+    $('k-cared').textContent = j.totals.cared30;
+    // 営業所別
+    var mo = $('m-office');
+    if (!(j.by_office||[]).length) mo.innerHTML = '<div class="empty">データがありません</div>';
+    else mo.innerHTML = '<table><thead><tr><th>営業所</th><th class="num">まだ</th><th class="num">今月 声かけ</th></tr></thead><tbody>'
+      + j.by_office.map(function(o){ return '<tr><td>'+esc(o.company_code||'-')+'</td><td class="num pd">'+o.pending+'</td><td class="num cr">'+o.cared30+'</td></tr>'; }).join('')
+      + '</tbody></table>';
+    // 声をかけた人
+    var mh = $('m-handler');
+    if (!(j.by_handler||[]).length) mh.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    else mh.innerHTML = j.by_handler.map(function(hd,i){
+      var m = i===0?'🥇':i===1?'🥈':i===2?'🥉':'・';
+      return '<div class="row2"><span class="medal">'+m+'</span><span class="nm2">'+esc(hd.handler_name||'(不明)')+'</span><span class="cnt">'+hd.cared+'件</span></div>';
+    }).join('');
+    // 疲労傾向
+    var mf = $('m-fatigue');
+    if (!(j.high_fatigue||[]).length) mf.innerHTML = '<div class="empty">該当者はいません</div>';
+    else mf.innerHTML = j.high_fatigue.map(function(d){
+      return '<div class="row2"><span class="nm2">'+esc(d.driver_name||'')+(j.hq?' <small style="color:#94a3b8">'+esc(d.company_code||'')+'</small>':'')+'</span><span class="cnt" style="color:#dc2626">平均 '+d.avg_fatigue+'/10</span></div>';
+    }).join('');
+  }
+
+  $('f-co').addEventListener('change', load);
+  load();
+</script>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+</body>
+</html>
