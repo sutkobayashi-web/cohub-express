@@ -124,7 +124,7 @@ function bpSeverity(sys, dia) {
 //  ⚠️自覚症状(体調不良の申告・強い痛み)は再測の対象外＝即 stop。症状は測り直しても消えない。
 const GATE_STATUS = {
   symptom_check: { pill: '🔶要確認',    action: '本人に状況を確認し、乗務の可否を判断してください。確認するまで乗務させないでください。確認した内容は対応記録に残してください。' },
-  stop_final:   { pill: '🚫乗務不可',   action: '再測でも基準を超えています。本日の乗務は見合わせ、受診を勧めてください。' },
+  stop_final:   { pill: '🚫乗務不可',   action: '本日の乗務は見合わせてください。必要に応じて受診を勧めてください。' },
   stop_recheck: { pill: '🚫要再測',     action: '15分安静にしてから、1回だけ再測してください。再測でも 180/110 以上なら本日の乗務は見合わせてください。' },
   restrict:     { pill: '⚠️長距離・夜間NG', action: '本日は長距離・夜間の乗務から外してください（この日一度、基準を大きく超えた記録があります）。' },
   recheck:      { pill: '⚠️要再測',     action: '15分安静にしてから再測してください。再測でも超えている場合は長距離・夜間の乗務から外してください。' },
@@ -155,7 +155,12 @@ function symptomAssess(health, condition) {
     else if (h.pain_drive === 'yes') hard.push('強い痛み（運転に支障あり）');
     else check.push('強い痛み');
   }
-  if (condition === 'bad') check.push('体調不良の申告');
+  // 2026-08-03: 「今日の仕事」= 本人の意思表示。症状を聞かずに手を挙げられる導線。
+  //  ⚠️健康情報ではなく本人の申し出なので、プライバシー上いちばん安全でいちばん確実な信号。
+  //  本人が「今日は難しい」と言っているのに乗せるのは事業者として通らない → hard。
+  if (h.duty_intent === 'stop') hard.push('本人から「今日は難しい」との申し出');
+  else if (h.duty_intent === 'consult') check.push('本人から相談の申し出');
+  if (condition === 'bad') check.push('体調不良の申告');   // 旧項目(後方互換)
   return { hard: hard.length ? hard : null, check: check.length ? check : null };
 }
 // opts = { peakSys, peakDia, count }  当日の最悪値と測定回数 (tenko_records の bp_peak_*/bp_count)
@@ -184,6 +189,7 @@ function dutyGate(jobRole, sys, dia, health, condition, opts) {
   const g = GATE_STATUS[status];
   // 🔶要確認のときも、血圧側の指示(再測など)があれば併記する
   let action = g.action;
+  if (status === 'stop_final' && !sym.hard && count >= 2) action = '再測でも基準を超えています。' + action;
   if (status === 'symptom_check' && level >= 1) action += ' ' + GATE_STATUS[level === 2 ? 'recheck' : 'watch'].action;
   // 乗務の文言(pill/action)はドライバーにだけ返す。事務・倉庫に「乗務不可」と出ると意味が通らない。
   return { level, peak_level: peakLevel, count, status,
