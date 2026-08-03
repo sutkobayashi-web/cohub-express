@@ -18,14 +18,14 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>CoWell — ホーム</title>
-<link rel="manifest" href="/manifest.json?v=4">
-<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="manifest" href="/manifest.json?v=5">
+<link rel="apple-touch-icon" href="/img/cowell-icon-192-v6.png">
 <style>
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
-    /* ☀️夏の配色 (2026-08-01): 上=タブレット珄関と同系のターコイズ → 中=涼しい水色 → 下=陽射しの砂色。
+    /* ☀️夏の配色 (2026-08-01): 上=タブレット玄関と同系のターコイズ → 中=涼しい水色 → 下=陽射しの砂色。
        共有タブレット(tablet-home の #bceae3)と地続きに見えるよう、同じ turquoise 系から始める。 */
     background: linear-gradient(180deg, #cdeff0 0%, #ddf5f3 26%, #e9f7fd 58%, #fdf4d8 100%);
     background-attachment: fixed;
@@ -35,24 +35,24 @@
   /* === ヘッダー === */
   header {
     position: sticky; top: 0; z-index: 50;
-    /* 🔵 2026-08-01: タイトルバーを緑→ブルーへ (社長指示)。夏の背景(ターコイズ→水色)と同系で繋がるよう
+    /* 🔵2026-08-01: タイトルバーを緑→ブルーへ (社長指示)。夏の背景(ターコイズ→水色)と同系で繋がるよう
        濃い青 (sky/blue) の3段グラデーション。文字は白のままなのでコントラストは維持。 */
     background: linear-gradient(135deg, #0284c7 0%, #0369a1 60%, #0c4a6e 100%);
     color: #fff; padding: 14px 20px;
-    display: flex; align-items: center; gap: 14px;
+    display: flex; align-items: center; gap: 2px;   /* マークとワードマークを一体に見せるため詰めた。マークSVG自体に余白があるので実質6px程度 (2026-08-02) */
     box-shadow: 0 6px 18px rgba(3,105,161,0.25);
   }
   header .logo {
-    width: 42px; height: 42px; border-radius: 14px;
-    overflow: hidden; flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    /* ⚠️2026-08-02: 角丸+影の“枠”に見えていたので撤去し、マーク単体で置く。少し大きく。 */
+    width: 50px; height: 50px; flex-shrink: 0;
   }
   header .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  header .ttl-wrap { flex: 1; min-width: 0; display: flex; align-items: center; }
-  header .ttl { display: none; }
-  header .sub {
-    font-size: 13px; opacity: 0.95; letter-spacing: 0.5px;
-    font-weight: 600; line-height: 0.95; text-align: center;
+  header .ttl-wrap { flex: 1; min-width: 0; display: flex; align-items: center; }  /* ロゴのすぐ右にワードマークのみ (2026-08-02) */
+  /* ttl-cowell: BIZ-TERRACEロゴと同じ書体(Nimbus Sans=Helvetica系)でワードマーク表示 (2026-08-02)
+     ⚠️ 全ページのBIZ UDPGothic上書き(!important)より強くするためクラス指定＋!important */
+  header .ttl {
+    display: block; font-size: 22px; font-weight: 700; letter-spacing: 0.2px; line-height: 1.0;
+    font-family: "Helvetica Neue", Helvetica, Arial, "Nimbus Sans", "Liberation Sans", sans-serif !important;
   }
   header .right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
   header .name {
@@ -166,6 +166,17 @@
   .hero .greet-mypage, .hero .greet-search {
     display: inline-flex; align-items: center; justify-content: center;
     min-width: 104px; box-sizing: border-box;
+  }
+  /* 📱 狭幅(iPhone SE等 〜480px): マイページ/検索/体調チェックが縦3段に折り返すため、
+     アバター下の余白まで使って横1行に収める (2026-08-02 greet-actions-narrow) */
+  @media (max-width: 480px) {
+    .hero .greet-actions { flex-wrap: nowrap; gap: 6px; margin-top: 5px; }
+    .hero .greet-mypage, .hero .greet-search { min-width: 0; }
+    .hero .greet-mypage,
+    .hero .greet-search,
+    .hero .greet-hc { font-size: 10.5px; padding: 4px 9px; min-width: 0; }
+    .hero .greet-mypage .g-long,
+    .hero .greet-hc .g-long { display: none; }  /* 「マイページ ›」→「マイページ」/「体調チェック」→「体調」 */
   }
   .hero .greet-ava-link {
     display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
@@ -301,7 +312,11 @@
   .whats-new .wn-li.is-unread { background: #fffaf0; }
   .whats-new .wn-li.is-unread .li-text { color: #422006; }
   .whats-new .wn-readall { margin-left: auto; background: #fff; border: 1px solid #e7d8b4; color: #92702a; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-family: inherit; }
-  .whats-new .wn-readall + .wn-more { margin-left: 8px; }
+  /* wn-gap: 「すべて既読」の有無に関わらず一覧リンクを右端に固定 (2026-08-02)
+     旧 .wn-readall + .wn-more{margin-left:8px} は、ボタン非表示時に右寄せ(auto)を打ち消していた */
+  .whats-new .wn-gap { flex: 1 1 auto; min-width: 0; }
+  .whats-new .wn-readall { margin-left: 0; }
+  .whats-new .wn-readall + .wn-more { margin-left: 0; }
   .whats-new .wn-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: #57391a; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .whats-new .wn-empty { width: 100%; padding: 10px 2px; font-size: 12.5px; color: #a08b5f; }
 
@@ -331,11 +346,13 @@
   .drive-alerts.is-clear .da-more { color: #047857; }
   .drive-alerts.is-clear .da-empty { color: #047857; }
   .branch-strip { position: relative; margin: 14px 4px 0; background: #fdf7e8; border: 1px solid #ecdfc0; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
-  .branch-strip .bs-label { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 11px; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; color: #fff; background: #0f766e; padding: 4px 13px; border-radius: 999px; }
-  .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+  /* bs-title-row: タイトルと「一覧を見る ›」を同じ行に (お知らせ/運転アラートと同じ形 2026-08-02) */
+  .branch-strip .bs-label { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; color: #fff; background: #0f766e; padding: 4px 13px; border-radius: 999px; }
+  .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; flex-wrap: nowrap; margin-bottom: 10px; }
   .branch-strip .bs-total { font-size: 12px; font-weight: 800; color: #fff; background: #dc2626; border-radius: 999px; padding: 2px 11px; }
   .branch-strip .bs-total.zero { background: #0f766e; }
-  .branch-strip .bs-more { margin-left: auto; font-size: 12.5px; color: #0f766e; text-decoration: none; font-weight: 800; }
+  /* bs-more-flush: 開閉の▾を先に置き、「一覧を見る ›」を右端に揃える (2026-08-02) */
+  .branch-strip .bs-more { margin-left: 10px; flex-shrink: 0; font-size: 11.5px; color: #0f766e; text-decoration: none; font-weight: 800; }
   .branch-strip .bs-grid { display: flex; gap: 8px; flex-wrap: wrap; }
   .branch-strip .bs-chip { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; background: #fffdf7; border: 1px solid #e6d9ba; border-radius: 12px; padding: 8px 12px; color: #3a2c10; font-size: 14px; font-weight: 700; }
   .branch-strip .bs-chip.has { background: #fff4f2; border-color: #f6c6bd; }
@@ -363,6 +380,34 @@
   .branch-strip .bs-g-suzue .bs-gtitle { color: #3f3fa8; }
   .branch-strip .bs-g-suzue .bs-gtitle::before { background: #4f46e5; }
   .branch-strip .bs-g-suzue .bs-gcount.ok { background: #4f46e5; }
+  /* 📱 狭幅(iPhone SE=375px 等 〜480px)は2社の横並びをやめて縦積み＋2列グリッド (2026-08-02 bs-narrow-stack) */
+  @media (max-width: 480px) {
+    .branch-strip { padding: 12px 15px 14px; }
+    .branch-strip .bs-label { font-size: 11.5px; padding: 4px 10px; letter-spacing: 0; }
+    .branch-strip .bs-groups { flex-direction: column; gap: 10px; }
+    .branch-strip .bs-g-std,
+    .branch-strip .bs-g-suzue { flex: 1 1 auto; width: 100%; }
+    .branch-strip .bs-grid,
+    .branch-strip .bs-g-std .bs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex-wrap: wrap; overflow-x: visible; }
+    .branch-strip .bs-chip { justify-content: space-between; min-width: 0; padding: 8px 10px; font-size: 13.5px; }
+    .branch-strip .bs-g-std .bs-chip { flex: 1 1 auto; }
+  }
+  /* 🗂 折り畳み (2026-08-02 bs-collapsed): 見出し/サマリー行タップで開閉。狭幅は既定で畳む */
+  .branch-strip .bs-label,
+  .branch-strip .bs-head { cursor: pointer; user-select: none; }
+  .branch-strip .bs-arrow { flex-shrink: 0; margin-left: auto; font-size: 13px; color: #0f766e; line-height: 1; transition: transform 0.2s ease; }
+  .branch-strip.bs-collapsed .bs-arrow { transform: rotate(-90deg); }
+  .branch-strip.bs-collapsed .bs-groups { display: none; }
+  .branch-strip.bs-collapsed { padding-bottom: 11px; }
+  .branch-strip.bs-collapsed .bs-head { margin-bottom: 0; }
+  /* 折り畳み中も会社ごとの未対応数を出す(見落とし防止 2026-08-02) */
+  .branch-strip .bs-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 11px; }
+  .branch-strip.bs-collapsed .bs-summary { margin-bottom: 0; }
+  .branch-strip .bs-sum { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: #fff; border: 1px solid #e2e8f0; color: #475569; }
+  .branch-strip .bs-sum-std { background: #ecf7f5; border-color: #cfe9e3; color: #0b6b62; }
+  .branch-strip .bs-sum-suzue { background: #eef0fb; border-color: #d3d8f3; color: #3f3fa8; }
+  .branch-strip .bs-sum b { min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 0 5px; background: #dc2626; color: #fff; }
+  .branch-strip .bs-sum i { font-style: normal; color: #0f9d58; font-size: 13px; }
   /* 🆕 新機能のお知らせ — 一行カードを下から押上げて循環 (2026-05-25) */
   .new-features { position: relative; margin: 14px 4px 0; padding: 14px 12px 10px;
     background: linear-gradient(135deg,#fffbeb,#fef3c7); border: 1.5px solid #fcd34d; border-radius: 16px;
@@ -538,7 +583,6 @@
   .card.p-orientation{ --c1: #ddd6fe; --c2: #7c3aed; }  /* オリエン: 淡紫 */
   .card.p-kaigi      { --c1: #5eead4; --c2: #0f766e; }  /* 会議資料: teal */
   .card.p-hl5print   { --c1: #c4b5fd; --c2: #5b21b6; }  /* HL5印刷: 深紫 (推進メンバー共通配色) */
-  .card.p-schedule   { --c1: #93c5fd; --c2: #1e40af; }  /* スケジュール: 青 */
   .card.p-wifi       { --c1: #67e8f9; --c2: #0e7490; }  /* Wi-Fi設定: シアン */
   .card.p-warehouse  { --c1: #93c5fd; --c2: #1d4ed8; }
 
@@ -591,9 +635,9 @@
 
   /* スマホ調整 */
   @media (max-width: 600px) {
-    header { padding: 12px 12px; gap: 8px; }
-    header .logo { width: 36px; height: 36px; border-radius: 12px; }
-    header .sub { font-size: 11px; letter-spacing: 0.3px; }
+    header { padding: 12px 12px; gap: 2px; }
+    header .logo { width: 42px; height: 42px; }
+    header .ttl { font-size: 18px; }
     header .name { display: none; }
     header button { font-size: 11px; padding: 4px 9px; border-radius: 8px; }
     header .right { gap: 6px; }
@@ -655,6 +699,13 @@
     .hero .tablet-btn span:first-child { font-size: 18px !important; }
     .hero .tablet-btn span:last-child { font-size: 9px !important; letter-spacing: 0 !important; }
   }
+  /* 📱 狭幅(iPhone SE等 〜480px): タブレット・スマホ版への切替はアイコンのみ
+     (ラベル2行が場所を取り邪魔なため 2026-08-02 社長指示 tablet-btn-icononly) */
+  @media (max-width: 480px) {
+    .hero .tablet-btn { width: 42px; height: 42px; padding: 5px !important; border-radius: 12px !important; align-items: center; justify-content: center; }
+    .hero .tablet-btn span:first-child { font-size: 21px !important; }
+    .hero .tablet-btn span:last-child { display: none !important; }
+  }
   /* 共用タブレット (601〜1200px): 3列のまま文字・アイコン・余白を大きく＝大画面に小さい文字の見にくさを解消 (2026-06-30) */
   @media (min-width: 601px) and (max-width: 1200px) {
     #qr-mobile, .hero .tablet-btn { display: flex !important; }
@@ -670,7 +721,7 @@
     .field-daily-check .fdc-state { font-size: 20px; }
     .field-daily-check .fdc-sub { font-size: 14px; }
     .field-daily-check .fdc-cta { font-size: 16px; padding: 11px 22px; }
-    .whats-new { padding: 13px 20px 15px; }
+    .whats-new { padding: 13px 15px 15px; }   /* 一覧リンクの右端を運転アラート/対応リストと揃える (2026-08-02) */
     .whats-new .wn-label { font-size: 13px; padding: 3px 13px; }
     .field-other-head { font-size: 17px; padding: 14px 18px; }
     /* Bさん専用カードもタブレットは縦並びに揃える (3列セルで崩れないよう) */
@@ -735,17 +786,17 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div style="font-size:10px;color:#94a3b8;line-height:1.5;margin-bottom:8px;">※ 共用PCではチェックしないでください</div>
     <button type="button" class="btn" id="login-btn">ログイン</button>
     <div class="err" id="login-err"></div>
-    <a class="full-link" href="/admin">管理画面はこちら</a>
+    <a class="full-link" href="/tablet">タブレット版はこちら</a>
   </div>
 </div>
 
 <!-- ヘッダー -->
 <header id="header" style="display:none;">
   <div class="logo">
-    <img src="/img/icon-192.png" alt="CoWell">
+    <img src="/assets/brand/cowell-mark-white.svg?v=1" alt="CoWell">
   </div>
   <div class="ttl-wrap">
-    <div class="sub">Communication<br>×<br>Wellness</div>
+    <div class="ttl">CoWell</div>
   </div>
   <div class="right">
     <span class="name" id="hd-name"></span>
@@ -826,8 +877,9 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div class="wn-head">
       <span class="wn-label">お知らせ</span>
       <span class="wn-new-count" id="wn-new-count" style="display:none;">0</span>
+      <span class="wn-gap"></span>
       <button type="button" class="wn-readall" id="wn-readall" style="display:none;" onclick="wnReadAll()">すべて既読</button>
-      <a class="wn-more" id="wn-more" href="/announcements.html">お知らせ一覧 ›</a>
+      <a class="wn-more" id="wn-more" href="/announcements.html" title="お知らせ一覧">一覧を見る ›</a>
     </div>
     <div class="wn-list" id="wn-list"></div>
   </div>
@@ -837,7 +889,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div class="da-head">
       <span class="da-label">⚠️ 本日の運転アラート</span>
       <span class="da-count" id="da-count" style="display:none;">0</span>
-      <a class="da-more" href="/alerts.html">アラート一覧 ›</a>
+      <a class="da-more" href="/alerts.html" title="アラート一覧">一覧を見る ›</a>
     </div>
     <div class="da-list" id="da-list"></div>
   </div>
@@ -944,14 +996,6 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <span class="desc">Communication</span>
   </div>
   <div class="grid sec-comm">
-    <a class="card bdiary" href="/bdiary.html">
-      <span class="badge" id="b-bdiary" style="display:none;">0</span>
-      <img class="bd-ava" src="/assets/bsan_avatar_t.png" alt="Bさん">
-      <div class="bd-txt">
-        <div class="label">Bさん専用</div>
-        <div class="bd-sub">これまでの日記と、みんなのメッセージ 🌸</div>
-      </div>
-    </a>
     <a class="card board" href="/board.html">
       <span class="badge" id="b-board" style="display:none;">0</span>
       <div class="icon-pill">📋</div>
@@ -961,7 +1005,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <a class="card ops" href="/ops.html">
       <span class="badge" id="b-ops" style="display:none;">0</span>
       <div class="icon-pill">📣</div>
-      <div class="label">業務連絡 / 運管ポスト</div>
+      <div class="label">業務連絡 / 現場ポスト</div>
       <div class="desc">車両不具合、現場の声、ヒヤリハット報告。</div>
     </a>
     <a class="card members" href="/members.html">
@@ -985,6 +1029,14 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div class="icon-pill">🦉</div>
       <div class="label">まとめる君</div>
       <div class="desc">走り書きの報告メモをAIが5W1Hに整形。週報モードも。事故・トラブル報告の下書きに。</div>
+    </a>
+    <a class="card bdiary" href="/bdiary.html">
+      <span class="badge" id="b-bdiary" style="display:none;">0</span>
+      <img class="bd-ava" src="/assets/bsan_avatar_t.png" alt="Bさん">
+      <div class="bd-txt">
+        <div class="label">Bさん専用</div>
+        <div class="bd-sub">これまでの日記と、みんなのメッセージ 🌸</div>
+      </div>
     </a>
   </div>
 
@@ -1162,7 +1214,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <span class="desc">推進メンバー・管理職のみに表示</span>
     </div>
     <div class="grid sec-promoter">
-      <div class="grp-sub" style="grid-column:1/-1;font-weight:800;font-size:14px;color:#5b21b6;margin:2px 2px 0;">🚦 運管メンバー</div>
+      <div class="grp-sub" style="grid-column:1/-1;font-weight:800;font-size:14px;color:#5b21b6;margin:2px 2px 0;">🚦 現場管理メンバー</div>
       <a id="p-card-tenko" class="card p-rollcall" href="/tenko.html" style="display:none;">
         <div class="icon-pill">🚦</div>
         <div class="label">点呼・健康点検</div>
@@ -1209,12 +1261,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <a class="card p-strategy" href="/wellness-ops.html">
         <div class="icon-pill">🛠</div>
         <div class="label">健康戦略室 (運営)</div>
-        <div class="desc">現場の声POST一覧、施策ボード、AI評議会、保健師レビュー、役員投票。</div>
-      </a>
-      <a class="card p-schedule" href="/wellness-ops.html#schedule">
-        <div class="icon-pill">📅</div>
-        <div class="label">推進メンバースケジュール</div>
-        <div class="desc">推進メンバー全員の12週ガントチャート。聞き取り訪問・会議・施策実行などを共同編集で共有。</div>
+        <div class="desc">現場の声POST一覧、施策ボード、AI評議会、保健師レビュー、役員投票、推進メンバーのスケジュール。</div>
       </a>
       <a class="card p-myplanops" href="/myplan-ops.html">
         <div class="icon-pill">📊</div>
@@ -1950,7 +1997,7 @@ async function init() {
     +     (me.nickname ? '<span class="greet-nick">（' + escapeHtml(me.nickname) + '）</span>' : '')
     +   '</span>'
     +   '<span class="greet-actions">'
-    +     '<a href="/mypage.html" class="greet-mypage">' + mypageLbl + ' ›</a>'
+    +     '<a href="/mypage.html" class="greet-mypage">' + mypageLbl + '<span class="g-long"> ›</span></a>'
     +     '<button type="button" class="greet-search" onclick="openSearch()">🔍 検索</button>'
     +     '<a href="/self-check.html" id="hc-chip" class="greet-hc" style="display:none;" title="体調チェック"></a>'
     +   '</span>'
@@ -2090,8 +2137,8 @@ function refreshDailyCheckCard() {
     var chip = document.getElementById('hc-chip');
     if (chip) {
       chip.style.display = 'inline-flex';
-      if (done) { chip.classList.add('done'); chip.textContent = '✅ 体調チェック済'; }
-      else { chip.classList.remove('done'); chip.textContent = '🩸 体調チェック'; }
+      if (done) { chip.classList.add('done'); chip.innerHTML = '✅ 体調<span class="g-long">チェック</span>済'; }
+      else { chip.classList.remove('done'); chip.innerHTML = '🩸 体調<span class="g-long">チェック</span>'; }
     }
     if (done) {
       // 完了したらバナーは消す (通達バナーと同じ挙動)。翌日=未実施に戻ると再表示。
@@ -2186,23 +2233,61 @@ async function loadBranchTasksStrip() {
       { title: 'スタンダード運輸（茨運）', cls: 'bs-g-std',   match: function (c) { return c.indexOf('SUZUE') !== 0; } },
       { title: 'スズエ電機',             cls: 'bs-g-suzue', match: function (c) { return c.indexOf('SUZUE') === 0; } }
     ];
+    var sums = [];
     var body = GROUPS.map(function (g) {
       var rows = d.rows.filter(function (x) { return g.match(String(x.code || '')); });
       if (!rows.length) return '';
       var gt = rows.reduce(function (s, x) { return s + (x.total || 0); }, 0);
       var count = gt > 0 ? '<span class="bs-gcount">' + gt + '</span>' : '<span class="bs-gcount ok">✓</span>';
+      // 折り畳み時に出す会社別サマリー(見落とし防止)
+      sums.push('<span class="bs-sum ' + g.cls.replace('bs-g-', 'bs-sum-') + '">' + escapeHtml(g.title)
+        + (gt > 0 ? '<b>' + gt + '</b>' : '<i>✓</i>') + '</span>');
       return '<div class="bs-group ' + g.cls + '"><div class="bs-gtitle">' + escapeHtml(g.title) + count + '</div>'
         + '<div class="bs-grid">' + rows.map(chipHtml).join('') + '</div></div>';
     }).join('');
     var grand = d.grand_total || 0;
     el.className = 'branch-strip';
-    el.innerHTML = '<span class="bs-label">🏢 営業所別 対応リスト</span>'
-      + '<div class="bs-head">'
-      + (grand > 0 ? '<span class="bs-total">未対応 ' + grand + '</span>' : '<span class="bs-total zero">全拠点 対応済み</span>')
-      + '<a class="bs-more" href="/branch-tasks.html">一覧を見る ›</a></div>'
+    el.innerHTML = '<div class="bs-head">'
+      + '<span class="bs-label">🏢 営業所別 対応リスト</span>'
+      + '<span class="bs-arrow">▾</span><a class="bs-more" href="/branch-tasks.html">一覧を見る ›</a></div>'
+      + '<div class="bs-summary">'
+      +   (grand > 0 ? '<span class="bs-total">未対応 ' + grand + '</span>' : '<span class="bs-total zero">全拠点 対応済み</span>')
+      +   sums.join('') + '</div>'
       + '<div class="bs-groups">' + body + '</div>';
     el.style.display = '';
+    setupBranchStripAccordion(el);
   } catch (e) { el.style.display = 'none'; }
+}
+// 🗂 営業所別 対応リストの折り畳み (狭幅=既定で畳む・本人の開閉はlocalStorageに記憶)
+function setupBranchStripAccordion(el) {
+  var KEY = 'cohub_home_acc_branchstrip';
+  var narrow = false;
+  try { narrow = window.matchMedia('(max-width: 480px)').matches; } catch (e) {}
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  setBranchStripOpen(el, (saved === null) ? !narrow : (saved === '1'));
+  var toggle = function (ev) {
+    if (ev && ev.target && ev.target.closest && ev.target.closest('.bs-more')) return; // 「一覧を見る」は素通し
+    var willOpen = el.classList.contains('bs-collapsed');
+    setBranchStripOpen(el, willOpen);
+    try { localStorage.setItem(KEY, willOpen ? '1' : '0'); } catch (e) {}
+  };
+  ['.bs-head', '.bs-summary'].forEach(function (sel) {
+    var n = el.querySelector(sel);
+    if (!n) return;
+    n.setAttribute('role', 'button');
+    n.setAttribute('tabindex', '0');
+    n.addEventListener('click', toggle);
+    n.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(ev); }
+    });
+  });
+}
+function setBranchStripOpen(el, open) {
+  if (open) el.classList.remove('bs-collapsed');
+  else el.classList.add('bs-collapsed');
+  var head = el.querySelector('.bs-head');
+  if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 // ===== ✅ やること (対応が必要なことを件数付きで集約) =====
 function scrollToBanner(e) {
@@ -2219,7 +2304,7 @@ async function loadTaskList() {
     api('/api/guidance/mine').then(function (r) { if (r && r.success && r.pending_count > 0) tasks.push({ count: r.pending_count, label: '運行管理者からの指導を承諾', icon: '🚦', href: '#home-guidance-banner', tone: 'red', pr: 0 }); }).catch(function () {}),
     api('/api/approval/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '承認待ちの申請', icon: '📑', href: '/approval.html', tone: 'teal', pr: 2 }); }).catch(function () {}),
     api('/api/expense/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '経費精算の承認待ち', icon: '💰', href: '/expense.html', tone: 'teal', pr: 2 }); }).catch(function () {}),
-    api('/api/ops/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '業務連絡・運管ポストの未確認', icon: '📣', href: '/ops.html', tone: 'blue', pr: 3 }); }).catch(function () {}),
+    api('/api/ops/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '業務連絡・現場ポストの未確認', icon: '📣', href: '/ops.html', tone: 'blue', pr: 3 }); }).catch(function () {}),
     api('/api/survey/unread-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '未回答のアンケート', icon: '📋', href: '/survey.html', tone: 'purple', pr: 4 }); }).catch(function () {})
   ];
   try { await Promise.all(jobs); } catch (e) {}
@@ -2605,6 +2690,12 @@ async function login() {
       localStorage.removeItem('cohub_remember_pw');
       localStorage.removeItem('cohub_remember_on');
     }
+  } catch (e) {}
+  // QR等で目的のページから来た場合は、ログイン後にそこへ戻す (2026-08-02)
+  //   ⚠️ID/パスワードの保存より後に置くこと(先に return すると保存されない)。
+  try {
+    const back = localStorage.getItem('cohub_after_login');
+    if (back) { localStorage.removeItem('cohub_after_login'); location.replace(back); return; }
   } catch (e) {}
   init();
 }
