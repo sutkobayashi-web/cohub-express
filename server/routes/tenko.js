@@ -65,20 +65,24 @@ function getOperator(uid) {
   return getDb().prepare(
     `SELECT id, display_name, company_code, employee_type, job_role,
             is_field_promoter, is_warehouse_promoter, is_tenko_operator,
-            is_ops_manager, is_branch_head
+            is_ops_manager, is_branch_head, is_guest_reviewer
      FROM users WHERE id = ?`
   ).get(uid);
 }
 // 点呼者/管理者か (予め選出: フラグ or 管理職 or manager or 推進 or 運行管理者 or 所長副所長)
+// ⚠️社外ゲスト(研究閲覧)もここを通す。書き込みは middleware/authz.js の研究閲覧モードが
+//   全APIまとめて403にするので、ここで通るのは参照だけ。氏名も同層で匿名化される。
 function isOperator(u) {
   return !!(u && (u.is_tenko_operator || u.employee_type === 'admin' || u.job_role === 'manager'
-    || u.is_field_promoter || u.is_warehouse_promoter || u.is_ops_manager || u.is_branch_head));
+    || u.is_field_promoter || u.is_warehouse_promoter || u.is_ops_manager || u.is_branch_head
+    || u.is_guest_reviewer));
 }
 
 // 2026-07-21 追加: 他拠点のデータを閲覧/更新できてしまう穴を塞ぐための共通判定。
 // 全拠点を横断できるのは本社admin・推進メンバーのみ。それ以外は自拠点に固定する。
 function canCrossCompany(u) {
-  return !!(u && (u.employee_type === 'admin' || u.is_field_promoter || u.is_warehouse_promoter));
+  return !!(u && (u.employee_type === 'admin' || u.is_field_promoter || u.is_warehouse_promoter
+    || u.is_guest_reviewer));   // 研究閲覧は全拠点を横断(参照のみ・氏名は匿名)
 }
 // クライアント指定の company を検証し、権限が無ければ自拠点へ強制的に読み替える
 function scopedCompany(u, requested) {
@@ -731,14 +735,21 @@ router.get('/checkedin-today', (req, res) => {
 // ============================================================
 function getViewer(uid) {
   return getDb().prepare(`SELECT id, display_name, company_code, employee_type, role, is_manager, job_role,
-    is_field_promoter, is_warehouse_promoter, is_tenko_operator, is_ops_manager, is_branch_head FROM users WHERE id = ?`).get(uid);
+    is_field_promoter, is_warehouse_promoter, is_tenko_operator, is_ops_manager, is_branch_head, is_guest_reviewer
+    FROM users WHERE id = ?`).get(uid);
 }
 function canViewBoard(u) {
   return !!(u && (u.is_manager || u.role === 'admin' || u.employee_type === 'admin' || u.job_role === 'manager'
-    || u.is_field_promoter || u.is_warehouse_promoter || u.is_tenko_operator || u.is_ops_manager || u.is_branch_head));
+    || u.is_field_promoter || u.is_warehouse_promoter || u.is_tenko_operator || u.is_ops_manager || u.is_branch_head
+    || u.is_guest_reviewer));
 }
 // 本人以外の血圧推移を閲覧できるユーザー (社長指示 2026-07-18: 小林 猛・吉沢 佑也 の2名のみ)。
 // 健康情報ゆえ最小権限。ここに載っている人だけが全社員の推移を見られる。
+// 研究閲覧(社外ゲスト)か。書き込み禁止・氏名匿名化は middleware/authz.js が全APIで強制する。
+function isResearchViewer(uid) {
+  const u = getDb().prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
+  return !!(u && u.is_guest_reviewer);
+}
 const BP_TREND_VIEWERS = [
   '7cf1bd9c-5c97-495d-84e8-5339583a5e6c', // 小林 猛
   'b097b512-468b-4161-a273-2e96ee589960'  // 吉沢 佑也
@@ -758,7 +769,7 @@ router.get('/board', authUser, (req, res) => {
   const db = getDb();
   const me = getViewer(req.uid);
   if (!canViewBoard(me)) return res.status(403).json({ success: false, msg: 'この画面は推進メンバー・管理職のみ閲覧できます' });
-  const hq = !!(me.role === 'admin' || me.employee_type === 'admin'); // 本社ADMINは全拠点
+  const hq = !!(me.role === 'admin' || me.employee_type === 'admin' || me.is_guest_reviewer); // 本社ADMIN(と研究閲覧のゲスト)は全拠点
   const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : jstDate();
   const co = hq ? String(req.query.co || '') : (me.company_code || '');
   const rosterSql = `SELECT id, display_name, company_code, job_role, avatar_url FROM users
@@ -804,7 +815,7 @@ router.get('/board', authUser, (req, res) => {
     ? db.prepare(`SELECT DISTINCT company_code FROM users WHERE COALESCE(role,'')<>'bot' AND company_code IS NOT NULL AND company_code<>'' ORDER BY company_code`).all().map(x => x.company_code)
     : [me.company_code];
   // 血圧推移(本人以外)の閲覧は指定2名のみ。フロントは trend_access が真の時だけ氏名を📈リンク化する。
-  const trendAccess = BP_TREND_VIEWERS.includes(req.uid);
+  const trendAccess = BP_TREND_VIEWERS.includes(req.uid) || !!(me && me.is_guest_reviewer);
   res.json({ success: true, date, hq, co, total, done, not_done: total - done,
     rate: total ? Math.round(done * 1000 / total) / 10 : 0, trend_access: trendAccess,
     urgency: { mid: uMid, high: uHigh }, bp_high: bpHigh,
@@ -822,7 +833,7 @@ router.get('/manage', authUser, (req, res) => {
   const db = getDb();
   const me = getViewer(req.uid);
   if (!canViewBoard(me)) return res.status(403).json({ success: false, msg: 'この画面は推進メンバー・管理職のみ閲覧できます' });
-  const hq = !!(me.role === 'admin' || me.employee_type === 'admin');
+  const hq = !!(me.role === 'admin' || me.employee_type === 'admin' || me.is_guest_reviewer);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : jstDate();
   const co = hq ? String(req.query.co || '') : (me.company_code || '');
   const period = (req.query.period === 'week') ? 'week' : 'month';
@@ -941,7 +952,7 @@ router.post('/ack', authUser, express.json(), (req, res) => {
   const db = getDb();
   const me = getViewer(req.uid);
   if (!canViewBoard(me)) return res.status(403).json({ success: false, msg: '権限がありません' });
-  const hq = !!(me.role === 'admin' || me.employee_type === 'admin');
+  const hq = !!(me.role === 'admin' || me.employee_type === 'admin' || me.is_guest_reviewer);
   const ids = Array.isArray(req.body && req.body.post_ids)
     ? req.body.post_ids.map(n => parseInt(n, 10)).filter(n => Number.isFinite(n)) : [];
   const status = ['未対応', '確認済', '対応済'].includes(req.body && req.body.status) ? req.body.status : null;
@@ -1332,7 +1343,7 @@ router.get('/care-board', authUser, (req, res) => {
   const db = getDb();
   const me = getViewer(req.uid);
   if (!canViewBoard(me)) return res.status(403).json({ success: false, msg: 'この画面は推進メンバー・管理職のみ閲覧できます' });
-  const hq = !!(me.role === 'admin' || me.employee_type === 'admin');
+  const hq = !!(me.role === 'admin' || me.employee_type === 'admin' || me.is_guest_reviewer);
   const co = hq ? String(req.query.co || '') : (me.company_code || '');
   const scoped = !(hq && !co);       // true=拠点で絞る
   const P = scoped ? [co] : [];
@@ -1423,7 +1434,8 @@ router.get('/bp-recent', authUser, (req, res) => {
 router.get('/bp-trend', authUser, (req, res) => {
   const db = getDb();
   // 本人以外の血圧推移を見られるのは指定2名のみ (社長指示 2026-07-18)。
-  if (!BP_TREND_VIEWERS.includes(req.uid)) {
+  // + 社外ゲスト(研究閲覧・2026-08-03 社長判断)。氏名は authz の研究閲覧モードで匿名化される。
+  if (!BP_TREND_VIEWERS.includes(req.uid) && !isResearchViewer(req.uid)) {
     return res.status(403).json({ success: false, msg: '他の方の血圧推移は閲覧できません' });
   }
   const uid = String(req.query.uid || '');

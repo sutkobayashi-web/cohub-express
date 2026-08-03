@@ -441,7 +441,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-03-guest"
+const APP_VERSION = "2026-08-03-research3"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -1102,7 +1102,29 @@ io.on('connection', (socket) => {
   lastLogoutAt.delete(uid);
   presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile, lastHb: Date.now() });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
-  socket.join('floor:' + floor.code);
+
+  // 研究閲覧(社外ゲスト)のソケット: 届く内容の氏名をニックネームに置換する。
+  //  ⚠️REST側は middleware/authz.js が res.json を包んで匿名化しているが、ソケットは別経路。
+  //    DM・グループ着信(現場の声など)は個別 socket.emit なのでここで包める。
+  //  ⚠️フロア全体への一斉配信(io.to('floor:…'))は1回のエンコードを全員に配るため、受け手ごとの
+  //    置換ができない。そのため社外ゲストはフロアroomに入れない=公開チャットの即時受信のみ
+  //    行わない(履歴はRESTで匿名化して読める)。
+  let _isResearchGuest = false;
+  try {
+    const _g = db.prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
+    _isResearchGuest = !!(_g && _g.is_guest_reviewer);
+  } catch (e) {}
+  socket.isResearchGuest = _isResearchGuest;
+  if (_isResearchGuest) {
+    const { maskForGuest } = require('./middleware/authz');
+    const _emit = socket.emit.bind(socket);
+    socket.emit = (ev, ...args) => {
+      try { return _emit(ev, ...args.map(a => maskForGuest(a))); }
+      catch (e) { return _emit(ev, ...args); }
+    };
+  } else {
+    socket.join('floor:' + floor.code);
+  }
   socket.join('user:' + uid); // ユーザー個別のroomに参加 (既読通知用)
 
   // 保留中の呼出があれば再接続直後に配信 (タブ凍結/スリープ復帰でも気づけるように)。
@@ -1271,7 +1293,7 @@ io.on('connection', (socket) => {
     p.x = np.x; p.y = np.y;
     db.prepare(`INSERT INTO positions (user_id, x, y, floor_code) VALUES (?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, floor_code=excluded.floor_code, updated_at=datetime('now')`).run(uid, p.x, p.y, target.code);
-    socket.join('floor:' + target.code);
+    if (!socket.isResearchGuest) socket.join('floor:' + target.code);  // 研究閲覧は一斉配信を受けない(受け手ごとの匿名化ができないため)
     // 新フロアの既存メンバーに自分の join 通知
     const fu = floorUserList(target.code).find(u => u.uid === uid);
     if (fu) socket.to('floor:' + target.code).emit('user:join', fu);

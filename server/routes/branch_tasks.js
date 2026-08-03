@@ -23,8 +23,9 @@ function jstDate(offsetDays) {
   return new Date(Date.now() + 32400000 - (offsetDays || 0) * 86400000).toISOString().slice(0, 10);
 }
 function isHQ(uid) {
-  const u = getDb().prepare('SELECT role, employee_type FROM users WHERE id = ?').get(uid);
-  return !!(u && (u.employee_type === 'admin' || u.role === 'admin'));
+  const u = getDb().prepare('SELECT role, employee_type, is_guest_reviewer FROM users WHERE id = ?').get(uid);
+  // 社外ゲスト(研究閲覧)も全拠点を参照可。書き込み禁止・氏名匿名化は middleware/authz.js が強制。
+  return !!(u && (u.employee_type === 'admin' || u.role === 'admin' || u.is_guest_reviewer));
 }
 
 // 拠点ごとの未対応集計 (2クエリでGROUP BY・軽量)
