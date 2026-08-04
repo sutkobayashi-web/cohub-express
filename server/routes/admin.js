@@ -852,10 +852,11 @@ const RESEARCH_METRICS = {
       FROM tenko_kiko WHERE rec_date BETWEEN ? AND ?
       GROUP BY grp ORDER BY 記録数 DESC`).all(p.since, p.until),
   },
+  // ⚠️hl_scores は tenko_records を使わないので、週/月のグループは h.created_at を使う
   hl_scores: {
     label: 'ヘルスリテラシー(CCHL 5問)',
     note: '各人の最新回答で集計。5〜20点',
-    run: (db, p) => db.prepare(`SELECT ${p.groupSql} AS grp,
+    run: (db, p) => db.prepare(`SELECT ${p.groupSqlHl} AS grp,
         COUNT(*) AS 人数, ROUND(AVG(h.total), 2) AS 合計平均, ROUND(AVG(h.avg_score), 2) AS 設問平均,
         ROUND(AVG(h.q1), 2) AS Q1, ROUND(AVG(h.q2), 2) AS Q2, ROUND(AVG(h.q3), 2) AS Q3,
         ROUND(AVG(h.q4), 2) AS Q4, ROUND(AVG(h.q5), 2) AS Q5
@@ -898,6 +899,7 @@ router.get('/research/metrics', authAdmin, (req, res) => {
     since, until,
     groupSql: usesPosts ? g.sqlPosts : g.sql,
     groupSqlKiko: g.kiko,
+    groupSqlHl: g.sql.replace('t.rec_date', 'h.created_at'),
   };
   let rows = [];
   try { rows = m.run(getDb(), p); } catch (e) {

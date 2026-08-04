@@ -1637,9 +1637,26 @@ async function runResearch() {
     anon: document.getElementById('rs-anon').checked ? '1' : '0',
     min_n: document.getElementById('rs-minn').checked ? '5' : '0',
   });
-  const r = await fetch('/api/admin/research/metrics?' + params.toString(), { headers: { Authorization: 'Bearer ' + token } })
-    .then(x => x.json()).catch(() => null);
-  if (!r || !r.success) { body.innerHTML = '<tr><td style="padding:10px;color:#dc2626;">' + escapeHtml((r && r.msg) || '集計に失敗しました') + '</td></tr>'; return; }
+  // 20秒で打ち切る。無応答のまま「集計中…」が残り続けると原因が分からなくなるため
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), 20000);
+  let r = null, httpStatus = '';
+  try {
+    const res = await fetch('/api/admin/research/metrics?' + params.toString(),
+      { headers: { Authorization: 'Bearer ' + token }, signal: ac.signal });
+    httpStatus = res.status;
+    r = await res.json();
+  } catch (e) {
+    body.innerHTML = '<tr><td style="padding:10px;color:#dc2626;">'
+      + escapeHtml(e.name === 'AbortError' ? '20秒たっても応答がありませんでした' : ('通信できませんでした: ' + e.message))
+      + '</td></tr>';
+    return;
+  } finally { clearTimeout(to); }
+  if (!r || !r.success) {
+    body.innerHTML = '<tr><td style="padding:10px;color:#dc2626;">'
+      + escapeHtml('集計に失敗しました (HTTP ' + httpStatus + ') ' + ((r && r.msg) || '')) + '</td></tr>';
+    return;
+  }
   _rsRows = r.rows || [];
   document.getElementById('rs-note').textContent =
     r.label + ' / ' + r.group + ' / ' + r.since + '〜' + r.until + ' / ' + _rsRows.length + '行'
