@@ -939,7 +939,7 @@ setInterval(() => { try { updateTodaySummary(); } catch (e) {} }, 1500);
 let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
 let _meta = null, _ownersCache = null, _aiInsightsCache = null, _insightId = null;
 
-function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 (async function init() {
   if (!token) { location.href = '/wellness.html'; return; }

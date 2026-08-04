@@ -1859,7 +1859,9 @@ async function delUser(id, name) {
 }
 
 function escapeHtml(s) {
-  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // ⚠️数値を渡されても落ちないこと。(s||'') だと数値のまま .replace を呼んで
+  //   TypeError になる (2026-08-04 研究用集計の数値セルで発生)。
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 async function addGuest() {

@@ -388,7 +388,7 @@ function goRelogin() {
 }
 
 function escapeHtml(s) {
-  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // 旧: 401でlocalStorage全破棄+/へリダイレクト → 再ログインループの根本原因だった
