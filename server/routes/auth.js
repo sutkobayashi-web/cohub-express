@@ -326,9 +326,14 @@ router.get('/tablet-roster', (req, res) => {
   // ⚠️2026-08-04: 一度403にしたところ、許可リストに入っていない拠点の端末が実利用で弾かれた。
   //   まずは検知モード(通すが記録する)でどのIPが必要かを集め、.envを揃えてから閉める。
   //   authz.js の POLICY と同じ手順(検知→確認→enforce)。
+  // 2026-08-04: 全拠点のタブレットが登録されたので検知モードを終了し、未登録の端末を閉める。
+  //  通すのは ①登録済みの設置端末 ②事業所ネットワーク ③ログイン済み のいずれか。
+  //  ⚠️弾かれた端末も、事業所ネットワークで開いてPINログインすれば自動登録されて復旧する。
   const dev = deviceOf(getDb(), req);
   if (!dev && !isSetupAllowedIp(req) && !hasValidSession(req)) {
-    audit(req, 'tablet_roster_outside', { target: 'ip=' + clientIp(req) });
+    audit(req, 'tablet_roster_denied', { target: 'ip=' + clientIp(req) });
+    return res.status(403).json({ success: false, code: 'device_unregistered',
+      msg: 'この端末は登録されていません。事業所のネットワークで開いてから、もう一度お試しください' });
   }
   // 端末に拠点が紐づいていればその拠点だけ返す(万一漏れても被害をその拠点に限る)。
   const co = (dev && dev.company_code) ? dev.company_code : (req.query.co || '').toString().trim();

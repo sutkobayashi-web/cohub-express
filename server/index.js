@@ -300,10 +300,12 @@ app.get('/assets/roster_yomi.json', (req, res, next) => {
   //   ダウンロードできる状態だったので、事業所ネットワークからに限る (2026-08-04)。
   // 登録済みの設置端末(共用タブレット)は、IPが変わっても読める。
   try { if (deviceOf(getDb(), req)) return next(); } catch (e) {}
-  // ⚠️未登録の端末はまだ検知モード(通すが記録する)。
-  //   各拠点のタブレットの登録が一周したら enforce に切り替える。
-  if (!officeIp(req)) console.warn('[roster-yomi] outside allowlist', trustedClientIp(req));
-  return next();
+  // 2026-08-04: 全拠点のタブレットが登録されたので検知モードを終了し、未登録の端末を閉める。
+  //  事業所ネットワークからは従来どおり読める(タブレットの初回セットアップ用)。
+  if (officeIp(req)) return next();
+  console.warn('[roster-yomi] denied', trustedClientIp(req));
+  res.setHeader('Cache-Control', 'private, no-store');
+  return res.status(401).json({});
 });
 
 app.use(express.static(path.join(__dirname, '..', 'public'), {
@@ -470,7 +472,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-04-tablet-co"
+const APP_VERSION = "2026-08-04-enforce"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
