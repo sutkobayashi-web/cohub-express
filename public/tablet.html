@@ -406,7 +406,30 @@ let greeting = false;   // ログイン後あいさつ再生中(この間は入�
 //  → tablet-home が個人モードで動く(無操作オートログアウトしない/詳しい表示に切替可)。届けたい現場一般社員が
 //     ID/パスワードでなく PIN だけで自分のスマホから入れるようにする狙い。
 var PQ = '';   // 個人スマホの名前検索キーワード
-const PERSONAL = (function(){ try { return new URLSearchParams(location.search).get('personal') === '1'; } catch(e) { return false; } })();
+const PERSONAL = (function(){
+  try {
+    if (new URLSearchParams(location.search).get('personal') === '1') {
+      // ⚠️個人スマホと分かった時点で共用(キオスク)印を消す。
+      //   共用として一度ログインしてしまった端末を、ここで個人用に戻すための復旧経路。
+      try { localStorage.removeItem('cohub_kiosk'); localStorage.removeItem('cohub_kiosk_token'); } catch (e) {}
+      return true;
+    }
+    // ⚠️PWAとして開くと ?personal=1 が落ちる。前回この端末で個人ログインしていれば個人モードを続ける
+    //   (2026-08-04: スズエでアプリ起動のたびに名簿(アバター選択)が出る事象の対策)。
+    if (localStorage.getItem('cohub_personal_uid') && localStorage.getItem('cohub_kiosk') !== '1') return true;
+  } catch(e) {}
+  return false;
+})();
+// 個人スマホのときは、ホーム画面に追加した時に /tablet?personal=1 で起動するmanifestへ差し替える。
+// (共用タブレット用のmanifestのままだと、アプリを開くたびに共用モードの名簿が出てしまう)
+try {
+  if (PERSONAL) {
+    var _mf = document.querySelector('link[rel="manifest"]');
+    if (_mf) _mf.setAttribute('href', '/personal-manifest.json?v=1');
+  }
+} catch (e) {}
+// Androidで「アプリ」としてインストールできるようにする(Service Workerが無いとショートカットになる)
+try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){}); } catch (e) {}
 // ⭐2026-08-02 (社長): 事故報告のQR導線。読込→自分を選ぶ→PIN→『報告書作成ページ』へ直行させる。
 //   ⚠️外部サイトへ飛ばされないよう、同一サイト内のパス(/で始まる)しか受け付けない。
 const NEXT = (function(){

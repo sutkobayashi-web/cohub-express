@@ -817,6 +817,17 @@ function setupQrGuide(){
   }
   g.classList.add('on');
 }
+// 個人スマホ(キオスク印なし)は、ホーム画面に追加した時に個人モードで起動するmanifestへ差し替える。
+// ⚠️共用タブレット用のままだと、アプリを開くたびに名簿(アバター選択)が出て、選んで入ると
+//   共用扱いになり、ログアウトでまた名簿へ戻る (2026-08-04 スズエで発生)。
+try {
+  if (!IS_KIOSK) {
+    var _mf = document.querySelector('link[rel="manifest"]');
+    if (_mf) _mf.setAttribute('href', '/personal-manifest.json?v=1');
+  }
+} catch (e) {}
+// Androidで「アプリ」としてインストールできるようにする(Service Workerが無いとショートカットになる)
+try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){}); } catch (e) {}
 if(!TOKEN){ location.replace(IS_KIOSK ? '/tablet' : '/'); }
 var ME=null, AOI_VOICE='ja-JP-Neural2-B', ROSTER_YOMI={};
 // 在席(オンライン)登録＋DMリアルタイム受信のため socket.io に接続。

@@ -4,7 +4,10 @@
 //                  旧SWが残したキャッシュシェルを根絶。push通知ハンドラは維持(通知は引き続き機能)。
 // v8 (2026-06-15): activate時の「全クライアント強制navigate(リロード)」を撤去。リセット直後にトップ描画途中で
 //                  リロードが走り「遅い/出ない」と感じる原因だったため。キャッシュ掃除+claimのみに簡素化。
-const CACHE = "cohub-v8";
+// v9 (2026-06-25): ホーム刷新/文字サイズ切替の言語ピル同居を全端末へ反映するためキャッシュ世代を更新。
+// v11 (2026-08-01): CoWell公式ロゴへ全面差し替え(アイコン/favicon/ヘッダー)。
+// v10 (2026-08-01): タイトルバーのブルー統一/夏の背景が「まだ変わっていない」端末があったため世代更新。
+const CACHE = "cohub-v15";
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -43,8 +46,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'CoWell';
     const options = {
       body: data.body || '',
-      icon: data.icon || '/img/icon-192.png',
-      badge: '/img/favicon-32.png',
+      icon: data.icon || '/img/cowell-icon-192-v6.png',
+      badge: '/img/cowell-favicon-32-v2.png',
       tag: data.tag || 'cohub-push',
       renotify: true,
       requireInteraction: data.requireInteraction !== undefined ? !!data.requireInteraction : !!data.mention,
@@ -72,4 +75,12 @@ self.addEventListener('notificationclick', (event) => {
       return self.clients.openWindow(url);
     })
   );
+});
+
+// ⚠️2026-08-04: Android(Chrome)は「manifest + fetchハンドラを持つService Worker」が揃わないと
+//   アプリ(WebAPK)としてインストールできず、ただのショートカットになる。実際にスズエで
+//   「アプリを入れたのにChromeのショートカットになる」事象が出たため追加。
+//   ⚠️キャッシュはしない(このSWはHTMLをキャッシュしない設計)。素通しするだけの空ハンドラ。
+self.addEventListener('fetch', (event) => {
+  // respondWith を呼ばない = ブラウザの通常動作のまま。存在すること自体が要件。
 });
