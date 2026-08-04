@@ -812,7 +812,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   <!-- 🔔 通知有効化の導線 (Push購読率向上) -->
   <div id="push-cta" style="display:none; margin:10px 12px; padding:12px 14px; background:#fffbeb; border:1.5px solid #fcd34d; border-radius:16px; font-size:13px; color:#92400e;">
     <div style="font-weight:700; margin-bottom:6px;">🔔 通知をオンにしませんか？</div>
-    <div id="push-cta-msg" style="color:#78350f; margin-bottom:8px;">運転アラート・通達・呼び出しが、スマホにすぐ届くようになります。</div>
+    <div id="push-cta-msg" style="color:#78350f; margin-bottom:8px;"><b>呼び出し・メッセージ・通達</b>が、CoWellの画面を開いていなくても届きます。<br><span style="font-size:12px;color:#92400e;">オンにしないと、呼ばれても気づけません。</span></div>
     <div>
       <button id="push-cta-btn" onclick="doEnablePush()" style="padding:9px 14px; border:none; border-radius:12px; background:#f59e0b; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">通知をオンにする</button>
       <button onclick="dismissPushCta()" style="padding:9px 12px; border:none; border-radius:12px; background:transparent; color:#92400e; font-size:12px; cursor:pointer;">後で</button>
@@ -1856,7 +1856,10 @@ function _isStandalone() { try { return window.matchMedia('(display-mode: standa
 function maybeOfferPush() {
   try {
     if (localStorage.getItem('cohub_kiosk') === '1') return;        // 共用端末は対象外
-    if (localStorage.getItem('push_cta_dismissed') === '1') return; // 「後で」を押した
+    // 「後で」は7日で復活させる (2026-08-04)。永久に消えると、呼んでも気づかない人が残り続ける。
+    var _dz = localStorage.getItem('push_cta_dismissed');
+    if (_dz === '1') { try { localStorage.setItem('push_cta_dismissed', String(Date.now())); } catch (e) {} return; }
+    if (_dz && (Date.now() - parseInt(_dz, 10)) < 7 * 86400000) return;
     var cta = document.getElementById('push-cta');
     var msg = document.getElementById('push-cta-msg');
     var btn = document.getElementById('push-cta-btn');
@@ -1867,7 +1870,11 @@ function maybeOfferPush() {
         + (_isStandalone() ? '' : '<br><span style="color:#94a3b8;">※今はホーム画面版ではなくブラウザで開いている可能性があります。</span>');
       btn.style.display = 'none'; cta.style.display = ''; return;
     }
-    if (Notification.permission === 'granted') return;              // 既に許可済み
+    // ⚠️許可済みでも「購読がサーバーに登録されていない」ことがある(端末交換・購読の失効・
+    //   パスワード再設定での購読削除など)。この状態だと通知は一切届かないのに画面上は何も起きない。
+    //   実測(2026-08-04)で161名中9名しか登録が無く、事務職14名中11名が未登録だった。
+    //   → 許可済みなら黙って購読し直す(ユーザー操作なし)。
+    if (Notification.permission === 'granted') { ensurePushSubscribed(); return; }
     if (Notification.permission === 'denied') {
       msg.textContent = '通知がブロックされています。端末の設定からCoHub（またはブラウザ）の通知を許可してください。';
       btn.style.display = 'none';
@@ -1883,8 +1890,28 @@ function maybeOfferPush() {
     cta.style.display = '';
   } catch (e) {}
 }
+// 許可済みの端末で、購読をサーバーに登録し直す(画面には何も出さない)。
+// 1日1回だけ試す。失敗しても黙る(呼び出しの導線を邪魔しない)。
+async function ensurePushSubscribed() {
+  try {
+    var today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem('push_sync_day') === today) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    var reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    var vd = await fetch('/api/push/vapid').then(function (x) { return x.json(); });
+    if (!vd.publicKey) return;
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(vd.publicKey) });
+    await fetch('/api/push/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ subscription: sub.toJSON ? sub.toJSON() : sub }),
+    });
+    try { localStorage.setItem('push_sync_day', today); } catch (e) {}
+  } catch (e) { /* 黙って諦める */ }
+}
 function dismissPushCta() {
-  try { localStorage.setItem('push_cta_dismissed', '1'); } catch (e) {}
+  try { localStorage.setItem('push_cta_dismissed', String(Date.now())); } catch (e) {}
   var cta = document.getElementById('push-cta'); if (cta) cta.style.display = 'none';
 }
 async function doEnablePush() {
