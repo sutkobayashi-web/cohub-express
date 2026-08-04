@@ -192,6 +192,30 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div id="g-msg"></div>
   </div>
 
+  <!-- 研究用 集計 (2026-08-04): 大学へ渡すのは この画面で出した集計だけ -->
+  <div class="card" style="background:linear-gradient(135deg,#eef2ff,#f5f3ff);border-left:4px solid #6366f1;">
+    <h2 style="color:#4338ca;">🎓 研究用 集計 <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">組織がどう動いたかを期間・単位を変えて取り出す</span></h2>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.7;">
+      共同研究へ渡すデータは<b>この画面で出した集計のみ</b>とし、研究者にシステムを直接開けません。<br>
+      個人名・個人IDは一切含みません。<b>拠点名を伏せる</b>と「拠点A/B…」に置き換わります。<b>少人数の群を伏せる</b>と人数が少なく個人が推定できる行を除きます。
+    </div>
+    <div class="row">
+      <select id="rs-metric" style="min-width:260px;"></select>
+      <select id="rs-group"></select>
+      <input type="date" id="rs-since">
+      <input type="date" id="rs-until">
+      <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="rs-anon" checked> 拠点名を伏せる</label>
+      <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="rs-minn" checked> 少人数の群を伏せる</label>
+      <button class="btn" onclick="runResearch()">集計</button>
+      <button class="btn btn-ghost" onclick="downloadResearchCsv()">CSV出力</button>
+    </div>
+    <div id="rs-note" style="font-size:11px;color:#64748b;margin:6px 0;"></div>
+    <div style="max-height:420px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;">
+      <table style="margin:0;font-size:12px;"><thead id="rs-head" style="position:sticky;top:0;"></thead><tbody id="rs-body"></tbody></table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#94a3b8;">※ この画面での集計・CSV出力は監査ログに残ります (research_export)。</div>
+  </div>
+
   <!-- 設置端末の管理 (2026-08-04) -->
   <div class="card" style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-left:4px solid #475569;">
     <h2 style="color:#334155;">📟 設置端末 (共用タブレット) <span style="color:#64748b;font-weight:400;font-size:12px;margin-left:8px;">名前選択画面を開ける端末の一覧</span></h2>
@@ -599,6 +623,7 @@ function showPanel(user) {
   loadUsers();
   loadFloors();
   loadChatLog(0);
+  initResearch();
   loadAudit();
   loadGroups();
   loadReportSummary();
@@ -1586,6 +1611,60 @@ async function adminSetTabletPin() {
     alert('❌ ' + (r && r.msg || '失敗'));
   }
 }
+// ===== 研究用 集計 (2026-08-04) =====
+let _rsRows = [], _rsCols = [], _rsMeta = null;
+async function initResearch() {
+  const r = await fetch('/api/admin/research/metrics', { headers: { Authorization: 'Bearer ' + token } })
+    .then(x => x.json()).catch(() => null);
+  if (!r || !r.success) return;
+  document.getElementById('rs-metric').innerHTML = r.catalog.map(c => `<option value="${c.key}">${escapeHtml(c.label)}</option>`).join('');
+  document.getElementById('rs-group').innerHTML = r.groups.map(g => `<option value="${g.key}">${escapeHtml(g.label)}</option>`).join('');
+  const d = new Date(); const p = n => String(n).padStart(2, '0');
+  const until = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  const s0 = new Date(d.getTime() - 90 * 86400000);
+  document.getElementById('rs-until').value = until;
+  document.getElementById('rs-since').value = s0.getFullYear() + '-' + p(s0.getMonth() + 1) + '-' + p(s0.getDate());
+  _rsMeta = r;
+}
+async function runResearch() {
+  const body = document.getElementById('rs-body'), head = document.getElementById('rs-head');
+  body.innerHTML = '<tr><td style="padding:10px;color:#94a3b8;">集計中…</td></tr>';
+  const params = new URLSearchParams({
+    metric: document.getElementById('rs-metric').value,
+    group: document.getElementById('rs-group').value,
+    since: document.getElementById('rs-since').value,
+    until: document.getElementById('rs-until').value,
+    anon: document.getElementById('rs-anon').checked ? '1' : '0',
+    min_n: document.getElementById('rs-minn').checked ? '5' : '0',
+  });
+  const r = await fetch('/api/admin/research/metrics?' + params.toString(), { headers: { Authorization: 'Bearer ' + token } })
+    .then(x => x.json()).catch(() => null);
+  if (!r || !r.success) { body.innerHTML = '<tr><td style="padding:10px;color:#dc2626;">' + escapeHtml((r && r.msg) || '集計に失敗しました') + '</td></tr>'; return; }
+  _rsRows = r.rows || [];
+  document.getElementById('rs-note').textContent =
+    r.label + ' / ' + r.group + ' / ' + r.since + '〜' + r.until + ' / ' + _rsRows.length + '行'
+    + (r.suppressed ? '  ※少人数のため ' + r.suppressed + '行を伏せました' : '') + '  — ' + r.note;
+  if (!_rsRows.length) { head.innerHTML = ''; body.innerHTML = '<tr><td style="padding:10px;color:#94a3b8;">データがありません</td></tr>'; return; }
+  _rsCols = Object.keys(_rsRows[0]);
+  head.innerHTML = '<tr>' + _rsCols.map(c => `<th>${escapeHtml(c === 'grp' ? '区分' : c)}</th>`).join('') + '</tr>';
+  body.innerHTML = _rsRows.map(row => '<tr>' + _rsCols.map(c =>
+    `<td style="${typeof row[c] === 'number' ? 'text-align:right;' : ''}">${escapeHtml(row[c] == null ? '-' : row[c])}</td>`).join('') + '</tr>').join('');
+}
+function downloadResearchCsv() {
+  if (!_rsRows.length) { alert('先に集計してください'); return; }
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const CRLF = String.fromCharCode(13, 10);
+  const BOM = String.fromCharCode(65279);   // Excelで文字化けさせないためのUTF-8 BOM
+  const lines = [_rsCols.map(c => esc(c === 'grp' ? '区分' : c)).join(',')]
+    .concat(_rsRows.map(r => _rsCols.map(c => esc(r[c])).join(',')));
+  const blob = new Blob([BOM + lines.join(CRLF)], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'research_' + document.getElementById('rs-metric').value + '_'
+    + document.getElementById('rs-since').value + '_' + document.getElementById('rs-until').value + '.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
 // ===== 設置端末 (共用タブレット) の一覧・失効 =====
 async function loadKioskDevices() {
   const area = document.getElementById('kiosk-dev-area');

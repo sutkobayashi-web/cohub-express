@@ -758,4 +758,176 @@ router.get('/groups/:gid/messages', authAdmin, (req, res) => {
   res.json({ success: true, group: g, messages: rows.reverse() });
 });
 
+// ============================================================
+// 研究用 集計 (2026-08-04 社長指示)
+//  帝京大学との共同研究向けに「組織がどう動いたか」を都度集計して取り出す。
+//  ⚠️ここは管理画面(=会長・管理部長の2名のみ)からしか呼べない。研究者に直接は開けない。
+//    渡すのは この画面で出した集計(CSV)だけ、という運用にする。
+//  ⚠️個人は出さない。氏名・個人IDは一切返さない。拠点は記号化(拠点A/B…)できる。
+//  ⚠️人数の少ない群は統計的に個人が推定できるため、既定で n<5 を伏せる。
+//  ⚠️自由記述SQLは受け付けない。下の METRICS に定義した集計だけを実行する。
+// ============================================================
+const RESEARCH_METRICS = {
+  care_response: {
+    label: '気にかけ: 声かけ率・対応の速さ',
+    note: '体調の気がかりが上がってから、管理職が声をかけるまで',
+    run: (db, p) => db.prepare(`SELECT ${p.groupSql} AS grp,
+        COUNT(*) AS 件数,
+        SUM(CASE WHEN ack_status='対応済' THEN 1 ELSE 0 END) AS 声かけ済,
+        SUM(CASE WHEN COALESCE(ack_status,'未対応')='未対応' THEN 1 ELSE 0 END) AS 未対応,
+        ROUND(AVG(CASE WHEN ack_at IS NOT NULL THEN (julianday(ack_at)-julianday(created_at)) END), 2) AS 平均対応日数,
+        COUNT(DISTINCT subject_user_id) AS 対象人数
+      FROM wellness_posts
+      WHERE date(created_at) BETWEEN ? AND ?
+      GROUP BY grp ORDER BY 件数 DESC`).all(p.since, p.until),
+  },
+  check_rate: {
+    label: '健康チェック: 実施の広がり',
+    note: '実施した人数と記録数。導入からの定着を見る',
+    run: (db, p) => db.prepare(`SELECT ${p.groupSql} AS grp,
+        COUNT(DISTINCT t.target_id) AS 実施人数,
+        COUNT(*) AS 記録数,
+        SUM(CASE WHEN t.urgency='高' THEN 1 ELSE 0 END) AS 緊急度高,
+        SUM(CASE WHEN t.urgency='中' THEN 1 ELSE 0 END) AS 緊急度中
+      FROM tenko_records t LEFT JOIN users u ON u.id = t.target_id
+      WHERE t.rec_date BETWEEN ? AND ?
+      GROUP BY grp ORDER BY grp`).all(p.since, p.until),
+  },
+  handlers: {
+    label: '担い手: 声をかけた管理職の人数',
+    note: '対応が特定の人に偏っていないか',
+    run: (db, p) => db.prepare(`SELECT ${p.groupSql} AS grp,
+        COUNT(DISTINCT ack_by) AS 対応した人数,
+        COUNT(*) AS 声かけ件数,
+        ROUND(1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT ack_by), 0), 1) AS 一人あたり件数
+      FROM wellness_posts
+      WHERE ack_status='対応済' AND ack_by IS NOT NULL AND date(ack_at) BETWEEN ? AND ?
+      GROUP BY grp ORDER BY 声かけ件数 DESC`).all(p.since, p.until),
+  },
+  voice_source: {
+    label: '現場の声: どこから上がったか',
+    note: '点呼・朝礼・自己チェック等の投稿元の内訳',
+    run: (db, p) => db.prepare(`SELECT ${p.groupSql} AS grp, source_type AS 投稿元,
+        COUNT(*) AS 件数,
+        SUM(CASE WHEN urgency='高' THEN 1 ELSE 0 END) AS 高,
+        SUM(CASE WHEN ack_status='対応済' THEN 1 ELSE 0 END) AS 声かけ済
+      FROM wellness_posts
+      WHERE date(created_at) BETWEEN ? AND ?
+      GROUP BY grp, source_type ORDER BY grp, 件数 DESC`).all(p.since, p.until),
+  },
+  health_items: {
+    label: '健康点検8項目: できている割合',
+    note: '水分・朝食・3食・睡眠・目覚め と 顔色・痛み・気がかりの該当率',
+    run: (db, p) => {
+      const rows = db.prepare(`SELECT ${p.groupSql} AS grp, t.health_json AS hj
+        FROM tenko_records t LEFT JOIN users u ON u.id = t.target_id
+        WHERE t.rec_date BETWEEN ? AND ? AND t.health_json IS NOT NULL`).all(p.since, p.until);
+      const YN = [['hydration', '水分補給'], ['breakfast', '朝食'], ['three_meals', '3食'], ['sleep6h', '6時間睡眠'], ['wakeup', '目覚め']];
+      const HIT = [['facial_color', '顔色が気になる', ['normal', 'unknown']], ['pain', '体の痛みあり', ['no']], ['concern', '気がかりあり', ['no']]];
+      const acc = new Map();
+      for (const r of rows) {
+        let h = {}; try { h = JSON.parse(r.hj) || {}; } catch (e) { continue; }
+        if (!acc.has(r.grp)) acc.set(r.grp, { grp: r.grp, 回答数: 0 });
+        const a = acc.get(r.grp); a.回答数++;
+        for (const [k, lab] of YN) { if (h[k] === 'yes') a[lab] = (a[lab] || 0) + 1; }
+        for (const [k, lab, ok] of HIT) { const v = h[k]; if (v && ok.indexOf(v) < 0) a[lab] = (a[lab] || 0) + 1; }
+      }
+      return [...acc.values()].map(a => {
+        const o = { grp: a.grp, 回答数: a.回答数 };
+        for (const [, lab] of YN) o[lab + '率'] = a.回答数 ? Math.round((a[lab] || 0) * 100 / a.回答数) + '%' : '-';
+        for (const [, lab] of HIT) o[lab] = (a[lab] || 0);
+        return o;
+      }).sort((x, y) => y.回答数 - x.回答数);
+    },
+  },
+  kiko_scores: {
+    label: '帰り(退勤前)チェック: つかれ・からだ',
+    note: '10段階の自己申告スコアの平均。5がふだん通り',
+    run: (db, p) => db.prepare(`SELECT ${p.groupSqlKiko} AS grp,
+        COUNT(*) AS 記録数,
+        ROUND(AVG(fatigue_score), 2) AS つかれ平均,
+        ROUND(AVG(body_score), 2) AS からだ平均,
+        SUM(CASE WHEN alcohol_detected=1 THEN 1 ELSE 0 END) AS 酒気帯び検知,
+        SUM(CASE WHEN operation_issue=1 THEN 1 ELSE 0 END) AS 作業の異常
+      FROM tenko_kiko WHERE rec_date BETWEEN ? AND ?
+      GROUP BY grp ORDER BY 記録数 DESC`).all(p.since, p.until),
+  },
+  hl_scores: {
+    label: 'ヘルスリテラシー(CCHL 5問)',
+    note: '各人の最新回答で集計。5〜20点',
+    run: (db, p) => db.prepare(`SELECT ${p.groupSql} AS grp,
+        COUNT(*) AS 人数, ROUND(AVG(h.total), 2) AS 合計平均, ROUND(AVG(h.avg_score), 2) AS 設問平均,
+        ROUND(AVG(h.q1), 2) AS Q1, ROUND(AVG(h.q2), 2) AS Q2, ROUND(AVG(h.q3), 2) AS Q3,
+        ROUND(AVG(h.q4), 2) AS Q4, ROUND(AVG(h.q5), 2) AS Q5
+      FROM health_literacy h
+      JOIN (SELECT user_id, MAX(id) AS mx FROM health_literacy GROUP BY user_id) m ON m.mx = h.id
+      JOIN users u ON u.id = h.user_id
+      WHERE date(h.created_at) BETWEEN ? AND ?
+      GROUP BY grp ORDER BY 人数 DESC`).all(p.since, p.until),
+  },
+};
+
+// グループ化の指定。u=users を JOIN 済みであること
+const RESEARCH_GROUPS = {
+  company: { label: '拠点別', sql: "COALESCE(u.company_code,'(不明)')", sqlPosts: "COALESCE(company_code,'(不明)')", kiko: "COALESCE(company_code,'(不明)')" },
+  job: { label: '職種別', sql: "COALESCE(u.job_role,'(未設定)')", sqlPosts: "'(職種は投稿に無し)'", kiko: "COALESCE(job_kind,'(未設定)')" },
+  week: { label: '週別', sql: "strftime('%Y-W%W', t.rec_date)", sqlPosts: "strftime('%Y-W%W', created_at)", kiko: "strftime('%Y-W%W', rec_date)" },
+  month: { label: '月別', sql: "strftime('%Y-%m', t.rec_date)", sqlPosts: "strftime('%Y-%m', created_at)", kiko: "strftime('%Y-%m', rec_date)" },
+  all: { label: '全社まとめて', sql: "'全社'", sqlPosts: "'全社'", kiko: "'全社'" },
+};
+
+router.get('/research/metrics', authAdmin, (req, res) => {
+  const key = String(req.query.metric || '');
+  const m = RESEARCH_METRICS[key];
+  if (!m) {
+    return res.json({
+      success: true, catalog: Object.entries(RESEARCH_METRICS).map(([k, v]) => ({ key: k, label: v.label, note: v.note })),
+      groups: Object.entries(RESEARCH_GROUPS).map(([k, v]) => ({ key: k, label: v.label })),
+    });
+  }
+  const g = RESEARCH_GROUPS[String(req.query.group || 'company')] || RESEARCH_GROUPS.company;
+  const ymd = (s, def) => (/^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : def);
+  const until = ymd(req.query.until, new Date(Date.now() + 32400000).toISOString().slice(0, 10));
+  const since = ymd(req.query.since, new Date(Date.now() + 32400000 - 90 * 86400000).toISOString().slice(0, 10));
+  // 拠点の記号化 (研究者へ渡す時は拠点名を伏せる)
+  const anon = String(req.query.anon || '') === '1';
+  // 少人数の群を伏せる (既定ON)。統計から個人が推定されるのを防ぐ
+  const minN = req.query.min_n === '0' ? 0 : Math.max(0, parseInt(req.query.min_n) || 5);
+  const usesPosts = ['care_response', 'handlers', 'voice_source'].indexOf(key) >= 0;
+  const p = {
+    since, until,
+    groupSql: usesPosts ? g.sqlPosts : g.sql,
+    groupSqlKiko: g.kiko,
+  };
+  let rows = [];
+  try { rows = m.run(getDb(), p); } catch (e) {
+    return res.status(500).json({ success: false, msg: '集計に失敗しました: ' + e.message });
+  }
+  // 記号化: 拠点コード → 拠点A/B/C (この応答内で一貫)
+  if (anon) {
+    const map = new Map();
+    const label = (i) => '拠点' + String.fromCharCode(65 + (i % 26)) + (i >= 26 ? String(Math.floor(i / 26)) : '');
+    rows.forEach(r => {
+      const v = String(r.grp == null ? '' : r.grp);
+      if (!map.has(v)) map.set(v, label(map.size));
+      r.grp = map.get(v);
+    });
+  }
+  // 少人数の群を伏せる
+  let suppressed = 0;
+  if (minN > 0) {
+    const nKey = ['対象人数', '実施人数', '人数', '対応した人数'].find(k => rows.length && k in rows[0]);
+    if (nKey) {
+      const before = rows.length;
+      rows = rows.filter(r => (r[nKey] || 0) >= minN);
+      suppressed = before - rows.length;
+    }
+  }
+  audit(req, 'research_export', { target: `${key} ${since}〜${until} group=${g.label}${anon ? ' 匿名' : ''}` });
+  res.json({
+    success: true, metric: key, label: m.label, note: m.note, group: g.label,
+    since, until, anon, min_n: minN, suppressed, rows,
+  });
+});
+
 module.exports = router;
