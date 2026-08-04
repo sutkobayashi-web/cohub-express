@@ -345,7 +345,9 @@ router.get('/tablet-roster', (req, res) => {
   // ⚠️これが無いと、失効させた端末は localStorage に古いトークンを抱えたまま再登録できず、
   //   永久に未登録のままになる(2026-08-04 実機を失効させて判明)。
   const devState = dev ? 'ok' : (req.headers['x-device-token'] ? 'unknown' : 'none');
-  res.json({ success: true, users: rows, device: devState });
+  // 端末に拠点が紐づいている場合はそれを返す。画面側は拠点セレクタをその拠点に固定する
+  // (選べるのに選んでも変わらないと「ロックされている」と見えるため)。
+  res.json({ success: true, users: rows, device: devState, device_company: (dev && dev.company_code) || null });
 });
 
 // タブレットPINログイン

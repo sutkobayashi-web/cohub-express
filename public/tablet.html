@@ -754,6 +754,31 @@ async function loadRoster(co) {
     opt.value = c; opt.textContent = coName(c);
     sel.appendChild(opt);
   }
+  // 設置端末に拠点が紐づいている場合、名簿はその拠点だけになる。
+  // ⚠️セレクタを選べるままにすると「選んでも変わらない=ロックされている」と見えるため、
+  //   その拠点に固定して選べなくし、理由を添える (2026-08-04 金子さんの指摘を受けて)。
+  if (r.device_company) {
+    if (![...sel.options].some(o => o.value === r.device_company)) {
+      const o = document.createElement('option');
+      o.value = r.device_company; o.textContent = coName(r.device_company);
+      sel.appendChild(o);
+    }
+    sel.value = r.device_company;
+    sel.disabled = true;
+    sel.title = 'この端末は ' + coName(r.device_company) + ' の名簿だけを表示します';
+    const hint = document.getElementById('co-fixed-hint') || (function () {
+      const d = document.createElement('div');
+      d.id = 'co-fixed-hint';
+      d.style.cssText = 'font-size:12px;color:#64748b;margin:4px 0 0;';
+      sel.parentNode.appendChild(d);
+      return d;
+    })();
+    hint.textContent = 'この端末は ' + coName(r.device_company) + ' の名簿を表示します';
+  } else {
+    sel.disabled = false;
+    const hint = document.getElementById('co-fixed-hint');
+    if (hint) hint.remove();
+  }
   if (!Object.keys(ROSTER_YOMI).length) {
     try { ROSTER_YOMI = (await fetch('/assets/roster_yomi.json', { headers: devHeaders() }).then(x => x.json()).catch(function(){ return {}; })) || {}; } catch (e) {}
   }
