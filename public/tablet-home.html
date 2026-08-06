@@ -484,7 +484,11 @@
      文字は従来どおり左揃えのまま(中央揃えにすると読みにくい)。 */
   .tmeta.withgood{text-align:center}
   .tmeta.withgood .mtxt{text-align:left}
-  .goodstamp{display:block;width:64px;height:auto;margin:0 auto 4px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
+  /* ⚠️コメント枠に1行ぶん足すとタイルが縦に伸びて掲示板が間延びする(2026-08-07 社長)。
+     負のmargin-topで写真の下辺に半分だけ食い込ませ、増える高さを1/4に抑える。
+     ⚠️rank=goodのときは『直したいのは』の帯が出ない(_lastNutriActが空)ので、写真の下辺は空いている。 */
+  .goodstamp{display:block;width:60px;height:auto;margin:-68px auto 0;position:relative;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
   .ttitle.sm{font-size:15.5px;font-weight:700;line-height:1.42;max-height:2.9em;overflow:hidden}
   .anon{font-size:12.5px;font-weight:800;color:#8a7d66}
   .likebtn{margin-left:auto;background:#fff;border:1.5px solid #e5b3c4;color:#d23b6a;font-weight:900;font-size:16px;padding:5px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
