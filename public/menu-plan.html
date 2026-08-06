@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0369a1">
+<title>何を食べようか — CoWell</title>
+<style>
+  :root{
+    --teal:#0d9488; --teal-deep:#0f766e; --teal-soft:#d5efe9; --turq:#bceae3;
+    --ink:#16302b; --muted:#5f7a72; --line:#e2ece8; --bg:#eef5f2; --card:#ffffff;
+    --user:#0d9488; --shadow:0 1px 2px rgba(16,50,43,.05),0 6px 18px rgba(16,50,43,.07);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic","Meiryo",system-ui,sans-serif;
+    color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; height:100dvh; overflow:hidden;
+  }
+  .topbar{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:10px clamp(12px,4vw,24px);
+    background:var(--card);border-bottom:1px solid var(--line)}
+  .topbar .back{font:inherit;font-size:.92rem;font-weight:800;color:var(--teal-deep);background:var(--teal-soft);
+    border:0;border-radius:999px;padding:8px 15px;cursor:pointer}
+  .topbar .back:active{transform:translateY(1px)}
+  .topbar .ttl{font-weight:800}
+  .topbar .end{margin-left:auto;font:inherit;font-size:.86rem;font-weight:800;color:#b91c1c;background:#fee2e2;
+    border:0;border-radius:999px;padding:7px 14px;cursor:pointer}
+  .topbar .end:active{transform:translateY(1px)}
+  .topbar .end:disabled{opacity:.4}
+  .topbar .avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;object-position:center;
+    background:var(--turq);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  /* 入手元・食事の選択バー */
+  .picks{flex:0 0 auto;background:var(--card);border-bottom:1px solid var(--line);
+    padding:9px clamp(12px,4vw,24px);display:flex;flex-direction:column;gap:7px}
+  .pick-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .pick-row .pl{font-size:.72rem;font-weight:800;color:var(--muted);min-width:3.4em}
+  .pbtn{font:inherit;font-size:.82rem;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;
+    background:#fff;border:1.5px solid var(--line);color:var(--ink);transition:.12s}
+  .pbtn.on{background:var(--teal);border-color:var(--teal-deep);color:#fff;box-shadow:0 2px 8px rgba(13,148,136,.35)}
+  .pbtn:active{transform:scale(.96)}
+  .pick-row.prefs{align-items:flex-start}
+  .pick-row.prefs .pl small{font-weight:600;font-size:.62rem;color:var(--muted);display:block}
+  .pbtn.pref{font-size:.78rem;padding:5px 10px}
+  .pbtn.pref.on{background:#f59e0b;border-color:#d97706;color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.35)}
+  .pick-row.shops .pl small,.pick-row.allergs .pl small{font-weight:600;font-size:.62rem;color:var(--muted);display:block}
+  .pbtn.allerg{font-size:.78rem;padding:5px 10px}
+  .pbtn.allerg.on{background:#dc2626;border-color:#b91c1c;color:#fff;box-shadow:0 2px 8px rgba(220,38,38,.35)}
+  .think-btn{margin-top:4px;width:100%;font:inherit;font-size:.95rem;font-weight:800;color:#fff;
+    background:linear-gradient(135deg,var(--teal),var(--teal-deep));border:0;border-radius:12px;padding:12px;
+    cursor:pointer;box-shadow:0 3px 10px rgba(13,148,136,.35)}
+  .think-btn:active{transform:translateY(1px)}
+  .think-btn:disabled{opacity:.5}
+  /* 会話 */
+  .log{flex:1 1 auto;overflow-y:auto;padding:16px clamp(12px,4vw,24px) 8px;display:flex;flex-direction:column;gap:12px}
+  .msg{display:flex;gap:9px;max-width:100%;align-items:flex-end}
+  .msg.h{align-self:flex-start;max-width:88%}
+  .msg.u{align-self:flex-end;flex-direction:row-reverse;max-width:82%}
+  .msg .av{flex:0 0 auto;width:54px;height:54px;border-radius:50%;object-fit:cover;object-position:center;
+    background:var(--turq);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+  .bub{padding:11px 14px;border-radius:16px;font-size:.95rem;line-height:1.6;box-shadow:var(--shadow);
+    white-space:pre-wrap;word-break:break-word}
+  .msg.h .bub{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .msg.u .bub{background:var(--user);color:#fff;border-bottom-right-radius:5px}
+  .msg .col{display:flex;flex-direction:column;gap:7px;min-width:0}
+  .who{font-size:.66rem;font-weight:800;letter-spacing:.06em;color:var(--teal);margin:0 4px -2px}
+  .listen{align-self:flex-start;font:inherit;font-size:.74rem;font-weight:700;color:var(--teal-deep);
+    background:var(--teal-soft);border:0;border-radius:999px;padding:4px 11px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+  .listen:active{transform:scale(.96)}
+  .listen.playing{background:var(--teal);color:#fff}
+  /* 献立カード */
+  .menu{background:linear-gradient(180deg,#f0fdfa,#fff);border:1.5px solid var(--turq);border-radius:16px;
+    padding:13px 15px;box-shadow:var(--shadow);margin-top:2px}
+  .menu h3{margin:0 0 9px;font-size:1rem;font-weight:800;color:var(--teal-deep);display:flex;align-items:center;gap:7px}
+  .menu ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .menu li{display:flex;justify-content:space-between;gap:10px;font-size:.9rem;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .menu li .k{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700;white-space:nowrap}
+  .menu .tot{display:flex;justify-content:space-between;margin-top:9px;font-weight:800}
+  .menu .tot .kv{color:var(--teal-deep);font-variant-numeric:tabular-nums}
+  .menu .why{margin-top:8px;font-size:.84rem;color:var(--muted);line-height:1.55}
+  .menu .menu-trend{background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:9px 12px;margin-bottom:11px;
+    font-size:.86rem;line-height:1.55;color:#0e6b63}
+  .menu .menu-trend b{display:block;font-size:.72rem;letter-spacing:.04em;color:var(--teal-deep);margin-bottom:3px}
+  .menu .to-draft{margin-top:12px;width:100%;font:inherit;font-size:.92rem;font-weight:800;color:#fff;
+    background:var(--teal);border:0;border-radius:12px;padding:12px;cursor:pointer;box-shadow:0 3px 10px rgba(13,148,136,.35)}
+  .menu .to-draft:active{transform:translateY(1px)}
+  .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:50;max-width:88%;
+    background:#0f766e;color:#fff;font-size:.86rem;font-weight:700;line-height:1.5;padding:11px 16px;border-radius:14px;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:opacity .25s}
+  .toast.show{opacity:1}
+  .end-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:8px 0 4px}
+  .end-actions .ea{font:inherit;font-size:.9rem;font-weight:800;padding:11px 18px;border-radius:999px;cursor:pointer;
+    border:1.5px solid var(--teal);background:#fff;color:var(--teal-deep)}
+  .end-actions .ea.home{background:var(--teal);color:#fff;border-color:var(--teal-deep)}
+  .end-actions .ea:active{transform:translateY(1px)}
+  .composer.locked{opacity:.5;pointer-events:none}
+  /* chips */
+  .chips{display:flex;gap:7px;flex-wrap:wrap;padding:2px clamp(12px,4vw,24px) 6px 55px}
+  .chip{font:inherit;font-size:.84rem;font-weight:700;padding:8px 14px;border-radius:999px;cursor:pointer;
+    background:#fff;border:1.5px solid var(--teal);color:var(--teal-deep);box-shadow:var(--shadow)}
+  .chip:active{transform:scale(.96);background:var(--teal-soft)}
+  .chip.go{background:var(--teal);color:#fff;border-color:var(--teal-deep)}
+  /* 入力 */
+  .composer{flex:0 0 auto;display:flex;gap:8px;align-items:flex-end;padding:10px clamp(12px,4vw,24px);
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
+  .composer textarea{flex:1;resize:none;font:inherit;font-size:16px;line-height:1.4;min-height:44px;max-height:120px;
+    padding:11px 14px;border:1.5px solid var(--line);border-radius:14px;outline:none}
+  .composer textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+  .send{flex:0 0 auto;font:inherit;font-weight:800;color:#fff;background:var(--teal);border:0;border-radius:14px;
+    padding:0 18px;height:44px;cursor:pointer}
+  .send:disabled{opacity:.5}
+  .send:active{transform:translateY(1px)}
+  .typing{display:inline-flex;gap:4px;padding:4px 2px}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.5;animation:bl 1s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes bl{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+  @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
+  /* ===== スマホ縦画面: 選択バー(.picks)が縦を占有してbot会話(.log)が潰れるのを防ぐ ===== */
+  @media (max-width:640px){
+    /* 選択バーは高さを制限して内部スクロール。会話(bot画面)の領域を必ず確保する */
+    .picks{max-height:40vh;overflow-y:auto;position:relative}
+    /* 「考えてもらう」ボタンは選択バーの最下部に固定=スクロールしても常に押せる */
+    .picks .think-btn{position:sticky;bottom:0;margin-bottom:0}
+    .log{min-height:34vh}
+    /* 会話開始後は選択バーをさらに小さくして bot 会話を主役に(条件変更は再スクロールで可能) */
+    body.chatting .picks{max-height:22vh}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <button class="back" onclick="(history.length>1)?history.back():location.href='/home.html'">← もどる</button>
+    <span class="ttl">何を食べようか</span>
+    <button class="end" id="endBtn" type="button">終了</button>
+    <img class="avatar" id="tbav" alt="ヘルス" src="/assets/calorie/_advisor_face.jpg?v=cal2">
+  </div>
+
+  <div class="picks">
+    <div class="pick-row"><span class="pl">食事</span>
+      <button class="pbtn" data-meal="breakfast">朝食</button>
+      <button class="pbtn" data-meal="lunch">昼食</button>
+      <button class="pbtn" data-meal="dinner">夕食</button>
+      <button class="pbtn" data-meal="snack">おやつ</button>
+      <button class="pbtn" data-meal="midnight">夜食</button>
+      <button class="pbtn" data-meal="other">その他</button>
+    </div>
+    <div class="pick-row"><span class="pl">入手元</span>
+      <button class="pbtn" data-src="conbini">🏪 コンビニ</button>
+      <button class="pbtn" data-src="homemade">🍳 自炊</button>
+      <button class="pbtn" data-src="deli">🥡 惣菜</button>
+      <button class="pbtn" data-src="eatout">🍽️ 外食</button>
+      <button class="pbtn" data-src="cafeteria">🍚 社食</button>
+      <button class="pbtn" data-src="bento">🍱 お弁当</button>
+      <button class="pbtn" data-src="other">その他</button>
+    </div>
+    <div class="pick-row shops"><span class="pl">お店<small>（外食のとき）</small></span>
+      <button class="pbtn" data-shop="吉野家">吉野家</button>
+      <button class="pbtn" data-shop="すき家">すき家</button>
+      <button class="pbtn" data-shop="松屋">松屋</button>
+      <button class="pbtn" data-shop="なか卯">なか卯</button>
+      <button class="pbtn" data-shop="ガスト">ガスト</button>
+      <button class="pbtn" data-shop="サイゼリヤ">サイゼリヤ</button>
+      <button class="pbtn" data-shop="大戸屋">大戸屋</button>
+      <button class="pbtn" data-shop="やよい軒">やよい軒</button>
+      <button class="pbtn" data-shop="丸亀製麺">丸亀製麺</button>
+      <button class="pbtn" data-shop="日高屋">日高屋</button>
+      <button class="pbtn" data-shop="マクドナルド">マクドナルド</button>
+      <button class="pbtn" data-shop="モスバーガー">モス</button>
+      <button class="pbtn" data-shop="ケンタッキー">ケンタッキー</button>
+      <button class="pbtn" data-shop="すかいらーく系">ファミレス</button>
+      <button class="pbtn" data-shop="回転寿司">回転寿司</button>
+      <button class="pbtn" data-shop="ラーメン店">ラーメン店</button>
+      <button class="pbtn" data-shop="その他の店">その他</button>
+    </div>
+    <div class="pick-row prefs"><span class="pl">気分・希望<small>（複数OK）</small></span>
+      <button class="pbtn pref" data-pref="あっさり">あっさり</button>
+      <button class="pbtn pref" data-pref="がっつり">がっつり</button>
+      <button class="pbtn pref" data-pref="温かいもの">温かい</button>
+      <button class="pbtn pref" data-pref="冷たいもの">冷たい</button>
+      <button class="pbtn pref" data-pref="野菜を多めに">野菜多め</button>
+      <button class="pbtn pref" data-pref="たんぱく質をしっかり">たんぱく質</button>
+      <button class="pbtn pref" data-pref="糖質を控えめ">糖質控えめ</button>
+      <button class="pbtn pref" data-pref="塩分控えめ">塩分控えめ</button>
+      <button class="pbtn pref" data-pref="なるべく安く">安く</button>
+      <button class="pbtn pref" data-pref="手早く食べたい">手早く</button>
+      <button class="pbtn pref" data-pref="しっかり満腹に">満腹</button>
+      <button class="pbtn pref" data-pref="軽めに">軽め</button>
+      <button class="pbtn pref" data-pref="胃にやさしい">胃にやさしい</button>
+      <button class="pbtn pref" data-pref="眠くなりにくい">眠くならない</button>
+      <button class="pbtn pref" data-pref="スタミナ・元気が出る">スタミナ</button>
+      <button class="pbtn pref" data-pref="甘いもの">甘いもの</button>
+      <button class="pbtn pref" data-pref="疲労回復">疲労回復</button>
+      <button class="pbtn pref" data-pref="お酒に合う">お酒に合う</button>
+      <button class="pbtn pref" data-pref="その他・おまかせ">その他・おまかせ</button>
+    </div>
+    <div class="pick-row allergs"><span class="pl">避けたい<small>（アレルギー・苦手／複数OK）</small></span>
+      <button class="pbtn allerg" data-allerg="卵">卵</button>
+      <button class="pbtn allerg" data-allerg="乳・乳製品">乳</button>
+      <button class="pbtn allerg" data-allerg="小麦">小麦</button>
+      <button class="pbtn allerg" data-allerg="そば">そば</button>
+      <button class="pbtn allerg" data-allerg="落花生・ナッツ">落花生</button>
+      <button class="pbtn allerg" data-allerg="えび">えび</button>
+      <button class="pbtn allerg" data-allerg="かに">かに</button>
+      <button class="pbtn allerg" data-allerg="大豆">大豆</button>
+      <button class="pbtn allerg" data-allerg="魚">魚</button>
+      <button class="pbtn allerg" data-allerg="生もの">生もの</button>
+      <button class="pbtn allerg" data-allerg="辛いもの">辛いもの</button>
+      <button class="pbtn allerg" data-allerg="脂っこいもの">脂っこいもの</button>
+      <button class="pbtn allerg" data-allerg="その他">その他</button>
+    </div>
+    <button class="think-btn" id="thinkBtn">🍽️ この内容で考えてもらう</button>
+  </div>
+
+  <div class="log" id="log"></div>
+  <div class="chips" id="chips"></div>
+
+  <div class="composer">
+    <textarea id="inp" rows="1" placeholder="ヘルスに話しかける（例: 眠くならないものがいい）"></textarea>
+    <button class="send" id="send">送信</button>
+  </div>
+
+<script>
+const AV = '/assets/calorie/_advisor_face.jpg?v=cal2';
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+const state = { meal:'', source:'', shop:'', prefs:[], allergies:[], history:[], busy:false, ended:false, ctl:null, opening:true };
+const ML={breakfast:'朝食',lunch:'昼食',dinner:'夕食',snack:'おやつ',midnight:'夜食',other:''};
+const SL={conbini:'コンビニ',homemade:'自炊',deli:'惣菜',eatout:'外食',cafeteria:'社食',bento:'お弁当',other:''};
+const $ = s => document.querySelector(s);
+const logEl = $('#log'), chipsEl = $('#chips'), inp = $('#inp'), sendBtn = $('#send'), endBtn = $('#endBtn'), composerEl = document.querySelector('.composer');
+
+// 選択バー
+document.querySelectorAll('.pbtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const meal=b.dataset.meal, src=b.dataset.src, pref=b.dataset.pref, shop=b.dataset.shop, allerg=b.dataset.allerg;
+    if(meal){ const on=state.meal===meal; document.querySelectorAll('[data-meal]').forEach(x=>x.classList.remove('on')); state.meal=on?'':meal; if(!on)b.classList.add('on'); }
+    if(src){ const on=state.source===src; document.querySelectorAll('[data-src]').forEach(x=>x.classList.remove('on')); state.source=on?'':src; if(!on)b.classList.add('on'); }
+    if(shop){ const on=state.shop===shop; document.querySelectorAll('[data-shop]').forEach(x=>x.classList.remove('on')); state.shop=on?'':shop; if(!on)b.classList.add('on'); }
+    if(pref){ const i=state.prefs.indexOf(pref); if(i>=0){ state.prefs.splice(i,1); b.classList.remove('on'); } else { state.prefs.push(pref); b.classList.add('on'); } }
+    if(allerg){ const i=state.allergies.indexOf(allerg); if(i>=0){ state.allergies.splice(i,1); b.classList.remove('on'); } else { state.allergies.push(allerg); b.classList.add('on'); } }
+  });
+});
+
+// 選択内容から自然文を作って送信（タブレットはタップだけで完結）
+function buildMsg(){
+  const head=[];
+  if(ML[state.meal]) head.push(ML[state.meal]);
+  const place = state.shop ? state.shop : SL[state.source];   // 店名があれば店名を優先
+  if(place) head.push(place+'で');
+  let msg = head.join('を');
+  if(state.prefs.length) msg += (msg?'、':'')+state.prefs.join('・')+'がいい';
+  if(state.allergies.length) msg += (msg?'。':'')+state.allergies.join('・')+'は避けてほしい';
+  return msg ? (msg+'です。おすすめを教えてください。') : 'おすすめの献立を教えてください。';
+}
+document.getElementById('thinkBtn').addEventListener('click', ()=>{ if(state.busy||state.ended) return; state.forceMenu=true; send(buildMsg()); });
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function scroll(){ logEl.scrollTop = logEl.scrollHeight; }
+
+function addUser(text){
+  state.history.push({role:'user',text});
+  const m=document.createElement('div'); m.className='msg u';
+  m.innerHTML='<div class="col"><div class="bub">'+esc(text)+'</div></div>';
+  logEl.appendChild(m); scroll();
+}
+function menuHtml(mn){
+  if(!mn||!mn.items||!mn.items.length) return '';
+  let li=mn.items.map(it=>'<li><span>'+esc(it.name)+'</span><span class="k">'+(it.kcal?it.kcal+' kcal':'')+'</span></li>').join('');
+  return '<div class="menu">'+
+    (mn.trend?'<div class="menu-trend"><b>🩺 あなたの食事傾向から</b>'+esc(mn.trend)+'</div>':'')+
+    '<h3>🍱 '+esc(mn.title||'今日の候補')+'</h3><ul>'+li+'</ul>'+
+    (mn.total_kcal?'<div class="tot"><span>合計のめやす</span><span class="kv">約 '+mn.total_kcal+' kcal</span></div>':'')+
+    (mn.why?'<div class="why">'+esc(mn.why)+'</div>':'')+
+    '<button class="to-draft" type="button">📝 この献立を食事投稿の下書きにする</button>'+
+    '</div>';
+}
+function addHelse(reply, menu){
+  const idx = state.history.push({role:'assistant',text:reply}) - 1;
+  const m=document.createElement('div'); m.className='msg h';
+  m.innerHTML='<img class="av" src="'+AV+'" alt="ヘルス">'+
+    '<div class="col"><span class="who">ヘルス</span>'+
+    '<div class="bub">'+esc(reply)+'</div>'+ menuHtml(menu) +
+    '<button class="listen" data-i="'+idx+'">🔊 聞く</button></div>';
+  logEl.appendChild(m); scroll();
+  m.querySelector('.listen').addEventListener('click', e=>speak(reply, e.currentTarget));
+  const td = m.querySelector('.to-draft');
+  if(td && menu) td.addEventListener('click', ()=>goDraft(menu));
+}
+
+// 決めた献立を食事投稿の下書きに流し込む → ひろばへ
+function draftText(mn){
+  const lines = mn.items.map(it=> '・'+it.name + (it.kcal? '（約'+it.kcal+'kcal）':''));
+  return '【今日の献立】'+(mn.title?' '+mn.title:'')+'\n'+lines.join('\n')+
+    (mn.total_kcal? '\n合計 約'+mn.total_kcal+'kcal':'')+
+    '\n\n（ヘルスと相談して決めました）';
+}
+function showToast(msg){
+  let t=document.querySelector('.toast');
+  if(!t){ t=document.createElement('div'); t.className='toast'; document.body.appendChild(t); }
+  t.textContent=msg; requestAnimationFrame(()=>t.classList.add('show'));
+}
+function goDraft(mn){
+  try{ localStorage.setItem('cohub_food_draft', JSON.stringify({ text:draftText(mn), meal:state.meal||'', source:state.source||'', ts:Date.now() })); }catch(e){}
+  showToast('下書きにしました。ひろばへ移動します…');
+  setTimeout(()=>{ location.href='/plaza.html?action=fooddraft'; }, 550);
+}
+let typingEl=null;
+function showTyping(){
+  typingEl=document.createElement('div'); typingEl.className='msg h';
+  typingEl.innerHTML='<img class="av" src="'+AV+'" alt="ヘルス"><div class="col"><span class="who">ヘルス</span><div class="bub"><span class="typing"><i></i><i></i><i></i></span></div></div>';
+  logEl.appendChild(typingEl); scroll();
+}
+function hideTyping(){ if(typingEl){typingEl.remove();typingEl=null;} }
+
+function renderChips(chips){
+  chipsEl.innerHTML='';
+  (chips||[]).forEach(c=>{
+    const b=document.createElement('button'); b.className='chip'+(/決定|これに/.test(c)?' go':'');
+    b.textContent=c; b.addEventListener('click',()=>{ chipsEl.innerHTML=''; send(c); });
+    chipsEl.appendChild(b);
+  });
+}
+
+async function callAPI(){
+  state.ctl = new AbortController();
+  const r = await fetch('/api/menu/chat',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify({ meal:state.meal, source:state.source, shop:state.shop, prefs:state.prefs, allergies:state.allergies, force_menu: !!state.forceMenu, history: state.history.slice(-12) }),
+    signal: state.ctl.signal
+  });
+  if(!r.ok) throw new Error('http '+r.status);
+  return r.json();
+}
+async function send(text){
+  if(state.busy || state.ended) return;
+  document.body.classList.add('chatting');   // 会話開始→スマホは選択バーを縮めbot会話を主役に
+  if(text){ inp.value=''; addUser(text); }
+  state.busy=true; sendBtn.disabled=true; chipsEl.innerHTML=''; showTyping();
+  try{
+    const j = await callAPI();
+    state.forceMenu = false;              // ⚠️1回きりのフラグ。残すと「これにする」でも献立を出し直して同じ回答を繰り返す
+    if(state.ended) return;               // 途中で終了された場合は破棄
+    hideTyping();
+    addHelse(j.reply || 'すみません、もう一度お願いします。', j.menu);
+    renderChips(j.chips);
+    // 最初の一言だけ自動で読み上げる(以降は🔊タップ時のみ)。自動再生が塞がれても🔊で再生可。
+    if(state.opening){ state.opening=false; const b=logEl.querySelector('.msg.h:last-of-type .listen'); speak(j.reply||'', b); }
+  }catch(e){
+    if(e && e.name==='AbortError') return; // 終了ボタンで中断=何も出さない
+    hideTyping();
+    // 混み合い(503)や通信断は自動リトライ済み。ここまで来たらワンタップで再送できるようにする。
+    addHelse('うまく考えられませんでした。少し混み合っているかもしれません。下の「もう一度お願いする」を押してみてください。', null);
+    renderChips(['もう一度お願いする']);
+  }finally{ state.busy=false; state.ctl=null; state.forceMenu=false; if(!state.ended) sendBtn.disabled=false; }
+}
+
+// 会話を途中で終了する（考え中の応答も中断）
+function endChat(){
+  if(state.ended) return;
+  state.ended=true;
+  if(state.ctl){ try{ state.ctl.abort(); }catch(e){} }
+  if(audioEl){ try{ audioEl.pause(); }catch(e){} }
+  hideTyping();
+  state.busy=false;
+  chipsEl.innerHTML='';
+  endBtn.disabled=true;
+  composerEl.classList.add('locked'); inp.disabled=true; sendBtn.disabled=true;
+  addHelse('今日もおつかれさまです。またいつでも、献立の相談にのりますね。安全運転で、いってらっしゃい。', null);
+  const wrap=document.createElement('div'); wrap.className='end-actions';
+  wrap.innerHTML='<button class="ea home" type="button">🏠 ホームへもどる</button><button class="ea again" type="button">もう一度はじめる</button>';
+  logEl.appendChild(wrap); scroll();
+  wrap.querySelector('.home').addEventListener('click',()=>{ (history.length>1)?history.back():location.href='/home.html'; });
+  wrap.querySelector('.again').addEventListener('click',restartChat);
+}
+function restartChat(){
+  state.history=[]; state.ended=false; state.busy=false; state.ctl=null; state.opening=true;
+  logEl.innerHTML=''; chipsEl.innerHTML='';
+  endBtn.disabled=false;
+  composerEl.classList.remove('locked'); inp.disabled=false; sendBtn.disabled=false;
+  send('');
+}
+
+// 音声(ヘルスの声=Despina)
+let audioEl=null;
+async function speak(text, btn){
+  try{
+    if(audioEl){ audioEl.pause(); }
+    document.querySelectorAll('.listen.playing').forEach(x=>x.classList.remove('playing'));
+    btn && btn.classList.add('playing');
+    const r=await fetch('/api/voice/tts',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({text, voice:'ja-JP-Chirp3-HD-Despina', speed:1.4})});
+    if(!r.ok) throw new Error('tts');
+    const b=await r.blob();
+    audioEl=new Audio(URL.createObjectURL(b));
+    audioEl.onended=()=>btn&&btn.classList.remove('playing');
+    audioEl.play();
+  }catch(e){ btn&&btn.classList.remove('playing'); }
+}
+
+// 入力
+inp.addEventListener('input',()=>{ inp.style.height='auto'; inp.style.height=Math.min(120,inp.scrollHeight)+'px'; });
+inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const t=inp.value.trim();if(t)send(t);} });
+sendBtn.addEventListener('click',()=>{ const t=inp.value.trim(); if(t)send(t); });
+endBtn.addEventListener('click', endChat);
+
+// 開幕: ヘルスの最初の一言
+window.addEventListener('DOMContentLoaded',()=> send(''));
+</script>
+<script src="/font-zoom.js?v=20260728d"></script>
+<!-- ⚠️多言語(JA/EN/PT)。この1行が無いと、マイページで言語を切り替えても このページだけ日本語のまま
+     残る(2026-08-07 社長指摘)。AIの返答も MutationObserver で後から翻訳される。 -->
+<script src="/translate.js?v=20260622f" defer></script>
+</body>
+</html>
