@@ -150,10 +150,19 @@
   .c-logout{background:linear-gradient(135deg,#ef4444,#b91c1c)}
   /* 帰庫点呼(乗務後) 2026-07-09。⚠️2026-08-06に1問1画面へ移行し、選択肢は体調チェックと共通の
      .opts/.opt(大ボタン)を使う。旧 .kiko-sec/.kiko-q/.kiko-opts/.kiko-note は撤去した。 */
-  /* 疲労度・体調・心の調子。⚠️2026-08-06に「0〜10の数字」→「言葉で選ぶ5択」に変更した
-     (数字を選ぶのに戸惑うという声。保存する値は従来どおり0〜10の整数)。
-     選択肢が5つと多いので、他の質問の .opt より少しだけ詰めて1画面に収める。 */
-  .opts.sc .opt{padding:15px;font-size:23px}
+  /* 疲労度・体調・心の調子 (2026-08-06 社長指示)。
+     ⭐**横1列の11マス(0〜10)を、数字を出さずにマスで選ばせる**。
+       目盛りは従来と同じ0〜10＝KPI・平常値・エスカレを過去データと同じ物差しで読める。
+       数字を考えさせない代わりに、帯の真下に「かなり楽〜かなり疲れた」の言葉を各マスの下に並べる。
+     ⚠️言葉は3/2/1/2/3マスに割り当てる(中央=いつも通り=5)。grid-column を明示しているので、
+       文字がはみ出しても位置はずれない。 */
+  .sc10{display:grid;grid-template-columns:repeat(11,1fr);gap:5px}
+  /* ⚠️マスは高さで稼ぐ。横幅は11分割で決まってしまうので、ペンでも狙いやすいよう縦を大きく取る */
+  .sc10 button{height:120px;border:2px solid #cfd8e0;border-radius:12px;padding:0;font-size:0;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+  .sc10 button.sel{outline:4px solid #0ea5e9;outline-offset:-3px;transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
+  .sc10lab{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-top:7px}
+  .sc10lab span{font-size:14px;font-weight:800;color:#64748b;text-align:center;white-space:nowrap}
+  @media (max-width:640px){ .sc10 button{height:64px} .sc10lab span{font-size:10px} }
   /* マイページ(かんたんモード) 2026-07-09 */
   .mp-head{display:flex;align-items:center;gap:14px;padding:2px 2px 14px;border-bottom:1px solid #e5e9ef;margin-bottom:16px}
   .mp-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.15);flex:0 0 auto;background:#eef}
@@ -3812,27 +3821,28 @@ function kikoEquipLabel(kind){
        : kind==='warehouse' ? '⚙️ 設備・荷の 異常'
        : '⚙️ 設備・製品の 異常';
 }
-/* ===== 疲労度・体調・心の調子は「言葉」で選ぶ (2026-08-06 社長指示) =====
-   ⭐「体調をKPIで読むのは良いが、入力するときに数字を選ぶのは戸惑う」という現場の声。
-     0〜10の数字を並べると「普段が5で今日は7か8か…」と考え込ませてしまう。
+/* ===== 疲労度・体調・心の調子は「数字を出さない11マス」から選ぶ (2026-08-06 社長指示) =====
+   ⭐「体調をKPIで読むのは良いが、入力するときに数値を入れるのは戸惑う」という現場の声。
+     ただし段階を粗くすると過去の10段階評価と物差しが変わってしまうため、
+     **目盛りは0〜10のまま・画面には数字を一切出さない**形にした。
    ⚠️保存する値は従来どおり 0〜10 の整数(fatigue_score / body_score / mind_score)。
-     KPI・平常値(直近30日平均)・エスカレの判定は一切変えていない。変えたのは選ばせ方だけ。
-   ⚠️割り当てる数字は 2/4/5/7/9。5=いつも通り(従来の最頻値)を中心に据え、
-     サーバーの判定境界(>=6 で休息のすすめ / >=9 でエスカレ)をまたぐように置いてある。 */
-var SCALE_OPTS={
-  fatigue:[['😄 かなり楽',2],['🙂 少し楽',4],['😐 いつも通り',5],['😟 少し疲れた',7],['😫 かなり疲れた',9]],
-  body:   [['😄 とても良い',2],['🙂 少し良い',4],['😐 いつも通り',5],['😟 少し悪い',7],['🤒 かなり悪い',9]],
-  mind:   [['😄 とても良い',2],['🙂 少し良い',4],['😐 いつも通り',5],['😟 少し重い',7],['😞 かなり重い',9]]
+     KPI・平常値(直近30日平均)・エスカレの判定も、過去データとの比較も、一切変わらない。
+   ⚠️言葉は 3/2/1/2/3 マスに割り当てる(中央の1マス=いつも通り=5=従来の最頻値)。
+     ⭐マスの色は fatColor(0〜10) をそのまま使うので、点呼表の色分けと同じ意味になる。 */
+var SCALE_BANDS={
+  fatigue:[['かなり楽',0,2],['少し楽',3,4],['いつも通り',5,5],['少し疲れた',6,7],['かなり疲れた',8,10]],
+  body:   [['とても良い',0,2],['少し良い',3,4],['いつも通り',5,5],['少し悪い',6,7],['かなり悪い',8,10]],
+  mind:   [['とても良い',0,2],['少し良い',3,4],['いつも通り',5,5],['少し重い',6,7],['かなり重い',8,10]]
 };
-function scaleOpts(key){ return SCALE_OPTS[key]||SCALE_OPTS.fatigue; }
-// 確認画面などで数字を言葉に戻す。⚠️2/4/5/7/9 以外(旧仕様で入った値)は数字のまま出す
+function scaleBands(key){ return SCALE_BANDS[key]||SCALE_BANDS.fatigue; }
+// 数字を言葉に戻す(確認画面・読み上げ用)。0〜10のどの値でも必ずどれかの帯に入る
 function scaleLabel(key,v){
   if(v==null) return '—';
-  var o=scaleOpts(key);
-  for(var i=0;i<o.length;i++) if(o[i][1]===v) return o[i][0];
+  var b=scaleBands(key);
+  for(var i=0;i<b.length;i++) if(v>=b[i][1] && v<=b[i][2]) return b[i][0];
   return String(v);
 }
-// 職種ごとの質問の並び。t=choice(選ぶ)/scale(言葉で選ぶ・内部は0〜10)/note(自由記入)/news(お知らせ)/confirm(確認して送信)
+// 職種ごとの質問の並び。t=choice(選ぶ)/scale(数字を出さない11マス・保存は0〜10)/note(自由記入)/news(お知らせ)/confirm(確認して送信)
 function kikoBuildSteps(kind){
   var equip=[
     {t:'choice',key:'operation_issue',q:kikoEquipLabel(kind),opts:[['✅ 異常なし',0,'yes'],['⚠️ 異常あり',1,'no']]},
@@ -3900,11 +3910,18 @@ function kikoRender(){
           return '<button class="opt '+(o[2]||'')+(kikoAns[s.key]===o[1]?' sel':'')+'" onclick="kikoAnswer('+i+')">'+esc(o[0])+'</button>';
         }).join('') + '</div>';
   } else if(s.t==='scale'){
-    // 言葉で選ぶ5択。色は従来と同じ fatColor(内部値) なので、一覧・KPI側の色分けと揃う
-    var b=scaleOpts(s.key).map(function(o){
-      return '<button class="opt'+(kikoAns[s.key]===o[1]?' sel':'')+'" style="'+fatColor(o[1])+'" onclick="fatPick(\''+s.key+'\','+o[1]+')">'+esc(o[0])+'</button>';
+    // 0〜10の11マス。⚠️マスに数字は書かない(font-size:0)。押した値がそのまま保存される。
+    var cells='';
+    for(var n=0;n<=10;n++){
+      cells+='<button class="'+(kikoAns[s.key]===n?'sel':'')+'" style="'+fatColor(n)+'" onclick="fatPick(\''+s.key+'\','+n+')">'+n+'</button>';
+    }
+    // 帯の下の言葉。grid-column を明示＝文字幅に関係なくマスの真下に揃う
+    var labs=scaleBands(s.key).map(function(bd){
+      var on=(kikoAns[s.key]!=null && kikoAns[s.key]>=bd[1] && kikoAns[s.key]<=bd[2]);
+      return '<span style="grid-column:'+(bd[1]+1)+'/'+(bd[2]+2)+(on?';color:#0f172a':'')+'">'+esc(bd[0])+'</span>';
     }).join('');
-    h+='<div class="q">'+s.q+'</div><div class="fat-lead-s">'+s.lead+'</div><div class="opts sc">'+b+'</div>';
+    h+='<div class="q">'+s.q+'</div><div class="fat-lead-s">'+s.lead+'</div>'
+      +'<div class="sc10">'+cells+'</div><div class="sc10lab">'+labs+'</div>';
   } else if(s.t==='note'){
     h+='<div class="q">'+s.q+'</div>'
       +'<textarea id="kiko-note-in" class="big-in" placeholder="'+esc(s.ph||'')+'">'+esc(kikoNotes[s.nk]||'')+'</textarea>'
@@ -3985,10 +4002,12 @@ function speakMyAlert(done){
     +'長時間の 運転で お疲れの ことと 思います。次の 乗務も、車間と スピードに 気をつけて、安全運転で お願いしますね。';
   aoiSetClip('caution'); speak(line, done);
 }
-// 内部値(0〜10)の色。5=いつも通り、10=限界。5以下=平常(緑)→上振れで黄→橙→赤。
-// ⚠️一覧(tenko-manage)やKPIと同じ考え方の色分け。言葉の5択でも同じ関数を使う。
+// 11マスの色(0〜10)。⚠️数字を出さないぶん、色で「左=楽 / 右=つらい」が分かるようにする。
+// 5(いつも通り)だけ無彩色にして中央が一目で分かるようにした以外は、点呼表の色分け(5以下=緑/6-7=黄/8=橙/9以上=赤)と同じ。
 function fatColor(n){
-  if(n<=5) return 'background:#dcfce7;border-color:#86efac;color:#065f46';
+  if(n<=2) return 'background:#bbf7d0;border-color:#4ade80;color:#065f46';
+  if(n<=4) return 'background:#dcfce7;border-color:#86efac;color:#065f46';
+  if(n===5) return 'background:#eef2f7;border-color:#cbd5e1;color:#334155';
   if(n<=7) return 'background:#fef9c3;border-color:#fde047;color:#854d0e';
   if(n<=8) return 'background:#ffedd5;border-color:#fdba74;color:#9a3412';
   return 'background:#fee2e2;border-color:#fca5a5;color:#991b1b';
