@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>📋 社内掲示板 — CoWell</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
+<link rel="apple-touch-icon" href="/img/cowell-apple-touch-v6.png">
 <link rel="manifest" href="/manifest.json?v=4">
 <meta name="theme-color" content="#0369a1">
 <style>
@@ -96,6 +96,23 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .cmt-btn:hover { background: #f1f5f9; border-color: #e2e8f0; }
 .del-btn { background: transparent; border: none; color: #cbd5e1; font-size: 16px; cursor: pointer; padding: 4px 8px; }
 .del-btn:hover { color: #ef4444; }
+.edit-btn { background: transparent; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 4px 6px; }
+.edit-btn:hover { color: #0891b2; }
+/* 編集済み表示 — 黙って書き換わらないように、読んだ人にも分かるようにする */
+.edited-mark { color: #94a3b8; font-size: 11px; margin-left: 6px; }
+/* 編集フォーム (投稿カードの中でそのまま直す) */
+.edit-box textarea {
+  width: 100%; min-height: 80px; max-height: 240px; padding: 10px 12px;
+  border: 1.5px solid #06b6d4; border-radius: 14px; font-size: 15px;
+  font-family: inherit; line-height: 1.6; resize: vertical; outline: none;
+}
+.edit-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.edit-bar .cnt { font-size: 11px; color: #94a3b8; }
+.edit-bar .spacer { flex: 1; }
+.edit-att { font-size: 12px; color: #475569; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.edit-att .name { color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+.btn-sub { padding: 8px 14px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.btn-warn { padding: 6px 12px; background: #fee2e2; color: #b91c1c; border: none; border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: 700; }
 
 .comments {
   margin-top: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 14px; display: none;
@@ -239,6 +256,8 @@ let me = null;
 let _imageFile = null;
 let _oldestId = null;
 let _socket = null;
+const _posts = {};       // id -> 投稿データ (編集フォームの初期値・保存後の再描画に使う)
+const _editing = {};     // id -> { file: 差し替えファイル, removeImage: 添付を消すか }
 // 反応セット (8種ラベル付き) — AI評議のシグナル源
 const REACTIONS = [
   { e: '👍', label: 'いいね' },
@@ -326,6 +345,7 @@ function setupSocket() {
     _socket = io({ auth: { token } });
     _socket.on('board:new', payload => prependPost(payload.post));
     _socket.on('board:delete', payload => removePost(payload.id));
+    _socket.on('board:edit', payload => applyEdit(payload.post));
     _socket.on('board:react', payload => {
       // 自分のリアクションは toggleReact で即時反映済 → サーバー echo は無視 (ダブルカウント防止)
       if (me && payload && payload.user_id === me.uid) return;
@@ -416,16 +436,8 @@ async function loadFeed(reset) {
 
 function loadMore() { loadFeed(false); }
 
-function postHtml(p) {
-  const reactions = REACTIONS.map(r => {
-    const e = r.e;
-    const ct = (p.reactions && p.reactions[e]) || 0;
-    const mine = !!(p.my_reactions && p.my_reactions[e]);
-    return `<button class="react-btn ${mine ? 'mine' : ''}" onclick="toggleReact(${p.id}, '${e}')" title="${r.label}">` +
-      `<span class="em">${e}</span><span class="lb">${r.label}</span>` +
-      (ct ? `<span class="ct">${ct}</span>` : '') +
-      `</button>`;
-  }).join('');
+// 投稿の本文+添付だけを組み立てる (編集の保存/取消でここだけ差し替える)
+function bodyHtml(p) {
   let attach = '';
   if (p.image_url) {
     if (/\.pdf$/i.test(p.image_url)) {
@@ -441,20 +453,38 @@ function postHtml(p) {
       attach = `<img class="post-image" src="${escapeHtml(p.image_url)}" onclick="openImgModal('${escapeHtml(p.image_url)}')">`;
     }
   }
-  const img = attach;
+  return (p.content ? `<div class="post-content">${escapeHtml(p.content)}</div>` : '') + attach;
+}
+
+function timeHtml(p) {
+  return relTime(p.created_at) + (p.edited_at ? '<span class="edited-mark">(編集済み)</span>' : '');
+}
+
+function postHtml(p) {
+  _posts[p.id] = p;
+  const reactions = REACTIONS.map(r => {
+    const e = r.e;
+    const ct = (p.reactions && p.reactions[e]) || 0;
+    const mine = !!(p.my_reactions && p.my_reactions[e]);
+    return `<button class="react-btn ${mine ? 'mine' : ''}" onclick="toggleReact(${p.id}, '${e}')" title="${r.label}">` +
+      `<span class="em">${e}</span><span class="lb">${r.label}</span>` +
+      (ct ? `<span class="ct">${ct}</span>` : '') +
+      `</button>`;
+  }).join('');
   const delBtn = p.can_delete ? `<button class="del-btn" onclick="deletePost(${p.id})" title="削除">🗑</button>` : '';
+  const editBtn = p.can_edit ? `<button class="edit-btn" id="edit-btn-${p.id}" onclick="startEdit(${p.id})" title="編集">✏️</button>` : '';
   const cnt = p.comment_count || 0;
   return `<article class="post" id="post-${p.id}" data-id="${p.id}">
     <div class="post-head">
       ${avatarHtml(p.author_avatar, p.author_name)}
       <div class="post-meta">
         <div class="post-author">${escapeHtml(p.author_name || '不明')}${p.circle_name ? ` <span class="circle-badge">${escapeHtml(p.circle_icon || '🎯')} ${escapeHtml(p.circle_name)}</span>` : ''}</div>
-        <div class="post-time">${relTime(p.created_at)}</div>
+        <div class="post-time" id="pt-${p.id}">${timeHtml(p)}</div>
       </div>
+      ${editBtn}
       ${delBtn}
     </div>
-    ${p.content ? `<div class="post-content">${escapeHtml(p.content)}</div>` : ''}
-    ${img}
+    <div class="post-body" id="pb-${p.id}">${bodyHtml(p)}</div>
     <div class="post-actions">
       ${reactions}
       <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>
@@ -474,6 +504,7 @@ function prependPost(p) {
   if (!p.my_reactions) { p.my_reactions = {}; for (const e of EMOJIS) p.my_reactions[e] = false; }
   if (!('comment_count' in p)) p.comment_count = 0;
   if (!('can_delete' in p)) p.can_delete = me && p.author_id === me.uid;
+  if (!('can_edit' in p)) p.can_edit = !!(me && p.author_id === me.uid);
   document.getElementById('feed').insertAdjacentHTML('afterbegin', postHtml(p));
   document.getElementById('empty').style.display = 'none';
 }
@@ -519,6 +550,126 @@ function applyReact(payload) {
       break;
     }
   }
+}
+
+// ===== 投稿の編集 (2026-08-06) =====
+// 一度上げた投稿の誤字直し・写真の取り違えを、消して上げ直さずに直せるようにする。
+// 編集できるのは本人だけ(サーバー側でも author_id を検査)。編集すると「(編集済み)」が付く。
+function attachLabel(p) {
+  if (!p.image_url) return '';
+  return /\.pdf$/i.test(p.image_url) ? '📄 PDF' : '🖼 写真';
+}
+
+function startEdit(id) {
+  const p = _posts[id];
+  const box = document.getElementById('pb-' + id);
+  if (!p || !box) return;
+  _editing[id] = { file: null, removeImage: false };
+  const btn = document.getElementById('edit-btn-' + id);
+  if (btn) btn.style.display = 'none';
+  box.innerHTML = `<div class="edit-box">
+    <textarea id="edit-ta-${id}" maxlength="280" oninput="document.getElementById('edit-cnt-${id}').textContent=this.value.length">${escapeHtml(p.content || '')}</textarea>
+    <div class="edit-att" id="edit-att-${id}"></div>
+    <div class="edit-bar">
+      <button class="btn-icon" onclick="document.getElementById('edit-file-${id}').click()" title="添付を差し替え">📎</button>
+      <input type="file" id="edit-file-${id}" accept="image/*,.pdf,application/pdf" style="display:none;" onchange="onEditPick(${id}, event)">
+      <span class="cnt"><span id="edit-cnt-${id}">${(p.content || '').length}</span>/280</span>
+      <span class="spacer"></span>
+      <button class="btn-sub" onclick="cancelEdit(${id})">キャンセル</button>
+      <button class="btn" id="edit-save-${id}" onclick="saveEdit(${id})">保存</button>
+    </div>
+  </div>`;
+  renderEditAttach(id);
+  const ta = document.getElementById('edit-ta-' + id);
+  if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+
+function renderEditAttach(id) {
+  const st = _editing[id], p = _posts[id];
+  const el = document.getElementById('edit-att-' + id);
+  if (!st || !el) return;
+  if (st.file) {
+    el.innerHTML = `<span class="name">📎 ${escapeHtml(st.file.name)} に差し替えます</span>`
+      + `<button class="btn-warn" onclick="undoEditPick(${id})">元に戻す</button>`;
+  } else if (p.image_url && !st.removeImage) {
+    el.innerHTML = `<span class="name">${attachLabel(p)} 添付あり</span>`
+      + `<button class="btn-warn" onclick="markRemoveAttach(${id})">添付を削除</button>`;
+  } else if (p.image_url && st.removeImage) {
+    el.innerHTML = `<span class="name" style="color:#b91c1c;">添付を削除します</span>`
+      + `<button class="btn-warn" onclick="undoEditPick(${id})">元に戻す</button>`;
+  } else {
+    el.innerHTML = `<span class="name">📎 で写真/PDFを追加できます</span>`;
+  }
+}
+
+function onEditPick(id, ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  if (f.size > 20 * 1024 * 1024) { alert('20MB以下にしてください'); ev.target.value = ''; return; }
+  _editing[id].file = f;
+  _editing[id].removeImage = false;
+  renderEditAttach(id);
+}
+function markRemoveAttach(id) {
+  _editing[id].file = null;
+  _editing[id].removeImage = true;
+  const f = document.getElementById('edit-file-' + id); if (f) f.value = '';
+  renderEditAttach(id);
+}
+function undoEditPick(id) {
+  _editing[id].file = null;
+  _editing[id].removeImage = false;
+  const f = document.getElementById('edit-file-' + id); if (f) f.value = '';
+  renderEditAttach(id);
+}
+
+function cancelEdit(id) {
+  delete _editing[id];
+  const box = document.getElementById('pb-' + id);
+  if (box) box.innerHTML = bodyHtml(_posts[id] || {});
+  const btn = document.getElementById('edit-btn-' + id);
+  if (btn) btn.style.display = '';
+}
+
+async function saveEdit(id) {
+  const st = _editing[id];
+  const ta = document.getElementById('edit-ta-' + id);
+  if (!st || !ta) return;
+  const text = ta.value.trim();
+  const p = _posts[id] || {};
+  const keepsAttach = st.file || (p.image_url && !st.removeImage);
+  if (!text && !keepsAttach) { alert('本文か添付ファイル(画像/PDF)が必要です'); return; }
+  const btn = document.getElementById('edit-save-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  try {
+    const fd = new FormData();
+    fd.append('content', text);
+    if (st.file) fd.append('image', st.file);
+    else if (st.removeImage) fd.append('remove_image', '1');
+    const d = await api('/api/board/posts/' + id, { method: 'PATCH', body: fd });
+    if (!d.success) { alert(d.msg || '保存に失敗しました'); return; }
+    delete _editing[id];
+    applyEdit(d.post);
+  } catch (e) { alert('通信エラー: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '保存'; } }
+}
+
+// 保存後 / 他の端末での編集を反映 (リアクション・コメントの表示はそのまま残す)
+function applyEdit(post) {
+  if (!post) return;
+  const article = document.getElementById('post-' + post.id);
+  if (!article) return;
+  if (_editing[post.id]) return;              // 自分が編集中の投稿は上書きしない
+  const cur = _posts[post.id] || {};
+  const merged = Object.assign({}, cur, post);
+  merged.can_edit = ('can_edit' in cur) ? cur.can_edit : !!(me && post.author_id === me.uid);
+  _posts[post.id] = merged;
+  const box = document.getElementById('pb-' + post.id);
+  if (box) box.innerHTML = bodyHtml(merged);
+  const t = document.getElementById('pt-' + post.id);
+  if (t) t.innerHTML = timeHtml(merged);
+  const btn = document.getElementById('edit-btn-' + post.id);
+  if (btn) btn.style.display = '';
 }
 
 async function deletePost(id) {

@@ -92,6 +92,16 @@ header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135d
   .member-row .nm { flex: 1; font-size: 13.5px; font-weight: 700; }
   .member-row .badge { font-size: 10px; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 999px; font-weight: 800; }
   .member-row .btn-rm { background: transparent; border: 1px solid #fecaca; color: #b91c1c; padding: 3px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; }
+  /* サークル内: 活動報告(掲示板にも載る) と チャット(メンバー限定) をタブで分ける (2026-08-06) */
+  .cp-tabs { display:flex; gap:8px; margin-bottom:10px; }
+  .cp-tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; background:#f1f5f9; color:#475569;
+            border:1.5px solid #e2e8f0; border-radius:12px; padding:8px 6px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; }
+  .cp-tab.on { background:#0f766e; color:#fff; border-color:#0f766e; }
+  .cp-tab-sub { font-size:10px; font-weight:700; opacity:.75; }
+  .cp-chat { max-height:260px; overflow:auto; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px; margin-bottom:8px; }
+  .cp-chat .cc { margin:0 0 8px; font-size:13px; line-height:1.5; }
+  .cp-chat .cc b { color:#0f766e; font-size:12px; }
+  .cp-chat .cc .t { color:#94a3b8; font-size:10px; margin-left:6px; }
   /* 活動報告(掲示板反映) */
   .cp-compose { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:10px; margin-bottom:12px; }
   .cp-compose textarea { width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:10px; padding:9px 11px; font-size:14px; min-height:56px; resize:vertical; font-family:inherit; }
@@ -311,6 +321,17 @@ function themeOf(key) { return THEMES[key] || THEMES.teal; }
 let _formTheme = 'teal';
 
 function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ⚠️created_at は 'YYYY-MM-DD HH:MM:SS'(UTC)。ブラウザに任せるとローカル扱いで9時間ズレるので +9h して表示する。
+function cpTime(v){
+  if(!v) return '';
+  var t = Date.parse(String(v).replace(' ','T') + 'Z');
+  if(isNaN(t)) return '';
+  var d = new Date(t), n = new Date(), diff = (n - d) / 60000;
+  if (diff < 1) return 'たった今';
+  if (diff < 60) return Math.floor(diff) + '分前';
+  if (diff < 60*24) return Math.floor(diff/60) + '時間前';
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
 function showToast(msg, ms = 1800) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -470,20 +491,34 @@ async function openDetail(id) {
           </div>
         ` : ''}
       </div>
-      ${d.is_member ? `
+      <!-- ⭐2026-08-06 (社長): ①活動報告は掲示板へ全面復活(非メンバーも読める・いいね可) ②サークル内の
+           おしゃべりは別枠(チャット)にして、活動報告と混ざらないようにする。投稿できるのはメンバーだけ。 -->
       <div class="sec" id="cp-sec">
-        <h3>📣 活動報告 <span style="font-weight:600;font-size:11px;color:#94a3b8;">（このサークルのメンバーだけが見られます）</span></h3>
-        <div class="cp-compose">
-          <textarea id="cp-text" maxlength="280" placeholder="活動の様子を書く…（写真も添付できます／サークル内のみ）"></textarea>
-          <div class="cp-row">
-            <label class="cp-photo">📷 写真 <input type="file" id="cp-img" accept="image/*" onchange="cpPhotoPicked(this)"></label>
-            <span class="cp-imgname" id="cp-imgname"></span>
-            <button class="cp-post" id="cp-post-btn" onclick="submitCirclePost('${c.id}', event)">投稿する</button>
-          </div>
+        <div class="cp-tabs">
+          <button class="cp-tab on" id="cp-tab-post" onclick="cpSwitch('post')">📣 活動報告<span class="cp-tab-sub">掲示板に載ります</span></button>
+          <button class="cp-tab" id="cp-tab-chat" onclick="cpSwitch('chat')">💬 サークル内チャット<span class="cp-tab-sub">メンバーだけ</span></button>
         </div>
-        <div class="cp-list" id="cp-list"><div style="color:#94a3b8;font-size:12px;padding:6px;">読み込み中…</div></div>
+        <div id="cp-pane-post">
+          ${d.is_member ? `
+          <div class="cp-compose">
+            <textarea id="cp-text" maxlength="280" placeholder="活動の様子を書く…（写真も添付できます／掲示板にも載ります）"></textarea>
+            <div class="cp-row">
+              <label class="cp-photo">📷 写真 <input type="file" id="cp-img" accept="image/*" onchange="cpPhotoPicked(this)"></label>
+              <span class="cp-imgname" id="cp-imgname"></span>
+              <button class="cp-post" id="cp-post-btn" onclick="submitCirclePost('${c.id}', event)">投稿する</button>
+            </div>
+          </div>` : `<div style="color:#94a3b8;font-size:12px;padding:6px;">投稿できるのはメンバーだけです（読むのは誰でもOK）。</div>`}
+          <div class="cp-list" id="cp-list"><div style="color:#94a3b8;font-size:12px;padding:6px;">読み込み中…</div></div>
+        </div>
+        <div id="cp-pane-chat" class="hidden">
+          ${d.is_member ? `
+          <div class="cp-chat" id="cp-chat"><div style="color:#94a3b8;font-size:12px;padding:6px;">読み込み中…</div></div>
+          <div class="cp-row">
+            <textarea id="cp-chat-text" maxlength="500" placeholder="サークルのみんなに話しかける…（掲示板には出ません）"></textarea>
+            <button class="cp-post" onclick="sendCircleChat('${c.id}', event)">送信</button>
+          </div>` : `<div style="color:#94a3b8;font-size:12px;padding:6px;">サークル内チャットはメンバーだけが読み書きできます。</div>`}
+        </div>
       </div>
-      ` : ''}
       <div class="sec">
         <h3>👥 メンバー (${d.members.length}人)</h3>
         <div class="member-list">${memberList || '<div style="color:#94a3b8;font-size:12px;padding:6px;">まだメンバーがいません</div>'}</div>
@@ -499,7 +534,8 @@ async function openDetail(id) {
   // 予定一覧をロード
   window._lastDetail = d;
   loadEvents(c.id);
-  if (d.is_member) loadCirclePosts(c.id);
+  loadCirclePosts(c.id);                      // 活動報告は誰でも読める(2026-08-06)
+  window._circleId = c.id; window._circleMember = !!d.is_member;
 }
 
 const WD = ['日','月','火','水','木','金','土'];
@@ -623,7 +659,49 @@ async function leaveCircle(id, name) {
   await load();
 }
 
-// ===== 活動報告（サークル内のみ・board_posts に circle_id 付きで保存 / 2026-07-31 掲示板・What's new には出さない） =====
+// ===== 活動報告（board_posts に circle_id 付き）と サークル内チャット =====
+//  ⭐2026-08-06 (社長): 活動報告は**掲示板・What's newにも載る**(全社に見せて参加を促す)。読むのは全社員、
+//     書けるのはメンバーだけ。サークル内のおしゃべりは下のチャット(グループチャットと同じ room)で、掲示板には出さない。
+function cpSwitch(which){
+  var isPost = which === 'post';
+  var tp=document.getElementById('cp-tab-post'), tc=document.getElementById('cp-tab-chat');
+  var pp=document.getElementById('cp-pane-post'), pc=document.getElementById('cp-pane-chat');
+  if(!tp||!tc||!pp||!pc) return;
+  tp.classList.toggle('on', isPost); tc.classList.toggle('on', !isPost);
+  pp.classList.toggle('hidden', !isPost); pc.classList.toggle('hidden', isPost);
+  if(!isPost) loadCircleChat(window._circleId);
+}
+// サークル内チャット = グループチャットの room (grp_<circleId>) をそのまま読む。掲示板には出ない。
+async function loadCircleChat(circleId){
+  var box=document.getElementById('cp-chat'); if(!box||!circleId) return;
+  var r=await api('/api/chat/groups/'+encodeURIComponent(circleId)+'/messages');
+  var ms=(r&&r.messages)||[];
+  if(!ms.length){ box.innerHTML='<div style="color:#94a3b8;font-size:12px;padding:6px;">まだ会話はありません。</div>'; return; }
+  box.innerHTML = ms.slice(-60).map(function(m){
+    return '<div class="cc"><b>'+escapeHtml(m.sender_name||'')+'</b><span class="t">'+cpTime(m.created_at)+'</span><br>'+escapeHtml(m.content||'')+'</div>';
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+  // 既読にする(未読バッジが残り続けないように)
+  var ids=ms.filter(function(m){ return m.id; }).map(function(m){ return m.id; });
+  if(ids.length) api('/api/chat/read', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message_ids: ids }) });
+}
+async function sendCircleChat(circleId, ev){
+  if(ev) ev.stopPropagation();
+  var el=document.getElementById('cp-chat-text'); var t=(el&&el.value||'').trim();
+  if(!t) return;
+  // ⚠️チャットの送信はソケット経由(サーバーの chat:group が唯一の入口)。circles.html はソケットを持たないので
+  //    親ウィンドウのチャット画面を使わずに済むよう、既存の /api/chat/groups/:gid/messages の POST は無い。
+  //    → socket.io を読み込んで送る。
+  if(!window._cSock){
+    if(typeof io==='undefined'){ alert('チャットを準備中です。少し待ってからもう一度お試しください。'); return; }
+    window._cSock = io({ auth: { token: localStorage.getItem('cohub_token')||'' } });
+    window._cSock.on('group:msg', function(m){ if(String(m.group_id)===String(window._circleId)) loadCircleChat(window._circleId); });
+  }
+  window._cSock.emit('chat:group', { group_id: circleId, content: t });
+  el.value='';
+  setTimeout(function(){ loadCircleChat(circleId); }, 400);
+}
+
 function cpTime(s){ if(!s) return ''; const t=new Date(String(s).replace(' ','T')+'Z').getTime(); if(!t) return ''; const diff=Date.now()-t; const m=Math.floor(diff/60000); if(m<1) return 'たった今'; if(m<60) return m+'分前'; const h=Math.floor(m/60); if(h<24) return h+'時間前'; const dd=Math.floor(h/24); if(dd<7) return dd+'日前'; return new Date(t).toLocaleDateString('ja-JP'); }
 async function loadCirclePosts(circleId) {
   const list = document.getElementById('cp-list');
@@ -635,10 +713,15 @@ async function loadCirclePosts(circleId) {
   list.innerHTML = posts.map(p => {
     const img = (p.image_url && !/\.pdf$/i.test(p.image_url)) ? `<img class="cp-img-thumb" src="${escapeHtml(p.image_url)}" onclick="window.open('${escapeHtml(p.image_url)}','_blank')">` : '';
     const del = p.can_delete ? `<button class="cp-del" onclick="deleteCirclePost(${p.id},'${circleId}')" title="削除">🗑</button>` : '';
-    return `<div class="cp-item">
-      <div class="cp-item-head">${avatarHtml(p.author_avatar, p.author_name)}<div class="cp-item-meta"><b>${escapeHtml(p.author_name||'不明')}</b><span>${cpTime(p.created_at)}</span></div>${del}</div>
-      ${p.content ? `<div class="cp-item-body">${escapeHtml(p.content)}</div>` : ''}
-      ${img}
+    // ⭐2026-08-06: 上げ直さずに直せるよう本人だけ編集可(サーバーの PATCH /api/board/posts/:id も本人限定)
+    const edt = p.can_edit ? `<button class="cp-del" onclick="startEditCirclePost(${p.id},'${circleId}')" title="編集">✏️</button>` : '';
+    _cpPosts[p.id] = p;
+    return `<div class="cp-item" id="cp-item-${p.id}">
+      <div class="cp-item-head">${avatarHtml(p.author_avatar, p.author_name)}<div class="cp-item-meta"><b>${escapeHtml(p.author_name||'不明')}</b><span>${cpTime(p.created_at)}${p.edited_at ? ' ・編集済み' : ''}</span></div>${edt}${del}</div>
+      <div id="cp-body-${p.id}">
+        ${p.content ? `<div class="cp-item-body">${escapeHtml(p.content)}</div>` : ''}
+        ${img}
+      </div>
     </div>`;
   }).join('');
 }
@@ -671,6 +754,63 @@ async function submitCirclePost(circleId, ev) {
   } else {
     showToast((r && r.msg) || '投稿に失敗しました');
   }
+}
+// ===== 活動報告の編集 (2026-08-06) =====
+// 掲示板(board.html)と同じ PATCH /api/board/posts/:id を使う。編集できるのは投稿した本人だけ。
+const _cpPosts = {};
+let _cpEditFile = null;
+function startEditCirclePost(postId, circleId) {
+  const p = _cpPosts[postId];
+  const box = document.getElementById('cp-body-' + postId);
+  if (!p || !box) return;
+  _cpEditFile = null;
+  const hasImg = !!p.image_url;
+  box.innerHTML = `<div style="margin-top:6px;">
+    <textarea id="cp-edit-ta-${postId}" maxlength="280" style="width:100%;box-sizing:border-box;border:1.5px solid #0d9488;border-radius:10px;padding:9px 11px;font-size:13.5px;min-height:70px;resize:vertical;font-family:inherit;">${escapeHtml(p.content||'')}</textarea>
+    <div class="cp-row" style="flex-wrap:wrap;">
+      <label class="cp-photo">📎 写真を差し替え<input type="file" accept="image/*,.pdf,application/pdf" onchange="cpEditPicked(this, ${postId})"></label>
+      <span class="cp-imgname" id="cp-edit-name-${postId}">${hasImg ? '現在の添付あり' : ''}</span>
+      ${hasImg ? `<button class="cp-del" id="cp-edit-rm-${postId}" onclick="cpEditRemoveImg(${postId})" style="color:#b91c1c;font-size:12px;font-weight:700;">添付を削除</button>` : ''}
+    </div>
+    <div class="cp-row">
+      <button class="cp-post" style="background:#e2e8f0;color:#475569;margin-left:0;" onclick="cancelEditCirclePost(${postId},'${circleId}')">キャンセル</button>
+      <button class="cp-post" id="cp-edit-save-${postId}" onclick="saveEditCirclePost(${postId},'${circleId}')">保存</button>
+    </div>
+  </div>`;
+}
+function cpEditPicked(input, postId) {
+  _cpEditFile = (input.files && input.files[0]) || null;
+  if (_cpEditFile && _cpEditFile.size > 20 * 1024 * 1024) { showToast('20MB以下にしてください'); _cpEditFile = null; input.value = ''; return; }
+  const el = document.getElementById('cp-edit-name-' + postId);
+  if (el) el.textContent = _cpEditFile ? (_cpEditFile.name + ' に差し替え') : '';
+  const rm = document.getElementById('cp-edit-rm-' + postId);
+  if (rm) rm.dataset.remove = '';
+}
+function cpEditRemoveImg(postId) {
+  _cpEditFile = null;
+  const rm = document.getElementById('cp-edit-rm-' + postId);
+  if (rm) rm.dataset.remove = '1';
+  const el = document.getElementById('cp-edit-name-' + postId);
+  if (el) el.textContent = '添付を削除します';
+}
+function cancelEditCirclePost(postId, circleId) { _cpEditFile = null; loadCirclePosts(circleId); }
+async function saveEditCirclePost(postId, circleId) {
+  const ta = document.getElementById('cp-edit-ta-' + postId);
+  const rm = document.getElementById('cp-edit-rm-' + postId);
+  const content = ((ta && ta.value) || '').trim();
+  const removeImg = !!(rm && rm.dataset.remove === '1');
+  const p = _cpPosts[postId] || {};
+  if (!content && !_cpEditFile && (!p.image_url || removeImg)) { showToast('本文または写真を入れてください'); return; }
+  const btn = document.getElementById('cp-edit-save-' + postId);
+  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  const fd = new FormData();
+  fd.append('content', content);
+  if (_cpEditFile) fd.append('image', _cpEditFile);
+  else if (removeImg) fd.append('remove_image', '1');
+  const r = await api('/api/board/posts/' + postId, { method: 'PATCH', body: fd });
+  if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+  if (r && r.success) { _cpEditFile = null; showToast('修正しました'); loadCirclePosts(circleId); }
+  else showToast((r && r.msg) || '保存に失敗しました');
 }
 async function deleteCirclePost(postId, circleId) {
   if (!confirm('この活動報告を削除しますか？')) return;
@@ -794,5 +934,6 @@ init();
 </script>
   <script src="/translate.js?v=20260622f" defer></script>
 <script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+<script src="/socket.io/socket.io.js"></script>
 </body>
 </html>

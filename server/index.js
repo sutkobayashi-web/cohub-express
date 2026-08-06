@@ -72,9 +72,26 @@ if (webpush && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   } catch (e) { console.warn('VAPID初期化失敗', e.message); }
 }
 
+/* ⭐2026-08-06 (社長): プッシュ通知も**受け取る人の言語**で送る。
+   通知は「通達が来たことに気づく」唯一の入口なので、ここが日本語のままだと外国籍の社員に届かない。
+   ⚠️翻訳するのは lang が ja 以外の人だけ(現在7名)。文面は translations_cache に貯まるので
+     2回目以降はAI呼び出し無し。失敗しても必ず日本語で送る(通知が消えるほうが悪い)。 */
+async function localizePush(uid, payload) {
+  try {
+    const u = getDb().prepare('SELECT lang FROM users WHERE id = ?').get(uid);
+    const lang = u && u.lang;
+    if (!lang || lang === 'ja') return payload;
+    const tr = require('./routes/translate').translateCached;
+    if (typeof tr !== 'function') return payload;
+    const [title, body] = await tr([String(payload.title || ''), String(payload.body || '')], lang);
+    return Object.assign({}, payload, { title: title || payload.title, body: body || payload.body });
+  } catch (e) { return payload; }
+}
+
 async function sendPushToUser(uid, payload) {
   if (!webpush || !process.env.VAPID_PUBLIC_KEY) return;
   const subs = getDb().prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?').all(uid);
+  if (subs.length) payload = await localizePush(uid, payload);
   for (const s of subs) {
     try {
       await webpush.sendNotification({
@@ -472,7 +489,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-04-pwa"
+const APP_VERSION = "2026-08-06-postedit"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });

@@ -44,10 +44,16 @@ const ALLOWED_EMOJIS = ['👍', '❤️', '😊', '💪', '👏', '💡', '🙏'
 const MAX_CONTENT = 280;
 // サークル活動を掲示板に反映(circle_id付き)。既存DBへ列を後付け。
 try { getDb().prepare('ALTER TABLE board_posts ADD COLUMN circle_id TEXT').run(); } catch (e) {}
+// ⭐2026-08-06 (社長): 一度上げた投稿を**あとから直せる**ようにする(誤字・写真の取り違え)。
+//   すでに他の人が読んでいるので、黙って書き換わらないよう edited_at を持って画面に「編集済み」を出す。
+try { getDb().prepare('ALTER TABLE board_posts ADD COLUMN edited_at TEXT').run(); } catch (e) {}
 
-// ⭐2026-07-31 (社長指示): サークルの投稿は「サークル内だけ」に限定する。
-//   掲示板一覧・What's new・掲示板の未読カウントには出さない (circle_id 付きは除外)。
-//   見えるのは circles.html の活動報告 (?circle_id=... 指定) で、かつ そのサークルのメンバーのみ。
+// ⭐2026-08-06 (社長): サークルの活動報告を**掲示板に全面復活**(7/31の「サークル内だけ」を撤回。
+//   当時の非公開化は関係者との齟齬によるもので、本来は全社に見せて部署越しの参加を促すのが狙い)。
+//   ・掲示板一覧 / What's new / 未読カウントに **サークル投稿も出す**
+//   ・いいね(リアクション)・コメントも **全社員が可能**
+//   ・投稿できるのは従来どおり **そのサークルのメンバーだけ**(POST /posts の circle_id 検証)
+//   ⚠️isCircleMember は「投稿できるか」の判定にだけ使う。閲覧・いいね・コメントの制限には使わないこと。
 function isCircleMember(db, circleId, uid) {
   try {
     const c = db.prepare('SELECT id, lead_uid FROM chat_groups WHERE id = ? AND is_circle = 1').get(circleId);
@@ -58,6 +64,28 @@ function isCircleMember(db, circleId, uid) {
 }
 
 const MAX_COMMENT = 280;
+
+// 投稿1件を一覧と同じ形(ニックネーム表示・サークル情報つき)で取り直す
+function postById(db, id) {
+  return db.prepare(`SELECT p.id, p.author_id, p.content, p.image_url, p.created_at, p.edited_at, p.circle_id,
+                            CASE WHEN COALESCE(u.nickname,'') <> '' THEN '🎭 ' || u.nickname ELSE '🎭 匿名' END AS author_name,
+                            NULL AS author_avatar, u.company_code AS author_company,
+                            g.name AS circle_name, g.icon AS circle_icon, g.lead_uid AS circle_lead
+                     FROM board_posts p LEFT JOIN users u ON u.id = p.author_id
+                     LEFT JOIN chat_groups g ON g.id = p.circle_id AND g.is_circle = 1
+                     WHERE p.id = ?`).get(id);
+}
+
+// 添付を差し替え/削除したときに旧ファイル(とPDFの生成画像)を消す。
+// ⚠️URLさえ知っていれば /uploads/board/ から直接開けるため、消さないと「取り消したはずの写真」が残る。
+function removeAttachmentFile(imageUrl) {
+  try {
+    if (!imageUrl || !/^\/uploads\/board\/[^/]+$/.test(imageUrl)) return;
+    const base = path.join(boardDir, path.basename(imageUrl));
+    for (const f of [base, base + '.thumb.jpg']) { try { fs.unlinkSync(f); } catch (e) {} }
+    for (let i = 1; i <= PDF_MAX_PAGES; i++) { try { fs.unlinkSync(base + '.p' + i + '.jpg'); } catch (e) {} }
+  } catch (e) {}
+}
 
 // 掲示板画像保存 (チャット添付と分離)
 const boardDir = path.join(__dirname, '..', '..', 'uploads', 'board');
@@ -83,23 +111,24 @@ router.get('/posts', authUser, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const before = parseInt(req.query.before) || null;
   const db = getDb();
-  let sql = `SELECT p.id, p.author_id, p.content, p.image_url, p.created_at, p.circle_id,
-                    u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
+  let sql = `SELECT p.id, p.author_id, p.content, p.image_url, p.created_at, p.edited_at, p.circle_id,
+                    CASE WHEN COALESCE(u.nickname,'') <> '' THEN '🎭 ' || u.nickname ELSE '🎭 匿名' END AS author_name,
+                    NULL AS author_avatar, u.company_code AS author_company,
                     g.name AS circle_name, g.icon AS circle_icon, g.lead_uid AS circle_lead
              FROM board_posts p LEFT JOIN users u ON u.id = p.author_id
              LEFT JOIN chat_groups g ON g.id = p.circle_id AND g.is_circle = 1
              WHERE p.deleted_at IS NULL`;
+  // ⭐2026-08-06 (社長): 掲示板は**投稿もコメントも全員ニックネーム表示**にする。
+  //   「本名が見られるのを嫌う人がいる」ため。ニックネーム未設定の人は「🎭 匿名」。
+  //   ⚠️author_id は返すが、画面に本名は出さない(ひろば/食事と同じ '🎭 ' 接頭辞に揃える)。
   const params = [];
   if (before) { sql += ' AND p.id < ?'; params.push(before); }
   const circleId = (req.query.circle_id || '').toString();
   if (circleId) {
-    // サークル指定 = そのサークルのメンバーだけが読める
-    if (!isCircleMember(db, circleId, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ閲覧できます' });
+    // サークル指定 = そのサークルの活動報告だけを時系列で返す(閲覧は全社員に開放 2026-08-06)
     sql += ' AND p.circle_id = ?'; params.push(circleId);
-  } else {
-    // 通常の掲示板一覧にはサークルの投稿を出さない
-    sql += " AND (p.circle_id IS NULL OR p.circle_id = '')";
   }
+  // ⭐通常の掲示板一覧にもサークルの活動報告を混ぜて出す(2026-08-06 復活)
   sql += ' ORDER BY p.id DESC LIMIT ?';
   params.push(limit);
   const posts = db.prepare(sql).all(...params);
@@ -127,6 +156,8 @@ router.get('/posts', authUser, (req, res) => {
       my_reactions: mine,
       comment_count: ccMap[p.id] || 0,
       can_delete: p.author_id === me || (!!p.circle_lead && p.circle_lead === me),
+      // ⚠️編集は本人だけ(削除はサークル発起人も可だが、他人の発言の書き換えは不可)
+      can_edit: p.author_id === me,
     };
   });
   res.json({ success: true, posts: enriched });
@@ -155,14 +186,51 @@ router.post('/posts', authUser, boardUpload.single('image'), (req, res) => {
   }
   const ins = db.prepare(`INSERT INTO board_posts (author_id, content, image_url, circle_id) VALUES (?, ?, ?, ?)`)
     .run(req.uid, content, imageUrl, validCircle);
-  const post = db.prepare(`SELECT p.id, p.author_id, p.content, p.image_url, p.created_at, p.circle_id,
-                                  u.display_name AS author_name, u.avatar_url AS author_avatar, u.company_code AS author_company,
-                                  g.name AS circle_name, g.icon AS circle_icon, g.lead_uid AS circle_lead
-                           FROM board_posts p LEFT JOIN users u ON u.id = p.author_id
-                           LEFT JOIN chat_groups g ON g.id = p.circle_id AND g.is_circle = 1 WHERE p.id = ?`).get(ins.lastInsertRowid);
+  const post = postById(db, ins.lastInsertRowid);
   // 全社realtime通知 (Socket.IO)
   const io = req.app && req.app.locals && req.app.locals.io;
   if (io) io.emit('board:new', { post });
+  res.json({ success: true, post });
+});
+
+// 編集 (本文・添付の差し替え) 2026-08-06
+// ⚠️編集できるのは**投稿した本人だけ**。削除はサークル発起人にも許しているが、
+//   他人の発言を書き換えられると発言の責任が曖昧になるため編集は本人限定。
+// ⚠️circle_id は変更させない(非メンバーのサークルへ後から移し替えるのを防ぐ)。
+router.patch('/posts/:id', authUser, express.json(), boardUpload.single('image'), (req, res) => {
+  const id = parseInt(req.params.id);
+  const db = getDb();
+  const p = db.prepare('SELECT id, author_id, content, image_url FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
+  if (!p) return res.status(404).json({ success: false, msg: '見つかりません' });
+  if (p.author_id !== req.uid) return res.status(403).json({ success: false, msg: '投稿した本人だけが編集できます' });
+
+  const body = req.body || {};
+  const content = (typeof body.content !== 'undefined')
+    ? String(body.content).slice(0, MAX_CONTENT).trim()
+    : String(p.content || '');
+  const removeImage = String(body.remove_image || '') === '1';
+  let imageUrl = p.image_url;
+  if (req.file) {
+    imageUrl = '/uploads/board/' + req.file.filename;
+    if (/\.pdf$/i.test(req.file.filename)) {
+      const absPdf = path.join(boardDir, req.file.filename);
+      generatePdfThumb(absPdf);
+      generatePdfPages(absPdf);
+    }
+  } else if (removeImage) {
+    imageUrl = null;
+  }
+  if (!content && !imageUrl) {
+    if (req.file) removeAttachmentFile(imageUrl);   // 保存済みの新ファイルを片付けてから拒否
+    return res.status(400).json({ success: false, msg: '本文または添付ファイルが必要です' });
+  }
+  db.prepare("UPDATE board_posts SET content = ?, image_url = ?, edited_at = datetime('now') WHERE id = ?")
+    .run(content, imageUrl, id);
+  if (p.image_url && p.image_url !== imageUrl) removeAttachmentFile(p.image_url);
+
+  const post = postById(db, id);
+  const io = req.app && req.app.locals && req.app.locals.io;
+  if (io) io.emit('board:edit', { post });
   res.json({ success: true, post });
 });
 
@@ -192,7 +260,7 @@ router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
   const db = getDb();
   const post = db.prepare('SELECT id, author_id, content, circle_id FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
-  if (post.circle_id && !isCircleMember(db, post.circle_id, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ操作できます' });
+  // ⭐2026-08-06: いいね(リアクション)はサークル投稿でも全社員が押せる(社長指示で制限を撤廃)。
   const exists = db.prepare('SELECT 1 FROM board_reactions WHERE post_id=? AND user_id=? AND emoji=?').get(id, req.uid, emoji);
   let added;
   if (exists) {
@@ -221,14 +289,9 @@ router.post('/posts/:id/react', authUser, express.json(), (req, res) => {
 // コメント一覧
 router.get('/posts/:id/comments', authUser, (req, res) => {
   const id = parseInt(req.params.id);
-  {
-    const db0 = getDb();
-    const pp = db0.prepare('SELECT circle_id FROM board_posts WHERE id = ?').get(id);
-    if (pp && pp.circle_id && !isCircleMember(db0, pp.circle_id, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ閲覧できます' });
-  }
-  // 掲示板は業務用のため投稿もコメントも実名(display_name)で統一 (2026-07-17 小林指示: 中途半端な匿名は本人が特定できてしまうため実名化)。
+  // ⭐2026-08-06 (社長): サークル投稿のコメントも全社員が読める(メンバー限定を解除)。表示は全員ニックネーム。
   const rows = getDb().prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                       COALESCE(NULLIF(u.display_name, ''), NULLIF(u.nickname, ''), '匿名') AS author_name,
+                                       CASE WHEN COALESCE(u.nickname,'') <> '' THEN '🎭 ' || u.nickname ELSE '🎭 匿名' END AS author_name,
                                        NULL AS author_avatar
                                 FROM board_comments c
                                 LEFT JOIN users u ON u.id = c.author_id
@@ -246,10 +309,10 @@ router.post('/posts/:id/comments', authUser, express.json(), (req, res) => {
   const db = getDb();
   const post = db.prepare('SELECT id, author_id, content, circle_id FROM board_posts WHERE id = ? AND deleted_at IS NULL').get(id);
   if (!post) return res.status(404).json({ success: false, msg: '見つかりません' });
-  if (post.circle_id && !isCircleMember(db, post.circle_id, req.uid)) return res.status(403).json({ success: false, msg: 'このサークルのメンバーのみ操作できます' });
+  // ⭐2026-08-06: コメントもサークル投稿へ全社員が書ける(社長指示で制限を撤廃)。
   const ins = db.prepare('INSERT INTO board_comments (post_id, author_id, content) VALUES (?, ?, ?)').run(id, req.uid, content);
   const comment = db.prepare(`SELECT c.id, c.author_id, c.content, c.created_at,
-                                     COALESCE(NULLIF(u.display_name, ''), NULLIF(u.nickname, ''), '匿名') AS author_name,
+                                     CASE WHEN COALESCE(u.nickname,'') <> '' THEN '🎭 ' || u.nickname ELSE '🎭 匿名' END AS author_name,
                                      NULL AS author_avatar
                               FROM board_comments c
                               LEFT JOIN users u ON u.id = c.author_id
@@ -303,7 +366,7 @@ router.get('/unread-count', authUser, (req, res) => {
     return res.json({ success: true, count: 0 });
   }
   const row = db.prepare(`SELECT COUNT(*) AS n FROM board_posts
-                          WHERE deleted_at IS NULL AND (circle_id IS NULL OR circle_id = '')
+                          WHERE deleted_at IS NULL
                             AND author_id != ? AND created_at > ?`)
                 .get(req.uid, u.last_board_seen_at);
   res.json({ success: true, count: Math.min(row.n || 0, 99) });
