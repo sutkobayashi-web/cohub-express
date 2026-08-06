@@ -162,13 +162,15 @@
      ⚠️マスの中身は**顔だけ**(数字は書かない)。同じ帯のマスには同じ顔が並ぶ＝帯のまとまりが見える。
      ⚠️くすませる(grayscale)と 🙂 と 😐 の区別が付かなくなるので、選んでいない顔もそのまま出す。 */
   .sc10 button{border:2px solid #cfd8e0;border-radius:12px;padding:0;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08);
-               display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1}
+               display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:34px;line-height:1}
+  /* 顔の下の数字＝保存される値(0〜10)。⚠️控えめに出す(数字で考え込ませないため。主役は顔と言葉) */
+  .sc10 button b{font-size:13px;font-weight:800;opacity:.5;line-height:1}
   .sc10 button.sel{outline:4px solid #0ea5e9;outline-offset:-3px;transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
   .sc10 button.sel span{transform:scale(1.2)}
   .sc10lab{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-top:7px}
   .sc10lab span{font-size:15px;font-weight:800;color:#64748b;text-align:center;white-space:nowrap;line-height:1.2}
   .sc10lab span.on{color:#0f172a}
-  @media (max-width:640px){ .sc10 button{font-size:19px} .sc10lab span{font-size:10px} }
+  @media (max-width:640px){ .sc10 button{font-size:19px;gap:1px} .sc10 button b{font-size:9px} .sc10lab span{font-size:10px} }
   /* マイページ(かんたんモード) 2026-07-09 */
   .mp-head{display:flex;align-items:center;gap:14px;padding:2px 2px 14px;border-bottom:1px solid #e5e9ef;margin-bottom:16px}
   .mp-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.15);flex:0 0 auto;background:#eef}
@@ -3924,10 +3926,10 @@ function kikoRender(){
           return '<button class="opt '+(o[2]||'')+(kikoAns[s.key]===o[1]?' sel':'')+'" onclick="kikoAnswer('+i+')">'+esc(o[0])+'</button>';
         }).join('') + '</div>';
   } else if(s.t==='scale'){
-    // 0〜10の11マス。⚠️マスの中は顔だけ・数字は書かない。押した値がそのまま保存される。
+    // 0〜10の11マス。顔＋その下に小さく目盛りの数字(=保存される値・点呼表のKPIと同じ数字)。
     var cells='';
     for(var n=0;n<=10;n++){
-      cells+='<button class="'+(kikoAns[s.key]===n?'sel':'')+'" style="'+fatColor(n)+';height:'+scaleCellH(n)+'px" onclick="fatPick(\''+s.key+'\','+n+')"><span>'+scaleFace(s.key,n)+'</span></button>';
+      cells+='<button class="'+(kikoAns[s.key]===n?'sel':'')+'" style="'+fatColor(n)+';height:'+scaleCellH(n)+'px" onclick="fatPick(\''+s.key+'\','+n+')"><span>'+scaleFace(s.key,n)+'</span><b>'+n+'</b></button>';
     }
     // 帯の下の言葉。grid-column を明示＝文字幅に関係なくマスの真下に揃う
     var labs=scaleBands(s.key).map(function(bd){
