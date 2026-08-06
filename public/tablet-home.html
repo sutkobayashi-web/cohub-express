@@ -2410,7 +2410,7 @@ function paintBoard(){
   socialItems.sort(function(a,b){ return String(b.at).localeCompare(String(a.at)); });   // 新しい順
   var social=socialItems.map(function(x){ return x.h; });
   // 先頭に「報告書を書く」カード。上帯の🚨ボタンを廃止(2026-07-26)したため、報告への導線はここが正式な入口。
-  var damage=[damageReportTile()]; _boardDamage.forEach(function(r,i){ damage.push(damageTile(r,i)); });
+  var damage=[firstAlertTile(), damageReportTile()]; _boardDamage.forEach(function(r,i){ damage.push(damageTile(r,i)); });
   // ⭐2026-08-02 (社長): 過去事例のまとめは『労働安全』の掲示物としても出す(教材として探しやすい場所に置く)。
   var safety=[]; if(_boardArchive.length) safety.push(kpiTile());
   _boardSafety.forEach(function(r,i){ safety.push(safetyTile(r,i)); });
@@ -2632,6 +2632,23 @@ function circleTile(p,i){
 //   ⚠️/tablet?personal=1 は『名前を選ぶ→PIN』の個人スマホ用ログイン。next= に行き先を渡すこと。
 function dmgQrUrl(kind){
   return location.origin+'/tablet?personal=1&next='+encodeURIComponent('/accident.html?new='+kind);
+}
+// ⭐2026-08-06 (社長): 事故が起きたら、報告書より先に「一報」だけを飛ばす。押すと管理者の画面で
+//   警報が鳴り続ける(違反アラートと同じ扱い)。⚠️報告書(QR)より上に置くこと=急ぐのはこちら。
+function firstAlertTile(){
+  return '<div class="tile act-tile" onclick="openFirstAlert()">'+
+    '<div class="act-in">'+
+      '<div class="act-ico">🚨</div>'+
+      '<div class="act-tx"><div class="act-t">事故の 一報を 出す</div>'+
+        '<div class="act-s">事故が あったら まず これ</div></div>'+
+      '<div class="act-arw">›</div>'+
+    '</div>'+
+    '<div class="act-note">管理者に すぐ 知らせます（報告書は あとで）</div>'+
+  '</div>';
+}
+function openFirstAlert(){
+  bumpIdle(); logUsage('open:事故の一報');
+  location.href='/accident-first.html';
 }
 function damageReportTile(){
   return '<div class="tile act-tile" onclick="openReportQr()">'+

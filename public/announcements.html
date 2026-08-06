@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>📢 通達 — CoWell</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
+<link rel="apple-touch-icon" href="/img/cowell-apple-touch-v6.png">
 <link rel="manifest" href="/manifest.json?v=4">
 <meta name="theme-color" content="#dc2626">
 <style>
@@ -87,7 +87,7 @@ main { max-width: 720px; margin: 0 auto; padding: 12px; padding-bottom: 100px; }
 .err { color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 14px; }
 </style>
 <script src="/font-zoom.js?v=20260728d" defer></script>
-<script src="/global-notif.js?v=20260730c-dmname" defer></script>
+<script src="/global-notif.js?v=20260806-firstalert" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -161,13 +161,14 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div class="field">
         <label>送付先 <span style="color:#dc2626">（必須）</span></label>
         <div class="row2">
-          <select id="cmp-t1" onchange="onTargetChange(1)" data-no-translate>
-            <option value="" selected disabled>① 営業所</option>
+          <select id="cmp-t1" onchange="onOfficePick()" data-no-translate>
+            <option value="" selected disabled>① 営業所（複数OK）</option>
           </select>
           <select id="cmp-t2" onchange="onTargetChange(2)" disabled data-no-translate>
             <option value="">② 役職・職種</option>
           </select>
         </div>
+        <div id="cmp-office-chips" style="display:none;flex-wrap:wrap;gap:6px;margin-top:6px;" data-no-translate></div>
         <div style="margin-top:8px;">
           <input id="cmp-t3" type="text" list="cmp-people" autocomplete="off" data-no-translate
                  oninput="onPersonInput()" placeholder="③ 個人名で検索して追加（複数人OK・任意）">
@@ -175,7 +176,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
           <div id="cmp-people-chips" style="display:none;flex-wrap:wrap;gap:6px;margin-top:6px;" data-no-translate></div>
         </div>
         <div id="cmp-target-preview" style="font-size:12px;margin-top:6px;font-weight:700;" data-no-translate></div>
-        <div class="small" style="color:#64748b;margin-top:2px">① 営業所 → ② 役職・職種 で絞り込むか、③ に<b>個人名を入力し候補から選んで追加</b>（複数人OK）。個人を選ぶとその人たちだけに送ります。②③は「全員」のままでも送れます。</div>
+        <div class="small" style="color:#64748b;margin-top:2px">① 営業所は<b>選ぶたびに追加</b>され、複数拠点にまとめて発信できます（✕で外す）。② 役職・職種で絞り込みも可。③ に<b>個人名を入力し候補から選んで追加</b>（複数人OK）。個人を選ぶとその人たちだけに送ります。②③は「全員」のままでも送れます。</div>
       </div>
       <div class="field">
         <label class="chk"><input type="checkbox" id="cmp-ack"> ✅ 確認ボタンを必須化 (受信者全員に押させる)</label>
@@ -310,11 +311,9 @@ function populatePeople(pool) {
 // t1(営業所)・t2(役職職種) の選択に応じた個人の母集団
 function peoplePool() {
   if (!_dir) return [];
-  const v1 = (document.getElementById('cmp-t1') || {}).value || '';
   const v2 = (document.getElementById('cmp-t2') || {}).value || '';
-  const office = v1.startsWith('office:') ? v1.slice(7) : null; // 'all'/'' はフィルタ無し=全員
   const role = v2.startsWith('role:') ? v2.slice(5) : null;
-  return _dir.users.filter(u => (office === null || u.office === office) && (role === null || u.role === role));
+  return officePoolUsers().filter(u => (role === null || u.role === role));
 }
 
 // 個人検索欄で候補(氏名（営業所）)に一致したら選択リストへ追加し、欄をクリア
@@ -345,6 +344,57 @@ function removePerson(i) {
   updateTargetPreview();
 }
 
+// 選択中の営業所 (複数OK)。[{key, name}] / 全社は _allCompany=true で表す
+let _selectedOffices = [];
+let _allCompany = false;
+
+function officeChipsRender() {
+  const box = document.getElementById('cmp-office-chips');
+  if (!box) return;
+  if (_allCompany) {
+    box.innerHTML = '<span class="chip-person">🌐 全社（全員）<button type="button" onclick="removeOffice(-1)" aria-label="削除">✕</button></span>';
+    box.style.display = 'flex';
+    return;
+  }
+  box.innerHTML = _selectedOffices.map((o, i) =>
+    `<span class="chip-person">🏢 ${escapeHtml(o.name)}<button type="button" onclick="removeOffice(${i})" aria-label="削除">✕</button></span>`
+  ).join('');
+  box.style.display = _selectedOffices.length ? 'flex' : 'none';
+}
+
+// selectで選ぶたびにチップとして追加し、selectは見出しに戻す
+function onOfficePick() {
+  const t1 = document.getElementById('cmp-t1');
+  const v = t1 ? t1.value : '';
+  if (v === 'all') {
+    _allCompany = true;            // 全社と個別拠点は排他
+    _selectedOffices = [];
+  } else if (v.startsWith('office:')) {
+    const key = v.slice(7);
+    const o = (_dir && _dir.offices || []).find(x => x.key === key);
+    _allCompany = false;
+    if (!_selectedOffices.some(x => x.key === key)) _selectedOffices.push({ key, name: (o && o.name) || key });
+  }
+  if (t1) t1.value = '';
+  officeChipsRender();
+  onTargetChange(1);
+}
+
+function removeOffice(i) {
+  if (i < 0) _allCompany = false;
+  else _selectedOffices.splice(i, 1);
+  officeChipsRender();
+  onTargetChange(1);
+}
+
+// 選択中の営業所に属する社員 (全社/未選択なら全員)
+function officePoolUsers() {
+  if (!_dir) return [];
+  if (_allCompany || !_selectedOffices.length) return _dir.users;
+  const keys = new Set(_selectedOffices.map(o => o.key));
+  return _dir.users.filter(u => keys.has(u.office || ''));
+}
+
 function populateT1() {
   const t1 = document.getElementById('cmp-t1');
   if (!t1 || !_dir) return;
@@ -357,19 +407,19 @@ function populateT1() {
 }
 
 function onTargetChange(level) {
-  const t1 = document.getElementById('cmp-t1');
   const t2 = document.getElementById('cmp-t2');
-  const v1 = t1.value;
   if (level <= 1) {
-    // 営業所が変わったら役職・職種を組み直す
+    // 営業所の選択が変わったら、選択中の全拠点をまとめた母集団で役職・職種を組み直す
+    const prev = t2.value;
     t2.innerHTML = '<option value="">② 役職・職種（全員）</option>'; t2.disabled = true;
-    if (_dir && (v1 === 'all' || v1.startsWith('office:'))) {
-      const office = v1.startsWith('office:') ? v1.slice(7) : null;
-      const pool = _dir.users.filter(u => office === null || u.office === office);
+    if (_dir && (_allCompany || _selectedOffices.length)) {
+      const pool = officePoolUsers();
       const roles = [...new Set(pool.map(u => u.role))].sort((a, b) => roleOrder(a) - roleOrder(b));
       t2.innerHTML = '<option value="">② 役職・職種（全員）</option>'
         + roles.map(r => `<option value="role:${escapeHtml(r)}">${escapeHtml(roleName(r))}（${pool.filter(u => u.role === r).length}名）</option>`).join('');
       t2.disabled = false;
+      // 拠点を足しただけなら選んでいた役職は保つ
+      if (prev && [...t2.options].some(o => o.value === prev)) t2.value = prev;
     }
   }
   // 個人検索の候補を、現在の絞り込み(営業所・役職職種)に合わせて更新
@@ -379,18 +429,22 @@ function onTargetChange(level) {
 
 function computeTarget() {
   if (_selectedPeople.length) return 'users:' + _selectedPeople.map(p => p.id).join(','); // 複数個人宛が最優先
-  const v1 = (document.getElementById('cmp-t1') || {}).value || '';
   const v2 = (document.getElementById('cmp-t2') || {}).value || '';
   const role = v2.startsWith('role:') ? v2.slice(5) : '';
-  if (v1 === 'all') return role ? ('jobrole:' + role) : 'all';
-  if (v1.startsWith('office:')) {
-    const off = v1.slice(7);
-    return role ? ('dmgr:' + off + '@' + role) : ('dmg:' + off);
+  if (_allCompany) return role ? ('jobrole:' + role) : 'all';
+  if (_selectedOffices.length) {
+    // ⭐複数拠点は | で連結して OR にする (2026-07-30)
+    return _selectedOffices
+      .map(o => role ? ('dmgr:' + o.key + '@' + role) : ('dmg:' + o.key))
+      .join('|');
   }
   return '';
 }
 
 function resetTargetSelects() {
+  _selectedOffices = [];
+  _allCompany = false;
+  officeChipsRender();
   populateT1();
   const t2 = document.getElementById('cmp-t2');
   const t3 = document.getElementById('cmp-t3');
@@ -404,6 +458,7 @@ function resetTargetSelects() {
 
 function clientMatch(u, t) {
   if (!t || t === 'all') return true;
+  if (t.indexOf('|') >= 0) return t.split('|').filter(Boolean).some(c => clientMatch(u, c));
   if (t.startsWith('users:')) return t.slice(6).split(',').includes(u.id);
   if (t.startsWith('user:')) return u.id === t.slice(5);
   if (t.startsWith('dmg:')) return (u.office || '') === t.slice(4);
@@ -417,6 +472,12 @@ function clientMatch(u, t) {
 
 function targetLabel(t) {
   if (t === 'all') return '全社（全員）';
+  // ⭐複数条件(複数拠点)は「＋」でつないで見せる。多いときは件数に丸める
+  if (t.indexOf('|') >= 0) {
+    const parts = t.split('|').filter(Boolean).map(c => targetLabel(c));
+    if (parts.length <= 3) return parts.join(' ＋ ') + `（${parts.length}拠点）`;
+    return parts.slice(0, 2).join(' ＋ ') + ` 他${parts.length - 2}件（計${parts.length}拠点）`;
+  }
   if (t.startsWith('users:')) {
     const ids = t.slice(6).split(',').filter(Boolean);
     const names = ids.map(id => userName(id)).filter(Boolean);
@@ -554,6 +615,7 @@ function setupAutoReadObserver() {
   // 各カードを監視対象に登録 (要確認は除外)
   for (const a of _list) {
     if (a.read_at) continue;             // 既読済はスキップ
+    if (a.not_targeted) continue;        // 対象外(作成者として表示)は既読を付けない
     if (a.requires_ack) continue;        // 要確認は明示的ボタン操作のみ
     const el = document.getElementById('a-' + a.id);
     if (el) {
@@ -608,13 +670,17 @@ function emptyHtml(msg) {
 }
 
 function card(a) {
-  const isUnread = !a.read_at;
-  const needsAck = a.requires_ack && !a.acked_at;
+  // 対象外(作成者として見えているだけ)は未読・要確認として扱わない
+  const notTargeted = !!a.not_targeted;
+  const isUnread = !a.read_at && !notTargeted;
+  const needsAck = a.requires_ack && !a.acked_at && !notTargeted;
   const cls = ['card', a.level, (isUnread || needsAck) ? 'unread' : ''].join(' ');
   const lvlLabel = a.level === 'urgent' ? '🚨 緊急' : a.level === 'important' ? '⚠ 重要' : '普通';
   const tgt = cardTargetLabel(a.target);
   let actions = '';
-  if (needsAck) {
+  if (notTargeted) {
+    actions += `<span style="font-size:11px;color:#64748b;font-weight:700;">👁 あなたは対象外（作成者として表示）</span>`;
+  } else if (needsAck) {
     actions += `<button class="btn btn-sm" onclick="ackOne(${a.id})">✅ 確認しました</button>`;
   } else if (isUnread) {
     actions += `<button class="btn btn-sm btn-ghost" onclick="readOne(${a.id})">既読にする</button>`;
@@ -628,7 +694,10 @@ function card(a) {
     actions += `<button class="btn btn-sm btn-ghost" style="color:#dc2626;" onclick="delAnnouncement(${a.id})">🗑</button>`;
   }
   const expIcon = a.expires_at ? `<span style="font-size:10px;color:#94a3b8;">期限: ${escapeHtml(a.expires_at.slice(0,10))}</span>` : '';
-  const ackBadge = a.requires_ack ? '<span style="font-size:10px;background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:10px;font-weight:700;">要確認</span>' : '';
+  const ackBadge = (notTargeted
+      ? '<span style="font-size:10px;background:#e2e8f0;color:#475569;padding:1px 6px;border-radius:10px;font-weight:700;">対象外</span>'
+      : '')
+    + (a.requires_ack ? '<span style="font-size:10px;background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:10px;font-weight:700;">要確認</span>' : '');
   // 添付ファイル表示 (画像はサムネ、PDF/Office等はアイコン+リンク)
   let attHtml = '';
   if (Array.isArray(a.attachments) && a.attachments.length) {

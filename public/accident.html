@@ -38,6 +38,7 @@
   /* Modal */
   .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .modal.open { display: flex; }
+  body.modal-open { overflow: hidden; }   /* モーダル表示中は背面を動かさない */
   .modal-body { background: #fff; border-radius: 14px; max-width: 720px; width: 100%; margin: 16px auto; max-height: 92vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.3); }
   .modal-head { padding: 14px 18px; background: linear-gradient(135deg, #b91c1c, #991b1b); color: #fff; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 1; }
   .modal-head h3 { margin: 0; font-size: 15px; flex: 1; }
@@ -47,6 +48,7 @@
   /* Form */
   .field { margin-bottom: 12px; }
   .field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+  .field label .req { color: #dc2626; font-weight: 900; font-size: 1.15em; }   /* 必須マーク(赤) */
   .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; font-family: inherit; }
   .field textarea { min-height: 70px; resize: vertical; }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #dc2626; }
@@ -54,6 +56,37 @@
   .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   @media (max-width: 540px) {
     .grid2, .grid3 { grid-template-columns: 1fr; }
+  }
+
+  /* ⭐2026-08-02 (社長): 事故報告は個人スマホから書く導線にしたので、スマホでの入力を最優先で整える。
+     ⚠️⚠️入力欄のfont-sizeが16px未満だと、iOSがフォーカス時に画面を勝手に拡大する。
+       これが『入力欄が枠からはみ出る』『モーダルが左右前後に動く』の正体。16px以上を必ず守ること。 */
+  .grid2 { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .grid3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .modal-content { overflow-x: hidden; }
+  .field input, .field select, .field textarea { max-width: 100%; }
+  @media (max-width: 640px) {
+    /* 画面いっぱいに固定して、入れ子のスクロールをやめる(スクロールが親へ伝わって画面ごと動くのを防ぐ) */
+    .modal { padding: 0; align-items: stretch; overflow: hidden; overscroll-behavior: contain; }
+    /* ⚠️2026-08-02: 高さに 100dvh を使うと、スクロール時のURLバーの出入りで高さが変わり、
+       下の『キャンセル/下書き保存/提出する』が一緒に動く。親(.modal)が position:fixed なので
+       100% にすれば固定される。背面のページも body.modal-open で止めること。 */
+    .modal-body { margin: 0; border-radius: 0; width: 100%; max-width: 100%;
+      height: 100%; max-height: 100%; display: flex; flex-direction: column; }
+    .modal-content { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 14px 14px 20px; }
+    .modal-head { flex: 0 0 auto; }
+    .modal-head h3 { font-size: 17px; }
+    .modal-head .close { width: 40px; height: 40px; font-size: 20px; }
+    .modal-footer { flex: 0 0 auto; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+    .modal-footer button { flex: 1 1 40%; font-size: 15px; padding: 13px 12px; }
+    .field { margin-bottom: 16px; }
+    .field label { font-size: 14px; margin-bottom: 6px; }
+    .field input, .field select, .field textarea { font-size: 16px; padding: 12px 14px; }   /* ⚠️16px未満にしない */
+    .field textarea { min-height: 100px; line-height: 1.6; }
+    .hint { font-size: 12.5px; }
+    .photo-upload { padding: 18px; font-size: 15px; }
+    .detail-grid { grid-template-columns: 1fr; gap: 0; font-size: 15px; }
+    .detail-grid .lbl { margin-top: 10px; }
   }
   .err { color: #dc2626; font-size: 12px; min-height: 16px; margin: 6px 0; }
   .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; line-height: 1.5; }
@@ -67,11 +100,13 @@
   .photo-upload { padding: 14px; border: 2px dashed #cbd5e1; border-radius: 12px; text-align: center; color: #64748b; cursor: pointer; transition: 0.15s; }
   .photo-upload:hover { border-color: #dc2626; color: #dc2626; }
   .photo-upload input { display: none; }
+  .photo-btns { display: flex; gap: 8px; }
+  .photo-btns .photo-upload { flex: 1 1 0; min-width: 0; }
   .photo-list-row { display: flex; align-items: center; gap: 6px; padding: 4px; background: #f8fafc; border-radius: 10px; margin-top: 4px; font-size: 11px; color: #64748b; }
   .photo-list-row img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; }
   .photo-list-row .rm { margin-left: auto; background: transparent; border: none; color: #dc2626; cursor: pointer; padding: 4px 8px; }
 </style>
-<script src="/global-notif.js?v=20260730c-dmname" defer></script>
+<script src="/global-notif.js?v=20260806-firstalert" defer></script>
 <script src="/version-check.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -166,16 +201,31 @@ function goBackToCowell() {
 let token = localStorage.getItem('cohub_token');
 let me = null;
 try { me = JSON.parse(localStorage.getItem('cohub_user') || 'null'); } catch (e) {}
-if (!token) location.href = '/';
+// ⭐2026-08-02 (社長): 個人スマホのQRから直接この画面に来る導線ができた。
+//   未ログインならログイン後にここへ戻す(戻り先を覚えておく)。
+if (!token) {
+  try { localStorage.setItem('cohub_after_login', location.pathname + location.search); } catch (e) {}
+  location.href = '/';
+}
 
 async function api(path, opts = {}) {
+  // ⚠️別タブ・別画面でログインし直した場合に備え、毎回 localStorage の最新トークンを使う
+  try { token = localStorage.getItem('cohub_token') || token; } catch (e) {}
   const init = Object.assign({ headers: { Authorization: 'Bearer ' + token } }, opts);
   if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
     init.headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers);
     init.body = JSON.stringify(init.body);
   }
   const r = await fetch(path, init);
-  if (r.status === 401) { localStorage.removeItem('cohub_token'); location.href = '/'; return; }
+  if (r.status === 401) {
+    // ⚠️2026-08-02: ここで即ログイン画面へ飛ばしていたため、書きかけの報告が消えていた。
+    //   別端末で同じ人がログインすると前の端末は終了する仕様(モバイル枠は1つ)。書いた内容は必ず退避する。
+    saveFormBackup();
+    localStorage.removeItem('cohub_token');
+    alert('ログインが切れました（別の端末で同じアカウントにログインすると、前の端末は終了します）。'+'\n'+'入力した内容は保存しました。ログインし直すと元に戻ります。');
+    location.href = '/tablet?personal=1&next=' + encodeURIComponent('/accident.html?new=' + currentTab);
+    return;
+  }
   return r.json();
 }
 
@@ -230,6 +280,15 @@ async function loadSummary() {
   const s = currentTab === 'product' ? d.product : d.vehicle;
   const pills = [];
   pills.push(`<span class="stat-pill">📊 総件数 ${s.total}</span>`);
+  // ⭐2026-08-02 (社長「PC版とタブレット版の件数が一致しない」):
+  //   共有タブレットは承認済しか出さない。ここに内訳を出して、どの数字がどこに出るのかを分かるようにする。
+  if (s.byStatus) {
+    const st = s.byStatus;
+    pills.push(`<span class="stat-pill" style="background:#dcfce7;color:#166534;">承認済 ${st.approved}（タブレット掲示）</span>`);
+    if (st.submitted) pills.push(`<span class="stat-pill" style="background:#fef9c3;color:#854d0e;">承認待ち ${st.submitted}</span>`);
+    if (st.rejected)  pills.push(`<span class="stat-pill" style="background:#fee2e2;color:#991b1b;">差し戻し ${st.rejected}</span>`);
+    if (st.draft)     pills.push(`<span class="stat-pill" style="background:#e2e8f0;color:#475569;">下書き ${st.draft}</span>`);
+  }
   if (s.byType && s.byType.length) {
     for (const t of s.byType.slice(0, 3)) {
       if (t.accident_type) pills.push(`<span class="stat-pill">${escapeHtml(t.accident_type)} ${t.cnt}</span>`);
@@ -241,6 +300,15 @@ async function loadSummary() {
   document.getElementById('stat-row').innerHTML = pills.join('');
 }
 
+// 編集できるのは 管理職 と 報告者本人。
+// ⚠️2026-08-02: 製品事故だけ氏名の文字列一致で判定しており(車両事故はID判定)、
+//   代理入力や表記ゆれで本人が自分の下書きを編集できないことがあった。IDで揃える(氏名は保険)。
+function canEditReport(r) {
+  if (isManager) return true;
+  if (!_who) return false;
+  if (r.reporter_id && _who.id) return r.reporter_id === _who.id;
+  return r.reporter_name === _who.display_name;
+}
 function renderList() {
   const list = document.getElementById('list');
   if (!_list.length) {
@@ -262,7 +330,7 @@ function renderList() {
         ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => mediaThumbHtml(p)).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
-          ${(isManager || (_who && r.reporter_name === _who.display_name)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
+          ${canEditReport(r) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -282,7 +350,7 @@ function renderList() {
         ${photos.length ? `<div class="photo-grid">${photos.slice(0, 4).map(p => mediaThumbHtml(p)).join('')}${photos.length > 4 ? `<div class="photo-thumb" style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#64748b;">+${photos.length - 4}</div>` : ''}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-sm btn-ghost" onclick="openDetail(${r.id})">詳細</button>
-          ${(isManager || (_who && r.reporter_id === _who.id)) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
+          ${canEditReport(r) ? `<button class="btn btn-sm btn-ghost" onclick="openForm(${r.id})">編集</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -306,7 +374,9 @@ async function openForm(id) {
   document.getElementById('form-title').textContent = (currentTab === 'product' ? '📦 製品事故' : '🚗 車両事故') + ' ' + (isEdit ? '編集' : '新規報告');
   document.getElementById('form-content').innerHTML = currentTab === 'product' ? productFormHtml(initial) : vehicleFormHtml(initial);
   setFormButtonsEnabled(true);   // 前回保存時に disabled のまま残ると2回目以降ボタンが効かなくなる
+  try { restoreFormBackup(); } catch (e) {}
   document.getElementById('form-modal').classList.add('open');
+  setModalOpen(true);
 }
 
 // 保存/提出ボタンは modal-footer 側にあり、フォームを開き直しても再生成されない。
@@ -318,8 +388,13 @@ function setFormButtonsEnabled(on) {
   if (btnD) btnD.disabled = !on;
 }
 
+// モーダル表示中は背面ページのスクロールを止める(スクロールが背面に伝わると下のボタンが動く)
+function setModalOpen(on){ try { document.body.classList.toggle('modal-open', !!on); } catch (e) {} }
 function closeForm() {
   document.getElementById('form-modal').classList.remove('open');
+  setModalOpen(false);
+  newFormDone();   // 自分で閉じたら、自動では開き直さない
+
   setFormButtonsEnabled(true);
   _editingId = null;
 }
@@ -330,7 +405,7 @@ function productFormHtml(d) {
   const today = new Date().toISOString().slice(0, 10);
   return `
     <div class="grid2">
-      <div class="field"><label>事故発生日 *</label><input type="date" id="f-date" value="${escapeHtml(d.accident_date || today)}"></div>
+      <div class="field"><label>事故発生日 <span class="req">*</span></label><input type="date" id="f-date" value="${escapeHtml(d.accident_date || today)}"></div>
       <div class="field"><label>発生時刻</label><input type="time" id="f-time" value="${escapeHtml(d.accident_time || '')}"></div>
     </div>
     <div class="grid2">
@@ -384,12 +459,12 @@ function productFormHtml(d) {
 function countermeasureFieldsHtml(d) {
   return `
   <div style="margin-top:6px;padding:12px 14px;border:1px solid #fecaca;border-radius:14px;background:#fff7f7;">
-    <div style="font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:2px;">🛑 対策・歯止め <span style="font-weight:400;color:#ef4444;">（提出には * を入力）</span></div>
+    <div style="font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:2px;">🛑 対策・歯止め <span style="font-weight:400;color:#ef4444;">（<b style="color:#dc2626;">*</b> は必須。提出には入力が必要です）</span></div>
     <div class="hint" style="margin-bottom:10px;line-height:1.6;">「気をつける」「徹底する」等の精神論はNG。<b>仕組み（手順・チェック・配置・治具・教育）</b>で止める具体策を書いてください。提出時にAIが内容の具体性をチェックします。</div>
     <div class="field"><label>① 直接原因（何が起きたか）</label><textarea id="f-direct" placeholder="例: バック時に後方の電柱支線を確認できず前バンパーが接触">${escapeHtml(d.direct_cause || '')}</textarea></div>
-    <div class="field"><label>② 根本原因（なぜ起きたか・なぜを繰り返す）*</label><textarea id="f-root" placeholder="例: 進入前に降車目視する手順が定まっておらず、急いでいたため省略した">${escapeHtml(d.root_cause || '')}</textarea></div>
-    <div class="field"><label>③ 再発防止策（本人・現場でやること）*</label><textarea id="f-prevent" placeholder="例: 後退前に必ず一旦停車し降車目視。誘導者がいれば声掛け合図を取り決める">${escapeHtml(d.recurrence_prevention || '')}</textarea></div>
-    <div class="field"><label>④ 組織的歯止め（仕組みで止める）*</label><textarea id="f-org" placeholder="例: 当該荷主宅の進入手順書を作成し点呼時に読み合わせ／構内バック注意箇所マップを全車配布">${escapeHtml(d.org_measure || '')}</textarea></div>
+    <div class="field"><label>② 根本原因（なぜ起きたか・なぜを繰り返す）<span class="req">*</span></label><textarea id="f-root" placeholder="例: 進入前に降車目視する手順が定まっておらず、急いでいたため省略した">${escapeHtml(d.root_cause || '')}</textarea></div>
+    <div class="field"><label>③ 再発防止策（本人・現場でやること）<span class="req">*</span></label><textarea id="f-prevent" placeholder="例: 後退前に必ず一旦停車し降車目視。誘導者がいれば声掛け合図を取り決める">${escapeHtml(d.recurrence_prevention || '')}</textarea></div>
+    <div class="field"><label>④ 組織的歯止め（仕組みで止める）<span class="req">*</span></label><textarea id="f-org" placeholder="例: 当該荷主宅の進入手順書を作成し点呼時に読み合わせ／構内バック注意箇所マップを全車配布">${escapeHtml(d.org_measure || '')}</textarea></div>
   </div>`;
 }
 
@@ -397,7 +472,7 @@ function vehicleFormHtml(d) {
   const today = new Date().toISOString().slice(0, 10);
   return `
     <div class="grid2">
-      <div class="field"><label>事故発生日 *</label><input type="date" id="f-date" value="${escapeHtml(d.accident_date || today)}"></div>
+      <div class="field"><label>事故発生日 <span class="req">*</span></label><input type="date" id="f-date" value="${escapeHtml(d.accident_date || today)}"></div>
       <div class="field"><label>発生時刻</label><input type="time" id="f-time" value="${escapeHtml(d.accident_time || '')}"></div>
     </div>
     <div class="grid2">
@@ -447,16 +522,26 @@ function parseMedia(s) {
   try { const a = JSON.parse(s); return Array.isArray(a) ? a : []; } catch (e) { return []; }
 }
 function isVideoUrl(u) { return /\.(mp4|mov|webm|m4v|avi|3gp|mkv)$/i.test(String(u || '')); }
+// ⭐2026-08-02 (社長): 写真が『撮影モードのみ』になっていた。capture属性を付けると端末が
+//   カメラを直接起動し、保存済みの写真を選べない。事故の写真は先にスマホで撮ってあることが多いので、
+//   ⚠️『えらぶ』(capture無し) と『撮る』(capture有り) の2つを並べる。
 function photoFieldHtml(initialUrls) {
   _photoUrls = (initialUrls || []).slice();
   return `
     <div class="field">
       <label>📷 事故写真・動画 <span style="font-weight:400;color:#94a3b8;">(複数可、動画は各60MBまで)</span></label>
-      <label class="photo-upload" id="f-photo-drop">
-        <div style="font-size:24px;">📷🎥</div>
-        <div>タップして写真・動画を追加 (撮影 or 選択)</div>
-        <input type="file" id="f-photo-input" accept="image/*,video/*" capture="environment" multiple onchange="onPhotoPick(event)">
-      </label>
+      <div class="photo-btns" id="f-photo-drop">
+        <label class="photo-upload">
+          <div style="font-size:26px;">🖼</div>
+          <div>写真から えらぶ</div>
+          <input type="file" accept="image/*,video/*" multiple onchange="onPhotoPick(event)">
+        </label>
+        <label class="photo-upload">
+          <div style="font-size:26px;">📷</div>
+          <div>その場で 撮る</div>
+          <input type="file" accept="image/*,video/*" capture="environment" multiple onchange="onPhotoPick(event)">
+        </label>
+      </div>
       <div id="f-photo-list">${renderPhotoList()}</div>
     </div>`;
 }
@@ -504,6 +589,38 @@ async function onPhotoPick(ev) {
     ev.target.value = '';
   }
 }
+
+// ===== 書きかけの退避と復元 (2026-08-02) =====
+// 通信断・セッション切れ・自動リロードで入力が消えるのを防ぐ。写真は先にアップ済みなのでURLだけ持てばよい。
+const FORM_BACKUP_KEY = 'accident_form_backup';
+function snapshotForm() {
+  const v = {};
+  document.querySelectorAll('#form-content [id]').forEach(el => { if ('value' in el) v[el.id] = el.value; });
+  return { kind: currentTab, editingId: _editingId, at: Date.now(), photos: (_photoUrls || []).slice(), v };
+}
+function saveFormBackup() {
+  try {
+    const m = document.getElementById('form-modal');
+    if (!m || !m.classList.contains('open')) return;
+    localStorage.setItem(FORM_BACKUP_KEY, JSON.stringify(snapshotForm()));
+  } catch (e) {}
+}
+function clearFormBackup() { try { localStorage.removeItem(FORM_BACKUP_KEY); } catch (e) {} }
+function restoreFormBackup() {
+  let b = null;
+  try { b = JSON.parse(localStorage.getItem(FORM_BACKUP_KEY) || 'null'); } catch (e) {}
+  if (!b || b.kind !== currentTab || (b.editingId || null) !== (_editingId || null)) return;
+  if (Date.now() - (b.at || 0) > 24 * 60 * 60 * 1000) { clearFormBackup(); return; }   // 1日以上前は捨てる
+  if (!confirm('前回 書きかけの内容が残っています。復元しますか？')) { clearFormBackup(); return; }
+  Object.keys(b.v || {}).forEach(id => { const el = document.getElementById(id); if (el && 'value' in el) el.value = b.v[id]; });
+  if (b.photos && b.photos.length) { _photoUrls = b.photos.slice(); refreshPhotoList(); }
+}
+// 入力のたびに少し待って退避(打つたびに書き込まない)
+let _bkTimer = null;
+document.addEventListener('input', function (ev) {
+  if (!ev.target || !ev.target.closest || !ev.target.closest('#form-content')) return;
+  clearTimeout(_bkTimer); _bkTimer = setTimeout(saveFormBackup, 800);
+}, true);
 
 async function submitForm(statusArg) {
   const status = statusArg || 'submitted';
@@ -563,6 +680,7 @@ async function submitForm(statusArg) {
   try {
     const d = await api(path, { method, body });
     if (!d || !d.success) { showErr((d && d.msg) || '保存失敗'); setFormButtonsEnabled(true); return; }
+    clearFormBackup();   // 保存できたので退避は不要
     setFormButtonsEnabled(true);
     closeForm();
     loadList();
@@ -617,9 +735,11 @@ async function openDetail(id) {
   }
   document.getElementById('detail-footer').innerHTML = footer;
   document.getElementById('detail-modal').classList.add('open');
+  setModalOpen(true);
 }
 function closeDetail() {
   document.getElementById('detail-modal').classList.remove('open');
+  setModalOpen(false);
   _detail = null;
 }
 async function refreshDetail() {
@@ -716,6 +836,18 @@ function detailPhotosHtml(r) {
   </div>`;
 }
 
+// ⭐2026-08-01 (社長): 商品コードがLogiHubの商品マスターにあれば、その商品の写真を参考として出す。
+//   ⚠️破損箇所の写真ではないので、事故写真とは別枠・注記付きで表示すること。
+function masterPhotoHtml(r) {
+  if (!r || !r.master_photo) return '';
+  return `<div style="margin-top:14px;display:flex;gap:12px;align-items:center;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px 12px;">
+    <img src="${escapeHtml(r.master_photo)}" loading="lazy" onclick="openMediaModal('${escapeHtml(r.master_photo)}')" style="width:110px;height:110px;object-fit:contain;background:#fff;border-radius:8px;cursor:zoom-in;" onerror="this.parentNode.style.display='none'">
+    <div style="font-size:12px;color:#64748b;line-height:1.6;">
+      <b style="color:#334155;font-size:13px;">この商品の参考画像</b><br>
+      破損箇所の写真ではありません（LogiHub 商品マスターより）<br>
+      <b style="color:#334155;">${escapeHtml(r.master_photo_name || '')}</b>
+    </div></div>`;
+}
 function productDetailHtml(r) {
   const rows = [
     ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
@@ -742,7 +874,7 @@ function productDetailHtml(r) {
     ['作成日時', r.created_at],
     ['承認者', r.approved_by],
   ];
-  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${detailPhotosHtml(r)}`;
+  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${masterPhotoHtml(r)}${detailPhotosHtml(r)}`;
 }
 
 function statusJp(s) {
@@ -810,7 +942,31 @@ async function approveOne(id) {
     if (w && w.success) { _who = w.me; isManager = !!w.me.is_manager; }
   } catch (e) {}
   loadList();
+  autoOpenNewForm();
 })();
+
+// ⭐QR(?new=product / ?new=vehicle)で来たら、一覧を経由せずそのまま新規報告フォームを開く。
+//   タブレット前で2回タップさせないための導線 (社長 2026-08-02)。
+//   ⚠️初期化の途中で失敗しても開くように、開くまで数回やり直す(一覧の読み込みと競合しないため)。
+//   ⚠️URLの ?new= は消さないこと。消すと、更新の自動リロード後に一覧へ戻ってしまう(2026-08-02)。
+//   代わりに『一度閉じた/提出した』印をこのタブに持たせて、二重に開かないようにする。
+function newFormDone(){ try { sessionStorage.setItem('accident_new_done','1'); } catch (e) {} }
+function autoOpenNewForm() {
+  try { if (sessionStorage.getItem('accident_new_done') === '1') return; } catch (e) {}
+  let kind = null;
+  try { kind = new URLSearchParams(location.search).get('new'); } catch (e) {}
+  if (kind !== 'product' && kind !== 'vehicle') return;
+  let tries = 0;
+  const timer = setInterval(async () => {
+    const m = document.getElementById('form-modal');
+    if (m && m.classList.contains('open')) { clearInterval(timer); return; }
+    if (++tries > 12) { clearInterval(timer);
+      try { toast('自動で開けませんでした。「＋ 新規報告」を押してください'); } catch (e) {}
+      return; }
+    try { switchTab(kind); await openForm(null); }
+    catch (e) { console.warn('[accident] 新規フォームを開けませんでした', e); }
+  }, 350);
+}
 </script>
 
   <script src="/translate.js?v=20260622f" defer></script>

@@ -406,6 +406,8 @@ let greeting = false;   // ログイン後あいさつ再生中(この間は入�
 //  → tablet-home が個人モードで動く(無操作オートログアウトしない/詳しい表示に切替可)。届けたい現場一般社員が
 //     ID/パスワードでなく PIN だけで自分のスマホから入れるようにする狙い。
 var PQ = '';   // 個人スマホの名前検索キーワード
+// 未登録の端末(個人スマホ)は名簿の一覧をもらえない。名前を入れてサーバへ問い合わせる方式に切り替える印。
+var ROSTER_RESTRICTED = false, _pqTimer = null;
 const PERSONAL = (function(){
   try {
     if (new URLSearchParams(location.search).get('personal') === '1') {
@@ -652,7 +654,7 @@ async function init() {
         _w.innerHTML = '<input id="pSearch" type="search" inputmode="text" autocomplete="off" placeholder="名前を 入れて さがす">'
           + '<div class="pshint">ひらがな・漢字のどちらでも さがせます</div>';
         _lst.parentNode.insertBefore(_w, _lst);
-        document.getElementById('pSearch').addEventListener('input', function(){ PQ = this.value.trim(); render(); });
+        document.getElementById('pSearch').addEventListener('input', function(){ PQ = this.value.trim(); onPersonalSearch(); });
       }
     } catch (e) {}
     // 前回この端末でログインした本人を記憶していれば、名簿を出さずいきなりPIN入力へ(=PINだけで入れる)。
@@ -756,9 +758,13 @@ async function ensureDeviceToken(co, loginToken) {
   } catch (e) { /* 登録できなくても従来どおり動く(事業所ネットワーク判定にフォールバック) */ }
 }
 
-async function loadRoster(co) {
+async function loadRoster(co, q) {
   await ensureDeviceToken(co);
-  const qs = co ? ('?co=' + encodeURIComponent(co)) : '';
+  // 個人スマホは名前(2文字以上)をサーバへ渡し、一致した人だけ返してもらう。
+  const _p = [];
+  if (co) _p.push('co=' + encodeURIComponent(co));
+  if (q) _p.push('q=' + encodeURIComponent(q));
+  const qs = _p.length ? ('?' + _p.join('&')) : '';
   const r = await fetch('/api/auth/tablet-roster' + qs, { headers: devHeaders() }).then(x => x.json()).catch(()=>null);
   // 失効・不明なトークンを持っていたら捨てる。次にPINログインした時に登録し直される。
   // ⚠️これが無いと、一度失効させた端末は古いトークンを抱えたまま二度と登録できない。
@@ -768,6 +774,16 @@ async function loadRoster(co) {
     // ⚠️古い端末トークンを持ったままだと復旧できないので、その場で捨てる。
     if (r && r.code === 'device_unregistered') {
       try { localStorage.removeItem(DEVICE_KEY); } catch (e) {}
+      // 個人スマホ: 一覧は出せないが 名前で探せる。「つながらない」と誤解させないよう案内を変える。
+      if (PERSONAL) {
+        ROSTER_RESTRICTED = true;
+        users = [];
+        buildKanaTabs();
+        document.getElementById('list').innerHTML =
+          '<div class="empty">お名前を 2文字以上 入力してください'
+          + '<br><span style="font-size:14px;color:#64748b;">上の らんに 「てらだ」「寺田」 のように 入れると 出てきます</span></div>';
+        return;
+      }
       document.getElementById('list').innerHTML =
         '<div class="empty">この端末では名簿を表示できません<br><span style="font-size:13px;color:#94a3b8;">'
         + '事業所のネットワークにつないでから、この画面を開き直してください</span></div>';
@@ -776,6 +792,7 @@ async function loadRoster(co) {
     document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
     return;
   }
+  ROSTER_RESTRICTED = !!r.restricted;   // 検索でしか出せない端末か
   users = r.users || [];
   companyCodes = new Set(users.map(u => u.company_code || ''));
   await loadCompanies(); // DB会社名・空拠点(天竜工場など)をセレクタへ
@@ -836,13 +853,26 @@ function buildKanaTabs(){
 }
 function setKana(k){ curKana = k; curPage = 0; buildKanaTabs(); render(); }
 function pageStep(d){ curPage += d; render(); }
+// 個人スマホの名前検索。一覧をもらえない端末では、打ち終わってからサーバへ問い合わせる。
+function onPersonalSearch() {
+  render();
+  if (!ROSTER_RESTRICTED) return;   // 名簿を持っている端末は手元で絞るだけでよい
+  clearTimeout(_pqTimer);
+  _pqTimer = setTimeout(function () {
+    var q = PQ.replace(/[\s　]/g, '');
+    if (q.length >= 2) loadRoster('', PQ);
+  }, 400);
+}
 function render() {
   var co = document.getElementById('f-co').value;
   var arr = users.slice().filter(function(u){ return !co || (u.company_code || '') === co; });
   arr.sort(function(a, b){ var ya = ROSTER_YOMI[a.id] || ('んん'+(a.display_name||'')), yb = ROSTER_YOMI[b.id] || ('んん'+(b.display_name||'')); return String(ya).localeCompare(String(yb), 'ja'); });
-  if (curKana !== 'すべて') arr = arr.filter(function(u){ return kanaRow(ROSTER_YOMI[u.id]) === curKana; });
+  // ⚠️未登録の個人スマホは読み仮名一覧(roster_yomi.json)をもらえないので、かなタブでは絞れない。
+  //   ここで絞ると検索で当たった人まで消えてしまう。
+  if (curKana !== 'すべて' && !ROSTER_RESTRICTED) arr = arr.filter(function(u){ return kanaRow(ROSTER_YOMI[u.id]) === curKana; });
   // 個人スマホの名前検索 (氏名 or よみ の部分一致)
-  if (PERSONAL && PQ) {
+  // ⚠️未登録端末はサーバ側で既に絞ってある。ここで再度絞ると、読み仮名一覧を持たないため「くりた」で当たった 栗田さん が消えてしまう。
+  if (PERSONAL && PQ && !ROSTER_RESTRICTED) {
     var _q = PQ.replace(/[\s　]/g, '');
     arr = arr.filter(function(u){
       var nm = String(u.display_name || '').replace(/[\s　]/g, '');

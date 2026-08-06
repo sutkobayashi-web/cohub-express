@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>⚙ チャレンジ管理 — CoWell</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
 <meta name="theme-color" content="#d97706">
 <style>
 * { box-sizing: border-box; }
@@ -13,8 +13,8 @@ header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135d
 header h1 { margin: 0; font-size: 16px; }
 header .spacer { flex: 1; }
 main { max-width: 1100px; margin: 0 auto; padding: 18px; }
-.card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-.btn { padding: 8px 16px; background: #f59e0b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.btn { padding: 8px 16px; background: #f59e0b; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-success { background: #10b981; }
 .btn-ghost { background: #e2e8f0; color: #0f172a; }
 .btn-danger { background: #ef4444; }
@@ -22,16 +22,25 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 th { background: #fffbeb; font-weight: 700; color: #78350f; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.row input, .row select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+.row input, .row select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; }
 .kpi-item { display: grid; grid-template-columns: 1.4fr 2fr 80px 100px 1fr 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
-.kpi-item input, .kpi-item select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 100%; }
+.kpi-item input, .kpi-item select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 12px; width: 100%; }
 .dash-stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.dash-card { background: linear-gradient(135deg,#fef3c7,#fde68a); border-radius: 10px; padding: 12px; text-align: center; }
+.dash-card { background: linear-gradient(135deg,#fef3c7,#fde68a); border-radius: 14px; padding: 12px; text-align: center; }
 .dash-card .n { font-size: 26px; font-weight: 800; color: #92400e; }
 .dash-card .l { font-size: 11px; color: #78350f; font-weight: 700; }
 .no-access { max-width: 480px; margin: 60px auto; text-align: center; }
 </style>
 <script src="/font-zoom.js?v=20260728d" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <header>
@@ -56,7 +65,7 @@ th { background: #fffbeb; font-weight: 700; color: #78350f; }
       <input type="text" id="new-icon" value="💪" style="max-width:60px;text-align:center;font-size:18px;" maxlength="4" title="アイコン">
       <input type="text" id="new-title" placeholder="タイトル (例: 11月歩く健康チャレンジ)" style="flex:1;min-width:200px;">
     </div>
-    <textarea id="new-desc" placeholder="説明・目的 (任意)" style="width:100%;min-height:60px;padding:9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;margin-bottom:8px;"></textarea>
+    <textarea id="new-desc" placeholder="説明・目的 (任意)" style="width:100%;min-height:60px;padding:9px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;font-family:inherit;margin-bottom:8px;"></textarea>
     <div class="row" style="margin-bottom:10px;">
       <label style="font-size:12px;">期間</label>
       <input type="date" id="new-start">
@@ -75,7 +84,7 @@ th { background: #fffbeb; font-weight: 700; color: #78350f; }
         <input type="text" placeholder="単位" data-f="unit" value="歩">
         <input type="number" placeholder="目標値" data-f="target" value="8000">
         <select data-f="type"><option value="number" selected>数値</option><option value="bool">チェック</option></select>
-        <button class="btn-danger" style="font-size:11px;padding:3px 6px;border:none;border-radius:4px;color:#fff;cursor:pointer;" onclick="this.parentElement.remove()">×</button>
+        <button class="btn-danger" style="font-size:11px;padding:3px 6px;border:none;border-radius:8px;color:#fff;cursor:pointer;" onclick="this.parentElement.remove()">×</button>
       </div>
     </div>
     <button class="btn-ghost btn" style="font-size:11px;padding:5px 10px;margin-top:6px;" onclick="addKpiItem()">+ KPI追加</button>
@@ -134,7 +143,7 @@ function addKpiItem() {
       <input type="text" placeholder="単位" data-f="unit">
       <input type="number" placeholder="目標値" data-f="target">
       <select data-f="type"><option value="number">数値</option><option value="bool">チェック</option></select>
-      <button class="btn-danger" style="font-size:11px;padding:3px 6px;border:none;border-radius:4px;color:#fff;cursor:pointer;" onclick="this.parentElement.remove()">×</button>
+      <button class="btn-danger" style="font-size:11px;padding:3px 6px;border:none;border-radius:8px;color:#fff;cursor:pointer;" onclick="this.parentElement.remove()">×</button>
     </div>`);
 }
 
@@ -184,7 +193,7 @@ async function loadList() {
         <td><b>${c.icon || ''} ${escapeHtml(c.title)}</b></td>
         <td style="font-size:11px;">${escapeHtml(c.period_start || '-')} 〜 ${escapeHtml(c.period_end || '-')}</td>
         <td>${c.participant_count}名</td>
-        <td><span style="background:${c.status==='active'?'#10b981':'#94a3b8'};color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;">${sLbl}</span></td>
+        <td><span style="background:${c.status==='active'?'#10b981':'#94a3b8'};color:#fff;padding:2px 6px;border-radius:10px;font-size:10px;">${sLbl}</span></td>
         <td>
           <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="openDash(${c.id})">📊</button>
           ${c.status === 'draft' ? `<button class="btn btn-success" style="font-size:11px;padding:3px 8px;" onclick="changeStatus(${c.id}, 'active')">▶開催</button>` : ''}
@@ -254,6 +263,7 @@ async function openDash(id) {
 
 init();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

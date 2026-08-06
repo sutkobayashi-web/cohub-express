@@ -4,40 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-store">
-<title>共有カレンダー｜CoWell</title>
-<link rel="icon" href="/icon-192.png">
+<title>カレンダー｜CoWell</title>
+<link rel="icon" href="/img/cowell-icon-192-v6.png">
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif; background: #f1f5f9; color: #1e293b; }
   header { background: linear-gradient(180deg, #0284c7, #0369a1); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
   /* トップへ戻る: アプリ標準に合わせ右上の✕アイコンボタン (myactivity等と統一) */
-  header .home { color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; line-height: 1; opacity: .95; background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 8px 14px; white-space: nowrap; flex-shrink: 0; }
+  header .home { color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; line-height: 1; opacity: .95; background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); border-radius: 12px; padding: 8px 14px; white-space: nowrap; flex-shrink: 0; }
   header .home:hover { background: rgba(255,255,255,0.34); }
   header h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .02em; flex: 1; }
   header .sub { font-size: 11px; opacity: .8; }
   .wrap { max-width: 1100px; margin: 0 auto; padding: 14px; }
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
   .toolbar .nav { display: flex; align-items: center; gap: 4px; }
-  .toolbar button.navbtn { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; color: #334155; }
+  .toolbar button.navbtn { background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; color: #334155; }
   .toolbar button.navbtn:hover { background: #f8fafc; }
   .toolbar .ym { font-size: 18px; font-weight: 700; min-width: 130px; text-align: center; }
-  .toolbar .today-btn { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #334155; }
+  .toolbar .today-btn { background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #334155; }
   .toolbar .spacer { flex: 1; }
-  .toolbar .add-btn { background: #0f766e; color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .toolbar .add-btn { background: #0f766e; color: #fff; border: none; border-radius: 12px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
   .toolbar .add-btn:hover { background: #115e59; }
-  .toolbar .viewtog { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+  .toolbar .viewtog { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; }
   .toolbar .viewtog button { background: #fff; border: none; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #475569; }
   .toolbar .viewtog button.on { background: #0f766e; color: #fff; }
   .toolbar .viewtog button + button { border-left: 1px solid #cbd5e1; }
 
   /* 一覧(アジェンダ)ビュー */
-  #list-view { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  #list-view { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
   .lv-day { border-bottom: 1px solid #eef2f6; }
   .lv-day:last-child { border-bottom: none; }
   .lv-date { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; background: #f8fafc; }
   .lv-date .dnum { font-weight: 700; font-size: 16px; color: #0f172a; }
   .lv-date .ddow { font-size: 12px; color: #64748b; }
-  .lv-date.today { background: #f0fdfa; }
+  .lv-date.today { background: #ccfbf1; }
   .lv-date.today .dnum { color: #0f766e; }
   .lv-date.sun .dnum { color: #dc2626; }
   .lv-date.sat .dnum { color: #2563eb; }
@@ -48,49 +48,56 @@
   .lv-ev .lv-body { flex: 1; min-width: 0; }
   .lv-ev .lv-ttl { font-size: 14px; font-weight: 600; color: #1e293b; }
   .lv-ev .lv-meta { font-size: 12px; color: #64748b; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lv-ev .lv-cat { font-size: 11px; color: #fff; padding: 1px 8px; border-radius: 10px; flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .lv-ev .lv-cat { font-size: 11px; color: #fff; padding: 1px 8px; border-radius: 14px; flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
   .lv-empty { padding: 44px 16px; text-align: center; color: #94a3b8; font-size: 14px; }
   .legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; color: #475569; }
   .legend span { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; text-shadow: 0 1px 1px rgba(0,0,0,.15); }
   .legend .dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 
-  .grid { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  .grid { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
   /* 平日(月〜金)を広く、土日を細く。列幅を minmax(0,..) で固定し、長い予定名でも列幅は不変(セル内で折り返す) */
   .dow, .cells { display: grid; grid-template-columns: minmax(0,0.62fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,0.62fr); }
   .dow { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
   .dow div { padding: 8px 0; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; }
   .dow div.sun { color: #dc2626; }
   .dow div.sat { color: #2563eb; }
-  .cell { min-height: 104px; min-width: 0; border-right: 1px solid #eef2f6; border-bottom: 1px solid #eef2f6; padding: 4px 4px 6px; position: relative; cursor: pointer; }
+  .cell { min-height: 128px; min-width: 0; border-right: 1px solid #eef2f6; border-bottom: 1px solid #eef2f6; padding: 4px 4px 6px; position: relative; cursor: pointer; }
   .cell:nth-child(7n) { border-right: none; }
   .cell.other-month { background: #fafbfc; }
-  .cell.other-month .daynum { color: #cbd5e1; }
-  .cell.today { background: #f0fdfa; }
+  .cell.other-month .daynum { color: #b0bac6; }
+  /* 今日は一目で分かるように色を入れる (社長 2026-07-28。#f0fdfa は白と見分けが付かなかった) */
+  .cell.today { background: #ccfbf1; box-shadow: inset 0 0 0 2px #14b8a6; }
   .cell.past { background: #fafbfc; }
-  .cell.past .daynum { color: #cbd5e1; }
+  .cell.past .daynum { color: #94a3b8; }   /* #cbd5e1 は淡い背景に沈んで読めなかった */
   /* 2週表示: マスを縦に大きく(複数名の書き込みが見やすいように) */
-  .cells.tw .cell { min-height: 170px; vertical-align: top; }
-  .cells.tw .cell .daynum { font-size: 13px; }
+  .cells.tw .cell { min-height: 210px; vertical-align: top; }   /* 2週表示は書き込みが集中するので広め(社長「カレンダー枠を大きく」2026-07-28) */
+  /* 2週表示は日付が予定チップに埋もれて読めなかった(社長 2026-07-28)。
+     大きく・濃く・淡いピルを敷いて、下の予定と切り離す。 */
+  .cells.tw .cell .daynum { font-size: 15px; font-weight: 800; color: #0f172a; background: #eef2f7; border-radius: 9px; padding: 2px 9px; margin-bottom: 2px; }
+  .cells.tw .cell.past .daynum { color: #7c8899; background: #f1f3f6; }
+  .cells.tw .cell.other-month .daynum { color: #a3adba; background: #f4f6f9; }
   .cells.tw .chip { font-size: 12px; padding: 3px 6px; margin: 3px 0; line-height: 1.35; }
   .cells.tw .chip-ava { width: 16px; height: 16px; }
   @media (max-width: 640px) { .cells.tw .cell { min-height: 110px; } }
   .cell .daynum { font-size: 12px; font-weight: 600; color: #475569; padding: 2px 4px; display: inline-block; }
-  .cell.today .daynum { background: #0f766e; color: #fff; border-radius: 50%; width: 22px; height: 22px; text-align: center; line-height: 18px; }
+  .cell.today .daynum { background: #0f766e; color: #fff; border-radius: 50%; width: 22px; height: 22px; text-align: center; line-height: 18px; padding: 2px 0; }
+  /* 2週は日付を大きくしているので、今日の丸も合わせて大きくする(2桁がはみ出さないように) */
+  .cells.tw .cell.today .daynum { width: 28px; height: 28px; line-height: 24px; font-size: 14px; padding: 2px 0; }
   .cell .daynum.sun { color: #dc2626; }
   .cell .daynum.sat { color: #2563eb; }
-  .chip { display: block; font-size: 11px; line-height: 1.3; padding: 2px 5px; border-radius: 4px; margin: 2px 0; color: #fff; white-space: normal; overflow-wrap: anywhere; word-break: break-word; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,.35); font-weight: 600; }
+  .chip { display: block; font-size: 11px; line-height: 1.3; padding: 2px 5px; border-radius: 8px; margin: 2px 0; color: #fff; white-space: normal; overflow-wrap: anywhere; word-break: break-word; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,.35); font-weight: 600; }
   .chip .t { opacity: .85; font-variant-numeric: tabular-nums; margin-right: 3px; }
   .chip-ava { width: 14px; height: 14px; border-radius: 50%; object-fit: cover; vertical-align: -2px; margin-right: 3px; background: #fff; border: 1px solid rgba(255,255,255,.6); }
   .more { font-size: 10px; color: #64748b; padding: 1px 4px; }
 
   /* ホバーポップアップ (PCのみ) — 少し拡大表示 + ふわっと出現 */
-  .hover-pop { position: fixed; z-index: 200; display: none; max-width: 340px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.22); padding: 14px 18px; font-size: 14px; line-height: 1.5; color: #334155; pointer-events: none; transform-origin: top left; animation: popIn .13s ease-out; }
+  .hover-pop { position: fixed; z-index: 200; display: none; max-width: 340px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 12px 32px rgba(15,23,42,.22); padding: 14px 18px; font-size: 14px; line-height: 1.5; color: #334155; pointer-events: none; transform-origin: top left; animation: popIn .13s ease-out; }
   @keyframes popIn { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .hover-pop .hp-title { font-weight: 700; font-size: 17px; color: #0f172a; margin-bottom: 8px; }
   .hover-pop .hp-when { margin-left: 8px; }
   .hover-pop .hp-row { margin-top: 6px; }
   .hover-pop .hp-row.memo { color: #64748b; white-space: pre-wrap; }
-  .hover-pop .hp-badge { display: inline-block; padding: 2px 11px; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .hover-pop .hp-badge { display: inline-block; padding: 2px 11px; border-radius: 16px; color: #fff; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
   .hover-pop .hp-by { display: flex; align-items: center; gap: 7px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f1f5f9; color: #475569; }
   .hover-pop .hp-by img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
 
@@ -101,14 +108,14 @@
   .modal h2 { margin: 0 0 14px; font-size: 17px; }
   .modal label { display: block; font-size: 12px; color: #475569; margin: 10px 0 4px; font-weight: 600; }
   .modal input[type=text], .modal input[type=date], .modal input[type=time], .modal select, .modal textarea {
-    width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; font-family: inherit; }
   .modal textarea { min-height: 64px; resize: vertical; }
   .row2 { display: flex; gap: 8px; }
   .row2 > * { flex: 1; }
   .chk { display: flex; align-items: center; gap: 7px; margin: 12px 0 2px; font-size: 14px; }
   .chk input { width: 18px; height: 18px; }
   .modal .actions { display: flex; gap: 8px; margin-top: 18px; }
-  .modal .actions button { flex: 1; padding: 11px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .modal .actions button { flex: 1; padding: 11px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
   .btn-save { background: #0f766e; color: #fff; }
   /* 戻る: 全モーダル共通。常に左端・固定幅で位置統一 */
   .btn-back { background: #e2e8f0; color: #334155; flex: 0 0 auto !important; padding: 11px 22px !important; }
@@ -119,13 +126,19 @@
   .cat-pick input { display: none; }
   /* 種別(共有/自分) ピッカー */
   .scope-pick { display: flex; gap: 8px; }
-  .scope-pick label { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; cursor: pointer; margin: 0; color: #475569; }
+  .scope-pick label { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 8px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 13px; cursor: pointer; margin: 0; color: #475569; }
   .scope-pick label:has(input:checked) { border-color: #0f766e; background: #f0fdfa; color: #0f766e; font-weight: 700; }
+  /* 共有先グループ ピッカー (2026-07-09) */
+  .group-pick { display: flex; flex-wrap: wrap; gap: 6px; max-height: 138px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px; }
+  .group-pick label { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 5px 9px; cursor: pointer; margin: 0; color: #334155; }
+  .group-pick label:has(input:checked) { background: #f0fdfa; border-color: #0f766e; color: #0f766e; font-weight: 700; }
+  .group-pick .gp-empty { color: #94a3b8; font-size: 12px; padding: 2px; }
+  .view-only .add-btn { display: none !important; }
 
   /* detail */
   .det-meta { font-size: 13px; color: #475569; margin: 6px 0; display: flex; gap: 8px; align-items: flex-start; }
   .det-meta b { color: #1e293b; min-width: 52px; display: inline-block; }
-  .cat-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .cat-badge { display: inline-block; padding: 2px 10px; border-radius: 16px; color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
 
   .denied { max-width: 480px; margin: 60px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 32px; text-align: center; }
   .denied h2 { margin: 0 0 8px; }
@@ -138,19 +151,28 @@
     .toolbar .ym { font-size: 16px; min-width: 110px; }
   }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 <header>
   <div style="flex:1">
-    <h1>🗓 共有カレンダー</h1>
-    <div class="sub">役員・管理職の共有予定（個人カレンダーには影響しません）</div>
+    <h1>🗓 カレンダー</h1>
+    <div class="sub">🙋マイ＝自分の予定と To Do ／ 👥共有＝みんなの予定（個人カレンダーには影響しません）</div>
   </div>
   <a href="/" id="closeLink" class="home" title="閉じてトップへ戻る">閉じる</a>
 </header>
 
 <div id="denied" class="denied hide">
   <h2>🔒 アクセス権限がありません</h2>
-  <p>この共有カレンダーは役員・管理職のみが利用できます。<br><a href="/" id="deniedBack">バーチャルオフィスへ戻る</a></p>
+  <p>このカレンダーは役員・管理職のみが利用できます。<br><a href="/" id="deniedBack">ホームへ戻る</a></p>
 </div>
 
 <div id="app" class="wrap hide">
@@ -161,12 +183,18 @@
       <button class="navbtn" onclick="moveMonth(1)">›</button>
     </div>
     <button class="today-btn" onclick="goToday()">今日</button>
+    <!-- 🙋マイ / 👥共有 の切替 (社長「カレンダーがごちゃごちゃ」2026-07-28)。To Doはマイ側にだけ出す -->
+    <div class="viewtog scopetog">
+      <button id="st-mine" onclick="setScope('mine')">🙋 マイ</button>
+      <button id="st-all" onclick="setScope('all')">👥 共有</button>
+    </div>
     <div class="viewtog">
       <button id="vt-tw" onclick="setView('twoweek')">2週</button>
       <button id="vt-grid" onclick="setView('grid')">月</button>
       <button id="vt-list" onclick="setView('list')">一覧</button>
     </div>
     <div class="spacer"></div>
+    <a class="today-btn" id="todo-link" href="/todo.html" style="display:none;text-decoration:none;">📝 To Do</a>
     <button class="add-btn" onclick="openAdd()">＋ 予定を追加</button>
   </div>
   <div class="legend" id="legend"></div>
@@ -194,6 +222,8 @@
     </div>
     <label>区分</label>
     <div class="cat-pick" id="f-cat"></div>
+    <label>共有先グループ <span style="font-weight:400;color:#94a3b8">(選んだグループのメンバーが閲覧できます。未選択＝管理職のみ)</span></label>
+    <div id="f-groups" class="group-pick"><div class="gp-empty">読み込み中…</div></div>
     <div class="chk"><input type="checkbox" id="f-allday" onchange="toggleAllday()"><label for="f-allday" style="margin:0">終日</label></div>
     <div class="row2">
       <div><label>開始日</label><input type="date" id="f-sdate"></div>
@@ -224,6 +254,7 @@
     <div class="det-meta"><b>日時</b><span id="d-when"></span></div>
     <div class="det-meta" id="d-loc-row"><b>場所</b><span id="d-loc"></span></div>
     <div class="det-meta" id="d-desc-row"><b>メモ</b><span id="d-desc" style="white-space:pre-wrap"></span></div>
+    <div class="det-meta" id="d-share-row"><b>共有先</b><span id="d-share"></span></div>
     <div class="det-meta"><b>登録者</b><span id="d-by"></span></div>
     <div class="actions">
       <button class="btn-back" onclick="closeDet()">閉じる</button>
@@ -299,17 +330,38 @@ async function init(){
   catch(e){ leaveToTop(); return; }
   if (!j || !j.success) { leaveToTop(); return; }
   me = j.user;
-  if (!me.is_manager) { showDenied(); return; }
+  CAN_CREATE = !!me.is_manager;   // 閲覧は全社員に開放。作成・共有は管理職のみ。
   document.getElementById('app').classList.remove('hide');
+  if (!CAN_CREATE) document.body.classList.add('view-only');
   buildLegend();
   buildCatPick();
+  if (CAN_CREATE) loadGroups();
   await load();
+}
+var CAN_CREATE = false, GROUPS = [];
+// 共有先グループの候補を取得(作成フォームのピッカー用・管理職のみ)
+async function loadGroups(){
+  try { const j = await api('/api/shared-calendar/groups'); GROUPS = (j && j.groups) || []; }
+  catch(e){ GROUPS = []; }
+  renderGroupPick([]);
+}
+function renderGroupPick(checkedIds){
+  const box = document.getElementById('f-groups'); if (!box) return;
+  const set = new Set((checkedIds||[]).map(String));
+  if (!GROUPS.length){ box.innerHTML = '<div class="gp-empty">共有できるグループがありません</div>'; return; }
+  box.innerHTML = GROUPS.map(g =>
+    `<label><input type="checkbox" value="${esc(g.id)}"${set.has(String(g.id))?' checked':''}> ${esc(g.name)} <span style="color:#94a3b8">(${g.members})</span></label>`
+  ).join('');
+}
+function selectedGroupIds(){
+  return Array.from(document.querySelectorAll('#f-groups input:checked')).map(i => i.value);
 }
 
 function buildLegend(){
   const cats = Object.keys(CATS).map(k =>
     `<span><i class="dot" style="background:${CATS[k].color}"></i>${CATS[k].label}</span>`).join('');
-  const kinds = `<span style="color:#cbd5e1;margin:0 2px;">|</span><span>🎙 会議予約</span><span>👥 共有予定</span><span>👤 自分の予定</span>`;
+  const kinds = `<span style="color:#cbd5e1;margin:0 2px;">|</span><span>🎙 会議予約</span><span>👥 共有予定</span><span>👤 自分の予定</span>`
+    + (calScope === 'mine' ? `<span><i class="dot" style="background:${TODO_COLOR}"></i>📝 To Do（自分だけ）</span>` : '');
   document.getElementById('legend').innerHTML = cats + kinds;
 }
 function buildCatPick(){
@@ -349,10 +401,45 @@ async function load(){
     title: m.title || '(無題)', category: 'meeting', scope: 'meeting',
     start_at: (m.starts_at || '').replace('T', ' '), end_at: null, all_day: 0,
     location: m.location || null, duration_minutes: m.duration_minutes || 30,
+    organizer_id: m.organizer_id || '',
     created_by_name: m.organizer_name || '', created_by_avatar: m.organizer_avatar || ''
   }));
-  events = evs.concat(mtgs);
+  // 📝 期限つきのToDoを「その日の予定」として合流(Google ToDoリストと同じ考え方)。
+  //    サーバーは本人のToDoしか返さない=共有カレンダーでも他人には見えない。
+  const tds = ((j && j.todos) || []).map(t => ({
+    kind: 'todo', id: 't' + t.id, todo_id: t.id,
+    title: t.title || '', category: 'todo', scope: 'todo',
+    start_at: t.due_date, end_at: null, all_day: 1,
+    done: !!t.done, created_by: (me && me.uid) || '', created_by_name: ''
+  }));
+  allEvents = evs.concat(mtgs).concat(tds);
+  applyScope();
+}
+
+/* ---- 🙋マイ / 👥共有 の切替 ----
+   共有=今までどおり全部(ToDoは混ぜない)。マイ=自分に関係するものだけ+自分のToDo。
+   データは1回のfetchで両方持っているので、切替は絞り込みだけ(再取得しない)。 */
+let allEvents = [];
+let calScope = 'all';
+try { calScope = localStorage.getItem('cohub_cal_scope') || 'all'; } catch (e) {}
+function isMine(e) {
+  if (e.kind === 'todo') return true;                               // ToDoは自分のものしか来ない
+  if (e.kind === 'meeting') return e.organizer_id === (me && me.uid);   // 自分が主催した会議
+  return e.created_by === (me && me.uid);                           // 自分が登録した予定
+}
+function applyScope() {
+  events = (calScope === 'mine') ? allEvents.filter(isMine) : allEvents.filter(e => e.kind !== 'todo');
+  const bm = document.getElementById('st-mine'), ba = document.getElementById('st-all');
+  if (bm) bm.classList.toggle('on', calScope === 'mine');
+  if (ba) ba.classList.toggle('on', calScope !== 'mine');
+  const tl = document.getElementById('todo-link');
+  if (tl) tl.style.display = (calScope === 'mine') ? '' : 'none';
   render();
+}
+function setScope(s) {
+  calScope = s;
+  try { localStorage.setItem('cohub_cal_scope', s); } catch (e) {}
+  applyScope();
 }
 
 function eventsOn(dstr){
@@ -380,6 +467,10 @@ function chipHtml(e){
     const t = timeOf(e.start_at) ? `<span class="t">${timeOf(e.start_at)}</span>` : '';
     return `<span class="chip" style="background:${CATS.meeting.color}" ${handlers}>🎙${t}${esc(e.title)}</span>`;
   }
+  if (e.kind === 'todo') {
+    const st = e.done ? 'text-decoration:line-through;opacity:.55;' : '';
+    return `<span class="chip" style="background:${TODO_COLOR};${st}" ${handlers}>${e.done ? '✅' : '📝'}${esc(e.title)}</span>`;
+  }
   const c = CATS[e.category] || CATS.other;
   const t = (!e.all_day && timeOf(e.start_at)) ? `<span class="t">${timeOf(e.start_at)}</span>` : '';
   const ava = e.created_by_avatar ? `<img class="chip-ava" src="${esc(e.created_by_avatar)}" alt="">` : '';
@@ -387,10 +478,23 @@ function chipHtml(e){
   return `<span class="chip" style="background:${c.color}" ${handlers}>${ava}${sc}${t}${esc(e.title)}</span>`;
 }
 
-// 項目クリック: 会議予約は会議詳細へ / 通常予定は詳細モーダル
-function openItem(id){
+const TODO_COLOR = '#7c3aed';   // To Do は予定と区別できる紫
+
+// 項目クリック: 会議予約は会議詳細へ / ToDoはその場で完了トグル / 通常予定は詳細モーダル
+async function openItem(id){
   const e = events.find(x => String(x.id) === String(id));
   if (!e) return;
+  if (e.kind === 'todo') {
+    const msg = e.done ? `「${e.title}」を未完了に戻しますか？` : `「${e.title}」を完了にしますか？`;
+    if (!confirm(msg)) return;
+    const r = await api('/api/todo/' + e.todo_id, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: !e.done })
+    });
+    if (!r || !r.success) { alert((r && r.msg) || '更新できませんでした'); return; }
+    load();
+    return;
+  }
   if (e.kind === 'meeting') {
     // 埋め込み時はiframe内遷移せず別タブで開く
     if (EMBED) window.open('/poll.html?id=' + e.poll_id, '_blank');
@@ -474,6 +578,15 @@ function renderList(){
     html += `<div class="lv-day"><div class="lv-date ${dcls}"><span class="dnum">${dd}</span><span class="ddow">(${DOW[dow]})${dstr===todayStr?' 今日':''}</span></div>`;
     html += evs.map(e => {
       const isMtg = e.kind === 'meeting';
+      const isTd = e.kind === 'todo';
+      if (isTd) {
+        const st = e.done ? 'text-decoration:line-through;color:#94a3b8;' : '';
+        return `<div class="lv-ev" onclick="openItem('${e.id}')">
+          <span class="bar" style="background:${TODO_COLOR}"></span><div class="lv-ava">${e.done ? '✅' : '📝'}</div>
+          <div class="lv-body"><div class="lv-ttl" style="${st}">${esc(e.title)}</div><div class="lv-meta">期限 ・ ${e.done ? '完了' : 'クリックで完了にできます'}</div></div>
+          <span class="lv-cat" style="background:${TODO_COLOR}">To Do</span>
+        </div>`;
+      }
       const c = isMtg ? CATS.meeting : (CATS[e.category] || CATS.other);
       const when = e.all_day ? '終日' : (timeOf(e.start_at) || '');
       const catLabel = isMtg ? '' : c.label;
@@ -505,6 +618,16 @@ const CAN_HOVER = !!(window.matchMedia && window.matchMedia('(hover: hover) and 
 function showPop(ev, id){
   if (!CAN_HOVER) return;
   const e = events.find(x => String(x.id) === String(id)); if (!e) return;
+  if (e.kind === 'todo') {
+    const pop0 = document.getElementById('hover-pop');
+    pop0.innerHTML = `<div class="hp-title">${esc(e.title)}</div>`
+      + `<div><span class="hp-badge" style="background:${TODO_COLOR}">To Do</span><span class="hp-when">${esc(e.start_at || '')} 期限</span></div>`
+      + `<div class="hp-row" style="color:#64748b;font-weight:600;">📝 自分だけのやること（他の人には見えません）</div>`
+      + `<div class="hp-row" style="color:#6d28d9;font-weight:700;">▶ クリックで${e.done ? '未完了に戻す' : '完了にする'}</div>`;
+    pop0.style.display = 'block';
+    movePop(ev);
+    return;
+  }
   const isMtg = e.kind === 'meeting';
   const c = isMtg ? CATS.meeting : (CATS[e.category] || CATS.other);
   const ava = e.created_by_avatar ? `<img src="${esc(e.created_by_avatar)}" alt="">` : '';
@@ -551,6 +674,7 @@ function openAdd(dstr){
   document.getElementById('f-loc').value = '';
   document.getElementById('f-desc').value = '';
   document.getElementById('f-err').textContent = '';
+  renderGroupPick([]);
   document.getElementById('edit-ov').classList.add('show');
 }
 function toggleAllday(){
@@ -580,7 +704,8 @@ async function saveEvent(){
 
   const body = { title, category: cat, scope, all_day: allDay ? 1 : 0, start_at, end_at,
                  location: document.getElementById('f-loc').value.trim(),
-                 description: document.getElementById('f-desc').value.trim() };
+                 description: document.getElementById('f-desc').value.trim(),
+                 share_group_ids: selectedGroupIds() };
   const id = document.getElementById('f-id').value;
   try {
     const j = id
@@ -621,6 +746,9 @@ function openDet(id){
   document.getElementById('d-loc').textContent = e.location || '';
   document.getElementById('d-desc-row').style.display = e.description ? 'flex' : 'none';
   document.getElementById('d-desc').textContent = e.description || '';
+  const shareNames = e.share_group_names || [];
+  document.getElementById('d-share-row').style.display = shareNames.length ? 'flex' : 'none';
+  document.getElementById('d-share').textContent = shareNames.join('、');
   const byAva = e.created_by_avatar ? `<img src="${esc(e.created_by_avatar)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-4px;margin-right:5px;">` : '';
   document.getElementById('d-by').innerHTML = byAva + esc(e.created_by_name || '—');
   const canEdit = me.role === 'admin' || e.created_by === me.uid;
@@ -646,6 +774,7 @@ function editFromDet(){
   document.getElementById('f-etime').value = timeOf(e.end_at) || '';
   document.getElementById('f-loc').value = e.location || '';
   document.getElementById('f-desc').value = e.description || '';
+  renderGroupPick(e.share_group_ids || []);
 }
 
 async function deleteEvent(){
@@ -665,5 +794,6 @@ document.getElementById('det-ov').addEventListener('click', e => { if (e.target.
 
 init();
 </script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

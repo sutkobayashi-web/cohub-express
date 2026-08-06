@@ -72,14 +72,19 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div class="row">
       <input type="text" id="new-login" placeholder="ログインID">
       <input type="text" id="new-name" placeholder="表示名">
+      <!-- ⚠️ここの選択肢は companies テーブルと揃えること。抜けているとその所属の人を登録・変更できない。
+           2026-08-05: 施工事業係(KOJI)を追加。スズエ電機は2工場に分かれているのに天竜が無く、
+           既存7名の所属をこの画面から選べない状態だったので併せて追加。 -->
       <select id="new-company">
         <option value="SU_HQ">スタンダード運輸 海老名</option>
         <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
         <option value="SU_MKANTO">スタンダード運輸 南関東</option>
         <option value="SU_ZAMA">スタンダード運輸 座間</option>
+        <option value="KOJI">施工事業係</option>
         <option value="IBA_KASHIMA">茨運(鹿島)</option>
         <option value="IBA_SANWA">茨運(三和)</option>
-        <option value="SUZUE">スズエ電機</option>
+        <option value="SUZUE">スズエ電機 豊田工場</option>
+        <option value="SUZUE_TENRYU">スズエ電機 天竜工場</option>
         <option value="ADMIN">管理職</option>
         <option value="UNIVERSITY">🎓 大学・研究機関</option>
         <option value="NPO">🏥 NPO法人</option>
@@ -141,7 +146,9 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       • <b>company_code</b> (会社コード。子会社も下表のコードで指定):<br>
       <span style="display:inline-block;background:#fff;padding:6px 10px;border-radius:8px;border:1px solid #fcd34d;margin:4px 0;line-height:1.9;">
         スタンダード運輸 海老名=<code>SU_HQ</code> / 埼玉=<code>SU_SAITAMA</code> / 南関東=<code>SU_MKANTO</code> / 座間=<code>SU_ZAMA</code><br>
-        <b>茨運(鹿島)</b>=<code>IBA_KASHIMA</code> / <b>茨運(三和)</b>=<code>IBA_SANWA</code> ・ <b>スズエ電機</b>=<code>SUZUE</code> ・ 管理職=<code>ADMIN</code>
+        <b>施工事業係</b>=<code>KOJI</code><br>
+        <b>茨運(鹿島)</b>=<code>IBA_KASHIMA</code> / <b>茨運(三和)</b>=<code>IBA_SANWA</code><br>
+        <b>スズエ電機 豊田工場</b>=<code>SUZUE</code> / <b>スズエ電機 天竜工場</b>=<code>SUZUE_TENRYU</code> ・ 管理職=<code>ADMIN</code>
       </span><br>
       • <b>job_role</b>: driver / warehouse / office / construction / manufacturing<br>
       • <b>birth_date</b>: YYYY-MM-DD (例: 1975-04-15)<br>
@@ -414,14 +421,17 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#475569;">表示名</label><input type="text" id="edit-display-name" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div><label style="font-size:12px;font-weight:600;color:#475569;">所属会社</label>
+          <!-- ⚠️新規登録側(#new-company)と同じ並びを保つこと。片方だけ足すと編集で所属が消える -->
           <select id="edit-company" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;">
             <option value="SU_HQ">スタンダード運輸 海老名</option>
             <option value="SU_SAITAMA">スタンダード運輸 埼玉</option>
             <option value="SU_MKANTO">スタンダード運輸 南関東</option>
             <option value="SU_ZAMA">スタンダード運輸 座間</option>
+            <option value="KOJI">施工事業係</option>
             <option value="IBA_KASHIMA">茨運(鹿島)</option>
             <option value="IBA_SANWA">茨運(三和)</option>
-            <option value="SUZUE">スズエ電機</option>
+            <option value="SUZUE">スズエ電機 豊田工場</option>
+            <option value="SUZUE_TENRYU">スズエ電機 天竜工場</option>
             <option value="ADMIN">管理職</option>
             <option value="UNIVERSITY">🎓 大学・研究機関</option>
             <option value="NPO">🏥 NPO法人</option>
@@ -573,15 +583,18 @@ let token = localStorage.getItem('cohub_admin_token') || localStorage.getItem('c
   };
 })();
 
+// バッジ表示用の短縮名+色。⚠️companies.ring_color と揃えること (未登録コードは素のコードが出る)
 const COMPANY_MAP = {
-  'SU_HQ':       { name: 'SU海老名', color: '#1f2937' },
-  'SU_SAITAMA':  { name: 'SU埼玉',   color: '#dc2626' },
-  'SU_MKANTO':   { name: 'SU南関東', color: '#7c3aed' },
-  'SU_ZAMA':     { name: 'SU座間',   color: '#ea580c' },
-  'IBA_KASHIMA': { name: 'IBA鹿島',  color: '#0891b2' },
-  'IBA_SANWA':   { name: 'IBA三和',  color: '#0284c7' },
-  'SUZUE':       { name: 'スズエ',   color: '#059669' },
-  'ADMIN':       { name: '管理職',   color: '#ca8a04' },
+  'SU_HQ':        { name: 'SU海老名', color: '#1f2937' },
+  'SU_SAITAMA':   { name: 'SU埼玉',   color: '#dc2626' },
+  'SU_MKANTO':    { name: 'SU南関東', color: '#7c3aed' },
+  'SU_ZAMA':      { name: 'SU座間',   color: '#ea580c' },
+  'KOJI':         { name: '施工',     color: '#b45309' },
+  'IBA_KASHIMA':  { name: 'IBA鹿島',  color: '#0891b2' },
+  'IBA_SANWA':    { name: 'IBA三和',  color: '#0284c7' },
+  'SUZUE':        { name: 'スズエ豊田', color: '#059669' },
+  'SUZUE_TENRYU': { name: 'スズエ天竜', color: '#0d9488' },
+  'ADMIN':        { name: '管理職',   color: '#ca8a04' },
 };
 
 async function doAdminLogin() {

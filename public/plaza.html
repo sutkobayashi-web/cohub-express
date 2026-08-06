@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>🌳 みんなの投稿 — CoWell</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
 <meta name="theme-color" content="#0369a1">
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -172,6 +172,116 @@ body { padding-bottom: 80px !important; }
 .cat-bdg.健康Tips { background: #ecfdf5; color: #047857; }
 .post-content { font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; }
 .post-image { margin-top: 10px; max-width: 100%; max-height: 480px; border-radius: 14px; cursor: pointer; }
+/* ⭐2026-08-01 (社長): 食事タブの履歴は縦スクロールが長いのでタブレットのようにタイルで並べる。
+   PC幅(≥900px)のときだけ多列にし、スマホは従来どおり1列。 */
+body.food-grid main { max-width: 1180px; }
+@media (min-width: 900px) {
+  body.food-grid #feed { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  body.food-grid #feed .post { margin-bottom: 0; display: flex; flex-direction: column; cursor: pointer; }
+  /* サムネは全部同じ大きさに揃える(写真の高さ・カード全体の高さとも固定) */
+  body.food-grid #feed .post:not(.expanded) { height: 392px; overflow: hidden; padding: 0 10px 10px; }
+  /* ---- サムネ(たたんだ状態): 写真 → 本人コメント → 「直したいのは」だけ ---- */
+  body.food-grid #feed .post:not(.expanded) .post-head { order: 0; margin-bottom: 4px; }
+  body.food-grid #feed .post:not(.expanded) .avatar,
+  body.food-grid #feed .post:not(.expanded) .avatar-fallback { width: 26px; height: 26px; font-size: 11px; }
+  body.food-grid #feed .post:not(.expanded) .post-author { font-size: 12px; }
+  body.food-grid #feed .post:not(.expanded) .post-time { font-size: 10.5px; }
+  body.food-grid #feed .post:not(.expanded) .post-image,
+  body.food-grid #feed .post:not(.expanded) .post-imgcount,
+  body.food-grid #feed .post:not(.expanded) .post-subimgs { order: 1; margin-top: 4px; }
+  body.food-grid #feed .post:not(.expanded) .post-image { max-height: 178px; width: 100%; object-fit: cover; }
+  body.food-grid #feed .post:not(.expanded) .post-subimgs { display: none; }
+  body.food-grid #feed .post:not(.expanded) .post-content { order: 2; font-size: 13px; max-height: 3.2em; overflow: hidden; margin-top: 6px; }
+  body.food-grid #feed .post:not(.expanded) .nutri-card { order: 3; margin-top: 4px; padding: 0; background: none; box-shadow: none; border: 0; flex: 0 0 auto; }
+  /* サムネ内の枠線は出さない (カード全体の色で示す) */
+  body.food-grid #feed .post:not(.expanded) .nv { border: 0; background: transparent; padding: 6px 0 0; }
+  body.food-grid #feed .post:not(.expanded) .post-image { border: 0; }
+  /* 固定高さのカード内で各パーツが押しつぶされないようにする (帯の文字切れ対策) */
+  body.food-grid #feed .post:not(.expanded)>*,
+  body.food-grid #feed .post:not(.expanded) .post-head,
+  body.food-grid #feed .post:not(.expanded) .post-image,
+  body.food-grid #feed .post:not(.expanded) .post-content { flex: 0 0 auto; }
+  /* ⭐ランク別の背景色 (2026-08-01 社長): 一覧で状態が一目で分かるように */
+  /* ⭐2026-08-01: 7段階に細分化。色＋帯の文言(何がズレたか)で判別する */
+  body.food-grid #feed .post:not(.expanded)::before {
+    content: attr(data-rank-label);
+    order: -1; display: block; flex: 0 0 auto; box-sizing: border-box; height: 26px; line-height: 26px;
+    margin: 0 -10px 8px; padding: 0 10px;
+    font-size: 11.5px; font-weight: 900; letter-spacing: .2px; color: #fff;
+    border-radius: 14px 14px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  body.food-grid #feed .post:not(.expanded).rank-good { background: #dcfce7; }
+  body.food-grid #feed .post:not(.expanded).rank-good::before { background: #15803d; }
+  body.food-grid #feed .post:not(.expanded).rank-warn { background: #ecfccb; }
+  body.food-grid #feed .post:not(.expanded).rank-warn::before { background: #4d7c0f; }
+  body.food-grid #feed .post:not(.expanded).rank-off1 { background: #fef9c3; }
+  body.food-grid #feed .post:not(.expanded).rank-off1::before { background: #a16207; }
+  body.food-grid #feed .post:not(.expanded).rank-off  { background: #ffedd5; }
+  body.food-grid #feed .post:not(.expanded).rank-off::before  { background: #c2410c; }
+  body.food-grid #feed .post:not(.expanded).rank-off3 { background: #fed7aa; }
+  body.food-grid #feed .post:not(.expanded).rank-off3::before { background: #9a3412; }
+  body.food-grid #feed .post:not(.expanded).rank-lack { background: #dbeafe; }   /* 大きく不足=青(足りない) */
+  body.food-grid #feed .post:not(.expanded).rank-lack::before { background: #1d4ed8; }
+  body.food-grid #feed .post:not(.expanded).rank-over { background: #fee2e2; }
+  body.food-grid #feed .post:not(.expanded).rank-over::before { background: #b91c1c; }
+  body.food-grid #feed .post:not(.expanded).rank-alc  { background: #ede9fe; }
+  body.food-grid #feed .post:not(.expanded).rank-alc::before  { background: #6d28d9; }
+  /* 結論(.nv)以外は畳んだ状態では出さない */
+  body.food-grid #feed .post:not(.expanded) .ng-head,
+  body.food-grid #feed .post:not(.expanded) .ng-rows,
+  body.food-grid #feed .post:not(.expanded) .ng-oks,
+  body.food-grid #feed .post:not(.expanded) .nutri-foot,
+  body.food-grid #feed .post:not(.expanded) .ai-advisor-card,
+  /* サムネでは『数値で見る』『いつもの自分と比べて』も出さない (2026-08-01) */
+  body.food-grid #feed .post:not(.expanded) .ng-more,
+  body.food-grid #feed .post:not(.expanded) .ng-table,
+  body.food-grid #feed .post:not(.expanded) .cmp-usual,
+  body.food-grid #feed .post:not(.expanded) .nutri-conf,
+  body.food-grid #feed .post:not(.expanded) .ref-hint,
+  body.food-grid #feed .post:not(.expanded) .clar-block,
+  body.food-grid #feed .post:not(.expanded) .clar-btn,
+  body.food-grid #feed .post:not(.expanded) .addph-btn,
+  body.food-grid #feed .post:not(.expanded) .alc-extra,
+  body.food-grid #feed .post:not(.expanded) .alc-toggle,
+  body.food-grid #feed .post:not(.expanded) .alc-panel,
+  body.food-grid #feed .post:not(.expanded) .post-actions,
+  body.food-grid #feed .post:not(.expanded) .comments,
+  body.food-grid #feed .post:not(.expanded) .cmt-list,
+  body.food-grid #feed .post:not(.expanded) .cmt-form,
+  body.food-grid #feed .post:not(.expanded) .cmts,
+  body.food-grid #feed .post:not(.expanded) .pcmts,
+  body.food-grid #feed .post:not(.expanded) .pcmt-btn,
+  body.food-grid #feed .post:not(.expanded) .del-btn { display: none !important; }
+  /* 2026-08-01: 右下の『解説』表記は廃止(社長)。本人コメントに改行があると押し出されて消えるため。
+     カード全体がタップできることは帯とカーソル(pointer)で伝わる。 */
+  body.food-grid #feed .post:not(.expanded) .post-content { white-space: normal; }
+  /* ---- タップ時: ポップアップで従来どおりの詳細を表示 (2026-08-01 社長指示) ---- */
+}
+.post-modal { position: fixed; inset: 0; z-index: 9500; display: none; align-items: flex-start; justify-content: center;
+  background: rgba(15,23,42,0.55); backdrop-filter: blur(2px); padding: 24px 16px; overflow-y: auto; }
+.post-modal.open { display: flex; }
+.post-modal .pm-card { background: #f8fafc; border-radius: 18px; width: 100%; max-width: 660px; box-shadow: 0 18px 50px rgba(15,23,42,0.35); }
+.post-modal .pm-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; }
+/* 閉じるは読み終わった位置=ポップアップ下部に置く (2026-08-01 社長) */
+.post-modal .pm-foot { padding: 4px 12px 16px; }
+.post-modal .pm-foot .pm-close { display: block; width: 100%; padding: 13px; font-size: 15px; border-radius: 14px; }
+.post-modal .pm-ttl { font-size: 14px; font-weight: 800; color: #334155; }
+.post-modal .pm-close { background: #e2e8f0; border: none; color: #334155; border-radius: 999px; font-size: 13px; font-weight: 800; padding: 7px 16px; cursor: pointer; }
+.post-modal .pm-close:hover { background: #cbd5e1; }
+.post-modal .pm-body { padding: 0 12px 14px; }
+.post-modal .pm-body .post { margin-bottom: 0; }
+body.pm-open { overflow: hidden; }
+/* 別ウィンドウで1件だけ見るとき: 投稿フォーム・タブ・ヒントは不要 (2026-08-01) */
+body.single-post #composer,
+body.single-post .tab-bar,
+body.single-post #ai-tip,
+body.single-post #ai-tip-ref,
+body.single-post #feed-more-btn,
+body.single-post .cmp-section-ttl { display: none !important; }
+body.single-post main { max-width: 720px; padding-bottom: 24px; }
+@media (min-width: 900px) {
+  body.food-grid #feed .post.expanded { grid-column: 1 / -1; }
+}
 /* 2枚目以降 (成分表示ラベルや品数が多いときの追加写真) */
 .post-subimgs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .post-subimgs img { width: 74px; height: 74px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer; }
@@ -212,6 +322,10 @@ body { padding-bottom: 80px !important; }
 .clar-btn { width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 14px; border: 1px solid #bfdbfe; background: linear-gradient(135deg,#eff6ff,#dbeafe); color: #1d4ed8; font-family: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; text-align: left; }
 .clar-btn b { float: right; }
 .clar-btn:active { transform: translateY(1px); }
+.addph-btn { width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 14px; border: 1px dashed #a7f3d0; background: linear-gradient(135deg,#f0fdfa,#ccfbf1); color: #0f766e; font-family: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; text-align: left; }
+.addph-btn b { float: right; }
+.addph-btn:active { transform: translateY(1px); }
+.addph-btn:disabled { opacity: 0.6; cursor: default; }
 .clar-ov { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 10000; align-items: center; justify-content: center; padding: 14px; }
 .clar-card { background: #fff; border-radius: 18px; padding: 18px 16px; width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto; }
 .clar-h { font-size: 16.5px; font-weight: 900; color: #14211c; }
@@ -235,8 +349,13 @@ body { padding-bottom: 80px !important; }
 .ng-oks { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; padding-top: 11px; border-top: 1px solid #eaefe9; }
 .ng-chip { font-size: 13.5px; font-weight: 800; color: #41514a; background: rgba(12,163,12,.07); border: 1px solid #e2e8e5; border-radius: 999px; padding: 4px 11px; }
 .ng-chip b { color: #0ca30c; font-weight: 900; }
-.ng-more { margin-top: 12px; width: 100%; font-family: inherit; font-size: 12px; font-weight: 800; color: #1b4034; background: #fff; border: 1px dashed #cfdad4; border-radius: 10px; padding: 7px 10px; cursor: pointer; }
-.ng-more:hover { background: rgba(12,163,12,.06); }
+/* 2026-08-01 (社長): 『数値で見る』が地味で気づかれない → 実線の枠＋淡い塗り＋大きめの文字に */
+.ng-more { margin-top: 12px; width: 100%; font-family: inherit; font-size: 13.5px; font-weight: 900; color: #0f5132;
+  background: #e7f5ee; border: 1.5px solid #86c7a8; border-radius: 12px; padding: 11px 10px; cursor: pointer;
+  box-shadow: 0 2px 0 rgba(15,81,50,.14); letter-spacing: .3px; }
+.ng-more:hover { background: #d6efe3; border-color: #5cb08a; }
+.ng-more:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(15,81,50,.14); }
+
 .ng-tbl { overflow-x: auto; margin-top: 8px; }
 .ng-tbl table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .ng-tbl th, .ng-tbl td { text-align: right; padding: 5px 6px; border-bottom: 1px solid #eaefe9; white-space: nowrap; }
@@ -444,7 +563,7 @@ body { padding-bottom: 80px !important; }
 </style>
 <script src="/font-zoom.js?v=20260728d" defer></script>
 <script src="/image-zoom.js" defer></script>
-<script src="/global-notif.js?v=20260730c-dmname" defer></script>
+<script src="/global-notif.js?v=20260806-firstalert" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -579,10 +698,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   <div class="advisor-box">
     <button class="advisor-close" onclick="closeAdvisorExplain()" aria-label="閉じる">×</button>
     <div class="adv-av-wrap" id="adv-av-wrap">
-      <img class="advisor-avatar-big" src="/assets/advisor_still.png?v=5" alt="AIヘルスアドバイザー">
+      <img class="advisor-avatar-big" src="/assets/advisor_still.png?v=5" alt="ヘルスアドバイザー なぎさ">
       <video class="advisor-avatar-vid" id="adv-vid" src="/assets/advisor_talk.mp4?v=6" muted loop playsinline preload="auto"></video>
     </div>
-    <div class="advisor-name">🩺 AIヘルスアドバイザー</div>
+    <div class="advisor-name">🩺 ヘルスアドバイザー なぎさ</div>
     <div class="advisor-sub">健康管理室より</div>
     <div class="advisor-bubble" id="adv-bubble"></div>
     <button class="advisor-replay" id="adv-replay" onclick="advisorReplay()">🔊 もう一度 聞く</button>
@@ -713,6 +832,8 @@ function relTime(iso) {
 }
 
 // CoWell 栄養エビデンス対比バーチャート (admin-food.js 移植)
+var _lastNutriRank = '';   // 直前に描画した栄養カードのランク (サムネの背景色に使う)
+var _lastNutriLabel = '';  // 同・サムネ上部の帯に出す文言
 function buildNutritionBar(sc, isMine) {
   if (!sc) return '';
   // 旧形式 (1〜5 int) 検出 → 推定値に変換
@@ -840,6 +961,32 @@ function buildNutritionBar(sc, isMine) {
   } else {
     vCls = '#0ca30c'; vSig = '◎'; vHl = 'よい一皿です';
   }
+  // ⭐2026-08-01 (社長): 一覧のサムネを背景色でランク分けするため、判定結果を外に出す。
+  //   優先度: アルコール多飲 > 過剰摂取 > バランスのズレ > 理想に近い
+  (function () {
+    // ⚠️2026-08-01 修正(社長指摘): 方向(不足/過多)を見ずに『過剰摂取』と出していた。
+    //   dir は low=足りない / high=多い。不足が大きいときは『大きく不足』と出す。
+    var alcRow = nrows.filter(function (r) { return r.item && r.item.key === 'alcohol'; })[0];
+    var pick = ngBad.concat(ngWarn);
+    var names = pick.slice(0, 2).map(function (r) { return r.item.label; }).join('・');
+    var lows = pick.filter(function (r) { return r.dir === 'low'; });
+    var highs = pick.filter(function (r) { return r.dir === 'high'; });
+    var dirWord = (lows.length && !highs.length) ? '不足' : ((highs.length && !lows.length) ? 'とりすぎ' : '過不足');
+    if (alcRow && alcRow.sev >= 2) { _lastNutriRank = 'alc'; _lastNutriLabel = '🍺 アルコール多飲'; }
+    else if (ngAlarm.length) {
+      var aLow = ngAlarm.filter(function (r) { return r.dir === 'low'; }).length;
+      var aHigh = ngAlarm.filter(function (r) { return r.dir === 'high'; }).length;
+      var aNames = ngAlarm.slice(0, 2).map(function (r) { return r.item.label; }).join('・');
+      _lastNutriRank = aHigh && !aLow ? 'over' : (aLow && !aHigh ? 'lack' : 'over');
+      _lastNutriLabel = (aHigh && !aLow ? '‼ 過剰摂取' : (aLow && !aHigh ? '‼ 大きく不足' : '‼ 大きく外れている'))
+        + (aNames ? '（' + aNames + '）' : '');
+    }
+    else if (ngBad.length >= 4) { _lastNutriRank = 'off3'; _lastNutriLabel = '!! 大きくズレている（' + ngBad.length + '項目・' + dirWord + '）'; }
+    else if (ngBad.length >= 2) { _lastNutriRank = 'off'; _lastNutriLabel = '! ' + dirWord + '（' + names + '）'; }
+    else if (ngBad.length === 1) { _lastNutriRank = 'off1'; _lastNutriLabel = '! あと一歩（' + ngBad[0].item.label + 'が' + NG_TAG[ngBad[0].dir] + '）'; }
+    else if (ngWarn.length) { _lastNutriRank = 'warn'; _lastNutriLabel = '◯ おしい（' + names + '）'; }
+    else { _lastNutriRank = 'good'; _lastNutriLabel = '◎ 理想に近い食事'; }
+  })();
   const vAct = worst
     ? ('<b>' + escapeHtml(worst.item.label) + 'が' + NG_TAG[worst.dir] + '</b>' + (ngHint(worst) ? ' — ' + ngHint(worst) : ''))
     : (nrows.length + '項目すべて目安の範囲。同じ組み合わせを覚えておくと楽です。');
@@ -1331,7 +1478,7 @@ function renderAdvisorComment(cmt, speakName, postId, mealType) {
       '<div class="ai-advisor-hdr-row">' +
         '<img class="ai-advisor-avatar" src="/assets/concierge_health_avatar.png?v=8" alt="ヘルスアドバイザー" loading="lazy">' +
         '<div class="ai-advisor-hdr-text">' +
-          '<div class="ai-advisor-hdr-name">🩺 AIヘルスアドバイザー</div>' +
+          '<div class="ai-advisor-hdr-name">🩺 ヘルスアドバイザー なぎさ</div>' +
           '<div class="ai-advisor-hdr-sub">健康管理室より</div>' +
         '</div>' +
         _aoiBtn +
@@ -1428,6 +1575,24 @@ async function initApp() {
   // ?tab=相談 等で特定タブを開いた状態でランディング (home メニューの専用ボタン用)
   const _qs = new URLSearchParams(location.search);
   const urlAction = _qs.get('action');
+  const urlFocus = _qs.get('focus');   // 別ウィンドウで開かれた1件 (2026-08-01)
+  if (urlFocus) {
+    // ⚠️2026-08-01: 別ウィンドウ側でモーダルを重ねると『ポップアップが2つ』に見えるため、
+    //   focus 指定のときは その投稿だけの1枚ページ にする(モーダルは開かない)。
+    document.body.classList.add('single-post');
+    (function waitPost(tries) {
+      var el = document.getElementById('post-' + urlFocus);
+      if (el) {
+        document.body.classList.remove('food-grid');          // サムネ圧縮を解除=通常表示
+        var feed = document.getElementById('feed');
+        if (feed) Array.prototype.slice.call(feed.children).forEach(function (c) { if (c !== el) c.remove(); });
+        window.scrollTo(0, 0);
+        return;
+      }
+      if (tries <= 0) return;
+      setTimeout(function () { waitPost(tries - 1); }, 350);
+    })(20);
+  }
   const urlTab = _qs.get('tab');
   const _validTabs = ['all', '食事', '相談', '雑談', '健康Tips'];
   if (urlAction === 'food') {
@@ -1452,6 +1617,59 @@ async function initApp() {
   fetch('/api/plaza/mark-seen', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => {});
 }
 
+// ⭐2026-08-01 (社長): 食事タブのサムネをタップすると、ポップアップで従来どおりの詳細を表示する。
+//   投稿の要素そのものをモーダルへ移動し、閉じるとき元の位置へ戻す=id/イベントはそのままで二重生成なし。
+//   モーダル内は #feed の外になるため、サムネ用の圧縮CSS(.post:not(.expanded))は自動的に効かなくなる。
+var _pmNode = null, _pmHome = null;
+function _pmEl() {
+  var m = document.getElementById('post-modal');
+  if (m) return m;
+  m = document.createElement('div');
+  m.id = 'post-modal'; m.className = 'post-modal';
+  m.innerHTML = '<div class="pm-card"><div class="pm-top"><span class="pm-ttl">🍽 食事の記録</span></div>'
+    + '<div class="pm-body"></div>'
+    + '<div class="pm-foot"><button type="button" class="pm-close" onclick="closePostModal()">✕ 閉じる</button></div></div>';
+  m.addEventListener('click', function (ev) { if (ev.target === m) closePostModal(); });
+  document.body.appendChild(m);
+  return m;
+}
+function openPostModal(art) {
+  if (!art || _pmNode) return;
+  var m = _pmEl();
+  _pmNode = art;
+  _pmHome = document.createComment('pm-home');
+  art.parentNode.insertBefore(_pmHome, art);
+  m.querySelector('.pm-body').appendChild(art);
+  m.classList.add('open');
+  document.body.classList.add('pm-open');
+  m.scrollTop = 0;
+}
+function closePostModal() {
+  var m = document.getElementById('post-modal');
+  if (m) { m.classList.remove('open'); }
+  document.body.classList.remove('pm-open');
+  if (_pmNode) {
+    // 元の位置へ戻す。一覧が再描画されて戻せない場合は破棄(一覧側に新しい要素がある)
+    if (_pmHome && _pmHome.parentNode) _pmHome.parentNode.insertBefore(_pmNode, _pmHome);
+    else if (_pmNode.parentNode) _pmNode.parentNode.removeChild(_pmNode);
+  }
+  if (_pmHome && _pmHome.parentNode) _pmHome.parentNode.removeChild(_pmHome);
+  _pmNode = null; _pmHome = null;
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && _pmNode) closePostModal(); });
+document.addEventListener('click', function (e) {
+  if (!document.body.classList.contains('food-grid')) return;
+  if (document.body.classList.contains('single-post')) return;   // 1件表示のウィンドウからは開かない
+  if (_pmNode) return;                                          // ポップアップ表示中は通常操作
+  var art = e.target.closest && e.target.closest('#feed .post');
+  if (!art) return;
+  if (e.target.closest('a, button, input, textarea, select')) return;
+  e.preventDefault(); e.stopPropagation();
+  openPostModal(art);
+}, true);
+
+// ⚠️2026-08-01: 一度『別ウィンドウで開く』にしたが、新しいウィンドウが別セッション扱いになり
+//   二重ログイン(前のセッションが蹴られる)を起こしたため撤回。詳細は同一画面のポップアップで開く。
 function setTab(t) {
   _curTab = t;
   // 投稿カテゴリは選択中タブと連動 (全部タブの時は雑談を既定にしつつ、ピッカーで変更可能)
@@ -1472,6 +1690,7 @@ function setTab(t) {
   const composer = document.getElementById('composer');
   composer.classList.remove('is-food', 'is-相談', 'is-雑談', 'is-健康Tips');
   if (_curCat === '食事') composer.classList.add('is-food');
+  document.body.classList.toggle('food-grid', _curCat === '食事');   // 食事タブ=タイル一覧 (2026-08-01)
   if (_curCat === '食事') { checkBodyInfo(); try { _paintSrc(); } catch (e) {} }   // 未入力の促し + 撮影ゲートの反映
   else if (_curCat === '相談') composer.classList.add('is-相談');
   else if (_curCat === '雑談') composer.classList.add('is-雑談');
@@ -1526,6 +1745,7 @@ document.addEventListener('click', (e) => {
   const composer = document.getElementById('composer');
   composer.classList.remove('is-food', 'is-相談', 'is-雑談', 'is-健康Tips');
   if (_curCat === '食事') composer.classList.add('is-food');
+  document.body.classList.toggle('food-grid', _curCat === '食事');   // 食事タブ=タイル一覧 (2026-08-01)
   if (_curCat === '食事') { checkBodyInfo(); try { _paintSrc(); } catch (e) {} }   // 未入力の促し + 撮影ゲートの反映
   else if (_curCat === '相談') composer.classList.add('is-相談');
   else if (_curCat === '雑談') composer.classList.add('is-雑談');
@@ -1760,6 +1980,59 @@ function _pendingAsk(p) {
     const a = ns && ns.ask;
     return (Array.isArray(a) && a.length) ? a : null;
   } catch (e) { return null; }
+}
+// 📷 投稿したあとから写真を足す (2026-08-02 社長指示)
+// ⚠️ 献立を先に書いて写真を後から撮ると、以前は別投稿になり1食が2件に割れていた。
+function _postImgCount(p) {
+  let n = 0;
+  try { const a = p.image_urls ? (typeof p.image_urls === 'string' ? JSON.parse(p.image_urls) : p.image_urls) : null; if (Array.isArray(a)) n = a.length; } catch (e) {}
+  if (!n && p.image_url) n = 1;
+  return n;
+}
+function buildAddPhotoBar(p) {
+  const n = _postImgCount(p);
+  if (n >= 5) return '';
+  const label = n ? '📷 写真をもう1枚追加する' : '📷 この投稿に写真を追加する';
+  const hint = n ? '<b>追加</b>' : '<b>あとから追加</b>';
+  return '<button type="button" class="addph-btn" id="addph-' + p.id + '" onclick="addPhotoTo(' + p.id + ')">' + label + ' ' + hint + '</button>';
+}
+function addPhotoTo(id) {
+  let inp = document.getElementById('addphoto-file');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'addphoto-file'; inp.style.display = 'none';
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.onchange = function () { const f = inp.files && inp.files[0]; if (f) uploadAddPhoto(id, f); };
+  inp.click();
+}
+async function uploadAddPhoto(id, file) {
+  const btn = document.getElementById('addph-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = '📷 写真を追加して分析しています…'; }
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    const r = await api('/api/plaza/posts/' + id + '/add-photo', { method: 'POST', body: fd });
+    if (!r || !r.success) {
+      alert((r && r.msg) || '写真の追加に失敗しました');
+      if (btn) { btn.disabled = false; btn.textContent = '📷 この投稿に写真を追加する'; }
+      return;
+    }
+    const el = document.getElementById('post-' + id);
+    const p = el && el.__postData;
+    if (!p) { location.reload(); return; }
+    p.image_url = r.image_url;
+    p.image_urls = r.image_urls;
+    if (r.nutrition_scores) p.nutrition_scores = r.nutrition_scores;
+    if (r.ai_comment) p.ai_comment = r.ai_comment;
+    el.outerHTML = postHtml(p);
+    const ne = document.getElementById('post-' + id);
+    if (ne) ne.__postData = p;   // outerHTML 差し替えで消えるので付け直す
+  } catch (e) {
+    alert('通信エラー: ' + (e.message || e));
+    if (btn) { btn.disabled = false; btn.textContent = '📷 この投稿に写真を追加する'; }
+  }
 }
 function buildClarifyBar(p) {
   const ask = _pendingAsk(p);
@@ -2063,6 +2336,7 @@ function postHtml(p) {
   // 自分の食事投稿に「追加飲酒記録」UI を出す (写真に写ってない後続のドリンクを足す)
   const alcExtraBlock = (!isArchive && p.is_mine && p.category === '食事') ? buildAlcExtraBar(p) : '';
   const clarifyBlock = (!isArchive && p.is_mine && p.category === '食事') ? buildClarifyBar(p) : '';
+  const photoAddBlock = (!isArchive && p.is_mine && p.category === '食事') ? buildAddPhotoBar(p) : '';
   const archiveTag = isArchive ? '<span class="archive-tag">📦 過去アーカイブ</span>' : '';
   const anonBadge = p.is_anonymous ? (p.is_mine ? '<span class="mine-anon-tag">🎭 ニックネームで投稿中</span>' : '') : '';
   const author = p.author_name || (isArchive ? '(過去ユーザー)' : '不明');
@@ -2075,7 +2349,9 @@ function postHtml(p) {
   const promoterBlock = (!isArchive && isPromoter) ? `
     <button class="pcmt-btn" onclick="togglePromoterComments(${p.id})" title="健康管理室向け推進メンバーコメント">🩺 推進コメント</button>
     <div class="pcmts" id="pcmts-${p.id}"></div>` : '';
-  return `<article class="post ${isArchive ? 'archive' : ''}" id="post-${p.id}" data-id="${p.id}">
+  const rankCls = (p.category === '食事' && nutri) ? (' rank-' + (_lastNutriRank || 'good')) : '';
+  const rankLbl = (p.category === '食事' && nutri) ? ` data-rank-label="${escapeHtml(_lastNutriLabel || '')}"` : '';
+  return `<article class="post ${isArchive ? 'archive' : ''}${rankCls}" id="post-${p.id}" data-id="${p.id}"${rankLbl}>
     <div class="post-head">
       ${avatarBlock}
       <div class="post-meta">
@@ -2087,7 +2363,7 @@ function postHtml(p) {
     ${p.content ? `<div class="post-content">${linkify(p.content)}</div>` : ''}
     ${img}
     ${nutri}
-    ${clarifyBlock}${alcExtraBlock}
+    ${photoAddBlock}${clarifyBlock}${alcExtraBlock}
     ${!isArchive ? `<div class="post-actions">
       ${reactions}
       <button class="cmt-btn" onclick="toggleComments(${p.id})">💬 <span class="cmt-ct" id="cmt-ct-${p.id}">${cnt || ''}</span></button>

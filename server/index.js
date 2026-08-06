@@ -435,6 +435,8 @@ app.use('/api/myplan', require('./routes/myplan'));
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
+// 事故の「一報」(2026-08-06): 報告書とは別建て。運転アラートと同じループ警報で管理者へ即通知する
+app.use('/api/first-alert', require('./routes/accident_first'));
 app.use('/api/kbc', require('./routes/kbc'));
 app.use('/api/walk', require('./routes/walk'));
 app.use('/api/activity', require('./routes/activity'));
@@ -489,7 +491,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-06-postedit"
+const APP_VERSION = "2026-08-06-firstalert"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });

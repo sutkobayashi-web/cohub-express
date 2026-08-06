@@ -351,6 +351,13 @@
   .section-online .chat-row:hover { background: rgba(34,197,94,0.12); }
   .section-online .chat-row.active { background: rgba(34,197,94,0.20); }
 
+  /* 🔔 おしらせ (通知専用アカウントからのDM)。他セクションで未使用の琥珀色で、
+     「人からのメッセージ」ではなく「自動のお知らせ」だと一目で分かるようにする (2026-08-01) */
+  .section-notice { background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-left: 3px solid #f59e0b; }
+  .section-notice .chat-row { background: transparent; }
+  .section-notice .chat-row:hover { background: rgba(245,158,11,0.12); }
+  .section-notice .chat-row.active { background: rgba(245,158,11,0.20); }
+
   /* 非表示中のグループ (自分で隠したGCの集約先)。控えめなグレーで二次的扱い */
   .section-hidden { background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-left: 3px solid #94a3b8; }
   .section-hidden .list-sec-label {
@@ -376,11 +383,13 @@
   .section-dm     > .list-sec-label { background: linear-gradient(135deg,#10b981,#059669); color:#fff; }
   .section-online > .list-sec-label { background: linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
   .section-hidden > .list-sec-label { background: linear-gradient(135deg,#94a3b8,#64748b); color:#fff; }
+  .section-notice > .list-sec-label { background: linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
   .list-sec-label .sec-count { color: rgba(255,255,255,0.9); }
   .list-sec-label .sec-unread-badge { background: #fff; color: #dc2626; box-shadow: 0 1px 5px rgba(0,0,0,0.25); }
   /* 折りたたみ中のみ: コンテナの淡色を消してチップだけ見せる + チップ形状(角丸・浮き) */
   .section-group.collapsed, .section-branch.collapsed, .section-circle.collapsed,
-  .section-dm.collapsed, .section-online.collapsed, .section-hidden.collapsed {
+  .section-dm.collapsed, .section-online.collapsed, .section-hidden.collapsed,
+  .section-notice.collapsed {
     background: transparent; border-left-color: transparent;
   }
   .collapsed > .list-sec-label { border-radius: 12px; margin: 6px 8px; padding: 11px 14px; position: static; box-shadow: 0 2px 8px rgba(15,23,42,0.14); }
@@ -1288,7 +1297,7 @@
 <!-- 運転アラート/事故一報を受信するため global-notif.js を読み込む。ただし chat は自前socketを
      張るので __cohubNoGnSocket で gn の2本目socketを抑止し、cohubWireAlerts で相乗りさせる(2026-06-11)。 -->
 <script>window.__cohubNoGnSocket = true;</script>
-<script src="/global-notif.js?v=20260730c-dmname" defer></script>
+<script src="/global-notif.js?v=20260806-firstalert" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">

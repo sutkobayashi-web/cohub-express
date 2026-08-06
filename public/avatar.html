@@ -24,7 +24,7 @@
     background: linear-gradient(135deg, #f472b6, #db2777);
     color: #fff; font-weight: 800; font-size: 30px;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(219,39,119,0.25), inset 0 1px 0 rgba(255,255,255,0.30);
+    box-shadow: 0 4px 12px rgba(219,39,119,0.25);
     overflow: hidden; flex-shrink: 0;
   }
   .me-av img { width: 100%; height: 100%; object-fit: cover; }
@@ -49,7 +49,7 @@
   .upload-area .ic { font-size: 38px; line-height: 1; margin-bottom: 6px; opacity: 0.6; }
   .upload-area .lbl { font-size: 13px; font-weight: 700; color: #475569; }
   .upload-area .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
-  .upload-area img { max-width: 100%; max-height: 240px; border-radius: 10px; display: block; }
+  .upload-area img { max-width: 100%; max-height: 240px; border-radius: 14px; display: block; }
   #upload-empty { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
   /* iOS Safariは display:none の input で label クリックが効かないため、視覚的に隠すだけにする */
   #photo-input {
@@ -60,7 +60,7 @@
   .btn {
     padding: 12px 24px;
     background: linear-gradient(135deg, #db2777, #ec4899); color: #fff;
-    border: none; border-radius: 12px;
+    border: none; border-radius: 16px;
     font-size: 14px; font-weight: 800; cursor: pointer; letter-spacing: 0.5px;
     box-shadow: 0 6px 18px rgba(219,39,119,0.30);
     transition: transform 0.1s, box-shadow 0.15s;
@@ -85,7 +85,7 @@
   .cand:hover { border-color: #ec4899; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,42,0.10); }
   .cand img {
     width: 100%; aspect-ratio: 1; object-fit: cover;
-    border-radius: 12px; background: #f1f5f9;
+    border-radius: 16px; background: #f1f5f9;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
   .cand .lbl { font-size: 12px; font-weight: 700; color: #475569; margin-top: 8px; }
@@ -151,6 +151,15 @@
   #cam-msg.err { color: #fca5a5; }
 </style>
 <script src="/version-check.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
 </head>
 <body>
 
@@ -499,6 +508,7 @@ $('remove-btn').addEventListener('click', async () => {
 
 init();
 </script>
-  <script src="/translate.js" defer></script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>

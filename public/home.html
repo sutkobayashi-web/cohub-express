@@ -754,7 +754,7 @@
   }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js?v=20260730c-dmname" defer></script>
+<script src="/global-notif.js?v=20260806-firstalert" defer></script>
 <script src="/fukuri-hint.js?v=2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1052,8 +1052,13 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div class="label">通達</div>
       <div class="desc">管理部からの正式な通達。重要事項は要確認。</div>
     </a>
-    <a class="card accident" href="/accident.html">
+    <a class="card accident" href="/accident-first.html">
       <div class="icon-pill">🚨</div>
+      <div class="label">事故の一報</div>
+      <div class="desc">事故が起きたら、まずこれ。管理者の画面で警報が鳴ります（報告書は後日でOK）。</div>
+    </a>
+    <a class="card accident" href="/accident.html">
+      <div class="icon-pill">📝</div>
       <div class="label">事故報告</div>
       <div class="desc">製品事故・車両事故の報告書を作成・管理。</div>
     </a>
@@ -1321,7 +1326,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <a href="/about-cowell.html">ℹ️ CoWellについて</a>
   </div>
   <div class="copyright">
-    <img src="/assets/brand/bizterrace-logo.png?v=1" alt="BIZ-TERRACE">
+    <img src="/assets/brand/bizterrace-logo.png?v=3" alt="BIZ-TERRACE">
     <span>CoWell &copy; 2026 ビズテラス株式会社　All rights reserved.</span>
   </div>
 </div>
@@ -1984,6 +1989,17 @@ async function init() {
   me = r.user;
   // 他ページ(plaza等)が読む cohub_user キャッシュを最新化 (別アカウントのログイン残りで古い表示になる事故を防ぐ)
   try { localStorage.setItem('cohub_user', JSON.stringify(me)); } catch (e) {}
+  /* ⭐2026-08-06 (社長): マイページで選んだ言語を人に付いて回らせる。端末の localStorage だけで
+     決めていたため、別の端末では日本語のままだった(通達・DMも日本語表示)。 */
+  try {
+    if (me.lang && me.lang !== 'ja' && localStorage.getItem('cohub_lang') !== me.lang) {
+      localStorage.setItem('cohub_lang', me.lang);
+      let _t = 0; const _ap = setInterval(() => {
+        if (window.cohubSetLang) { clearInterval(_ap); try { window.cohubSetLang(me.lang); } catch (e) {} }
+        else if (++_t > 40) clearInterval(_ap);
+      }, 150);
+    }
+  } catch (e) {}
   // ★詳細ページ(/home)は 事務職員/健康推進メンバー/役員/管理職 のみ。
   //   現場一般(ドライバー/倉庫/製造)はスマホ簡単版(tablet-home)に限定する(社長方針 2026-07-24)。
   //   以前の「詳しい表示」オプトイン(cohub_view_pref)は廃止=現場一般は詳細に入れない。
@@ -2051,6 +2067,7 @@ async function init() {
   try { loadTodos(); } catch (e) { console.warn('[todo]', e); }
   // 共用タブレット(キオスク)では機微な個人カードを非表示にする (会社メール/個人の健康詳細)。
   // 同僚にPINを覗かれた等の万一でも、最も見られたくない面は端末に出さない多層防御。毎日の体調チェック(入力)・食事投稿は目的なので残す。
+  // ⚠️2026-08-05: 会社メールは「簡単版には実装しない」(社長)。タブレット系では出さない方針でここも従来どおり隠す。
   try {
     var _kt = localStorage.getItem('cohub_kiosk_token');
     var _isKiosk = localStorage.getItem('cohub_kiosk') === '1' && _kt && _kt === localStorage.getItem('cohub_token');
