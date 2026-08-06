@@ -476,6 +476,11 @@
   .tthumbwrap{position:relative}
   .tthumb.soc-txt{background:#eef2f7;color:#9aa6b4;font-size:40px}
   .meal{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;font-weight:800;padding:3px 9px;border-radius:999px;z-index:2}
+  /* ⭐「よい一皿です」の合図: なぎさの○ポーズをサムネ右上に貼る (2026-08-07 社長)。
+     ⚠️良いときだけ出す。⚠️左上=区分ラベル / 下辺=直したいのは の帯 と重ならない位置に置く。 */
+  .tthumbwrap .goodstamp{position:absolute;top:6px;right:6px;width:78px;height:78px;border-radius:50%;
+    object-fit:cover;background:#fff;border:3px solid #0ca30c;z-index:4;
+    box-shadow:0 0 0 2px #fff, 0 2px 7px rgba(0,0,0,.3)}   /* 白縁=暗い料理写真の上でも輪郭が消えない */
   .ttitle.sm{font-size:15.5px;font-weight:700;line-height:1.42;max-height:2.9em;overflow:hidden}
   .anon{font-size:12.5px;font-weight:800;color:#8a7d66}
   .likebtn{margin-left:auto;background:#fff;border:1.5px solid #e5b3c4;color:#d23b6a;font-weight:900;font-size:16px;padding:5px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
@@ -2663,19 +2668,25 @@ function reactTotal(rx){ var t=0; if(rx){ for(var k in rx){ t+=(rx[k]||0); } } r
 function myLiked(p){ return !!(p.my_reactions && (p.my_reactions['❤️']||p.my_reactions['👍'])); }
 // 食事(ひろば)カード=タップで詳細ポップアップ(写真原寸＋AIまとめ＋音声)。カード面のサムネはトリミング(cover)で揃える。
 function plazaTile(p,i){
-  var thumb = p.image_url
-    ? '<div class="tthumbwrap"><div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>'+(p.meal_type?'<span class="meal">'+mealLabel(p.meal_type)+'</span>':'')+'</div>'
-    : '<div class="tthumb soc-txt">🎭</div>';
-  var body=esc(String(p.content||''));
-  // 共用タブレットは実名を出さない: 🎭で始まる匿名名のみ許可、それ以外は「🎭 匿名」に伏せる。
-  var who=(p.author_name && /^🎭/.test(p.author_name)) ? p.author_name : '🎭 匿名';
-  var hasAI=!!String(p.ai_comment||'').trim();
   var isMeal=!!(p.meal_type)||p.category==='食事';
   // ⭐2026-08-01 (社長): PC版のサムネに統一。食事は『ランクの帯＋写真＋本人コメント＋直したいのは』。
   var rank='', rlabel='', concl='';
   if(isMeal && p.nutrition_scores){
     try{ buildNutritionBar(p.nutrition_scores, !!p.is_mine); rank=_lastNutriRank||'good'; rlabel=_lastNutriLabel||''; concl=_lastNutriAct||''; }catch(e){}
   }
+  /* ⭐2026-08-07 (社長): 「よい一皿です」(rank=good)のときだけ、なぎさが○(まる)を出している写真を
+     サムネの右上に重ねる。文字を読まなくても【一目で良い】と分かるようにするのが狙い。
+     ⚠️良い時だけ。他のランクには何も出さない(全部に出すと合図にならない)。
+     ⚠️左上は区分(🍱昼)、下辺は『直したいのは』の帯が既に居るので、置けるのは右上だけ。 */
+  var stamp = (isMeal && rank==='good')
+    ? '<img class="goodstamp" src="/assets/nagisa_good.png?v=1" alt="よい一皿です" loading="lazy">' : '';
+  var thumb = p.image_url
+    ? '<div class="tthumbwrap"><div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>'+(p.meal_type?'<span class="meal">'+mealLabel(p.meal_type)+'</span>':'')+stamp+'</div>'
+    : '<div class="tthumb soc-txt">🎭</div>';
+  var body=esc(String(p.content||''));
+  // 共用タブレットは実名を出さない: 🎭で始まる匿名名のみ許可、それ以外は「🎭 匿名」に伏せる。
+  var who=(p.author_name && /^🎭/.test(p.author_name)) ? p.author_name : '🎭 匿名';
+  var hasAI=!!String(p.ai_comment||'').trim();
   // 一言は写真の下辺に重ねる=タイルの高さを増やさずに『直したい点』を出す (2026-08-01 社長)
   if(concl && p.image_url) thumb = thumb.replace('</div>', '<div class="fixline">'+esc(concl)+'</div></div>');
   var band = isMeal
