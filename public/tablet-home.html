@@ -230,6 +230,8 @@
   .btn-nav:active{transform:translateY(2px);box-shadow:0 1px 0 #b7c0cc}
   .opt.sel{outline:4px solid #0ea5e9;outline-offset:-3px}
   .fat-lead-s{font-size:18px;color:#556;text-align:center;margin:-6px 0 10px}
+  /* 乗務前の安全三箇条(ドライバーのみ)。⚠️壁のステッカー画像をそのまま出す＝掲示と同じものを見せる */
+  .sk3img{display:block;width:100%;max-width:860px;margin:8px auto 16px;border-radius:16px;border:2px solid #f0d264;box-shadow:0 3px 0 rgba(0,0,0,.08)}
   /* 送信前の確認。⚠️1画面に収める。異常あり等でメモ行が増えた時だけ一覧側が縦に伸びるので、
      一覧に max-height を持たせて**送信ボタンは必ず見えている**ようにする(ボタンを探してスクロール、を作らない)。 */
   .q.q-sm{font-size:24px;margin:4px 0 8px}
@@ -2015,7 +2017,29 @@ async function openHealth(){
   // 今日すでに入力済みなら、いきなり再入力させず音声で確認する
   var t=await api('/api/tenko/my-today');
   if(t&&t.success&&t.done){ confirmReHealth(); return; }
+  // ⭐ドライバーは乗務前に安全三箇条を挟む(2026-08-07 社長指示)
+  if(kikoKind()==='driver'){ sankajoStep(); return; }
   startHealth();
+}
+/* ===== 乗務前の 安全三箇条 (2026-08-07 社長指示) =====
+   ⭐ドライバー職だけ、朝の体調チェック(=乗務前の点呼)に入る前に葵が読み上げる。
+   ⚠️文言と並びは壁のステッカー(`/assets/sankajo_sticker.png`)そのもの＝現場で見ているものと同じにする
+     (作り直すと掲示と食い違う)。事故の傾向でも バック時目視確認 の違反が最も多い。
+   ⚠️「社速」は そのままだと読み間違えるので、speak の第3引数(読み)で ふりがなを渡す。
+   ⚠️再入力(今日すでに実施済み→もう一度)のときは出さない。毎回2度読ませない。 */
+function sankajoStep(){
+  bumpIdle(); aoiSetClip('caution');
+  openModal('🚧 安全三箇条',
+    '<div class="q q-sm">乗務の前に 安全三箇条の 確認です</div>'+
+    '<img class="sk3img" src="/assets/sankajo_sticker.png?v=1" alt="安全三箇条 速度・車間距離・バック時">'+
+    '<button class="btn-go" onclick="startHealth()">確認しました</button>');
+  logUsage('view:安全三箇条');
+  speak('乗務の前に、安全三箇条の 確認です。ひとつ、速度。社速・法定速度を 守る。'+
+        'ふたつ、車間距離。車間距離を 充分に 空ける。みっつ、バック時。バック時は 降りて 確認。'+
+        '今日も 安全運転で お願いします。', null,
+        'じょうむの まえに、あんぜんさんかじょうの かくにんです。ひとつ、そくど。しゃそく・ほうていそくどを まもる。'+
+        'ふたつ、しゃかんきょり。しゃかんきょりを じゅうぶんに あける。みっつ、バックのとき。バックのときは おりて かくにん。'+
+        'きょうも あんぜんうんてんで おねがいします。');
 }
 async function startHealth(){ aoiSetClip('talk'); hcIdx=0; hcAns={}; bpVal={sys:null,dia:null,pulse:null}; openModal('🩸 体調チェック','<div class="empty">読み込み中…</div>'); await loadHealthItems(); healthStep(); }
 function confirmReHealth(){
