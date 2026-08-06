@@ -15,8 +15,10 @@
   header .title { font-weight: 800; font-size: 16px; }
   header .addr { margin-left: auto; font-size: 11px; opacity: 0.9; }
   header .gear { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: #fff; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 15px; }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 12px; }
-  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+  /* ⭐2026-08-06 (社長「タブレットで開くと貧相」): 一覧は画面幅を使う。
+     ⚠️設定・作成のカードは読みやすさ優先で従来どおり820pxに留める(横に伸ばすと逆に読みにくい)。 */
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 12px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); max-width: 820px; margin-left: auto; margin-right: auto; }
   .setup h2 { margin: 0 0 6px; font-size: 16px; }
   .setup p { color: #475569; font-size: 13px; margin: 4px 0 14px; }
   .setup label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin: 10px 0 4px; }
@@ -40,22 +42,29 @@
   .toolbar button { background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
   .toolbar .cnt { margin-left: auto; font-size: 12px; color: #64748b; }
   .mlist { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
-  .mrow { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; align-items: center; }
+  /* 日付の区切り(今日/昨日/今週/…)。一覧に区切りが無いと ただ並んでいるだけに見えるため */
+  .mgrp { padding: 7px 16px; background: #f8fafc; border-bottom: 1px solid #eef2f7; font-size: 12px; font-weight: 800; color: #64748b; }
+  .mgrp:first-child { border-top: none; }
+  .mrow { display: flex; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; align-items: center; }
   .mrow:last-child { border-bottom: none; }
   .mrow:hover { background: #f8fafc; }
-  .mrow.unseen { background: #f0fdfa; }
-  .m-av { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e2e8f0; }
-  .m-av-gen { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 15px; }
+  /* 未読は背景だけだと弱いので左に帯を入れる(レイアウトをずらさない inset shadow) */
+  .mrow.unseen { background: #f0fdfa; box-shadow: inset 4px 0 0 #0d9488; }
+  .m-av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e2e8f0; }
+  .m-av-gen { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 17px; }
   .m-main { flex: 1; min-width: 0; }
   .m-top { display: flex; align-items: baseline; gap: 8px; }
-  .m-top .who { flex: 1; font-size: 13px; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .m-top .dt { font-size: 11px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
-  .mrow.unseen .who, .mrow.unseen .subj { font-weight: 800; color: #0f172a; }
-  .mrow .subj { font-size: 13px; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-  .mrow .pin { color: #0d9488; font-size: 11px; }
-  .m-badge { font-size: 9px; background: #0d9488; color: #fff; border-radius: 8px; padding: 1px 5px; font-weight: 700; vertical-align: middle; margin-left: 4px; }
-  .m-act { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; align-self: center; }
-  .m-act button { background: transparent; border: none; cursor: pointer; font-size: 15px; padding: 3px 5px; border-radius: 10px; opacity: 0.5; line-height: 1; }
+  .m-top .who { flex: 1; font-size: 14px; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-top .dt { font-size: 12px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
+  .mrow.unseen .who { color: #0f172a; font-weight: 800; }
+  /* 件名が主役。差出人より大きくする */
+  .mrow .subj { font-size: 16px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
+  .mrow.unseen .subj { font-weight: 800; color: #0f172a; }
+  .m-chip { display: inline-block; font-size: 11px; font-weight: 700; color: #0f766e; background: #ccfbf1; border-radius: 8px; padding: 1px 7px; margin-left: 6px; vertical-align: middle; }
+  .m-badge { font-size: 11px; background: #0d9488; color: #fff; border-radius: 8px; padding: 1px 7px; font-weight: 700; vertical-align: middle; margin-left: 6px; }
+  /* ⚠️タブレットはタッチペン運用。ゴミ箱/迷惑は横並びで大きめに(縦2段の小さいボタンは狙えない) */
+  .m-act { display: flex; gap: 4px; flex-shrink: 0; align-self: center; }
+  .m-act button { background: transparent; border: none; cursor: pointer; font-size: 18px; padding: 8px 9px; border-radius: 12px; opacity: 0.45; line-height: 1; }
   .m-act button:hover { opacity: 1; background: #fee2e2; }
   .empty { padding: 40px 16px; text-align: center; color: #94a3b8; font-size: 14px; }
   /* detail overlay */
@@ -85,8 +94,8 @@
   /* Gmail風: 左にフォルダ縦一覧 + 右にメール一覧 */
   .mailsplit { display: flex; gap: 12px; align-items: flex-start; }
   .mailsplit .mlist { flex: 1 1 auto; min-width: 0; }
-  #folderbar { flex: 0 0 190px; display: flex; flex-direction: column; gap: 2px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 8px; max-height: calc(100vh - 170px); overflow-y: auto; }
-  .fld-row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: none; background: transparent; border-radius: 12px; padding: 9px 10px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; }
+  #folderbar { flex: 0 0 210px; display: flex; flex-direction: column; gap: 2px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 8px; max-height: calc(100vh - 170px); overflow-y: auto; }
+  .fld-row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: none; background: transparent; border-radius: 12px; padding: 11px 10px; font-size: 14px; font-weight: 700; color: #334155; cursor: pointer; }
   .fld-row:hover { background: #f1f5f9; }
   .fld-row.active { background: #0d9488; color: #fff; }
   .fld-row .fld-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -259,6 +268,19 @@ function linkify(escaped) {
     return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color:#0d9488;word-break:break-all;">' + url + '</a>' + trail;
   });
 }
+// 一覧の日付見出し。今日/昨日/今週/今月/それ以前は「YYYY年M月」
+function dateGroup(s) {
+  if (!s) return 'その他';
+  const d = new Date(s); if (isNaN(d)) return 'その他';
+  const now = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  if (diff <= 0) return '今日';
+  if (diff === 1) return '昨日';
+  if (diff < 7) return '今週';
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return '今月';
+  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
+}
 function fmtDate(s) {
   if (!s) return '';
   try {
@@ -419,7 +441,7 @@ function rowHtml(m) {
     + mailAvatarHtml(m)
     + '<div class="m-main">'
     +   '<div class="m-top"><span class="who">' + (m.seen ? '' : '● ') + who + (m.is_member ? '<span class="m-badge">社内</span>' : '') + '</span><span class="dt">' + fmtDate(m.date) + '</span></div>'
-    +   '<div class="subj">' + esc(m.subject) + (m.attach ? ' <span class="pin">📎</span>' : '') + '</div>'
+    +   '<div class="subj">' + esc(m.subject) + (m.attach ? '<span class="m-chip">📎 添付</span>' : '') + '</div>'
     + '</div>'
     + act
     + '</div>';
@@ -596,7 +618,13 @@ function renderInbox() {
   $('cnt').textContent = '最新 ' + scanned + ' 件を対象（全 ' + mailTotal + ' 件）';
   renderFolderBar();
   if (!mailItems.length) { $('mlist').innerHTML = '<div class="empty">このフォルダにメールはありません</div>'; return; }
-  let html = mailItems.map(rowHtml).join('');
+  // 日付で区切りを入れる。⚠️並び順はサーバーから来た順のまま(並べ替えない)。
+  let html = '', lastGrp = null;
+  for (const m of mailItems) {
+    const g = dateGroup(m.date);
+    if (g !== lastGrp) { html += '<div class="mgrp">' + esc(g) + '</div>'; lastGrp = g; }
+    html += rowHtml(m);
+  }
   // さらに過去のメールも振り分け対象に含める (scanを拡大)
   if (scanCount < mailTotal && scanCount < 400) {
     html += '<div style="padding:12px;text-align:center;"><button id="moreBtn" onclick="loadMore()" style="background:#eef2f7;border:1px solid #cbd5e1;border-radius:12px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">🔽 もっと過去のメールも読み込む</button></div>';
