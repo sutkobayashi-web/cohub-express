@@ -480,9 +480,11 @@
      ⚠️良いときだけ出す。⚠️左上=区分ラベル / 下辺=直したいのは の帯 と重ならない位置に置く。 */
   /* ⚠️背景は透過PNG(腰から上の切り抜き)。⚠️置き場所は**写真の上ではなくコメント枠の右**
      (2026-08-07 社長)。付箋の黄色に直接立たせるので、白フチは要らず 影だけで浮かせる。 */
-  .tmeta.withgood{display:flex;align-items:flex-end;gap:8px}
-  .tmeta.withgood .mtxt{flex:1;min-width:0}
-  .goodstamp{width:58px;height:auto;flex:0 0 auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
+  /* ⚠️右端に寄せると窮屈だったので、コメント枠の**真ん中**に立たせる(2026-08-07 社長)。
+     文字は従来どおり左揃えのまま(中央揃えにすると読みにくい)。 */
+  .tmeta.withgood{text-align:center}
+  .tmeta.withgood .mtxt{text-align:left}
+  .goodstamp{display:block;width:64px;height:auto;margin:0 auto 4px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
   .ttitle.sm{font-size:15.5px;font-weight:700;line-height:1.42;max-height:2.9em;overflow:hidden}
   .anon{font-size:12.5px;font-weight:800;color:#8a7d66}
   .likebtn{margin-left:auto;background:#fff;border:1.5px solid #e5b3c4;color:#d23b6a;font-weight:900;font-size:16px;padding:5px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
@@ -2701,7 +2703,7 @@ function plazaTile(p,i){
     '<button class="likebtn'+(myLiked(p)?' on':'')+'" onclick="event.stopPropagation();reactPost(\'plaza\','+p.id+',this)">♡ <span class="n">'+reactTotal(p.reactions)+'</span></button></div>';
   return '<div class="tile soc'+(isMeal?' postit-food':'')+(isMeal&&rank?' rk-'+esc(rank):'')+'" style="border-color:'+(isMeal?'#efd968':'#e5b3c4')+'" onclick="openPlaza('+i+')">'+band+thumb+
     (hasAI?'<span class="aibadge">🩺 AI</span>':'')+
-    '<div class="tmeta'+(stamp?' withgood':'')+'">'+(stamp?('<div class="mtxt">'+meta+'</div>'+stamp):meta)+'</div></div>';
+    '<div class="tmeta'+(stamp?' withgood':'')+'">'+(stamp?(stamp+'<div class="mtxt">'+meta+'</div>'):meta)+'</div></div>';
 }
 // 一般の掲示板投稿(サークル以外)。共用タブレットの匿名ルールで実名は出さず「掲示板」ラベル。
 // ⚠️添付がPDFのとき image_url は .pdf。<img src="~.pdf"> は絶対に表示されないので pdfThumbHtml を通す(2026-07-26)。
