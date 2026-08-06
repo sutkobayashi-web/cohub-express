@@ -150,10 +150,10 @@
   .c-logout{background:linear-gradient(135deg,#ef4444,#b91c1c)}
   /* 帰庫点呼(乗務後) 2026-07-09。⚠️2026-08-06に1問1画面へ移行し、選択肢は体調チェックと共通の
      .opts/.opt(大ボタン)を使う。旧 .kiko-sec/.kiko-q/.kiko-opts/.kiko-note は撤去した。 */
-  .fat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
-  .fat-btn{padding:14px 0;font-size:21px;font-weight:800;border:2px solid #cfd8e0;border-radius:12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08)}
-  .fat-btn.sel{outline:3px solid #0ea5e9;outline-offset:-2px;transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
-  .fat-ends{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#94a3b8;margin:4px 2px 0}
+  /* 疲労度・体調・心の調子。⚠️2026-08-06に「0〜10の数字」→「言葉で選ぶ5択」に変更した
+     (数字を選ぶのに戸惑うという声。保存する値は従来どおり0〜10の整数)。
+     選択肢が5つと多いので、他の質問の .opt より少しだけ詰めて1画面に収める。 */
+  .opts.sc .opt{padding:15px;font-size:23px}
   /* マイページ(かんたんモード) 2026-07-09 */
   .mp-head{display:flex;align-items:center;gap:14px;padding:2px 2px 14px;border-bottom:1px solid #e5e9ef;margin-bottom:16px}
   .mp-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.15);flex:0 0 auto;background:#eef}
@@ -917,7 +917,7 @@
       <div class="qg-box">
         <div class="qg-ttl">スマホでも 見られます</div>
         <img class="qg-qr" id="qgQr" src="/assets/byod_qr.png?v=1" alt="CoWell QR">
-        <div class="qg-sub">カメラで よみとってください</div>
+        <div class="qg-sub">カメラで 読み取ってください</div>
       </div>
       <img class="qg-person" src="/assets/health_qr_guide.png?v=1" alt="">
     </div>
@@ -1470,7 +1470,7 @@ function stripHtml(){
     '<div class="mgroup"><div class="mglabel">📝 申請</div><div class="mgchips">'+
       '<button class="mchip c-apply" onclick="goApply()"><span class="ico">📋</span>仮払金の申請</button>'+
       '<button class="mchip c-apply-pay" onclick="goExpense()"><span class="ico">💰</span>立替の精算</button>'+
-      '<button class="mchip c-apply-list" onclick="goApplyList()"><span class="ico">📄</span>申請のようす</button>'+
+      '<button class="mchip c-apply-list" onclick="goApplyList()"><span class="ico">📄</span>申請の状況</button>'+
     '</div></div>' : '')+
     // ⭐ログアウトも同じ「枠＋見出し」のかたまりにして、横ボタン群の一番右(QRの左隣)に並べる。
     //   ⚠️スマホは名前の行のログアウト(.btn-logout.phone-only)を使うので、この枠は隠す(.no-phone)。
@@ -1532,7 +1532,7 @@ async function loadNotices(){
   //     📁過去の読んだ通達 と同じ「あとから見る場所」に寄せること(トップには戻さない)。
   if(!un.length){ el.innerHTML=''; return; }
   el.innerHTML='<button onclick="openNotices()" style="width:100%;box-sizing:border-box;background:#fffbeb;border:2px solid #f59e0b;border-radius:16px;padding:15px;margin-bottom:12px;text-align:left;cursor:pointer;color:#92400e">'
-    +'<div style="font-size:18px;font-weight:800">🔔 あなたへの おしらせが '+un.length+'件 あります</div>'
+    +'<div style="font-size:18px;font-weight:800">🔔 あなたへの お知らせが '+un.length+'件 あります</div>'
     +'<div style="font-weight:600;font-size:14px;margin-top:4px">タップして 内容を ごらんください</div></button>';
 }
 function noticeItemHtml(it){
@@ -1551,8 +1551,8 @@ function openNotices(){
   var un=NOTICES.filter(function(x){return x.unread;});
   var list=(un.length?un:NOTICES).map(noticeItemHtml).join('');
   var btn=un.length? '<button onclick="markNoticesRead(this)" style="width:100%;margin-top:6px;background:#d97706;color:#fff;border:none;border-radius:12px;padding:15px;font-size:18px;font-weight:800;cursor:pointer">読みました</button>' : '';
-  openModal('🔔 おしらせ', list+btn);
-  try{ speak(un.length? ('おしらせが '+un.length+'件 あります。') : 'これまでの おしらせです。'); }catch(e){}
+  openModal('🔔 お知らせ', list+btn);
+  try{ speak(un.length? ('お知らせが '+un.length+'件 あります。') : 'これまでの お知らせです。'); }catch(e){}
 }
 async function markNoticesRead(btn){
   var ids=NOTICES.filter(function(x){return x.unread;}).map(function(x){return x.id;});
@@ -1571,7 +1571,7 @@ async function loadGuidance(){
   var el=$('guidanceBanner'); if(!el) return;
   if(PENDING_GUIDANCE.length){
     el.innerHTML='<button onclick="openGuidance()" style="width:100%;box-sizing:border-box;background:#fee2e2;border:2px solid #dc2626;border-radius:16px;padding:15px;margin-bottom:12px;text-align:left;cursor:pointer;color:#991b1b">'
-      +'<div style="font-size:18px;font-weight:800">🚫 運行管理者から だいじな お知らせが '+PENDING_GUIDANCE.length+'件 あります</div>'
+      +'<div style="font-size:18px;font-weight:800">🚫 運行管理者から 大事な お知らせが '+PENDING_GUIDANCE.length+'件 あります</div>'
       +'<div style="font-weight:600;font-size:14px;margin-top:4px">タップして 内容を 確認してください</div></button>';
   } else { el.innerHTML=''; }
 }
@@ -1688,7 +1688,7 @@ function openHealthMenu(){
     ['🏥','健康管理室',"location.href='/wellness.html'"],
     ['📝','マイプラン',"location.href='/myplan.html'"],
     ['📈','栄養レポート',"openFoodReport()"],
-    ['📐','からだの情報',"openBodyInfo()"],
+    ['📐','体の情報',"openBodyInfo()"],
     ['🧠','健康リテラシー',"location.href='/health-literacy.html'"],
     ['🌡️','熱中症ガイド',"location.href='/heat-guide/index.html'"]
   ];
@@ -1710,16 +1710,16 @@ async function openBodyInfo(){
   var lab='display:block;font-size:15px;font-weight:800;color:#334155;margin-bottom:6px;';
   var inp='width:100%;font-size:20px;padding:12px 14px;border:2px solid #b6d9d2;border-radius:14px;background:#fff;color:#0f172a;box-sizing:border-box;';
   var html='<div style="max-width:620px;font-size:18px;line-height:1.7;color:#0f172a;">'
-    +'<p style="margin:0 0 16px;">食事しんだんを <b>あなたに合わせて</b> より正確にします。にゅうりょくは <b>すべて任意</b> です。</p>'
+    +'<p style="margin:0 0 16px;">食事診断を <b>あなたに合わせて</b> より正確にします。入力は <b>すべて任意</b> です。</p>'
     +'<div style="'+fld+'"><label style="'+lab+'">性別</label><select id="tb-sex" style="'+inp+'"><option value="">未設定</option><option value="male"'+sel('male')+'>男性</option><option value="female"'+sel('female')+'>女性</option></select></div>'
-    +'<div style="'+fld+'"><label style="'+lab+'">身長 (cm)</label><input id="tb-h" type="number" inputmode="decimal" min="100" max="230" step="0.1" value="'+(d.height_cm!=null?d.height_cm:'')+'" placeholder="れい: 170" style="'+inp+'"></div>'
-    +'<div style="'+fld+'"><label style="'+lab+'">体重 (kg)</label><input id="tb-w" type="number" inputmode="decimal" min="25" max="250" step="0.1" value="'+(d.weight_kg!=null?d.weight_kg:'')+'" placeholder="れい: 65" style="'+inp+'"></div>'
+    +'<div style="'+fld+'"><label style="'+lab+'">身長 (cm)</label><input id="tb-h" type="number" inputmode="decimal" min="100" max="230" step="0.1" value="'+(d.height_cm!=null?d.height_cm:'')+'" placeholder="例: 170" style="'+inp+'"></div>'
+    +'<div style="'+fld+'"><label style="'+lab+'">体重 (kg)</label><input id="tb-w" type="number" inputmode="decimal" min="25" max="250" step="0.1" value="'+(d.weight_kg!=null?d.weight_kg:'')+'" placeholder="例: 65" style="'+inp+'"></div>'
     +'<div style="'+fld+'"><label style="'+lab+'">ふだんの 活動量</label><select id="tb-pal" style="'+inp+'"><option value="1.5"'+(palv==='1.5'?' selected':'')+'>運転・すわり仕事が中心</option><option value="1.75"'+(palv==='1.75'?' selected':'')+'>立ち仕事・軽作業もある</option><option value="2"'+(palv==='2'?' selected':'')+'>よく動く・力仕事が多い</option></select></div>'
     +'<button onclick="saveTabletBody()" style="width:100%;font-size:20px;font-weight:800;color:#fff;background:linear-gradient(135deg,#0e7d67,#0891b2);border:none;border-radius:16px;padding:16px;margin-top:6px;cursor:pointer;">保存する</button>'
     +'<div id="tb-msg" style="margin-top:12px;font-weight:800;font-size:16px;min-height:20px;"></div>'
     +'</div>';
-  openModal('📐 からだの情報', html);
-  speak('からだの 情報です。性別や 身長、体重を 入れると、食事の しんだんが あなた向けに なります。にゅうりょくは 任意です。');
+  openModal('📐 体の情報', html);
+  speak('体の 情報です。性別や 身長、体重を 入れると、食事の 診断が あなた向けに なります。入力は 任意です。');
 }
 async function saveTabletBody(){
   var payload={ sex:$('tb-sex').value, height_cm:$('tb-h').value, weight_kg:$('tb-w').value, activity_pal:$('tb-pal').value };
@@ -1846,7 +1846,7 @@ function openExercise(){
   _exType='walk';
   subPanel('🏃 運動記録', exerciseFormHtml());
   paintExType();
-  speak('運動を 記録します。種目を えらんで、運動した 時間を 入れて、記録するを 押してください。');
+  speak('運動を 記録します。種目を 選んで、運動した 時間を 入れて、記録するを 押してください。');
 }
 function exerciseFormHtml(){
   var grid='<div class="ex-grid">'+EX_TYPES.map(function(t){
@@ -1908,7 +1908,7 @@ async function loadBoard(){
     '<div class="bd-mrow"><div><div class="bmn">'+((d.me&&d.me.count)||0)+'</div><div class="bml">'+unit+'数</div></div>'+
     '<div><div class="bmn">'+((d.me&&d.me.streak)||0)+'</div><div class="bml">連続日数</div></div></div></div>';
   $('mbody').innerHTML=tabs+total+rank+me+
-    '<button class="btn-go btn-sub" style="font-size:20px" onclick="readBoard()">🔊 よみあげる</button>';
+    '<button class="btn-go btn-sub" style="font-size:20px" onclick="readBoard()">🔊 読み上げる</button>';
   // 自動で一度読み上げ
   readBoard();
 }
@@ -1975,7 +1975,7 @@ function renderFoodReport(o){
   if(r.future_warning) html+='<div class="fr-sec fr-warn"><h3>⚠️ このまま 続くと…</h3><p>'+esc(r.future_warning)+'</p></div>';
   if(r.cheer) html+='<div class="fr-cheer">'+esc(r.cheer)+'</div>';
   _foodReadText=[r.summary,r.nutrition_analysis,r.future_warning,r.cheer].filter(Boolean).join(' ');
-  $('mbody').innerHTML=html+'<button class="btn-go btn-sub" style="font-size:20px" onclick="readFood()">🔊 よみあげる</button>';
+  $('mbody').innerHTML=html+'<button class="btn-go btn-sub" style="font-size:20px" onclick="readFood()">🔊 読み上げる</button>';
   bumpIdle();
   if(_foodReadText) speak(_foodReadText.slice(0,600));
 }
@@ -2032,7 +2032,7 @@ function bpForm(){
   bumpIdle();
   bpIn={sys:'',dia:'',pulse:''}; bpField='sys';
   bpRender();
-  speak('血圧の 数字を 押して ください。上を 入れたら、下、脈拍と じどうで 進みます。');
+  speak('血圧の 数字を 押して ください。上を 入れたら、下、脈拍と 自動で 進みます。');
 }
 function bpRender(){
   var keys='';
@@ -2077,7 +2077,7 @@ async function submitHealth(){
     // 体調チェックの最後に「帰る前の申告」を葵が促す(トップ画面のバナーは廃止しここに集約)。
     // ドライバー=帰庫点呼 / 倉庫・製造・事務=帰る前のチェック(2026-07-27 全職種へ展開)。
     if(kikoKind()==='driver'){ sub += ' そして夕方、お仕事を終えて帰庫したら、忘れずに『帰庫点呼』をお願いします。その時に、通達やお知らせもゆっくり見ていってくださいね。'; }
-    else { sub += ' そして お帰りの まえに、『帰る前の チェック』も おねがいします。その時に、通達やお知らせも ゆっくり 見ていってくださいね。'; }
+    else { sub += ' そして お帰りの 前に、『帰る前の チェック』も お願いします。その時に、通達やお知らせも ゆっくり 見ていってくださいね。'; }
     // 健康点検だけで終わらせない: 通達・営業所の連絡・未読メッセージを葵が読み上げてから完了。
     briefingStep(function(){ doneScreen('体調チェックが 終わりました！', sub, emo); });
   } else {
@@ -2518,8 +2518,8 @@ function paintBoard(){
   paginateZone(damage,'🚨 事故・破損','#c2410c',_n('タップすると くわしい 内容が 出ます', _boardDamage.length),vp,pageH,NCOL,GAP,_pagesByTab.damage);
   // 労働安全は 3列×2行=1ページ6枚の固定グリッド(社長指示 2026-07-26)。資料は同じ大きさで並ぶほうが探しやすい。
   // ⚠️スマホ縦(IS_PHONE)は1カラム縦スクロールなのでグリッドにせず従来どおり積む。
-  if(IS_PHONE) paginateZone(safety,'🦺 労働安全','#0369a1','タップすると 資料が ひらきます',vp,pageH,NCOL,GAP,_pagesByTab.safety);
-  else paginateGrid(safety,'🦺 労働安全','#0369a1',_n('タップすると 資料が ひらきます（✕とじる で戻れます）', _boardSafety.length),3,2,_pagesByTab.safety);
+  if(IS_PHONE) paginateZone(safety,'🦺 労働安全','#0369a1','タップすると 資料が 開きます',vp,pageH,NCOL,GAP,_pagesByTab.safety);
+  else paginateGrid(safety,'🦺 労働安全','#0369a1',_n('タップすると 資料が 開きます（✕閉じる で戻れます）', _boardSafety.length),3,2,_pagesByTab.safety);
   var _vio=_boardArchive.filter(function(r){ return !!archiveSankajo(r); }).length;
   paginateZone(archive,'📚 過去の事例','#6d28d9',
     '過去の事例 全'+_boardArchive.length+'件 ／ うち 安全三箇条に ちがいが あったもの '+_vio+'件',
@@ -2733,7 +2733,7 @@ function openReportQr(){
   openOverlay('📝 報告書を 書く',
     '<div style="font-size:18px;line-height:1.7;color:#334155;margin-bottom:12px">'+
       'ご自分の スマホの カメラで 読んでください。<br>'+
-      '<b>読む → 自分の名前を えらぶ → PIN</b> で 報告書の 入力画面が ひらきます。'+
+      '<b>読む → 自分の名前を 選ぶ → PIN</b> で 報告書の 入力画面が 開きます。'+
     '</div>'+
     '<div style="display:flex;gap:12px;flex-wrap:wrap">'+card('product','📦','製品の破損')+card('vehicle','🚗','車両の事故')+'</div>'+
     '<div style="font-size:16px;color:#64748b;margin-top:12px;line-height:1.6">'+
@@ -3101,7 +3101,7 @@ function openPdfViewer(fp,title,icon){
   var ov=document.createElement('div'); ov.id='pdfOverlay'; ov.className='pdfov';
   ov.innerHTML='<div class="pdfbar"><div class="pdft">'+esc((icon||'📄')+' '+(title||'資料'))+'</div>'+
       '<a class="pdfx orig" href="'+esc(fp)+'" target="_blank" rel="noopener">📄 元のPDF</a>'+
-      '<button class="pdfx" onclick="closePdfViewer()">✕ とじる</button></div>'+
+      '<button class="pdfx" onclick="closePdfViewer()">✕ 閉じる</button></div>'+
       '<div class="pdfpages" id="pdfPages"><div class="pdfload">読み込み中…</div></div>';
   document.body.appendChild(ov);
   var host=ov.querySelector('#pdfPages'); host.innerHTML='';
@@ -3812,7 +3812,27 @@ function kikoEquipLabel(kind){
        : kind==='warehouse' ? '⚙️ 設備・荷の 異常'
        : '⚙️ 設備・製品の 異常';
 }
-// 職種ごとの質問の並び。t=choice(選ぶ)/scale(0〜10)/note(自由記入)/news(お知らせ)/confirm(確認して送信)
+/* ===== 疲労度・体調・心の調子は「言葉」で選ぶ (2026-08-06 社長指示) =====
+   ⭐「体調をKPIで読むのは良いが、入力するときに数字を選ぶのは戸惑う」という現場の声。
+     0〜10の数字を並べると「普段が5で今日は7か8か…」と考え込ませてしまう。
+   ⚠️保存する値は従来どおり 0〜10 の整数(fatigue_score / body_score / mind_score)。
+     KPI・平常値(直近30日平均)・エスカレの判定は一切変えていない。変えたのは選ばせ方だけ。
+   ⚠️割り当てる数字は 2/4/5/7/9。5=いつも通り(従来の最頻値)を中心に据え、
+     サーバーの判定境界(>=6 で休息のすすめ / >=9 でエスカレ)をまたぐように置いてある。 */
+var SCALE_OPTS={
+  fatigue:[['😄 かなり楽',2],['🙂 少し楽',4],['😐 いつも通り',5],['😟 少し疲れた',7],['😫 かなり疲れた',9]],
+  body:   [['😄 とても良い',2],['🙂 少し良い',4],['😐 いつも通り',5],['😟 少し悪い',7],['🤒 かなり悪い',9]],
+  mind:   [['😄 とても良い',2],['🙂 少し良い',4],['😐 いつも通り',5],['😟 少し重い',7],['😞 かなり重い',9]]
+};
+function scaleOpts(key){ return SCALE_OPTS[key]||SCALE_OPTS.fatigue; }
+// 確認画面などで数字を言葉に戻す。⚠️2/4/5/7/9 以外(旧仕様で入った値)は数字のまま出す
+function scaleLabel(key,v){
+  if(v==null) return '—';
+  var o=scaleOpts(key);
+  for(var i=0;i<o.length;i++) if(o[i][1]===v) return o[i][0];
+  return String(v);
+}
+// 職種ごとの質問の並び。t=choice(選ぶ)/scale(言葉で選ぶ・内部は0〜10)/note(自由記入)/news(お知らせ)/confirm(確認して送信)
 function kikoBuildSteps(kind){
   var equip=[
     {t:'choice',key:'operation_issue',q:kikoEquipLabel(kind),opts:[['✅ 異常なし',0,'yes'],['⚠️ 異常あり',1,'no']]},
@@ -3837,10 +3857,10 @@ function kikoBuildSteps(kind){
   } else {
     S.push({t:'choice',key:'overtime',q:'⏰ 今日の 時間外',opts:[['なし','none','yes'],['1時間ほど','lt1',''],['2時間以上','gt2','no']]});
     S.push({t:'choice',key:'eye',q:'👀 目・肩・腰の 疲れ',opts:[['なし','none','yes'],['少し','mild',''],['つらい','hard','no']]});
-    S.push({t:'scale',key:'mind',q:'🫧 こころの 調子（任意）',lead:'普段の気持ちを5として、今はいくつですか？',optional:true});
+    S.push({t:'scale',key:'mind',q:'🫧 心の 調子（任意）',lead:'いつもと 比べて どうですか？',optional:true});
   }
-  S.push({t:'scale',key:'fatigue',q:'😫 現在の疲労度',lead:'普段の疲れを5として、現在はいくつですか？'});
-  S.push({t:'scale',key:'body',q:'🩹 現在の体調',lead:'普段の体調を5として、現在はいくつですか？'});
+  S.push({t:'scale',key:'fatigue',q:'😫 現在の 疲労度',lead:'いつもと 比べて どうですか？'});
+  S.push({t:'scale',key:'body',q:'🩹 現在の 体調',lead:'いつもと 比べて どうですか？'});
   S.push({t:'note',nk:'note',q:'💬 ひとこと（任意）',ph:'伝えたいこと・気になった点',optional:true});
   S.push({t:'news',q:'📢 管理者からの お知らせ'});
   S.push({t:'confirm'});
@@ -3849,7 +3869,7 @@ function kikoBuildSteps(kind){
 // 条件付きの質問(異常の内容など)を除いた「実際に出る質問」
 function kikoVisibleSteps(){ return kikoSteps.filter(function(s){ return !s.showIf || s.showIf(); }); }
 function kikoAnsText(s){
-  if(s.t==='scale') return (kikoAns[s.key]==null?'—':String(kikoAns[s.key]));
+  if(s.t==='scale') return scaleLabel(s.key, kikoAns[s.key]);
   if(s.t==='note') return (kikoNotes[s.nk]||'').slice(0,18) || '—';
   if(s.t==='choice'){
     for(var i=0;i<s.opts.length;i++) if(kikoAns[s.key]===s.opts[i][1]) return s.opts[i][0];
@@ -3880,14 +3900,15 @@ function kikoRender(){
           return '<button class="opt '+(o[2]||'')+(kikoAns[s.key]===o[1]?' sel':'')+'" onclick="kikoAnswer('+i+')">'+esc(o[0])+'</button>';
         }).join('') + '</div>';
   } else if(s.t==='scale'){
-    var b='';
-    for(var n=0;n<=10;n++){ b+='<button class="fat-btn'+(kikoAns[s.key]===n?' sel':'')+'" style="'+fatColor(n)+'" onclick="fatPick(\''+s.key+'\','+n+')">'+n+'</button>'; }
-    h+='<div class="q">'+s.q+'</div><div class="fat-lead-s">'+s.lead+'</div><div class="fat-grid">'+b+'</div>'
-      +'<div class="fat-ends"><span>0 = 大丈夫</span><span>5 = 普段通り</span><span>10 = 限界</span></div>';
+    // 言葉で選ぶ5択。色は従来と同じ fatColor(内部値) なので、一覧・KPI側の色分けと揃う
+    var b=scaleOpts(s.key).map(function(o){
+      return '<button class="opt'+(kikoAns[s.key]===o[1]?' sel':'')+'" style="'+fatColor(o[1])+'" onclick="fatPick(\''+s.key+'\','+o[1]+')">'+esc(o[0])+'</button>';
+    }).join('');
+    h+='<div class="q">'+s.q+'</div><div class="fat-lead-s">'+s.lead+'</div><div class="opts sc">'+b+'</div>';
   } else if(s.t==='note'){
     h+='<div class="q">'+s.q+'</div>'
       +'<textarea id="kiko-note-in" class="big-in" placeholder="'+esc(s.ph||'')+'">'+esc(kikoNotes[s.nk]||'')+'</textarea>'
-      +'<button class="btn-go" onclick="kikoNoteNext()">'+(s.optional?'次へ（入力しなくても だいじょうぶ）':'次へ')+'</button>';
+      +'<button class="btn-go" onclick="kikoNoteNext()">'+(s.optional?'次へ（入力しなくても 大丈夫）':'次へ')+'</button>';
   } else if(s.t==='news'){
     h+='<div class="q">'+s.q+'</div><div id="kiko-news" style="text-align:left">読み込み中…</div>'
       +'<button class="btn-go" onclick="kikoNext()">読みました。次へ</button>';
@@ -3907,10 +3928,8 @@ function kikoSpeakStep(){
   var s=kikoSteps[kikoIdx]; if(!s) return;
   if(s.t==='choice'||s.t==='note'){ speak(s.q.replace(/^[^ぁ-んァ-ヶ一-龠0-9A-Za-z]+/,'')); }
   else if(s.t==='scale'){
-    var line=s.q.replace(/^[^ぁ-んァ-ヶ一-龠0-9A-Za-z]+/,'')+'。'+s.lead;
-    // 「5=いつも通り」の長い説明は週1回だけ(毎回だと くどい)
-    if(s.key==='fatigue'&&shouldSpeakScale()) line+='　いつも通りなら5、楽なら5より下、つらい時は5より上の数字を選んでください。';
-    speak(line);
+    // ⚠️数字を選ばせていた頃は「5がいつも通り」の説明を週1回読んでいたが、言葉の5択にしたので不要
+    speak(s.q.replace(/^[^ぁ-んァ-ヶ一-龠0-9A-Za-z]+/,'')+'。'+s.lead);
   } else if(s.t==='confirm'){ speak('最後に 内容を 確認してください。よろしければ 送信を 押してください。'); }
 }
 function kikoNext(){ kikoDir=1; kikoIdx++; if(kikoIdx>=kikoSteps.length) kikoIdx=kikoSteps.length-1; kikoRender(); kikoSpeakStep(); }
@@ -3950,18 +3969,6 @@ async function openKiko(){
   // 声が重ならないよう順番に: 挨拶 → (当日 運転アラート) → 最初の質問
   speak(greet, function(){ speakMyAlert(kikoSpeakStep); });
 }
-// スケール説明の頻度: 今週(〜2026-07-19)は毎回、来週からは各ドライバー週1回(その週の初回)だけ。
-function scaleWeekStart(d){ var day=(d.getDay()+6)%7; var m=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day);
-  return m.getFullYear()+'-'+('0'+(m.getMonth()+1)).slice(-2)+'-'+('0'+m.getDate()).slice(-2); }
-function shouldSpeakScale(){
-  var now=new Date();
-  var today=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2);
-  if(today<='2026-07-19') return true;   // 今週は毎日
-  try{ var uid=(ME&&ME.id)||'x'; var key='kikoScaleWk_'+uid; var wk=scaleWeekStart(now);
-       if(localStorage.getItem(key)===wk) return false;   // 今週分は既読
-       localStorage.setItem(key,wk); return true;
-  }catch(e){ return true; }
-}
 var _myAlerts=[];
 // 当日の運転アラート(本人分)を取得。managerでなくても本人分のみ返る専用API。
 async function loadMyAlerts(){
@@ -3978,14 +3985,15 @@ function speakMyAlert(done){
     +'長時間の 運転で お疲れの ことと 思います。次の 乗務も、車間と スピードに 気をつけて、安全運転で お願いしますね。';
   aoiSetClip('caution'); speak(line, done);
 }
-// 0〜10スケール(つかれ/からだ)。5=いつも通り、10=げんかい。5以下=平常(緑)→上振れで黄→橙→赤。
+// 内部値(0〜10)の色。5=いつも通り、10=限界。5以下=平常(緑)→上振れで黄→橙→赤。
+// ⚠️一覧(tenko-manage)やKPIと同じ考え方の色分け。言葉の5択でも同じ関数を使う。
 function fatColor(n){
   if(n<=5) return 'background:#dcfce7;border-color:#86efac;color:#065f46';
   if(n<=7) return 'background:#fef9c3;border-color:#fde047;color:#854d0e';
   if(n<=8) return 'background:#ffedd5;border-color:#fdba74;color:#9a3412';
   return 'background:#fee2e2;border-color:#fca5a5;color:#991b1b';
 }
-// 数字タップは音声反応なし(0〜11回喋ると うるさいため)。押したら次の質問へ自動で進む。
+// 選んだら音声反応なしで次の質問へ自動で進む(毎回 相づちを打つと うるさいため)。
 function fatPick(key,n){
   bumpIdle(); kikoAns[key]=n;
   kikoNext();
@@ -4009,7 +4017,7 @@ function kikoReactLine(key,val){
     if(val==='none'){ return null; }
     clip='concern'; line='体調に 変わりが あったのですね。管理者に お伝えします。無理を なさらないでください。';
   } else if(key==='overtime'){
-    if(val==='gt2'){ clip='listen'; line='今日は 長い時間でしたね。おつかれさまでした。'; }
+    if(val==='gt2'){ clip='listen'; line='今日は 長い時間でしたね。お疲れさまでした。'; }
     else { return null; }
   } else if(key==='eye'){
     if(val==='hard'){ clip='listen'; line='目や 肩が つらいときは、少し 目を 休めて、肩を 回してみてください。'; }
@@ -4019,7 +4027,7 @@ function kikoReactLine(key,val){
     if(val){ clip='listen'; line='教えてくださって ありがとうございます。つぎの 画面で、どんな場面だったか お願いします。'; }
     else { return null; }   // 「なかった」は淡々と(反応なし=喋りすぎ防止)
   } else if(key==='wait'){
-    if(val==='gt60'){ clip='concern'; line='1時間以上の 荷待ちでしたか。おつかれさまでした。記録しておきます。'; }
+    if(val==='gt60'){ clip='concern'; line='1時間以上の 荷待ちでしたか。お疲れさまでした。記録しておきます。'; }
     else if(val==='lt60'){ clip='listen'; line='荷待ちの時間、記録しておきます。'; }
     else { return null; }
   } else { return null; }
@@ -4061,8 +4069,8 @@ async function submitKiko(){
     if(kikoAns.overtime===null){ speak('今日の 時間外を 選択してください。'); return; }
     if(kikoAns.eye===null){ speak('目や 肩の 疲れを 選択してください。'); return; }
   }
-  if(kikoAns.fatigue===null){ speak('疲労度を数字で選択してください。'); return; }
-  if(kikoAns.body===null){ speak('体調を数字で選択してください。'); return; }
+  if(kikoAns.fatigue===null){ speak('疲労度を 選択してください。'); return; }
+  if(kikoAns.body===null){ speak('体調を 選択してください。'); return; }
   // ⚠️アルコールチェックはドライバーのみ。他職種は alcohol_used=0 で送り、一覧では「—」と出す
   //   (0を送ると「検知なし＝測った」と誤読されるため)。
   var body={ alcohol_used:(kind==='driver'?1:0), alcohol_detected:kikoAns.alcohol_detected?1:0, operation_issue:kikoAns.operation_issue?1:0,
@@ -4088,13 +4096,6 @@ async function submitKiko(){
       }, '📋 帰る前の確認', '帰る前に', true);
     }
   } else { speak('送信に失敗しました。もう一度お試しください。'); }
-}
-// 帰庫時の ねぎらい＋健康ワンポイント(体調に合わせて葵が読み上げる)
-function kikoHealthTip(fatigue){
-  if(fatigue==='very_tired') return 'かなりお疲れのようです。今夜は早めに休んで、しっかり睡眠を取ってください。運行管理者にもお伝えしました。';
-  if(fatigue==='tired') return '少しお疲れのようですね。ぬるめのお風呂で体をほぐし、水分も取りましょう。';
-  var tips=['水分をコップ1杯取って、ひと息つきましょう。','首と肩をゆっくり回して、体をほぐしましょう。','今夜は少し早めに休んで、しっかり睡眠を取りましょう。','ゆっくり深呼吸を3回。疲れをリセットしましょう。','夕食は野菜からよく噛んで食べると体に優しいです。'];
-  return tips[Math.floor(Math.random()*tips.length)];
 }
 function doneScreen(title, sub, emotion){
   aoiSetClip(emotion||'praise');
@@ -4169,7 +4170,7 @@ function loShow(r){
   var rows='';
   if(r.health) rows+=loRow('health','🩸','今日の 体調チェックが まだです',0,true);
   if(r.news)   rows+=loRow('news',  '📢','未読の 通達',            r.news);
-  if(r.notice) rows+=loRow('notice','🔔','あなたへの おしらせ',    r.notice);
+  if(r.notice) rows+=loRow('notice','🔔','あなたへの お知らせ',    r.notice);
   if(r.board)  rows+=loRow('board', '📋','掲示板の 新着',          r.board);
   if(r.msg)    rows+=loRow('msg',   '✉️','あなたへの メッセージ',  r.msg);
   var el=document.getElementById('loSheet');
