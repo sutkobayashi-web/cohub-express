@@ -1274,12 +1274,57 @@ function foodVoiceScript(text) {
 // ニックネーム + 「お食事について解説しますね…」の喋り出しを組み立て
 // 読み上げ台本の組み立て: ①ニックネーム挨拶 →②まず食事の傾向(あれば先に) →③今日の解説(本文)。
 // 社長指示(2026-07-18)=「傾向を先に解説した方がいい」。
+/* ⭐喋り出しのバリエーション (2026-08-07 社長「本題の前のセリフがマンネリ」)。
+   旧= 毎回「今日の◯◯について、解説しますね。」の1文だけ。
+   ⚠️ただのランダムではなく、良い一皿か/気になる点があるか＋食事の区分で束を切り替える。
+   ⚠️直前に使った文は localStorage に控えて避ける(2回続けて同じ入り方にしない)。
+   ⚠️タブレット(tablet-home.html)にも同じ束がある。文言を直すときは両方。 */
+const ADV_OPEN_GOOD = [
+  '今日の{L}、なかなか 良いですよ。どこが 良いか お話ししますね。',
+  'わあ、良い{L}ですね。ひとつずつ 見ていきましょう。',
+  'これは 良い一皿です。そのわけを お話ししますね。',
+  '{L}、よく 整っていますよ。順に 見ていきますね。',
+];
+const ADV_OPEN_CARE = [
+  '今日の{L}、気づいた点が いくつか あります。',
+  '{L}を 見ていきましょう。惜しい ところも ありますよ。',
+  'では、今日の{L}について。良い点から お話ししますね。',
+  '{L}の 記録、ありがとう。気づいたことを お伝えしますね。',
+];
+const ADV_OPEN_BASE = [
+  '今日の{L}、拝見しました。さっそく 見ていきましょう。',
+  '{L}の 写真、ありがとう。気づいたことを お話ししますね。',
+  'では、今日の{L}について お話ししますね。',
+  '{L}を 見せてもらいますね。',
+];
+const ADV_OPEN_MEAL = {
+  breakfast: ['朝ごはん、しっかり 食べましたね。中身を 見てみましょう。', '一日の はじまりの 一皿ですね。見ていきましょう。'],
+  lunch: ['お昼、しっかり 摂れましたか。中身を 見てみましょう。', '午後を 乗り切る お昼ですね。見ていきましょう。'],
+  dinner: ['一日 お疲れさまでした。夕食を 見てみましょう。', '今日の しめくくりの 一皿ですね。'],
+  snack: ['おやつの 記録ですね。楽しみながら 見ていきましょう。', 'ひと息の 時間ですね。中身を 見てみましょう。'],
+};
+function advOpener(meal, rank) {
+  const L = MEAL_LABELS[meal] || 'お食事';
+  let pool = (rank === 'good') ? ADV_OPEN_GOOD : (rank ? ADV_OPEN_CARE : ADV_OPEN_BASE);
+  const mk = ({ morning: 'breakfast', noon: 'lunch', night: 'dinner' })[meal] || meal;
+  pool = pool.concat(ADV_OPEN_MEAL[mk] || []);
+  let last = '';
+  try { last = localStorage.getItem('cohub_adv_open_last') || ''; } catch (e) {}
+  let cand = pool.filter(s => s !== last);
+  if (!cand.length) cand = pool;
+  const s = cand[Math.floor(Math.random() * cand.length)];
+  try { localStorage.setItem('cohub_adv_open_last', s); } catch (e) {}
+  return s.replace(/\{L\}/g, L);
+}
+// ⚠️_advCompose は1回の解説で2度呼ばれる(傾向の取得前と後)。毎回引き直すと
+//   先に見せた文と読み上げる文が変わってしまうので、その解説のあいだは同じ喋り出しを使う。
+let _advOpenNow = '';
 function _advCompose(name, meal, tendency, body) {
   name = (name || '').trim();
-  const label = MEAL_LABELS[meal] || 'お食事';   // 朝食/昼食/夕食/おやつ、不明は「お食事」
   const greet = name ? name + 'さん。 ' : '';
   const tend = tendency ? 'まず、あなたのふだんの食事の傾向から。 ' + tendency + ' そのうえで、' : '';
-  return greet + tend + '今日の ' + label + 'について、解説しますね。 ' + body;
+  if (!_advOpenNow) _advOpenNow = advOpener(meal, _lastNutriRank);
+  return greet + tend + _advOpenNow + ' ' + body;
 }
 
 // ===== 解説モーダル =====
@@ -1400,6 +1445,7 @@ async function openAdvisorExplain(btn) {
   const bubble = document.getElementById('adv-bubble');
   const wrap = document.getElementById('adv-av-wrap');
   // まず挨拶+本文を表示してモーダルを開く
+  _advOpenNow = '';                 // この解説ぶんの喋り出しをここで選び直す
   _advText = _advCompose(name, meal, '', body);
   if (bubble) bubble.textContent = _advText;
   if (modal) modal.classList.add('open');
