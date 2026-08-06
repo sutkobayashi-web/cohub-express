@@ -21,7 +21,13 @@ POSE (CRITICAL — follow exactly): Both arms are raised above her head and CURV
 
 EXPRESSION: bright, happy, beaming smile with eyes slightly narrowed in a genuine smile, looking straight at the viewer. Cheerful and congratulating, as if saying "よくできました!".
 
-FRAMING: waist-up (bust-up) composition, centered, with the whole circle made by her arms fully inside the frame — DO NOT crop the hands or the top of the circle. Leave about 8% padding above her hands.
+BODY PROPORTIONS (CRITICAL): Natural, correct, realistic human proportions. Her upper arms and forearms must be NORMAL LENGTH — do NOT stretch or elongate the arms.
+- Elbows are BENT to roughly 90 degrees, so the ring sits LOW and CLOSE to her head, resting just above her hair.
+- The gap between the top of her head and her touching hands must be only about HALF a head height. The hands must NOT float high above her.
+- The arms hug close around her head, making a small compact round ring — like a person making "maru" right on top of their head.
+- No distortion, no extra-long limbs, no thin stretched forearms.
+
+FRAMING: TIGHT BUST-UP composition — visible from the middle of the chest upward only (chest, shoulders, neck, head) plus the raised arms. Her head should be large in the frame. The closed ring made by her arms must be fully inside the frame — DO NOT crop the hands. Leave only about 5% padding above her hands.
 
 BACKGROUND: pure solid white (#FFFFFF), no props, no floor, no shadow other than a very soft one behind her.
 
