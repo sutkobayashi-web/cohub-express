@@ -4027,10 +4027,15 @@ function fatColor(n){
   var c=(SC_COLORS[n]||SC_COLORS[5]).split('|');
   return 'background:'+c[0]+';border-color:'+c[1];
 }
-// マスの高さ。⚠️色だけでなく**高さも1マスずつ上げる**(右へ行くほど つらい)。階段に見えることで
-// 「3つ並んだ同じ顔」でも どれが重いのか が分かる。
+// マスの高さ。⚠️色だけでなく**高さも1マスずつ変える**＝「3つ並んだ同じ顔」でも強さの差が分かる。
+// ⭐中央(5=いつも通り)が一番低く、**左右対称**に外側へ行くほど高くなる(良い方も悪い方も同じ形)。
 // ⚠️高さはインラインstyleで付けるのでCSSの@mediaでは上書きできない。スマホはここで小さくする。
-function scaleCellH(n){ return IS_PHONE ? (48+n*3) : (78+n*5); }
+// ⚠️⚠️掲示板の IS_PHONE は関数の中の変数＝ここからは見えない(参照すると質問が進まなくなる)。毎回その場で判定する。
+function scaleCellH(n){
+  var phone = !!(window.matchMedia && window.matchMedia('(max-width:640px)').matches);
+  var d = Math.abs(n-5);
+  return phone ? (48+d*6) : (78+d*10);
+}
 // 選んだら音声反応なしで次の質問へ自動で進む(毎回 相づちを打つと うるさいため)。
 function fatPick(key,n){
   bumpIdle(); kikoAns[key]=n;
