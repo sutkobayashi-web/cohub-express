@@ -258,6 +258,19 @@
   .listitem .ti{font-size:22px;font-weight:900;color:#12304a;margin-bottom:6px}
   .listitem .bd{font-size:20px;line-height:1.55;white-space:pre-wrap;color:#25384a}
   .listitem .mt{font-size:15px;color:#7488}
+  /* ✉️個人宛メッセージの相手一覧 (2026-08-06 社長「開いた後の受信箱が貧相」)。
+     旧: 名前＋本文140字だけの箱。誰から・いつ・未読が有るかが分からなかった。
+     ⚠️共用タブレットはタッチペン運用なので1行を大きく取る(高さ=顔56px＋余白)。 */
+  .dmrow{display:flex;align-items:center;gap:14px;border:2px solid #e3ebf3;border-radius:18px;padding:14px 16px;margin-bottom:12px;background:#fbfdff;cursor:pointer}
+  .dmrow.unread{background:#eff9ff;border-color:#7dd3fc}
+  .dmrow .av{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#e6eef6;display:flex;align-items:center;justify-content:center;font-size:32px}
+  .dmrow .mid{flex:1;min-width:0}
+  .dmrow .nm{display:flex;align-items:baseline;gap:8px}
+  .dmrow .nm b{font-size:22px;font-weight:900;color:#12304a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dmrow .tm{margin-left:auto;font-size:15px;color:#8095a8;white-space:nowrap;flex:0 0 auto}
+  .dmrow .pv{font-size:18px;color:#4a5f72;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dmrow.unread .pv{color:#12304a;font-weight:700}
+  .dmrow .nbadge{flex:0 0 auto;min-width:30px;height:30px;border-radius:15px;background:#e11d48;color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 8px}
   .empty{font-size:22px;color:#6b7a88;text-align:center;padding:26px}
   /* 運動記録: 種目の大ボタン */
   .ex-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:6px 0}
@@ -3691,6 +3704,20 @@ function isSolemn(a){
 }
 
 /* ===== ④ メッセージ ===== */
+// 一覧に出す時刻。⚠️⚠️messages.created_at は `datetime('now')`＝**UTC**なので、
+//   そのまま出すと9時間ずれる。Zを付けてから端末のローカル時刻(JST)に直す。
+function dmWhen(s){
+  if(!s) return '';
+  var t=String(s).replace(' ','T');
+  if(!/[zZ]|[+-]\d\d:?\d\d$/.test(t)) t+='Z';
+  var d=new Date(t); if(isNaN(d.getTime())) return '';
+  var day=function(x){ return new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime(); };
+  var diff=Math.round((day(new Date())-day(d))/86400000);
+  var hm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  if(diff<=0) return hm;
+  if(diff===1) return '昨日 '+hm;
+  return (d.getMonth()+1)+'/'+d.getDate();
+}
 async function openMsg(){
   logUsage('open:個人宛'); aoiSetClip('talk'); curPeer=null; curGroup=null;
   openModal('✉️ 個人宛の メッセージ','<div class="empty">読み込み中…</div>');
@@ -3700,9 +3727,17 @@ async function openMsg(){
   // ⭐グループ宛は別ボタン(openGroupList)に分けた(2026-08-05 社長)。ここは【個人宛=DM】だけ。
   if(!peers.length){ html+='<div class="empty">これまでの メッセージは ありません。</div>'; }
   else { peers.slice(0,30).forEach(function(p){
-    html+='<div class="listitem" style="cursor:pointer" onclick="loadThread(\''+esc(p.peer_id)+'\')">'+
-      '<div class="ti">'+esc(p.display_name||'')+'</div>'+
-      '<div class="bd">'+esc((p.last_content||'').slice(0,140))+'</div></div>';
+    var me=(ME&&ME.uid), mine=(p.last_sender_id&&me&&String(p.last_sender_id)===String(me));
+    var av=p.avatar_url ? '<img class="av" src="'+esc(p.avatar_url)+'" alt="">' : '<span class="av">👤</span>';
+    var un=parseInt(p.unread,10)||0;
+    var pv=(p.last_content||'').replace(/\s+/g,' ').slice(0,60);
+    html+='<div class="dmrow'+(un?' unread':'')+'" onclick="loadThread(\''+esc(p.peer_id)+'\')">'+av+
+      '<div class="mid">'+
+        '<div class="nm"><b>'+esc(p.display_name||'')+'</b>'+
+          (un?'<span class="nbadge">'+(un>99?'99+':un)+'</span>':'')+
+          '<span class="tm">'+esc(dmWhen(p.last_at))+'</span></div>'+
+        '<div class="pv">'+(mine?'あなた: ':'')+esc(pv||'（メッセージなし）')+'</div>'+
+      '</div></div>';
   }); }
   $('mbody').innerHTML=html;
   speak('メッセージです。相手を 選ぶか、新しく 送るを 押してください。');

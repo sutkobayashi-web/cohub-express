@@ -218,7 +218,16 @@ router.get('/dm', authUser, (req, res) => {
       (SELECT sender_id FROM messages
         WHERE room_code='dm'
           AND ((sender_id = ? AND receiver_id = u.id) OR (sender_id = u.id AND receiver_id = ?))
-        ORDER BY created_at DESC LIMIT 1) AS last_sender_id
+        ORDER BY created_at DESC LIMIT 1) AS last_sender_id,
+      -- 相手ごとの未読数 (2026-08-06)。⚠️数え方は GET /unread-count の dm と同じにする
+      --   (自分宛・相手発・bot_*除外・60日以内・message_reads に無いもの)。ズレると
+      --   一覧のバッジ合計とホームのバッジが合わなくなる。
+      (SELECT COUNT(*) FROM messages
+        WHERE room_code='dm' AND receiver_id = ? AND sender_id = u.id
+          AND sender_id NOT LIKE 'bot_%'
+          AND created_at > datetime('now', '-60 days')
+          AND NOT EXISTS (SELECT 1 FROM message_reads r WHERE r.message_id = messages.id AND r.user_id = ?)
+      ) AS unread
     FROM users u
     JOIN (
       SELECT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS peer_id,
@@ -228,7 +237,7 @@ router.get('/dm', authUser, (req, res) => {
       GROUP BY peer_id
     ) l ON l.peer_id = u.id
     ORDER BY l.last_at DESC LIMIT 100
-  `).all(req.uid, req.uid, req.uid, req.uid, req.uid, req.uid, req.uid);
+  `).all(req.uid, req.uid, req.uid, req.uid, req.uid, req.uid, req.uid, req.uid, req.uid);
   res.json({ success: true, peers: rows });
 });
 
@@ -300,6 +309,31 @@ router.get('/groups/:gid/members', authUser, (req, res) => {
 
 // ===== 既読管理 (2026-05-08) =====
 // 自分が読んだメッセージを一括登録 + Socket.IO で関係者に通知
+// ===== 🔔 おしらせ (通知専用アカウント notice_* からのDM) =====
+// 2026-08-01 社長指示: PCのチャットにしかなかった「おしらせ」を共有タブレット/スマホでも見せる。
+//   タブレットにはチャット画面が無いため、ホームのバナー→大きな文字のモーダルで読ませる。
+//   既読化は共通の POST /api/chat/read (message_reads) を使うので、PCで読めばタブレットからも消える。
+router.get('/notices', authUser, (req, res) => {
+  const db = getDb();
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const rows = db.prepare(`
+    SELECT m.id, m.sender_id, m.content, m.created_at,
+           u.display_name AS sender_name, u.avatar_url AS sender_avatar,
+           (SELECT 1 FROM message_reads r WHERE r.message_id = m.id AND r.user_id = ?) AS is_read
+    FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+    WHERE m.room_code = 'dm' AND m.receiver_id = ?
+      AND m.sender_id LIKE 'notice_%'
+      AND m.created_at > datetime('now', '-60 days')
+    ORDER BY m.id DESC LIMIT ?
+  `).all(req.uid, req.uid, limit);
+  const items = rows.map(r => ({
+    id: r.id, sender_id: r.sender_id, sender_name: r.sender_name || 'おしらせ',
+    sender_avatar: r.sender_avatar || '', content: r.content || '',
+    created_at: r.created_at, unread: !r.is_read,
+  }));
+  res.json({ success: true, items, unread: items.filter(x => x.unread).length });
+});
+
 router.post('/read', authUser, express.json(), (req, res) => {
   const ids = Array.isArray(req.body && req.body.message_ids) ? req.body.message_ids : [];
   const valid = ids.map(x => parseInt(x)).filter(n => !isNaN(n) && n > 0);
