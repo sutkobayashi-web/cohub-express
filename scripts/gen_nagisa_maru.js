@@ -13,21 +13,18 @@ const PROMPT = `You are given a photorealistic reference image of a Japanese fem
 
 Generate a NEW image of the SAME WOMAN — same face, same hairstyle (short dark brown bob), same light blue scrub top with the small chest pocket and ID badge — with this change:
 
-POSE (CRITICAL — follow exactly): Both arms are raised above her head and CURVED so that the TWO HANDS MEET AND TOUCH at the very top of the arc. The fingertips (or palms) of the left hand physically TOUCH the fingertips of the right hand. Her two arms plus her hands form ONE BIG ROUND CLOSED RING (the letter O) above her head — the classic Japanese "maru" (○ = correct / good) gesture, the same shape a gymnast or a quiz-show contestant makes for "correct answer".
-- The two arms must draw a WIDE ROUND ARCH like a RAINBOW or a big balloon. Elbows are pushed far OUT to the sides (wider than her shoulders) and clearly BENT, and the wrists are bent so the hands curve inward to meet at the top center.
-- The enclosed empty space inside the ring should be a wide ROUND oval, clearly wider than her head.
-- The ring must be CLOSED: there must be NO GAP between the two hands.
-- ABSOLUTELY NOT a triangle or roof shape with straight arms. NOT two separate raised hands. NOT two small "OK" finger rings. NOT a heart shape. NOT a peace sign. NOT straight arms in a V shape.
+POSE (CRITICAL — follow exactly): The Japanese TV "tomodachi no wa" (友達の輪) gesture, made IN FRONT OF HER CHEST — NOT above her head.
+- Both arms are held IN FRONT of her body at chest height, elbows bent and kept CLOSE TO HER SIDES, forearms curving inward.
+- The fingertips of both hands TOUCH each other, so the two arms form ONE ROUND CLOSED RING (a big letter O) in front of her chest.
+- The ring is centred in front of her chest, roughly the width of her shoulders. Her smiling face is clearly visible ABOVE the ring — the ring must NOT cover her face.
+- Because the arms are bent and held in front, only a SHORT length of arm is visible. This is important: the arms must look naturally short and compact, never long or stretched.
+- ABSOLUTELY NOT arms raised above the head. NOT straight arms. NOT a heart shape. NOT a peace sign. NOT two separate "OK" finger rings.
 
 EXPRESSION: bright, happy, beaming smile with eyes slightly narrowed in a genuine smile, looking straight at the viewer. Cheerful and congratulating, as if saying "よくできました!".
 
-BODY PROPORTIONS (CRITICAL): Natural, correct, realistic human proportions. Her upper arms and forearms must be NORMAL LENGTH — do NOT stretch or elongate the arms.
-- Elbows are BENT to roughly 90 degrees, so the ring sits LOW and CLOSE to her head, resting just above her hair.
-- The gap between the top of her head and her touching hands must be only about HALF a head height. The hands must NOT float high above her.
-- The arms hug close around her head, making a small compact round ring — like a person making "maru" right on top of their head.
-- No distortion, no extra-long limbs, no thin stretched forearms.
+BODY PROPORTIONS (CRITICAL): Natural, correct, realistic human proportions. Normal arm length for her body — no stretched or elongated limbs, no thin distorted forearms.
 
-FRAMING: TIGHT BUST-UP composition — visible from the middle of the chest upward only (chest, shoulders, neck, head) plus the raised arms. Her head should be large in the frame. The closed ring made by her arms must be fully inside the frame — DO NOT crop the hands. Leave only about 5% padding above her hands.
+FRAMING: WAIST-UP composition — visible from the waist upward, centred. Her head and the ring in front of her chest are both fully inside the frame with a little padding all around. DO NOT crop her hands or elbows.
 
 BACKGROUND: pure solid white (#FFFFFF), no props, no floor, no shadow other than a very soft one behind her.
 
