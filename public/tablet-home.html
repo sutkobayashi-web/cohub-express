@@ -478,10 +478,11 @@
   .meal{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;font-weight:800;padding:3px 9px;border-radius:999px;z-index:2}
   /* ⭐「よい一皿です」の合図: なぎさの○ポーズをサムネ右上に貼る (2026-08-07 社長)。
      ⚠️良いときだけ出す。⚠️左上=区分ラベル / 下辺=直したいのは の帯 と重ならない位置に置く。 */
-  /* ⚠️背景は透過PNG(切り抜き)。丸い枠で囲うとシール然として重いので、白フチ＋影だけで浮かせる。
-     ⚠️料理写真は色が様々=白フチが無いと輪郭が溶ける(drop-shadowを2枚重ねる)。 */
-  .tthumbwrap .goodstamp{position:absolute;top:2px;right:4px;width:66px;height:auto;z-index:4;
-    filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px rgba(255,255,255,.9)) drop-shadow(0 3px 4px rgba(0,0,0,.4))}
+  /* ⚠️背景は透過PNG(腰から上の切り抜き)。⚠️置き場所は**写真の上ではなくコメント枠の右**
+     (2026-08-07 社長)。付箋の黄色に直接立たせるので、白フチは要らず 影だけで浮かせる。 */
+  .tmeta.withgood{display:flex;align-items:flex-end;gap:8px}
+  .tmeta.withgood .mtxt{flex:1;min-width:0}
+  .goodstamp{width:58px;height:auto;flex:0 0 auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
   .ttitle.sm{font-size:15.5px;font-weight:700;line-height:1.42;max-height:2.9em;overflow:hidden}
   .anon{font-size:12.5px;font-weight:800;color:#8a7d66}
   .likebtn{margin-left:auto;background:#fff;border:1.5px solid #e5b3c4;color:#d23b6a;font-weight:900;font-size:16px;padding:5px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
@@ -2675,14 +2676,14 @@ function plazaTile(p,i){
   if(isMeal && p.nutrition_scores){
     try{ buildNutritionBar(p.nutrition_scores, !!p.is_mine); rank=_lastNutriRank||'good'; rlabel=_lastNutriLabel||''; concl=_lastNutriAct||''; }catch(e){}
   }
-  /* ⭐2026-08-07 (社長): 「よい一皿です」(rank=good)のときだけ、なぎさが○(まる)を出している写真を
-     サムネの右上に重ねる。文字を読まなくても【一目で良い】と分かるようにするのが狙い。
+  /* ⭐2026-08-07 (社長): 「よい一皿です」(rank=good)のときだけ、なぎさが○(まる)を出している
+     切り抜き写真を出す。文字を読まなくても【一目で良い】と分かるようにするのが狙い。
      ⚠️良い時だけ。他のランクには何も出さない(全部に出すと合図にならない)。
-     ⚠️左上は区分(🍱昼)、下辺は『直したいのは』の帯が既に居るので、置けるのは右上だけ。 */
+     ⚠️置き場所は**コメント枠の右**(社長指示で写真の上から移動)。料理写真を隠さない。 */
   var stamp = (isMeal && rank==='good')
-    ? '<img class="goodstamp" src="/assets/nagisa_good.png?v=2" alt="よい一皿です" loading="lazy">' : '';
+    ? '<img class="goodstamp" src="/assets/nagisa_good.png?v=3" alt="よい一皿です" loading="lazy">' : '';
   var thumb = p.image_url
-    ? '<div class="tthumbwrap"><div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>'+(p.meal_type?'<span class="meal">'+mealLabel(p.meal_type)+'</span>':'')+stamp+'</div>'
+    ? '<div class="tthumbwrap"><div class="tthumb"><img src="'+esc(p.image_url)+'" loading="lazy"></div>'+(p.meal_type?'<span class="meal">'+mealLabel(p.meal_type)+'</span>':'')+'</div>'
     : '<div class="tthumb soc-txt">🎭</div>';
   var body=esc(String(p.content||''));
   // 共用タブレットは実名を出さない: 🎭で始まる匿名名のみ許可、それ以外は「🎭 匿名」に伏せる。
@@ -2695,11 +2696,12 @@ function plazaTile(p,i){
     : '<div class="foodband hiroba">🎭 ひろば</div>';
   // ⭐2026-08-06 (社長): 食事投稿は【付箋(黄色い紙)】にして、サークルの活動報告(白いカード＋緑帯)と
   //   ひと目で見分けられるようにする。ひろば・掲示板・サークルは従来どおり白いカード。
+  var meta='<div class="ttitle sm">'+(body||'　')+'</div>'+
+    '<div class="tsub"><span class="anon">'+esc(who)+'</span>'+
+    '<button class="likebtn'+(myLiked(p)?' on':'')+'" onclick="event.stopPropagation();reactPost(\'plaza\','+p.id+',this)">♡ <span class="n">'+reactTotal(p.reactions)+'</span></button></div>';
   return '<div class="tile soc'+(isMeal?' postit-food':'')+(isMeal&&rank?' rk-'+esc(rank):'')+'" style="border-color:'+(isMeal?'#efd968':'#e5b3c4')+'" onclick="openPlaza('+i+')">'+band+thumb+
     (hasAI?'<span class="aibadge">🩺 AI</span>':'')+
-    '<div class="tmeta"><div class="ttitle sm">'+(body||'　')+'</div>'+
-    '<div class="tsub"><span class="anon">'+esc(who)+'</span>'+
-    '<button class="likebtn'+(myLiked(p)?' on':'')+'" onclick="event.stopPropagation();reactPost(\'plaza\','+p.id+',this)">♡ <span class="n">'+reactTotal(p.reactions)+'</span></button></div></div></div>';
+    '<div class="tmeta'+(stamp?' withgood':'')+'">'+(stamp?('<div class="mtxt">'+meta+'</div>'+stamp):meta)+'</div></div>';
 }
 // 一般の掲示板投稿(サークル以外)。共用タブレットの匿名ルールで実名は出さず「掲示板」ラベル。
 // ⚠️添付がPDFのとき image_url は .pdf。<img src="~.pdf"> は絶対に表示されないので pdfThumbHtml を通す(2026-07-26)。
