@@ -29,6 +29,19 @@
   let translating = false;
   let pendingObserve = false;
 
+  // ⭐2026-08-07 (社長「言語を切り替えるとタブレット版の構成が崩れる」)
+  //   英語/ポルトガル語は同じ内容でも文字数が1.5〜2倍になり、日本語前提で幅や高さを決めた
+  //   ボタン・チップが崩れる。CSS側で言語ごとに詰められるよう <html data-lang="xx"> を立てる。
+  //   ⚠️各ページはこの属性を見て「非日本語のときだけ」文字を小さく/折り返す指定を書く。
+  //   ⚠️`lang` 属性も一緒に直す。英語の単語を綺麗に分割する(hyphens:auto)には lang が要る。
+  function markLang(lang) {
+    try {
+      document.documentElement.setAttribute('data-lang', lang || 'ja');
+      document.documentElement.lang = lang || 'ja';
+    } catch (e) {}
+  }
+  markLang(currentLang);
+
   function loadCache(lang) {
     if (lang === 'ja') return {};
     try {
@@ -52,8 +65,11 @@
 .cohub-lang-switch button.active{background:#0ea5e9;color:#fff}
 .cohub-lang-switch.busy::after{content:'';width:8px;height:8px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:cohubLangSpin 0.8s linear infinite;margin-left:4px}
 @keyframes cohubLangSpin{to{transform:rotate(360deg)}}
-@media (max-width: 480px){.cohub-lang-switch{top:2px;right:4px;padding:2px 5px 2px 6px;font-size:10px}.cohub-lang-switch button{padding:2px 5px;font-size:10px}}
+@media (max-width: 480px){.cohub-lang-switch{top:66px;right:14px;left:auto;bottom:auto;padding:3px 7px 3px 8px;font-size:11px}.cohub-lang-switch button{padding:3px 6px;font-size:11px}}
 @media print{.cohub-lang-switch{display:none!important}}
+/* キオスク端末: 右端のログアウトボタンの真上に配置 (2026-06-22) */
+.cohub-lang-switch.cohub-lang-kiosk{top:calc(50% + 28px);left:auto;right:0;bottom:auto;border-radius:18px 0 0 18px;padding-right:10px}
+@media (max-width: 480px){.cohub-lang-switch.cohub-lang-kiosk{right:0;top:calc(50% + 26px);bottom:auto}}
 `;
     const st = document.createElement('style');
     st.id = 'cohub-lang-style';
@@ -66,6 +82,8 @@
     const box = document.createElement('div');
     box.id = 'cohub-lang-switch';
     box.className = 'cohub-lang-switch';
+    // 共用タブレット(キオスク)では、右端のログアウトボタンの真上に寄せる
+    try { if (localStorage.getItem('cohub_kiosk') === '1') box.classList.add('cohub-lang-kiosk'); } catch (e) {}
     const icon = document.createElement('span');
     icon.className = 'cohub-lang-icon';
     icon.textContent = '🌐';
@@ -276,6 +294,27 @@
     }
   }
 
+  // ===== ユーザー別の言語設定 (マイページ/ボタンで保存し、ログイン中はどの端末でも自動適用) =====
+  function tokenOf() { try { return localStorage.getItem('cohub_token'); } catch (e) { return null; } }
+  // 言語変更をサーバー(users.lang)へ保存 (ログイン時のみ・投げっぱなし)
+  function persistLang(lang) {
+    const t = tokenOf(); if (!t) return;
+    try {
+      fetch('/api/translate/lang', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: JSON.stringify({ lang }) }).catch(() => {});
+    } catch (e) {}
+  }
+  // ページ読込時にログイン中ユーザーの保存言語を取得して自動適用 (共用端末でも各自の言語になる)
+  async function syncUserLang() {
+    const t = tokenOf(); if (!t) return;
+    try {
+      const r = await fetch('/api/translate/lang', { headers: { Authorization: 'Bearer ' + t } });
+      if (!r.ok) return;
+      const d = await r.json();
+      const lang = d && d.lang;
+      if (lang && LANGS.find(l => l.code === lang) && lang !== currentLang) await switchLang(lang);
+    } catch (e) {}
+  }
+
   async function switchLang(lang) {
     if (translating) return;
     if (!LANGS.find(l => l.code === lang)) return;
@@ -283,9 +322,11 @@
     translating = true;
     try {
       try { localStorage.setItem(LS_KEY, lang); } catch (e) {}
+      persistLang(lang);   // ユーザー設定として永続化 (次回以降どの端末でも自動)
       const prev = currentLang;
       currentLang = lang;
       cache = loadCache(lang);
+      markLang(lang);          // ⚠️描画の前に立てる(翻訳後の文字列が入る時には詰めが効いている状態にする)
       updateButtonActive();
       if (lang === 'ja') {
         revertPage();
@@ -346,12 +387,22 @@
       return;
     }
     injectStyle();
-    injectButton();
+    // injectButton();  // 🌐言語切替の浮遊ボタンは廃止(言語設定はマイページに集約・users.langで自動適用) 2026-07-09
     startObserver();
+    try { window.cohubSetLang = switchLang; } catch (e) {}   // マイページ等から即時切替できるよう公開
+    // 未認証(トークン無し)なら共用端末に残った前利用者の言語をJAへ戻す 2026-07-10
+    // (/tablet等ログイン前画面は常に既定JA。ログイン後はsyncUserLangが各自の言語を適用)
+    // ※syncUserLangはトークン無しで即returnするため、これが無いとstale cohub_langで英語のままになる
+    if (!tokenOf() && currentLang !== 'ja') {
+      currentLang = 'ja';
+      try { localStorage.removeItem(LS_KEY); } catch (e) {}
+      markLang('ja');
+    }
     if (currentLang !== 'ja') {
       // 初回ロード時は少し待ってから (動的描画と競合させない)
       setTimeout(() => translatePage(document.body).catch(() => {}), 300);
     }
+    syncUserLang();   // ログイン中ユーザーの保存言語を自動適用
   }
   init();
 })();
