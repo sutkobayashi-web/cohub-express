@@ -982,6 +982,14 @@
   html[data-lang="en"] .listitem .ti, html[data-lang="pt"] .listitem .ti{font-size:18px !important}
   html[data-lang="en"] .listitem .bd, html[data-lang="pt"] .listitem .bd{font-size:16px !important}
   html[data-lang="en"] .bubble, html[data-lang="pt"] .bubble{font-size:17px !important; line-height:1.4}
+  /* ⚠️⚠️【横メニューが2段になる真犯人】QR案内の2行は `white-space:nowrap` で、英文になると
+       横にどこまでも伸びる。QR案内は `margin-left:auto` で右に居るため、伸びたぶん左の帯が
+       圧迫されて**ボタンが2段に折り返す**(1152px以下で発生を実測)。折り返しを許して幅を止める。 */
+  html[data-lang="en"] .qr-guide .qg-ttl, html[data-lang="pt"] .qr-guide .qg-ttl,
+  html[data-lang="en"] .qr-guide .qg-sub, html[data-lang="pt"] .qr-guide .qg-sub{
+    white-space:normal !important; line-height:1.15; word-break:break-word; text-align:center}
+  html[data-lang="en"] .qr-guide .qg-box, html[data-lang="pt"] .qr-guide .qg-box{max-width:126px}
+  html[data-lang="en"] .gut-mypage, html[data-lang="pt"] .gut-mypage{font-size:11px !important; white-space:normal; line-height:1.15}
 </style>
 </head>
 <body>
