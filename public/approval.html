@@ -294,6 +294,21 @@ function buildTypeSelect(keep){
 // 営業所を変えたら申請種別を組み直す
 function onOfficeChange(){const cur=val('f_type');clearPreview();buildTypeSelect(cur);}
 
+/* ⭐2026-08-06: かんたん版(tablet-home)の「仮払金の申請」ボタンのように、
+   申請種別を決め打ちで開く導線のためのクエリ受け口。
+     /approval.html?type=仮払金追加振込申請  → その種別を選んだ状態で開く
+     /approval.html?tab=list               → 申請一覧を開く
+   ⚠️選べない種別(他社専用など)が渡されたときは黙って無視する=画面は壊さない。 */
+function applyQueryPrefill(){
+  try{
+    const q=new URLSearchParams(location.search||'');
+    const t=q.get('type');
+    if(t){ const el=$('f_type'); if(el&&Array.prototype.some.call(el.options,o=>o.value===t)) setVal('f_type',t); }
+    const tab=q.get('tab');
+    if(tab==='list'){ showSection('list'); loadList(); }
+    else if(tab==='pending'){ showSection('pending'); loadPending(); }
+  }catch(e){}
+}
 async function init(){
   const d=await api('/init');
   if(!d.success){showMsg('formMsg','初期化に失敗しました','error');return;}
@@ -302,6 +317,7 @@ async function init(){
   fillOfficeSelect('f_office',d.offices,{value:'',label:'選択'});
   if(d.user.company_code)setVal('f_office',d.user.company_code);
   buildTypeSelect();   // 営業所（＝会社）が決まってから種別を組む
+  applyQueryPrefill();   // ?type=…&tab=… で開かれたときの初期選択（かんたん版からの導線）
   if(d.user.is_admin)$('navAdmin').classList.remove('hidden');
   loadPendingCount();
 }

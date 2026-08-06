@@ -19,18 +19,20 @@
   body{font-family:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;background:#bceae3;color:#123;font-size:20px;overflow:hidden}
   /* 2026-08-01: 掲示板をもう少し広く(社長)。1100pxだと横長タブレット/PCで左右が余っていた。
      左列(タブ+葵)は226pxのままなので、増えた分はすべて掲示板の横幅になる。 */
-  .wrap{max-width:1400px;margin:0 auto;height:100%;display:flex;flex-direction:column;padding:8px 14px 8px;overflow:hidden}
+  .wrap{max-width:1400px;margin:0 auto;height:100%;display:flex;flex-direction:column;padding:5px 14px 3px;overflow:hidden}
   /* 最下段 著作権(ビズテラス ロゴ入り) */
-  .tb-copyright{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:2px 0 0;margin-top:0;font-size:11px;font-weight:700;color:#3f5750;opacity:.75}
+  .tb-copyright{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:1px 0 0;margin-top:0;font-size:11px;font-weight:700;color:#3f5750;opacity:.75}
   .tb-copyright img{height:15px;width:auto}
   /* ヘッダー */
-  .top{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px}
+  .top{display:flex;align-items:flex-start;gap:12px;margin-bottom:1px}   /* ⭐横ボタンと掲示板を接近させる(2026-08-05 社長) */
   /* 📱 個人スマホ誘導 (2026-08-01 社長指示): 共有タブレットの右上でヘルスがQRを案内する。
      人物は「向かって左を手のひらで指し示す」姿勢なので、QRは人物の左隣に置く。共用端末のみ表示。 */
   /* 枠・背景なし。ヘッダー下端(=掲示板の上端)にヘルスのバストを合わせるため align-self:flex-end +
      .top の margin-bottom を打ち消す負のマージン。 */
+  /* ⚠️2026-08-05 (社長「ヘルスが掲示板にめり込んでいる」): 下に-6px はみ出させていたため、
+     人物の足元が掲示板の上端に食い込んでいた。はみ出しをやめて 2px 浮かせる。 */
   .qr-guide{flex:0 0 auto;display:none;align-items:flex-end;gap:0;margin-left:auto;margin-right:2px;
-    align-self:flex-end;margin-bottom:-6px;background:none;border:0;padding:0;box-shadow:none;overflow:visible}
+    align-self:flex-end;margin-bottom:2px;background:none;border:0;padding:0;box-shadow:none;overflow:visible}
   .qr-guide.on{display:flex}
   /* QRブロックは上端合わせ (2026-08-01): 見出し「スマホでも 見られます」を
      名前の行(ログアウトボタン)と同じ高さに揃える。人物は下端(掲示板の上端)合わせのまま。 */
@@ -39,7 +41,7 @@
   .qr-guide .qg-ttl{font-size:11px;font-weight:900;color:#0c4a6e;line-height:1.2;white-space:nowrap;text-shadow:0 1px 2px rgba(255,255,255,.85)}
   .qr-guide .qg-qr{width:62px;height:62px;display:block;border-radius:4px}
   .qr-guide .qg-sub{font-size:10px;font-weight:700;color:#0c4a6e;white-space:nowrap;text-shadow:0 1px 2px rgba(255,255,255,.85)}
-  .qr-guide .qg-person{height:118px;width:auto;display:block;margin-left:-12px;position:relative;z-index:1;
+  .qr-guide .qg-person{height:104px;width:auto;display:block;margin-left:-12px;position:relative;z-index:1;
     filter:drop-shadow(0 2px 5px rgba(0,0,0,.18))}
   /* 画面が狭い端末では場所を取りすぎるので出さない (共用タブレットは横長前提) */
   @media (max-width:760px){ .qr-guide{display:none !important} }
@@ -47,8 +49,11 @@
   /* min-height=アバターの高さ。顔写真は後から読み込まれるので、先に場所を空けておかないと
      読み込み完了の瞬間にヘッダーが伸びて下のタブ行が下がる(2026-07-26) */
   /* ⭐2026-08-01 (社長): 左上の空きへ『アバター＋その下に名前』を配置。アバターは大きめに。 */
-  .top-gutter{flex:0 0 226px;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;padding-right:8px}
-  .top-gutter .who-av{width:56px;height:56px}
+  /* ⭐2026-08-05 (社長): アバターを大きく／名前・マイページの行は**横ボタンの下端に揃える**。
+     ⚠️揃え方は justify-content:flex-end (下寄せ)。右の #stripHost も .topleft で下寄せなので、
+       両方の下端＝掲示板の上端が1本の線で揃う。 */
+  .top-gutter{flex:0 0 226px;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;padding-right:8px}
+  .top-gutter .who-av{width:76px;height:76px}
   .who-name-g{flex:0 1 auto;min-width:0;max-width:100%;font-size:16px;font-weight:900;color:#0f5c46;line-height:1.2;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* ⭐2026-08-01 (社長): 左上に余裕ができたので 名前を大きく / マイページとログアウトは各1行 */
@@ -58,8 +63,6 @@
     background:#eef1f5;border:1.5px solid #cbd5e1;border-radius:11px;padding:5px 10px;cursor:pointer}
   .gut-mypage:active{transform:translateY(1px)}
 
-  /* ⭐2026-08-01 (社長): ログアウトは左列の先頭へ=掲示板の上端と同じ行に並ぶ */
-  .side-logout{flex:0 0 auto;width:100%;font-size:15px;padding:10px 12px;border-radius:12px;box-shadow:0 4px 0 #a41a1a;margin:0 0 2px}
   #whoTx{display:none}   /* 名前はガター側に出す(スマホでは下のmedia queryで復活) */
   .who .phone-only{display:none}   /* マイページはガター側に置く */
   /* ヘッダー左=名前＋簡単モードの下に横メニューを縦積み(葵はログアウトの左隣) */
@@ -81,12 +84,15 @@
   .view-switch.mypage-btn{margin-left:14px;color:#334155;background:#eef1f5;border-color:#cbd5e1}
   /* 切替(PC版)はアイコンのみ (2026-08-02 社長指示) */
   .view-switch.icon-only{padding:5px 9px;font-size:16px;line-height:1.15}
+  .top-switch{align-self:flex-end;flex:0 0 auto;margin:0 2px 6px 6px}   /* ログアウトとQRの間 */
   .view-switch:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.08)}
   /* 2カラム: 左=葵(常時表示) / 右=操作パネル */
   .main{display:flex;flex-direction:row;gap:8px;flex:1;min-height:0}
   /* 左列: 上=切替タブ / 下=葵(掲示板の左下) */
   .boardside{flex:0 0 auto;width:226px;display:flex;flex-direction:column;gap:8px;min-height:0}
-  .boardside .aoi-col{margin-top:auto;flex:0 0 auto}
+  /* ⭐2026-08-05 (社長「縦ボタン群を上に・葵も上に移動して全身が見えるように」):
+     葵を下端に貼り付ける margin-top:auto をやめ、タブのすぐ下から残りの高さいっぱいに立たせる。 */
+  .boardside .aoi-col{margin-top:4px;flex:1 1 auto;min-height:0;justify-content:flex-start}
   /* 横メニュー(ヘッダー左・簡単モードの下)。左寄せ・はみ出しは横スクロール */
   #stripHost{flex:0 1 auto;min-width:0;align-self:flex-start;max-width:100%;margin-top:0}   /* 位置は .topleft の下揃えで決める (2026-08-01) */
   /* 葵に合わせ夏の飾りも縮小(大きすぎて散らかるのを防ぐ) */
@@ -94,7 +100,9 @@
   /* ☀️夏バージョン: 画面全体を薄いターコイズ(body)に。葵の周りの枠は無し(aoi-col/aoiWrapとも背景なし)。
      発話動画は白背景を同じターコイズにベイク済・待機stillは透過ゆえ、画面と葵がシームレスに繋がる(青被り無し・白箱無し・枠無し)。 */
   .aoi-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:0;position:relative}
-  #aoiWrap{flex:0 0 auto;min-height:0;width:214px;height:380px;display:flex;align-items:flex-end;justify-content:center;position:relative;overflow:hidden;border-radius:14px}
+  /* ⚠️2026-08-06 (社長「葵と『もう一度聴く』が重なる」): 『もう一度聴く』は葵の列の下端に絶対配置なので、
+     バストアップにして葵が大きくなった結果ボタンに重なった。葵の枠に下余白を取り、その分だけ葵を小さくする。 */
+  #aoiWrap{flex:1 1 auto;min-height:150px;width:214px;height:auto;display:flex;align-items:flex-start;justify-content:center;position:relative;overflow:hidden;border-radius:14px;padding-bottom:30px}
   /* 動画クリップ下部(約85〜92%)にAI生成の文字化けテロップが焼き込まれているため、下16%を隠して非表示に。
      静止画・動画の両方へ同率で適用し、切替時に高さがズレないようにする。round=角丸維持。 */
   /* テロップ隠しは直線クリップのみ(角丸クリップは動画でカクつき/黒影の原因→枠側で角丸)。 */
@@ -111,7 +119,7 @@
 
 
   /* ☀️刷新: パネルも透明化し画面全体をターコイズに。カード/入力は各自の背景で可読性維持。 */
-  .panel{flex:1 1 auto;background:transparent;border-radius:22px;padding:6px 4px;overflow:auto;min-height:0}
+  .panel{flex:1 1 auto;background:transparent;border-radius:22px;padding:1px 4px 0;overflow:auto;min-height:0}
   /* 掲示板モード=パネルを縦フルに使い、ページャーを常に画面内に収める(モーダルには影響させない) */
   #panelBody.boardmode{display:flex;flex-direction:column;height:100%;min-height:0}
   #panelBody.boardmode #guidanceBanner{flex:0 0 auto}
@@ -133,6 +141,13 @@
   .c-mypage{background:linear-gradient(135deg,#64748b,#334155)}
   .c-kiko{background:linear-gradient(135deg,#0891b2,#0e5a8a)}
   .c-arch{background:linear-gradient(135deg,#a1836a,#7d6248)}
+  .c-grp{background:linear-gradient(135deg,#0ea5e9,#0369a1)}   /* 🏢グループ宛 (2026-08-05) */
+  /* 📝申請(仮払金の振込申請・立替の精算)。詳細版 home.html の「申請・承認」カテゴリと同じスレート色 (2026-08-06) */
+  .c-apply{background:linear-gradient(135deg,#64748b,#334155)}
+  .c-apply-pay{background:linear-gradient(135deg,#0e9f6e,#046c4e)}
+  .c-apply-list{background:linear-gradient(135deg,#a1a1aa,#71717a)}
+  /* 🚪ログアウト=横ボタン群の右端(QRの隣)。⚠️幅を詰めないと1行に収まらず下へ折り返す(1280pxで実測)。 */
+  .c-logout{background:linear-gradient(135deg,#ef4444,#b91c1c)}
   /* 帰庫点呼(乗務後) 2026-07-09 */
   .kiko-sec{margin-bottom:16px}
   .kiko-q{font-size:19px;font-weight:800;color:#1f2b36;margin:0 0 10px}
@@ -175,8 +190,8 @@
   .hgrid .card .ico{font-size:32px}
   .hgrid .card .hm-face{width:40px;height:40px;border-radius:50%;object-fit:cover;object-position:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
   @media (max-width:640px){ .hgrid{grid-template-columns:1fr 1fr} }
-  .pill{position:absolute;top:12px;right:12px;background:#fff;color:#c0392b;font-size:18px;font-weight:900;border-radius:999px;padding:4px 14px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
-  .pill.ok{color:#0a7d3f}
+  .pill{position:absolute;top:12px;right:12px;background:#dc2626;color:#fff;font-size:18px;font-weight:900;border-radius:999px;padding:4px 14px;box-shadow:0 2px 6px rgba(0,0,0,.2)}   /* 新着=赤ベタ(2026-08-05 社長) */
+  .pill.ok{background:#fff;color:#0a7d3f}   /* 済は赤くしない */
   /* パネル内フローの見出し */
   .ptop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
   .mtitle{font-size:23px;font-weight:900;color:#0f5c46}
@@ -288,19 +303,42 @@
   .ttype{font-size:13px;font-weight:900;color:#fff;padding:4px 10px;text-align:left}
   .tbadge.new{background:#dc2626}
   /* 上段=横並びメニュー(既存機能)、下段=掲示板 のランディング 2026-07-22 */
-  .mstrip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;touch-action:pan-x;overscroll-behavior:contain}
+  /* ⚠️2026-08-05: flex-wrap:wrap を追加。1行に収まらない時は横スクロールで隠れていたため、
+     幅の狭いタブレットでは末尾のボタン(📧会社メール)が画面外に切れて「入口が無い」のと同じ状態になる。
+     折り返せば必ず全部見える(1行に収まる端末では従来どおり1行のまま)。 */
+  /* ⚠️2026-08-05: `overflow-x:auto` は **縦方向も切り取る**(overflow-yがautoになる)ため、
+     ボタンの外へ出した新着バッジが帯の上辺で切れていた。折り返し表示にした今は横スクロール不要なので visible。 */
+  .mstrip{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;overflow:visible;padding:6px 2px 2px;touch-action:auto}
+  /* ⭐2026-08-05 (社長「それぞれのグルーピングしたことがわかるようにしたい」): ボタンを意味のかたまりで囲む。
+     見出し＋薄い枠。かたまりが目で分かれば、点呼ボタンの金リング(tenko-btn)のような個別の強調は不要になる。 */
+  .mgroup{display:flex;flex-direction:column;justify-content:flex-end;gap:3px;border:2px solid rgba(15,23,42,.14);border-radius:15px;padding:3px 8px 5px;background:rgba(255,255,255,.5);overflow:visible}
+  .mglabel{font-size:15px;font-weight:900;color:#0f172a;letter-spacing:.03em;padding-left:2px}   /* 見出しは濃く大きく(2026-08-05 社長) */
+  .mgchips{display:flex;gap:6px;overflow:visible}
   /* 2026-08-01 (社長): 体調チェック〜読んだ通達・連絡までボタン幅を揃える。
      文字数でバラバラだった横幅を固定し、アイコンと文字を中央に置いて並びを整える。 */
-  .mchip{position:relative;flex:0 0 118px;width:118px;box-sizing:border-box;justify-content:center;border:none;border-radius:13px;padding:8px 6px;min-width:0;color:#fff;font-size:12px;font-weight:900;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);font-family:inherit;white-space:nowrap}
+  /* ⚠️2026-08-05: 幅を固定(118px)にしていたため、ログアウトをヘッダーに出した分だけ横が足りなくなり
+     ボタン群が2行に折り返していた。**足りないときだけ縮む**(最小92px・文字は2行に折り返す)ようにして
+     1行に収める。高さは min-height で揃えるので、1行/2行が混在しても段差にならない。 */
+  /* ⭐2026-08-05 (社長「横ボタンがズレズレ、恰好よく一行にそろえて」):
+     可変幅(flex:0 1)＋文字の2行折り返しにしたら、幅も高さもバラバラになった。
+     **全ボタンを同じ寸法・ラベルは必ず1行**に戻す。1行に収める調整は『幅を可変にする』のではなく
+     『チップを一回り小さくする(118→104px・12→11px)』で行う。 */
+  .mchip{position:relative;flex:0 0 104px;width:104px;height:62px;box-sizing:border-box;justify-content:center;border:none;border-radius:13px;padding:6px 4px;min-width:0;color:#fff;font-size:11px;font-weight:900;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);font-family:inherit;white-space:nowrap;line-height:1.1;text-align:center;overflow:visible}
   .mchip:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
   .mchip .ico{font-size:22px;line-height:1}
-  .mchip .pill{top:2px;right:2px;font-size:11px;padding:2px 6px}
-  /* 朝夕の点呼ボタンを少し目立たせる(金リング+拡大) */
-  .mchip.tenko-btn{padding:9px 4px;flex:0 0 118px;width:118px;min-width:0;font-size:13px;box-shadow:0 4px 0 rgba(0,0,0,.22),0 0 0 3px #fcd34d,0 5px 14px rgba(0,0,0,.18)}
-  .mchip.tenko-btn .ico{font-size:25px}
-  .mchip.tenko-btn::before{content:"";position:absolute;inset:-3px;border-radius:16px;box-shadow:0 0 0 0 rgba(251,191,36,.55);animation:tenkoPulse 2.4s ease-out infinite;pointer-events:none}
-  @keyframes tenkoPulse{0%{box-shadow:0 0 0 0 rgba(251,191,36,.5)}70%,100%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
-  @media (prefers-reduced-motion:reduce){.mchip.tenko-btn::before{animation:none}}
+  /* ⭐2026-08-05 (社長「新着バッジをもう少し大きく目立つように。動きがあるといいね。すぐログアウトする社員が多い」)。
+     気づかせたいのは【まだ見ていない物がある】ことだけなので、動かすのは未読バッジのみ。
+     ⚠️済(.ok)は動かさない=終わったものが跳ねると『まだ何かある』と誤読させる。 */
+  .mchip{z-index:1}                 /* 重なり順の土台(バッジを隣のボタンより前に出すため) */
+  .mchip.has-new{z-index:3}         /* 未読があるボタンは隣より前 */
+  .mchip .pill{top:-6px;right:-6px;font-size:16px;padding:3px 10px;min-width:14px;text-align:center;z-index:9;
+    box-shadow:0 0 0 3px #fff, 0 3px 8px rgba(0,0,0,.28);animation:badgePop 1.5s ease-in-out infinite}
+  .mchip .pill.ok{animation:none;box-shadow:0 0 0 3px #fff, 0 2px 6px rgba(0,0,0,.2);border:1.5px solid #cfe6d6}
+  @keyframes badgePop{0%,55%,100%{transform:scale(1)}25%{transform:scale(1.22)}40%{transform:scale(.96)}}
+  /* 未読があるボタン自体もゆっくり息をする(バッジだけだと視野の端で気づかれない) */
+  .mchip.has-new{animation:chipGlow 2.6s ease-in-out infinite}
+  @keyframes chipGlow{0%,100%{box-shadow:0 3px 0 rgba(0,0,0,.18)}50%{box-shadow:0 3px 0 rgba(0,0,0,.18),0 0 0 6px rgba(251,191,36,.42)}}
+  @media (prefers-reduced-motion:reduce){.mchip .pill,.mchip.has-new{animation:none}}
   /* ゾーン見出し */
   .zonehd{font-size:20px;font-weight:900;color:#0f172a;margin:16px 2px 9px;display:flex;align-items:baseline;gap:9px}
   .zonehd small{font-size:13px;font-weight:600;color:#64748b}
@@ -395,6 +433,17 @@
   .postit .pi-from{padding:0 13px 12px;font-size:12.5px;font-weight:800;color:#8a761f}
   /* 食事投稿/ひろばの名前帯(サークルの部名帯と同じ見せ方) */
   .foodband{display:flex;align-items:center;gap:7px;background:linear-gradient(90deg,#e58aa9,#d23b6a);color:#fff;font-weight:900;font-size:14px;padding:8px 13px}
+  /* ⭐2026-08-06 (社長「食事投稿は付箋タイプにしてサークルと違いが分かるように」)
+     食事だけ黄色い付箋(紙)。⚠️回転や角丸を強くしすぎると マソンリーの高さ計算(measureCards)とズレるので
+     見た目だけの変更(背景・枠・影)に留める。 */
+  /* ⚠️2026-08-06 修正: 角を角ばらせる/1px枠/右下のめくれ三角 は、他のカードと寸法や形が揃わず
+     『表示が変』に見えた(社長)。**枠の形は他のカードと同じまま、紙の色だけ**にする。 */
+  .mcol .tile.postit-food{background:linear-gradient(180deg,#fffbe0,#ffefad);border:2px solid #efd968;
+    box-shadow:0 4px 10px rgba(130,105,20,.18)}
+  .tile.postit-food .tmeta{background:transparent}
+  .tile.postit-food .ttitle{color:#4a3d0c}
+  .tile.postit-food .tsub .anon{color:#8a761f}
+  .tile.postit-food .likebtn{background:rgba(255,255,255,.8);border-color:#e3cf6b;color:#8a761f}
   .foodband.hiroba{background:linear-gradient(90deg,#b483cf,#9a5bb8)}
   .foodband.boardband{background:linear-gradient(90deg,#c9a86a,#a1836a)}
   /* ⭐2026-08-01: 食事タイルの帯と下地をランク別に (PC版と同じ7段階・色＋文言で判別) */
@@ -514,17 +563,23 @@
   /* コルクボード＆1画面ページ送り 2026-07-22 */
   #boardHost.cork{background-color:#caa877;
     background-image:radial-gradient(circle at 20% 30%,rgba(120,84,40,.16) 0 1.3px,transparent 1.6px),radial-gradient(circle at 65% 70%,rgba(120,84,40,.16) 0 1.3px,transparent 1.6px),radial-gradient(circle at 82% 22%,rgba(120,84,40,.14) 0 1.1px,transparent 1.4px);
-    background-size:26px 26px,31px 31px,23px 23px;border-radius:16px;padding:11px 12px 9px;
+    background-size:26px 26px,31px 31px,23px 23px;border-radius:16px;padding:8px 12px 6px;
     box-shadow:inset 0 0 44px rgba(80,52,22,.4),inset 0 0 0 2px rgba(90,60,28,.28)}
   /* 2タブ切替(掲示板の外・左に縦並び) */
   /* タブは2列グリッド。5ボタンでも3行に収まり、葵の縦スペースを奪わない(全身が切れない) 2026-07-25 */
   /* ⚠️ボタンの寸法は固定。文字が2行になったり件数バッジが出たりで高さが変わると行がズレて
      「押したい場所が動く」ので、min-height を与えて常に同じ位置に置く(2026-07-26) */
-  .pgtabs{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}
+  /* ⭐2026-08-05 (社長「みんなの投稿とアバター名・マイページの間を少しあけて」):
+     実測=横ボタン帯の下端→掲示板の上端は 2px、マイページ行→最初の縦ボタンは 1px でほぼ密着していた。
+     左列だけ 8px 空けて、右の『横ボタン→掲示板』と同じくらいの離れ具合に見えるようにする。 */
+  .pgtabs{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start;margin-top:8px}
   .pgtab{min-height:62px}      /* ← 4つのタブは同じ高さ(文字の折返し/バッジで動かさない・文字拡大時は伸びる) */
   .pgtab,.pgbtn-menu{flex:0 0 auto;width:100%;border:none;border-radius:12px;font-family:inherit;font-weight:900;font-size:12px;line-height:1.2;padding:10px 6px;cursor:pointer;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;position:relative;text-decoration:none;overflow:hidden}
   .pgtab .pgti,.pgbtn-menu .pgti{font-size:21px;line-height:1}
-  .pgbtn-menu{background:#0d9488;grid-column:1/-1}   /* 「何を食べようか」は横いっぱい(2列ぶち抜き) */
+  .pgbtn-menu{background:#0d9488;grid-column:1/-1}   /* 既定は横いっぱい(2列ぶち抜き) */
+  .pgbtn-menu.one{grid-column:auto}                  /* 1マスぶん(健康管理室) 2026-08-05 */
+  .pgtab.wide{grid-column:1/-1}                      /* 余った1マスを埋めて全幅(労働安全ニュース) */
+  .pglabel{grid-column:1/-1;font-size:15px;font-weight:900;color:#0f172a;letter-spacing:.03em;padding:4px 2px 1px}   /* 縦ボタンのグループ見出し。濃く大きく(2026-08-05 社長) */
   .pgbtn-menu .mface{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:center;border:1.5px solid #fff;flex:0 0 auto}
   .pgbtn-menu:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.2)}
   .pgtab.tab-off{background:#b91c1c}
@@ -546,7 +601,7 @@
   .pgtrack{display:flex;height:100%;transition:transform .35s cubic-bezier(.4,.1,.2,1)}
   /* マソンリー: 1ページ=複数列、カードは中身で可変高さ(コルクボードの大小の付箋) */
   /* 2026-08-01: 最上段のピンの頭が切れる/上のカードに重なるため、上余白と行間を広げる */
-  .pg{min-width:100%;height:100%;display:flex;gap:12px;padding:16px 8px 2px 16px;align-items:flex-start;overflow:hidden}
+  .pg{min-width:100%;height:100%;display:flex;gap:12px;padding:13px 8px 2px 16px;align-items:flex-start;overflow:hidden}
   .mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:20px}
   /* 固定グリッド(労働安全=3列×2行)。カードを均等高さに伸ばす 2026-07-26 */
   .pg.grid3x2{align-items:stretch}
@@ -614,7 +669,7 @@
   .mcol .tile:nth-child(3n+2){transform:rotate(.5deg)}
   .mcol .tile:nth-child(3n){transform:rotate(-.3deg)}
   @media (prefers-reduced-motion:reduce){.pgtrack{transition:none}}
-  .pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px}
+  .pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:6px}
   .pnav{background:linear-gradient(180deg,#fffdf6,#e9e0cd);border:1px solid rgba(120,90,50,.4);border-radius:11px;font-family:inherit;font-weight:900;font-size:14px;color:#5a4326;padding:7px 16px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.22)}
   .pnav:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
   .pnav:disabled{opacity:.4;box-shadow:none;transform:none}
@@ -644,7 +699,6 @@
     .wrap{min-height:100svh}
     .top{margin-bottom:0}
     .top-gutter{display:none}
-    .side-logout{display:none}
     #whoTx{display:inline}
     .who .phone-only{display:inline-block}
     /* 名前と マイページ/PC版/ログアウト は必ず1行 (折り返すと行が2段になり縦を食う) */
@@ -664,12 +718,16 @@
        スライド不要=押し間違い/見落としが減る。セルは等幅・等高。 */
     /* 2026-08-01 (社長「3×4で全ボタン整列」): 操作6ボタン(2行)＋掲示板タブ5(2行)を
        同じ列幅・同じ行間で積み、全体が 3列×4行 の一つの格子に見えるようにする。 */
-    .mstrip{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:2px 0 0;margin-bottom:5px;overflow:visible;touch-action:auto}
+    .mstrip{display:flex;flex-direction:column;gap:5px;padding:2px 0 0;margin-bottom:5px;overflow:visible;touch-action:auto}
+    .mgroup{padding:4px 6px 6px;border-radius:12px;gap:3px}
+    .mglabel{font-size:12.5px}
+    .mgchips{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+    .mgroup.no-phone{display:none}   /* スマホは名前の行のログアウトを使う(二重に出さない) */
     /* 2026-08-01: 操作メニューと掲示板タブのセルを完全に同寸へ。文字が1行/2行でも高さが変わらないよう
        min-height ではなく height を固定する(11個すべて同じ大きさ)。 */
-    .mchip,.mchip.tenko-btn{width:100%;min-width:0;flex:0 0 auto;height:56px;min-height:0;font-size:9.5px;padding:4px 3px;border-radius:11px;gap:2px;white-space:normal;line-height:1.12;text-align:center;justify-content:center;overflow:hidden}
-    .mchip .ico,.mchip.tenko-btn .ico{font-size:17px}
-    .mchip .pill{top:0;right:0}
+    .mchip{width:100%;min-width:0;flex:0 0 auto;height:56px;min-height:0;font-size:9.5px;padding:4px 3px;border-radius:11px;gap:2px;white-space:normal;line-height:1.12;text-align:center;justify-content:center;overflow:hidden}
+    .mchip .ico{font-size:17px}
+    .mchip .pill{top:1px;right:1px;font-size:13px;padding:1px 7px;box-shadow:0 0 0 2px #fff,0 2px 5px rgba(0,0,0,.28)}   /* ⚠️スマホの.mchipはoverflow:hidden=はみ出させると切れる */
     /* 縦積み: 上=アバター＋タブ / 下=掲示板・操作パネル */
     .main{flex-direction:column;flex:0 0 auto;min-height:0;gap:5px;margin-top:0}
     .boardside{width:auto;flex:0 0 auto;flex-direction:row;align-items:flex-start;gap:5px;margin-top:0}
@@ -739,6 +797,85 @@
     .pager{display:none}
     .pghint{color:#0f5c46;text-shadow:none}
   }
+  /* ⭐2026-08-05 (社長・実機タブレットで確認): 横ボタンが2行に折り返していた。
+     画面幅に応じて【ボタンを一回り小さく＋左ガター/QRを詰める】ことで、必ず1行に収める。
+     ⚠️折り返しを許すのではなく縮める=かたまりの並び(体調/連絡/おわり)を崩さないため。
+     ⚠️⚠️このブロックは**必ず<style>の末尾**に置く。先頭付近に置くと、後から出てくる .mchip /
+     .top-gutter の基本ルールに上書きされて無効になる(2026-08-05 実測で発覚)。 */
+  /* ⭐2026-08-06 (社長「簡易表示のスマホ画面が見にくい。葵は立たせなくてよい」):
+     スマホ(≤640px)は **葵の枠を出さない**。従来は葵のために左に136pxの余白を確保していたため、
+     ボタンが右半分に押し込まれ、文字が9.5pxまで小さくなって読めなかった。
+     枠をやめて**画面の全幅を使い、文字とボタンを一回り大きく**する。
+     ⚠️葵の音声(読み上げ)はAudio要素なので、動画を隠しても喋る。戻したいときは #aoiWrap の display を戻すだけ。 */
+  @media (max-width:640px){
+    #aoiWrap, .aoi-col .adv-head { display:none !important; }
+    .aoi-col{ position:static !important; width:auto !important; padding:0 !important; margin:0 !important; }
+    .mstrip{ padding-left:0 !important; padding-right:0 !important; }
+    .boardside{ padding-left:0 !important; padding-right:0 !important; }
+    .top-gutter{ display:none !important; }
+    /* 横ボタン: 3列・文字を大きく */
+    /* ⚠️3列にすると『連絡』の4つ目(過去の読んだ通達)だけ2行目に落ちて不格好＋文字が3行に折れる。
+       2列にすると 体調=2つで1行ぴったり / 連絡=2×2 で揃い、文字も1〜2行に収まる。 */
+    .mgchips{ grid-template-columns:repeat(2,1fr) !important; gap:7px !important; }
+    .mgroup{ padding:4px 7px 7px !important; border-radius:14px !important; }
+    .mglabel{ font-size:13.5px !important; }
+    .mchip{ height:66px !important; font-size:12.5px !important; border-radius:13px !important; padding:6px 3px !important; }
+    .mchip .ico{ font-size:22px !important; }
+    .mchip .pill{ font-size:14px !important; padding:2px 8px !important; top:2px !important; right:2px !important; }
+    /* 縦ボタン(板の切替)も同じ大きさに */
+    .pgtabs{ grid-template-columns:repeat(2,1fr) !important; gap:6px !important; margin-top:6px !important; }
+    .pgtab, .pgbtn-menu{ height:62px !important; font-size:12.5px !important; border-radius:13px !important; }
+    .pgtab .pgti, .pgbtn-menu .pgti{ font-size:21px !important; }
+    .pglabel{ font-size:13.5px !important; padding:6px 2px 0 !important; }
+    .replay-btn{ font-size:12px !important; padding:5px 12px !important; }
+    /* 読み込み後の余白を詰めて、掲示板を早く出す */
+    .wrap{ padding:6px 8px 10px !important; }
+    .who-name-g, #whoTx{ font-size:16px !important; }
+  }
+  @media (min-width:641px) and (max-width:1365px){
+    .mchip{flex:0 0 86px;width:86px;height:56px;font-size:10.5px}
+    .mchip .ico{font-size:19px}
+    .mgroup{padding:3px 6px 5px}
+    .mglabel{font-size:13px}
+    .top-gutter{flex:0 0 196px;min-width:0}
+    .who-name-g{font-size:15px}
+    .gut-mypage{font-size:11.5px;padding:4px 8px}
+    .qr-guide .qg-person{height:96px}
+  }
+  @media (min-width:641px) and (max-width:1099px){
+    .mchip{flex:0 0 76px;width:76px;height:52px;font-size:9.5px}
+    .mchip .ico{font-size:17px}
+    .mchip .pill{font-size:13px;padding:2px 7px;top:-5px;right:-5px}
+    .mgroup{padding:2px 5px 4px;border-radius:12px}
+    .mglabel{font-size:12px}
+    .mstrip{gap:6px}
+    .mgchips{gap:5px}
+    .top-gutter{flex:0 0 170px;min-width:0}
+    .who-name-g{font-size:14px}
+    .gut-mypage{font-size:11px;padding:3px 7px}
+    .top-gutter .who-av{width:62px;height:62px}
+    .qr-guide .qg-qr{width:54px;height:54px}
+    .qr-guide .qg-person{height:84px}
+  }
+  @media (min-width:641px) and (max-width:860px){
+    .mchip{flex:0 0 58px;width:58px;height:44px;font-size:8.5px}
+    .mchip .ico{font-size:14px}
+    .mchip .pill{font-size:11px;padding:1px 5px}
+    .mglabel{font-size:10px}
+    .mstrip{gap:5px}
+    .qr-guide{display:none !important}   /* 幅が足りないときはQR案内ごと畳む(ボタンの1行を優先) */
+    .top-gutter{flex:0 0 118px;min-width:0}
+  }
+  @media (min-width:641px) and (max-width:960px){
+    .mchip{flex:0 0 66px;width:66px;height:48px;font-size:9px}
+    .mchip .ico{font-size:15px}
+    .mgroup{padding:2px 4px 3px}
+    .mglabel{font-size:11px}
+    .top-gutter{flex:0 0 132px;min-width:0}
+    .who-name-g{font-size:13px}
+    .gut-mypage{font-size:10.5px;padding:3px 6px}
+    .qr-guide .qg-person{display:none}   /* 幅が足りないときは人物を隠してQRだけ残す */
+  }
 </style>
 </head>
 <body>
@@ -746,9 +883,12 @@
   <div class="top">
     <div class="top-gutter"><img id="whoAv" class="who-av" alt="" style="display:none"><div class="who-line"><div class="who-name-g" id="whoNameG"></div><button class="gut-mypage" onclick="openMyPage()">⚙️ マイページ</button></div></div>
     <div class="topleft">
-      <div class="who" id="who"><span id="whoTx">—</span><button class="view-switch mypage-btn phone-only" onclick="openMyPage()">⚙️ マイページ</button><button id="viewSwitchBtn" class="view-switch icon-only" style="display:none" onclick="goDetailed()" title="PC版に切り替える" aria-label="PC版に切り替える">🖥</button><span class="who-actions"><button class="btn-logout phone-only" onclick="preLogout()">ログアウト</button></span></div>
+      <div class="who" id="who"><span id="whoTx">—</span><button class="view-switch mypage-btn phone-only" onclick="openMyPage()">⚙️ マイページ</button><span class="who-actions"><button class="btn-logout phone-only" onclick="preLogout()">ログアウト</button></span></div>
       <div id="stripHost"></div>
     </div>
+    <!-- ⭐2026-08-06 (社長): PC版への切替アイコンは【ログアウトとQRの間】へ。名前の行から引っ越し。
+         表示条件は従来どおり init() が制御(共用タブレットでは出さない・詳細を使える人だけ)。 -->
+    <button id="viewSwitchBtn" class="view-switch icon-only top-switch" style="display:none" onclick="goDetailed()" title="PC版に切り替える" aria-label="PC版に切り替える">💻</button>
     <div class="qr-guide" id="qrGuide">
       <div class="qg-box">
         <div class="qg-ttl">スマホでも 見られます</div>
@@ -763,14 +903,13 @@
   <div class="main">
     <!-- 左列: 上=切替タブ / 下=葵(ヘッダーから引っ越し・掲示板の左下) -->
     <div class="boardside">
-      <button class="btn-logout side-logout" onclick="preLogout()">ログアウト</button>
       <div class="pgtabs" id="pgTabs"></div>
       <div class="aoi-col">
         <!-- 吹き出しは廃止。案内は音声主体。#bubbleは内部保持用に残すが非表示。 -->
         <div class="bubble" id="bubble" hidden>…</div>
         <div id="aoiWrap">
-          <img id="aoiStill" src="/assets/aoi/still.png?v=summer8" alt="葵">
-          <video id="aoiVid" muted loop playsinline preload="auto" poster="/assets/aoi/still.png?v=summer8" src="/assets/aoi/point.mp4?v=summer8" style="display:none"></video>
+          <img id="aoiStill" src="/assets/aoi/still.png?v=w20260806d" alt="葵">
+          <video id="aoiVid" muted loop playsinline preload="auto" poster="/assets/aoi/still.png?v=w20260806d" src="/assets/aoi/point.mp4?v=w20260806d" style="display:none"></video>
           <div id="aoiSeason" aria-hidden="true">
             
             
@@ -790,7 +929,7 @@
     <div class="panel"><div id="panelBody"></div></div>
   </div>
   <div class="tb-copyright">
-    <img src="/assets/brand/bizterrace-logo.png?v=1" alt="BIZ-TERRACE">
+    <img src="/assets/brand/bizterrace-logo.png?v=3" alt="BIZ-TERRACE">
     <span>CoWell &copy; 2026 ビズテラス株式会社</span>
   </div>
 </div>
@@ -802,6 +941,10 @@ var TOKEN = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_a
 //  キオスク=無操作オートログアウト有・戻る無効・完了画面でログアウト必須。
 //  個人スマホ=自分の端末なのでオートログアウトしない・戻る有効・詳しい表示に切替可。
 var IS_KIOSK = (localStorage.getItem('cohub_kiosk') === '1');
+/* ⚠️📧会社メールは【簡単版には実装しない】(2026-08-05 社長)。
+   「メッセージ＝DM」で、一般社員はDMだけで足りる。会社メールを持つのは役員・事務の8名だけで、
+   その人たちはPC(詳しい表示)で見る。一度 かんたんモードに📧を足したが、方針に合わせて撤去した。
+   ⚠️共用キオスクでは home.html 側でも mail.html カードを隠している(6/30 機微カード非表示)。 */
 // 📱 個人スマホ誘導QR: 読み取ると /tablet?personal=1 (PINだけでログイン)へ。
 //   自分のスマホで見ている人には不要なので共用タブレット(キオスク)のときだけ出す。
 function setupQrGuide(){
@@ -839,6 +982,11 @@ function connectSocket(){
     socket.on('dm:msg', function(m){
       try{ refreshBadges(); }catch(e){}
       if(curPeer && m && (String(m.from)===curPeer || String(m.to)===curPeer)){ try{ loadThread(curPeer, true); }catch(e){} }
+    });
+    // 🏢 グループの連絡(拠点・業務)。開いているグループなら引き直す=自分の送信echoもここで整う。
+    socket.on('group:msg', function(m){
+      try{ refreshBadges(); }catch(e){}
+      if(curGroup && m && String(m.group_id)===curGroup){ try{ loadGroupThread(true); }catch(e){} }
     });
     socket.on('dm:blocked', function(b){ try{ speak('申し訳ありません。この相手には 送れません。'+((b&&b.reason==='hierarchy')?' 上司を 通じて ご連絡ください。':'')); }catch(e){} });
   }catch(e){}
@@ -924,7 +1072,7 @@ function aoiTalk(on){
 }
 function aoiWave(){ /* 動画に動作が含まれるため個別のwaveは不要 */ }
 // 感情クリップ(喜怒哀楽+表情)の出し分け。喋る直前に aoiSetClip() で切り替える。
-var CLIP={point:'point.mp4?v=summer8',greet:'greet.mp4?v=summer8',talk:'talk.mp4?v=summer8',concern:'concern.mp4?v=summer8',praise:'praise.mp4?v=summer8',bow:'bow.mp4?v=summer8',listen:'listen.mp4?v=summer8',thanks:'thanks.mp4?v=summer8',surprise:'surprise.mp4?v=summer8',caution:'caution.mp4?v=summer8'};
+var CLIP={point:'point.mp4?v=w20260806d',greet:'greet.mp4?v=w20260806d',talk:'talk.mp4?v=w20260806d',concern:'concern.mp4?v=w20260806d',praise:'praise.mp4?v=w20260806d',bow:'bow.mp4?v=w20260806d',listen:'listen.mp4?v=w20260806d',thanks:'thanks.mp4?v=w20260806d',surprise:'surprise.mp4?v=w20260806d',caution:'caution.mp4?v=w20260806d'};
 var curClip='point';   // 動画の初期srcはpoint.mp4(挨拶で葵が手でボタンを促す・src切替のロード待ちなく即再生)
 function aoiSetClip(name){ if(!CLIP[name])name='talk'; if(name===curClip)return; curClip=name; var v=$('aoiVid'); if(v){ v.src='/assets/aoi/'+CLIP[name]; try{v.load();}catch(e){} } }
 try{ Object.keys(CLIP).forEach(function(k){ fetch('/assets/aoi/'+CLIP[k]).catch(function(){}); }); }catch(e){}   // 先読みでキャッシュを温める
@@ -1033,6 +1181,29 @@ function unlockMedia(){
   try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(e){}
   try{ var s=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='); var ps=s.play(); if(ps&&ps.then) ps.then(function(){ s.pause(); }).catch(function(){}); }catch(e){}
 }
+/* ⭐2026-08-05 (社長): 葵が「未読の新着があること」を声で伝える。
+   バッジを大きく・光らせても、**すぐログアウトしてしまう人には見えていない**。最初の一言で耳に入れる。
+   ⚠️共有画面なので**種類と件数だけ**(差出人・件名・本文は言わない)。帰る前シートと同じ約束ごと。
+   ⚠️グループは【新着があるグループの数】で言う(未読件数だと200件超の人がいて意味が伝わらない)。
+   ⚠️取得に失敗したら黙る=挨拶が遅れたり不確かな数を言うより、何も言わないほうがよい。 */
+async function unreadSpeech(){
+  var parts=[];
+  try{
+    var r=await Promise.all([
+      api('/api/chat/unread-count').catch(function(){return null;}),
+      api('/api/chat/unread').catch(function(){return null;}),
+      api('/api/announcements/unread-count').catch(function(){return null;})
+    ]);
+    var dm=(r[0]&&r[0].dm)||0;
+    var gn=(((r[1]&&r[1].groups)||[]).filter(function(x){ return (x.unread||0)>0; })).length;
+    var an=(r[2]&&(r[2].count!=null?r[2].count:r[2].unread))||0;
+    if(dm) parts.push('個人宛の メッセージが '+dm+'件');
+    if(gn) parts.push('グループの 連絡が '+gn+'件');
+    if(an) parts.push('会社からの 通達が '+an+'件');
+  }catch(e){ return ''; }
+  if(!parts.length) return '';
+  return parts.join('、')+' 届いています。帰る前に 見てくださいね。';
+}
 async function greetNow(){
   if(_aoiBusy) return;   // 既に葵が挨拶中なら二重発火しない
   if(!ME||!ME.display_name){ var d=await api('/api/auth/me'); ME=(d&&d.user)||ME||{}; }
@@ -1094,8 +1265,11 @@ async function greetNow(){
   var sc=schedSpeech(sched, true);
   // 「今日のひとこと」は挨拶のすぐ後・葵の一言の前(=冒頭)に置く。絵文字はTTS側(routes/tts.js)で除去される。
   var dmPart = dmText ? (dmText+' ') : '';
-  var tailShow='さん、'+greet+'。'+dmPart+body+sc.show+kikoShow+closer;
-  var tailSay ='さん、'+greet+'。'+dmPart+body+sc.say +kikoSay +closer;
+  // ⭐未読の知らせは【挨拶のすぐ後】。話の最後だと、聞き終える前に操作を始める人に届かない。
+  var unread = await unreadSpeech();
+  var unreadPart = unread ? (unread+' ') : '';
+  var tailShow='さん、'+greet+'。'+unreadPart+dmPart+body+sc.show+kikoShow+closer;
+  var tailSay ='さん、'+greet+'。'+unreadPart+dmPart+body+sc.say +kikoSay +closer;
   aoiSetClip(mood);   // 疲労=concern / アラート=caution / それ以外=point(ボタンを促す)
   speak(nm+tailShow, null, yomi+tailSay);   // 表示=漢字 / 読み上げ=読み辞書(名前のみ差替・本文はTTSが読む)
 }
@@ -1125,8 +1299,7 @@ async function greetAgain(visit, nm, yomi, sched){
       ? 'お帰りの ときは、帰庫（帰社）点呼を お願いします。'
       : 'お帰りの まえに、帰る前の チェックを お願いします。');
   }catch(e){}
-  try{ var u=await api('/api/announcements/unread-count'); var n=(u&&(u.count!=null?u.count:u.unread))||0;
-       if(n>0) pend.push('未読の 通達が '+n+'件 あります。'); }catch(e){}
+  try{ var un=await unreadSpeech(); if(un) pend.unshift(un); }catch(e){}   // 未読(個人宛・グループ・通達)は最優先で伝える
   var SHORT=['ゆっくり どうぞ。','何か あれば ボタンを 押してくださいね。','お手伝いできることが あれば どうぞ。','ご用の ときは ボタンを どうぞ。'];
   var body = pend.length ? pend.slice(0, visit>=4?1:2).join(' ')
                          : SHORT[(visit + (new Date()).getHours()) % SHORT.length];
@@ -1157,10 +1330,33 @@ function canUseDetail(u){
       || !!u.is_manager || !!u.is_ops_manager || !!u.is_branch_head
       || !!u.is_field_promoter || !!u.is_warehouse_promoter;
 }
+/* ⭐2026-08-06 (社長「施工事業係の渡辺さんに仮払い申請をさせたい」): かんたん版に【📝申請】の入口を出す。
+   ⚠️これまで かんたん版には申請の入口が一切無く、施工事業係の仮払金申請は
+     濱道さんが代理で出していた(8/5の APP-20260805-155243-wp6)。濱道さんは8/20退職。
+   ⚠️サーバー側(/api/approval・/api/expense)は元々【全社員が申請できる】=足りないのは画面の導線だけ。
+     なので権限追加(is_branch_head等)は不要。承認ルートは従来どおり 管理部長→…→社長 に流れる。
+   ⚠️他の現場の人にも持たせるときは、この関数に会社コードを足す。 */
+function canApply(u){ return !!u && u.company_code==='KOJI'; }
+function goApply(){ location.href='/approval.html?type='+encodeURIComponent('仮払金追加振込申請'); }
+function goExpense(){ location.href='/expense.html'; }
+function goApplyList(){ location.href='/approval.html?tab=list'; }
 async function init(){
   var d=await api('/api/auth/me'); ME=(d&&d.user)||{};
   try{ ROSTER_YOMI=(await fetch('/assets/roster_yomi.json').then(function(x){return x.json();}).catch(function(){return {};}))||{}; }catch(e){}
   // 名前は 左上ガター(アバターの下) に出す。スマホはガターを畳むので従来どおり名前行に出す。
+  /* ⭐2026-08-06 (社長): マイページで選んだ言語を【人に付いて回る】ようにする。
+     ⚠️これまで表示言語は端末の localStorage(cohub_lang) だけで決まっていた。共用タブレットは
+       ログアウトで cohub_lang を消す仕様なので、ポルトガル語を選んだ人が次にログインしても
+       日本語のままだった(=通達もDMも日本語で表示)。ログイン直後にサーバーの設定を反映する。 */
+  try{
+    if(ME.lang && ME.lang!=='ja' && localStorage.getItem('cohub_lang')!==ME.lang){
+      localStorage.setItem('cohub_lang', ME.lang);
+      var _tries=0, _ap=setInterval(function(){                  // translate.js は defer なので読み込みを待つ
+        if(window.cohubSetLang){ clearInterval(_ap); try{ window.cohubSetLang(ME.lang); }catch(e){} }
+        else if(++_tries>40) clearInterval(_ap);
+      }, 150);
+    }
+  }catch(e){}
   var _nm=(ME.display_name||'')+' さん';
   var _tx=$('whoTx'); if(_tx) _tx.textContent=_nm;
   var _ng=$('whoNameG'); if(_ng) _ng.textContent=_nm;
@@ -1169,7 +1365,16 @@ async function init(){
   // 個人スマホ(BYOD)でも「詳しい表示(PC版)」を出すのは詳細を使える人(事務/推進/役員/管理職)のみ。
   // 現場一般には出さない=詳細ページは限定(2026-07-24 社長方針)。
   var vb=$('viewSwitchBtn');
-  if(!IS_KIOSK && canUseDetail(ME)){ if(vb) vb.style.display=''; }
+  if(!IS_KIOSK && canUseDetail(ME)){
+    if(vb) vb.style.display='';
+    // ⚠️スマホでは💻がヘッダーの右に浮いて「何のボタンか分からない」状態になるので、名前の行へ入れる。
+    try{
+      if(vb && window.matchMedia && window.matchMedia('(max-width:640px)').matches){
+        var who=$('who'); var acts=who&&who.querySelector('.who-actions');
+        if(who&&acts) who.insertBefore(vb, acts);
+      }
+    }catch(e){}
+  }
   setBubble('こんにちは。ボタンを 押してください。');
   setupQrGuide();   // 共用タブレットの右上にスマホ誘導QR
   renderMenu();
@@ -1213,17 +1418,41 @@ function goDetailed(){ location.href='/home'; }  // /home 側の門番(canUseDet
 // ランディング = 上段に既存メニュー(横並び)、下段にパーソナル掲示板(通達・連絡)を最初から表示。
 // 上帯の横メニュー(葵の隣)。panelBodyとは別の #stripHost に描画=モーダルでも位置が固定。
 function stripHtml(){
-  var isDrv=!!(ME&&ME.job_role==='driver');
-  // 帰る前の申告は全職種に(2026-07-27 社長指示)。ドライバーだけ法定の「帰庫（帰社）点呼」、
-  // 倉庫・製造・事務は「🏠 帰る前のチェック」(法定点呼ではないので"点呼"と呼ばない)。
+  // 退勤時の申告は全職種に(2026-07-27 社長指示)。ドライバーは法定の「帰庫（帰社）点呼」、
+  // 倉庫・製造・事務は法定点呼ではない=モーダル側で見出しを出し分ける(ボタン名は共通で「退勤時」)。
+  /* ⭐2026-08-05 (社長): 上帯は【体調チェック群2つ】＋【連絡群4つ】の6ボタン。
+       ①体調チェック群 : ☀️出勤時(朝の体調チェック) / 🌙退勤時(帰庫点呼・帰る前のチェック)
+       ②連絡群        : ✉️個人宛 / 🏢グループ宛 / 📢会社から通達 / 📁過去の読んだ通達
+     ⚠️ボタン名は【いつ押すか】で言い切る(出勤時/退勤時)。「体調チェック」「帰庫点呼」だと
+       どちらを押す場面か迷う、という指摘。⚠️法定用語の「帰庫点呼」はモーダル側の見出しに残す。
+     ⚠️🏥健康は左の縦ボタン(#pgTabs 最下段)へ移設。📝報告は撤去(推進メンバー全員に飛ぶため・個人宛DMで代替)。 */
+  /* ⭐かたまりを【見出し＋枠】で見せる(2026-08-05 社長)。かたまりが目で分かるので、
+     出退勤ボタンの金リング(旧 .tenko-btn)は廃止した=個別に目立たせる必要がなくなったため。 */
   return '<div class="mstrip">'+
-    '<button class="mchip c-health tenko-btn" onclick="openHealth()"><span class="ico">🩸</span>体調チェック<span class="pill" id="bHealth" style="display:none"></span></button>'+
-    (isDrv?'<button class="mchip c-kiko tenko-btn" onclick="openKiko()"><span class="ico">🚚</span>帰庫点呼</button>'
-          :'<button class="mchip c-kiko tenko-btn" onclick="openKiko()"><span class="ico">🏠</span>帰る前</button>')+
-    '<button class="mchip c-wellness" onclick="openHealthMenu()"><span class="ico">🏥</span>健康</button>'+
-    '<button class="mchip c-report" onclick="openReport()"><span class="ico">📝</span>報告</button>'+
-    '<button class="mchip c-msg" onclick="openMsg()"><span class="ico">💬</span>メッセージ<span class="pill" id="bMsg" style="display:none"></span></button>'+
-    '<button class="mchip c-arch" onclick="openReadArchive()"><span class="ico">📁</span>読んだ通達</button>'+
+    '<div class="mgroup"><div class="mglabel">🩺 体調チェック</div><div class="mgchips">'+
+      '<button class="mchip c-health" onclick="openHealth()"><span class="ico">☀️</span>出勤時<span class="pill" id="bHealth" style="display:none"></span></button>'+
+      '<button class="mchip c-kiko" onclick="openKiko()"><span class="ico">🌙</span>退勤時</button>'+
+    '</div></div>'+
+    // ⭐宛先の種類でボタンを分ける。以前は💬メッセージ(=DMのみ)しか無く、通達は掲示板の左タブだけ
+    //   =**既に通達タブの時は押しても何も起きず「通達が開かない」**と見えた(switchTabは同じタブなら早期return)。
+    '<div class="mgroup"><div class="mglabel">📨 連絡</div><div class="mgchips">'+
+      '<button class="mchip c-msg" onclick="openMsg()"><span class="ico">✉️</span>個人宛<span class="pill" id="bMsg" style="display:none"></span></button>'+
+      '<button class="mchip c-grp" onclick="openGroupList()"><span class="ico">🏢</span>グループ宛<span class="pill" id="bGrp" style="display:none"></span></button>'+
+      '<button class="mchip c-news" onclick="openNoticeList()"><span class="ico">📢</span>会社から通達<span class="pill" id="bNews" style="display:none"></span></button>'+
+      '<button class="mchip c-arch" onclick="openReadArchive()"><span class="ico">📁</span>過去の読んだ通達</button>'+
+    '</div></div>'+
+    // ⭐📝申請 (2026-08-06 社長): 申請を自分で出す係の人だけに出す=canApply()。現状は施工事業係。
+    (canApply(ME) ?
+    '<div class="mgroup"><div class="mglabel">📝 申請</div><div class="mgchips">'+
+      '<button class="mchip c-apply" onclick="goApply()"><span class="ico">📋</span>仮払金の申請</button>'+
+      '<button class="mchip c-apply-pay" onclick="goExpense()"><span class="ico">💰</span>立替の精算</button>'+
+      '<button class="mchip c-apply-list" onclick="goApplyList()"><span class="ico">📄</span>申請のようす</button>'+
+    '</div></div>' : '')+
+    // ⭐ログアウトも同じ「枠＋見出し」のかたまりにして、横ボタン群の一番右(QRの左隣)に並べる。
+    //   ⚠️スマホは名前の行のログアウト(.btn-logout.phone-only)を使うので、この枠は隠す(.no-phone)。
+    '<div class="mgroup no-phone"><div class="mglabel">🚪 おわり</div><div class="mgchips">'+
+      '<button class="mchip c-logout" onclick="preLogout()"><span class="ico">🚪</span>ログアウト</button>'+
+    '</div></div>'+
     '</div>';
 }
 // panelBody は掲示板(＋指導バナー)のみ。横メニューは上帯 #stripHost 側に分離。
@@ -1235,9 +1464,18 @@ function menuHtml(){
 // 横メニュー(上帯)の表示/非表示。モーダル中は隠し、ランディング(掲示板)時のみ表示。葵は常時表示のまま。
 // ⚠️display:none にすると帯のぶんだけ下の全部(タブ・掲示板)が上下にズレる。カードを開く/戻るたびに
 //   タブのボタン行が動いて狙いにくい、という指摘(2026-07-26 社長)。→ visibility で場所は必ず確保する。
-function showStrip(v){ var s=$('stripHost'); if(s){ s.style.display=''; s.style.visibility = v ? '' : 'hidden'; } }
+function _isPhoneView(){ try{ return !!(window.matchMedia && window.matchMedia('(max-width:640px)').matches); }catch(e){ return false; } }
+/* ⚠️2026-08-06 (社長「スマホで掲示板を開くと上部に空白ができる」):
+   タブレットは visibility:hidden で**場所を保持**する(消すとタブ行が上下に動いて押しにくい・2026-07-26 社長指摘)。
+   ところがスマホは縦積みなので、保持した空間がそのまま**画面の上半分の空白**になり、開いた内容が下に押し出される。
+   → スマホのときだけ display:none で畳む。 */
+function showStrip(v){ var s=$('stripHost'); if(!s) return;
+  if(_isPhoneView()){ s.style.visibility=''; s.style.display = v ? '' : 'none'; }
+  else { s.style.display=''; s.style.visibility = v ? '' : 'hidden'; } }
 // 掲示板の切替タブ(左列)。モーダル中は掲示板が出ないので隠す。葵はそのまま(発話するため)。
-function showTabs(v){ var t=$('pgTabs'); if(t){ t.style.display=''; t.style.visibility = v ? '' : 'hidden'; } }
+function showTabs(v){ var t=$('pgTabs'); if(!t) return;
+  if(_isPhoneView()){ t.style.visibility=''; t.style.display = v ? '' : 'none'; }
+  else { t.style.display=''; t.style.visibility = v ? '' : 'hidden'; } }
 // 📱 スマホのみ: 葵を上の帯から下の余白へ移す (2026-08-01)。
 //   上=操作ボタン(3列)とタブ / 下=葵とひとこと、という並びにする。要素ごと動かすので
 //   #aoiWrap/#aoiVid 等のidはそのまま=読み上げ・動画切替のJSは無改修で動く。
@@ -1252,7 +1490,7 @@ function movePhoneAoi(){
   col.style.display='flex';
   _phoneAoiMoved=true;
 }
-function renderMenu(){ $('stripHost').innerHTML=stripHtml(); $('panelBody').innerHTML=menuHtml(); $('panelBody').classList.add('boardmode'); showStrip(true); showTabs(true); advHeadShow(false); refreshBadges(); loadGuidance(); loadNotices(); renderBoard(); movePhoneAoi(); }
+function renderMenu(){ _noticeListMode=false; $('stripHost').innerHTML=stripHtml(); $('panelBody').innerHTML=menuHtml(); $('panelBody').classList.add('boardmode'); showStrip(true); showTabs(true); advHeadShow(false); refreshBadges(); loadGuidance(); loadNotices(); renderBoard(); movePhoneAoi(); }
 
 /* ===== 🔔 おしらせ (運動記録・栄養レポート等の自動通知) =====
    2026-08-01: PCのチャットにある「おしらせ」欄を共有タブレット/スマホにも。
@@ -1264,6 +1502,10 @@ async function loadNotices(){
   var j=null; try{ j=await api('/api/chat/notices?limit=20'); }catch(e){}
   NOTICES=(j&&j.success)?(j.items||[]):[];
   var un=NOTICES.filter(function(x){return x.unread;});
+  // ⚠️2026-08-05 (社長「これまでのお知らせ はいらない」): **未読があるときだけ**バナーを出す。
+  //   既読ぶんの控えめな入口(「これまでの おしらせ」)は、毎回トップに居座って邪魔なので廃止。
+  //   ⚠️読んだ おしらせ を後から見返す手段は無くなる=もう一度必要になったら、
+  //     📁過去の読んだ通達 と同じ「あとから見る場所」に寄せること(トップには戻さない)。
   if(!un.length){ el.innerHTML=''; return; }
   el.innerHTML='<button onclick="openNotices()" style="width:100%;box-sizing:border-box;background:#fffbeb;border:2px solid #f59e0b;border-radius:16px;padding:15px;margin-bottom:12px;text-align:left;cursor:pointer;color:#92400e">'
     +'<div style="font-size:18px;font-weight:800">🔔 あなたへの おしらせが '+un.length+'件 あります</div>'
@@ -1286,7 +1528,7 @@ function openNotices(){
   var list=(un.length?un:NOTICES).map(noticeItemHtml).join('');
   var btn=un.length? '<button onclick="markNoticesRead(this)" style="width:100%;margin-top:6px;background:#d97706;color:#fff;border:none;border-radius:12px;padding:15px;font-size:18px;font-weight:800;cursor:pointer">読みました</button>' : '';
   openModal('🔔 おしらせ', list+btn);
-  try{ speak('おしらせが '+un.length+'件 あります。'); }catch(e){}
+  try{ speak(un.length? ('おしらせが '+un.length+'件 あります。') : 'これまでの おしらせです。'); }catch(e){}
 }
 async function markNoticesRead(btn){
   var ids=NOTICES.filter(function(x){return x.unread;}).map(function(x){return x.id;});
@@ -1331,17 +1573,24 @@ async function consentGuidance(id, btn){
     if(PENDING_GUIDANCE.length){ openGuidance(); } else { setTimeout(renderMenu, 900); }
   } else { if(btn){ btn.disabled=false; btn.textContent='内容を 確認し、承諾します'; } alert('送信に失敗しました。もう一度お試しください。'); }
 }
+// 未読があるボタンに has-new を付ける(ボタンごと ゆっくり光らせて視野の端でも気づけるように)。
+function markNew(pill, on){ var b=pill&&pill.closest?pill.closest('.mchip'):null; if(b) b.classList.toggle('has-new', !!on); }
 async function refreshBadges(){
   var t=await api('/api/tenko/my-today');
   var bh=$('bHealth');
-  if(bh&&t&&t.success){ if(t.done){bh.textContent='済';bh.className='pill ok';} else {bh.textContent='未';bh.className='pill';} bh.style.display=''; }
+  if(bh&&t&&t.success){ if(t.done){bh.textContent='済';bh.className='pill ok';} else {bh.textContent='未';bh.className='pill';} bh.style.display=''; markNew(bh, !t.done); }
   var u=await api('/api/announcements/unread-count');
   var n=(u&&(u.count!=null?u.count:u.unread))||0;
-  var bn=$('bNews'); if(bn){ if(n>0){bn.textContent=n;bn.style.display='';} else bn.style.display='none'; }
+  var bn=$('bNews'); if(bn){ if(n>0){bn.textContent=n;bn.style.display='';} else bn.style.display='none'; markNew(bn, n>0); }
   // メッセージ新着バッジ = 実際のDM未読数(message_readsベース・既読で減る)
   var uc=await api('/api/chat/unread-count');
   var m=(uc&&(uc.dm!=null?uc.dm:uc.count))||0;
-  var bm=$('bMsg'); if(bm){ if(m>0){bm.textContent=m;bm.style.display='';} else bm.style.display='none'; }
+  var bm=$('bMsg'); if(bm){ if(m>0){bm.textContent=m;bm.style.display='';} else bm.style.display='none'; markNew(bm, m>0); }
+  // 🏢グループ宛のバッジ。⚠️未読【件数】ではなく【新着があるグループの数】を出す。
+  //   スズエの工場グループのように未読200件超の人がいて、件数を出すと数字が意味を失う。
+  var gu=await api('/api/chat/unread');
+  var gn=((gu&&gu.groups)||[]).filter(function(x){ return (x.unread||0)>0; }).length;
+  var bg=$('bGrp'); if(bg){ if(gn>0){bg.textContent=gn;bg.style.display='';} else bg.style.display='none'; markNew(bg, gn>0); }
 }
 
 /* ===== 右パネルのフロー表示(全画面モーダルは廃止・葵は常に左に表示) ===== */
@@ -2058,10 +2307,10 @@ function dmgLightbox(url){
 
 /* ===== ③ パーソナル掲示板（通達 + 公式3系統からの連絡・サムネタイル・タップで全文）2026-07-22 ===== */
 // 掲示板は「読ませる主戦場」ではなく任意の受け皿。必読(要確認通達)の強制は briefingStep のゲートが担う。
-var _boardNotices=[], _boardMsgs=[], _boardPlaza=[], _boardCircle=[], _boardGeneral=[], _boardDamage=[], _boardSafety=[], _boardArchive=[], _pagesByTab={official:[],social:[],damage:[],safety:[],archive:[]}, _pgTab='official', _pgIdx=0;
+var _boardNotices=[], _boardMsgs=[], _boardPlaza=[], _boardCircle=[], _boardGeneral=[], _boardDamage=[], _boardSafety=[], _boardArchive=[], _boardGroups=[], _pagesByTab={social:[],damage:[],safety:[],archive:[]}, _pgTab='social', _pgIdx=0;
 // 掲示板タブの定義(色クラス・空表示)。タブを増やすときはここと paintBoard のタブHTMLだけ触る。
-var TAB_CLS={official:'tab-off',social:'tab-soc',damage:'tab-acc',safety:'tab-saf',archive:'tab-arc'};
-var TAB_EMPTY={official:'✓ 未読の 通達・連絡は ありません',social:'まだ 投稿は ありません',damage:'今のところ 事故・破損の お知らせは ありません',safety:'労働安全の 資料は まだ ありません',archive:'過去の 事例は まだ ありません'};
+var TAB_CLS={social:'tab-soc',damage:'tab-acc',safety:'tab-saf',archive:'tab-arc'};
+var TAB_EMPTY={social:'まだ 投稿は ありません',damage:'今のところ 事故・破損の お知らせは ありません',safety:'労働安全の 資料は まだ ありません',archive:'過去の 事例は まだ ありません'};
 // ランディングの #boardHost に掲示板を描画(音声はしない=挨拶 greetNow が予告を担う)。
 async function renderBoard(){
   if(!$('boardHost')) return;
@@ -2095,6 +2344,11 @@ async function renderBoard(){
   // ⭐2026-08-02 (社長): 過去の事故事例(反省会記録)はPCにしか無かった。タブレットにも同じものを出す。
   var ar=await api('/api/accident/archive').catch(function(){return null;});
   _boardArchive=((ar&&ar.archives)||[]);
+  // 🏢 拠点・業務グループの連絡 (2026-08-05)。
+  //   ⚠️タブレットにはグループチャットの画面が無く、拠点グループ(例:「スタンダード運輸 海老名」)に
+  //     投げられた連絡が現場に一切届いていなかった(社長指摘: 海老名の森・沖ほか)。未読があるグループだけ
+  //     ここに掲示して、タップで中身を読める・返事もできるようにする。
+  await loadGroups();
   if(!$('boardHost')) return;   // await中に画面遷移した場合
   paintBoard();
 }
@@ -2143,13 +2397,10 @@ function paginateGrid(htmls,zone,dot,hint,cols,rows,out){
     out.push(page);
   }
 }
-// 掲示板=2タブ切替。①通達・連絡(既定・NEWバッジ) ②みんなの投稿。ページ送りはタブ内だけ。
+// 掲示板の板は4つ: みんなの投稿 / 事故・破損 / 過去の事例 / 労働安全ニュース。
+// ⚠️通達・連絡の板は廃止(2026-08-05 社長「縦ボタンから通達削除」)。通達は上帯の📢会社から通達へ。
 function paintBoard(){
   var host=$('boardHost'); if(!host) return;
-  var fresh=_boardNotices.filter(isFreshNotice);
-  var unreadMsgs=_boardMsgs.filter(function(m){ return !m.read; });
-  var official=[]; _boardMsgs.forEach(function(m,i){ if(!m.read) official.push(msgTile(m,i)); });   // 未読DMのみ(既読は過去フォルダ)
-  fresh.forEach(function(a){ official.push(noticeTile(a,_boardNotices.indexOf(a))); });
   // みんなの投稿=食事/ひろば・掲示板・サークルを系統別に積まず、投稿日の新しい順に混ぜて並べる(2026-07-25)。
   // ⚠️タイルのonclickは各配列のindexを参照するので、並べ替えてもindexは元のまま渡すこと。
   var socialItems=[];
@@ -2166,15 +2417,22 @@ function paintBoard(){
   var archive=[]; if(_boardArchive.length) archive.push(kpiTile());   // 先頭に傾向・KPIの掲示物
   _boardArchive.forEach(function(r,i){ archive.push(archiveTile(r,i)); });
   host.classList.add('cork');
-  var offNew=fresh.length+unreadMsgs.length;
   // タブは掲示板の外(左 #pgTabs)へ。掲示板内はヒント＋ビューポート＋ページャーのみ(カードレイアウトを乱さない)。
+  /* ⭐2026-08-05 (社長): 縦ボタンは5つ。通達は上帯へ移したのでここからは削除。
+       ①みんなの投稿(食事・ひろば)
+       ②安全衛生群 : 🚨事故・破損 / 📚過去の事例
+       ③健康群     : 🏥健康管理室(メニュー) / 🦺労働安全ニュース
+     ⚠️健康管理室は板(タブ)ではなくメニュー=`.pgtab` にすると `:not(.on){opacity:.46}` で永久に薄く沈む。
+       `.pgbtn-menu.one`(常時くっきり・1列ぶん)を使う。最後の労働安全ニュースは余った1マスを埋めて全幅。 */
   var tabsEl=$('pgTabs');
   if(tabsEl){ tabsEl.innerHTML=
-    '<button class="pgtab tab-off" onclick="switchTab(\'official\')"><span class="pgti">📋</span>通達'+(offNew?'<span class="pgtnew">'+offNew+'</span>':'')+'</button>'+
-    '<button class="pgtab tab-soc" onclick="switchTab(\'social\')"><span class="pgti">🎭</span>みんなの投稿</button>'+
+    '<button class="pgtab tab-soc wide" onclick="switchTab(\'social\')"><span class="pgti">🎭</span>みんなの投稿</button>'+
+    '<div class="pglabel">🦺 安全衛生</div>'+
     '<button class="pgtab tab-acc" onclick="switchTab(\'damage\')"><span class="pgti">🚨</span>事故・破損</button>'+
-    '<button class="pgtab tab-saf" onclick="switchTab(\'safety\')"><span class="pgti">🦺</span>労働安全</button>'+
-    (_boardArchive.length?'<button class="pgtab tab-arc" onclick="switchTab(\'archive\')"><span class="pgti">📚</span>過去の事例</button>':''); }   // ⚠️過去事例APIは管理職限定=一般社員には出さない   // 「何を食べようか」は健康メニューと重複のため掲示メニューから削除 (2026-08-01)
+    (_boardArchive.length?'<button class="pgtab tab-arc" onclick="switchTab(\'archive\')"><span class="pgti">📚</span>過去の事例</button>':'')+
+    '<div class="pglabel">🏥 健康</div>'+
+    '<button class="pgbtn-menu one" onclick="openHealthMenu()"><span class="pgti">🏥</span>健康管理室</button>'+
+    '<button class="pgtab tab-saf" onclick="switchTab(\'safety\')"><span class="pgti">🦺</span>労働安全ニュース</button>'; }   // ⚠️過去事例APIは管理職限定=一般社員には出さない   // 「何を食べようか」は健康メニューと重複のため掲示メニューから削除 (2026-08-01)
   host.innerHTML=
     '<div class="pgviewport"><div class="pgtrack" id="pgtrack"></div></div>'+
     '<div class="pager">'+
@@ -2192,8 +2450,10 @@ function paintBoard(){
   var PAD_Y=18;   // .pg の padding (上16 + 下2)
   var pageH=IS_PHONE ? 1000000 : ((vp.clientHeight||400) - PAD_Y); if(!IS_PHONE && pageH<80) pageH=400;
   var NCOL=IS_PHONE ? 1 : (vp.clientWidth>=700?3:2), GAP=20;
-  _pagesByTab={official:[],social:[],damage:[],safety:[],archive:[]};
-  paginateZone(official,'📋 通達・連絡','#b91c1c','',vp,pageH,NCOL,GAP,_pagesByTab.official);
+  _pagesByTab={social:[],damage:[],safety:[],archive:[]};
+  // ⚠️2026-08-05 (社長「縦ボタンから通達削除」): 通達・連絡の板は廃止。行き先は上帯のボタンに移した
+  //   =通達→📢会社から通達 / グループ→🏢グループ宛 / 公式連絡(中身はDM)→✉️個人宛。
+  //   official の板・配列・ページは作らない=無駄な採寸をしない。
   // ⭐2026-08-02 (社長「全件表示されていない」): 何件あるかをヒントに出す。ページを送れば全部見られることが分かるように。
   var _n=function(t,c){ return t+'（全'+c+'件）'; };
   paginateZone(social,'🎭 みんなの投稿','#3a9d5a',_n('気に入った投稿に ♡ いいね を つけてね', _boardPlaza.length+_boardGeneral.length+_boardCircle.length),vp,pageH,NCOL,GAP,_pagesByTab.social);
@@ -2206,11 +2466,11 @@ function paintBoard(){
   paginateZone(archive,'📚 過去の事例','#6d28d9',
     '過去の事例 全'+_boardArchive.length+'件 ／ うち 安全三箇条に ちがいが あったもの '+_vio+'件',
     vp,pageH,NCOL,GAP,_pagesByTab.archive);
-  // 既定=通達・連絡(優先)。空ならみんなの投稿。
+  // 既定=みんなの投稿。
   // ⭐利用者が選んだタブは再描画後も維持する。paintBoardはモーダルを閉じるたび(closeModal→renderMenu→renderBoard)に
   //   走るため、無条件に既定へ戻すと「タブを押しても通達に戻ってしまう」ように見える(2026-07-25 修正)。
   var keep=_pgTab && _pagesByTab[_pgTab] && _pagesByTab[_pgTab].length;
-  if(!keep) _pgTab=(_pagesByTab.official.length?'official':(_pagesByTab.social.length?'social':(_pgTab||'official')));
+  if(!keep) _pgTab='social';
   // _pgIdx は維持(範囲外なら renderTab 側で 0 に戻す)＝カードを開いて閉じても見ていたページに戻る
   $('pgPrev').onclick=function(){ if(_pgIdx>0){ _pgIdx--; setPage(); } };
   $('pgNext').onclick=function(){ var n=(_pagesByTab[_pgTab]||[]).length; if(_pgIdx<n-1){ _pgIdx++; setPage(); } };
@@ -2243,11 +2503,11 @@ function renderTab(){
     else track.innerHTML=pages.map(function(pg){ return '<div class="pg '+(pg.cls||'')+'">'+pg.cols.map(function(c){ return '<div class="mcol">'+c.items.join('')+'</div>'; }).join('')+'</div>'; }).join('');
   }
   var dots=$('pgDots'); if(dots){ dots.innerHTML=''; for(var k=0;k<pages.length;k++) dots.appendChild(document.createElement('i')); }
-  var cls=TAB_CLS[_pgTab]||'tab-off';
+  var cls=TAB_CLS[_pgTab]||'tab-soc';
   [].forEach.call(document.querySelectorAll('.pgtab'),function(b){ b.classList.toggle('on', b.className.indexOf(cls)>=0); });
   // 掲示板の下地色をタブに合わせて切替(いま何の板か一目で判る)
   var bh=$('boardHost');
-  if(bh){ ['official','social','damage','safety','archive'].forEach(function(k){ bh.classList.toggle('bt-'+k, _pgTab===k); }); }
+  if(bh){ ['social','damage','safety','archive'].forEach(function(k){ bh.classList.toggle('bt-'+k, _pgTab===k); }); }
   if(_pgIdx>=pages.length) _pgIdx=0;
   setPage();
 }
@@ -2309,7 +2569,9 @@ function plazaTile(p,i){
   var band = isMeal
     ? '<div class="foodband rank-'+esc(rank||'good')+'">'+esc(rlabel||'🍽 食事投稿')+'</div>'
     : '<div class="foodband hiroba">🎭 ひろば</div>';
-  return '<div class="tile soc'+(isMeal&&rank?' rk-'+esc(rank):'')+'" style="border-color:#e5b3c4" onclick="openPlaza('+i+')">'+band+thumb+
+  // ⭐2026-08-06 (社長): 食事投稿は【付箋(黄色い紙)】にして、サークルの活動報告(白いカード＋緑帯)と
+  //   ひと目で見分けられるようにする。ひろば・掲示板・サークルは従来どおり白いカード。
+  return '<div class="tile soc'+(isMeal?' postit-food':'')+(isMeal&&rank?' rk-'+esc(rank):'')+'" style="border-color:'+(isMeal?'#efd968':'#e5b3c4')+'" onclick="openPlaza('+i+')">'+band+thumb+
     (hasAI?'<span class="aibadge">🩺 AI</span>':'')+
     '<div class="tmeta"><div class="ttitle sm">'+(body||'　')+'</div>'+
     '<div class="tsub"><span class="anon">'+esc(who)+'</span>'+
@@ -2331,8 +2593,10 @@ function openBoardPost(i){
   var p=_boardGeneral[i]; if(!p) return; bumpIdle();
   var img=p.image_url?(isPdf(p.image_url)?pdfAttachHtml(p.image_url,'boardPdf',i)
     :'<img src="'+esc(p.image_url)+'" style="display:block;max-width:100%;max-height:44vh;margin:0 auto;object-fit:contain;border-radius:14px;background:#f1f5f9;cursor:zoom-in" onclick="dmgLightbox(\''+esc(p.image_url)+'\')">'):'';
-  openModal('📋 掲示板', img+(p.content?'<div class="q" style="font-size:20px;white-space:pre-wrap;text-align:left;margin-top:10px">'+esc(p.content)+'</div>':'')+'<div class="anon" style="margin-top:10px">みんなの掲示板</div>');
+  openModal('📋 掲示板', img+(p.content?'<div class="q" style="font-size:20px;white-space:pre-wrap;text-align:left;margin-top:10px">'+esc(p.content)+'</div>':'')+'<div class="anon" style="margin-top:10px">みんなの掲示板</div>'+
+    (p.content?'<button class="btn-go btn-sub" onclick="readPost(\'board\','+i+')">🔊 葵に 読んでもらう</button>':''));
   logUsage('open:掲示板詳細');
+  if(p.content) readPost('board', i);   // ⭐開いたら葵がすぐ読む(表示だけでは読まれないため 2026-08-06 社長)
 }
 // PDF添付の詳細表示: 1ページ目のサムネ(タップで全ページ)＋「資料を ひらく」ボタン。
 // kind は openPdfFrom() のディスパッチ用(投稿の配列を引くため)。
@@ -3154,8 +3418,20 @@ function openCircle(i){
     :'<img src="'+esc(p.image_url)+'" style="display:block;max-width:100%;max-height:44vh;margin:0 auto;object-fit:contain;border-radius:14px;background:#f1f5f9;cursor:zoom-in" onclick="dmgLightbox(\''+esc(p.image_url)+'\')">'):'';
   openModal('🎪 '+(p.circle_name||'サークル')+' の 活動報告',
     img+(p.content?'<div class="q" style="font-size:20px;white-space:pre-wrap;text-align:left;margin-top:10px">'+esc(p.content)+'</div>':'')+
-    '<div class="anon" style="margin-top:10px">活動報告</div>');
+    '<div class="anon" style="margin-top:10px">活動報告</div>'+
+    (p.content?'<button class="btn-go btn-sub" onclick="readPost(\'circle\','+i+')">🔊 葵に 読んでもらう</button>':''));
   logUsage('open:サークル詳細');
+  if(p.content) readPost('circle', i);
+}
+/* ⭐2026-08-06 (社長「メールやサークル投稿を葵が読み上げてほしい。折角表示しているので動きがほしい」)
+   開いた投稿を葵が読む。⚠️読むのは【本文の先頭400字まで】(長文を延々と喋らせない)。
+   ⚠️投稿者名は読まない=ニックネーム(🎭)を音声で流すと、周りに誰の話か伝わってしまうため本文だけ。 */
+function readPost(kind, i){
+  var arr = kind==='circle' ? _boardCircle : (kind==='plaza' ? _boardPlaza : _boardGeneral);
+  var p = arr && arr[i]; if(!p || !p.content) return;
+  bumpIdle(); aoiSetClip(kind==='circle' ? 'thanks' : 'talk');
+  var head = kind==='circle' ? ((p.circle_name||'サークル')+'の 活動報告です。') : '掲示板の お知らせです。';
+  speak(head + String(p.content).slice(0,400));
 }
 // ♡リアクション(❤️をトグル)。楽観更新→失敗時に戻す。共用タブレットなのでリアクションのみ(コメントは出さない)。
 async function reactPost(kind,id,el){
@@ -3167,30 +3443,113 @@ async function reactPost(kind,id,el){
   catch(e){ el.classList.toggle('on'); if(nEl) nEl.textContent=n; }
 }
 // タイプ別に色分け(通達=種別色 / 連絡=青)。上部に色付きラベル+NEWバッジ。
-function noticeTile(a,i){
-  var lv=a.level==='urgent'?'#b91c1c':(a.level==='important'?'#b45309':'#0f766e');
-  var isNew=!a.read_at;
-  var ackBadge=(a.requires_ack&&!a.acked_at)?'<span class="tbadge ack">要確認</span>':'';
-  var att=(a.attachments&&a.attachments[0])||null;
-  var thumb;
-  if(att && /^image\//.test(att.mime||'')){ thumb='<div class="tthumb"><img src="'+esc(att.url)+'" loading="lazy"></div>'; }
-  else if(att){ thumb='<div class="tthumb tdoc" style="border-top:5px solid '+lv+'">📄<div class="small">'+esc(String(att.name||'ファイル').slice(0,16))+'</div></div>'; }
-  else { thumb='<div class="tthumb" style="background:'+lv+'">📣</div>'; }
-  return '<button class="tile" onclick="openNotice('+i+')" style="border-color:'+lv+'">'+
-    (isNew?'<span class="tnew">NEW</span>':'')+
-    '<div class="ttype" style="background:'+lv+'">📣 通達'+(a.level==='urgent'?'（緊急）':(a.level==='important'?'（重要）':''))+'</div>'+thumb+
-    '<div class="tmeta"><div class="ttitle">'+esc(a.title||'通達')+'</div>'+
-    '<div class="tsub">'+ackBadge+'<span class="tdate">'+esc(String(a.created_at||'').slice(0,10))+'</span></div></div></button>';
+/* ===== 🏢 グループの連絡 (拠点・業務のグループチャット) 2026-08-05 =====
+   経緯: 事務所は拠点グループ(例「スタンダード運輸 海老名」)に連絡を流していたが、かんたんモードは
+   DM(1対1)しか見られず、**グループの連絡は現場に1件も届いていなかった**。💬メッセージの中と、
+   ランディングの「通達・連絡」タブの両方から入れるようにする。
+   ⚠️未読件数は多い人で200件超(スズエの工場グループ等)。バッジ(横メニューの💬の数字)には足さない
+     =ほぼ全員が点灯して数字が意味を失うため([[帰る前シートと同じ判断]])。掲示は「タイル1枚＋件数」まで。 */
+function groupUnreadMap(u){ var m={}; ((u&&u.groups)||[]).forEach(function(x){ m[String(x.group_id)]=x.unread||0; }); return m; }
+async function loadGroups(){
+  var gl=await api('/api/chat/groups');
+  var gu=await api('/api/chat/unread');
+  var um=groupUnreadMap(gu);
+  _boardGroups=((gl&&gl.groups)||[])
+    .filter(function(g){ return !g.is_hidden; })    // 本人が自分の一覧で隠したグループは出さない
+    .map(function(g){ g._unread=um[String(g.id)]||0; return g; })
+    .sort(function(a,b){ return (b._unread-a._unread) || String(b.last_at||'').localeCompare(String(a.last_at||'')); });
+  return _boardGroups;
 }
-// DM(連絡)=付箋(ポストイット)風。本文を書いた感じで黄色い紙に貼る。掲示板には未読のみ。
-function msgTile(m,i){
-  var body=esc(String(m.content||'').slice(0,120));
-  return '<button class="tile postit" onclick="openOffMsg('+i+')">'+
-    '<span class="tnew">NEW</span>'+
-    '<div class="pi-body">'+(body||'✉️ 連絡')+'</div>'+
-    '<div class="pi-from">✉️ '+esc(m.sender_name||'連絡')+' さん</div></button>';
+// 🏢 グループ宛の一覧(横メニューの専用ボタンから)。DM(個人宛)とは別画面にする(2026-08-05 社長)。
+async function openGroupList(){
+  logUsage('open:グループ宛'); aoiSetClip('talk'); curPeer=null; curGroup=null;
+  openModal('🏢 グループ宛の 連絡','<div class="empty">読み込み中…</div>');
+  var gs=await loadGroups();
+  var html='';
+  if(!gs.length){ html='<div class="empty">入っている グループは ありません。</div>'; }
+  else { gs.forEach(function(g){
+    html+='<div class="listitem" style="cursor:pointer" onclick="openGroup(\''+esc(String(g.id))+'\',\''+esc(String(g.name||'').replace(/\x27/g,''))+'\')">'+
+      '<div class="ti">'+esc(g.name||'グループ')+(g._unread?' <span class="pill" style="position:static;display:inline-block">新着'+g._unread+'</span>':'')+'</div>'+
+      '<div class="bd">'+esc(String(g.last_content||'').replace(/\s+/g,' ').slice(0,140))+'</div></div>';
+  }); }
+  $('mbody').innerHTML=html;
+  speak('グループ宛の 連絡です。読みたい グループを 押してください。');
 }
-// 通達の全文(タップで開く)。戻るはモーダル上部の「← 戻る」でランディング掲示板へ。開いて読んだ=既読、要確認は確認(ack)。弔事は音声にしない。
+/* 📢 通達の一覧(横メニューの専用ボタンから)。
+   ⚠️掲示板の「通達」タブは【未読だけ】を貼る場所で、既に開いているタブを押しても何も起きない。
+     この一覧は**未読・既読をまとめて新しい順**に出す=「押したら必ず通達が開く」入口。 */
+async function openNoticeList(){
+  logUsage('open:通達'); aoiSetClip('talk');
+  openModal('📢 会社からの 通達','<div class="empty">読み込み中…</div>');
+  if(!_boardNotices.length){
+    var an=await api('/api/announcements');
+    _boardNotices=((an&&(an.items||an.announcements||(Array.isArray(an)?an:[])))||[]);
+  }
+  var rows=_boardNotices.map(function(a,i){
+    var fresh=isFreshNotice(a);
+    var lv=a.level==='urgent'?'#b91c1c':(a.level==='important'?'#b45309':'#0f766e');
+    return '<div class="listitem" style="cursor:pointer;border-left:8px solid '+lv+'" onclick="openNotice('+i+')">'+
+      '<div class="ti">'+(fresh?'<span class="pill" style="position:static;display:inline-block">未読</span> ':'')+esc(a.title||'通達')+'</div>'+
+      '<div class="bd">'+esc(String(a.body||a.content||'').replace(/\s+/g,' ').slice(0,100))+'</div>'+
+      '<div class="mt">'+esc(String(a.created_at||'').slice(0,10))+(a.requires_ack?'　要確認':'')+'</div></div>';
+  }).join('');
+  $('mbody').innerHTML=rows||'<div class="empty">通達は ありません。</div>';
+  _noticeListMode=true;   // 本文を開いたとき「← 通達の一覧に戻る」を出すため
+  speak('会社からの 通達です。読みたい ものを 押してください。');
+}
+var _noticeListMode=false;
+var curGroup=null;
+async function openGroup(gid,name){
+  bumpIdle(); logUsage('open:グループの連絡'); aoiSetClip('talk');
+  curGroup=String(gid); curPeer=null;
+  openModal('🏢 '+(name||'グループ'),'<div class="empty">読み込み中…</div>');
+  await loadGroupThread(false);
+  speak('グループの 連絡です。返事も 書けます。');
+}
+async function loadGroupThread(quiet){
+  if(!curGroup) return;
+  var d=await api('/api/chat/groups/'+encodeURIComponent(curGroup)+'/messages');
+  var all=((d&&d.messages)||[]);
+  var mine=(ME&&ME.uid), readIds=[];
+  // ⚠️既読は【取得できた全件】に付ける。画面に出す直近ぶんだけにすると、未読200件の人は
+  //   開いても件数が減らず、掲示が消えない。表示は読みやすさ優先で直近60件。
+  all.forEach(function(m){ if(m.id && String(m.sender_id)!==String(mine)) readIds.push(m.id); });
+  var msgs=all.slice(-60);
+  var body=msgs.map(function(m){
+    var isMine=String(m.sender_id)===String(mine);
+    var att='';
+    if(m.attach_url){
+      att = /^image\//.test(String(m.attach_type||'')) || /\.(png|jpe?g|gif|webp)$/i.test(String(m.attach_url))
+        ? '<img src="'+esc(m.attach_url)+'" style="max-width:100%;border-radius:10px;margin-top:6px" loading="lazy">'
+        // ⚠️画像以外はリンクにしない(共用タブレットで別ページに飛ぶと かんたんモードへ戻れない)。
+        : '<div style="font-size:15px;margin-top:6px;color:#475569">📎 '+esc(m.attach_name||'添付ファイル')+'（パソコンで 見てください）</div>';
+    }
+    return '<div style="margin:8px 0;text-align:'+(isMine?'right':'left')+'">'+
+      (isMine?'':'<div style="font-size:14px;color:#64748b;margin:0 0 2px 4px">'+esc(m.sender_name||'')+'</div>')+
+      '<div style="display:inline-block;max-width:82%;padding:12px 16px;border-radius:16px;font-size:20px;line-height:1.5;text-align:left;background:'+(isMine?'#d1f0dd':'#eef2f7')+'">'+
+      esc(m.content||'')+att+'</div></div>';
+  }).join('') || '<div class="empty">まだ 連絡は ありません。</div>';
+  $('mbody').innerHTML=
+    '<div id="thread" style="max-height:44vh;overflow:auto;padding:4px;background:#fafcff;border-radius:12px">'+body+'</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px"><textarea class="big-in" id="rply" style="min-height:64px;font-size:22px" placeholder="返事を 書く"></textarea>'+
+    '<button class="btn-go" style="width:auto;padding:14px 20px;margin:0;flex:0 0 auto" onclick="sendGroup()">送信</button></div>'+
+    '<button class="btn-go btn-sub" style="margin-top:8px" onclick="readThread()">🔊 葵に 読んでもらう</button>'+
+    '<button class="btn-close" style="margin-top:10px" onclick="openGroupList()">← グループの 一覧に 戻る</button>';
+  _lastThreadText = msgs.slice(-3).filter(function(m){ return String(m.sender_id)!==String(mine); })
+                        .map(function(m){ return String(m.content||''); }).join('。 ');
+  if(readIds.length){ await api('/api/chat/read',{method:'POST',json:{message_ids:readIds}}); refreshBadges(); }
+  var th=$('thread'); if(th) th.scrollTop=th.scrollHeight;
+}
+function sendGroup(){
+  bumpIdle();
+  var el=$('rply'); var t=(el&&el.value||'').trim();
+  if(!t||!curGroup) return;
+  if(socket){ try{ socket.emit('chat:group',{group_id:curGroup, content:t}); }catch(e){} }
+  // 楽観追記。サーバーからの group:msg で スレッドを引き直す(重複はその時点で消える)。
+  var th=$('thread'); if(th){ th.insertAdjacentHTML('beforeend','<div style="margin:8px 0;text-align:right"><div style="display:inline-block;max-width:82%;padding:12px 16px;border-radius:16px;font-size:20px;line-height:1.5;text-align:left;background:#d1f0dd">'+esc(t)+'</div></div>'); th.scrollTop=th.scrollHeight; }
+  if(el) el.value='';
+}
+// 通達の全文(タップで開く)。入口は上帯の📢会社から通達 と 📁過去の読んだ通達。開いて読んだ=既読、要確認は確認(ack)。弔事は音声にしない。
 function openNotice(i){
   var a=_boardNotices[i]; if(!a) return; bumpIdle();
   var atts=(a.attachments||[]);
@@ -3205,7 +3564,9 @@ function openNotice(i){
   openModal(a.title||'通達',
     (a.requires_ack?'<div class="q" style="font-size:22px;color:#b91c1c">（要確認）</div>':'')+
     '<div class="q" style="font-size:24px;white-space:pre-wrap;text-align:left">'+esc(a.body||a.content||'')+'</div>'+attHtml+
-    (solemn?'':'<button class="btn-go btn-sub" onclick="sayNotice('+i+')">🔊 もう一度 聴く</button>'));
+    (solemn?'':'<button class="btn-go btn-sub" onclick="sayNotice('+i+')">🔊 もう一度 聴く</button>')+
+    // 📢通達ボタンの一覧から開いたときは、一覧へ戻れるようにする(上部の「←戻る」はホームへ帰るため)
+    (_noticeListMode?'<button class="btn-close" style="margin-top:10px" onclick="openNoticeList()">← 通達の 一覧に 戻る</button>':''));
   if(!solemn) sayNotice(i);
   if(a.id){
     var ops=[ api('/api/announcements/'+encodeURIComponent(a.id)+'/read',{method:'POST'}) ];
@@ -3239,11 +3600,12 @@ function isSolemn(a){
 
 /* ===== ④ メッセージ ===== */
 async function openMsg(){
-  logUsage('open:メッセージ'); aoiSetClip('talk'); curPeer=null;
-  openModal('💬 メッセージ','<div class="empty">読み込み中…</div>');
+  logUsage('open:個人宛'); aoiSetClip('talk'); curPeer=null; curGroup=null;
+  openModal('✉️ 個人宛の メッセージ','<div class="empty">読み込み中…</div>');
   var d=await api('/api/chat/dm');
   var peers=(d&&d.peers)||[];
   var html='<button class="btn-go" style="margin:0 0 12px" onclick="openNewDm()">✉️ 新しく 送る</button>';
+  // ⭐グループ宛は別ボタン(openGroupList)に分けた(2026-08-05 社長)。ここは【個人宛=DM】だけ。
   if(!peers.length){ html+='<div class="empty">これまでの メッセージは ありません。</div>'; }
   else { peers.slice(0,30).forEach(function(p){
     html+='<div class="listitem" style="cursor:pointer" onclick="loadThread(\''+esc(p.peer_id)+'\')">'+
@@ -3254,31 +3616,49 @@ async function openMsg(){
   speak('メッセージです。相手を 選ぶか、新しく 送るを 押してください。');
 }
 // 新規に送る相手を名簿から選ぶ
-var CO_MAP={}, ND_USERS=[];
-async function ensureCoMap(){ if(Object.keys(CO_MAP).length) return; var d=await api('/api/expense/init'); ((d&&d.offices)||[]).forEach(function(o){ CO_MAP[o.code]=o.name; }); }
+/* ✉️ 新しく送る = 宛先の候補は【自分が入っているグループのメンバーだけ】(2026-08-05 社長)。
+   ⚠️以前は全社名簿(/api/auth/tablet-roster 約150名)から誰にでも送れた。面識のない他拠点の社員まで
+     選べてしまい、共用タブレットでは誤送信・いたずらの余地が大きい。グループ＝実際に一緒に働く範囲。
+   ⚠️これはタブレット(かんたんモード)の絞り込み。サーバー側のDM可否(上下関係のブロック等)は従来どおり。 */
+var ND_GROUPS=[], ND_USERS=[];
 async function openNewDm(){
   aoiSetClip('talk'); curPeer=null;
   openModal('✉️ 新しく 送る','<div class="empty">読み込み中…</div>');
-  await ensureCoMap();
-  var r=await fetch('/api/auth/tablet-roster').then(function(x){return x.json();}).catch(function(){return null;});
   var myUid=ME&&ME.uid;
-  ND_USERS=((r&&r.users)||[]).filter(function(u){ return u.id!==myUid; });
-  var myCo=(ME&&ME.company_code)||'';
-  var seen={}, offices=[]; ND_USERS.forEach(function(u){ var c=u.company_code||''; if(c&&!seen[c]){seen[c]=1;offices.push(c);} });
-  var sel='<select id="ndco" onchange="renderNewDm()" style="width:100%;font-size:20px;padding:12px;border:2px solid #cfe0ee;border-radius:14px;margin-bottom:10px;font-weight:700"><option value="">すべての拠点</option>';
-  offices.forEach(function(c){ sel+='<option value="'+esc(c)+'"'+(c===myCo?' selected':'')+'>'+esc(CO_MAP[c]||c)+'</option>'; });
+  var gs=await loadGroups();
+  var lists=await Promise.all(gs.map(function(g){ return api('/api/chat/groups/'+encodeURIComponent(g.id)+'/members'); }));
+  var seen={};
+  ND_GROUPS=[]; ND_USERS=[];
+  gs.forEach(function(g,idx){
+    var ms=((lists[idx]&&lists[idx].members)||[]).filter(function(u){ return u.id!==myUid; });
+    if(!ms.length) return;
+    ND_GROUPS.push({id:String(g.id), name:g.name||'グループ'});
+    ms.forEach(function(u){
+      if(seen[u.id]){ seen[u.id].gids.push(String(g.id)); return; }          // 複数グループに居る人は1回だけ出す
+      seen[u.id]={id:u.id, display_name:u.display_name, avatar_url:u.avatar_url, gids:[String(g.id)], gname:g.name||''};
+      ND_USERS.push(seen[u.id]);
+    });
+  });
+  if(!ND_USERS.length){
+    $('mbody').innerHTML='<div class="empty">送れる相手が いません。<br>グループに 入ってから お使いください。</div>';
+    speak('送れる相手が いません。'); return;
+  }
+  var sel='<select id="ndco" onchange="renderNewDm()" style="width:100%;font-size:20px;padding:12px;border:2px solid #cfe0ee;border-radius:14px;margin-bottom:10px;font-weight:700"><option value="">すべてのグループ</option>';
+  ND_GROUPS.forEach(function(g){ sel+='<option value="'+esc(g.id)+'">'+esc(g.name)+'</option>'; });
   sel+='</select>';
-  $('mbody').innerHTML=sel+'<div id="ndlist"></div>';
+  $('mbody').innerHTML=(ND_GROUPS.length>1?sel:'')+'<div id="ndlist"></div>';
   renderNewDm();
   speak('送りたい 相手を 選んで タッチしてください。');
 }
 function renderNewDm(){
-  var co=($('ndco')&&$('ndco').value)||'';
-  var us=ND_USERS.filter(function(u){ return !co || (u.company_code||'')===co; });
+  var gid=($('ndco')&&$('ndco').value)||'';
+  var us=ND_USERS.filter(function(u){ return !gid || u.gids.indexOf(gid)>=0; });
   us.sort(function(a,b){ return String(a.display_name||'').localeCompare(String(b.display_name||''),'ja'); });
+  var gname={}; ND_GROUPS.forEach(function(g){ gname[g.id]=g.name; });
   var html=us.map(function(u){
     var av=u.avatar_url?('<img src="'+esc(u.avatar_url)+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 auto">'):'<span style="font-size:30px">👤</span>';
-    return '<div class="listitem" style="cursor:pointer;display:flex;align-items:center;gap:10px" onclick="loadThread(\''+esc(u.id)+'\')">'+av+'<div><div class="ti" style="margin:0">'+esc(u.display_name||'')+'</div><div class="mt">'+esc(CO_MAP[u.company_code]||u.company_code||'')+'</div></div></div>';
+    var sub=u.gids.map(function(x){ return gname[x]||''; }).filter(Boolean).join('・');
+    return '<div class="listitem" style="cursor:pointer;display:flex;align-items:center;gap:10px" onclick="loadThread(\''+esc(u.id)+'\')">'+av+'<div><div class="ti" style="margin:0">'+esc(u.display_name||'')+'</div><div class="mt">'+esc(sub)+'</div></div></div>';
   }).join('') || '<div class="empty">該当者が いません。</div>';
   $('ndlist').innerHTML=html;
 }
@@ -3299,10 +3679,22 @@ async function loadThread(peerId, quiet){
     '<div id="thread" style="max-height:44vh;overflow:auto;padding:4px;background:#fafcff;border-radius:12px">'+body+'</div>'+
     '<div style="display:flex;gap:8px;margin-top:10px"><textarea class="big-in" id="rply" style="min-height:64px;font-size:22px" placeholder="返事を 書く"></textarea>'+
     '<button class="btn-go" style="width:auto;padding:14px 20px;margin:0;flex:0 0 auto" onclick="sendDm()">送信</button></div>'+
+    '<button class="btn-go btn-sub" style="margin-top:8px" onclick="readThread()">🔊 葵に 読んでもらう</button>'+
     '<button class="btn-close" style="margin-top:10px" onclick="openMsg()">← 一覧に 戻る</button>';
+  _lastThreadText = msgs.slice(-3).filter(function(m){ return String(m.sender_id)!==String(mine); })
+                        .map(function(m){ return String(m.content||''); }).join('。 ');
   if(readIds.length){ api('/api/chat/read',{method:'POST',json:{message_ids:readIds}}); refreshBadges(); }
   var th=$('thread'); if(th) th.scrollTop=th.scrollHeight;
   if(!quiet){ var py=ROSTER_YOMI[String(peerId)]||name; speak(name+'さんとの メッセージです。返事も 書けます。', null, py+'さんとの メッセージです。返事も 書けます。'); }
+}
+/* ⚠️メッセージの読み上げは【本人がボタンを押したときだけ】。共用タブレットで自動再生すると
+   周りに個人あての内容が聞こえてしまう(帰る前シートで『件数まで』にしているのと同じ理由)。
+   読むのは直近3件・相手の発言だけ・各400字まで。 */
+var _lastThreadText='';
+function readThread(){
+  if(!_lastThreadText){ speak('読み上げる メッセージが ありません。'); return; }
+  bumpIdle(); aoiSetClip('talk');
+  speak(String(_lastThreadText).slice(0,400));
 }
 function sendDm(){
   bumpIdle();
@@ -3605,8 +3997,8 @@ function doneScreen(title, sub, emotion){
    - ⭐未読ゼロなら出さない(そのまま見送り)。毎回出すと「閉じる作業」になって形骸化する。
    - ⭐「あとで(このままログアウト)」は最初から押せる。強制しない=タブレットごと嫌われる。
    - ⚠️共有画面は周囲全員に見えるので、出すのは【種類と件数】まで。差出人・本文・件名は出さない。
-   - ⚠️会社メールは対象外。共用キオスクでは mail.html カードを意図的に隠しているので([[kiosk 機微カード非表示]])
-     ここだけ穴を開けない。栄養レポート・健康管理室も同じ理由で対象外。
+   - ⚠️会社メールは対象外。**簡単版に会社メールは実装しない**(2026-08-05 社長)。メールを持つのは
+     役員・事務だけで、その人たちはPC(詳しい表示)で見る。栄養レポート・健康管理室も同じく対象外。
    - ⚠️無操作オートログアウト(doLogout() = farewell なし)では絶対に出さない。無人の画面に件数が残るため。
      この1枚は【手動のログアウトボタン経由だけ】。開いたまま放置されても3分で通常どおり自動ログアウトする。 */
 var _loBusy=false;
@@ -3686,7 +4078,7 @@ function loGo(kind){
     api('/api/board/mark-seen',{method:'POST'});
     _pgTab='social'; _pgIdx=0; renderMenu(); return;
   }
-  _pgTab='official'; _pgIdx=0; renderMenu();   // 通達=ランディングの「📋通達」タブ
+  openNoticeList();   // 📢会社から通達(通達の板は廃止したのでボタンと同じ一覧を開く)
 }
 function loSkip(){ logUsage('done:帰る前→そのままログアウト'); loHide(); doLogout(true); }
 
