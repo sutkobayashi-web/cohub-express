@@ -161,8 +161,13 @@
   .sc10 button{height:120px;border:2px solid #cfd8e0;border-radius:12px;padding:0;font-size:0;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08)}
   .sc10 button.sel{outline:4px solid #0ea5e9;outline-offset:-3px;transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
   .sc10lab{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-top:7px}
-  .sc10lab span{font-size:14px;font-weight:800;color:#64748b;text-align:center;white-space:nowrap}
-  @media (max-width:640px){ .sc10 button{height:64px} .sc10lab span{font-size:10px} }
+  .sc10lab span{font-size:14px;font-weight:800;color:#64748b;text-align:center;white-space:nowrap;line-height:1.2}
+  /* 言葉の上の顔。⚠️文字より顔のほうが先に目に入るので、顔だけで選べる大きさにする。
+     ⚠️くすませる(grayscale)と 🙂 と 😐 の区別が付かなくなるので、選んでいない顔もそのまま出す。 */
+  .sc10lab i{display:block;font-style:normal;font-size:34px;line-height:1.15}
+  .sc10lab span.on{color:#0f172a}
+  .sc10lab span.on i{transform:scale(1.15)}
+  @media (max-width:640px){ .sc10 button{height:64px} .sc10lab span{font-size:10px} .sc10lab i{font-size:21px} }
   /* マイページ(かんたんモード) 2026-07-09 */
   .mp-head{display:flex;align-items:center;gap:14px;padding:2px 2px 14px;border-bottom:1px solid #e5e9ef;margin-bottom:16px}
   .mp-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.15);flex:0 0 auto;background:#eef}
@@ -3829,17 +3834,19 @@ function kikoEquipLabel(kind){
      KPI・平常値(直近30日平均)・エスカレの判定も、過去データとの比較も、一切変わらない。
    ⚠️言葉は 3/2/1/2/3 マスに割り当てる(中央の1マス=いつも通り=5=従来の最頻値)。
      ⭐マスの色は fatColor(0〜10) をそのまま使うので、点呼表の色分けと同じ意味になる。 */
+// [顔, 言葉, 何マス目から, 何マス目まで]
 var SCALE_BANDS={
-  fatigue:[['かなり楽',0,2],['少し楽',3,4],['いつも通り',5,5],['少し疲れた',6,7],['かなり疲れた',8,10]],
-  body:   [['とても良い',0,2],['少し良い',3,4],['いつも通り',5,5],['少し悪い',6,7],['かなり悪い',8,10]],
-  mind:   [['とても良い',0,2],['少し良い',3,4],['いつも通り',5,5],['少し重い',6,7],['かなり重い',8,10]]
+  // ⚠️顔は小さく出るので、隣どうしが紛らわしい組み合わせ(🙂と😐、😔と😞)は避ける
+  fatigue:[['😄','かなり楽',0,2],['😊','少し楽',3,4],['😐','いつも通り',5,5],['😓','少し疲れた',6,7],['😫','かなり疲れた',8,10]],
+  body:   [['😄','とても良い',0,2],['😊','少し良い',3,4],['😐','いつも通り',5,5],['😥','少し悪い',6,7],['🤒','かなり悪い',8,10]],
+  mind:   [['😄','とても良い',0,2],['😊','少し良い',3,4],['😐','いつも通り',5,5],['😔','少し重い',6,7],['😩','かなり重い',8,10]]
 };
 function scaleBands(key){ return SCALE_BANDS[key]||SCALE_BANDS.fatigue; }
-// 数字を言葉に戻す(確認画面・読み上げ用)。0〜10のどの値でも必ずどれかの帯に入る
+// 数字を顔＋言葉に戻す(確認画面用)。0〜10のどの値でも必ずどれかの帯に入る
 function scaleLabel(key,v){
   if(v==null) return '—';
   var b=scaleBands(key);
-  for(var i=0;i<b.length;i++) if(v>=b[i][1] && v<=b[i][2]) return b[i][0];
+  for(var i=0;i<b.length;i++) if(v>=b[i][2] && v<=b[i][3]) return b[i][0]+' '+b[i][1];
   return String(v);
 }
 // 職種ごとの質問の並び。t=choice(選ぶ)/scale(数字を出さない11マス・保存は0〜10)/note(自由記入)/news(お知らせ)/confirm(確認して送信)
@@ -3915,10 +3922,10 @@ function kikoRender(){
     for(var n=0;n<=10;n++){
       cells+='<button class="'+(kikoAns[s.key]===n?'sel':'')+'" style="'+fatColor(n)+'" onclick="fatPick(\''+s.key+'\','+n+')">'+n+'</button>';
     }
-    // 帯の下の言葉。grid-column を明示＝文字幅に関係なくマスの真下に揃う
+    // 帯の下の顔＋言葉。grid-column を明示＝文字幅に関係なくマスの真下に揃う
     var labs=scaleBands(s.key).map(function(bd){
-      var on=(kikoAns[s.key]!=null && kikoAns[s.key]>=bd[1] && kikoAns[s.key]<=bd[2]);
-      return '<span style="grid-column:'+(bd[1]+1)+'/'+(bd[2]+2)+(on?';color:#0f172a':'')+'">'+esc(bd[0])+'</span>';
+      var on=(kikoAns[s.key]!=null && kikoAns[s.key]>=bd[2] && kikoAns[s.key]<=bd[3]);
+      return '<span class="'+(on?'on':'')+'" style="grid-column:'+(bd[2]+1)+'/'+(bd[3]+2)+'"><i>'+bd[0]+'</i>'+esc(bd[1])+'</span>';
     }).join('');
     h+='<div class="q">'+s.q+'</div><div class="fat-lead-s">'+s.lead+'</div>'
       +'<div class="sc10">'+cells+'</div><div class="sc10lab">'+labs+'</div>';
