@@ -16,7 +16,9 @@
     { code: 'pt', label: 'PT' },
   ];
   const LS_KEY = 'cohub_lang';
-  const CACHE_KEY = (lang) => 'cohub_tr_' + lang;
+  // ⚠️v2 = 画面部品の用語集(短い訳語)を入れた 2026-08-07。端末に残った長い訳を捨てるためキーを変える。
+  const CACHE_KEY = (lang) => 'cohub_tr_' + lang + '_v2';
+  try { ['ja', 'en', 'pt'].forEach((l) => localStorage.removeItem('cohub_tr_' + l)); } catch (e) {}
   const MAX_BATCH = 60;
   const HAS_JP = /[぀-ヿ㐀-鿿ｦ-ﾝ]/;
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'PRE']);

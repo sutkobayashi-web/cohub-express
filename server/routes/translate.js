@@ -6,8 +6,17 @@ const crypto = require('crypto');
 const { getDb } = require('../services/db');
 const { generateText } = require('../services/ai');
 const { authUser } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
+
+// 公開ページ(ログイン前UI翻訳)でも使うため authUser は付けられない。
+// 匿名からのLLMコスト悪用を抑えるため翻訳系に専用レート制限 (IPあたり300req/15分)。
+const translateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 300,
+  standardHeaders: true, legacyHeaders: false,
+  message: { error: 'rate_limited' },
+});
 
 const SUPPORTED_LANGS = { en: 'English', pt: 'Brazilian Portuguese' };
 // チャット本文翻訳用 (ソース言語自動検出、JAも target に含む)
@@ -28,6 +37,41 @@ function ensureTable() {
   )`);
 }
 ensureTable();
+
+/* ===== 画面部品の用語集 (2026-08-07 社長「言語を切り替えると構成が崩れる/改行される」) =====
+   ⚠️ボタン・タブ・見出しは**日本語と同じくらい短い訳語**にする。長い訳語が入ると、
+     日本語の字数を前提に幅を決めた横メニューからあふれて構成が崩れる。
+   ⚠️ここに載せた語は AI 翻訳もキャッシュも通さず、この訳を必ず返す(最優先)。
+   ⚠️キーは画面に出ている日本語そのまま(絵文字は別ノードなので含めない)。
+   ⚠️本文・通達・メッセージ等の【文章】は対象外。あくまで部品のラベルだけ。 */
+const GLOSSARY = {
+  pt: {
+    '出勤時': 'Ao chegar', '退勤時': 'Ao sair',
+    '個人宛': 'Pessoal', 'グループ宛': 'Grupo',
+    '会社から通達': 'Comunicados', '過去の読んだ通達': 'Já lidos',
+    'ログアウト': 'Sair',
+    '仮払金の申請': 'Adiantamento', '立替の精算': 'Reembolso', '申請の状況': 'Situação',
+    'みんなの投稿': 'Publicações', '事故・破損': 'Acidentes', '過去の事例': 'Casos',
+    '健康管理室': 'Saúde', '労働安全ニュース': 'Segurança',
+    'スマホでも 見られます': 'Veja no celular', 'カメラで 読み取ってください': 'Leia com a câmera',
+    '食事記録': 'Refeições', '運動記録': 'Exercícios', '健康ボード': 'Painel',
+    '栄養レポート': 'Nutrição', 'マイプラン': 'Meu plano', '体の情報': 'Meu corpo',
+    '健康リテラシー': 'Saber sobre saúde', '熱中症ガイド': 'Calor', '何を食べようか': 'O que comer?',
+  },
+  en: {
+    '出勤時': 'Start of work', '退勤時': 'End of work',
+    '個人宛': 'Personal', 'グループ宛': 'Group',
+    '会社から通達': 'Announcements', '過去の読んだ通達': 'Already read',
+    'ログアウト': 'Log out',
+    '仮払金の申請': 'Advance', '立替の精算': 'Reimbursement', '申請の状況': 'Status',
+    'みんなの投稿': 'Posts', '事故・破損': 'Accidents', '過去の事例': 'Past cases',
+    '健康管理室': 'Health room', '労働安全ニュース': 'Safety news',
+    'スマホでも 見られます': 'Also on your phone', 'カメラで 読み取ってください': 'Scan with camera',
+    '食事記録': 'Meals', '運動記録': 'Exercise', '健康ボード': 'Board',
+    '栄養レポート': 'Nutrition', 'マイプラン': 'My plan', '体の情報': 'My body',
+    '健康リテラシー': 'Health literacy', '熱中症ガイド': 'Heat', '何を食べようか': 'What to eat?',
+  },
+};
 
 function hashText(s) {
   return crypto.createHash('sha1').update(s, 'utf8').digest('hex').slice(0, 20);
@@ -74,7 +118,7 @@ Output JSON array:`;
   return arr.map(v => (typeof v === 'string' ? v : String(v == null ? '' : v)));
 }
 
-router.post('/', async (req, res) => {
+router.post('/', translateLimiter, async (req, res) => {
   try {
     const lang = String((req.body && req.body.lang) || '').toLowerCase();
     if (!SUPPORTED_LANGS[lang]) {
@@ -96,6 +140,11 @@ router.post('/', async (req, res) => {
     for (const raw of inputs) {
       const t = String(raw == null ? '' : raw).slice(0, MAX_TEXT_LEN);
       if (!t.trim()) { out[raw] = raw; continue; }
+      // ⭐画面の部品(ボタン・タブ・見出し)は短い訳語を固定する (2026-08-07 社長)。
+      //   AIに任せると「過去の読んだ通達→Notificações Lidas Anteriores」のように長くなり、
+      //   日本語の字数を前提にした横メニューからあふれて構成が崩れる。用語集が最優先。
+      const fixed = GLOSSARY[lang] && GLOSSARY[lang][t];
+      if (fixed) { out[raw] = fixed; continue; }
       const h = hashText(t);
       const row = selStmt.get(h, lang);
       if (row) {
@@ -188,4 +237,55 @@ router.post('/message', authUser, async (req, res) => {
   }
 });
 
+// ===== ユーザーの表示言語設定 (マイページ/言語ボタンから保存し全ページで自動適用) =====
+const ALLOWED_LANGS = ['ja', 'en', 'pt'];
+router.get('/lang', authUser, (req, res) => {
+  const u = getDb().prepare('SELECT lang FROM users WHERE id = ?').get(req.uid);
+  res.json({ success: true, lang: (u && u.lang) || 'ja' });
+});
+router.post('/lang', authUser, express.json(), (req, res) => {
+  const lang = ((req.body && req.body.lang) || '').toString();
+  if (!ALLOWED_LANGS.includes(lang)) return res.status(400).json({ success: false, msg: 'invalid lang' });
+  getDb().prepare('UPDATE users SET lang = ? WHERE id = ?').run(lang, req.uid);
+  res.json({ success: true, lang });
+});
+
+
+// ============================================================
+// ⭐2026-08-06 (社長): プッシュ通知も本人の言語で送るため、サーバー内から使える翻訳関数を公開する。
+//   キャッシュ(translations_cache)を必ず経由するので、同じ文面の2回目以降はGemini呼び出し無し=無料・即時。
+//   ⚠️失敗時は日本語のまま返す(通知が出ないより、日本語でも届くほうがよい)。
+// ============================================================
+async function translateCached(texts, lang) {
+  const list = (Array.isArray(texts) ? texts : [texts]).map(t => String(t == null ? '' : t).slice(0, MAX_TEXT_LEN));
+  if (!SUPPORTED_LANGS[lang]) return list;
+  try {
+    const db = getDb();
+    const sel = db.prepare('SELECT dst FROM translations_cache WHERE hash=? AND lang=?');
+    const ins = db.prepare('INSERT OR REPLACE INTO translations_cache(hash, lang, src, dst) VALUES(?,?,?,?)');
+    const out = new Array(list.length);
+    const missing = [], missingIdx = [], missingHash = [];
+    list.forEach((t, i) => {
+      if (!t.trim()) { out[i] = t; return; }
+      const h = hashText(t);
+      const row = sel.get(h, lang);
+      if (row) out[i] = row.dst;
+      else { missing.push(t); missingIdx.push(i); missingHash.push(h); }
+    });
+    if (missing.length) {
+      const translated = await translateBatch(missing, lang);
+      const tx = db.transaction(() => {
+        for (let i = 0; i < missing.length; i++) ins.run(missingHash[i], lang, missing[i], translated[i]);
+      });
+      tx();
+      missingIdx.forEach((mi, k) => { out[mi] = translated[k] || list[mi]; });
+    }
+    return out.map((v, i) => (v == null ? list[i] : v));
+  } catch (e) {
+    console.warn('[translateCached]', e && e.message);
+    return list;
+  }
+}
+
 module.exports = router;
+module.exports.translateCached = translateCached;
