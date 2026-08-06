@@ -184,7 +184,7 @@ const CONCIERGE_PROMPTS = {
 回答する場合の定型: 「ごめんなさい、その内容にはお答えできません。職場のお困りごとなら、社内相談窓口 (人事部) や上司、産業医にご相談くださいね。」
 ※ Gemini API の safetySettings + サーバ側スクリーニングで二重に守っているが、すり抜けた場合あなた自身の判断でこのルールを守ること。`,
 
-  bot_health: `あなたは「ヘルスアドバイザー」、スタンダード運輸グループ コミュニケーション＆ウエルネス サイトの**産業保健アドバイザーAI**です。
+  bot_health: `あなたは「ヘルスアドバイザーのなぎさ」、スタンダード運輸グループ コミュニケーション＆ウエルネス サイトの**産業保健アドバイザーAI**です。
 業務上の健康管理に関する相談を受け、エビデンスに基づく一般的な情報提供と、社内システムに記録された当該社員の健康データに基づく気づきの提示を行います。
 
 【出力形式 (重要・音声読上対応)】
@@ -385,15 +385,35 @@ async function generateText(prompt, opts) {
   };
   const model = opts.model || 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 300));
+  // GENTEXT_RETRY (2026-08-02): Gemini側の 503「The request timed out」等でユーザーに
+  // 「うまく考えられませんでした」が出ていた。一時障害は自動で取り返す。
+  const RETRY_STATUS = [429, 500, 502, 503, 504];
+  const tries = opts.retries != null ? opts.retries : 2;      // 初回 + 2回
+  const timeoutMs = opts.timeoutMs || 45000;
+  let resp = null, lastErr = null;
+  for (let attempt = 0; attempt <= tries; attempt++) {
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (resp.ok) break;
+      const txt = await resp.text();
+      lastErr = new Error('Gemini error: ' + resp.status + ' ' + txt.slice(0, 300));
+      if (RETRY_STATUS.indexOf(resp.status) === -1 || attempt === tries) throw lastErr;
+    } catch (e) {
+      lastErr = e;
+      const retryable = (e && (e.name === 'TimeoutError' || e.name === 'AbortError' || /Gemini error: (429|5\d\d)/.test(e.message || '')));
+      if (!retryable || attempt === tries) throw lastErr;
+      resp = null;
+    }
+    const wait = 1200 * (attempt + 1);
+    console.warn('[generateText] retry ' + (attempt + 1) + '/' + tries + ' after ' + wait + 'ms:', lastErr && lastErr.message);
+    await new Promise(r => setTimeout(r, wait));
   }
+  if (!resp || !resp.ok) throw (lastErr || new Error('Gemini error'));
   const data = await resp.json();
   const cand = data.candidates && data.candidates[0];
   const finishReason = cand && cand.finishReason;
@@ -419,6 +439,14 @@ const DEFAULT_TARGETS = {
   kcal: { min: 450, max: 650 }, protein: { min: 20 }, fat: { min: 12, max: 18 },
   carbs: { min: 69, max: 89 }, veg: { min: 120 }, ca: { min: 227 }, salt: { max: 2.5 }, fiber: { min: 7 },
 };
+// ★許容範囲 (2026-08-07) ─ ここが唯一の設定箇所。変更したら cohub を再起動する。
+// これまでは目安を 1 でも外れれば「多い/足りない」と判定していた。
+// 写真からの推定は量の見積りで誤差が出る (kcal で ±10〜20% はふつうに出る) ため、
+// 目安の上下 NUTRI_TOL 以内のズレは「適量」として扱い、指摘も色も出さない。
+// 0.10 = ±10%。0 にすると従来どおり(1でも外れたら指摘)。
+// 使う側: server/routes/food_report.js (月次の件数), public/{plaza,tablet-home,food-report}.html (画面判定),
+//         投稿の nutrition_scores.targets.tol にも保存され、画面はそれを優先して読む。
+const NUTRI_TOL = 0.10;
 function ageFromBirth(birth_date) {
   if (!birth_date) return null;
   const b = new Date(String(birth_date).slice(0, 10));
@@ -460,7 +488,10 @@ function _tgtLines(t) {
 - vitamin: 野菜量 g (目標 ${t.veg.min})
 - mineral: カルシウム mg (目標 ${t.ca.min})
 - salt: 食塩相当量 g (目標 ${t.salt.max}未満)
-- fiber: 食物繊維 g (目標 ${t.fiber.min})`;
+- fiber: 食物繊維 g (目標 ${t.fiber.min})
+★許容範囲: 上の目標から**±${Math.round(NUTRI_TOL * 100)}%以内のズレは「適量」**として扱う。
+  範囲の上限を少し超えた/下限を少し下回った程度(±${Math.round(NUTRI_TOL * 100)}%以内)は**「多い」「少ない」と書かない**。
+  写真からの推定には量の見積り誤差があるため、わずかなズレを指摘すると外れる。指摘は${Math.round(NUTRI_TOL * 100)}%を超えて外れたものだけにする。`;
 }
 
 async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, targets, mealType, foodSource, clarify) {
@@ -537,7 +568,7 @@ async function analyzeFoodImage(imageBuffer, mimeType, userMemo, recentMeals, ta
       ).join('\n') +
       `\n→ trend セクションでは上記から「習慣的な過剰/不足」を1-2点具体的に指摘 (例: 連日の高塩分、野菜不足の継続、晩酌頻度など)。try セクションでは傾向を踏まえた具体料理名 1-2品を提示。\n`
     : '\n（過去ログなし → trend セクションには「データ蓄積中、継続記録で傾向が見えてきます」等。try セクションには今日の食事を補う一品を提案）\n';
-  const prompt = `あなたはAIヘルスアドバイザー (健康管理士キャラ) です。食事の写真を見て JSON で回答します。
+  const prompt = `あなたはヘルスアドバイザーの「なぎさ」(健康管理士キャラ) です。食事の写真を見て JSON で回答します。
 親しみある口調で、専門知識をやさしく伝えてください。「〜だね」「〜してみよう」のフレンドリー語尾。
 国立長寿医療研究センター「栄養改善パック」(2020) およびスマートミール基準に基づき分析。
 ${TGT.personalized ? '★この方の体格に合わせた個別目安で評価します。good/bad/improveは必ずこの個別目安を基準に判断し、bad/improveでは「あなたの体格に合わせた目安より多め/少なめ」のように述べる。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値は解説文に一切書かないこと(体格に触れる時も数値・属性を出さず「あなたに合わせた目安では」と表現)。\n' : ''}${memoBlock}画像に成分表示ラベルがあれば優先的に数値を読み取り「【成分表示から読み取り】」と明記。
@@ -569,6 +600,7 @@ ${_tgtLines(TGT)}
   「揚げ物」「濃い味付け」「大盛り」などは、**実際に確認できた時だけ**言及する。
   例: 焼いた肉から脂を落としているのに「揚げ物を減らそう」と書くのは誤りであり、信頼を失う。
 - **目安の範囲内に収まっている栄養素を「多い/少ない」と書かない。** bad は実際に目安から外れたものだけ。
+  ★**目安から±${Math.round(NUTRI_TOL * 100)}%以内のズレは「範囲内」とみなす**(推定誤差の範囲)。わずかな超過/不足を指摘に数えない。
   外れが無ければ bad は「特に問題は見つかりませんでした」とし、**無理に指摘を作らない**。
 - ★**本人が既に控えているものを、さらに減らせと言わない。**
   ご飯や主食の量が目安より少ない(または範囲内)なら「ご飯を減らそう」と書いてはならない。
@@ -978,7 +1010,7 @@ async function generateActionPlan(selections, freeText, context, movementPriorit
   - 弁当に追加するもの (ミニトマト、納豆、ゆで卵)
   - 外食での選び方 (定食>丼、味噌汁少量、漬物残す)
 `;
-  const prompt = `あなたは健康管理室のヘルスアドバイザーです。社員からの相談を受けて、一人一人に合わせたアクションプランを作成します。
+  const prompt = `あなたは健康管理室のヘルスアドバイザー「なぎさ」です。社員からの相談を受けて、一人一人に合わせたアクションプランを作成します。
 親しみある専門家の口調 (「〜だね」「〜してみよう」) で、押し付けず背中を押す。
 
 ## 社員の選択した相談内容
@@ -1051,7 +1083,7 @@ ${realismRules}
 // 5パターン (置換/減らす/やめる/加える/タイミング) を必ず候補に。
 // エビデンスホワイトリスト+医療行為禁則を厳守。
 // =====================================================================
-const DIALOG_SYSTEM_PROMPT = `あなたは産業保健領域の AI ヘルスアドバイザーです。
+const DIALOG_SYSTEM_PROMPT = `あなたは産業保健領域のヘルスアドバイザー「なぎさ」です。
 ユーザーと数往復のやり取りで「実行できる小さな一歩」を一緒に決めるのが役割です。
 
 【絶対厳守の禁則】
@@ -1265,7 +1297,7 @@ async function generateDailyReply({ plan, recent_logs, today }) {
     `  ${l.log_date} ${({done:'○',partial:'△',miss:'✕',rest:'休'})[l.status] || '?'}${l.comment ? ' '+l.comment.slice(0,40) : ''}`
   ).join('\n') || '  (初日)';
   const todayLine = today ? `  ${today.log_date} ${({done:'○',partial:'△',miss:'✕',rest:'休'})[today.status]}${today.comment ? ' '+today.comment.slice(0,80) : ''}` : '';
-  const prompt = `あなたは健康管理室のヘルスアドバイザーです。社員が選んだ個人プランの毎日の記録に短い返答をします。
+  const prompt = `あなたは健康管理室のヘルスアドバイザー「なぎさ」です。社員が選んだ個人プランの毎日の記録に短い返答をします。
 親しみある専門家の口調 (「〜だね」「〜してみよう」)、押し付けず背中を押す、3行構成。
 
 ## 社員のプラン
@@ -1391,7 +1423,7 @@ async function regenFoodComment(scores, targets, userMemo, recentMeals) {
   const trendBlock = (Array.isArray(recentMeals) && recentMeals.length)
     ? `\n【この方の最近の食事ログ(新しい順・最大7件)】\n` + recentMeals.slice(0, 7).map(m => `- ${m.date}: ${m.kcal}kcal P${m.protein} 野菜${m.veg}g 塩${m.salt}g 酒${m.alc}g`).join('\n') + '\n'
     : '';
-  const prompt = `あなたはAIヘルスアドバイザー(健康管理士キャラ)です。親しみある口調(「〜だね」「〜してみよう」)。
+  const prompt = `あなたはヘルスアドバイザーの「なぎさ」(健康管理士キャラ)です。親しみある口調(「〜だね」「〜してみよう」)。
 ある食事の栄養値は既に推定済み(確定)です。数値は再推定せず、下記の確定値を、この方の体格に合わせた個別目標と照らして評価コメントだけを作成してください。
 ${TGT.personalized ? '★この方の体格に合わせた個別目標で評価します。評価は必ずこの個別目標(下記)を基準に、「あなたに合わせた目安より〜」と述べる。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値は解説文に一切書かないこと。\n' : ''}【この食事の栄養値(確定)】${measured}
 【1食の目標(${TGT.personalized ? 'この方の個別目安' : '一般の参考値'})】
@@ -1404,4 +1436,4 @@ ${userMemo ? '本人メモ: ' + String(userMemo).slice(0, 200) + '\n' : ''}${tre
   return obj; // {good,bad,improve,trend,try} or null
 }
 
-module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, analyzeActivityImage, analyzeReceiptImage, generateActionPlan, generateDialogStep, generateDailyReply, computeNutritionTargets, ageFromBirth, DEFAULT_TARGETS, regenFoodComment };
+module.exports = { generateAvatarOne, generateAvatarSet, ANIME_VARIANTS, transcribeRecording, chatBot, generateText, analyzeFoodImage, analyzeBPImage, analyzePedometerImage, analyzeActivityImage, analyzeReceiptImage, generateActionPlan, generateDialogStep, generateDailyReply, computeNutritionTargets, ageFromBirth, DEFAULT_TARGETS, NUTRI_TOL, regenFoodComment };

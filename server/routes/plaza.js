@@ -5,7 +5,7 @@ const multer = require('multer');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
-const { analyzeFoodImage, generateText, computeNutritionTargets, ageFromBirth, regenFoodComment } = require('../services/ai');
+const { analyzeFoodImage, generateText, computeNutritionTargets, ageFromBirth, NUTRI_TOL, regenFoodComment } = require('../services/ai');
 
 const CATEGORIES = ['食事', '相談', '雑談', '健康Tips'];
 
@@ -184,6 +184,9 @@ function _pickTargets(t) {
     : null;
   return {
     personalized: !!t.personalized,
+    // 許容範囲 (2026-08-07)。目安から ±tol 以内のズレは画面でも「適量」として扱う。
+    // 分析時点の値を投稿に残すので、あとで数値を変えても過去の投稿の判定は動かない。
+    tol: NUTRI_TOL,
     kcal: pick(t.kcal), protein: pick(t.protein), fat: pick(t.fat), carbs: pick(t.carbs),
     veg: pick(t.veg), ca: pick(t.ca), salt: pick(t.salt), fiber: pick(t.fiber),
   };
@@ -205,7 +208,7 @@ function formatAdvisorSections(r) {
   if (parts.length) return parts.join('\n\n').slice(0, 2000);
   // 旧形式フォールバック
   if (typeof r.comment_health === 'string' && r.comment_health.trim()) {
-    return '【AIヘルスアドバイザー】\n' + r.comment_health.trim().slice(0, 1500);
+    return '【ヘルスアドバイザー なぎさ】\n' + r.comment_health.trim().slice(0, 1500);
   }
   if (typeof r.comment_nutrition === 'string' && r.comment_nutrition.trim()) {
     return '【AI栄養アドバイザー】\n' + r.comment_nutrition.trim().slice(0, 1500);
@@ -940,6 +943,85 @@ router.post('/posts/:id/clarify', authUser, express.json(), async (req, res) => 
   } catch (e) {
     console.warn('[clarify]', e && e.message);
     res.status(500).json({ success: false, msg: '再分析エラー: ' + (e && e.message ? e.message : '') });
+  }
+});
+
+// 投稿したあとから写真を追加する (2026-08-02 社長指示)
+// ⚠️ 先に献立をテキストで書き、あとから写真を撮ると別投稿になってしまい1食が2件に割れていた。
+//    「投稿を分けない」ための後追い追加。食事カテゴリなら追加後にAI分析もやり直す。
+router.post('/posts/:id/add-photo', authUser, plazaUpload.array('image', 5), async (req, res) => {
+  const upFiles = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+  try {
+    const db = getDb();
+    const post = db.prepare("SELECT id, author_id, category, content, image_url, image_urls, meal_type, food_source FROM plaza_posts WHERE id = ? AND deleted_at IS NULL").get(req.params.id);
+    if (!post) return res.status(404).json({ success: false, msg: '投稿が見つかりません' });
+    if (post.author_id !== req.uid) return res.status(403).json({ success: false, msg: '本人の投稿のみ写真を追加できます' });
+    if (!upFiles.length) return res.status(400).json({ success: false, msg: '写真がありません' });
+
+    // 既存の画像 + 追加分 (最大5枚)
+    let urls = [];
+    try { const a = post.image_urls ? JSON.parse(post.image_urls) : null; if (Array.isArray(a)) urls = a.slice(); } catch (e) {}
+    if (!urls.length && post.image_url) urls = [post.image_url];
+    const addUrls = upFiles.map(f => '/uploads/plaza/' + f.filename);
+    urls = urls.concat(addUrls).slice(0, 5);
+    const imageUrl = urls[0] || null;
+    const imageUrlsJson = urls.length > 1 ? JSON.stringify(urls) : null;
+
+    let nutritionScores = null, aiComment = null;
+    if (post.category === '食事') {
+      // 既存分もディスクから読み、全枚まとめて分析し直す (creation と同じ手順)
+      const imgs = [];
+      for (const u of urls) {
+        const rel = String(u || '').replace(/^\/+/, '');
+        if (!/^uploads\/plaza\/[\w.\-]+$/.test(rel)) continue;
+        const abs = path.join(__dirname, '..', '..', rel);
+        if (!fs.existsSync(abs)) continue;
+        imgs.push({
+          buffer: fs.readFileSync(abs),
+          mimeType: /\.png$/i.test(abs) ? 'image/png' : (/\.webp$/i.test(abs) ? 'image/webp' : 'image/jpeg'),
+        });
+      }
+      if (imgs.length) {
+        try {
+          const recentMeals = collectRecentMeals(req.uid);
+          const bu = db.prepare('SELECT sex, height_cm, activity_pal, birth_date FROM users WHERE id = ?').get(req.uid) || {};
+          const bw = db.prepare('SELECT weight_kg FROM user_activity_prefs WHERE user_id = ?').get(req.uid) || {};
+          const targets = computeNutritionTargets({ sex: bu.sex, height_cm: bu.height_cm, weight_kg: bw.weight_kg, age: ageFromBirth(bu.birth_date), pal: bu.activity_pal });
+          const r = await analyzeFoodImage(imgs, imgs[0].mimeType, post.content, recentMeals, targets, post.meal_type, post.food_source);
+          if (r && typeof r === 'object') {
+            aiComment = formatAdvisorSections(r);
+            const NUTRI_KEYS = ['calories', 'protein', 'fat', 'carbs', 'vitamin', 'mineral', 'salt', 'fiber', 'alcohol'];
+            const scores = {}; let hasAny = false;
+            for (const k of NUTRI_KEYS) if (r[k] != null) { scores[k] = r[k]; hasAny = true; }
+            if (r.has_alcohol != null) scores.has_alcohol = !!r.has_alcohol;
+            if (r.confidence != null) scores.confidence = r.confidence;
+            scores.targets = _pickTargets(targets);
+            if (r.actions && typeof r.actions === 'object' && Object.keys(r.actions).length) scores.actions = r.actions;
+            if (Array.isArray(r.questions) && r.questions.length) scores.ask = r.questions;
+            if (hasAny) nutritionScores = JSON.stringify(scores);
+          }
+        } catch (e) { console.warn('[add-photo] food AI fail:', e.message); }
+      }
+    }
+
+    if (nutritionScores) {
+      db.prepare('UPDATE plaza_posts SET image_url = ?, image_urls = ?, nutrition_scores = ?, ai_comment = ? WHERE id = ? AND author_id = ?')
+        .run(imageUrl, imageUrlsJson, nutritionScores, aiComment || null, post.id, req.uid);
+    } else {
+      db.prepare('UPDATE plaza_posts SET image_url = ?, image_urls = ? WHERE id = ? AND author_id = ?')
+        .run(imageUrl, imageUrlsJson, post.id, req.uid);
+    }
+    console.log('[add-photo] post=' + post.id + ' add=' + addUrls.length + ' total=' + urls.length + ' analyzed=' + (nutritionScores ? 'YES' : 'no'));
+    res.json({
+      success: true,
+      image_url: imageUrl,
+      image_urls: imageUrlsJson,
+      nutrition_scores: nutritionScores ? JSON.parse(nutritionScores) : null,
+      ai_comment: aiComment || null,
+    });
+  } catch (e) {
+    console.warn('[add-photo]', e && e.message);
+    res.status(500).json({ success: false, msg: '写真の追加に失敗しました' });
   }
 });
 

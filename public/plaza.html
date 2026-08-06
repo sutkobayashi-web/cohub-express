@@ -879,6 +879,11 @@ function buildNutritionBar(sc, isMine) {
       else if (t.min != null) it.target = t.min;
     }
   }
+  // ★許容範囲 (2026-08-07)。目安を 1 でも外れれば「多い/足りない」と判定していたのをやめ、
+  //   目安の上下 tol 以内のズレは「適量」として扱う (写真からの推定は量の見積り誤差が大きいため)。
+  //   分析時点の値が投稿(nutrition_scores.targets.tol)に入っているのでそれを優先。
+  //   無い過去の投稿は既定の10%。数値の元は server/services/ai.js の NUTRI_TOL。
+  const NTOL = (_T && _T.tol != null && isFinite(_T.tol)) ? Number(_T.tol) : 0.10;
   // ---- 全項目を同じ考え方で判定 (足りない / 適量 / 多い) ----
   // calories の値を fat/carbs %→g 変換に使う
   const calRaw = sc.calories;
@@ -905,6 +910,8 @@ function buildNutritionBar(sc, isMine) {
     if (t === 'max') { if (val > hi) { dev = (val - hi) / hi; dir = 'high'; } }
     else if (val < lo) { dev = (lo - val) / lo; dir = 'low'; }
     else if (val > hi) { if (t === 'min') dir = 'plenty'; else { dev = (val - hi) / hi; dir = 'high'; } }
+    // ★許容範囲内 (目安から±NTOL以内) の外れは「適量」に戻す。%も出さない。
+    if ((dir === 'low' || dir === 'high') && dev <= NTOL) { dir = 'in'; dev = 0; }
     // dev 60%以上は「明らかに過剰/不足」= 異常値として点滅させる
     const sev = (dir === 'low' || dir === 'high') ? (dev < 0.25 ? 1 : (dev < 0.6 ? 2 : 3)) : 0;
     nrows.push({ item, t, lo, hi, val, dir, sev, dev: Math.round(dev * 100) });
@@ -1010,7 +1017,7 @@ function buildNutritionBar(sc, isMine) {
   };
   const ngNg = nrows.filter(r => r.sev > 0).sort((a, b) => (b.sev - a.sev) || (b.dev - a.dev));
   const ngOk = nrows.filter(r => r.sev === 0);
-  const NG_LEGEND = '<span>目安と比べた過不足</span>';
+  const NG_LEGEND = '<span>目安と比べた過不足（±' + Math.round(NTOL * 100) + '%までは適量）</span>';
   if (ngNg.length) {
     html += '<div class="ng-head"><b>気になる項目</b>' + NG_LEGEND + '</div>';
     html += '<div class="ng-rows">' + ngNg.map(ngRowHtml).join('') + '</div>';

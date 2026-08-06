@@ -6,7 +6,13 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../services/db');
 const { authUser } = require('../middleware/auth');
-const { generateText, computeNutritionTargets, ageFromBirth } = require('../services/ai');
+const { generateText, computeNutritionTargets, ageFromBirth, NUTRI_TOL } = require('../services/ai');
+
+// 許容範囲 (2026-08-07)。目安を少し外れただけの食事は「不足/オーバー」に数えない。
+// 数値そのものは services/ai.js の NUTRI_TOL が唯一の設定箇所。
+const TOL_PCT = Math.round(NUTRI_TOL * 100);
+const LOW = (min) => (min == null ? null : min * (1 - NUTRI_TOL));   // これを下回ったら「不足」
+const HIGH = (max) => (max == null ? null : max * (1 + NUTRI_TOL));  // これを上回ったら「多い」
 
 // 対象ユーザーの個別1食目標 (未入力なら一律目標)。集計/プロンプトで使用。
 function getUserTargets(uid) {
@@ -96,16 +102,19 @@ function aggregateMonth(uid, ym) {
     ym, meal_count: n, days_logged: days,
     avg: { kcal: avg('kcal'), protein: avg('protein'), fat: avg('fat'), carbs: avg('carbs'), veg: avg('veg'), ca: avg('ca'), salt: avg('salt'), fiber: avg('fiber'), alc: avg('alc') },
     counts: {
-      veg_low: meals.filter(m => m.veg < TGT.veg.min).length,
-      salt_high: meals.filter(m => m.salt > TGT.salt.max).length,
-      fiber_low: meals.filter(m => m.fiber < TGT.fiber.min).length,
-      ca_low: meals.filter(m => m.ca < TGT.ca.min).length,
-      cal_high: meals.filter(m => m.kcal > TGT.kcal.max).length,
-      fat_high: meals.filter(m => m.fat > TGT.fat.max).length,
+      // ★許容範囲 (2026-08-07): 目安を少し外れただけの食事は「不足/オーバー」に数えない。
+      //   1でも外れたら1件として数えていたため、月次の「野菜不足○件」が実態より多く出ていた。
+      veg_low: meals.filter(m => m.veg < LOW(TGT.veg.min)).length,
+      salt_high: meals.filter(m => m.salt > HIGH(TGT.salt.max)).length,
+      fiber_low: meals.filter(m => m.fiber < LOW(TGT.fiber.min)).length,
+      ca_low: meals.filter(m => m.ca < LOW(TGT.ca.min)).length,
+      cal_high: meals.filter(m => m.kcal > HIGH(TGT.kcal.max)).length,
+      fat_high: meals.filter(m => m.fat > HIGH(TGT.fat.max)).length,
       alcohol_meals: alcoholMeals, alcohol_days: alcoholDays,
       alcohol_total_g: alcoholTotalG, alcohol_per_drink_day: alcoholPerDrinkDay,
     },
-    targets: TGT,
+    // tol = 許容範囲。画面(food-report.html)もこれを読んで同じ判定にする。
+    targets: Object.assign({}, TGT, { tol: NUTRI_TOL }),
     meals,
   };
 }
@@ -150,13 +159,13 @@ function aggregateDoctor(uid, days) {
   const targets = getUserTargets(uid);
   // 目安から外れた食事の件数 (医師が「頻度」で判断できるように)
   const over = {
-    salt: meals.filter(m => m.salt > targets.salt.max).length,
-    kcal_high: meals.filter(m => m.kcal > targets.kcal.max).length,
-    kcal_low: meals.filter(m => m.kcal < targets.kcal.min).length,
-    fat_high: meals.filter(m => m.fat > targets.fat.max).length,
-    fiber_low: meals.filter(m => m.fiber < targets.fiber.min).length,
-    veg_low: meals.filter(m => m.veg < targets.veg.min).length,
-    ca_low: meals.filter(m => m.ca < targets.ca.min).length,
+    salt: meals.filter(m => m.salt > HIGH(targets.salt.max)).length,
+    kcal_high: meals.filter(m => m.kcal > HIGH(targets.kcal.max)).length,
+    kcal_low: meals.filter(m => m.kcal < LOW(targets.kcal.min)).length,
+    fat_high: meals.filter(m => m.fat > HIGH(targets.fat.max)).length,
+    fiber_low: meals.filter(m => m.fiber < LOW(targets.fiber.min)).length,
+    veg_low: meals.filter(m => m.veg < LOW(targets.veg.min)).length,
+    ca_low: meals.filter(m => m.ca < LOW(targets.ca.min)).length,
   };
   // 食事区分・入手元・信憑性の内訳
   const cnt = (arr, key) => arr.reduce((o, m) => { const k = m[key] || '(未設定)'; o[k] = (o[k] || 0) + 1; return o; }, {});
@@ -184,7 +193,8 @@ function aggregateDoctor(uid, days) {
   return {
     days: d, meal_count: n, days_logged,
     period: { from: meals.length ? meals[0].date : null, to: meals.length ? meals[n - 1].date : null },
-    avg: A, targets, over,
+    // tol = 許容範囲。over の件数は「目安から±tolを超えて外れた食事」だけを数えている。
+    avg: A, targets, over, tol: NUTRI_TOL,
     meal_types: cnt(meals, 'meal_type'), sources: cnt(meals, 'food_source'),
     confidence: meals.reduce((o, m) => { const k = 'lv' + (m.conf || 0); o[k] = (o[k] || 0) + 1; return o; }, {}),
     alcohol: { days: alcDays.size, total_g: alcTotal, per_drink_day: alcDays.size ? Math.round(alcTotal / alcDays.size * 10) / 10 : 0 },
@@ -222,9 +232,12 @@ function buildPrompt(name, metrics) {
   const tgtLine = (t && t.kcal)
     ? `カロリー${t.kcal.min}-${t.kcal.max}kcal / たんぱく質${t.protein.min}g / 脂質${t.fat.min}-${t.fat.max}g / 炭水化物${t.carbs.min}-${t.carbs.max}g / 野菜${t.veg.min}g / カルシウム${t.ca.min}mg / 食塩${t.salt.max}g未満 / 食物繊維${t.fiber.min}g`
     : `カロリー450-650kcal / たんぱく質20g / 脂質12-18g / 炭水化物69-89g / 野菜120g / カルシウム227mg / 食塩2.5g未満 / 食物繊維7g`;
-  return `あなたは管理栄養士兼ヘルスアドバイザーです。社員「${name}」さんの${ymLabel(metrics.ym)}の食事記録(${n}件)を分析し、月次レポートを作成してください。温かく前向きに、しかし健康課題は事実として誠実に伝えます。専門用語は避け、本人が読んで行動したくなる文章で。
+  return `あなたは管理栄養士兼ヘルスアドバイザーの「なぎさ」です。社員「${name}」さんの${ymLabel(metrics.ym)}の食事記録(${n}件)を分析し、月次レポートを作成してください。温かく前向きに、しかし健康課題は事実として誠実に伝えます。専門用語は避け、本人が読んで行動したくなる文章で。
 ${t.personalized ? '※目標はこの方の体格に合わせた個別目安です。栄養分析はこの個別目標を基準に評価してください。⚠️プライバシー厳守: マイページの個人情報(性別・年齢・生年月日・身長・体重・活動量)および推定必要カロリー等の個人数値はレポート本文に一切書かないこと。\n' : ''}
 【1食あたりの目標${t.personalized ? '(この方の体格に合わせた個別目安)' : '(一般の参考値)'}】${tgtLine}
+★許容範囲: 上の目標から**±${TOL_PCT}%以内のズレは「適量」**として扱う。写真からの推定には量の見積り誤差があるため、
+わずかな超過/不足を「多い」「足りない」と書かない。指摘するのは${TOL_PCT}%を超えて外れているものだけにする。
+(下の「内訳」の件数も、この許容範囲を超えて外れた食事だけを数えている)
 
 【今月の平均(1食あたり)】
 カロリー${a.kcal}kcal / たんぱく質${a.protein}g / 脂質${a.fat}g / 炭水化物${a.carbs}g / 野菜${a.veg}g / カルシウム${a.ca}mg / 食塩${a.salt}g / 食物繊維${a.fiber}g / アルコール${a.alc}g
@@ -400,8 +413,58 @@ router.post('/notify', authUser, express.json(), (req, res) => {
   res.json({ success: true });
 });
 
+
+// ===== おしらせ用の「要点だけ」テキスト (2026-08-01 社長指示) =====
+// 従来は bot_health 名義のDMで本文リンクだけを送っていたが、bot_ 名義はチャットのDM一覧から
+// 除外されるため誰にも見えていなかった。notice_food 名義で「🔔 おしらせ」欄に出し、
+// 要点(記録数・1食平均・気になる点2つ)だけを見せて本編へ誘導する。
+const NOTICE_FLAGS = [
+  { key: 'salt_high', label: '塩分が多め' },
+  { key: 'fat_high',  label: '脂質が多め' },
+  { key: 'cal_high',  label: 'カロリーが多め' },
+  { key: 'veg_low',   label: '野菜が少なめ' },
+  { key: 'fiber_low', label: '食物繊維が不足' },
+  { key: 'ca_low',    label: 'カルシウムが不足' },
+];
+
+function noticeText(uid, ym) {
+  const row = getDb().prepare('SELECT metrics_json FROM food_monthly_reports WHERE user_id=? AND ym=?').get(uid, ym);
+  if (!row) return null;
+  let m = {};
+  try { m = JSON.parse(row.metrics_json || '{}'); } catch (e) { m = {}; }
+  const avg = m.avg || {}, c = m.counts || {}, meals = m.meal_count || 0;
+  const L = [];
+  L.push('📊 ' + ymLabel(ym) + 'のマンスリー栄養レポートができました');
+  L.push('');
+  L.push('記録 ' + meals + '件 / ' + (m.days_logged || 0) + '日');
+  const avgParts = [];
+  if (avg.kcal) avgParts.push(Math.round(avg.kcal) + 'kcal');
+  if (avg.protein) avgParts.push('たんぱく質 ' + avg.protein + 'g');
+  if (avg.salt) avgParts.push('塩分 ' + avg.salt + 'g');
+  if (avg.veg) avgParts.push('野菜 ' + Math.round(avg.veg) + 'g');
+  if (avgParts.length) L.push('1食あたりの平均: ' + avgParts.join(' ・ '));
+  const flags = NOTICE_FLAGS
+    .map(f => ({ label: f.label, n: c[f.key] || 0 }))
+    .filter(f => f.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 2);
+  if (flags.length) {
+    L.push('気になる点: ' + flags.map(f => f.label + '(' + f.n + '/' + meals + '食)').join(' ・ '));
+  } else {
+    L.push('大きな偏りは見られませんでした。この調子で続けましょう。');
+  }
+  L.push('');
+  L.push('→ 分析の全文・傾向・来月の心がけは 🍱 マンスリー栄養レポート で読めます');
+  L.push('/food-report.html');
+  return L.join('\n');
+}
+
+
 module.exports = router;
 module.exports.generateReport = generateReport;
 module.exports.listAutoTargets = listAutoTargets;
 module.exports.prevYm = prevYm;
 module.exports.ymLabel = ymLabel;
+
+module.exports.noticeText = noticeText;
+module.exports.NOTICE_SENDER = 'notice_food';

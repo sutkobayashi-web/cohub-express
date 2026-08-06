@@ -209,12 +209,20 @@ function nutBounds(d,tgt){
   }
   return {lo:lo,hi:hi};
 }
+// ★許容範囲 (2026-08-07)。目安を 1 でも外れれば「多い/足りない」と数えていたのをやめ、
+// 目安の上下 tol 以内のズレは「適量」として扱う。レポートの targets.tol を優先し、
+// 無い過去の月は既定10%。数値の元は server/services/ai.js の NUTRI_TOL。
+var NUT_TOL_DEF=0.10;
+function nutTol(tgt){ return (tgt && tgt.tol!=null && isFinite(tgt.tol)) ? Number(tgt.tol) : NUT_TOL_DEF; }
 function nutEval(d,v,tgt){
   var b=nutBounds(d,tgt), lo=b.lo, hi=(d.type==='min')?b.lo*1.5:b.hi;
+  var tol=nutTol(tgt);
   var dir='in', dev=0;
   if(d.type==='max'){ if(v>hi){ dev=(v-hi)/hi; dir='high'; } }
   else if(v<lo){ dev=lo?(lo-v)/lo:0; dir='low'; }
   else if(v>hi){ if(d.type==='min'){ dir='plenty'; } else { dev=(v-hi)/hi; dir='high'; } }
+  // ★許容範囲内 (目安から±tol以内) の外れは「適量」に戻す。%も出さない。
+  if((dir==='low'||dir==='high')&&dev<=tol){ dir='in'; dev=0; }
   // dev 60%以上は「明らかに過剰/不足」= 異常値として点滅させる
   var sev=(dir==='low'||dir==='high')?(dev<0.25?1:(dev<0.6?2:3)):0;
   return {lo:lo,hi:hi,dir:dir,sev:sev,dev:Math.round(dev*100)};
@@ -262,7 +270,7 @@ function chartHtml(avg,tgt){
     +'<div class="nv-tx"><div class="nv-hl">'+vHl+'</div><div class="nv-act">'+vAct+'</div></div></div>';
   var ng=rs.filter(function(r){return r.e.sev>0;}).sort(function(a,b){return (b.e.sev-a.e.sev)||(b.e.dev-a.e.dev);});
   var ok=rs.filter(function(r){return r.e.sev===0;});
-  var LEG='<span>目安と比べた過不足</span>';
+  var LEG='<span>目安と比べた過不足（±'+Math.round(nutTol(tgt)*100)+'%までは適量）</span>';
   if(ng.length){
     h+='<div class="ng-head"><b>気になる項目（1食あたりの平均）</b>'+LEG+'</div>';
     h+='<div class="ng-rows">'+ng.map(nutRowHtml).join('')+'</div>';

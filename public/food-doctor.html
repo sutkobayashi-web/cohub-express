@@ -30,6 +30,8 @@
   .note { margin: 10px 0 0; padding: 9px 11px; border: 1.5px solid #f0b429; background: #fffbeb;
           border-radius: 6px; font-size: 11px; line-height: 1.65; color: #7c4a03; }
   .note b { font-weight: 900; }
+  /* 表のすぐ上に置く注記 (許容範囲の説明など)。警告ではないので枠は付けない */
+  .cap { margin: 0 0 4px; font-size: 10.5px; line-height: 1.55; color: #6b7f78; }
 
   h3 { font-size: 13px; font-weight: 900; margin: 14px 0 5px; padding-left: 7px; border-left: 4px solid #0d9488; }
   table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
@@ -198,6 +200,9 @@ function render(d){
   + '<table><thead><tr><th class="l">項目</th><th>平均</th><th>目安（1食）</th><th>判定</th></tr></thead><tbody>' + rows + '</tbody></table>'
 
   + (overRows ? ('<h3>目安を外れた食事の頻度</h3>'
+      + '<div class="cap">※ 写真からの推定値のため、目安から±'
+      + Math.round((d.tol != null && isFinite(d.tol) ? Number(d.tol) : 0.10) * 100)
+      + '%以内のズレは「範囲内」として数えていません。</div>'
       + '<table><thead><tr><th class="l">内容</th><th>件数</th><th>割合</th></tr></thead><tbody>' + overRows + '</tbody></table>') : '')
 
   + '<div class="two">'
