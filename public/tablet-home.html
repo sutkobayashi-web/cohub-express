@@ -156,18 +156,19 @@
        数字を考えさせない代わりに、帯の真下に「かなり楽〜かなり疲れた」の言葉を各マスの下に並べる。
      ⚠️言葉は3/2/1/2/3マスに割り当てる(中央=いつも通り=5)。grid-column を明示しているので、
        文字がはみ出しても位置はずれない。 */
-  .sc10{display:grid;grid-template-columns:repeat(11,1fr);gap:5px}
+  /* ⚠️高さが1マスずつ違う(階段)ので、下端を揃える */
+  .sc10{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;align-items:end}
   /* ⚠️マスは高さで稼ぐ。横幅は11分割で決まってしまうので、ペンでも狙いやすいよう縦を大きく取る。
      ⚠️マスの中身は**顔だけ**(数字は書かない)。同じ帯のマスには同じ顔が並ぶ＝帯のまとまりが見える。
      ⚠️くすませる(grayscale)と 🙂 と 😐 の区別が付かなくなるので、選んでいない顔もそのまま出す。 */
-  .sc10 button{height:120px;border:2px solid #cfd8e0;border-radius:12px;padding:0;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08);
+  .sc10 button{border:2px solid #cfd8e0;border-radius:12px;padding:0;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08);
                display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1}
   .sc10 button.sel{outline:4px solid #0ea5e9;outline-offset:-3px;transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.1)}
   .sc10 button.sel span{transform:scale(1.2)}
   .sc10lab{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-top:7px}
   .sc10lab span{font-size:15px;font-weight:800;color:#64748b;text-align:center;white-space:nowrap;line-height:1.2}
   .sc10lab span.on{color:#0f172a}
-  @media (max-width:640px){ .sc10 button{height:64px;font-size:19px} .sc10lab span{font-size:10px} }
+  @media (max-width:640px){ .sc10 button{font-size:19px} .sc10lab span{font-size:10px} }
   /* マイページ(かんたんモード) 2026-07-09 */
   .mp-head{display:flex;align-items:center;gap:14px;padding:2px 2px 14px;border-bottom:1px solid #e5e9ef;margin-bottom:16px}
   .mp-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.15);flex:0 0 auto;background:#eef}
@@ -3926,7 +3927,7 @@ function kikoRender(){
     // 0〜10の11マス。⚠️マスの中は顔だけ・数字は書かない。押した値がそのまま保存される。
     var cells='';
     for(var n=0;n<=10;n++){
-      cells+='<button class="'+(kikoAns[s.key]===n?'sel':'')+'" style="'+fatColor(n)+'" onclick="fatPick(\''+s.key+'\','+n+')"><span>'+scaleFace(s.key,n)+'</span></button>';
+      cells+='<button class="'+(kikoAns[s.key]===n?'sel':'')+'" style="'+fatColor(n)+';height:'+scaleCellH(n)+'px" onclick="fatPick(\''+s.key+'\','+n+')"><span>'+scaleFace(s.key,n)+'</span></button>';
     }
     // 帯の下の言葉。grid-column を明示＝文字幅に関係なくマスの真下に揃う
     var labs=scaleBands(s.key).map(function(bd){
@@ -4015,16 +4016,21 @@ function speakMyAlert(done){
     +'長時間の 運転で お疲れの ことと 思います。次の 乗務も、車間と スピードに 気をつけて、安全運転で お願いしますね。';
   aoiSetClip('caution'); speak(line, done);
 }
-// 11マスの色(0〜10)。⚠️数字を出さないぶん、色で「左=楽 / 右=つらい」が分かるようにする。
-// 5(いつも通り)だけ無彩色にして中央が一目で分かるようにした以外は、点呼表の色分け(5以下=緑/6-7=黄/8=橙/9以上=赤)と同じ。
+/* 11マスの色(0〜10)。⚠️⚠️同じ帯の3マスが同じ色・同じ顔だと「どれを押しても同じ」に見えて
+   段階の差が伝わらない(社長指摘)。**11マスすべてを違う濃さ**にして、左=楽 → 右=つらい の
+   連続した目盛りに見えるようにする。5(いつも通り)だけ無彩色＝中央が一目で分かる。
+   ⚠️緑/黄/橙/赤の並びは点呼表 sBadge の色分けと同じ考え方(5以下=緑・6〜7=黄・8=橙・9以上=赤)。 */
+var SC_COLORS=['#86efac|#22c55e','#a7f3c0|#4ade80','#c8f9db|#6ee7b7','#dcfce7|#86efac','#edfdf4|#a7f3d0',
+               '#eef2f7|#cbd5e1',
+               '#fef9c3|#fde047','#fde68a|#facc15','#fed7aa|#fb923c','#fecaca|#f87171','#fca5a5|#ef4444'];
 function fatColor(n){
-  if(n<=2) return 'background:#bbf7d0;border-color:#4ade80;color:#065f46';
-  if(n<=4) return 'background:#dcfce7;border-color:#86efac;color:#065f46';
-  if(n===5) return 'background:#eef2f7;border-color:#cbd5e1;color:#334155';
-  if(n<=7) return 'background:#fef9c3;border-color:#fde047;color:#854d0e';
-  if(n<=8) return 'background:#ffedd5;border-color:#fdba74;color:#9a3412';
-  return 'background:#fee2e2;border-color:#fca5a5;color:#991b1b';
+  var c=(SC_COLORS[n]||SC_COLORS[5]).split('|');
+  return 'background:'+c[0]+';border-color:'+c[1];
 }
+// マスの高さ。⚠️色だけでなく**高さも1マスずつ上げる**(右へ行くほど つらい)。階段に見えることで
+// 「3つ並んだ同じ顔」でも どれが重いのか が分かる。
+// ⚠️高さはインラインstyleで付けるのでCSSの@mediaでは上書きできない。スマホはここで小さくする。
+function scaleCellH(n){ return IS_PHONE ? (48+n*3) : (78+n*5); }
 // 選んだら音声反応なしで次の質問へ自動で進む(毎回 相づちを打つと うるさいため)。
 function fatPick(key,n){
   bumpIdle(); kikoAns[key]=n;
