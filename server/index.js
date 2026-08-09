@@ -456,7 +456,6 @@ app.use('/api/whats-new', require('./routes/whats_new'));
 app.use('/api/health-board', require('./routes/health_board'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
 app.use('/api/members', require('./routes/members'));
-app.use('/api/takara', require('./routes/takara_demo'));
 app.use('/api/circles', require('./routes/circles'));
 app.use('/api/branch-wifi', require('./routes/branch_wifi'));
 app.use('/api/translate', require('./routes/translate'));
@@ -489,7 +488,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-09-2-junk-cleanup"
+const APP_VERSION = "2026-08-09-3-takara-removed"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -793,9 +792,7 @@ app.get('/health-literacy', (req, res) => sendHtmlNoCache(res, 'health-literacy.
 app.get('/tablet', (req, res) => sendHtmlNoCache(res, 'tablet.html'));
 app.get('/tablet-qr', (req, res) => sendHtmlNoCache(res, 'tablet-qr.html'));
 app.get('/ops-literacy', (req, res) => sendHtmlNoCache(res, 'ops-literacy.html'));
-app.get('/takara', (req, res) => sendHtmlNoCache(res, 'takara/admin.html'));
-app.get('/takara/driver', (req, res) => sendHtmlNoCache(res, 'takara/driver.html'));
-app.get('/takara/shipper', (req, res) => sendHtmlNoCache(res, 'takara/shipper.html'));
+// 2026-08-09: タカラ配車最適化は廃止 (タカラ側が集中配車に移行)。提案資料2枚のみ記録として残す。
 app.get('/takara/proposal', (req, res) => sendHtmlNoCache(res, 'takara/proposal.html'));
 app.get('/takara/onepager', (req, res) => sendHtmlNoCache(res, 'takara/onepager.html'));
 app.get('/timecard', (req, res) => res.redirect(302, '/home'));   // 出退勤打刻 完全削除 (2026-05-25)
