@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タブレット ログインQR（営業所別） - CoWell</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f1f5f9; color: #0f172a;
+    font-family: "BIZ UDPGothic", "BIZ UDPゴシック", -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 26px 18px 48px; }
+  .head { text-align:center; margin-bottom: 18px; }
+  .head .ttl { font-size: 24px; font-weight: 900; color: #0f766e; margin: 0 0 4px; }
+  .head .sub { font-size: 14px; color: #64748b; }
+  .common { background:#ecfdf5; border:1px solid #a7f3d0; border-radius:18px; padding:18px; text-align:center; margin-bottom:22px; }
+  .common .lbl { font-weight:800; color:#065f46; margin-bottom:8px; font-size:15px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px 16px;
+    box-shadow: 0 3px 14px rgba(15,23,42,0.05); text-align: center; break-inside: avoid; }
+  .card .office { font-size: 17px; font-weight: 800; color: #0f172a; }
+  .card .code { font-size: 11px; color: #94a3b8; margin-bottom: 10px; letter-spacing:.5px; }
+  .qrbox { display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px; background: #fff; border: 2px solid #0f766e; border-radius: 14px; }
+  .qrbox img { width: 190px; height: 190px; display: block; }
+  .common .qrbox img { width: 220px; height: 220px; }
+  .url { margin-top: 10px; font-size: 11px; color: #475569; word-break: break-all;
+    background: #f8fafc; border-radius: 8px; padding: 7px 8px; }
+  .steps { max-width: 560px; margin: 24px auto 0; font-size: 13.5px; line-height: 1.9; color: #334155;
+    background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px 22px; }
+  .note { margin-top: 16px; font-size: 12px; color: #94a3b8; line-height: 1.7; text-align:center; }
+  .btn { display:block; margin: 24px auto 0; background: #0f766e; color: #fff; border: none; border-radius: 14px;
+    padding: 13px 26px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  @media print {
+    body { background: #fff; }
+    .card, .common { box-shadow: none; }
+    .btn { display: none; }
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1 class="ttl">📱 CoWell タブレット ログインQR（営業所別）</h1>
+    <div class="sub">各営業所のタブレットで、その営業所のQRをカメラで読み取ってください</div>
+  </div>
+
+  <div class="common">
+    <div class="lbl">🔁 全拠点共通（拠点を画面で選ぶタイプ）</div>
+    <div class="qrbox" id="common-qr"></div>
+    <div class="url" id="common-url"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <ol class="steps">
+    <li>営業所のタブレットのカメラ（または QR アプリ）でその営業所のQRを読み取る</li>
+    <li>その営業所のメンバーだけが並ぶログイン画面が開きます</li>
+    <li>自分の名前（アバター）をタップ → <b>4桁PIN</b> でログイン</li>
+    <li>ホーム画面に「追加」しておくと、次回からワンタップで開けます</li>
+  </ol>
+  <div class="note">
+    ※ 営業所別QRは、その営業所の社員のみ表示します（他営業所の氏名は出ません）。<br>
+    ※ 共用端末は無操作5分で自動ログアウトし、下書き等の個人情報をクリアします。<br>
+    ※ PIN未設定の社員は、各自スマホ等でマイページからPINを設定すると一覧でタップできるようになります。
+  </div>
+  <button class="btn" onclick="window.print()">🖨️ この一覧を印刷する</button>
+</div>
+
+<script>
+  // 営業所コード → 表示名（営業所として配布する拠点のみ）
+  var OFFICE_NAMES = {
+    SU_HQ: 'スタンダード運輸 海老名',
+    SU_SAITAMA: 'スタンダード運輸 埼玉',
+    SU_MKANTO: 'スタンダード運輸 南関東',
+    SU_ZAMA: 'スタンダード運輸 座間',
+    SU_KANRI: '管理課',
+    IBA_KASHIMA: '茨運（鹿島）',
+    IBA_SANWA: '茨運（三和）',
+    SUZUE: 'スズエ電機'
+  };
+  // 営業所として出さない（管理/ゲスト/外部）
+  var EXCLUDE = { ADMIN:1, GUEST:1, NPO:1, UNIVERSITY:1, TEST:1 };
+
+  function qrImg(url) {
+    var img = document.createElement('img');
+    img.src = '/api/branch-wifi/qr?t=' + encodeURIComponent(url);
+    img.alt = 'ログインQR';
+    return img;
+  }
+
+  // 共通QR
+  var commonUrl = location.origin + '/tablet';
+  document.getElementById('common-qr').appendChild(qrImg(commonUrl));
+  document.getElementById('common-url').textContent = commonUrl;
+
+  // 営業所別QR（ロスターに存在する拠点コードから自動生成）
+  (async function () {
+    var grid = document.getElementById('grid');
+    var codes = [];
+    try {
+      var r = await fetch('/api/auth/tablet-roster').then(function (x) { return x.json(); });
+      var set = {};
+      (r.users || []).forEach(function (u) { if (u.company_code) set[u.company_code] = true; });
+      codes = Object.keys(set);
+    } catch (e) {}
+    // 既知の営業所を優先順で、ロスターに無くても定義があれば出す
+    var ordered = Object.keys(OFFICE_NAMES).filter(function (c) { return codes.indexOf(c) >= 0; });
+    // 念のため、定義に無いがロスターにある拠点（除外以外）も末尾に追加
+    codes.forEach(function (c) {
+      if (EXCLUDE[c]) return;
+      if (ordered.indexOf(c) < 0) ordered.push(c);
+    });
+    if (!ordered.length) { grid.innerHTML = '<div class="note">表示できる営業所がありません</div>'; return; }
+    ordered.forEach(function (code) {
+      var url = location.origin + '/tablet?co=' + encodeURIComponent(code);
+      var card = document.createElement('div');
+      card.className = 'card';
+      var name = document.createElement('div'); name.className = 'office'; name.textContent = OFFICE_NAMES[code] || code;
+      var cd = document.createElement('div'); cd.className = 'code'; cd.textContent = code;
+      var box = document.createElement('div'); box.className = 'qrbox'; box.appendChild(qrImg(url));
+      var u = document.createElement('div'); u.className = 'url'; u.textContent = url;
+      card.appendChild(name); card.appendChild(cd); card.appendChild(box); card.appendChild(u);
+      grid.appendChild(card);
+    });
+  })();
+</script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

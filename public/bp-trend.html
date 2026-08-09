@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>血圧の推移 - CoWell</title>
+<style>
+  :root { --accent:#0f766e; --line:#cbd5e1; --sub:#64748b; --sys:#c0392b; --dia:#2f7d77; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#f1f5f9; color:#0f172a;
+    font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  header { background:linear-gradient(135deg, #0284c7, #0369a1); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:17px; font-weight:800; flex:1; }
+  header a { color:#fff; text-decoration:none; background:rgba(255,255,255,.2); border-radius:10px; padding:6px 12px; font-size:13px; font-weight:700; }
+  .wrap { max-width:640px; margin:0 auto; padding:14px 14px 44px; }
+  .who { font-size:13px; color:var(--sub); margin:4px 2px 12px; }
+
+  /* 教育バナー = このページの主役メッセージ */
+  .teach { background:linear-gradient(135deg,#ecfdf5,#d1fae5); border:1px solid #99f6e4; border-radius:18px; padding:15px 16px; margin-bottom:14px; }
+  .teach .big { font-size:17px; font-weight:800; color:#047857; line-height:1.5; }
+  .teach .small { font-size:12.5px; color:#0f766e; margin-top:6px; line-height:1.6; }
+
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:16px 15px; margin-bottom:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+  .card h2 { margin:0 0 4px; font-size:15px; font-weight:800; color:#0f172a; }
+  .card .hint { font-size:12px; color:#94a3b8; margin-bottom:10px; line-height:1.5; }
+
+  /* 状況チップ */
+  .status { display:flex; align-items:center; gap:10px; padding:13px 15px; border-radius:16px; margin-bottom:14px; font-weight:800; }
+  .status .ic { font-size:26px; line-height:1; }
+  .status .tx { font-size:14.5px; line-height:1.5; }
+  .status.ok   { background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; }
+  .status.mid  { background:#fffbeb; border:1px solid #fde68a; color:#b45309; }
+  .status.hi   { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; }
+
+  /* サマリー数値カード */
+  .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px; }
+  .stat { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:12px 13px; box-shadow:0 2px 8px rgba(15,23,42,.04); }
+  .stat .lab { font-size:11.5px; color:var(--sub); font-weight:700; }
+  .stat .val { font-size:23px; font-weight:800; line-height:1.2; margin-top:2px; }
+  .stat .val small { font-size:13px; font-weight:700; color:#94a3b8; }
+  .stat .note { font-size:11px; color:#94a3b8; margin-top:2px; }
+
+  /* 期間切替 */
+  .periods { display:flex; gap:8px; margin-bottom:12px; }
+  .pbtn { flex:1; border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px 0; font-size:13px; font-weight:800; color:#475569; cursor:pointer; font-family:inherit; }
+  .pbtn.on { border-color:var(--accent); background:#ecfdf5; color:var(--accent); }
+
+  svg { width:100%; height:auto; border:1px solid #eef2f1; border-radius:14px; background:#fff; }
+  .legend { font-size:11px; color:var(--sub); margin:8px 2px 0; line-height:1.7; }
+  .legend .dot { display:inline-block; width:9px; height:9px; border-radius:50%; vertical-align:middle; margin-right:3px; }
+  .legend .ln { display:inline-block; width:16px; height:3px; border-radius:2px; vertical-align:middle; margin-right:3px; }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:4px; }
+  th,td { border-bottom:1px solid #eef2f1; padding:7px 4px; text-align:center; }
+  th { color:var(--sub); font-size:11.5px; font-weight:700; }
+  td.hi { color:var(--sys); font-weight:800; }
+  .foot { margin-top:16px; font-size:11px; color:#94a3b8; line-height:1.6; }
+  .empty { text-align:center; color:var(--sub); padding:30px 10px; font-size:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📈 血圧の推移</h1>
+  <a href="/home">ホーム</a>
+</header>
+<div class="wrap">
+  <div class="who" id="who"></div>
+
+  <div class="teach">
+    <div class="big">1回の数字ではなく、この「線（流れ）」を見てください。</div>
+    <div class="small">血圧はその日の気温・動作・緊張だけで簡単に10〜20は上下します。<b>1回高くても、あわてて測り直さない。</b>大切なのは毎日の記録が描く「流れ」と「平均」です。</div>
+  </div>
+
+  <div id="content"></div>
+
+  <div class="foot">
+    ※ 表示はあなた自身の記録の要約であり、診断ではありません。気になる数値が続くときは医師にご相談ください。<br>
+    家庭血圧のめやす：<b>135／85 以上</b>が続く場合は要注意（点線）。1回だけの値では判断しません。
+  </div>
+</div>
+
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<script>
+  var TOKEN = localStorage.getItem('cohub_token') || '';
+  if (!TOKEN) location.replace('/');
+  function $(id){ return document.getElementById(id); }
+  async function api(path, opt){
+    opt = opt || {};
+    opt.headers = Object.assign({ 'Authorization':'Bearer '+TOKEN }, opt.headers||{});
+    const r = await fetch(path, opt).catch(()=>null);
+    if (r && r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+    return r;
+  }
+  var SYS_TH = 135, DIA_TH = 85;   // 家庭血圧のめやす
+  var curDays = 90;
+  var TARGET_UID = new URLSearchParams(location.search).get('uid') || '';  // 管理職ビュー: 対象社員
+
+  (async () => {
+    if (TARGET_UID) {
+      load(90);   // 閲覧者ビュー: 対象名は trend API から受け取る
+    } else {
+      const r = await api('/api/auth/me'); if (!r) return;
+      const j = await r.json().catch(()=>null);
+      if (j && j.success && j.user) $('who').textContent = (j.user.display_name || '') + ' さんの記録';
+      load(90);
+    }
+  })();
+
+  const r1 = x => Math.round(x);
+  const avg = a => a.length ? a.reduce((s,x)=>s+x,0)/a.length : null;
+
+  // 末尾N点の移動平均（線を主役にするため）
+  function movAvg(vals, win){
+    const out = [];
+    for (let i=0;i<vals.length;i++){
+      const s = Math.max(0, i-win+1);
+      const slice = vals.slice(s, i+1);
+      out.push(avg(slice));
+    }
+    return out;
+  }
+
+  var OLDEST = null;   // 最古の記録日 (半年より前の記録があれば「全期間」チップを出す)
+
+  async function load(days){
+    curDays = days;
+    const qs = (days === 'all') ? 'all=1' : 'days=' + days;   // 'all' = 全期間 (期間で絞らない)
+    const url = TARGET_UID
+      ? '/api/tenko/bp-trend?uid='+encodeURIComponent(TARGET_UID)+'&'+qs
+      : '/api/myhealth/bp/trend?'+qs;
+    const r = await api(url); if (!r) return;
+    const j = await r.json().catch(()=>null);
+    if (j && j.success === false) {
+      $('content').innerHTML = '<div class="card"><div class="empty">'+(j.msg || '表示できませんでした')+'</div></div>';
+      return;
+    }
+    if (j && j.oldest) OLDEST = j.oldest;
+    if (TARGET_UID && j && j.name) $('who').textContent = j.name + ' さんの記録（管理職ビュー）';
+    const recs = (j && j.records) || [];
+    render(recs, days);
+  }
+
+  // 最古の記録が半年(180日)より前なら true
+  function hasOlderThanHalfYear(){
+    if (!OLDEST) return false;
+    const cut = new Date(Date.now() - 180*86400000).toISOString().slice(0,10);
+    return OLDEST.slice(0,10) < cut;
+  }
+
+  function periodBar(days){
+    const opts = [[30,'1か月'],[90,'3か月'],[180,'半年']];
+    // 半年より前の記録がある人だけ「全期間」を追加 (全データを見せる)
+    if (hasOlderThanHalfYear()) opts.push(['all','全期間']);
+    return '<div class="periods">' + opts.map(o =>
+      '<button type="button" class="pbtn'+(o[0]===days?' on':'')+'" onclick="load(' + (o[0]==='all'?"'all'":o[0]) + ')">'+o[1]+'</button>'
+    ).join('') + '</div>';
+  }
+
+  function render(recs, days){
+    const C = $('content');
+    let html = periodBar(days);
+
+    if (!recs.length){
+      C.innerHTML = html + '<div class="card"><div class="empty">この期間の血圧の記録がまだありません。<br>「体調・血圧チェック」や点呼で記録すると、ここに流れが表示されます。</div></div>';
+      return;
+    }
+
+    const sys = recs.map(d=>d.systolic), dia = recs.map(d=>d.diastolic);
+    // 直近2週間 = 末尾の日付から14日以内
+    const lastDate = (recs[recs.length-1].measured_at||'').slice(0,10);
+    const cut = new Date(new Date(lastDate).getTime() - 13*86400000).toISOString().slice(0,10);
+    const recent = recs.filter(d => (d.measured_at||'').slice(0,10) >= cut);
+    const rS = r1(avg(recent.map(d=>d.systolic))), rD = r1(avg(recent.map(d=>d.diastolic)));
+    const aS = r1(avg(sys)), aD = r1(avg(dia));
+    const last = recs[recs.length-1];
+    const nDays = new Set(recs.map(d=>(d.measured_at||'').slice(0,10))).size;
+
+    // 流れの向き: 前半 vs 後半の平均
+    const half = Math.floor(recs.length/2);
+    const firstS = avg(recs.slice(0,half).map(d=>d.systolic));
+    const lastHalfS = avg(recs.slice(half).map(d=>d.systolic));
+    const firstD = avg(recs.slice(0,half).map(d=>d.diastolic));
+    const lastHalfD = avg(recs.slice(half).map(d=>d.diastolic));
+    const dS = (lastHalfS!=null&&firstS!=null)? lastHalfS-firstS : 0;
+    const dD = (lastHalfD!=null&&firstD!=null)? lastHalfD-firstD : 0;
+    let trendWord = '横ばい', trendArrow = '→';
+    if (dS <= -3 || dD <= -2) { trendWord='下がってきています'; trendArrow='↘'; }
+    else if (dS >= 3 || dD >= 2) { trendWord='上がってきています'; trendArrow='↗'; }
+
+    // 状況判定 = 直近2週間の平均で（1回の値では決めない）
+    const over = rS>=SYS_TH || rD>=DIA_TH;
+    const highOver = rS>=145 || rD>=95;
+    let st, ic, tx;
+    if (!over){ st='ok'; ic='🟢';
+      tx = '直近2週間の平均は '+rS+'／'+rD+'。<b>基準（135／85）内で安定</b>しています。1回くらい高い日があっても心配いりません。'; }
+    else if (!highOver){ st='mid'; ic='🟡';
+      tx = '直近2週間の平均は '+rS+'／'+rD+'。<b>基準をやや超える日が続いています</b>。生活の中で少し意識を。流れは'+trendWord+'（'+trendArrow+'）。'; }
+    else { st='hi'; ic='🔴';
+      tx = '直近2週間の平均は '+rS+'／'+rD+'。<b>高めの状態が続いています</b>。医師にご相談を。流れは'+trendWord+'（'+trendArrow+'）。'; }
+
+    // 最新の単発値についての一言（点に一喜一憂させない）
+    let single = '';
+    const lS = last.systolic, lD = last.diastolic;
+    const lHigh = lS>=SYS_TH || lD>=DIA_TH;
+    if (lHigh && !over) single = 'いちばん新しい記録は '+lS+'／'+lD+' と少し高めですが、<b>流れ（平均）は基準内</b>。この1回で慌てる必要はありません。';
+    else if (!lHigh && over) single = 'いちばん新しい記録は '+lS+'／'+lD+' と落ち着いていますが、<b>見るべきは平均の流れ</b>。良い1回で安心しきらず続けましょう。';
+    else if (lHigh && over) single = 'いちばん新しい記録は '+lS+'／'+lD+'。単発ではなく、この状態が続いているかどうかを流れで見ましょう。';
+    else single = 'いちばん新しい記録は '+lS+'／'+lD+'。良い流れです。毎日の記録を続けましょう。';
+
+    html += '<div class="status '+st+'"><div class="ic">'+ic+'</div><div class="tx">'+tx+'</div></div>';
+
+    html += '<div class="stats">'
+      + statCard('直近2週間の平均', rS+'<small>／'+rD+'</small>', 'この「平均」で見ます')
+      + statCard('最新の記録', lS+'<small>／'+lD+'</small>', (last.measured_at||'').slice(5,10).replace('-','/')+' の1回')
+      + statCard('期間の平均', aS+'<small>／'+aD+'</small>', (days==='all'?'全期間の流れ':days+'日間の流れ'))
+      + statCard('記録した日数', nDays+'<small>日</small>', '続けるほど流れが見える')
+      + '</div>';
+
+    html += '<div class="card"><h2>あなたの血圧グラフ</h2>'
+      + '<div class="hint">薄い点＝1回ごとの記録。<b>濃い線＝平均の流れ</b>。見るのは線です。</div>'
+      + '<svg id="chart" viewBox="0 0 820 260" preserveAspectRatio="xMidYMid meet"></svg>'
+      + '<div class="legend">'
+      + '<span class="ln" style="background:var(--sys)"></span>上（収縮期）の流れ　'
+      + '<span class="ln" style="background:var(--dia)"></span>下（拡張期）の流れ　'
+      + '／　点線＝めやす（135・85）</div>'
+      + '<div style="margin-top:10px;font-size:12.5px;color:#0f766e;font-weight:700;line-height:1.6;">'+single+'</div>'
+      + '</div>';
+
+    // 直近の記録（新しい順に最大10件）
+    html += '<div class="card"><h2>最近の記録</h2><table><thead><tr><th>日付</th><th>上</th><th>下</th><th>脈</th></tr></thead><tbody>';
+    const tail = recs.slice(-10).reverse();
+    tail.forEach(d=>{
+      const hiS = d.systolic>=SYS_TH?' class="hi"':'', hiD = d.diastolic>=DIA_TH?' class="hi"':'';
+      html += '<tr><td>'+(d.measured_at||'').slice(5,10).replace('-','/')+'</td><td'+hiS+'>'+d.systolic+'</td><td'+hiD+'>'+d.diastolic+'</td><td>'+(d.pulse||'-')+'</td></tr>';
+    });
+    html += '</tbody></table><div class="hint" style="margin-top:8px;margin-bottom:0;">赤い数字＝めやす超え。1回だけなら気にしすぎないで。</div></div>';
+
+    C.innerHTML = html;
+    drawChart(recs);
+  }
+
+  function statCard(lab, val, note){
+    return '<div class="stat"><div class="lab">'+lab+'</div><div class="val">'+val+'</div><div class="note">'+note+'</div></div>';
+  }
+
+  function drawChart(recs){
+    const svg = $('chart'); if (!svg) return;
+    const W=820,H=260,L=40,Rm=16,T=14,Bm=30;
+    const N = recs.length;
+    const sys = recs.map(d=>d.systolic), dia = recs.map(d=>d.diastolic);
+    const win = Math.min(7, Math.max(2, Math.round(N/6)));
+    const maS = movAvg(sys, win), maD = movAvg(dia, win);
+
+    const allV = sys.concat(dia);
+    let yMin = Math.min(50, Math.floor((Math.min.apply(null,allV)-8)/10)*10);
+    let yMax = Math.max(160, Math.ceil((Math.max.apply(null,allV)+8)/10)*10);
+    const x = i => N<=1 ? L+(W-L-Rm)/2 : L + i/(N-1)*(W-L-Rm);
+    const y = v => T + (yMax-v)/(yMax-yMin)*(H-T-Bm);
+    const E = (n,a,txt)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.appendChild(e);return e;};
+
+    // 目盛り
+    for (let v=Math.ceil(yMin/20)*20; v<=yMax; v+=20){
+      E('line',{x1:L,y1:y(v),x2:W-Rm,y2:y(v),stroke:'#eef2f1'});
+      E('text',{x:L-5,y:y(v)+3,'text-anchor':'end','font-size':9,fill:'#94a3b8'},v);
+    }
+    // めやす点線
+    E('line',{x1:L,y1:y(SYS_TH),x2:W-Rm,y2:y(SYS_TH),stroke:'#e57373','stroke-dasharray':'5 4'});
+    E('line',{x1:L,y1:y(DIA_TH),x2:W-Rm,y2:y(DIA_TH),stroke:'#80cbc4','stroke-dasharray':'5 4'});
+    E('text',{x:W-Rm,y:y(SYS_TH)-3,'text-anchor':'end','font-size':9,fill:'#c0392b'},'めやす135');
+    E('text',{x:W-Rm,y:y(DIA_TH)-3,'text-anchor':'end','font-size':9,fill:'#2f7d77'},'めやす85');
+
+    // 生の点（薄く）
+    function dots(vals,color){ vals.forEach((v,i)=>{ E('circle',{cx:x(i),cy:y(v),r:2,fill:color,'fill-opacity':0.28}); }); }
+    // 移動平均線（濃く=主役）
+    function line(vals,color){
+      let p=''; vals.forEach((v,i)=>{ p += (i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; });
+      E('path',{d:p,fill:'none',stroke:color,'stroke-width':2.6,'stroke-linejoin':'round','stroke-linecap':'round'});
+      // 最新点だけ強調
+      const li = vals.length-1;
+      E('circle',{cx:x(li),cy:y(vals[li]),r:4,fill:'#fff',stroke:color,'stroke-width':2.4});
+    }
+    dots(sys,'#c0392b'); dots(dia,'#2f7d77');
+    line(maS,'#c0392b'); line(maD,'#2f7d77');
+
+    // x軸ラベル（両端＋中間いくつか）
+    const idxs = [];
+    const steps = Math.min(5, N);
+    for (let k=0;k<steps;k++){ idxs.push(Math.round(k*(N-1)/(steps-1||1))); }
+    [...new Set(idxs)].forEach(i=>{
+      const dd = (recs[i].measured_at||'').slice(5,10).replace('-','/');
+      E('text',{x:x(i),y:H-Bm+15,'text-anchor':'middle','font-size':9,fill:'#94a3b8'},dd);
+    });
+  }
+</script>
+</body>
+</html>

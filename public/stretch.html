@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>暑い夏に涼しい自宅でストレッチ！- CoWell</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    --ground: #f2f8f7; --surface: #ffffff; --line: #d7e8e5;
+    --ink: #12302f; --muted: #5d7d7a; --accent: #0e7490; --accent-soft: #e4f3f2;
+    --warn: #b45309; --warn-bg: #fdf4e7;
+    --bodyfill: #e6efee; --hairfill: #b8cecb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground: #0c1918; --surface: #142524; --line: #244140;
+            --ink: #dcefec; --muted: #8fada9; --accent: #4cc4d6; --accent-soft: #16302f;
+            --warn: #e0a35c; --warn-bg: #2a2015;
+            --bodyfill: #1e3735; --hairfill: #2f4c49; }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c1918; --surface: #142524; --line: #244140;
+    --ink: #dcefec; --muted: #8fada9; --accent: #4cc4d6; --accent-soft: #16302f;
+    --warn: #e0a35c; --warn-bg: #2a2015;
+    --bodyfill: #1e3735; --hairfill: #2f4c49;
+  }
+  :root[data-theme="light"] {
+    --ground: #f2f8f7; --surface: #ffffff; --line: #d7e8e5;
+    --ink: #12302f; --muted: #5d7d7a; --accent: #0e7490; --accent-soft: #e4f3f2;
+    --warn: #b45309; --warn-bg: #fdf4e7;
+    --bodyfill: #e6efee; --hairfill: #b8cecb;
+  }
+
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 16px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px;
+          display: flex; flex-direction: column; gap: 46px; }
+
+  header { display: flex; flex-direction: column; gap: 8px; }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; color: var(--accent); font-weight: 700; }
+  h1 { margin: 0; font-size: 29px; line-height: 1.35; font-weight: 700; text-wrap: balance; }
+  .sub { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  .kit { display: flex; flex-wrap: wrap; gap: 8px; }
+  .kit span {
+    font-size: 13px; font-weight: 700; padding: 5px 13px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+
+  .block { display: flex; flex-direction: column; gap: 16px; }
+  .block h2 {
+    margin: 0; font-size: 19px; font-weight: 700;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 10px; border-bottom: 2px solid var(--line);
+  }
+  .bn { font-size: 11px; letter-spacing: .1em; color: var(--accent);
+        background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; }
+  .lead { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .exs { display: flex; flex-direction: column; gap: 16px; }
+  .ex {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden; display: grid; grid-template-columns: 300px minmax(0, 1fr);
+  }
+  @media (max-width: 640px) { .ex { grid-template-columns: minmax(0, 1fr); } }
+  .ex-media { position: relative; line-height: 0; background: #eef4f3; }
+  .ex-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  @media (max-width: 640px) { .ex-media img { height: auto; } }
+  .num {
+    position: absolute; left: 12px; top: 12px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(8,44,46,.85); color: #eafbf8;
+    font-size: 15px; font-weight: 700; line-height: 32px; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .ex-body { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .ex-body h3 { margin: 0; font-size: 17px; font-weight: 700; }
+  .target { margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); }
+  .how { margin: 0; font-size: 14.5px; }
+  .dose {
+    margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .illust {
+    margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    max-width: 340px;
+  }
+  .illust img { display: block; width: 100%; height: auto; }
+  .illust span { display: block; padding: 7px 12px; font-size: 12px; color: var(--muted); }
+
+  /* ── 冒頭: 伸ばす箇所の図 ── */
+  .hero { display: flex; flex-direction: column; gap: 18px; }
+  .bodies {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+  }
+  @media (max-width: 560px) { .bodies { grid-template-columns: minmax(0, 1fr); } }
+
+  .toolrow {
+    display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 16px 20px 16px 16px;
+  }
+  @media (max-width: 620px) { .toolrow { grid-template-columns: minmax(0, 1fr); } }
+  .toolpic { line-height: 0; border-radius: 12px; overflow: hidden; }
+  .toolpic img { display: block; width: 100%; height: auto; }
+  .toolbody { display: flex; flex-direction: column; gap: 7px; }
+  .toolbody h3 { margin: 0; font-size: 15px; font-weight: 700; }
+  .toolbody p { margin: 0; font-size: 14px; line-height: 1.7; }
+  .toolbody b { color: var(--accent); }
+  .toolnote { color: var(--muted); font-size: 13px !important; }
+  .body {
+    margin: 0; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .figwrap { position: relative; line-height: 0; }
+  .figwrap img { display: block; width: 100%; height: auto; }
+  .ov { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* 伸ばす箇所の印。文字はページ本文と同じ書体を継承する */
+  .hz { fill: #ffffff; fill-opacity: .34; stroke: #ff6a13; stroke-width: 6; }
+  .hl-line { stroke: #ff6a13; stroke-width: 4; stroke-linecap: round; fill: none; }
+  .hl-text text {
+    font-family: inherit; font-size: 46px; font-weight: 700;
+    fill: #22201d; paint-order: stroke;
+    stroke: #ffffff; stroke-width: 6; stroke-linejoin: round;
+  }
+  .body figcaption {
+    padding: 10px 14px 14px; font-size: 12.5px; color: var(--muted);
+    text-align: center; font-variant-numeric: tabular-nums;
+  }
+
+  .merits {
+    background: var(--accent-soft); border: 1px solid var(--line);
+    border-radius: 16px; padding: 20px 22px 22px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .merits h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .mg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+  @media (max-width: 620px) { .mg { grid-template-columns: minmax(0, 1fr); } }
+  .m { display: flex; flex-direction: column; gap: 1px; }
+  .mt { font-size: 14.5px; font-weight: 700; color: var(--accent); }
+  .md { font-size: 13.5px; line-height: 1.65; }
+  .mnote { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .video {
+    background: var(--accent-soft); border: 1px solid var(--line);
+    border-radius: 16px; padding: 18px 22px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .video h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .video p { margin: 0; font-size: 14px; }
+  .video a {
+    color: var(--accent); font-weight: 700; word-break: break-all;
+  }
+  .video .cap { font-size: 13px; color: var(--muted); }
+
+  .refs {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 18px 22px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .refs h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .refs dl { margin: 0; display: flex; flex-direction: column; gap: 11px; }
+  .refs dt { font-size: 14px; font-weight: 700; }
+  .refs dd { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.7; }
+  .refs a { color: var(--accent); font-weight: 700; word-break: break-all; }
+
+  .note {
+    background: var(--warn-bg); border: 1px solid var(--line);
+    border-left: 4px solid var(--warn); border-radius: 12px; padding: 15px 20px;
+  }
+  .note h3 { margin: 0 0 6px; font-size: 15px; color: var(--warn); }
+  ul { margin: 0; padding-left: 1.3em; }
+  li { margin: 5px 0; font-size: 14.5px; }
+  .muted { color: var(--muted); font-size: 13px; margin: 0; }
+</style>
+<style>
+  /* CoHub 共通ヘッダー */
+  .cohub-hd {
+    position: sticky; top: 0; z-index: 20;
+    background: linear-gradient(135deg,#0d9488,#14b8a6); color:#fff;
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .cohub-hd h1 { margin: 0; font-size: 17px; font-weight: 800; flex: 1; }
+  .cohub-hd a {
+    color:#fff; text-decoration:none; background:rgba(255,255,255,.2);
+    border-radius:10px; padding:6px 12px; font-size:13px; font-weight:700;
+  }
+  .wrap { padding-top: 22px; }
+  .lead-block { display: flex; flex-direction: column; gap: 12px; }
+  .lead-sub { margin: 0; font-size: 15px; line-height: 1.85; }
+</style>
+</head>
+<body>
+<div class="cohub-hd">
+  <h1>🧘 暑い夏に涼しい自宅でストレッチ！</h1>
+  <a href="/home">ホーム</a>
+</div>
+<div class="wrap">
+    <div class="lead-block">
+    <p class="lead-sub">エアコンの効いた部屋で、寝る前の15分。<br>
+      道具はポール1本とフェイスタオル1枚だけ。夏バテで落ちた寝つきと、
+      運転で固まった腰・肩をゆるめます。</p>
+    <div class="kit">
+      <span>ストレッチポール 1本</span>
+      <span>フェイスタオル 1枚</span>
+      <span>15〜20分</span>
+      <span>自宅でできる</span>
+    </div>
+  </div>
+<section class="hero">
+    <h2><span class="bn">はじめに</span>どこを伸ばすのか</h2>
+    <p class="lead">この13種目で伸ばすのは、下の色がついたところです。運転と積み下ろしで固まりやすい場所ばかりです。</p>
+
+    <div class="bodies">
+      <figure class="body">
+        <div class="figwrap">
+          <img src="/assets/stretch/img01.jpg" alt="背面から見た全身図。肩甲骨まわり、脇腹と背中、腰と骨盤、裏もも、ふくらはぎに印がついている">
+          <svg class="ov" viewBox="0 0 1124 1184" aria-hidden="true"><g class="hz"><ellipse cx="522" cy="600" rx="42" ry="46"/><ellipse cx="616" cy="600" rx="42" ry="46"/><ellipse cx="448" cy="672" rx="24" ry="52"/><ellipse cx="690" cy="672" rx="24" ry="52"/><rect x="475" y="726" width="188" height="74" rx="32"/><ellipse cx="522" cy="912" rx="34" ry="48"/><ellipse cx="610" cy="912" rx="34" ry="48"/><ellipse cx="526" cy="1016" rx="27" ry="38"/><ellipse cx="606" cy="1016" rx="27" ry="38"/></g><g class="hl-line"><line x1="658" y1="592" x2="790" y2="548"/><line x1="714" y1="668" x2="790" y2="652"/><line x1="663" y1="762" x2="790" y2="756"/><line x1="644" y1="906" x2="790" y2="860"/><line x1="633" y1="1012" x2="790" y2="964"/></g><g class="hl-text"><text x="804" y="564" text-anchor="start">肩甲骨まわり</text><text x="804" y="668" text-anchor="start">脇腹・背中</text><text x="804" y="772" text-anchor="start">腰・骨盤</text><text x="804" y="876" text-anchor="start">裏もも</text><text x="804" y="980" text-anchor="start">ふくらはぎ</text></g></svg>
+        </div>
+        <figcaption>背中側　─　種目 1〜4・7〜9・10〜12</figcaption>
+      </figure>
+
+      <figure class="body">
+        <div class="figwrap">
+          <img src="/assets/stretch/img02.jpg" alt="正面から見た全身図。肩の前、胸、股関節と内ももに印がついている">
+          <svg class="ov" viewBox="0 0 1124 1184" aria-hidden="true"><g class="hz"><ellipse cx="460" cy="592" rx="32" ry="28"/><ellipse cx="652" cy="592" rx="32" ry="28"/><rect x="490" y="600" width="132" height="86" rx="38"/><ellipse cx="522" cy="872" rx="34" ry="46"/><ellipse cx="602" cy="872" rx="34" ry="46"/></g><g class="hl-line"><line x1="428" y1="586" x2="344" y2="548"/><line x1="624" y1="648" x2="770" y2="676"/><line x1="638" y1="868" x2="770" y2="836"/></g><g class="hl-text"><text x="330" y="564" text-anchor="end">肩の前</text><text x="784" y="692" text-anchor="start">胸</text><text x="784" y="852" text-anchor="start">股関節・内もも</text></g></svg>
+        </div>
+        <figcaption>体の前側　─　種目 3・5〜8</figcaption>
+      </figure>
+    </div>
+
+    <div class="toolrow">
+      <div class="toolpic">
+        <img loading="lazy" decoding="async" src="/assets/stretch/img03.jpg" alt="ストレッチポールの写真。手のひらほどの太さの円柱">
+      </div>
+      <div class="toolbody">
+        <h3>使う道具</h3>
+        <p><b>ストレッチポール</b>　太さは手のひらほど、長さは1mほどの円柱です。これを背骨に沿って縦に置き、その上に仰向けで乗ります。</p>
+        <p><b>フェイスタオル</b>　1枚。種目10〜12で使います。</p>
+        <p class="toolnote">道具はこの2つだけ。タオルの3種目はポールが無くてもできるので、自宅でも車庫でもできます。</p>
+      </div>
+    </div>
+
+    <div class="merits">
+      <h3>続けると、こうなります</h3>
+      <div class="mg">
+        <div class="m"><span class="mt">体の動く範囲が広がる</span><span class="md">乗り降り、バック時の振り返り、荷台での踏ん張りが楽になります。</span></div>
+        <div class="m"><span class="mt">腰と肩の負担が減る</span><span class="md">固まった筋肉をほぐすと、腰の一点に力が集中しにくくなります。</span></div>
+        <div class="m"><span class="mt">血のめぐりがよくなる</span><span class="md">足のむくみやだるさが残りにくくなります。</span></div>
+        <div class="m"><span class="mt">寝つきがよくなる</span><span class="md">寝る前にゆっくり伸ばすと、体の力が抜けて眠りに入りやすくなります。</span></div>
+        <div class="m"><span class="mt">ケガをしにくくなる</span><span class="md">急に体をひねったり、重い物を持ったときに痛めにくくなります。</span></div>
+      </div>
+      <p class="mnote">全部やっても15〜20分。時間がない日は、タオルだけの3種目(10〜12)でも構いません。</p>
+    </div>
+  </section>
+
+
+  <section class="video">
+    <h3>▶ 正しい動きは、公式動画で確かめてください</h3>
+    <p>ポールの基本エクササイズは、メーカーが動画を公開しています。文章と写真で分かりにくいところは、こちらを見るのが確実です。</p>
+    <p><a href="https://www.youtube.com/watch?v=TY5y3iY-bCo" target="_blank" rel="noopener">【体幹ケアツール】ストレッチポール®︎ 基本エクササイズ（YouTube）</a></p>
+    <p class="cap">このページの回数・秒数は写真から組み立てた目安です。動画と食い違うところがあれば、動画が正しいと考えてください。</p>
+  </section>
+
+  <section class="block"><h2><span class="bn">ブロック1</span>ストレッチポールに仰向け</h2><p class="lead">ポールを縦に置き、後頭部・背中・おしりの3点を乗せます。首と腰はべったりつけず、自然な隙間を残します。肘を床につけて手のひらは上向き、膝を立てて足は肩幅。ここが全部の土台です。終わったら<b>おしり → 肩 → 頭</b>の順でゆっくり降り、そのまま一度床に寝てから起き上がります。</p><div class="exs"><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img04.jpg" alt="基本姿勢"><span class="num">1</span></div><div class="ex-body"><h3>基本姿勢</h3><p class="target">背中まわり全体</p><p class="how">ポールに乗って、ただ力を抜きます。肘は床、手のひらは上向き。ゆっくり呼吸をして、ポールに体重をあずけます。ここから始めて、種目の合間もここに戻ります。</p><p class="dose">目安 30秒〜1分</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img05.jpg" alt="肩甲骨の運動"><span class="num">2</span></div><div class="ex-body"><h3>肩甲骨の運動</h3><p class="target">肩甲骨まわり・胸椎</p><p class="how">床に置いた腕を持ち上げて天井へ伸ばし、そこからさらに上へ押し出して、ゆっくり戻します。<b>真上ではなく少し斜め前</b>へ上げるのがコツ。肩甲骨と背骨が動くのを感じながら。</p><p class="dose">目安 5〜15回</p><div class="illust"><img loading="lazy" decoding="async" src="/assets/stretch/img06.png" alt="真横から見た図"><span>体とポールの位置（真横から）</span></div></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img07.jpg" alt="バイバイ運動"><span class="num">3</span></div><div class="ex-body"><h3>バイバイ運動</h3><p class="target">股関節</p><p class="how">両脚を伸ばしてかかとを立て、<b>かかとを軸にして足を開いて閉じます</b>。足幅は腰幅くらい。股関節が動くのを意識して、腰を反らせないように。</p><p class="dose">目安 5〜15回</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img08.jpg" alt="膝緩め運動"><span class="num">4</span></div><div class="ex-body"><h3>膝緩め運動</h3><p class="target">股関節</p><p class="how">両脚を伸ばしてかかとを床につけ、<b>膝を外側に向けて小さく曲げ伸ばし</b>します。かかとの位置はほとんど動かさず、小さく。腰を反らせないように。</p><p class="dose">目安 5〜15回</p></div></article></div></section><section class="block"><h2><span class="bn">ブロック2</span>ポールを横に置いて上半身</h2><p class="lead">ポールを横向きに置き替えます。腕や脇を乗せて、体重で伸ばしていきます。</p><div class="exs"><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img09.jpg" alt="ポールを横に置き、両手を添える"><span class="num">5</span></div><div class="ex-body"><h3>ポールを横に置き、両手を添える</h3><p class="target">肩の可動域</p><p class="how">ポールを体の横に倒して置き、両手を添えます。ここから起き上がって次の姿勢に入ります。</p><p class="dose">目安 準備</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img10.jpg" alt="前腕を乗せて前へ転がす"><span class="num">6</span></div><div class="ex-body"><h3>前腕を乗せて前へ転がす</h3><p class="target">脇の下・背中</p><p class="how">膝立ちになり、両方の前腕をポールに乗せます。おしりを後ろへ引きながら、ポールを前へ転がして胸を沈めます。</p><p class="dose">目安 30秒×2</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img11.jpg" alt="おでこを床に、胸を沈める"><span class="num">7</span></div><div class="ex-body"><h3>おでこを床に、胸を沈める</h3><p class="target">広背筋・胸</p><p class="how">両腕をポールに乗せたまま、おでこを床へ落とします。背中が伸びるところで止めて呼吸します。</p><p class="dose">目安 30秒×2</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img12.jpg" alt="同じ姿勢を深める"><span class="num">8</span></div><div class="ex-body"><h3>同じ姿勢を深める</h3><p class="target">広背筋・胸</p><p class="how">おしりをかかとへ近づけるほど強く伸びます。痛いところまでは行かず、気持ちいいところで止めます。</p><p class="dose">目安 30秒×2</p></div></article></div></section><section class="block"><h2><span class="bn">ブロック3</span>肩を入れて、脇から背中を伸ばす</h2><p class="lead">ここだけ独立した種目です。道具は使いません。左右とも行います。</p><div class="exs"><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img13.jpg" alt="片腕を床に伸ばして肩を入れる"><span class="num">9</span></div><div class="ex-body"><h3>片腕を床に伸ばして肩を入れる</h3><p class="target">脇腹・肩甲骨まわり</p><p class="how">膝立ちから片方の腕を床にまっすぐ伸ばし、その肩を床へ入れ込みます。反対側の脇から背中にかけて伸びます。</p><p class="dose">目安 左右30秒ずつ</p></div></article></div></section><section class="block"><h2><span class="bn">ブロック4</span>タオルで下半身</h2><p class="lead">ポールは使いません。フェイスタオル1本で足りるので、家でも車庫でもできます。</p><div class="exs"><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img14.jpg" alt="足裏にタオルを掛けて脚を上げる"><span class="num">10</span></div><div class="ex-body"><h3>足裏にタオルを掛けて脚を上げる</h3><p class="target">裏もも（ハムストリング）</p><p class="how">仰向けで片足の裏にタオルを掛け、膝を軽く伸ばしたまま脚を天井へ引き上げます。反対の脚は床に伸ばしたまま。</p><p class="dose">目安 左右30秒ずつ</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img15.jpg" alt="つま先を手前に引く"><span class="num">11</span></div><div class="ex-body"><h3>つま先を手前に引く</h3><p class="target">ふくらはぎ・アキレス腱</p><p class="how">同じ姿勢から、タオルでつま先を顔の方へ引きます。かかとを遠くへ押し出す意識で。</p><p class="dose">目安 左右30秒ずつ</p></div></article><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img16.jpg" alt="長座で前へ倒れる"><span class="num">12</span></div><div class="ex-body"><h3>長座で前へ倒れる</h3><p class="target">裏もも・腰</p><p class="how">脚を前に伸ばして座り、足裏にタオルを掛けます。背中を丸めず、胸を張ったまま上体を前へ倒します。</p><p class="dose">目安 30秒×2</p><div class="illust"><img loading="lazy" decoding="async" src="/assets/stretch/img17.png" alt="真横から見た図"><span>片脚を上げてタオルで引き、裏もも（ハムストリング）を伸ばす</span></div></div></article></div></section><section class="block"><h2><span class="bn">ブロック5</span>タオルで肩</h2><p class="lead">最後に肩へ戻ります。ここだけでもやる価値があります。</p><div class="exs"><article class="ex"><div class="ex-media"><img loading="lazy" decoding="async" src="/assets/stretch/img18.jpg" alt="背中でタオルを上下に引く"><span class="num">13</span></div><div class="ex-body"><h3>背中でタオルを上下に引く</h3><p class="target">肩の内外旋・胸</p><p class="how">タオルを背中側で斜めに持ち、上の手と下の手で交互に引き合います。胸が開きます。</p><p class="dose">目安 左右10往復</p></div></article></div></section>
+
+  <section>
+    <div class="note">
+      <h3>このページは、教わった一部の記録です</h3>
+      <ul>
+        <li>正式には<b>予備運動3種目＋主運動7種目</b>で、通しで<b>5〜15分</b>。今回の写真に写っていたのは、そのうちの4つだけでした</li>
+        <li><b>予備運動</b>(各15〜30秒キープ) — 腕の運動／股関節の運動／対角の運動</li>
+        <li><b>主運動</b>(各5〜15回) — ①床磨き運動 ②肩甲骨の運動 ③鳥の羽ばたき運動 ④バイバイ運動 ⑤膝緩め運動 ⑥小さなゆらぎ運動 ⑦呼吸</li>
+        <li>このページに入っているのは<b>②④⑤と基本姿勢</b>。<b>①③⑥⑦と予備運動3種目は入っていません</b>。ポールを本格的に使うなら、公式動画で全10種目を通すのがおすすめです</li>
+      </ul>
+    </div>
+    <div class="refs" style="margin-top:14px">
+      <h3>ここに載っていない動きは、こちらで</h3>
+      <dl>
+        <dt>▶ ベーシックセブン 全10種目の動画（メーカー公式）</dt>
+        <dd>ポールの基本はこれで一通り見られます。<br>
+          <a href="https://www.youtube.com/watch?v=TY5y3iY-bCo" target="_blank" rel="noopener">https://www.youtube.com/watch?v=TY5y3iY-bCo</a></dd>
+
+        <dt>ベーシックセブン 全10種目の手順と回数（文章の解説）</dt>
+        <dd>予備運動3種目と主運動7種目を、やり方・回数・注意点まで順に説明しています。<br>
+          <a href="https://resetpilates.jp/1/" target="_blank" rel="noopener">https://resetpilates.jp/1/</a></dd>
+
+        <dt>部位べつのエクササイズ一覧（メーカー公式）</dt>
+        <dd>準備運動／肩・肩甲骨／背骨／体幹／骨盤・股関節 の全17種目。各種目に動画が付いています。<br>
+          <a href="https://stretchpole.com/howtouse/" target="_blank" rel="noopener">https://stretchpole.com/howtouse/</a></dd>
+
+        <dt>肩・肩甲骨（床磨き運動・鳥の羽ばたき運動・肩交互運動）</dt>
+        <dd>このページに入っていない肩まわりの3種目はこちら。<br>
+          <a href="https://stretchpole.com/howtouse/detail2.php" target="_blank" rel="noopener">https://stretchpole.com/howtouse/detail2.php</a></dd>
+
+        <dt>背骨（小さなゆらぎ運動・クレッセント・ツイスター）</dt>
+        <dd><a href="https://stretchpole.com/howtouse/detail3.php" target="_blank" rel="noopener">https://stretchpole.com/howtouse/detail3.php</a></dd>
+
+        <dt>骨盤・股関節（骨盤スライド・フロッグキック・バタ足運動ほか）</dt>
+        <dd><a href="https://stretchpole.com/howtouse/detail5.php" target="_blank" rel="noopener">https://stretchpole.com/howtouse/detail5.php</a></dd>
+
+        <dt>効果と注意点（公的機関の解説）</dt>
+        <dd>公益財団法人 長寿科学振興財団「健康長寿ネット」による解説です。<br>
+          <a href="https://www.tyojyu.or.jp/net/kenkou-tyoju/shintai-training/stretchpole.html" target="_blank" rel="noopener">https://www.tyojyu.or.jp/net/kenkou-tyoju/shintai-training/stretchpole.html</a></dd>
+      </dl>
+    </div>
+
+    <div class="note" style="margin-top:14px">
+      <h3>配信前に確認が必要です</h3>
+      <ul>
+        <li>回数・秒数は<b>写真から組み立てた推定</b>です。教わった内容そのままではありません</li>
+        <li>配信の前に、<b>社内で実際にやってもらって動きの正しさを確認</b>してください</li>
+        <li>痛みが出る場合は中止。腰や首に持病のある方は、かかりつけ医に相談してから</li>
+      </ul>
+    </div>
+    <p class="muted" style="margin-top:14px">写真は顔・名札・所属ロゴをぼかしています。撮影は本人の了承を得たものです。</p>
+  </section>
+</div>
+
+<script>
+  var TOKEN = localStorage.getItem('cohub_token') || '';
+  if (!TOKEN) location.replace('/');
+  (async () => {
+    const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + TOKEN } }).catch(()=>null);
+    if (!r || r.status === 401) { localStorage.removeItem('cohub_token'); location.replace('/'); }
+  })();
+</script>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+</body>
+</html>

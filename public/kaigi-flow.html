@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>📋 健康づくりの取り組みの流れ — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
+<link rel="apple-touch-icon" href="/img/cowell-apple-touch-v6.png">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100vh; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #0f172a; color: #0f172a; min-height: 100vh; }
+header { position: sticky; top: 0; z-index: 30; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header button, header a.hbtn { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 7px 14px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 96px; }
+
+.srcline { font-size: 11px; color: #cbd5e1; font-weight: 800; letter-spacing: 0.3px; text-align: center; margin: 4px 0 10px; }
+
+.stage { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.35); position: relative; }
+.stage img { display: block; width: 100%; height: auto; }
+/* 対照表スライド(末尾)を強調 */
+.tag-cowell { position: absolute; top: 10px; left: 10px; background: linear-gradient(135deg,#0891b2,#047857); color:#fff; font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 999px; box-shadow: 0 3px 10px rgba(0,0,0,.25); display: none; }
+.caption { text-align: center; color: #e2e8f0; font-size: 14px; font-weight: 700; margin-top: 12px; min-height: 20px; }
+
+.thumbs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+.thumbs .t { width: 64px; height: 36px; border-radius: 9px; overflow: hidden; border: 2px solid transparent; cursor: pointer; opacity: .55; background:#1e293b; }
+.thumbs .t img { width: 100%; height: 100%; object-fit: cover; }
+.thumbs .t.on { border-color: #2dd4bf; opacity: 1; }
+
+.controls { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #fff; border-radius: 999px; padding: 8px 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 6px; z-index: 20; }
+.ctrl { background: transparent; border: none; padding: 10px 16px; border-radius: 999px; cursor: pointer; font-size: 15px; font-weight: 800; color: #475569; }
+.ctrl:hover:not(:disabled) { background: #f1f5f9; color: #0f172a; }
+.ctrl:disabled { opacity: 0.3; cursor: not-allowed; }
+.ctrl.primary { background: linear-gradient(135deg, #0891b2, #047857); color: #fff; }
+.ctrl-info { font-size: 12px; color: #64748b; padding: 0 12px; min-width: 56px; text-align: center; font-weight: 700; }
+
+.gate { max-width: 420px; margin: 80px auto; background: #fff; border-radius: 14px; padding: 28px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.gate h2 { color: #b45309; }
+.gate p { color: #475569; font-size: 13px; line-height: 1.7; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 健康づくりの取り組みの流れ</h1>
+  <div class="spacer"></div>
+  <a class="hbtn" href="/assets/kaigi/kenko-flow.pptx" download="健康づくりの流れ.pptx">⬇ PPT</a>
+  <button onclick="goBack()">✕ 閉じる</button>
+</header>
+
+<main>
+  <div id="gate" class="gate" style="display:none;">
+    <h2>⛔ 閲覧権限がありません</h2>
+    <p>このページは <b>推進メンバー / 管理職</b> 限定です。<br>権限についてはシステム管理者にお問い合わせください。</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="srcline">帝京大学公衆衛生学研究科 西村さん 提供資料</div>
+    <div class="stage">
+      <div class="tag-cowell" id="cowell-tag">CoWell 対応の解説</div>
+      <img id="img" src="" alt="">
+    </div>
+    <div class="caption" id="caption"></div>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <div class="controls" id="controls" style="display:none;">
+    <button class="ctrl" id="btn-prev" onclick="goSlide(-1)">◀ 前</button>
+    <span class="ctrl-info" id="info">1 / 6</span>
+    <button class="ctrl primary" id="btn-next" onclick="goSlide(1)">次 ▶</button>
+  </div>
+</main>
+
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+
+function goBack() {
+  if (history.length > 1 && document.referrer && document.referrer.includes(location.host)) {
+    history.back();
+  } else {
+    location.href = '/kaigi-shiryo.html';
+  }
+}
+
+// 元PowerPointの各スライド(そのまま) + 末尾にCoWell対照表
+const SLIDES = [
+  { src: '/assets/kaigi/flow/slide1.png?v=1', cap: '健康づくりの取り組み 全体の流れ（7ステップ）' },
+  { src: '/assets/kaigi/flow/slide2.png?v=1', cap: '健康課題と優先順位の決定（Green & Kreuter）' },
+  { src: '/assets/kaigi/flow/slide3.png?v=1', cap: '評価基準を決める — 着手前に数値を' },
+  { src: '/assets/kaigi/flow/slide4.png?v=1', cap: '計画は SMART で・実行・評価' },
+  { src: '/assets/kaigi/flow/slide5.png?v=1', cap: '繰り返して良くしていく' },
+  { src: '/assets/kaigi/flow/slide6.png?v=1', cap: '【CoWell 解説】西村さんの7ステップ × 弊社アプリの対応', cowell: true },
+];
+
+let _idx = 0;
+
+function renderThumbs() {
+  document.getElementById('thumbs').innerHTML = SLIDES.map((s, i) =>
+    `<div class="t ${i === _idx ? 'on' : ''}" onclick="goTo(${i})"><img src="${s.src}" alt=""></div>`
+  ).join('');
+}
+
+function render() {
+  const s = SLIDES[_idx];
+  document.getElementById('img').src = s.src;
+  document.getElementById('caption').textContent = s.cap;
+  document.getElementById('info').textContent = (_idx + 1) + ' / ' + SLIDES.length;
+  document.getElementById('btn-prev').disabled = _idx === 0;
+  document.getElementById('btn-next').disabled = _idx === SLIDES.length - 1;
+  document.getElementById('cowell-tag').style.display = s.cowell ? 'block' : 'none';
+  renderThumbs();
+}
+
+function goSlide(d) {
+  const n = _idx + d;
+  if (n < 0 || n >= SLIDES.length) return;
+  _idx = n; render();
+}
+function goTo(i) { _idx = i; render(); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') goSlide(-1);
+  else if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goSlide(1); }
+});
+
+// スワイプ
+let _x0 = null;
+document.addEventListener('touchstart', e => { _x0 = e.touches[0].clientX; }, {passive:true});
+document.addEventListener('touchend', e => {
+  if (_x0 === null) return;
+  const dx = e.changedTouches[0].clientX - _x0;
+  if (Math.abs(dx) > 50) goSlide(dx < 0 ? 1 : -1);
+  _x0 = null;
+}, {passive:true});
+
+(async function init() {
+  if (!token) { document.getElementById('gate').style.display = 'block'; return; }
+  try {
+    const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success || !j.user) { document.getElementById('gate').style.display = 'block'; return; }
+    const u = j.user;
+    const ok = (u.role === 'admin') || (u.employee_type === 'admin') || u.is_field_promoter === 1 || u.is_field_promoter === true;
+    if (!ok) { document.getElementById('gate').style.display = 'block'; return; }
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('controls').style.display = 'flex';
+    render();
+    // プリロード
+    SLIDES.forEach(s => { const im = new Image(); im.src = s.src; });
+  } catch (e) {
+    document.getElementById('gate').style.display = 'block';
+  }
+})();
+</script>
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

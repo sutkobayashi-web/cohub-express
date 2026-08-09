@@ -1,0 +1,171 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0369a1"><title>カロリーの目安 — CoWell</title><style>
+:root{
+  --ground:#eef5f2;--surface:#ffffff;--card-line:#e2ece8;
+  --ink:#16302b;--muted:#5f7a72;--faint:#8aa39b;
+  --accent:#0d9488;--accent-deep:#0f766e;--accent-soft:#d5efe9;
+  --lv1-bg:#dcf5e3;--lv1-fg:#15803d;--lv2-bg:#e7f6cf;--lv2-fg:#4d7c0f;
+  --lv3-bg:#fdf3c8;--lv3-fg:#a16207;--lv4-bg:#ffe6d2;--lv4-fg:#c2410c;
+  --lv5-bg:#ffdce1;--lv5-fg:#be123c;
+  --shadow:0 1px 2px rgba(16,50,43,.05),0 6px 18px rgba(16,50,43,.06);
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#0e1917;--surface:#16211f;--card-line:#25332f;
+  --ink:#e7f1ee;--muted:#9db6ae;--faint:#6e8a82;
+  --accent:#2dd4bf;--accent-deep:#5eead4;--accent-soft:#123a34;
+  --lv1-bg:#123726;--lv1-fg:#5fe08a;--lv2-bg:#233318;--lv2-fg:#a3e635;
+  --lv3-bg:#3a2f10;--lv3-fg:#fcd34d;--lv4-bg:#3a220f;--lv4-fg:#fb923c;
+  --lv5-bg:#3a141c;--lv5-fg:#fb7185;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.35);
+}}
+:root[data-theme="light"]{
+  --ground:#eef5f2;--surface:#ffffff;--card-line:#e2ece8;
+  --ink:#16302b;--muted:#5f7a72;--faint:#8aa39b;
+  --accent:#0d9488;--accent-deep:#0f766e;--accent-soft:#d5efe9;
+  --lv1-bg:#dcf5e3;--lv1-fg:#15803d;--lv2-bg:#e7f6cf;--lv2-fg:#4d7c0f;
+  --lv3-bg:#fdf3c8;--lv3-fg:#a16207;--lv4-bg:#ffe6d2;--lv4-fg:#c2410c;
+  --lv5-bg:#ffdce1;--lv5-fg:#be123c;
+  --shadow:0 1px 2px rgba(16,50,43,.05),0 6px 18px rgba(16,50,43,.06);
+}
+:root[data-theme="dark"]{
+  --ground:#0e1917;--surface:#16211f;--card-line:#25332f;
+  --ink:#e7f1ee;--muted:#9db6ae;--faint:#6e8a82;
+  --accent:#2dd4bf;--accent-deep:#5eead4;--accent-soft:#123a34;
+  --lv1-bg:#123726;--lv1-fg:#5fe08a;--lv2-bg:#233318;--lv2-fg:#a3e635;
+  --lv3-bg:#3a2f10;--lv3-fg:#fcd34d;--lv4-bg:#3a220f;--lv4-fg:#fb923c;
+  --lv5-bg:#3a141c;--lv5-fg:#fb7185;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+.wrap{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","BIZ UDPGothic","Yu Gothic","Meiryo",system-ui,sans-serif;
+  color:var(--ink);background:var(--ground);-webkit-font-smoothing:antialiased;line-height:1.55;
+  min-height:100vh;padding:clamp(16px,4vw,40px) clamp(12px,4vw,40px) 64px}
+.inner{max-width:1120px;margin:0 auto}
+.masthead{padding-bottom:20px;margin-bottom:6px;border-bottom:2px solid var(--accent)}
+.hero{display:flex;align-items:stretch;gap:clamp(14px,3vw,32px)}
+.hero-text{flex:1 1 auto;min-width:0;align-self:center}
+.brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;color:var(--accent-deep);letter-spacing:.02em}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+h1{font-size:clamp(1.5rem,3.4vw,2.15rem);font-weight:800;letter-spacing:.01em;margin:6px 0 5px;text-wrap:balance}
+.sub{color:var(--muted);font-size:.92rem;max-width:62ch;margin:0}
+.advisor{flex:0 0 auto;display:flex;align-items:flex-end;gap:12px;align-self:flex-end}
+.speech{position:relative;align-self:center;max-width:230px;background:var(--surface);border:1px solid var(--card-line);
+  border-radius:16px 16px 16px 4px;padding:12px 15px;box-shadow:var(--shadow);font-size:.86rem;line-height:1.6}
+.speech .who{display:block;font-size:.68rem;font-weight:800;letter-spacing:.08em;color:var(--accent);margin-bottom:3px}
+.speech::after{content:"";position:absolute;right:-9px;bottom:16px;width:0;height:0;
+  border:9px solid transparent;border-left-color:var(--surface);border-right:0}
+.advisor-fig{flex:0 0 auto;width:132px;border-radius:18px;overflow:hidden;background:#bceae3;
+  box-shadow:var(--shadow);border:1px solid var(--card-line)}
+.advisor-fig img{display:block;width:100%;height:auto}
+@media (max-width:680px){
+  .hero{flex-direction:column-reverse;gap:14px}
+  .advisor{align-self:stretch;justify-content:center}
+  .speech{max-width:none;flex:1;border-radius:16px 16px 4px 16px}
+  .speech::after{right:auto;left:-9px;border-left:0;border-right-color:var(--surface);border-left-color:transparent}
+  .advisor-fig{width:112px}
+}
+.note{display:inline-flex;align-items:center;gap:7px;margin-top:13px;font-size:.8rem;color:var(--muted);
+  background:var(--surface);border:1px solid var(--card-line);border-radius:999px;padding:5px 13px}
+.note b{color:var(--accent-deep);font-weight:700}
+.cta-menu{display:inline-flex;align-items:center;gap:8px;margin-top:12px;margin-left:8px;padding:8px 16px;border-radius:999px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;font-size:.84rem;font-weight:800;
+  text-decoration:none;box-shadow:var(--shadow)}
+.cta-menu .arw{opacity:.85}
+.cta-menu:active{transform:translateY(1px)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:22px 0 6px;padding:12px 14px;align-items:center;
+  background:var(--surface);border:1px solid var(--card-line);border-radius:14px;box-shadow:var(--shadow)}
+.legend .lg-t{font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-right:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:700;padding:4px 10px;border-radius:999px}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.chip.l1{background:var(--lv1-bg);color:var(--lv1-fg)}.chip.l1 i{background:var(--lv1-fg)}
+.chip.l2{background:var(--lv2-bg);color:var(--lv2-fg)}.chip.l2 i{background:var(--lv2-fg)}
+.chip.l3{background:var(--lv3-bg);color:var(--lv3-fg)}.chip.l3 i{background:var(--lv3-fg)}
+.chip.l4{background:var(--lv4-bg);color:var(--lv4-fg)}.chip.l4 i{background:var(--lv4-fg)}
+.chip.l5{background:var(--lv5-bg);color:var(--lv5-fg)}.chip.l5 i{background:var(--lv5-fg)}
+.cat{margin-top:34px}
+.cat-h{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;position:relative;padding-left:14px}
+.cat-h::before{content:"";position:absolute;left:0;top:1px;bottom:5px;width:5px;border-radius:3px;background:var(--accent)}
+.cat-h h2{font-size:1.18rem;font-weight:800;margin:0}
+.cat-en{font-size:.66rem;font-weight:800;letter-spacing:.16em;color:var(--accent)}
+.cat-count{margin-left:auto;font-size:.76rem;font-weight:700;color:var(--faint);
+  background:var(--surface);border:1px solid var(--card-line);border-radius:999px;padding:2px 9px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:14px}
+.card{margin:0;background:var(--surface);border:1px solid var(--card-line);border-radius:16px;
+  overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.ph{aspect-ratio:1/1;background:#fff;overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+figcaption{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;flex:1;justify-content:space-between}
+.nm{font-size:.92rem;font-weight:700;line-height:1.35;color:var(--ink)}
+.kcal{align-self:flex-start;display:inline-flex;align-items:baseline;gap:3px;padding:3px 10px;border-radius:999px;
+  font-variant-numeric:tabular-nums}
+.kcal b{font-size:1.02rem;font-weight:800}
+.kcal small{font-size:.66rem;font-weight:700;opacity:.85}
+.kcal.lv1{background:var(--lv1-bg);color:var(--lv1-fg)}
+.kcal.lv2{background:var(--lv2-bg);color:var(--lv2-fg)}
+.kcal.lv3{background:var(--lv3-bg);color:var(--lv3-fg)}
+.kcal.lv4{background:var(--lv4-bg);color:var(--lv4-fg)}
+.kcal.lv5{background:var(--lv5-bg);color:var(--lv5-fg)}
+.foot{margin-top:44px;padding-top:18px;border-top:1px solid var(--card-line);color:var(--faint);
+  font-size:.76rem;line-height:1.7;max-width:74ch}
+@media (max-width:480px){.grid{grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:10px}.nm{font-size:.82rem}}
+@media print{.wrap{background:#fff;padding:0}.card,.legend{box-shadow:none}.cat{break-inside:avoid}}
+</style><style>
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;
+  padding:10px clamp(12px,4vw,40px);background:var(--surface);border-bottom:1px solid var(--card-line)}
+.topbar .back{font:inherit;font-size:.92rem;font-weight:700;color:var(--accent-deep);background:var(--accent-soft);
+  border:0;border-radius:999px;padding:8px 16px;cursor:pointer}
+.topbar .back:active{transform:translateY(1px)}
+.topbar .tb-title{font-weight:800;color:var(--ink)}
+body{margin:0}
+</style></head><body><div class="topbar"><button class="back" onclick="(history.length>1)?history.back():location.href='/home.html'">← もどる</button><span class="tb-title">カロリーの目安</span></div><div class="wrap"><div class="inner">
+  <header class="masthead">
+    <div class="hero">
+      <div class="hero-text">
+        <div class="brand"><span class="dot"></span>CoWell 健康サポート</div>
+        <h1>メニュー別 カロリーの目安</h1>
+        <p class="sub">よく食べる77品の、1食あたりのおよそのカロリーです。「これくらいなんだ」と知っておくだけで、選ぶときの目安になります。</p>
+        <span class="note"><b>目安</b>&nbsp;数値はすべておよその値です（分量・味付けで変わります）</span>
+        <a class="cta-menu" href="/menu-plan.html?v=mp1">💬 ヘルスと何を食べようか<span class="arw">→</span></a>
+      </div>
+      <div class="advisor">
+        <div class="speech"><span class="who">なぎさ</span>よく食べるメニューのカロリー、いっしょに見てみましょう。ムリなく選ぶ目安にしてくださいね。</div>
+        <div class="advisor-fig"><img alt="ヘルスアドバイザー なぎさ" src="/assets/calorie/_advisor.jpg?v=cal1"></div>
+      </div>
+    </div>
+  </header>
+  <div class="legend">
+    <span class="lg-t">カロリーの目安</span>
+    <span class="chip l1"><i></i>〜120</span>
+    <span class="chip l2"><i></i>〜260</span>
+    <span class="chip l3"><i></i>〜420</span>
+    <span class="chip l4"><i></i>〜650</span>
+    <span class="chip l5"><i></i>650〜</span>
+    <span class="lg-t" style="margin-left:auto;margin-right:0">kcal / 1食</span>
+  </div>
+  <section class="cat">
+    <header class="cat-h"><h2>主食・丼・麺</h2><span class="cat-en">RICE · NOODLES · BOWLS</span><span class="cat-count">13品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="ごはん (茶碗1杯)" src="/assets/calorie/rice.jpg?v=cal1"></div><figcaption><span class="nm">ごはん (茶碗1杯)</span><span class="kcal lv2"><b>240</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="食パン (6枚切1枚)" src="/assets/calorie/bread.jpg?v=cal1"></div><figcaption><span class="nm">食パン (6枚切1枚)</span><span class="kcal lv2"><b>160</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="おにぎり" src="/assets/calorie/onigiri.jpg?v=cal1"></div><figcaption><span class="nm">おにぎり</span><span class="kcal lv2"><b>180</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="牛丼 (並)" src="/assets/calorie/gyudon.jpg?v=cal1"></div><figcaption><span class="nm">牛丼 (並)</span><span class="kcal lv4"><b>650</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="親子丼" src="/assets/calorie/oyakodon.jpg?v=cal1"></div><figcaption><span class="nm">親子丼</span><span class="kcal lv4"><b>650</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カツ丼" src="/assets/calorie/katsudon.jpg?v=cal1"></div><figcaption><span class="nm">カツ丼</span><span class="kcal lv5"><b>900</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ラーメン (醤油)" src="/assets/calorie/ramen.jpg?v=cal1"></div><figcaption><span class="nm">ラーメン (醤油)</span><span class="kcal lv4"><b>450</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="とんこつラーメン" src="/assets/calorie/tonkotsu.jpg?v=cal1"></div><figcaption><span class="nm">とんこつラーメン</span><span class="kcal lv4"><b>550</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="チャーハン" src="/assets/calorie/chahan.jpg?v=cal1"></div><figcaption><span class="nm">チャーハン</span><span class="kcal lv5"><b>700</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カレーライス" src="/assets/calorie/curry.jpg?v=cal1"></div><figcaption><span class="nm">カレーライス</span><span class="kcal lv5"><b>700</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ミートソースパスタ" src="/assets/calorie/pasta.jpg?v=cal1"></div><figcaption><span class="nm">ミートソースパスタ</span><span class="kcal lv4"><b>600</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="かけうどん" src="/assets/calorie/udon.jpg?v=cal1"></div><figcaption><span class="nm">かけうどん</span><span class="kcal lv3"><b>300</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="寿司 (1人前)" src="/assets/calorie/sushi.jpg?v=cal1"></div><figcaption><span class="nm">寿司 (1人前)</span><span class="kcal lv4"><b>500</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>主菜 (肉・魚)</h2><span class="cat-en">MAIN DISHES</span><span class="cat-count">10品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="焼き鮭" src="/assets/calorie/shake.jpg?v=cal1"></div><figcaption><span class="nm">焼き鮭</span><span class="kcal lv2"><b>130</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="刺身" src="/assets/calorie/sashimi.jpg?v=cal1"></div><figcaption><span class="nm">刺身</span><span class="kcal lv1"><b>100</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="唐揚げ (5個)" src="/assets/calorie/karaage.jpg?v=cal1"></div><figcaption><span class="nm">唐揚げ (5個)</span><span class="kcal lv4"><b>450</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="とんかつ" src="/assets/calorie/tonkatsu.jpg?v=cal1"></div><figcaption><span class="nm">とんかつ</span><span class="kcal lv4"><b>450</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ハンバーグ" src="/assets/calorie/hamburg.jpg?v=cal1"></div><figcaption><span class="nm">ハンバーグ</span><span class="kcal lv3"><b>400</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="豚の生姜焼き" src="/assets/calorie/shogayaki.jpg?v=cal1"></div><figcaption><span class="nm">豚の生姜焼き</span><span class="kcal lv3"><b>350</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="餃子 (6個)" src="/assets/calorie/gyoza.jpg?v=cal1"></div><figcaption><span class="nm">餃子 (6個)</span><span class="kcal lv3"><b>350</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="焼き鳥 (2本)" src="/assets/calorie/yakitori.jpg?v=cal1"></div><figcaption><span class="nm">焼き鳥 (2本)</span><span class="kcal lv2"><b>150</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="サラダチキン" src="/assets/calorie/saladchicken.jpg?v=cal1"></div><figcaption><span class="nm">サラダチキン</span><span class="kcal lv1"><b>110</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="卵焼き" src="/assets/calorie/tamagoyaki.jpg?v=cal1"></div><figcaption><span class="nm">卵焼き</span><span class="kcal lv1"><b>100</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>副菜・汁物</h2><span class="cat-en">SIDES · SOUPS</span><span class="cat-count">5品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="野菜サラダ" src="/assets/calorie/salad.jpg?v=cal1"></div><figcaption><span class="nm">野菜サラダ</span><span class="kcal lv1"><b>80</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="冷奴" src="/assets/calorie/hiyayakko.jpg?v=cal1"></div><figcaption><span class="nm">冷奴</span><span class="kcal lv1"><b>80</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ひじきの煮物" src="/assets/calorie/hijiki.jpg?v=cal1"></div><figcaption><span class="nm">ひじきの煮物</span><span class="kcal lv1"><b>100</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="肉じゃが" src="/assets/calorie/nikujaga.jpg?v=cal1"></div><figcaption><span class="nm">肉じゃが</span><span class="kcal lv2"><b>250</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="味噌汁" src="/assets/calorie/miso.jpg?v=cal1"></div><figcaption><span class="nm">味噌汁</span><span class="kcal lv1"><b>40</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>間食・お菓子</h2><span class="cat-en">SNACKS · SWEETS</span><span class="cat-count">7品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="せんべい (1枚)" src="/assets/calorie/senbei.jpg?v=cal1"></div><figcaption><span class="nm">せんべい (1枚)</span><span class="kcal lv1"><b>50</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="どら焼き" src="/assets/calorie/dorayaki.jpg?v=cal1"></div><figcaption><span class="nm">どら焼き</span><span class="kcal lv2"><b>240</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ショートケーキ" src="/assets/calorie/shortcake.jpg?v=cal1"></div><figcaption><span class="nm">ショートケーキ</span><span class="kcal lv3"><b>350</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ポテトチップス (小袋)" src="/assets/calorie/chips.jpg?v=cal1"></div><figcaption><span class="nm">ポテトチップス (小袋)</span><span class="kcal lv3"><b>340</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="アイスクリーム" src="/assets/calorie/icecream.jpg?v=cal1"></div><figcaption><span class="nm">アイスクリーム</span><span class="kcal lv2"><b>200</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="チョコレート (板)" src="/assets/calorie/chocolate.jpg?v=cal1"></div><figcaption><span class="nm">チョコレート (板)</span><span class="kcal lv3"><b>280</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="あんぱん" src="/assets/calorie/anpan.jpg?v=cal1"></div><figcaption><span class="nm">あんぱん</span><span class="kcal lv3"><b>280</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>フルーツ</h2><span class="cat-en">FRUIT</span><span class="cat-count">4品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="りんご (1個)" src="/assets/calorie/apple.jpg?v=cal1"></div><figcaption><span class="nm">りんご (1個)</span><span class="kcal lv2"><b>140</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="バナナ (1本)" src="/assets/calorie/banana.jpg?v=cal1"></div><figcaption><span class="nm">バナナ (1本)</span><span class="kcal lv1"><b>90</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="みかん (1個)" src="/assets/calorie/mikan.jpg?v=cal1"></div><figcaption><span class="nm">みかん (1個)</span><span class="kcal lv1"><b>40</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="いちご (5粒)" src="/assets/calorie/strawberry.jpg?v=cal1"></div><figcaption><span class="nm">いちご (5粒)</span><span class="kcal lv1"><b>25</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>飲み物</h2><span class="cat-en">DRINKS</span><span class="cat-count">5品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="缶コーヒー (微糖)" src="/assets/calorie/cancoffee.jpg?v=cal1"></div><figcaption><span class="nm">缶コーヒー (微糖)</span><span class="kcal lv1"><b>60</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="オレンジジュース" src="/assets/calorie/orangejuice.jpg?v=cal1"></div><figcaption><span class="nm">オレンジジュース</span><span class="kcal lv1"><b>90</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="炭酸飲料 (500ml)" src="/assets/calorie/soda.jpg?v=cal1"></div><figcaption><span class="nm">炭酸飲料 (500ml)</span><span class="kcal lv2"><b>230</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="牛乳 (200ml)" src="/assets/calorie/milk.jpg?v=cal1"></div><figcaption><span class="nm">牛乳 (200ml)</span><span class="kcal lv2"><b>130</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="野菜ジュース" src="/assets/calorie/vegejuice.jpg?v=cal1"></div><figcaption><span class="nm">野菜ジュース</span><span class="kcal lv1"><b>70</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>アルコール</h2><span class="cat-en">ALCOHOL</span><span class="cat-count">6品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="ビール (中ジョッキ)" src="/assets/calorie/beer.jpg?v=cal1"></div><figcaption><span class="nm">ビール (中ジョッキ)</span><span class="kcal lv2"><b>200</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="日本酒 (1合)" src="/assets/calorie/sake.jpg?v=cal1"></div><figcaption><span class="nm">日本酒 (1合)</span><span class="kcal lv2"><b>200</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ワイン (1杯)" src="/assets/calorie/wine.jpg?v=cal1"></div><figcaption><span class="nm">ワイン (1杯)</span><span class="kcal lv1"><b>90</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ハイボール" src="/assets/calorie/highball.jpg?v=cal1"></div><figcaption><span class="nm">ハイボール</span><span class="kcal lv1"><b>70</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="焼酎 (水割り)" src="/assets/calorie/shochu.jpg?v=cal1"></div><figcaption><span class="nm">焼酎 (水割り)</span><span class="kcal lv2"><b>140</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="缶チューハイ" src="/assets/calorie/chuhai.jpg?v=cal1"></div><figcaption><span class="nm">缶チューハイ</span><span class="kcal lv2"><b>200</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>コンビニ・弁当</h2><span class="cat-en"></span><span class="cat-count">8品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="幕の内弁当" src="/assets/calorie/makunouchi.jpg?v=cal1"></div><figcaption><span class="nm">幕の内弁当</span><span class="kcal lv4"><b>650</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="のり弁当" src="/assets/calorie/norilunch.jpg?v=cal1"></div><figcaption><span class="nm">のり弁当</span><span class="kcal lv5"><b>730</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="から揚げ弁当" src="/assets/calorie/karaagebento.jpg?v=cal1"></div><figcaption><span class="nm">から揚げ弁当</span><span class="kcal lv5"><b>840</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="焼肉弁当" src="/assets/calorie/yakinikubento.jpg?v=cal1"></div><figcaption><span class="nm">焼肉弁当</span><span class="kcal lv5"><b>780</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="ツナマヨおにぎり" src="/assets/calorie/tunaonigiri.jpg?v=cal1"></div><figcaption><span class="nm">ツナマヨおにぎり</span><span class="kcal lv2"><b>230</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="揚げ鶏 (ホットスナック)" src="/assets/calorie/hotchicken.jpg?v=cal1"></div><figcaption><span class="nm">揚げ鶏 (ホットスナック)</span><span class="kcal lv2"><b>250</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="肉まん" src="/assets/calorie/nikuman.jpg?v=cal1"></div><figcaption><span class="nm">肉まん</span><span class="kcal lv2"><b>250</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="おでん (5種)" src="/assets/calorie/oden.jpg?v=cal1"></div><figcaption><span class="nm">おでん (5種)</span><span class="kcal lv2"><b>180</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>カップ麺・パン</h2><span class="cat-en"></span><span class="cat-count">6品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="カップ麺" src="/assets/calorie/cupramen.jpg?v=cal1"></div><figcaption><span class="nm">カップ麺</span><span class="kcal lv3"><b>350</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カップ焼きそば" src="/assets/calorie/cupyakisoba.jpg?v=cal1"></div><figcaption><span class="nm">カップ焼きそば</span><span class="kcal lv4"><b>540</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="メロンパン" src="/assets/calorie/melonpan.jpg?v=cal1"></div><figcaption><span class="nm">メロンパン</span><span class="kcal lv4"><b>470</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カレーパン" src="/assets/calorie/currypan.jpg?v=cal1"></div><figcaption><span class="nm">カレーパン</span><span class="kcal lv3"><b>400</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カツサンド" src="/assets/calorie/katsusand.jpg?v=cal1"></div><figcaption><span class="nm">カツサンド</span><span class="kcal lv4"><b>500</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="玉子サンド" src="/assets/calorie/sandwich.jpg?v=cal1"></div><figcaption><span class="nm">玉子サンド</span><span class="kcal lv3"><b>340</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>外食チェーン・ファストフード</h2><span class="cat-en"></span><span class="cat-count">7品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="ハンバーガー" src="/assets/calorie/hamburger.jpg?v=cal1"></div><figcaption><span class="nm">ハンバーガー</span><span class="kcal lv3"><b>280</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="チーズバーガー" src="/assets/calorie/cheeseburger.jpg?v=cal1"></div><figcaption><span class="nm">チーズバーガー</span><span class="kcal lv3"><b>320</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="フライドポテト (M)" src="/assets/calorie/fries.jpg?v=cal1"></div><figcaption><span class="nm">フライドポテト (M)</span><span class="kcal lv3"><b>410</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="フライドチキン (1本)" src="/assets/calorie/friedchicken.jpg?v=cal1"></div><figcaption><span class="nm">フライドチキン (1本)</span><span class="kcal lv2"><b>240</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="牛丼 (大盛)" src="/assets/calorie/gyudonL.jpg?v=cal1"></div><figcaption><span class="nm">牛丼 (大盛)</span><span class="kcal lv5"><b>850</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カツカレー" src="/assets/calorie/katsucurry.jpg?v=cal1"></div><figcaption><span class="nm">カツカレー</span><span class="kcal lv5"><b>1000</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="焼き魚定食" src="/assets/calorie/yakizakana_teishoku.jpg?v=cal1"></div><figcaption><span class="nm">焼き魚定食</span><span class="kcal lv4"><b>600</b><small>kcal</small></span></figcaption></figure></div></section><section class="cat">
+    <header class="cat-h"><h2>エナジー・栄養ドリンク</h2><span class="cat-en"></span><span class="cat-count">6品</span></header>
+    <div class="grid"><figure class="card"><div class="ph"><img loading="lazy" alt="エナジードリンク (250ml)" src="/assets/calorie/energydrink.jpg?v=cal1"></div><figcaption><span class="nm">エナジードリンク (250ml)</span><span class="kcal lv1"><b>115</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="栄養ドリンク (100ml)" src="/assets/calorie/nutridrink.jpg?v=cal1"></div><figcaption><span class="nm">栄養ドリンク (100ml)</span><span class="kcal lv1"><b>35</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="プロテインバー" src="/assets/calorie/proteinbar.jpg?v=cal1"></div><figcaption><span class="nm">プロテインバー</span><span class="kcal lv2"><b>200</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="スポーツドリンク (500ml)" src="/assets/calorie/sportsdrink.jpg?v=cal1"></div><figcaption><span class="nm">スポーツドリンク (500ml)</span><span class="kcal lv2"><b>125</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="コーヒー (ブラック)" src="/assets/calorie/coffeeblack.jpg?v=cal1"></div><figcaption><span class="nm">コーヒー (ブラック)</span><span class="kcal lv1"><b>10</b><small>kcal</small></span></figcaption></figure><figure class="card"><div class="ph"><img loading="lazy" alt="カフェラテ" src="/assets/calorie/cafelatte.jpg?v=cal1"></div><figcaption><span class="nm">カフェラテ</span><span class="kcal lv1"><b>90</b><small>kcal</small></span></figcaption></figure></div></section>
+  <footer class="foot">
+    数値は一般に公開されている栄養成分の目安をもとにした、CoWell独自のおおよその一覧です。実際のカロリーは分量・調理法・味付けによって変わります。ダイエットや持病の食事管理は、かかりつけ医・産業医・栄養士にご相談ください。<br>
+    © ビズテラス株式会社　CoWell 健康サポート　／　「CoWell」はビズテラス株式会社の商標です。本資料の運営・管理はビズテラス株式会社が行います。
+  </footer>
+</div></div><script src="/font-zoom.js?v=20260728d"></script></body></html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>推進メンバー アンケート</title>
+<style>
+  :root{ --teal:#0d9488; --teal2:#0f766e; --purple:#7c3aed; --purple2:#5b21b6;
+         --ink:#1f2937; --sub:#64748b; --line:#e2e8f0; --bg:#eef3f8; --amber:#b45309; --amberbg:#fffbeb; }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{ font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; padding-bottom:48px; }
+  .head{ position:sticky; top:0; z-index:10; background:linear-gradient(135deg,#8b5cf6,#5b21b6); color:#fff; padding:12px 14px; display:flex; align-items:center; gap:10px; box-shadow:0 3px 12px rgba(91,33,182,.3); }
+  .head .back{ background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:20px; padding:6px 13px; font-weight:800; font-size:13px; cursor:pointer; }
+  .head .t{ font-size:17px; font-weight:900; letter-spacing:0.3px; }
+  .wrap{ max-width:760px; margin:0 auto; padding:14px; }
+
+  .tabs{ display:flex; gap:8px; margin-bottom:12px; }
+  .tab{ flex:1; text-align:center; padding:10px; border-radius:14px; background:#fff; border:1.5px solid var(--line); color:var(--sub); font-weight:800; font-size:14px; cursor:pointer; }
+  .tab.on{ background:var(--purple); color:#fff; border-color:var(--purple); }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:15px 16px; margin:10px 0; box-shadow:0 2px 8px rgba(15,42,79,.05); }
+  .hero{ background:linear-gradient(180deg,#faf5ff,#fff); border:1px solid #e9d5ff; border-radius:14px; padding:15px 16px; margin-bottom:12px; }
+  .hero .em{ font-size:30px; }
+  .hero h1{ font-size:18px; color:var(--purple2); margin:6px 0 2px; }
+  .hero .sub{ font-size:12.5px; color:var(--sub); margin-bottom:8px; }
+  .hero p{ font-size:13.5px; line-height:1.7; color:#334155; white-space:pre-wrap; }
+
+  .consent{ background:var(--amberbg); border:1px solid #fcd34d; border-radius:14px; padding:14px 16px; margin:10px 0; }
+  .consent h3{ font-size:14px; color:var(--amber); margin-bottom:8px; }
+  .consent ul{ margin:0 0 4px 18px; } .consent li{ font-size:12.5px; line-height:1.7; color:#475569; margin:3px 0; }
+  .chk{ display:flex; align-items:flex-start; gap:9px; font-size:14px; font-weight:800; margin-top:10px; cursor:pointer; padding:10px; background:#fff; border:1.5px solid #fcd34d; border-radius:12px; }
+  .chk input{ width:20px; height:20px; margin-top:1px; flex-shrink:0; }
+
+  label.fld{ display:block; font-size:13px; font-weight:800; color:var(--ink); margin:12px 0 5px; }
+  input[type=text]{ width:100%; border:1px solid var(--line); border-radius:12px; padding:11px 13px; font-size:15px; font-family:inherit; }
+  .hint{ font-size:11.5px; color:var(--sub); margin-top:4px; }
+
+  .cat{ margin:14px 0 4px; }
+  .cat .cn{ font-size:15px; font-weight:900; color:var(--purple2); }
+  .cat .cd{ font-size:12.5px; color:var(--sub); margin-top:3px; line-height:1.6; }
+
+  .q{ border:1px solid var(--line); border-radius:14px; padding:12px 13px; margin:9px 0; background:#fff; }
+  .q.unanswered{ border-color:#fca5a5; }
+  .q .qt{ font-size:14px; font-weight:700; line-height:1.55; margin-bottom:10px; }
+  .q .qt .qn{ display:inline-block; background:#ede9fe; color:var(--purple2); font-size:11px; font-weight:900; border-radius:8px; padding:1px 7px; margin-right:6px; }
+  .scale{ display:flex; gap:5px; }
+  .opt{ flex:1; }
+  .opt input{ position:absolute; opacity:0; width:0; height:0; }
+  .opt label{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; min-height:62px; padding:7px 2px; border:1.5px solid var(--line); border-radius:11px; cursor:pointer; text-align:center; background:#fafafa; height:100%; }
+  .opt label .dot{ width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; flex-shrink:0; }
+  .opt label .lb{ font-size:10px; line-height:1.25; color:var(--sub); white-space:pre-line; font-weight:700; }
+  .opt input:checked + label{ border-color:var(--purple); background:#f5f3ff; }
+  .opt input:checked + label .dot{ border-color:var(--purple); background:var(--purple); box-shadow:inset 0 0 0 3px #fff; }
+  .opt input:checked + label .lb{ color:var(--purple2); }
+
+  button.primary{ background:linear-gradient(135deg,#8b5cf6,#5b21b6); color:#fff; border:none; border-radius:26px; padding:14px 22px; font-weight:900; font-size:15px; cursor:pointer; box-shadow:0 5px 14px rgba(91,33,182,.3); width:100%; }
+  button.primary:disabled{ opacity:.5; box-shadow:none; cursor:not-allowed; }
+  .err{ color:#dc2626; font-size:13px; margin-top:10px; text-align:center; font-weight:700; }
+  .done-banner{ background:#ecfdf5; border:1px solid #6ee7b7; color:#047857; border-radius:12px; padding:11px 14px; font-size:13.5px; font-weight:800; text-align:center; margin-bottom:10px; }
+  .progress{ position:sticky; bottom:0; background:rgba(255,255,255,.96); border-top:1px solid var(--line); margin:0 -14px -48px; padding:12px 14px calc(12px + env(safe-area-inset-bottom)); box-shadow:0 -3px 12px rgba(15,42,79,.08); }
+  .progress .pbar{ height:6px; background:#ede9fe; border-radius:6px; overflow:hidden; margin-bottom:9px; }
+  .progress .pbar i{ display:block; height:100%; background:var(--purple); width:0; transition:width .2s; }
+  .progress .pn{ font-size:12px; color:var(--sub); font-weight:800; text-align:center; margin-bottom:8px; }
+
+  /* 結果 */
+  .stat-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .stat{ flex:1; background:#faf5ff; border:1px solid #e9d5ff; border-radius:12px; padding:11px; text-align:center; }
+  .stat .v{ font-size:22px; font-weight:900; color:var(--purple2); } .stat .k{ font-size:11px; color:var(--sub); }
+  .barline{ display:flex; align-items:center; gap:8px; margin:7px 0; }
+  .barline .nm{ font-size:12.5px; width:130px; flex-shrink:0; font-weight:700; }
+  .barline .track{ flex:1; height:16px; background:#f1f5f9; border-radius:8px; overflow:hidden; }
+  .barline .track i{ display:block; height:100%; background:linear-gradient(90deg,#a78bfa,#7c3aed); }
+  .barline .av{ font-size:12.5px; font-weight:900; color:var(--purple2); width:34px; text-align:right; }
+  table.qt-tbl{ width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+  table.qt-tbl th, table.qt-tbl td{ border-bottom:1px solid var(--line); padding:6px 5px; text-align:center; }
+  table.qt-tbl th{ color:var(--sub); font-size:10.5px; }
+  table.qt-tbl td.ql{ text-align:left; font-size:11.5px; }
+  .empty{ text-align:center; color:var(--sub); padding:40px 0; } .empty .em{ font-size:40px; }
+  .dist{ display:flex; height:14px; border-radius:5px; overflow:hidden; min-width:80px; }
+  .dist span{ display:block; height:100%; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
+</head>
+<body>
+  <div class="head">
+    <button class="back" onclick="goBack()">‹ 戻る</button>
+    <span class="t">📋 推進メンバー アンケート</span>
+  </div>
+  <div class="wrap">
+    <div class="tabs" id="tabs" style="display:none;">
+      <div class="tab on" id="tab-answer" onclick="switchTab('answer')">✍️ 回答する</div>
+      <div class="tab" id="tab-results" onclick="switchTab('results')">📊 結果を見る</div>
+    </div>
+
+    <div id="view-answer"><div class="empty">読み込み中…</div></div>
+    <div id="view-results" style="display:none;"></div>
+  </div>
+
+<script>
+const token = localStorage.getItem('cohub_token');
+if (!token) location.replace('/');
+let SV = null, CONF = null;
+
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function $(id){ return document.getElementById(id); }
+async function api(path, opts={}){
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object'){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(opts.body); }
+  const r = await fetch(path, opts);
+  if (r.status === 401){ localStorage.removeItem('cohub_token'); location.replace('/'); return null; }
+  return r.json();
+}
+function goBack(){ location.href='/home'; }
+function switchTab(t){
+  $('tab-answer').classList.toggle('on', t==='answer');
+  $('tab-results').classList.toggle('on', t==='results');
+  $('view-answer').style.display = t==='answer'?'':'none';
+  $('view-results').style.display = t==='results'?'':'none';
+  if (t==='results') loadResults();
+}
+
+/* ===== 回答画面 ===== */
+async function init(){
+  const r = await api('/api/survey/active');
+  if (!r || !r.success){ $('view-answer').innerHTML = '<div class="empty"><div class="em">⚠️</div>読み込みに失敗しました。</div>'; return; }
+  CONF = r; SV = r.survey;
+  if (r.can_view_results) $('tabs').style.display = 'flex';
+  renderAnswer();
+  // ?tab=results 指定で結果から開く
+  if (new URLSearchParams(location.search).get('tab')==='results' && r.can_view_results) switchTab('results');
+}
+
+function renderAnswer(){
+  const mine = CONF.my_response;
+  const canSubmit = CONF.can_submit;
+  let h = '';
+
+  h += '<div class="hero"><div class="em">📋</div>'
+    + '<h1>'+escapeHtml(SV.title)+'</h1>'
+    + '<div class="sub">'+escapeHtml(SV.subtitle)+'</div>'
+    + '<p>'+escapeHtml(SV.intro)+'</p></div>';
+
+  if (mine){
+    h += '<div class="done-banner">✅ 回答済みです（'+(mine.updated_at||'').slice(0,16).replace('T',' ')+'）。内容は下から修正できます。</div>';
+  }
+  if (!canSubmit){
+    h += '<div class="card"><div class="hint" style="font-size:13px;">このアンケートは推進メンバー向けです。あなたのアカウントでは回答できませんが、内容はご覧いただけます。</div></div>';
+  }
+
+  // 同意
+  h += '<div class="consent"><h3>📄 アンケートご協力のお願い</h3><ul>'
+    + SV.consent.map(c=>'<li>'+escapeHtml(c)+'</li>').join('')
+    + '</ul>'
+    + '<label class="chk"><input type="checkbox" id="f-consent"'+(mine&&mine.consent?' checked':'')+' onchange="updateProgress()"><span>'+escapeHtml(SV.consentCheckLabel)+'</span></label></div>';
+
+  // 氏名・部署
+  h += '<div class="card">'
+    + '<label class="fld">お名前 <span style="color:#dc2626;">*</span></label>'
+    + '<input type="text" id="f-name" maxlength="60" value="'+escapeHtml(mine?mine.name:CONF.prefill.name)+'">'
+    + '<label class="fld">部署・所属</label>'
+    + '<input type="text" id="f-dept" maxlength="80" placeholder="例：座間営業所 / 管理部" value="'+escapeHtml(mine?mine.department:'')+'">'
+    + '</div>';
+
+  // 設問(観点ごと)
+  h += '<div class="card"><div class="hint" style="font-size:12.5px;margin-bottom:4px;">各設問について、今のあなたの実感に最もあてはまるものを1つお選びください。</div></div>';
+  SV.categories.forEach(cat=>{
+    h += '<div class="cat"><div class="cn">'+escapeHtml(cat.name)+'</div><div class="cd">'+escapeHtml(cat.desc)+'</div></div>';
+    cat.questions.forEach(q=>{
+      const cur = mine && mine.answers ? mine.answers[q.n] : null;
+      h += '<div class="q" id="q-'+q.n+'"><div class="qt"><span class="qn">Q'+q.n+'</span>'+escapeHtml(q.text)+'</div><div class="scale">';
+      SV.scale.forEach(s=>{
+        const id = 'q'+q.n+'-'+s.v;
+        const ck = String(cur)===String(s.v) ? ' checked' : '';
+        h += '<div class="opt"><input type="radio" name="q'+q.n+'" id="'+id+'" value="'+s.v+'"'+ck+(canSubmit?'':' disabled')+' onchange="updateProgress()">'
+          + '<label for="'+id+'"><span class="lb">'+escapeHtml(s.label)+'</span><span class="dot"></span></label></div>';
+      });
+      h += '</div></div>';
+    });
+  });
+
+  if (canSubmit){
+    h += '<div class="err" id="submit-err"></div>'
+      + '<div class="progress"><div class="pbar"><i id="pbar-i"></i></div><div class="pn" id="pbar-n">0 / '+totalQ()+' 問</div>'
+      + '<button class="primary" id="btn-submit" onclick="submitAnswers()" disabled>回答を送信する</button></div>';
+  }
+  $('view-answer').innerHTML = h;
+  updateProgress();
+}
+
+function totalQ(){ return SV.categories.reduce((s,c)=>s+c.questions.length,0); }
+function collectAnswers(){
+  const a = {};
+  SV.categories.forEach(c=>c.questions.forEach(q=>{
+    const el = document.querySelector('input[name="q'+q.n+'"]:checked');
+    if (el) a[q.n] = parseInt(el.value,10);
+  }));
+  return a;
+}
+function updateProgress(){
+  if (!CONF.can_submit) return;
+  const a = collectAnswers();
+  const n = Object.keys(a).length, t = totalQ();
+  const consent = $('f-consent') && $('f-consent').checked;
+  const nameOk = $('f-name') && $('f-name').value.trim().length>0;
+  if ($('pbar-i')) $('pbar-i').style.width = Math.round(n/t*100)+'%';
+  if ($('pbar-n')) $('pbar-n').textContent = n+' / '+t+' 問'+(consent?'':' ・ 同意が必要')+(nameOk?'':' ・ お名前が必要');
+  const btn = $('btn-submit');
+  if (btn) btn.disabled = !(n===t && consent && nameOk);
+}
+async function submitAnswers(){
+  const err = $('submit-err'); err.textContent='';
+  const answers = collectAnswers();
+  if (Object.keys(answers).length !== totalQ()){
+    const miss = SV.categories.flatMap(c=>c.questions).find(q=>!answers[q.n]);
+    if (miss){ const el=$('q-'+miss.n); if(el){ el.classList.add('unanswered'); el.scrollIntoView({behavior:'smooth',block:'center'}); } }
+    err.textContent='未回答の設問があります。'; return;
+  }
+  const btn = $('btn-submit'); btn.disabled=true; btn.textContent='送信中…';
+  const r = await api('/api/survey/respond', { method:'POST', body:{
+    consent: $('f-consent').checked, name: $('f-name').value.trim(), department: $('f-dept').value.trim(), answers
+  }});
+  if (r && r.success){
+    alert('ご回答ありがとうございました。送信が完了しました。');
+    location.reload();
+  } else {
+    btn.disabled=false; btn.textContent='回答を送信する';
+    err.textContent = (r&&r.msg)||'送信に失敗しました。';
+  }
+}
+
+/* ===== 結果画面 ===== */
+const DIST_COLORS = ['#fca5a5','#fdba74','#fde047','#86efac','#34d399'];
+async function loadResults(){
+  const el = $('view-results');
+  el.innerHTML = '<div class="empty">集計中…</div>';
+  const r = await api('/api/survey/results');
+  if (!r || !r.success){ el.innerHTML = '<div class="empty"><div class="em">🔒</div>'+((r&&r.msg)||'読み込み失敗')+'</div>'; return; }
+  const rate = r.target_count ? Math.round(r.responded_targets/r.target_count*100) : 0;
+  let h = '<div class="stat-row">'
+    + '<div class="stat"><div class="v">'+r.respondent_count+'</div><div class="k">回答数</div></div>'
+    + '<div class="stat"><div class="v">'+r.responded_targets+' / '+r.target_count+'</div><div class="k">推進メンバー回答</div></div>'
+    + '<div class="stat"><div class="v">'+rate+'%</div><div class="k">回答率</div></div></div>';
+
+  if (r.respondent_count===0){
+    el.innerHTML = h + '<div class="empty"><div class="em">📊</div>まだ回答がありません。</div>';
+    return;
+  }
+
+  // 観点別平均
+  h += '<div class="card"><b style="font-size:14px;">観点別の平均（5点満点）</b>';
+  r.perCategory.forEach(c=>{
+    const w = c.avg ? (c.avg/5*100) : 0;
+    h += '<div class="barline"><div class="nm">'+escapeHtml(c.name)+'</div><div class="track"><i style="width:'+w+'%"></i></div><div class="av">'+(c.avg!=null?c.avg.toFixed(1):'—')+'</div></div>';
+  });
+  h += '</div>';
+
+  // 設問別
+  h += '<div class="card"><b style="font-size:14px;">設問別</b><table class="qt-tbl"><tr><th class="ql">設問</th><th>平均</th><th>回答分布<br>(否定←→肯定)</th></tr>';
+  SV.categories.forEach(cat=>cat.questions.forEach(q=>{
+    const pq = r.perQuestion[q.n] || {avg:null,dist:[0,0,0,0,0],n:0};
+    const tot = pq.dist.reduce((s,v)=>s+v,0)||1;
+    const bar = pq.dist.map((v,i)=>'<span style="width:'+(v/tot*100)+'%;background:'+DIST_COLORS[i]+'" title="'+(SV.scale[i].label.replace(/\n/g,''))+': '+v+'件"></span>').join('');
+    h += '<tr><td class="ql"><b>Q'+q.n+'</b> '+escapeHtml(q.text)+'</td><td><b style="color:var(--purple2)">'+(pq.avg!=null?pq.avg.toFixed(1):'—')+'</b></td><td><div class="dist">'+bar+'</div></td></tr>';
+  }));
+  h += '</table><div class="hint" style="margin-top:8px;">分布バーの色：赤＝全くそう思わない … 緑＝とてもそう思う</div></div>';
+
+  // 回答状況(対象者)
+  h += '<div class="card"><b style="font-size:14px;">回答状況（推進メンバー）</b><div style="margin-top:8px;">';
+  r.status.forEach(s=>{
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid #f1f5f9;font-size:13px;">'
+      + '<span style="width:18px;">'+(s.responded?'✅':'⬜')+'</span>'
+      + '<span style="font-weight:700;">'+escapeHtml(s.name)+'</span>'
+      + '<span class="hint" style="margin-left:auto;">'+escapeHtml(s.company_code||'')+'</span></div>';
+  });
+  h += '</div></div>';
+
+  // 個別明細(管理者のみ)
+  if (r.can_view_detail && r.detail){
+    h += '<div class="card"><b style="font-size:14px;">個別回答明細（管理者のみ閲覧）</b>'
+      + '<div style="overflow-x:auto;margin-top:8px;"><table class="qt-tbl"><tr><th class="ql">氏名 / 部署</th>'
+      + SV.categories.flatMap(c=>c.questions).map(q=>'<th>Q'+q.n+'</th>').join('') + '</tr>';
+    r.detail.forEach(d=>{
+      h += '<tr><td class="ql"><b>'+escapeHtml(d.name)+'</b><br><span class="hint">'+escapeHtml(d.department||'')+'</span></td>'
+        + SV.categories.flatMap(c=>c.questions).map(q=>{ const v=d.answers[q.n]; return '<td style="color:'+(v?DIST_COLORS[v-1]:'#cbd5e1')+';font-weight:900;">'+(v||'—')+'</td>'; }).join('')
+        + '</tr>';
+    });
+    h += '</table></div></div>';
+  }
+  el.innerHTML = h;
+}
+
+init();
+</script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

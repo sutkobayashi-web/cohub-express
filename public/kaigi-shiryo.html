@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🗂 会議資料 — CoWell</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cowell-favicon-32-v2.png">
+<link rel="apple-touch-icon" href="/img/cowell-apple-touch-v6.png">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100vh; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: linear-gradient(180deg, #ecfeff 0%, #f1f5f9 100%); color: #0f172a; min-height: 100vh; }
+header { position: sticky; top: 0; z-index: 30; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+header .spacer { flex: 1; }
+header button { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 7px 14px; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; }
+main { max-width: 760px; margin: 0 auto; padding: 18px 14px 60px; }
+
+.intro { background: linear-gradient(135deg,#f0fdfa,#ecfdf5); border-left: 4px solid #14b8a6; border-radius: 14px; padding: 12px 16px; font-size: 13px; line-height: 1.7; color: #134e4a; margin-bottom: 18px; }
+.intro b { color: #0f766e; }
+
+.card { background: #fff; border-radius: 16px; padding: 18px 18px 16px; box-shadow: 0 4px 18px rgba(15,23,42,0.08); margin-bottom: 16px; border: 1px solid #e2e8f0; }
+.card .meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.card .badge-round { font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg,#0891b2,#047857); padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+.card .badge-today { background: linear-gradient(135deg,#f59e0b,#dc2626); }
+.card .src { font-size: 11px; color: #64748b; font-weight: 700; }
+.card h2 { font-size: 18px; font-weight: 900; color: #0f172a; margin: 2px 0 6px; line-height: 1.4; }
+.card .summary { font-size: 13px; color: #475569; line-height: 1.7; margin: 0 0 14px; }
+.card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.card .tag { font-size: 11px; font-weight: 700; color: #0f766e; background: #ccfbf1; padding: 3px 9px; border-radius: 14px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-size: 13px; font-weight: 800; padding: 10px 16px; border-radius: 14px; cursor: pointer; }
+.btn.open { background: linear-gradient(135deg,#0891b2,#047857); color: #fff; box-shadow: 0 4px 12px rgba(8,145,178,.25); }
+.btn.open:hover { filter: brightness(1.08); }
+.btn.dl { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.btn.dl:hover { background: #e2e8f0; }
+
+.gate { max-width: 420px; margin: 80px auto; background: #fff; border-radius: 14px; padding: 28px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.gate h2 { color: #b45309; }
+.gate p { color: #475569; font-size: 13px; line-height: 1.7; }
+.note { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 22px; }
+
+/* --- アップロード資料 (会議資料に統合) --- */
+.up-card { background:#fff; border-radius:16px; padding:16px 18px; box-shadow:0 4px 18px rgba(15,23,42,0.08); margin-bottom:16px; border:1px solid #e2e8f0; }
+.up-card h3 { margin:0 0 8px; font-size:15px; font-weight:900; color:#0f766e; }
+.sec-h { font-size:13px; font-weight:900; color:#0f766e; margin:22px 2px 12px; padding-top:14px; border-top:1px dashed #99f6e4; }
+label.fld { display:block; font-size:12px; font-weight:800; color:#475569; margin:10px 0 4px; }
+.up-card input[type=text], .up-card input[type=date], .up-card textarea, .up-card input[type=file] { width:100%; padding:9px 11px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-family:inherit; background:#fff; }
+.up-card textarea { min-height:54px; resize:vertical; }
+.up-btn { margin-top:12px; padding:10px 18px; background:linear-gradient(135deg,#0891b2,#047857); color:#fff; border:none; border-radius:12px; cursor:pointer; font-size:14px; font-weight:800; }
+.up-btn:disabled { opacity:.55; cursor:default; }
+.up-err { color:#dc2626; font-size:12px; margin-top:8px; }
+.mat { padding:14px 0; border-bottom:1px solid #eef2f0; }
+.mat:last-child { border-bottom:none; }
+.mat-files { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.file-tile { width:80px; }
+.file-tile .fname { font-size:10px; color:#64748b; margin-top:3px; word-break:break-word; line-height:1.25; max-height:2.6em; overflow:hidden; text-align:center; }
+.mat-thumb { width:80px; }
+.mat-thumb.pdf { position:relative; cursor:pointer; }
+.mat-thumb.pdf img { position:absolute; inset:0; }
+.mat-thumb img { width:80px; height:104px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; }
+.mat-icon { width:80px; height:104px; border-radius:8px; border:1px solid #e2e8f0; background:linear-gradient(135deg,#ecfeff,#ccfbf1); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; cursor:pointer; text-decoration:none; color:#0f766e; }
+.mat-icon .em { font-size:26px; } .mat-icon .ex { font-size:10px; font-weight:900; }
+.mat-body { flex:1 1 auto; min-width:0; }
+.mat-title { font-size:14px; font-weight:800; margin:0 0 3px; word-break:break-word; }
+.mat-meta { font-size:11px; color:#64748b; margin-bottom:5px; }
+.mat-meta .tag2 { display:inline-block; background:#ccfbf1; color:#0f766e; border-radius:6px; padding:1px 7px; font-weight:800; margin-right:6px; }
+.mat-note2 { font-size:12px; color:#334155; white-space:pre-wrap; word-break:break-word; }
+.mat-acts { margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.mat-dl { font-size:12px; font-weight:800; color:#0f766e; text-decoration:none; background:#ecfeff; border-radius:8px; padding:5px 12px; }
+.mat-del { background:#ef4444; color:#fff; border:none; border-radius:8px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer; }
+.mat-empty { text-align:center; color:#94a3b8; padding:20px 10px; font-size:13px; }
+#pdf-modal { position:fixed; inset:0; background:rgba(15,15,20,0.96); display:none; flex-direction:column; z-index:300; }
+#pdf-modal.open { display:flex; }
+#pdf-modal .pdf-bar { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:rgba(0,0,0,0.5); color:#fff; }
+#pdf-modal .pdf-bar .title { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#pdf-modal .pdf-bar a, #pdf-modal .pdf-bar button { color:#fff; background:rgba(255,255,255,0.18); border:none; border-radius:20px; padding:8px 16px; font-size:14px; font-weight:600; text-decoration:none; cursor:pointer; white-space:nowrap; }
+#pdf-modal .pdf-bar .close { background:rgba(239,68,68,0.85); }
+#pdf-modal .pdf-body { flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+#pdf-modal .pdf-page { max-width:100%; width:820px; height:auto; background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+#pdf-modal .pdf-fallback { color:#fff; text-align:center; padding:48px 20px; line-height:1.8; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
+</head>
+<body>
+
+<header>
+  <h1>🗂 会議資料</h1>
+  <div class="spacer"></div>
+  <button onclick="goBack()">✕ 閉じる</button>
+</header>
+
+<main>
+  <div id="gate" class="gate" style="display:none;">
+    <h2>⛔ 閲覧権限がありません</h2>
+    <p>このページは <b>推進メンバー / 管理職</b> 限定です。<br>権限についてはシステム管理者にお問い合わせください。</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="intro">
+      健康づくり推進会議で <b>帝京大学公衆衛生学研究科 西村さん</b> にご説明いただいた資料です。
+      会議で見た内容を、いつでも音声付スライドで振り返れます。
+    </div>
+
+    <!-- 会議資料アップロード (推進メンバー共有) -->
+    <div class="up-card">
+      <h3>📤 資料をアップロード</h3>
+      <label class="fld">タイトル <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="f-title" placeholder="例: 7月度 推進会議 議事録" maxlength="120">
+      <label class="fld">会議日</label>
+      <input type="date" id="f-date">
+      <label class="fld">メモ（任意）</label>
+      <textarea id="f-note" placeholder="補足・議題など" maxlength="500"></textarea>
+      <label class="fld">ファイル <span style="color:#dc2626;">*</span> <span style="font-size:11px;color:#94a3b8;font-weight:600;">レジュメ・議事録など<b>複数まとめて選択OK</b>（最大12ファイル）。PDF / 画像 / Office / CSV / txt・各40MBまで</span></label>
+      <input type="file" id="f-file" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt">
+      <div id="f-picked" style="font-size:11px;color:#0f766e;font-weight:700;margin-top:5px;"></div>
+      <div><button class="up-btn" id="upbtn" onclick="doUpload()">アップロード</button></div>
+      <div class="up-err" id="up-err"></div>
+    </div>
+
+    <div class="sec-h">🗂 アップロードされた資料</div>
+    <div id="mat-list"><div class="mat-empty">読み込み中…</div></div>
+
+    <div class="sec-h">📌 会議スライド（西村さん提供）</div>
+
+    <!-- 第2回（本日） -->
+    <div class="card">
+      <div class="meta">
+        <span class="badge-round badge-today">第2回・本日</span>
+        <span class="src">西村さん 提供</span>
+      </div>
+      <h2>健康づくりの取り組みの流れ</h2>
+      <p class="summary">課題収集 → データ化 → 優先順位 → 評価基準 → 計画 → 実行 → 評価 の7ステップ。優先順位マトリクス（Green &amp; Kreuter）と SMART な目標の立て方まで。<b>末尾に CoWell 対照表</b>を添付し、弊社アプリとの対応を解説。</p>
+      <div class="tags"><span class="tag">7ステップ</span><span class="tag">優先順位マトリクス</span><span class="tag">SMART</span><span class="tag">+CoWell対照表</span></div>
+      <div class="actions">
+        <a class="btn open" href="/kaigi-flow.html">▶ スライドを開く（原本＋対照表）</a>
+        <a class="btn dl" href="/assets/kaigi/kenko-flow.pptx" download="健康づくりの流れ.pptx">⬇ PowerPoint</a>
+      </div>
+    </div>
+
+    <!-- 第1回（前回） -->
+    <div class="card">
+      <div class="meta">
+        <span class="badge-round">第1回・前回</span>
+        <span class="src">西村さん 提供</span>
+      </div>
+      <h2>トラックドライバーの健康状態とこれからの取組</h2>
+      <p class="summary">運輸業の過労死支給決定件数（業種別最多）や、喫煙・メタボ・高血圧・肥満の業界実態。「形だけで終わらせない健康づくり」へ、推進メンバーへの呼びかけ。</p>
+      <div class="tags"><span class="tag">業界の健康課題</span><span class="tag">統計グラフ</span><span class="tag">推進メンバーへ</span><span class="tag">音声解説付</span></div>
+      <div class="actions">
+        <a class="btn open" href="/orientation.html">▶ スライドを開く（音声付）</a>
+        <a class="btn dl" href="/assets/kaigi/promoter-message.pptx" download="トラックドライバーの健康状態とこれからの取組.pptx">⬇ PowerPoint</a>
+      </div>
+    </div>
+
+    <div class="note">資料は推進会議の進行に合わせて追加していきます。</div>
+  </div>
+</main>
+
+<script>
+let token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+function goBack() {
+  if (history.length > 1 && document.referrer && document.referrer.includes(location.host)) {
+    history.back();
+  } else {
+    location.href = '/';
+  }
+}
+(async function init() {
+  if (!token) { document.getElementById('gate').style.display = 'block'; return; }
+  try {
+    const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await r.json();
+    if (!j.success || !j.user) { document.getElementById('gate').style.display = 'block'; return; }
+    const u = j.user;
+    const ok = (u.role === 'admin') || (u.employee_type === 'admin') || u.is_field_promoter === 1 || u.is_field_promoter === true;
+    if (!ok) { document.getElementById('gate').style.display = 'block'; return; }
+    document.getElementById('app').style.display = 'block';
+    loadMaterials();
+  } catch (e) {
+    document.getElementById('gate').style.display = 'block';
+  }
+})();
+
+// ===== アップロード資料 (/api/wellness-materials) =====
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function mapi(path, opts){ opts=opts||{}; opts.headers=opts.headers||{}; opts.headers['Authorization']='Bearer '+token; return fetch(path, opts); }
+const EXT_EMOJI = { pdf:'📕', ppt:'📊', pptx:'📊', doc:'📄', docx:'📄', xls:'📈', xlsx:'📈', csv:'📈', txt:'📄' };
+function fileExt(name,url){ const s=(name||url||''); const m=s.match(/\.([a-z0-9]+)(?:\?|$)/i); return m?m[1].toLowerCase():''; }
+
+function renderTile(f){
+  const u = esc(f.file_url);
+  const nm = f.orig_name || '';
+  const label = `<div class="fname">${esc(nm)}</div>`;
+  if (f.kind === 'pdf'){
+    return `<div class="file-tile"><div class="mat-thumb pdf file-open" data-u="${u}" data-nm="${esc(nm)}" data-kind="pdf"><div class="mat-icon"><span class="em">📕</span><span class="ex">PDF</span></div><img src="${u}.thumb.jpg" alt="PDF" onerror="this.remove()"></div>${label}</div>`;
+  } else if (f.kind === 'image'){
+    return `<div class="file-tile"><div class="mat-thumb file-open" data-u="${u}" data-nm="${esc(nm)}" data-kind="image"><img src="${u}" alt="画像"></div>${label}</div>`;
+  }
+  const ex = fileExt(nm, f.file_url);
+  return `<div class="file-tile"><a class="mat-icon" href="${u}" download="${esc(nm)}"><span class="em">${EXT_EMOJI[ex]||'📎'}</span><span class="ex">${esc((ex||'FILE').toUpperCase())}</span></a>${label}</div>`;
+}
+function renderMats(mats){
+  const box = document.getElementById('mat-list');
+  if (!mats.length){ box.innerHTML = '<div class="mat-empty">まだアップロードされた資料はありません。上のフォームから追加できます。</div>'; return; }
+  box.innerHTML = mats.map(m => {
+    const dt = m.meeting_date ? `<span class="tag2">📅 ${esc(m.meeting_date)}</span>` : '';
+    const up = `${esc(m.uploader_name||'—')} ・ ${esc((m.uploaded_at||'').slice(0,10))}`;
+    const note = m.note ? `<div class="mat-note2">${esc(m.note)}</div>` : '';
+    const files = (m.files && m.files.length) ? m.files : [];
+    const filesHtml = files.length ? `<div class="mat-files">${files.map(renderTile).join('')}</div>` : '';
+    const del = m.can_delete ? `<button class="mat-del" onclick="delMat(${m.id})">削除</button>` : '';
+    return `<div class="mat" id="mat-${m.id}"><div class="mat-body"><p class="mat-title">${esc(m.title)}</p><div class="mat-meta">${dt}${up}</div>${note}${filesHtml}<div class="mat-acts">${del}</div></div></div>`;
+  }).join('');
+}
+// タイルのクリック（委譲）: PDF/画像はビューアで開く（ファイルDLは<a>が処理）
+document.getElementById('mat-list').addEventListener('click', function(ev){
+  const t = ev.target.closest('.file-open');
+  if (!t) return;
+  const u = t.dataset.u, nm = t.dataset.nm || '', kind = t.dataset.kind;
+  if (kind === 'pdf') openPdfModal(u, nm || 'PDF');
+  else if (kind === 'image') openImage(u, nm || '画像');
+});
+// 選択ファイル数の表示
+document.getElementById('f-file').addEventListener('change', function(){
+  const n = this.files.length;
+  document.getElementById('f-picked').textContent = n ? `${n}個のファイルを選択中` : '';
+});
+async function loadMaterials(){
+  try {
+    const r = await mapi('/api/wellness-materials');
+    if (!r.ok) { document.getElementById('mat-list').innerHTML = '<div class="mat-empty">読み込みに失敗しました</div>'; return; }
+    const d = await r.json();
+    renderMats(d.materials || []);
+  } catch(e){ document.getElementById('mat-list').innerHTML = '<div class="mat-empty">通信エラー</div>'; }
+}
+async function doUpload(){
+  const title = document.getElementById('f-title').value.trim();
+  const date = document.getElementById('f-date').value;
+  const note = document.getElementById('f-note').value.trim();
+  const files = document.getElementById('f-file').files;
+  const err = document.getElementById('up-err'); err.textContent='';
+  if (!title){ err.textContent='タイトルを入力してください'; return; }
+  if (!files.length){ err.textContent='ファイルを選択してください'; return; }
+  const fd = new FormData();
+  fd.append('title', title);
+  if (date) fd.append('meeting_date', date);
+  if (note) fd.append('note', note);
+  for (const f of files) fd.append('files', f);
+  const btn = document.getElementById('upbtn'); btn.disabled=true; btn.textContent='アップロード中…';
+  try {
+    const r = await mapi('/api/wellness-materials', { method:'POST', body:fd });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok || !d.success){ err.textContent=(d&&d.msg)||'アップロードに失敗しました'; return; }
+    document.getElementById('f-title').value='';
+    document.getElementById('f-date').value='';
+    document.getElementById('f-note').value='';
+    document.getElementById('f-file').value='';
+    document.getElementById('f-picked').textContent='';
+    await loadMaterials();
+  } catch(e){ err.textContent='通信エラーが発生しました'; }
+  finally { btn.disabled=false; btn.textContent='アップロード'; }
+}
+async function delMat(id){
+  if (!confirm('この資料を削除しますか？')) return;
+  const r = await mapi('/api/wellness-materials/'+id, { method:'DELETE' });
+  if (r.ok){ const el=document.getElementById('mat-'+id); if(el) el.remove(); if(!document.querySelectorAll('#mat-list .mat').length) renderMats([]); }
+  else alert('削除に失敗しました');
+}
+function openPdfModal(url, fname){
+  const body = document.getElementById('pdf-modal-body'); body.innerHTML='';
+  document.getElementById('pdf-modal-title').textContent = fname||'PDF';
+  document.getElementById('pdf-modal-dl').href = url;
+  let n=1;
+  const addPage=()=>{ const img=new Image(); img.className='pdf-page';
+    img.onload=()=>{ body.appendChild(img); n++; addPage(); };
+    img.onerror=()=>{ if(n===1) body.innerHTML='<div class="pdf-fallback">プレビューを準備中です。<br><a href="'+url+'" download style="color:#93c5fd;">⬇ ファイルを開く</a></div>'; };
+    img.src=url+'.p'+n+'.jpg'; };
+  addPage();
+  document.getElementById('pdf-modal').classList.add('open');
+}
+function openImage(url, fname){
+  document.getElementById('pdf-modal-title').textContent = fname||'画像';
+  document.getElementById('pdf-modal-dl').href = url;
+  document.getElementById('pdf-modal-body').innerHTML = '<img class="pdf-page" src="'+url+'" alt="">';
+  document.getElementById('pdf-modal').classList.add('open');
+}
+function closePdfModal(){ document.getElementById('pdf-modal').classList.remove('open'); document.getElementById('pdf-modal-body').innerHTML=''; }
+</script>
+<div id="pdf-modal">
+  <div class="pdf-bar">
+    <span class="title" id="pdf-modal-title">PDF</span>
+    <div style="display:flex;gap:8px;flex:0 0 auto;">
+      <a id="pdf-modal-dl" href="#" download>⬇ 保存</a>
+      <button class="close" onclick="closePdfModal()">✕ 閉じる</button>
+    </div>
+  </div>
+  <div class="pdf-body" id="pdf-modal-body"></div>
+</div>
+
+  <script src="/translate.js?v=20260622f" defer></script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>To Do</title>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<style>
+  :root { --bg:#f1f5f9; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --sub:#64748b; --violet:#6d28d9; --red:#dc2626; --amber:#c2410c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"BIZ UDPGothic",system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px 14px 60px; }
+  .top { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .top a.back { text-decoration:none; color:var(--sub); font-size:20px; }
+  h1 { font-size:19px; margin:0; letter-spacing:.3px; }
+  .sub { color:var(--sub); font-size:12.5px; margin:2px 0 14px; }
+  .add { display:flex; gap:6px; flex-wrap:wrap; background:var(--card); border:1px solid #ddd6fe; border-radius:16px; padding:12px; margin-bottom:14px; }
+  .add input[type=text] { flex:1 1 240px; min-width:0; padding:11px 12px; border:1px solid #ddd6fe; border-radius:12px; font-size:15px; font-family:inherit; }
+  .add input[type=date] { padding:10px; border:1px solid #ddd6fe; border-radius:12px; font-size:13px; font-family:inherit; color:var(--violet); }
+  .add button { padding:11px 20px; border:none; border-radius:12px; background:var(--violet); color:#fff; font-weight:800; font-size:14px; cursor:pointer; font-family:inherit; }
+  .add button:disabled { background:#c4b5fd; cursor:default; }
+  .kpis { display:flex; gap:10px; margin-bottom:12px; }
+  .kpi { flex:1; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 14px; }
+  .kpi .n { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .kpi .l { font-size:11px; color:var(--sub); }
+  .kpi.over .n { color:var(--red); }
+  .list { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:4px 14px; }
+  .row { display:flex; align-items:center; gap:10px; padding:12px 2px; border-bottom:1px solid #f1f5f9; }
+  .row:last-child { border-bottom:none; }
+  .row .chk { width:22px; height:22px; flex:0 0 auto; cursor:pointer; accent-color:var(--violet); }
+  .row .ttl { flex:1; min-width:0; font-size:15px; line-height:1.5; word-break:break-word; }
+  .row.done .ttl { text-decoration:line-through; color:#94a3b8; }
+  .row .due { flex:0 0 auto; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; background:#f1f5f9; color:var(--sub); white-space:nowrap; }
+  .row .due.today { background:#ffedd5; color:var(--amber); }
+  .row .due.over { background:#fee2e2; color:var(--red); }
+  .row .del { flex:0 0 auto; border:none; background:transparent; color:#cbd5e1; font-size:17px; cursor:pointer; padding:2px 6px; font-family:inherit; }
+  .row .del:hover { color:var(--red); }
+  .empty { padding:26px 4px; text-align:center; color:#94a3b8; font-size:13px; line-height:1.8; }
+  .grp { font-size:11px; font-weight:800; color:var(--sub); padding:12px 2px 4px; border-bottom:1px solid #f1f5f9; }
+  .foot { margin-top:14px; text-align:center; }
+  .foot button { background:none; border:none; color:var(--violet); font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; text-decoration:underline; }
+  #toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#0f172a; color:#fff; padding:10px 18px; border-radius:999px; font-size:13px; font-weight:700; opacity:0; transition:opacity .2s; pointer-events:none; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a class="back" href="/home.html" title="ホーム">←</a><h1>📝 To Do</h1></div>
+  <div class="sub">自分だけのやることリストです。他の人には見えません。</div>
+
+  <div class="add">
+    <input type="text" id="ti" maxlength="200" placeholder="やることを入力（Enterで追加）">
+    <input type="date" id="td" title="期限（任意）">
+    <button type="button" id="tb">追加</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n" id="k-open">-</div><div class="l">残っていること</div></div>
+    <div class="kpi over"><div class="n" id="k-over">-</div><div class="l">期限切れ</div></div>
+  </div>
+
+  <div class="list" id="list"><div class="empty">読み込み中…</div></div>
+
+  <div class="foot"><button type="button" id="hist-btn">完了したものも表示（直近30日）</button></div>
+</div>
+<div id="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let TODAY = '', SHOW_HISTORY = false;
+const $ = id => document.getElementById(id);
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+async function api(p, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  const r = await fetch(p, opts);
+  if (r.status === 401) { location.href = '/'; return { success: false }; }
+  try { return await r.json(); } catch (e) { return { success: false, msg: '通信エラー' }; }
+}
+function dueChip(due) {
+  if (!due) return '';
+  const md = due.slice(5).replace('-', '/').replace(/^0/, '');
+  if (due < TODAY) return '<span class="due over">' + md + ' 期限切れ</span>';
+  if (due === TODAY) return '<span class="due today">今日</span>';
+  const tm = new Date(Date.parse(TODAY + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+  if (due === tm) return '<span class="due today">明日</span>';
+  return '<span class="due">' + md + '</span>';
+}
+function rowHtml(t) {
+  return '<div class="row' + (t.done ? ' done' : '') + '">'
+    + '<input type="checkbox" class="chk" ' + (t.done ? 'checked' : '') + ' onchange="toggle(' + t.id + ', this.checked)">'
+    + '<span class="ttl">' + esc(t.title) + '</span>'
+    + (t.done ? '' : dueChip(t.due_date))
+    + '<button type="button" class="del" title="削除" onclick="del(' + t.id + ')">✕</button>'
+    + '</div>';
+}
+async function load() {
+  const d = await api('/api/todo' + (SHOW_HISTORY ? '?history=1' : ''));
+  if (!d || !d.success) { $('list').innerHTML = '<div class="empty">読み込みに失敗しました。</div>'; return; }
+  TODAY = d.today || '';
+  $('k-open').textContent = d.open;
+  $('k-over').textContent = d.overdue;
+  const open = d.items.filter(t => !t.done);
+  const done = d.items.filter(t => t.done);
+  let h = '';
+  if (!open.length && !done.length) {
+    h = '<div class="empty">やることはまだありません。<br>上の欄に書いて Enter で追加できます。</div>';
+  } else {
+    h += open.length ? open.map(rowHtml).join('') : '<div class="empty">残っているやることはありません。おつかれさまです。</div>';
+    if (done.length) h += '<div class="grp">✅ 完了したもの</div>' + done.map(rowHtml).join('');
+  }
+  $('list').innerHTML = h;
+}
+async function add() {
+  const ti = $('ti'), td = $('td'), tb = $('tb');
+  const title = (ti.value || '').trim();
+  if (!title) { ti.focus(); return; }
+  tb.disabled = true;   // 二重送信ガード
+  try {
+    const d = await api('/api/todo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, due_date: td.value || null }) });
+    if (!d || !d.success) { alert((d && d.msg) || '追加できませんでした'); return; }
+    ti.value = ''; td.value = '';
+    await load();
+    ti.focus();
+  } finally { tb.disabled = false; }   // ⚠️成功時も必ず戻す(戻し忘れると2回目以降ボタンが効かなくなる)
+}
+async function toggle(id, done) {
+  const d = await api('/api/todo/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !!done }) });
+  if (!d || !d.success) { alert((d && d.msg) || '更新できませんでした'); }
+  else if (done) toast('お疲れさまでした');
+  load();
+}
+async function del(id) {
+  if (!confirm('この To Do を削除します。よろしいですか？')) return;
+  const d = await api('/api/todo/' + id, { method: 'DELETE' });
+  if (!d || !d.success) alert((d && d.msg) || '削除できませんでした');
+  load();
+}
+$('tb').addEventListener('click', add);
+$('ti').addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+$('hist-btn').addEventListener('click', () => {
+  SHOW_HISTORY = !SHOW_HISTORY;
+  $('hist-btn').textContent = SHOW_HISTORY ? '完了したものを隠す' : '完了したものも表示（直近30日）';
+  load();
+});
+if (!token) location.href = '/'; else load();
+</script>
+</body>
+</html>

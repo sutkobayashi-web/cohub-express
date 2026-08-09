@@ -437,7 +437,6 @@ app.use('/api/accident', require('./routes/accident'));
 // 事故の「一報」(2026-08-06): 報告書とは別建て。運転アラートと同じループ警報で管理者へ即通知する
 app.use('/api/first-alert', require('./routes/accident_first'));
 app.use('/api/kbc', require('./routes/kbc'));
-app.use('/api/walk', require('./routes/walk'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/help', require('./routes/help'));
 // 出退勤打刻機能は完全削除 (2026-05-25)。/api/timecard 廃止 → 自動打刻(scanAutoPunchOut/PC起動in)も停止
@@ -490,7 +489,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-09-challenge-removed"
+const APP_VERSION = "2026-08-09-2-junk-cleanup"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -510,7 +509,6 @@ app.get('/api/config', (req, res) => {
       ops: true,
       accident: true,
       // 以下は MINIMAL_MODE で非表示推奨 (UI側で参照)
-      walk: !MINIMAL_MODE,
       videos: !MINIMAL_MODE,
       myplan: !MINIMAL_MODE,
       cw_archive: !MINIMAL_MODE,
@@ -2497,49 +2495,6 @@ setInterval(() => {
   try {
     getDb().prepare("DELETE FROM messages WHERE created_at < datetime('now', '-60 days')").run();
   } catch (e) {}
-}, 60 * 60 * 1000);
-
-// Connect 230: 終了日経過イベントの自動完了化 (1時間ごと)
-// + 集計を念のため再計算 (整合性保証)
-setInterval(() => {
-  try {
-    const db = getDb();
-    // 終了日が過ぎた active/phase2_solo イベントを completed に
-    const expired = db.prepare(`SELECT id FROM walk_events
-      WHERE status IN ('active','phase2_solo') AND end_date < date('now')`).all();
-    for (const r of expired) {
-      db.prepare(`UPDATE walk_events SET status='completed', completed_at=datetime('now') WHERE id=?`).run(r.id);
-      console.log('[walk] event auto-completed', r.id);
-    }
-    // 開催中イベントの集計を再計算
-    const active = db.prepare(`SELECT id FROM walk_events WHERE status IN ('active','phase2_solo')`).all();
-    for (const ev of active) {
-      // チーム集計のみ再計算 (個人は記録時に都度更新済)
-      for (const team of ['STD', 'SZE']) {
-        const agg = db.prepare(`SELECT SUM(total_steps) AS s, SUM(distance_walked_km) AS km, COUNT(*) AS n
-          FROM walk_personal_state WHERE event_id=? AND team_code=?`).get(ev.id, team);
-        db.prepare(`INSERT INTO walk_team_progress (team_code, event_id, total_steps, total_km, member_count, last_updated)
-          VALUES (?, ?, ?, ?, ?, datetime('now'))
-          ON CONFLICT(team_code, event_id) DO UPDATE SET
-            total_steps=excluded.total_steps, total_km=excluded.total_km,
-            member_count=excluded.member_count, last_updated=excluded.last_updated`)
-          .run(team, ev.id, agg.s || 0, Math.round((agg.km || 0) * 100) / 100, agg.n || 0);
-      }
-      // 合流検知 (Phase1のみ判定)
-      const evRow = db.prepare('SELECT * FROM walk_events WHERE id=?').get(ev.id);
-      if (evRow && evRow.status === 'active') {
-        const std = db.prepare("SELECT total_km FROM walk_team_progress WHERE team_code='STD' AND event_id=?").get(ev.id);
-        const sze = db.prepare("SELECT total_km FROM walk_team_progress WHERE team_code='SZE' AND event_id=?").get(ev.id);
-        const stdKm = (std && std.total_km) || 0;
-        const szeKm = (sze && sze.total_km) || 0;
-        if (stdKm + szeKm >= evRow.total_route_km) {
-          const meetKm = Math.min(stdKm, evRow.total_route_km);
-          db.prepare(`UPDATE walk_events SET status='phase2_solo', meet_event_at=datetime('now'), meet_position_km=? WHERE id=?`).run(meetKm, ev.id);
-          console.log('[walk] meet event detected, event', ev.id, 'meet at', meetKm, 'km');
-        }
-      }
-    }
-  } catch (e) { console.warn('[walk auto-tick] fail:', e.message); }
 }, 60 * 60 * 1000);
 
 // マンスリー栄養レポート: 月初(1〜3日)に前月分を自動生成し本人へ通知 (12hごと・冪等)。

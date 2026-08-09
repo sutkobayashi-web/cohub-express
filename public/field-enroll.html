@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>現場登録（顔写真・初期PIN）— CoHub</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; background: #f1f5f9; color: #0f172a; }
+  header { position: sticky; top: 0; z-index: 10; background: #0369a1; color: #fff; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  header h1 { font-size: 16px; margin: 0; flex: 1; }
+  header a { color: #fff; text-decoration: none; font-size: 13px; opacity: .9; }
+  .intro { padding: 12px 14px; font-size: 12.5px; color: #475569; background: #ecfeff; border-bottom: 1px solid #cffafe; }
+  .bar { display: flex; gap: 8px; padding: 12px 14px; align-items: center; }
+  .bar input[type=search] { flex: 1; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 14px; }
+  .seg { display: flex; gap: 6px; }
+  .seg button { padding: 8px 12px; border: 1.5px solid #cbd5e1; background: #fff; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .seg button.on { background: #0f766e; color: #fff; border-color: #0f766e; }
+  .list { padding: 12px 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .cell { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 12px; text-align: center; cursor: pointer; position: relative; }
+  .cell .av { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 8px; overflow: hidden; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+  .cell .av img { width: 100%; height: 100%; object-fit: cover; }
+  .cell .nm { font-size: 14px; font-weight: 700; }
+  .cell .co { font-size: 11px; color: #64748b; }
+  .cell .st { margin-top: 6px; font-size: 10.5px; font-weight: 700; }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 999px; margin: 0 2px; }
+  .tag.ok { background: #dcfce7; color: #15803d; }
+  .tag.ng { background: #fee2e2; color: #b91c1c; }
+  .empty { grid-column: 1 / -1; text-align: center; color: #94a3b8; padding: 40px 0; }
+  /* modal */
+  /* 横向き対応(2026-07-09): 背景ごとスクロール可能に。収まる時は中央、はみ出す時は上寄せでスクロール→登録ボタンが画面外に消えない */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 50; align-items: flex-start; justify-content: center; padding: 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #fff; width: 100%; max-width: 400px; margin: auto; border-radius: 16px; padding: 18px 16px; }
+  .who { font-size: 18px; font-weight: 800; text-align: center; }
+  .who small { display: block; font-size: 12px; color: #64748b; font-weight: 500; margin-top: 2px; }
+  .step { border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; margin-top: 12px; }
+  .step h3 { margin: 0 0 8px; font-size: 13.5px; }
+  .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #334155; background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 10px; margin-top: 12px; }
+  .consent input { margin-top: 2px; transform: scale(1.3); }
+  .big-btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 14px; background: #f59e0b; color: #fff; font-size: 15px; font-weight: 800; cursor: pointer; margin-top: 6px; }
+  .big-btn.teal { background: #0f766e; }
+  .big-btn:disabled { opacity: .4; }
+  .preview-av { width: 88px; height: 88px; border-radius: 50%; overflow: hidden; margin: 8px auto 0; background: #e2e8f0; display: none; }
+  .preview-av.show { display: block; }
+  .preview-av img { width: 100%; height: 100%; object-fit: cover; }
+  .pin-in { width: 100%; text-align: center; letter-spacing: 12px; font-size: 26px; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 14px; margin-bottom: 6px; }
+  .msg { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+  .msg.ok { color: #15803d; } .msg.err { color: #dc2626; }
+  .file-hidden { display: none; }
+  .cam-row { display: flex; gap: 8px; }
+  .big-btn.ghost { background: #fff; color: #0f766e; border: 1.5px solid #0f766e; }
+  #cam-video, #cam-canvas { width: 100%; border-radius: 16px; background: #000; margin-top: 8px; }
+  .close-x { background: none; border: none; font-size: 22px; cursor: pointer; color: #94a3b8; }
+</style>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style id="biz-udp-global">
+html,body,button,input,select,textarea{font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+body :not(code):not(pre):not(kbd):not(samp):not(tt):not([style*="monospace"]):not([style*="Consolas"]):not([style*="SF Mono"]):not([style*="Mincho"]):not([style*="游明朝"]):not([style*="Yu Mincho"]){font-family:"BIZ UDPGothic","BIZ UDPゴシック",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif!important}
+code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",monospace!important}
+</style>
+<style id="cohub-swipe-guard">html,body{overscroll-behavior-x:none}</style>
+</head>
+<body>
+<header>
+  <h1>📷 現場登録（顔写真・初期PIN）</h1>
+  <a href="/home">← ホーム</a>
+</header>
+<div class="intro">
+  推進メンバー・管理職が、自拠点の社員にキオスク用の<b>顔写真</b>と<b>初期PIN</b>を設定します。<br>
+  ※生年月日・アカウント作成は管理者が行います。顔写真は本人特定・誤ログイン防止のため社内表示にのみ使用します。
+</div>
+<div style="padding: 12px 14px 0;">
+  <button class="big-btn teal" style="margin:0;" onclick="openProv()">➕ 新規社員を仮登録（写真＋名前）</button>
+</div>
+<div class="bar">
+  <input id="q" type="search" placeholder="名前で検索">
+  <div class="seg">
+    <button id="seg-todo" class="on" onclick="setFilter('todo')">未設定のみ</button>
+    <button id="seg-all" onclick="setFilter('all')">全員</button>
+  </div>
+</div>
+<div id="list" class="list"><div class="empty">読み込み中…</div></div>
+
+<div id="modal" class="modal-bg" onclick="if(event.target.id==='modal') closeModal()">
+  <div class="modal">
+    <div style="display:flex;justify-content:flex-end;"><button class="close-x" onclick="closeModal()">✕</button></div>
+    <div class="who" id="m-name"></div>
+    <div class="consent">
+      <input type="checkbox" id="m-consent" onchange="syncButtons()">
+      <label for="m-consent">本人に用途（キオスクでの本人選択・誤ログイン防止のため社内表示に使う）を説明し、<b>同意を得ました</b>。</label>
+    </div>
+    <div class="step">
+      <h3>① 顔写真（アバター）</h3>
+      <div class="preview-av" id="m-preview"><img id="m-preview-img" alt=""></div>
+      <input type="file" id="m-photo" class="file-hidden" accept="image/*" capture="user" onchange="uploadPhoto()">
+      <div class="cam-row">
+        <button class="big-btn" id="m-cam-btn" disabled onclick="openCam(function(f){ uploadPhoto(f); })">📷 カメラで撮影</button>
+        <button class="big-btn ghost" id="m-photo-btn" disabled onclick="document.getElementById('m-photo').click()">🖼 ファイルから選ぶ</button>
+      </div>
+      <div class="msg" id="m-photo-msg"></div>
+    </div>
+    <div class="step">
+      <h3>② 初期PIN（4桁）</h3>
+      <input class="pin-in" id="m-pin" inputmode="numeric" maxlength="4" placeholder="････" oninput="this.value=this.value.replace(/\D/g,'');syncButtons()">
+      <button class="big-btn teal" id="m-pin-btn" disabled onclick="setPin()">この内容で設定</button>
+      <div class="msg" id="m-pin-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新規仮登録 → 本人セットアップ -->
+<div id="prov-modal" class="modal-bg" onclick="if(event.target.id==='prov-modal') closeProv()">
+  <div class="modal">
+    <div style="display:flex;justify-content:flex-end;"><button class="close-x" onclick="closeProv()">✕</button></div>
+
+    <!-- STEP1: 推進メンバーが入力 -->
+    <div id="prov-step1">
+      <div class="who">新規社員の仮登録</div>
+      <div class="consent">
+        <input type="checkbox" id="pv-consent" onchange="pvSync()">
+        <label for="pv-consent">本人に用途を説明し、顔写真の撮影に<b>同意を得ました</b>。</label>
+      </div>
+      <div class="step">
+        <h3>① 顔写真</h3>
+        <div class="preview-av" id="pv-preview"><img id="pv-preview-img" alt=""></div>
+        <input type="file" id="pv-photo" class="file-hidden" accept="image/*" capture="user" onchange="pvPhotoPick()">
+        <div class="cam-row">
+          <button class="big-btn" id="pv-cam-btn" disabled onclick="openCam(function(f){ pvSetPhoto(f); })">📷 カメラで撮影</button>
+          <button class="big-btn ghost" id="pv-photo-btn" disabled onclick="document.getElementById('pv-photo').click()">🖼 ファイルから選ぶ</button>
+        </div>
+      </div>
+      <div class="step">
+        <h3>② 基本情報（推進メンバーが入力）</h3>
+        <label style="font-size:12px;color:#475569;">表示名（氏名）</label>
+        <input id="pv-name" class="pin-in" style="letter-spacing:normal;font-size:16px;text-align:left;" placeholder="例：田中 太郎" oninput="pvSync()">
+        <label style="font-size:12px;color:#475569;">拠点</label>
+        <select id="pv-co" class="pin-in" style="letter-spacing:normal;font-size:16px;text-align:left;" onchange="fillPvDm()"></select>
+        <label style="font-size:12px;color:#475569;">所属グループ</label>
+        <select id="pv-dm" class="pin-in" style="letter-spacing:normal;font-size:16px;text-align:left;"></select>
+        <div style="font-size:11px;color:#94a3b8;margin:-2px 0 4px;">部署内DM・チャットグループに自動所属します。通常は拠点名と同じ。</div>
+        <label style="font-size:12px;color:#475569;">職種</label>
+        <select id="pv-job" class="pin-in" style="letter-spacing:normal;font-size:16px;text-align:left;"></select>
+      </div>
+      <button class="big-btn" id="pv-submit" disabled onclick="submitProv()">仮登録する</button>
+      <div class="msg" id="pv-msg"></div>
+    </div>
+
+    <!-- STEP2: 本人が入力 (端末を渡す) -->
+    <div id="prov-step2" style="display:none;">
+      <div class="who">📲 ここから本人が入力</div>
+      <p style="font-size:12.5px;color:#334155;text-align:center;">推進メンバーは端末を本人にお渡しください。<br><b id="pv2-name"></b> さん、ご自身で入力してください。</p>
+      <div class="step">
+        <h3>生年月日</h3>
+        <input id="pv2-birth" type="date" class="pin-in" style="letter-spacing:normal;font-size:16px;text-align:left;">
+      </div>
+      <div class="step">
+        <h3>ニックネーム（ひろば等の表示名・2〜20文字）</h3>
+        <input id="pv2-nick" class="pin-in" style="letter-spacing:normal;font-size:16px;text-align:left;" placeholder="例：たろちゃん" maxlength="20" oninput="pv2Sync()">
+      </div>
+      <div class="step">
+        <h3>ログイン用PIN（4桁）</h3>
+        <input id="pv2-pin" class="pin-in" inputmode="numeric" maxlength="4" placeholder="････" oninput="this.value=this.value.replace(/\D/g,'');pv2Sync()">
+        <p style="font-size:11px;color:#64748b;margin:0;">※このPINでタブレットにログインします。他人に教えないでください。</p>
+      </div>
+      <button class="big-btn teal" id="pv2-submit" disabled onclick="submitSelfSetup()">登録を完了する</button>
+      <div class="msg" id="pv2-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Webカメラ撮影 (PC/モバイル共通・getUserMedia) -->
+<div id="cam-modal" class="modal-bg" onclick="if(event.target.id==='cam-modal') closeCam()">
+  <div class="modal" style="max-width:480px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <b>📷 カメラで撮影</b><button class="close-x" onclick="closeCam()">✕</button>
+    </div>
+    <video id="cam-video" playsinline autoplay muted></video>
+    <canvas id="cam-canvas" style="display:none;"></canvas>
+    <div class="msg" id="cam-msg"></div>
+    <button class="big-btn" id="cam-shot" onclick="camCapture()">📸 シャッター</button>
+    <div id="cam-after" style="display:none;">
+      <button class="big-btn teal" id="cam-use" onclick="camUse()">この写真を使う</button>
+      <button class="big-btn ghost" onclick="camRetake()">撮り直す</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var token = '';
+try { token = localStorage.getItem('cohub_token') || ''; } catch (e) {}
+if (!token) location.replace('/');
+var users = [], filter = 'todo', curId = null;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function isTodo(u){ return !u.has_avatar || !u.has_pin; }
+
+async function load() {
+  var r = await fetch('/api/field-enroll/roster', { headers: { Authorization: 'Bearer ' + token } }).then(x=>x.json()).catch(()=>null);
+  if (!r || !r.success) {
+    document.getElementById('list').innerHTML = '<div class="empty">' + ((r && r.msg) || '読み込みに失敗しました') + '</div>';
+    return;
+  }
+  users = r.users || [];
+  render();
+}
+function setFilter(f){ filter=f; document.getElementById('seg-todo').className = f==='todo'?'on':''; document.getElementById('seg-all').className = f==='all'?'on':''; render(); }
+function render() {
+  var q = (document.getElementById('q').value||'').trim().toLowerCase();
+  var arr = users.slice();
+  if (filter==='todo') arr = arr.filter(isTodo);
+  if (q) arr = arr.filter(function(u){ return (u.display_name||'').toLowerCase().indexOf(q)>=0; });
+  var el = document.getElementById('list');
+  if (!arr.length) { el.innerHTML = '<div class="empty">該当者なし</div>'; return; }
+  el.innerHTML = arr.map(function(u){
+    var av = u.avatar_url ? '<img src="'+esc(u.avatar_url)+'" alt="">' : '👤';
+    var avTag = u.has_avatar ? '<span class="tag ok">写真✓</span>' : '<span class="tag ng">写真✕</span>';
+    var pinTag = u.has_pin ? '<span class="tag ok">PIN✓</span>' : '<span class="tag ng">PIN✕</span>';
+    return '<div class="cell" onclick="openModal(\''+esc(u.id)+'\')">'
+      + '<div class="av">'+av+'</div>'
+      + '<div class="nm">'+esc(u.display_name)+'</div>'
+      + '<div class="co">'+esc(u.company_code||'-')+'</div>'
+      + '<div class="st">'+avTag+pinTag+'</div></div>';
+  }).join('');
+}
+document.getElementById('q').addEventListener('input', render);
+
+function findU(id){ for (var i=0;i<users.length;i++) if (users[i].id===id) return users[i]; return null; }
+function openModal(id) {
+  curId = id;
+  var u = findU(id); if (!u) return;
+  document.getElementById('m-name').innerHTML = esc(u.display_name) + '<small>'+esc(u.company_code||'')+'</small>';
+  document.getElementById('m-consent').checked = false;
+  document.getElementById('m-pin').value = '';
+  document.getElementById('m-photo-msg').textContent = '';
+  document.getElementById('m-pin-msg').textContent = '';
+  var pv = document.getElementById('m-preview');
+  if (u.avatar_url) { document.getElementById('m-preview-img').src = u.avatar_url; pv.classList.add('show'); }
+  else pv.classList.remove('show');
+  syncButtons();
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('show'); curId=null; load(); }
+function syncButtons() {
+  var ok = document.getElementById('m-consent').checked;
+  document.getElementById('m-photo-btn').disabled = !ok;
+  document.getElementById('m-cam-btn').disabled = !ok;
+  document.getElementById('m-pin-btn').disabled = !ok || document.getElementById('m-pin').value.length !== 4;
+}
+async function uploadPhoto(file) {
+  var f = file || document.getElementById('m-photo').files[0];
+  if (!f || !curId) return;
+  var msg = document.getElementById('m-photo-msg');
+  msg.className = 'msg'; msg.textContent = '🧠 アバター作成中…（数秒）';
+  var fd = new FormData();
+  fd.append('target_user_id', curId);
+  fd.append('consent', document.getElementById('m-consent').checked ? '1' : '0');
+  fd.append('photo', f);
+  try {
+    var r = await fetch('/api/field-enroll/avatar', { method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd }).then(x=>x.json());
+    if (r && r.success) {
+      document.getElementById('m-preview-img').src = r.avatar_url;
+      document.getElementById('m-preview').classList.add('show');
+      msg.className = 'msg ok'; msg.textContent = '✓ 顔写真を設定しました';
+      var u = findU(curId); if (u) { u.avatar_url = r.avatar_url; u.has_avatar = 1; }
+    } else { msg.className='msg err'; msg.textContent = (r && r.msg) || '失敗しました'; }
+  } catch (e) { msg.className='msg err'; msg.textContent = '通信エラー'; }
+  document.getElementById('m-photo').value = '';
+}
+async function setPin() {
+  if (!curId) return;
+  var pin = document.getElementById('m-pin').value;
+  var msg = document.getElementById('m-pin-msg');
+  if (pin.length !== 4) { msg.className='msg err'; msg.textContent='4桁で入力してください'; return; }
+  msg.className='msg'; msg.textContent='設定中…';
+  try {
+    var r = await fetch('/api/field-enroll/pin', {
+      method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token },
+      body: JSON.stringify({ target_user_id: curId, pin: pin, consent: document.getElementById('m-consent').checked })
+    }).then(x=>x.json());
+    if (r && r.success) {
+      msg.className='msg ok'; msg.textContent = '✓ 初期PINを設定しました（本人に伝えてください）';
+      var u = findU(curId); if (u) u.has_pin = 1;
+    } else { msg.className='msg err'; msg.textContent = (r && r.msg) || '失敗しました'; }
+  } catch (e) { msg.className='msg err'; msg.textContent='通信エラー'; }
+}
+
+// ===== 新規仮登録 → 本人セットアップ (案A) =====
+var provToken = '', META = null;
+async function loadMeta() {
+  if (META) return META;
+  var r = await fetch('/api/field-enroll/meta', { headers:{ Authorization:'Bearer '+token } }).then(x=>x.json()).catch(()=>null);
+  if (r && r.success) META = r;
+  return META;
+}
+async function openProv() {
+  var m = await loadMeta();
+  document.getElementById('pv-co').innerHTML = ((m && m.companies) || []).map(function(c){ return '<option value="'+esc(c.code)+'" data-name="'+esc(c.name||'')+'">'+esc(c.name||c.code)+'</option>'; }).join('');
+  document.getElementById('pv-job').innerHTML = ((m && m.job_roles) || []).map(function(j){ return '<option value="'+esc(j.v)+'">'+esc(j.label)+'</option>'; }).join('');
+  fillPvDm();  // 所属グループ候補(拠点名既定+既存) — 新規登録と同一
+  document.getElementById('pv-consent').checked = false;
+  document.getElementById('pv-name').value = '';
+  document.getElementById('pv-photo').value = '';
+  pvCapturedFile = null;
+  document.getElementById('pv-preview').classList.remove('show');
+  document.getElementById('pv-msg').textContent = '';
+  document.getElementById('prov-step1').style.display = '';
+  document.getElementById('prov-step2').style.display = 'none';
+  provToken = '';
+  pvSync();
+  document.getElementById('prov-modal').classList.add('show');
+}
+function closeProv(){ document.getElementById('prov-modal').classList.remove('show'); load(); }
+// 所属グループ候補: 選択中拠点の名前を既定に、続けて既存グループ(重複除外)。新規登録(enroll)と同一ロジック。
+function fillPvDm() {
+  var coSel = document.getElementById('pv-co');
+  var opt = coSel.options[coSel.selectedIndex];
+  var defName = (opt && opt.getAttribute('data-name')) || coSel.value || '';
+  var existing = ((META && META.dm_groups) || []).map(function(g){ return g.name; }).filter(Boolean);
+  var names = [defName].concat(existing.filter(function(n){ return n && n !== defName; }));
+  document.getElementById('pv-dm').innerHTML = names.map(function(n){
+    return '<option value="'+esc(n)+'"'+(n===defName?' selected':'')+'>'+esc(n)+(n===defName?' (拠点既定)':'')+'</option>';
+  }).join('');
+}
+function pvSync() {
+  var ok = document.getElementById('pv-consent').checked;
+  document.getElementById('pv-photo-btn').disabled = !ok;
+  document.getElementById('pv-cam-btn').disabled = !ok;
+  var nameOk = document.getElementById('pv-name').value.trim().length > 0;
+  document.getElementById('pv-submit').disabled = !(ok && nameOk);
+}
+var pvCapturedFile = null;
+function pvPreview(f) {
+  document.getElementById('pv-preview-img').src = URL.createObjectURL(f);
+  document.getElementById('pv-preview').classList.add('show');
+}
+function pvPhotoPick() {
+  var f = document.getElementById('pv-photo').files[0];
+  if (!f) return;
+  pvCapturedFile = f; pvPreview(f);
+}
+function pvSetPhoto(f) {  // Webカメラ撮影から
+  if (!f) return;
+  pvCapturedFile = f; pvPreview(f);
+}
+async function submitProv() {
+  var msg = document.getElementById('pv-msg'), btn = document.getElementById('pv-submit');
+  var f = pvCapturedFile;
+  msg.className='msg'; msg.textContent = f ? '🧠 アバター作成中…（数秒）' : '登録中…';
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('display_name', document.getElementById('pv-name').value.trim());
+  fd.append('company_code', document.getElementById('pv-co').value);
+  fd.append('dm_group', document.getElementById('pv-dm').value);
+  fd.append('job_role', document.getElementById('pv-job').value);
+  fd.append('consent', document.getElementById('pv-consent').checked ? '1' : '0');
+  if (f) fd.append('photo', f);
+  try {
+    var r = await fetch('/api/field-enroll/provisional', { method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd }).then(x=>x.json());
+    if (r && r.success) {
+      provToken = r.setup_token || '';
+      document.getElementById('pv2-name').textContent = r.display_name || '';
+      document.getElementById('pv2-birth').value = '';
+      document.getElementById('pv2-nick').value = '';
+      document.getElementById('pv2-pin').value = '';
+      document.getElementById('pv2-msg').textContent = '';
+      document.getElementById('prov-step1').style.display = 'none';
+      document.getElementById('prov-step2').style.display = '';
+      pv2Sync();
+    } else { msg.className='msg err'; msg.textContent = (r && r.msg) || '失敗しました'; btn.disabled = false; }
+  } catch (e) { msg.className='msg err'; msg.textContent='通信エラー'; btn.disabled = false; }
+}
+function pv2Sync() {
+  var nickOk = document.getElementById('pv2-nick').value.trim().length >= 2;
+  var pinOk = document.getElementById('pv2-pin').value.length === 4;
+  var birthOk = !!document.getElementById('pv2-birth').value;
+  document.getElementById('pv2-submit').disabled = !(nickOk && pinOk && birthOk);
+}
+document.getElementById('pv2-birth').addEventListener('change', pv2Sync);
+
+// ===== Webカメラ撮影 (getUserMedia)。PCでも撮影でき、ファイル選択とも併用 =====
+var camStream = null, camOnUse = null, camBlob = null;
+async function openCam(onUse) {
+  camOnUse = onUse; camBlob = null;
+  document.getElementById('cam-canvas').style.display = 'none';
+  document.getElementById('cam-video').style.display = '';
+  document.getElementById('cam-shot').style.display = '';
+  document.getElementById('cam-after').style.display = 'none';
+  var msg = document.getElementById('cam-msg'); msg.className = 'msg'; msg.textContent = '';
+  document.getElementById('cam-modal').classList.add('show');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('NotSupported');
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+    document.getElementById('cam-video').srcObject = camStream;
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'カメラを起動できませんでした（' + (e.name || e.message || e) + '）。「ファイルから選ぶ」をご利用ください。';
+    document.getElementById('cam-shot').style.display = 'none';
+  }
+}
+function camCapture() {
+  var v = document.getElementById('cam-video'), c = document.getElementById('cam-canvas');
+  var w = v.videoWidth || 640, h = v.videoHeight || 480;
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(v, 0, 0, w, h);
+  c.toBlob(function (b) { camBlob = b; }, 'image/jpeg', 0.9);
+  c.style.display = ''; v.style.display = 'none';
+  document.getElementById('cam-shot').style.display = 'none';
+  document.getElementById('cam-after').style.display = '';
+}
+function camRetake() {
+  camBlob = null;
+  document.getElementById('cam-canvas').style.display = 'none';
+  document.getElementById('cam-video').style.display = '';
+  document.getElementById('cam-shot').style.display = '';
+  document.getElementById('cam-after').style.display = 'none';
+}
+function camUse() {
+  if (!camBlob) { closeCam(); return; }
+  var file = new File([camBlob], 'webcam_' + (new Date().getTime()) + '.jpg', { type: 'image/jpeg' });
+  var cb = camOnUse;
+  closeCam();
+  if (cb) cb(file);
+}
+function closeCam() {
+  document.getElementById('cam-modal').classList.remove('show');
+  if (camStream) { try { camStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} camStream = null; }
+  camBlob = null; camOnUse = null;
+}
+async function submitSelfSetup() {
+  var msg = document.getElementById('pv2-msg'), btn = document.getElementById('pv2-submit');
+  msg.className='msg'; msg.textContent='登録中…'; btn.disabled = true;
+  try {
+    var r = await fetch('/api/field-enroll/self-setup', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        setup_token: provToken,
+        birth_date: document.getElementById('pv2-birth').value,
+        nickname: document.getElementById('pv2-nick').value.trim(),
+        pin: document.getElementById('pv2-pin').value
+      })
+    }).then(x=>x.json());
+    if (r && r.success) { msg.className='msg ok'; msg.textContent = '✓ ' + (r.msg || '完了しました'); setTimeout(closeProv, 1500); }
+    else { msg.className='msg err'; msg.textContent = (r && r.msg) || '失敗しました'; btn.disabled = false; }
+  } catch (e) { msg.className='msg err'; msg.textContent='通信エラー'; btn.disabled = false; }
+}
+load();
+</script>
+<script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
+</body>
+</html>

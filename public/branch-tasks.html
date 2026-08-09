@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>営業所別 対応リスト</title>
+<script src="/font-zoom.js?v=20260728d" defer></script>
+<style>
+  :root { --bg:#f1f5f9; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --sub:#64748b; --teal:#0d9488; --red:#dc2626; --amber:#d97706; --green:#16a34a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"BIZ UDPGothic",system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 16px 14px 60px; }
+  .top { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .top a.back { text-decoration:none; color:var(--sub); font-size:20px; }
+  h1 { font-size:19px; margin:0; letter-spacing:.3px; }
+  .sub { color:var(--sub); font-size:12.5px; margin:2px 0 14px; }
+  .summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 14px; flex:1 1 auto; min-width:120px; }
+  .kpi .n { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .kpi .l { font-size:11px; color:var(--sub); }
+  .kpi.red .n { color:var(--red); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  button { font-family:inherit; cursor:pointer; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:9px 14px; font-size:13px; font-weight:700; min-height:42px; }
+  button.primary { background:var(--teal); color:#fff; border-color:var(--teal); }
+  button.ghost { background:#fff; color:var(--teal); border-color:#99f6e4; }
+  button:disabled { opacity:.5; cursor:default; }
+  .list { display:flex; flex-direction:column; gap:8px; }
+  .row { background:var(--card); border:1px solid var(--line); border-left:5px solid var(--green); border-radius:14px; padding:12px 14px; display:flex; align-items:center; gap:12px; }
+  .row.has { border-left-color:var(--red); }
+  .row .nm { font-weight:800; font-size:15px; flex:1 1 auto; min-width:0; }
+  .row .nm .code { font-size:11px; color:var(--sub); font-weight:600; margin-left:6px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { font-size:12px; font-weight:700; border-radius:999px; padding:3px 10px; background:#f1f5f9; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .chip.red { background:#fee2e2; color:var(--red); }
+  .chip.amber { background:#ffedd5; color:var(--amber); }
+  .row .tot { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; width:44px; text-align:right; }
+  .row .tot.z { color:var(--green); }
+  .row .tot.n { color:var(--red); }
+  .row .send { flex:0 0 auto; }
+  .row .send button { padding:7px 12px; min-height:38px; font-size:12px; }
+  .ok { color:var(--green); font-weight:700; font-size:13px; }
+  .empty { text-align:center; color:var(--sub); padding:40px 0; }
+  /* modal */
+  .modal { position:fixed; inset:0; background:rgba(15,23,42,.5); display:none; align-items:flex-end; justify-content:center; z-index:50; }
+  .modal.open { display:flex; }
+  .sheet { background:#fff; width:100%; max-width:640px; border-radius:18px 18px 0 0; max-height:82vh; overflow:auto; padding:16px; }
+  .sheet h2 { font-size:16px; margin:0 0 4px; }
+  .sheet .prev { background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:10px 12px; white-space:pre-wrap; font-size:12.5px; line-height:1.6; margin:8px 0; }
+  .sheet .prev .h { font-weight:800; color:var(--teal); font-size:11px; margin-bottom:4px; }
+  .sheet .foot { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; position:sticky; bottom:0; background:#fff; padding-top:8px; }
+  .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#0f172a; color:#fff; padding:10px 16px; border-radius:12px; font-size:13px; opacity:0; transition:opacity .2s; z-index:60; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a class="back" href="/home.html" title="ホーム">←</a><h1>🏢 営業所別 対応リスト</h1></div>
+  <div class="sub" id="sub">読み込み中…</div>
+
+  <div class="summary" id="summary"></div>
+  <div class="actions" id="hq-actions" style="display:none;">
+    <button class="ghost" onclick="preview()">👁 配信内容をプレビュー</button>
+    <button class="primary" onclick="notifyAll()">📣 管理職グループへ配信</button>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="sheet">
+    <h2>配信プレビュー</h2>
+    <div class="sub" style="margin:0 0 8px;">「管理職」グループへ、以下の内容を1通で投稿します（未対応が無い拠点は載せません）。<br>⚠️2026-08-05: 宛先を各拠点グループ（＝その拠点のほぼ全員）から管理職グループへ変更しました。</div>
+    <div id="prev-body"></div>
+    <div class="foot">
+      <button onclick="closeModal()">閉じる</button>
+      <button class="primary" onclick="notifyAll(true)">この内容で 管理職グループへ配信</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const token = localStorage.getItem('cohub_token') || localStorage.getItem('cohub_admin_token') || '';
+let IS_HQ = false;
+async function api(p, opts) {
+  opts = opts || {}; opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  const r = await fetch(p, opts);
+  if (r.status === 401) { location.href = '/login.html'; return { success:false }; }
+  try { return await r.json(); } catch (e) { return { success:false, msg:'通信エラー' }; }
+}
+function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2600); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function load() {
+  const d = await api('/api/branch-tasks/board');
+  if (!d.success) { document.getElementById('sub').textContent = d.msg || '取得できませんでした（権限が必要です）'; document.getElementById('list').innerHTML=''; return; }
+  IS_HQ = !!d.hq;
+  document.getElementById('hq-actions').style.display = IS_HQ ? 'flex' : 'none';
+  document.getElementById('sub').textContent = d.date + ' 現在 ・ 未対応の自主体調チェックは直近7日 ・ ' + (IS_HQ ? '全拠点' : '自拠点');
+  const rows = d.rows || [];
+  const withTasks = rows.filter(r => r.total > 0).length;
+  document.getElementById('summary').innerHTML =
+    '<div class="kpi ' + (d.grand_total>0?'red':'') + '"><div class="n">' + d.grand_total + '</div><div class="l">未対応 合計</div></div>' +
+    '<div class="kpi"><div class="n">' + withTasks + ' / ' + rows.length + '</div><div class="l">未対応のある拠点</div></div>';
+  if (!rows.length) { document.getElementById('list').innerHTML = '<div class="empty">対象拠点がありません</div>'; return; }
+  document.getElementById('list').innerHTML = rows.map(rowHtml).join('');
+}
+function rowHtml(r) {
+  const has = r.total > 0;
+  const chips = [];
+  if (r.tenko_unhandled > 0) chips.push('<span class="chip red">🔴 体調チェック ' + r.tenko_unhandled + '</span>');
+  if (r.kiko_pending > 0) chips.push('<span class="chip amber">🟠 帰りの承認 ' + r.kiko_pending + '</span>');
+  if (!has) chips.push('<span class="ok">✅ 対応済み</span>');
+  return '<div class="row ' + (has?'has':'') + '">' +
+    '<div class="nm">' + esc(r.name) + '<span class="code">' + esc(r.code) + '</span></div>' +
+    '<div class="chips">' + chips.join('') + '</div>' +
+    '<div class="tot ' + (has?'n':'z') + '">' + r.total + '</div>' +
+    (IS_HQ && has ? '<div class="send"><button onclick="notifyOne(\'' + esc(r.code) + '\',\'' + esc(r.name) + '\')">📣 配信</button></div>' : '') +
+    '</div>';
+}
+
+async function preview() {
+  const d = await api('/api/branch-tasks/notify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ all:true, dry_run:true }) });
+  if (!d.success) { toast(d.msg||'失敗'); return; }
+  const items = (d.results||[]).filter(r => r.text);
+  document.getElementById('prev-body').innerHTML = items.length
+    ? items.map(r => '<div class="prev"><div class="h">👥 管理職グループ宛（' + esc((r.names||[]).join('・')) + '）' + (r.reason?'（'+esc(r.reason)+'）':'') + '</div>' + esc(r.text) + '</div>').join('')
+    : '<div class="sub">未対応のある拠点はありません。</div>';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+async function notifyAll(fromModal) {
+  if (!fromModal && !confirm('「管理職」グループへ、未対応のある全拠点ぶんの「本日のやること」を1通で配信します。よろしいですか？')) return;
+  const d = await api('/api/branch-tasks/notify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ all:true }) });
+  closeModal();
+  if (!d.success) { toast(d.msg||'失敗'); return; }
+  toast(d.count ? '管理職グループへ配信しました' : '配信対象がありませんでした');
+  load();
+}
+async function notifyOne(code, name) {
+  if (!confirm('「管理職」グループへ、' + name + ' の「本日のやること」を配信します。よろしいですか？')) return;
+  const d = await api('/api/branch-tasks/notify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code }) });
+  if (!d.success) { toast(d.msg||'失敗'); return; }
+  toast((d.count? name+'のぶんを 管理職グループへ配信しました':'配信対象がありませんでした'));
+  load();
+}
+load();
+</script>
+</body>
+</html>

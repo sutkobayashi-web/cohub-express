@@ -1432,19 +1432,6 @@ function getDb() {
   // 公開フィードクエリ用インデックス
   _db.exec(`CREATE INDEX IF NOT EXISTS idx_myplan_share ON myplan_consultations(share_publicly, created_at DESC);`);
 
-  // Connect 222 道中フォト (5/6) — 散歩で見た風景写真+一言を仲間に共有
-  _db.exec(`CREATE TABLE IF NOT EXISTS walk_field_posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    event_id INTEGER NOT NULL,
-    photo_url TEXT NOT NULL,
-    comment TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    deleted_at TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_wfp_event ON walk_field_posts(event_id, created_at DESC);
-  CREATE INDEX IF NOT EXISTS idx_wfp_user ON walk_field_posts(user_id, created_at DESC);`);
-
   // 健康管理室 対話型アクションプラン (Phase 1 — 5/5)
   // ユーザーと AI が数往復で実行可能なアクションを共同決定。
   // 5パターン (置換/減らす/やめる/加える/タイミング)、エビデンス範囲限定、医療行為禁則。
@@ -1500,70 +1487,9 @@ function getDb() {
   CREATE INDEX IF NOT EXISTS idx_mpcl_plan_date ON myplan_calendar_logs(active_plan_id, log_date DESC);
   CREATE INDEX IF NOT EXISTS idx_mpcl_user ON myplan_calendar_logs(user_id, log_date DESC);`);
 
-  // ===== Connect 230 (歩く×Standard運輸グループ) =====
-  // 東京日本橋 ⇔ 磐田スズエ電機 双方向ウォーキングイベント (約230km)
-  // STDチーム=東京発西進 / SZEチーム=磐田発東進。両軍の歩数合算でルート上を進み、
-  // 出会ったら祝祭、その後それぞれ相手本社まで完走を目指す。
-  _db.exec(`CREATE TABLE IF NOT EXISTS walk_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    start_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
-    total_route_km REAL NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    meet_event_at TEXT,
-    meet_position_km REAL,
-    completed_at TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-  CREATE TABLE IF NOT EXISTS walk_steps_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    event_id INTEGER NOT NULL,
-    log_date TEXT NOT NULL,
-    steps INTEGER NOT NULL,
-    miles REAL NOT NULL,
-    source TEXT,
-    photo_url TEXT,
-    comment TEXT,
-    device_id TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(user_id, event_id, log_date)
-  );
-  CREATE INDEX IF NOT EXISTS idx_wsl_user ON walk_steps_log(user_id, log_date DESC);
-  CREATE INDEX IF NOT EXISTS idx_wsl_event ON walk_steps_log(event_id, log_date);
-  CREATE TABLE IF NOT EXISTS walk_milestones (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    km_from_tokyo REAL NOT NULL,
-    image_url TEXT,
-    description TEXT,
-    sort_order INTEGER DEFAULT 0
-  );
-  CREATE INDEX IF NOT EXISTS idx_wm_event ON walk_milestones(event_id, km_from_tokyo);
-  CREATE TABLE IF NOT EXISTS walk_personal_state (
-    user_id TEXT NOT NULL,
-    event_id INTEGER NOT NULL,
-    team_code TEXT NOT NULL,
-    total_steps INTEGER DEFAULT 0,
-    total_miles REAL DEFAULT 0,
-    distance_walked_km REAL DEFAULT 0,
-    visited_milestones TEXT DEFAULT '[]',
-    last_updated TEXT,
-    PRIMARY KEY (user_id, event_id)
-  );
-  CREATE TABLE IF NOT EXISTS walk_team_progress (
-    team_code TEXT NOT NULL,
-    event_id INTEGER NOT NULL,
-    total_steps INTEGER DEFAULT 0,
-    total_km REAL DEFAULT 0,
-    member_count INTEGER DEFAULT 0,
-    last_updated TEXT,
-    PRIMARY KEY (team_code, event_id)
-  );`);
-  // タブレットPIN認証 (拠点共用デバイス用、社員ID + 4桁ピンで素早くログイン)
-  ensureColumn(_db, 'users', 'walk_pin', 'walk_pin TEXT');
+  // 2026-08-09: Connect 230 (東京日本橋⇔磐田スズエ電機 双方向ウォーキングイベント) は廃止。
+  //   イベント終了済で歩数記録も3件のみ。walk_* テーブルと users.walk_pin ごと撤去した。
+  //   退避: /opt/_backup/cohub/attic_20260809/walk_tables_20260809.sql
   // 自動打刻オプション (2026-05-23): PC起動時に自動でpunch_in、退勤も最終ハートビートから自動推定
   ensureColumn(_db, 'users', 'auto_punch_in', 'auto_punch_in INTEGER DEFAULT 0');
   ensureColumn(_db, 'users', 'auto_punch_out', 'auto_punch_out INTEGER DEFAULT 0');
