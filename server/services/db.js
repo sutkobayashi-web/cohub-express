@@ -463,6 +463,11 @@ function getDb() {
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('GUEST', 'ゲスト', '#94a3b8')").run();
   // スズエ電機 天竜工場 (2026-07-07: 2拠点化。豊田工場=既存SUZUE)
   _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('SUZUE_TENRYU', 'スズエ電機 天竜工場', '#0d9488')").run();
+  // 2026-08-05: 本番DBに手動INSERTされていて seed に無かった所属を追加 (DB再構築で消えるのを防ぐ)。
+  // ⚠️name は users.dm_group / 同名グループチャットと連動する。変更するなら3点まとめてリネームすること。
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('KOJI', '施工事業係', '#b45309')").run();
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('SU_KANRI', '管理課', '#475569')").run();
+  _db.prepare("INSERT OR IGNORE INTO companies (code, name, ring_color) VALUES ('SU_KANRIBU', '管理部', '#334155')").run();
   // 拠点ごとのWi-Fi情報 (タブレット表示用 — 個人スマホがWi-Fi経由でCoWellへ接続できるよう推進メンバーが入力)
   ensureColumn(_db, 'companies', 'wifi_ssid', 'wifi_ssid TEXT');
   ensureColumn(_db, 'companies', 'wifi_password', 'wifi_password TEXT');
@@ -844,7 +849,7 @@ function getDb() {
   // 既存DBに is_anonymous 追加 (idempotent migration)
   ensureColumn(_db, 'plaza_posts', 'is_anonymous', 'is_anonymous INTEGER DEFAULT 0');
   ensureColumn(_db, 'plaza_posts', 'image_urls', 'image_urls TEXT');   // 複数枚撮影 (2026-07-30)
-  // イベント (Phase7) — 健康チャレンジ等の「開催中」リスト
+  // イベント (Phase7) — 健康イベント等の「開催中」リスト
   _db.exec(`CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -948,40 +953,8 @@ function getDb() {
     PRIMARY KEY (theme_id, user_id)
   );
   CREATE INDEX IF NOT EXISTS idx_wtv_theme ON wellness_theme_votes(theme_id);`);
-  // チャレンジ + KPI (Phase11) — CoWell移植
-  _db.exec(`CREATE TABLE IF NOT EXISTS challenges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    theme_id INTEGER,
-    title TEXT NOT NULL,
-    description TEXT,
-    icon TEXT DEFAULT '💪',
-    period_start TEXT,
-    period_end TEXT,
-    kpi_items TEXT DEFAULT '[]',  -- JSON: [{key,label,unit,target,type:'number|bool|choice'}]
-    status TEXT NOT NULL DEFAULT 'draft',
-    created_by TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    deleted_at TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_ch_status ON challenges(status, period_end DESC);
-  CREATE TABLE IF NOT EXISTS challenge_participants (
-    challenge_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
-    joined_at TEXT DEFAULT (datetime('now')),
-    PRIMARY KEY (challenge_id, user_id)
-  );
-  CREATE TABLE IF NOT EXISTS kpi_records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    challenge_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
-    record_date TEXT NOT NULL,
-    kpi_values TEXT DEFAULT '{}',  -- JSON: {kpi_key: value}
-    comment TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(challenge_id, user_id, record_date)
-  );
-  CREATE INDEX IF NOT EXISTS idx_kpi_challenge ON kpi_records(challenge_id, record_date DESC);
-  CREATE INDEX IF NOT EXISTS idx_kpi_user ON kpi_records(user_id, record_date DESC);`);
+  // 2026-08-09: チャレンジ + KPI (challenges / challenge_participants / kpi_records) は廃止。
+  //   全社健康アクションとして現実的でないと判断し、テーブルごと削除した (利用実績0件)。復活させないこと。
   // 推進メンバー議論機能 (CoWell移植) — 現場の声/施策へのコメント+共感+AI評議会
   _db.exec(`CREATE TABLE IF NOT EXISTS wellness_post_reactions (
     post_id INTEGER NOT NULL,
@@ -1177,9 +1150,13 @@ function getDb() {
   }
   // 2026-07-29: 事業本部GCの廃止に伴い、HQ_LOGIN_IDS による自動加入は削除 (再追加しないこと)。
   // 営業所カテゴリ自動付与 (idempotent): 旧名(SU*/IBA*/スズエ) + 新実社名(スタンダード運輸*/茨運*/スズエ電機)
+  // ⚠️category='branch' は chat-simple.html の「🏢 営業所グループ」セクションの振り分けに使われる。
+  //   ここに入れ忘れると、そのGCは通常グループ側に出てしまう(2026-08-05 施工事業係でこれが起きた)。
+  // 2026-08-05: 施工事業係を追加。社名パターンに当てはまらない所属を足すときは必ずここも足すこと。
   _db.prepare(`UPDATE chat_groups SET category = 'branch'
                WHERE (name LIKE 'SU%' OR name LIKE 'IBA%' OR name = 'スズエ'
-                      OR name LIKE 'スタンダード運輸%' OR name LIKE '茨運%' OR name = 'スズエ電機')
+                      OR name LIKE 'スタンダード運輸%' OR name LIKE '茨運%' OR name = 'スズエ電機'
+                      OR name = '施工事業係')
                  AND (category IS NULL OR category = '')`).run();
   // 特殊GCの sort_order を権威的に設定 (idempotent)
   const specialOrders = [

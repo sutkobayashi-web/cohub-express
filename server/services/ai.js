@@ -983,7 +983,7 @@ async function generateActionPlan(selections, freeText, context, movementPriorit
     ? `\n★優先指示: ユーザーは "運動したい・動きたい" 意思を示している。
   - plan_today / plan_week は必ず 運動アクション (歩数増・階段使用・ストレッチ・筋トレ等) で埋める
   - 食事系の提案は plan_month や plan_kpi の補助に回す
-  - 既存の歩数チャレンジへの参加など、現実的に続けられる入口を強く推奨`
+  - マイ運動記録への記録など、現実的に続けられる入口を強く推奨`
     : '';
   const realismRules = `
 ## 運送業ドライバー向け現実制約 (絶対遵守)

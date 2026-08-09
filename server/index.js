@@ -433,7 +433,6 @@ app.use('/api/events', require('./routes/events'));
 app.use('/api/myhealth', require('./routes/health'));
 app.use('/api/myplan', require('./routes/myplan'));
 app.use('/api/themes', require('./routes/themes'));
-app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/accident', require('./routes/accident'));
 // 事故の「一報」(2026-08-06): 報告書とは別建て。運転アラートと同じループ警報で管理者へ即通知する
 app.use('/api/first-alert', require('./routes/accident_first'));
@@ -491,7 +490,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-07-board-opener"
+const APP_VERSION = "2026-08-09-challenge-removed"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -510,7 +509,6 @@ app.get('/api/config', (req, res) => {
       announcements: true,
       ops: true,
       accident: true,
-      challenges: true,
       // 以下は MINIMAL_MODE で非表示推奨 (UI側で参照)
       walk: !MINIMAL_MODE,
       videos: !MINIMAL_MODE,
