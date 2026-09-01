@@ -105,8 +105,74 @@
   .photo-list-row { display: flex; align-items: center; gap: 6px; padding: 4px; background: #f8fafc; border-radius: 10px; margin-top: 4px; font-size: 11px; color: #64748b; }
   .photo-list-row img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; }
   .photo-list-row .rm { margin-left: auto; background: transparent; border: none; color: #dc2626; cursor: pointer; padding: 4px 8px; }
+  /* ===== 詳細モーダル 刷新 (2026-09-01) =====
+     ⚠️旧・detail-grid(ラベル+値を20行以上フラットに並べる)は廃止した。
+       事実・原因・対策が同じ見た目で並び、時系列も因果も読み取れなかったため。
+       並びは「①いつどこで何が → ②どうなった → ③なぜ → ④どう防ぐ」。冒頭に経過の時系列を置く。 */
+  /* カードを白で切るので、詳細モーダルの中だけ薄いグレー地にする(フォームは白のまま) */
+  #detail-content { background: #f1f5f9; padding: 14px; }
+  .dt-hero { border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; background: linear-gradient(135deg,#fff1f2,#ffe4e6); border: 1px solid #fecdd3; }
+  .dt-hero.approved { background: linear-gradient(135deg,#ecfdf5,#d1fae5); border-color: #a7f3d0; }
+  .dt-hero.draft, .dt-hero.rejected { background: linear-gradient(135deg,#f8fafc,#eef2f7); border-color: #e2e8f0; }
+  .dt-hero .when { font-size: 21px; font-weight: 800; color: #0f172a; line-height: 1.35; margin: 8px 0 4px; }
+  .dt-hero .when .u { font-size: 13px; color: #64748b; font-weight: 700; margin-left: 4px; }
+  .dt-hero .where { font-size: 13px; color: #334155; line-height: 1.8; }
+  .dt-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .dt-badge { font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; color: #fff; background: #64748b; }
+  .dt-badge.st-draft { background: #94a3b8; }
+  .dt-badge.st-submitted { background: #f59e0b; }
+  .dt-badge.st-approved { background: #10b981; }
+  .dt-badge.st-rejected { background: #6b7280; }
+  .dt-badge.warn { background: #dc2626; }
+  .dt-badge.ok { background: #059669; }
+
+  .dt-sec { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
+  .dt-sec > .h { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+  .dt-sec > .h .n { width: 28px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex: 0 0 auto; background: #e2e8f0; color: #334155; }
+  .dt-sec > .h .t { font-size: 14.5px; font-weight: 800; color: #0f172a; line-height: 1.4; }
+  .dt-sec > .h .s { font-size: 11px; color: #94a3b8; font-weight: 700; }
+  .dt-sec.s1 { border-left: 4px solid #64748b; }
+  .dt-sec.s2 { border-left: 4px solid #dc2626; } .dt-sec.s2 .n { background: #fee2e2; color: #991b1b; }
+  .dt-sec.s3 { border-left: 4px solid #f59e0b; } .dt-sec.s3 .n { background: #fef3c7; color: #92400e; }
+  .dt-sec.s4 { border-left: 4px solid #10b981; } .dt-sec.s4 .n { background: #d1fae5; color: #065f46; }
+  .dt-sec.sa { border-left: 4px solid #3b82f6; background: #eff6ff; border-color: #bfdbfe; } .dt-sec.sa .n { background: #dbeafe; color: #1d4ed8; }
+  .dt-sec.sc { border-left: 4px solid #6366f1; } .dt-sec.sc .n { background: #e0e7ff; color: #3730a3; }
+
+  .dt-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 8px; }
+  .dt-fact { background: #f8fafc; border-radius: 12px; padding: 7px 10px; min-width: 0; }
+  .dt-fact .k { font-size: 10.5px; color: #94a3b8; font-weight: 700; }
+  .dt-fact .v { font-size: 14px; color: #0f172a; font-weight: 700; line-height: 1.5; word-break: break-word; }
+  .dt-fact.hot { background: #fef2f2; } .dt-fact.hot .v { color: #b91c1c; }
+
+  .dt-block { margin-top: 10px; }
+  .dt-block .k { font-size: 11.5px; color: #475569; font-weight: 800; margin-bottom: 4px; }
+  .dt-block .v { font-size: 14px; color: #1e293b; line-height: 1.85; white-space: pre-wrap; word-break: break-word; }
+  .dt-block .v.quote { background: #f8fafc; border-radius: 12px; padding: 9px 12px; }
+  .dt-block .v.miss { color: #b45309; background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 10px; padding: 7px 11px; font-weight: 700; }
+
+  /* 経過(時系列) */
+  .dt-tl { position: relative; padding-left: 20px; }
+  .dt-tl::before { content: ''; position: absolute; left: 5px; top: 7px; bottom: 9px; width: 2px; background: #e2e8f0; }
+  .dt-tl .it { position: relative; padding-bottom: 12px; }
+  .dt-tl .it:last-child { padding-bottom: 0; }
+  .dt-tl .it::before { content: ''; position: absolute; left: -20px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1; border: 2px solid #fff; box-shadow: 0 0 0 2px #e2e8f0; }
+  .dt-tl .it.now::before { background: #dc2626; box-shadow: 0 0 0 2px #fecaca; }
+  .dt-tl .it.done::before { background: #10b981; box-shadow: 0 0 0 2px #a7f3d0; }
+  .dt-tl .it.wait::before { background: #fff; box-shadow: 0 0 0 2px #cbd5e1; }
+  .dt-tl .tm { font-size: 11px; color: #94a3b8; font-weight: 700; }
+  .dt-tl .lb { font-size: 13.5px; color: #0f172a; font-weight: 700; line-height: 1.5; }
+  .dt-tl .sb { font-size: 12px; color: #64748b; line-height: 1.6; }
+
+  .dt-meta { margin-top: 12px; padding: 10px 12px; background: #f1f5f9; border-radius: 12px; font-size: 11.5px; color: #64748b; line-height: 1.9; }
+  .dt-meta b { color: #334155; }
+  @media (max-width: 640px) {
+    .dt-hero .when { font-size: 22px; }
+    .dt-fact .v { font-size: 15px; }
+    .dt-block .v { font-size: 15px; }
+    .dt-sec > .h .t { font-size: 15.5px; }
+  }
 </style>
-<script src="/global-notif.js?v=20260806-firstalert" defer></script>
+<script src="/global-notif.js?v=20260830-opspop" defer></script>
 <script src="/version-check.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -720,8 +786,12 @@ async function openDetail(id) {
   const r = d.report;
   _detail = r; _detail._kind = kind;
   document.getElementById('detail-title').textContent = (kind === 'product' ? '📦 製品事故' : '🚗 車両事故') + ' #' + r.id;
+  // ⚠️並び順は変えないこと: 見出し(いつ・状態) → 経過(時系列) → ①〜④の本文 → AI → コメント → 記録。
+  //   事実→原因→対策の順に読ませるための並び。写真は本文の最後(①〜④のあと)に入る。
   const base = kind === 'product' ? productDetailHtml(r) : vehicleDetailHtml(r);
-  document.getElementById('detail-content').innerHTML = base + aiReviewHtml(r, kind) + commentsHtml(r, kind);
+  document.getElementById('detail-content').innerHTML =
+    detailHeroHtml(r, kind) + timelineHtml(r, kind) + base
+    + aiReviewHtml(r, kind) + commentsHtml(r, kind) + metaHtml(r, kind);
   // フッター: 所属所長/本社管理職なら 承認・差し戻し・確認済み(警告解除)
   let footer = `<button class="btn btn-ghost" onclick="closeDetail()">閉じる</button>`;
   if (Number(r.alert_cleared)) {
@@ -754,23 +824,33 @@ function renderLightMd(s) {
   h = h.replace(/^\s*[-・]\s*(.+)$/gm, '• $1');
   return h;
 }
+// AIは2本ある。ai_brief=全社員向けのやさしいまとめ、ai_review=管理職向けの深掘り(ツッコミ)。
+// ⚠️まとめを主役にし、深掘りは畳んでおく(同じ強さで2本並ぶと、どちらを読めばよいか分からない)。
 function aiReviewHtml(r, kind) {
   const canMgr = _who && _who.is_manager;
-  if (!r.ai_review) {
-    return `<div style="margin-top:14px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px dashed #cbd5e1;font-size:12px;color:#64748b;line-height:1.6;">
-      🤖 AI見解は提出後まもなく自動生成されます。${canMgr ? `<br><button class="btn btn-sm btn-ghost" style="margin-top:6px;" onclick="regenReview(${r.id},'${kind}')">今すぐ生成</button>` : '少し待って🔄更新で再読み込みしてください。'}</div>`;
+  const brief = _v(r.ai_brief), review = _v(r.ai_review);
+  if (!brief && !review) {
+    return `<div class="dt-sec sa"><div class="h"><div class="n">🤖</div><div><div class="t">安全管理AIのまとめ</div><div class="s">自動生成</div></div></div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">提出のあと、まもなく自動で作られます。${canMgr ? `<br><button class="btn btn-sm btn-ghost" style="margin-top:8px;" onclick="regenReview(${r.id},'${kind}')">今すぐ生成</button>` : '少し待って🔄更新を押してください。'}</div></div>`;
   }
-  return `<div style="margin-top:14px;padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;">
-    <div style="font-size:13px;font-weight:800;color:#1d4ed8;margin-bottom:6px;">🤖 安全管理AIの見解 <span style="font-weight:400;color:#94a3b8;font-size:11px;">${escapeHtml((r.ai_review_at||'').slice(0,16))}</span></div>
-    <div style="font-size:13px;line-height:1.75;color:#1e3a8a;white-space:pre-wrap;">${renderLightMd(r.ai_review)}</div>
-    ${canMgr ? `<div style="margin-top:8px;"><button class="btn btn-sm btn-ghost" onclick="regenReview(${r.id},'${kind}')">🔄 再生成</button></div>` : ''}
+  const at = fmtStamp(brief ? (_v(r.ai_brief_at) || r.ai_review_at) : r.ai_review_at);
+  const main = brief || review;
+  const deep = (brief && review) ? `<details style="margin-top:10px;">
+      <summary style="cursor:pointer;font-size:12.5px;color:#1d4ed8;font-weight:800;">🔎 管理職向けの深掘り（見解・ツッコミ）を開く</summary>
+      <div style="font-size:13.5px;line-height:1.85;color:#1e3a8a;white-space:pre-wrap;margin-top:8px;">${renderLightMd(review)}</div>
+    </details>` : '';
+  return `<div class="dt-sec sa">
+    <div class="h"><div class="n">🤖</div><div><div class="t">安全管理AIのまとめ</div><div class="s">原因の本質・対策・歯止め${at ? ' ／ ' + escapeHtml(at) : ''}</div></div></div>
+    <div style="font-size:14px;line-height:1.9;color:#1e3a8a;white-space:pre-wrap;">${renderLightMd(main)}</div>
+    ${deep}
+    ${canMgr ? `<div style="margin-top:10px;"><button class="btn btn-sm btn-ghost" onclick="regenReview(${r.id},'${kind}')">🔄 作り直す</button></div>` : ''}
   </div>`;
 }
 function commentsHtml(r, kind) {
   const cs = r.comments || [];
   const items = cs.length ? cs.map(c => `
     <div style="padding:8px 10px;border-radius:12px;background:#f8fafc;margin-bottom:6px;">
-      <div style="font-size:11px;color:#64748b;margin-bottom:3px;"><b style="color:#0f172a;">${escapeHtml(c.user_name||'')}</b> ${c.role_label?`<span style="background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;font-size:10px;">${escapeHtml(c.role_label)}</span>`:''} · ${escapeHtml((c.created_at||'').slice(0,16))}
+      <div style="font-size:11px;color:#64748b;margin-bottom:3px;"><b style="color:#0f172a;">${escapeHtml(c.user_name||'')}</b> ${c.role_label?`<span style="background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;font-size:10px;">${escapeHtml(c.role_label)}</span>`:''} · ${escapeHtml(fmtStamp(c.created_at))}
         ${(_who && (c.user_id===_who.id || _who.is_hq)) ? `<button class="rm" style="float:right;border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;" onclick="delComment(${c.id})">削除</button>`:''}
       </div>
       <div style="font-size:13px;color:#334155;white-space:pre-wrap;line-height:1.6;">${escapeHtml(c.body)}</div>
@@ -780,8 +860,8 @@ function commentsHtml(r, kind) {
       <textarea id="cmt-input" placeholder="管理職コメント（対策・歯止めへの具体指示や所見を）" style="flex:1;min-height:48px;padding:8px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px;font-family:inherit;"></textarea>
       <button class="btn btn-sm" onclick="postComment(${r.id},'${kind}')">送信</button>
     </div>` : '';
-  return `<div style="margin-top:14px;">
-    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">💬 管理職コメント (${cs.length})</div>
+  return `<div class="dt-sec sc">
+    <div class="h"><div class="n">💬</div><div><div class="t">管理職コメント（${cs.length}件）</div><div class="s">対策・歯止めへの指示</div></div></div>
     ${items}${input}
   </div>`;
 }
@@ -828,8 +908,8 @@ function mediaThumbHtml(u) {
 function detailPhotosHtml(r) {
   const photos = parseMedia(r.media_paths);
   if (!photos.length) return '';
-  return `<div style="margin-top:14px;">
-    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">📷🎥 事故写真・動画 (${photos.length}件)</div>
+  return `<div class="dt-sec s1">
+    <div class="h"><div class="n">📷</div><div><div class="t">現場の写真・動画（${photos.length}件）</div><div class="s">タップで拡大</div></div></div>
     <div class="photo-grid">
       ${photos.map(p => mediaThumbHtml(p)).join('')}
     </div>
@@ -848,65 +928,183 @@ function masterPhotoHtml(r) {
       <b style="color:#334155;">${escapeHtml(r.master_photo_name || '')}</b>
     </div></div>`;
 }
-function productDetailHtml(r) {
-  const rows = [
-    ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
-    ['天気', r.weather],
-    ['発生場所', `${r.location_floor || ''} ${r.location_area || ''}`],
-    ['商品', `${r.product_category || ''} / ${r.product_name || ''}`],
-    ['商品コード', r.product_code],
-    ['数量', r.quantity],
-    ['原因カテゴリ', r.cause_category],
-    ['原因詳細', r.cause_detail],
-    ['状況', r.situation_detail],
-    ['損害', r.damage_description],
-    ['振り返り', r.reporter_reflection],
-    ['① 直接原因', r.direct_cause],
-    ['② 根本原因(なぜ)', r.root_cause],
-    ['③ 再発防止策', r.recurrence_prevention],
-    ['④ 組織的歯止め', r.org_measure],
-    ['対応', r.handling],
-    ['費用', r.cost_amount ? r.cost_amount.toLocaleString() + '円 (' + (r.cost_status || '') + ')' : '-'],
-    ['類似事故', r.similar_accident_known],
-    ['警察連絡', r.police_contact],
-    ['報告者', r.reporter_name],
-    ['公開状態', statusJp(r.status)],
-    ['作成日時', r.created_at],
-    ['承認者', r.approved_by],
-  ];
-  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${masterPhotoHtml(r)}${detailPhotosHtml(r)}`;
+// ============================================================
+// 詳細モーダル 刷新 (2026-09-01)
+//  ⚠️「時系列で並んでいるのか、どういう配置なのか分からない」との指摘を受けた作り直し。
+//    ①いつ・どこで・なにが → ②どうなった → ③なぜ → ④どう防ぐ、の順に見出しで切る。
+//    先頭に「これまでの経過」を時系列で置き、事実と対策が混ざらないようにする。
+// ============================================================
+function _v(x) { return (x === null || x === undefined || String(x).trim() === '') ? '' : String(x).trim(); }
+function factHtml(k, v, hot) {
+  const s = _v(v); if (!s) return '';
+  return `<div class="dt-fact${hot ? ' hot' : ''}"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(s)}</div></div>`;
+}
+// 未記入でも隠さない項目(提出済みの必須4項目)は required:true にして「未記入」を出す
+function blockHtml(k, v, opt) {
+  const s = _v(v), o = opt || {};
+  if (!s) return o.required ? `<div class="dt-block"><div class="k">${escapeHtml(k)}</div><div class="v miss">未記入</div></div>` : '';
+  return `<div class="dt-block"><div class="k">${escapeHtml(k)}</div><div class="v${o.quote ? ' quote' : ''}">${escapeHtml(s)}</div></div>`;
+}
+function factsWrap(items) { const s = items.filter(Boolean).join(''); return s ? `<div class="dt-facts">${s}</div>` : ''; }
+function secHtml(n, cls, title, sub, inner) {
+  if (!inner || !inner.trim()) return '';
+  return `<div class="dt-sec ${cls}"><div class="h"><div class="n">${escapeHtml(n)}</div><div><div class="t">${escapeHtml(title)}</div>${sub ? `<div class="s">${escapeHtml(sub)}</div>` : ''}</div></div>${inner}</div>`;
+}
+const _WDAY = ['日','月','火','水','木','金','土'];
+function fmtWhen(dateStr, timeStr) {
+  const d = _v(dateStr); if (!d) return _v(timeStr);
+  const m = d.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return (d + ' ' + _v(timeStr)).trim();
+  const dt = new Date(+m[1], +m[2] - 1, +m[3]);
+  return `${+m[2]}月${+m[3]}日(${_WDAY[dt.getDay()]}) ${_v(timeStr)}`.trim();
+}
+function fmtStamp(s) {
+  const t = _v(s); if (!t) return '';
+  const m = t.match(/(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{2}):(\d{2})/);
+  return m ? `${+m[2]}/${+m[3]} ${m[4]}:${m[5]}` : t.slice(0, 16);
+}
+function toMs(s) {
+  const t = _v(s); if (!t) return 0;
+  const m = t.match(/(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime() : 0;
+}
+function spanJp(ms) {
+  if (!(ms > 0)) return '';
+  const mn = Math.round(ms / 60000);
+  if (mn < 60) return mn + '分';
+  const h = Math.floor(mn / 60);
+  if (h < 24) return h + '時間' + (mn % 60 ? (mn % 60) + '分' : '');
+  return Math.floor(h / 24) + '日' + (h % 24 ? (h % 24) + '時間' : '');
 }
 
+// 冒頭の見出し(状態・発生日時・場所・報告者)。差し戻し理由はここに出す(旧画面では見えなかった)。
+function detailHeroHtml(r, kind) {
+  const st = r.status || 'submitted';
+  const badges = [`<span class="dt-badge st-${escapeHtml(st)}">${escapeHtml(statusJp(st))}</span>`];
+  if (Number(r.alert_cleared)) badges.push(`<span class="dt-badge ok">🔕 確認済み${r.alert_cleared_by ? '・' + escapeHtml(r.alert_cleared_by) : ''}</span>`);
+  else if (st === 'submitted') badges.push('<span class="dt-badge warn">確認待ち</span>');
+  if (kind === 'vehicle' && _v(r.injury_status) && _v(r.injury_status) !== '無し') badges.push(`<span class="dt-badge warn">⚠ 負傷: ${escapeHtml(r.injury_status)}</span>`);
+  const place = kind === 'product'
+    ? [_v(r.location_floor), _v(r.location_area)].filter((x, i, a) => x && a.indexOf(x) === i).join(' ')
+    : _v(r.location);
+  const what = kind === 'product'
+    ? [_v(r.product_name), _v(r.product_category)].filter(Boolean).join(' / ')
+    : [_v(r.accident_type), _v(r.vehicle_no)].filter(Boolean).join(' / ');
+  const rep = _v(r.reporter_display) || _v(r.reporter_name);
+  const rej = (st === 'rejected' && _v(r.rejected_reason))
+    ? `<div style="margin-top:10px;background:#fff;border:1px solid #fecaca;border-radius:12px;padding:9px 12px;">
+         <div style="font-size:11.5px;font-weight:800;color:#b91c1c;margin-bottom:3px;">↩ 差し戻しの理由</div>
+         <div style="font-size:13.5px;color:#7f1d1d;line-height:1.75;white-space:pre-wrap;">${escapeHtml(r.rejected_reason)}</div></div>` : '';
+  return `<div class="dt-hero ${escapeHtml(st)}">
+    <div class="dt-badges">${badges.join('')}</div>
+    <div class="when">${escapeHtml(fmtWhen(r.accident_date, r.accident_time))}<span class="u">に発生</span></div>
+    <div class="where">${place ? '📍 ' + escapeHtml(place) + '<br>' : ''}${what ? escapeHtml(what) + '<br>' : ''}${rep ? '報告者: ' + escapeHtml(rep) : ''}</div>
+    ${rej}</div>`;
+}
+
+// これまでの経過(時系列)。発生→報告→AI→コメント→確認/承認 を時刻順に並べる。
+function timelineHtml(r, kind) {
+  const ev = [];
+  const occ = toMs((_v(r.accident_date) + ' ' + _v(r.accident_time)).trim());
+  if (occ) ev.push({ t: occ, cls: 'now', tm: fmtWhen(r.accident_date, r.accident_time), lb: '事故が発生', sb: '' });
+  if (_v(r.created_at)) {
+    const c = toMs(r.created_at);
+    ev.push({ t: c, cls: 'done', tm: fmtStamp(r.created_at), lb: '報告書を作成', sb: (occ && c > occ) ? '発生から ' + spanJp(c - occ) : '' });
+  }
+  const aiAt = _v(r.ai_brief_at) || _v(r.ai_review_at);
+  if (aiAt) ev.push({ t: toMs(aiAt), cls: 'done', tm: fmtStamp(aiAt), lb: '安全管理AIがまとめを作成', sb: '' });
+  const cs = r.comments || [];
+  if (cs.length) {
+    const last = cs[cs.length - 1];
+    ev.push({ t: toMs(last.created_at), cls: 'done', tm: fmtStamp(last.created_at), lb: `管理職コメント ${cs.length}件`, sb: '最新: ' + _v(last.user_name) });
+  }
+  if (Number(r.alert_cleared)) ev.push({ t: toMs(r.alert_cleared_at), cls: 'done', tm: fmtStamp(r.alert_cleared_at), lb: '確認済み（一報の表示を停止）', sb: _v(r.alert_cleared_by) });
+  if (r.status === 'rejected') ev.push({ t: toMs(r.updated_at), cls: 'done', tm: fmtStamp(r.updated_at), lb: '差し戻し（要修正）', sb: '' });
+  if (r.status === 'approved') ev.push({ t: toMs(r.approved_at) || toMs(r.updated_at), cls: 'done', tm: fmtStamp(_v(r.approved_at) || r.updated_at), lb: '承認・全社へ公開', sb: _v(r.approved_by) });
+  ev.sort((a, b) => (a.t || 0) - (b.t || 0));
+  if (r.status === 'submitted') ev.push({ cls: 'wait', tm: 'これから', lb: '承認を待っています', sb: '所属長／本社管理職が承認すると全社に公開されます' });
+  if (r.status === 'draft') ev.push({ cls: 'wait', tm: 'これから', lb: 'まだ提出されていません', sb: '提出すると管理職へ届きます' });
+  const inner = `<div class="dt-tl">${ev.map(e => `<div class="it ${e.cls}">
+      <div class="tm">${escapeHtml(e.tm || '')}</div>
+      <div class="lb">${escapeHtml(e.lb)}</div>
+      ${e.sb ? `<div class="sb">${escapeHtml(e.sb)}</div>` : ''}</div>`).join('')}</div>`;
+  return secHtml('⏱', 's1', 'これまでの経過', '発生から今までの時系列', inner);
+}
+
+// 記録としての情報(誰が・いつ書いたか)。本文と混ざらないよう最後にまとめる。
+function metaHtml(r, kind) {
+  const rows = [
+    ['報告者', _v(r.reporter_display) || _v(r.reporter_name)],
+    ['公開状態', statusJp(r.status)],
+    ['作成', fmtStamp(r.created_at)],
+    ['最終更新', fmtStamp(r.updated_at)],
+    ['承認者', _v(r.approved_by)],
+  ].filter(x => x[1]);
+  rows.push(['記録番号', (kind === 'product' ? '製品' : '車両') + '#' + r.id]);
+  return `<div class="dt-meta">${rows.map(x => `<span style="white-space:nowrap;"><b>${escapeHtml(x[0])}</b> ${escapeHtml(x[1])}</span>`).join('　／　')}</div>`;
+}
+
+function productDetailHtml(r) {
+  const req = (r.status || '') !== 'draft';   // 下書きは未記入を責めない
+  const place = [_v(r.location_floor), _v(r.location_area)].filter((x, i, a) => x && a.indexOf(x) === i).join(' ');
+  const s1 = factsWrap([
+    factHtml('発生日時', fmtWhen(r.accident_date, r.accident_time)),
+    factHtml('天気', r.weather),
+    factHtml('発生場所', place),
+    factHtml('商品', [_v(r.product_category), _v(r.product_name)].filter(Boolean).join(' / ')),
+    factHtml('商品コード', r.product_code),
+    factHtml('数量', r.quantity),
+  ]) + blockHtml('そのときの状況', r.situation_detail, { quote: true });
+  const s2 = factsWrap([
+    factHtml('費用', r.cost_amount ? Number(r.cost_amount).toLocaleString() + '円' + (_v(r.cost_status) ? '（' + _v(r.cost_status) + '）' : '') : _v(r.cost_status)),
+    factHtml('過去に似た事故', r.similar_accident_known),
+    factHtml('警察連絡', r.police_contact),
+  ]) + blockHtml('損害の内容', r.damage_description) + blockHtml('とった対応', r.handling);
+  const s3 = factsWrap([factHtml('原因カテゴリ', r.cause_category)])
+    + blockHtml('原因の詳細', r.cause_detail)
+    + blockHtml('① 直接原因（すぐの引き金）', r.direct_cause, { required: req })
+    + blockHtml('② 根本原因（なぜを一段掘る）', r.root_cause, { required: req });
+  const s4 = blockHtml('③ 再発防止策（現場でやること）', r.recurrence_prevention, { required: req })
+    + blockHtml('④ 組織的歯止め（仕組みで止める）', r.org_measure, { required: req })
+    + blockHtml('報告者の振り返り', r.reporter_reflection, { quote: true });
+  return secHtml('1', 's1', 'いつ・どこで・なにが起きたか', '事実', s1)
+    + secHtml('2', 's2', 'どうなったか', '被害と対応', s2)
+    + secHtml('3', 's3', 'なぜ起きたか', '原因', s3)
+    + secHtml('4', 's4', '二度と起こさないために', '対策と歯止め', s4)
+    + masterPhotoHtml(r) + detailPhotosHtml(r);
+}
 function statusJp(s) {
   return { draft: '下書き（未提出）', submitted: '提出済（承認待ち・非公開）', approved: '承認済（全社公開）', rejected: '差し戻し（要修正）' }[s] || s || '-';
 }
 function vehicleDetailHtml(r) {
-  const rows = [
-    ['公開状態', statusJp(r.status)],
-    ['発生日時', `${r.accident_date || ''} ${r.accident_time || ''}`],
-    ['天気', r.weather],
-    ['場所', r.location],
-    ['車両番号', r.vehicle_no],
-    ['事故種別', r.accident_type],
-    ['相手側', r.counter_party],
-    ['負傷状況', r.injury_status],
-    ['警察連絡', r.police_contact],
-    ['保険対応', r.insurance_status],
-    ['原因(概要)', r.cause_summary],
-    ['状況詳細', r.description],
-    ['① 直接原因', r.direct_cause],
-    ['② 根本原因(なぜ)', r.root_cause],
-    ['③ 再発防止策', r.recurrence_prevention],
-    ['④ 組織的歯止め', r.org_measure],
-    ['修理状況', r.repair_status],
-    ['費用', r.cost_amount ? r.cost_amount.toLocaleString() + '円' : '-'],
-    ['報告者', r.reporter_display || r.reporter_name],
-    ['作成日時', r.created_at],
-    ['承認者', r.approved_by],
-  ];
-  return `<div class="detail-grid">${rows.map(([k, v]) => `<div class="lbl">${escapeHtml(k)}</div><div class="val">${escapeHtml(v == null || v === '' ? '-' : v)}</div>`).join('')}</div>${detailPhotosHtml(r)}`;
+  const req = (r.status || '') !== 'draft';
+  const injured = !!(_v(r.injury_status) && _v(r.injury_status) !== '無し');
+  const s1 = factsWrap([
+    factHtml('発生日時', fmtWhen(r.accident_date, r.accident_time)),
+    factHtml('天気', r.weather),
+    factHtml('場所', r.location),
+    factHtml('車両番号', r.vehicle_no),
+    factHtml('事故種別', r.accident_type),
+    factHtml('相手側', r.counter_party),
+    factHtml('負傷状況', r.injury_status, injured),
+  ]) + blockHtml('そのときの状況', r.description, { quote: true });
+  const s2 = factsWrap([
+    factHtml('警察連絡', r.police_contact),
+    factHtml('保険対応', r.insurance_status),
+    factHtml('修理状況', r.repair_status),
+    factHtml('費用', r.cost_amount ? Number(r.cost_amount).toLocaleString() + '円' : ''),
+  ]);
+  const s3 = blockHtml('原因（概要）', r.cause_summary)
+    + blockHtml('① 直接原因（すぐの引き金）', r.direct_cause, { required: req })
+    + blockHtml('② 根本原因（なぜを一段掘る）', r.root_cause, { required: req });
+  const s4 = blockHtml('③ 再発防止策（現場でやること）', r.recurrence_prevention, { required: req })
+    + blockHtml('④ 組織的歯止め（仕組みで止める）', r.org_measure, { required: req });
+  return secHtml('1', 's1', 'いつ・どこで・なにが起きたか', '事実', s1)
+    + secHtml('2', 's2', 'どうなったか', '相手・警察・保険・修理', s2)
+    + secHtml('3', 's3', 'なぜ起きたか', '原因', s3)
+    + secHtml('4', 's4', '二度と起こさないために', '対策と歯止め', s4)
+    + detailPhotosHtml(r);
 }
-
 // 写真・動画 拡大モーダル (詳細画面/一覧から開く)
 function openMediaModal(url) {
   let m = document.getElementById('photo-modal');
