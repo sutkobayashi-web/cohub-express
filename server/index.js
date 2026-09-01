@@ -411,6 +411,8 @@ app.use('/api', require('./middleware/authz').policyGate);
 app.use('/api/weather', require('./routes/weather'));   // 天気予報(共用タブレット・公開)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/usage', require('./routes/usage'));
+app.use('/api/notif-diag', require('./routes/notif_diag'));   // 通知の受け取りテストの実測 (2026-08-10)
+app.use('/api/drive-report', require('./routes/drive_report'));   // 昨日の運行(帰りの点呼で読み上げ)
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/avatar', require('./routes/avatar'));
 app.use('/api/enroll', require('./routes/enroll'));
@@ -453,8 +455,15 @@ app.use('/api/opinion', require('./routes/opinion'));
 app.use('/api/survey', require('./routes/survey'));
 app.use('/api/daily-message', require('./routes/daily_message'));
 app.use('/api/whats-new', require('./routes/whats_new'));
+/* ⭐2026-08-30 社長指示: ITP-WebService V3 の書き出し(ZIP/CSV)を管理画面から取り込む */
+app.use('/api/itp', require('./routes/itp_import'));
 app.use('/api/health-board', require('./routes/health_board'));
 app.use('/api/health-literacy', require('./routes/health_literacy'));
+app.use('/api/health-kadai', require('./routes/health_kadai'));
+app.use('/api/env', require('./routes/env'));
+/* 統括運行管理者の呼び出しと引き継ぎ (2026-08-29 社長指示)
+   ⚠️原則は拠点の責任者が対面で見る。呼べるのは①責任者が自分で不在を出した拠点②責任者本人の2つだけ。 */
+app.use('/api/ops-sup', require('./routes/ops_supervisor'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/circles', require('./routes/circles'));
 app.use('/api/branch-wifi', require('./routes/branch_wifi'));
@@ -488,7 +497,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-08-09-3-takara-removed"
+const APP_VERSION = "2026-09-01-1-accident-detail"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -862,6 +871,8 @@ io.use((socket, next) => {
 });
 
 const presence = new Map(); // uid → { x, y, status, floor, socketId }
+/* ⭐点呼の立会いを頼む相手を「いまオンラインの人」から選ぶため、在席表を外に出す (2026-08-29 社長指示 / routes/ops_supervisor.js が読む)。⚠️参照のみ。 */
+app.locals.presence = presence;
 const tapTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (肩たたきレート制限)
 const callTimestamps = new Map(); // `${fromUid}:${toUid}` → ts (DM呼出レート制限)
 const pendingCalls = new Map(); // toUid → { from, fromName, at, expires } (オフライン相手への呼出保留: 再接続時に配信)
@@ -1144,7 +1155,7 @@ io.on('connection', (socket) => {
   const lastOff = lastLogoutAt.get(uid) || 0;
   const isReconnect = wasConnected || (lastOff && (Date.now() - lastOff) < LOGIN_ANNOUNCE_COOLDOWN_MS);
   lastLogoutAt.delete(uid);
-  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile, lastHb: Date.now() });
+  presence.set(uid, { x: pos.x, y: pos.y, status: 'online', statusText: saved ? (saved.status_text || '') : '', floor: floor.code, socketId: socket.id, isMobile: !!socket.isMobile, lastHb: Date.now(), lastAct: Date.now() });
   db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE id = ?").run(uid);
 
   // 研究閲覧(社外ゲスト)のソケット: 届く内容の氏名をニックネームに置換する。
@@ -1153,17 +1164,18 @@ io.on('connection', (socket) => {
   //  ⚠️フロア全体への一斉配信(io.to('floor:…'))は1回のエンコードを全員に配るため、受け手ごとの
   //    置換ができない。そのため社外ゲストはフロアroomに入れない=公開チャットの即時受信のみ
   //    行わない(履歴はRESTで匿名化して読める)。
+  // 2026-08-25 研究閲覧ゲストに加えて「氏名だけ伏せる」設定の人(社外の推進メンバー)も同じ扱い。
   let _isResearchGuest = false;
   try {
-    const _g = db.prepare('SELECT is_guest_reviewer FROM users WHERE id = ?').get(uid);
-    _isResearchGuest = !!(_g && _g.is_guest_reviewer);
+    const _g = db.prepare('SELECT is_guest_reviewer, name_masked FROM users WHERE id = ?').get(uid);
+    _isResearchGuest = !!(_g && (_g.is_guest_reviewer || _g.name_masked));
   } catch (e) {}
   socket.isResearchGuest = _isResearchGuest;
   if (_isResearchGuest) {
     const { maskForGuest } = require('./middleware/authz');
     const _emit = socket.emit.bind(socket);
     socket.emit = (ev, ...args) => {
-      try { return _emit(ev, ...args.map(a => maskForGuest(a))); }
+      try { return _emit(ev, ...args.map(a => maskForGuest(a, uid))); }
       catch (e) { return _emit(ev, ...args); }
     };
   } else {
@@ -1225,8 +1237,10 @@ io.on('connection', (socket) => {
   io.emit('user:floor', { uid, floor: floor.code });
   // ログインアナウンス (真の新規ログインのみ; ページ遷移再接続は抑止)
   const loginName = (fullUser && fullUser.name) || '';
+  // avatar は PC画面の小さなログインポップアップ用 (2026-08-21)
+  const loginAvatar = (fullUser && fullUser.avatar) || null;
   if (!isReconnect) {
-    socket.broadcast.emit('user:login', { uid, name: loginName });
+    socket.broadcast.emit('user:login', { uid, name: loginName, avatar: loginAvatar });
     console.log('[cohub] emit user:login', uid, loginName);
   } else {
     console.log('[cohub] skip user:login (reconnect/navigation)', uid, loginName);
@@ -1433,6 +1447,23 @@ io.on('connection', (socket) => {
 
   // 無操作による自動退席 (クライアントのidle検知。端末は接続中だが本人が席を外したケース)
   // ※ pong は流れ続けるので heartbeat 復帰では戻さない。実際の操作(presence:active)でのみ復帰
+  /* ⭐⭐2026-08-30 社長「電源を落とさずに帰ってしまう。そこに居ないと点呼もできない」。
+     在席の判定を【つないでいるか】から【操作しているか】へ。
+     ⚠️画面ごとに無操作検知を書くと抜けが出る(いまは home と chat だけが送っていた)。
+       → サーバー側で【クライアントから届いた操作イベント全部】を活動の印として拾う。
+     ⚠️pong(生存確認)は素通りするので、開きっぱなしでは在席にならない。
+     ⚠️手動で設定した状態(会議中など)は触らない。 */
+  socket.onAny((ev) => {
+    if (ev === 'presence:idle') return;      // 自分から「離席」と言ってきたものは活動に数えない
+    const p = presence.get(uid);
+    if (!p) return;
+    p.lastAct = Date.now();
+    if (p.idleAway && p.status === '退席中') {
+      p.status = 'online';
+      p.idleAway = false;
+      io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: 'online' });
+    }
+  });
   socket.on('presence:idle', () => {
     const p = presence.get(uid);
     if (!p || p.status !== 'online') return; // 手動ステータス(会議中/集中中/退席中)は尊重
@@ -1777,6 +1808,9 @@ io.on('connection', (socket) => {
   socket.on('chat:dm', (data) => {
     const to = (data && data.to || '').toString();
     const content = (data && data.content || '').toString().trim().slice(0, 1000);
+    // ⭐至急フラグ (2026-08-22 社長指示)。受信側で**強制ポップアップ**にするためだけの印。
+    //   ⚠️保存はしない(messagesに列を足さない)。届いたその瞬間の出し方だけを変える。
+    const urgent = !!(data && data.urgent);
     if (!to || (!content && !(data && data.attach)) || to === uid) return;
     const target = getDb().prepare('SELECT id, role, dm_group, dm_rank, dm_restricted, job_role, is_field_promoter, is_warehouse_promoter FROM users WHERE id = ?').get(to);
     if (!target) return;
@@ -1812,8 +1846,8 @@ io.on('connection', (socket) => {
       socket.emit('dm:msg', { id: dupRow.id, from: uid, to, content, at: dupRow.created_at, attach: dupRow.attach_url ? { url: dupRow.attach_url, name: dupRow.attach_name, size: dupRow.attach_size, type: dupRow.attach_type } : null, dedup: true });
       return;
     }
-    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type) VALUES (?, ?, ?, 'dm', ?, ?, ?, ?)")
-      .run(uid, to, content, attachUrl, attachName, attachSize, attachType);
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, attach_url, attach_name, attach_size, attach_type, urgent) VALUES (?, ?, ?, 'dm', ?, ?, ?, ?, ?)")
+      .run(uid, to, content, attachUrl, attachName, attachSize, attachType, urgent ? 1 : 0);
     // ⭐送信者の実名を payload に載せる (2026-07-28 後藤→田村)。
     //   受信側は名簿キャッシュ(allMembersById/groupMembers)から名前を引いていたため、
     //   グループを共有していない相手からのDMだと名前が引けず
@@ -1828,8 +1862,22 @@ io.on('connection', (socket) => {
       at: new Date().toISOString(),
       attach: attachUrl ? { url: attachUrl, name: attachName, size: attachSize, type: attachType } : null,
       voice: voiceMode,
+      urgent,
     };
     socket.emit('dm:msg', payload);
+    /* 🚨至急DMだけ**アプリを閉じていても届く**ようにする (2026-08-22 社長指示)。
+       ⚠️通常のDMは今までどおりプッシュを飛ばさない(通知が増えすぎて意味が薄れるため)。
+       ⚠️本文は120字まで。SW側は『タブが開いていれば出さない』ので二重には出ない。
+       ⚠️iPhoneはホーム画面に追加したPWAでないと届かない(Safariのままでは届かない)。 */
+    if (urgent) {
+      sendPushToUser(to, {
+        title: '🚨 至急 — ' + (fromName || '') + 'さん',
+        body: content.slice(0, 120),
+        tag: 'urgent-dm-' + uid,
+        mention: true,
+        url: '/chat-simple.html',
+      }).catch(() => {});
+    }
     const tp = presence.get(to);
     if (tp && !tp.isBot) {
       const s = io.sockets.sockets.get(tp.socketId);
@@ -2212,27 +2260,41 @@ ${latestReport.summary}
       socket.emit('call:blocked', { to, reason: 'self_blocked' });
       return;
     }
+    // ⚠️⚠️2026-08-31 修正。以前は presence が覚えている socketId 1つにだけ送っていた。
+    //   presence は1人につき1ソケットしか持たないので、同じ人がPCの別タブ・タブレット・
+    //   スマホを開いていると、呼び出しは「最後につないだ1つ」にしか届かない。
+    //   その1つが通話を受ける仕組みを持たない画面だと、誰にも拾われずに消える
+    //   (遠隔点呼のテストで実際に起きた。呼んだ側はエラーも出ず待ち続けた)。
+    //   → 個人ごとの room ('user:<uid>') へ送り、開いている画面すべてに届ける。
+    //   受け手は「呼び出しを待っている画面」だけが応答するので、二重には出ない。
     const tp = presence.get(to);
-    if (!tp || tp.status === 'offline' || tp.isBot) {
+    if (tp && tp.isBot) {
       socket.emit('call:peer-offline', { to });
       return;
     }
-    const s = io.sockets.sockets.get(tp.socketId);
-    if (!s) {
+    const room = io.sockets.adapter.rooms.get('user:' + to);
+    if (!room || room.size === 0) {
       socket.emit('call:peer-offline', { to });
       return;
     }
     // 発信者プロファイル添付 (UI 表示用)
     if (opts && opts.attachProfile) {
       const me = getDb().prepare('SELECT display_name, avatar_url, company_code FROM users WHERE id = ?').get(uid) || {};
-      s.emit(eventName, { ...data, from: uid, sender_name: me.display_name || '', sender_avatar: me.avatar_url || '', sender_company: me.company_code || '' });
+      io.to('user:' + to).emit(eventName, { ...data, from: uid, sender_name: me.display_name || '', sender_avatar: me.avatar_url || '', sender_company: me.company_code || '' });
     } else {
-      s.emit(eventName, { ...data, from: uid });
+      io.to('user:' + to).emit(eventName, { ...data, from: uid });
     }
   }
   socket.on('call:invite', (data) => {
     // type: 'voice' | 'video'
-    relayCallEvent('call:invite', { to: data && data.to, type: (data && data.type === 'video') ? 'video' : 'voice' }, { attachProfile: true });
+    // ⭐2026-08-31 purpose を追加。'ops' は遠隔点呼の立会いからの呼び出しで、点呼側の画面だけが受ける。
+    //   これが無かった頃は、点呼の呼び出しをチャットの画面が着信として拾ってしまい、
+    //   点呼側が出られなかった(実際に起きた)。用途を分けて、受け手が自分で判断できるようにする。
+    relayCallEvent('call:invite', {
+      to: data && data.to,
+      type: (data && data.type === 'video') ? 'video' : 'voice',
+      purpose: (data && data.purpose === 'ops') ? 'ops' : null,
+    }, { attachProfile: true });
   });
   socket.on('call:accept', (data)  => relayCallEvent('call:accept',  { to: data && data.to }));
   socket.on('call:reject', (data)  => relayCallEvent('call:reject',  { to: data && data.to, reason: data && data.reason }));
@@ -2446,6 +2508,10 @@ ${latestReport.summary}
 
 // プレゼンス生存スイープ: ハートビート途絶を検知して 自動退席→オフライン化
 // (PCスリープ/タブ凍結/半開き接続で disconnect が発火しないケースの保険。10秒間隔)
+/* ⭐2026-08-30 社長指示: 操作が無いまま この時間が過ぎたら 退席中にする(帰ったのに在席のままを防ぐ)。
+   ⚠️「読んでいるだけ」でも操作が無ければ離席扱いになる。短すぎると使いにくいので既定は10分。
+   ⚠️画面側(home.html)は5分で自分から presence:idle を送るので、そちらが先に効く。ここは全画面共通の保険。 */
+const PRESENCE_NOACT_AWAY_MS = 10 * 60 * 1000;
 const PRESENCE_AWAY_MS = 35000;              // 接続中だがpong途絶 約35秒 → 退席中(自動)
 const PRESENCE_OFFLINE_MS = 70000;          // 接続中だがpong途絶 約70秒 → オフライン (半開き接続の保険)
 const PRESENCE_DISCONNECT_OFFLINE_MS = 45000; // 切断(退席中)後 約45秒 → オフライン+ログアウト通知
@@ -2470,6 +2536,15 @@ setInterval(() => {
         lastLogoutAt.set(uid, Date.now()); // 一定時間は再接続アナウンスを抑止
       }
       continue;
+    }
+    // (2') 接続はしているが【操作が無い】 → 退席中 (電源を入れたまま帰った・開きっぱなし)
+    if (p.status === 'online' && !p.disconnectedAt) {
+      if (p.lastAct == null) p.lastAct = now;
+      if (now - p.lastAct > PRESENCE_NOACT_AWAY_MS) {
+        p.status = '退席中';
+        p.idleAway = true;
+        io.to('floor:' + p.floor).emit('user:update', { uid, x: p.x, y: p.y, status: '退席中' });
+      }
     }
     // (2) 接続中だが pong 途絶 (半開き/フリーズ) → lastHb ベースで 退席中→オフライン
     if (p.lastHb == null) { p.lastHb = now; continue; }
@@ -2528,6 +2603,11 @@ setTimeout(runFoodMonthlyAuto, 90 * 1000);   // 起動後1回 (月初以外はno
 // 🏥健康管理室ディスカッションへ「健康推進室」名義で配信 (2026-07-31 社長指示)。
 // 10分間隔でtick。配信済みの日付を app_settings に持つので再起動しても二重配信しない。
 const healthDaily = require('./services/health_daily');
+/* ⭐2026-08-29 社長指示: 拠点の未対応がある日は、人が押さなくても自動で配信する。
+   ⚠️10分おきにtick。1日1回・未対応が無い日は流さない(branch_tasks.js 側で判断)。 */
+const branchTasksAuto = require('./routes/branch_tasks').autoTick;
+setInterval(() => { try { branchTasksAuto(app.locals); } catch (e) {} }, 10 * 60 * 1000);
+setTimeout(() => { try { branchTasksAuto(app.locals); } catch (e) {} }, 90 * 1000);
 setInterval(() => healthDaily.tick(app.locals), 10 * 60 * 1000);
 setTimeout(() => healthDaily.tick(app.locals), 60 * 1000);   // 起動後1回 (配信済み/時刻前なら no-op)
 
@@ -2603,6 +2683,9 @@ try {
   require('./services/itp_imap').start(require('./routes/alert').ingestText);
 } catch (e) { console.warn('[itp_imap start]', e.message); }
 
-server.listen(PORT, () => {
+/* ⭐2026-08-30 社長承認: 外から直接ポートに触れないよう、待ち受けは localhost だけにする。
+   ⚠️外部からの通信は必ず nginx を通る(nginx が 127.0.0.1:3007 へ渡す)。
+   ⚠️戻すときは第2引数を外す。 */
+server.listen(PORT, '127.0.0.1', () => {
   console.log('CoWell (Communication & Wellness) サーバー起動: http://localhost:' + PORT);
 });
