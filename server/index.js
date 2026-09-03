@@ -497,7 +497,7 @@ const MINIMAL_MODE = process.env.MINIMAL_MODE === '1';
 
 // アプリ全体のバージョン。デプロイ時にbumpして、クライアントは値が変わったら自動リロード
 // (古い HTML を使い続けるメンバー対策)
-const APP_VERSION = "2026-09-01-1-accident-detail"
+const APP_VERSION = "2026-09-03-1-bulkdm"
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, version: APP_VERSION });
@@ -643,6 +643,74 @@ app.post('/api/safety/check-message', authUser, express.json({ limit: '32kb' }),
   if (!hit) return res.json({ success: true, hit: null });
   const tpl = safety.warningTemplate(hit.category);
   res.json({ success: true, hit: { category: hit.category, severity: hit.severity }, warning: tpl });
+});
+
+/* ⭐複数の人へ同じDMを一度に送る (2026-09-03 要望)。⚠️グループは作らない。
+   宛先ごとに **1対1のDMとして保存** するので、受け手には普通のDMに見え、宛先どうしは互いを知らない
+   (「都度グループを作ると使い捨てグループが増える」を避けるための作り)。
+   ⚠️socketの chat:dm を人数分 emit する方式(メンバー一覧モーダルの旧実装)は、接続が切れていると
+     黙って落ちる → HTTPにして **誰に届き誰に届かなかったかを返す**。
+   ⚠️本文は1000字でサーバーが切るので、超過は切らずに 400 で返す(黙って切り捨てない)。 */
+app.post('/api/chat/dm/bulk', authUser, express.json({ limit: '64kb' }), (req, res) => {
+  const db = getDb();
+  const uid = req.uid;
+  const b = req.body || {};
+  const content = String(b.content || '').trim();
+  const urgent = !!b.urgent;
+  const toList = Array.from(new Set((Array.isArray(b.to) ? b.to : []).map((x) => String(x || '')).filter(Boolean)));
+  if (!content) return res.status(400).json({ success: false, msg: '本文を入力してください' });
+  if (content.length > 1000) return res.status(400).json({ success: false, msg: `本文が長すぎます (${content.length}字 / 上限1000字)。分けて送ってください` });
+  if (!toList.length) return res.status(400).json({ success: false, msg: '宛先を選んでください' });
+  if (toList.length > 100) return res.status(400).json({ success: false, msg: '宛先は一度に100人までです' });
+
+  const sender = loadUserForDm(uid);
+  const fromName = (db.prepare('SELECT display_name FROM users WHERE id = ?').get(uid) || {}).display_name || '';
+  const results = [];
+  let sent = 0;
+  for (const to of toList) {
+    const target = db.prepare('SELECT id, display_name, role, dm_group, dm_rank, dm_restricted, job_role, is_field_promoter, is_warehouse_promoter FROM users WHERE id = ?').get(to);
+    const name = (target && target.display_name) || '';
+    const ng = (reason) => results.push({ uid: to, name, ok: false, reason });
+    if (to === uid) { ng('自分あてのため除外'); continue; }
+    if (!target) { ng('見つかりません'); continue; }
+    if (target.role === 'bot') { ng('bot宛は送れません'); continue; }
+    if (!canDm(sender, target)) { ng('この相手にはDMできません'); continue; }
+    if (isBlocked(to, uid)) { ng('相手の設定で届きません'); continue; }
+    if (isBlocked(uid, to)) { ng('この相手をブロック中です'); continue; }
+    // 二度押し対策: 直近5秒に同じ(自分→相手→同じ本文)があれば作り直さない
+    const dup = db.prepare("SELECT id FROM messages WHERE sender_id=? AND receiver_id=? AND content=? AND room_code='dm' AND created_at > datetime('now','-5 seconds') ORDER BY id DESC LIMIT 1").get(uid, to, content);
+    if (dup) { results.push({ uid: to, name, ok: true, dedup: true, id: dup.id }); continue; }
+    const ins = db.prepare("INSERT INTO messages (sender_id, receiver_id, content, room_code, urgent) VALUES (?, ?, ?, 'dm', ?)")
+      .run(uid, to, content, urgent ? 1 : 0);
+    const payload = {
+      id: ins.lastInsertRowid, from: uid, from_name: fromName, to, content,
+      at: new Date().toISOString(), attach: null, voice: false, urgent,
+    };
+    io.to('user:' + to).emit('dm:msg', payload);      // 相手の開いている画面へ
+    io.to('user:' + uid).emit('dm:msg', payload);     // 自分の他タブ・開いているスレッドへ
+    // 至急のときだけプッシュ (通常DMでプッシュしないのは socket 版と同じ)
+    if (urgent) {
+      sendPushToUser(to, {
+        title: '🚨 至急 — ' + (fromName || '') + 'さん',
+        body: content.slice(0, 120),
+        tag: 'urgent-dm-' + uid,
+        mention: true,
+        url: '/chat-simple.html',
+      }).catch(() => {});
+    }
+    // 安全フィルタ: 警告を押し切って送られた場合の監査ログ (socket版と同じ扱い)
+    try {
+      const hit = safety.checkForHumanChat(content);
+      if (hit) {
+        db.prepare(`INSERT INTO inappropriate_logs (user_id, bot_id, content, detection_layer, category, matched_pattern, severity)
+          VALUES (?, ?, ?, 'L1_human_chat', ?, ?, ?)`).run(uid, to, content, hit.category, hit.matched, hit.severity);
+      }
+    } catch (e) {}
+    results.push({ uid: to, name, ok: true, id: ins.lastInsertRowid });
+    sent++;
+  }
+  console.log('[dm bulk] from=' + uid + '(' + fromName + ') sent=' + sent + '/' + toList.length + (urgent ? ' urgent' : ''));
+  res.json({ success: true, sent, total: toList.length, results });
 });
 
 app.get('/api/floor-presence/:code', authUser, (req, res) => {

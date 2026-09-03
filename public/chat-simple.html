@@ -946,59 +946,59 @@
   .head-btn.disabled:hover { transform: none; }
 
   /* ===== メンバー一覧 (パネル内インライン表示) ===== */
-  #members-modal {
+  #members-modal, #bulkdm-modal {
     display: none; position: absolute; inset: 0;
     background: #fff; z-index: 50;
     flex-direction: column;
   }
-  #members-modal.show { display: flex; }
-  #members-modal .sheet {
+  #members-modal.show, #bulkdm-modal.show { display: flex; }
+  #members-modal .sheet, #bulkdm-modal .sheet {
     background: #fff; border-radius: 0;
     width: 100%; height: 100%; max-width: none; max-height: none;
     display: flex; flex-direction: column; overflow: hidden;
     box-shadow: none;
   }
-  #members-modal .head {
+  #members-modal .head, #bulkdm-modal .head {
     padding: 14px 18px;
     background: linear-gradient(135deg, #0284c7, #0369a1);
     color: #fff; display: flex; align-items: center; gap: 10px;
     flex-shrink: 0;
   }
-  #members-modal .head .ttl { font-size: 15px; font-weight: 800; flex: 1; }
-  #members-modal .head .cnt { font-size: 11px; opacity: 0.85; }
-  #members-modal .head .back {
+  #members-modal .head .ttl, #bulkdm-modal .head .ttl { font-size: 15px; font-weight: 800; flex: 1; }
+  #members-modal .head .cnt, #bulkdm-modal .head .cnt { font-size: 11px; opacity: 0.85; }
+  #members-modal .head .back, #bulkdm-modal .head .back {
     background: rgba(255,255,255,0.20); border: none; color: #fff;
     width: 32px; height: 32px; border-radius: 12px;
     cursor: pointer; font-size: 20px; font-weight: 800;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  #members-modal .toolbar {
+  #members-modal .toolbar, #bulkdm-modal .toolbar {
     padding: 10px 14px;
     background: #f8fafc; border-bottom: 1px solid #e2e8f0;
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
-  #members-modal .toolbar .info {
+  #members-modal .toolbar .info, #bulkdm-modal .toolbar .info {
     flex: 1; min-width: 0; font-size: 11px; color: #475569;
   }
-  #members-modal .toolbar .info strong { color: #0d9488; font-size: 14px; }
-  #members-modal .toolbar button {
+  #members-modal .toolbar .info strong, #bulkdm-modal .toolbar .info strong { color: #0d9488; font-size: 14px; }
+  #members-modal .toolbar button, #bulkdm-modal .toolbar button {
     padding: 6px 12px; font-size: 11px; font-weight: 800;
     background: #fff; border: 1px solid #cbd5e1; border-radius: 999px;
     cursor: pointer; color: #475569;
   }
-  #members-modal .toolbar button:hover { background: #f1f5f9; }
-  #members-modal .body { flex: 1; overflow-y: auto; padding: 6px 0; }
-  #members-modal .mp-row {
+  #members-modal .toolbar button:hover, #bulkdm-modal .toolbar button:hover { background: #f1f5f9; }
+  #members-modal .body, #bulkdm-modal .body { flex: 1; overflow-y: auto; padding: 6px 0; }
+  #members-modal .mp-row, #bulkdm-modal .mp-row {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 16px; cursor: pointer;
     transition: background 0.12s;
   }
-  #members-modal .mp-row:hover { background: #f8fafc; }
-  #members-modal .mp-row.checked { background: rgba(13,148,136,0.08); }
-  #members-modal .mp-row.self { opacity: 0.5; cursor: default; }
-  #members-modal .mp-row.self:hover { background: transparent; }
-  #members-modal .mp-row .av {
+  #members-modal .mp-row:hover, #bulkdm-modal .mp-row:hover { background: #f8fafc; }
+  #members-modal .mp-row.checked, #bulkdm-modal .mp-row.checked { background: rgba(13,148,136,0.08); }
+  #members-modal .mp-row.self, #bulkdm-modal .mp-row.self { opacity: 0.5; cursor: default; }
+  #members-modal .mp-row.self:hover, #bulkdm-modal .mp-row.self:hover { background: transparent; }
+  #members-modal .mp-row .av, #bulkdm-modal .mp-row .av {
     width: 40px; height: 40px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-weight: 800; font-size: 14px; overflow: hidden;
@@ -1006,43 +1006,71 @@
     background: linear-gradient(135deg, var(--av-c1, #94a3b8), var(--av-c2, #475569));
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
   }
-  #members-modal .mp-row .av img { width: 100%; height: 100%; object-fit: cover; background: #fff; }
-  #members-modal .mp-row .info { flex: 1; min-width: 0; }
-  #members-modal .mp-row .nm { font-size: 14px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #members-modal .mp-row .co { font-size: 11px; color: #64748b; margin-top: 2px; }
-  #members-modal .mp-row .actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
-  #members-modal .mp-row .dm-btn {
+  #members-modal .mp-row .av img, #bulkdm-modal .mp-row .av img { width: 100%; height: 100%; object-fit: cover; background: #fff; }
+  #members-modal .mp-row .info, #bulkdm-modal .mp-row .info { flex: 1; min-width: 0; }
+  #members-modal .mp-row .nm, #bulkdm-modal .mp-row .nm { font-size: 14px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #members-modal .mp-row .co, #bulkdm-modal .mp-row .co { font-size: 11px; color: #64748b; margin-top: 2px; }
+  #members-modal .mp-row .actions, #bulkdm-modal .mp-row .actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  #members-modal .mp-row .dm-btn, #bulkdm-modal .mp-row .dm-btn {
     background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff;
     border: none; border-radius: 999px;
     padding: 6px 12px; font-size: 11px; font-weight: 800; cursor: pointer;
   }
-  #members-modal .mp-row .chk {
+  #members-modal .mp-row .chk, #bulkdm-modal .mp-row .chk {
     width: 22px; height: 22px; border-radius: 10px;
     border: 2px solid #cbd5e1; background: #fff;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.12s;
   }
-  #members-modal .mp-row.checked .chk {
+  #members-modal .mp-row.checked .chk, #bulkdm-modal .mp-row.checked .chk {
     background: linear-gradient(135deg, #0d9488, #14b8a6);
     border-color: transparent; color: #fff; font-size: 13px; font-weight: 800;
   }
-  #members-modal .mp-row.checked .chk:before { content: '✓'; }
-  #members-modal .footer {
+  #members-modal .mp-row.checked .chk:before, #bulkdm-modal .mp-row.checked .chk:before { content: '✓'; }
+  #members-modal .footer, #bulkdm-modal .footer {
     padding: 12px 16px env(safe-area-inset-bottom, 16px);
     background: #fff; border-top: 1px solid #e2e8f0;
     display: flex; gap: 10px;
   }
-  #members-modal .footer button {
+  #members-modal .footer button, #bulkdm-modal .footer button {
     flex: 1; padding: 12px;
     border-radius: 16px; border: none;
     font-size: 14px; font-weight: 800; cursor: pointer;
   }
-  #members-modal .footer .cancel { background: #f1f5f9; color: #475569; }
-  #members-modal .footer .send {
+  #members-modal .footer .cancel, #bulkdm-modal .footer .cancel { background: #f1f5f9; color: #475569; }
+  #members-modal .footer .send, #bulkdm-modal .footer .send {
     background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff;
     box-shadow: 0 4px 12px rgba(13,148,136,0.30);
   }
-  #members-modal .footer .send:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  #members-modal .footer .send:disabled, #bulkdm-modal .footer .send:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+
+  /* ===== 📨 複数の人へまとめてDM (2026-09-03) =====
+     グループを作らずに、選んだ人それぞれへ 1対1のDM として送る。見た目はメンバー一覧を流用。 */
+  #bulkdm-modal { position: fixed; inset: 0; z-index: 200; }
+  #bulkdm-modal .head { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+  #bulkdm-modal .sheet { max-width: 720px; margin: 0 auto; }
+  #bulkdm-modal .search { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: center; }
+  #bulkdm-modal .search input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; }
+  #bulkdm-modal .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px 0; }
+  #bulkdm-modal .chips .chip { background: #ede9fe; color: #4c1d95; border: 1px solid #ddd6fe; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  #bulkdm-modal .chips .chip:after { content: ' ×'; opacity: .6; }
+  #bulkdm-modal .co-head { display: flex; align-items: center; gap: 8px; padding: 9px 16px 5px; background: #f8fafc; border-top: 1px solid #eef2f7; position: sticky; top: 0; z-index: 1; }
+  #bulkdm-modal .co-head .co-nm { font-size: 12px; font-weight: 800; color: #334155; flex: 1; }
+  #bulkdm-modal .co-head button { padding: 4px 10px; font-size: 11px; font-weight: 800; background: #fff; border: 1px solid #cbd5e1; border-radius: 999px; cursor: pointer; color: #475569; }
+  #bulkdm-modal .compose { padding: 10px 14px; border-top: 1px solid #e2e8f0; background: #fff; flex-shrink: 0; }
+  #bulkdm-modal .compose textarea { width: 100%; min-height: 76px; max-height: 30vh; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; font-family: inherit; resize: vertical; }
+  #bulkdm-modal .compose .cbar { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: #64748b; flex-wrap: wrap; }
+  #bulkdm-modal .compose .cbar .cnt { margin-left: auto; font-variant-numeric: tabular-nums; }
+  #bulkdm-modal .compose .cbar .cnt.over { color: #dc2626; font-weight: 800; }
+  #bulkdm-modal .compose .cbar label { display: flex; align-items: center; gap: 5px; font-weight: 700; color: #b91c1c; cursor: pointer; }
+  #bulkdm-modal .footer .send { background: linear-gradient(135deg, #7c3aed, #4f46e5); box-shadow: 0 4px 12px rgba(79,70,229,0.30); }
+  #bulkdm-modal .mp-row.checked { background: rgba(124,58,237,0.08); }
+  #bulkdm-modal .mp-row.checked .chk { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+  #bulkdm-modal .note { font-size: 11.5px; color: #475569; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 7px 10px; margin: 8px 14px 0; line-height: 1.6; }
+  /* 一覧の上の入口ボタン */
+  #bulk-dm-btn { display: block; width: calc(100% - 20px); margin: 8px 10px 4px; padding: 10px; border: none; border-radius: 14px; cursor: pointer;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-size: 13px; font-weight: 800; box-shadow: 0 3px 10px rgba(79,70,229,0.25); }
 
   /* (旧入力ボタンCSSは下方に統合済) */
 
@@ -1393,6 +1421,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
 <main>
   <aside id="side">
     <h2 id="side-head" onclick="toggleSide()">グループ <span class="cnt-num" id="grp-count"></span></h2>
+    <button type="button" id="bulk-dm-btn" onclick="openBulkDm()" title="グループを作らずに、選んだ人それぞれへ個別のDMを送ります">📨 複数の人へまとめてDM</button>
     <div id="group-list"><div class="empty">読み込み中...</div></div>
   </aside>
 
@@ -1479,8 +1508,39 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         </div>
       </div>
     </div>
+
   </section>
 </main>
+</div>
+
+<!-- 📨 複数の人へまとめてDM (2026-09-03)。グループは作らず、相手ごとに1対1のDMとして送る -->
+<div id="bulkdm-modal">
+  <div class="sheet">
+    <div class="head">
+      <button class="back" type="button" onclick="closeBulkDm()" title="戻る" aria-label="戻る">←</button>
+      <div class="ttl">📨 複数の人へまとめてDM</div>
+      <span class="cnt" id="bd-count">0人</span>
+    </div>
+    <div class="search">
+      <input type="text" id="bd-q" placeholder="名前・営業所で探す" oninput="renderBulkList()">
+      <button type="button" class="chip-btn" id="bd-last" onclick="bulkUseLast()" style="display:none;padding:8px 12px;font-size:11.5px;font-weight:800;background:#fff;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;color:#475569;white-space:nowrap;">前回の宛先</button>
+      <button type="button" onclick="bulkClearAll()" style="padding:8px 12px;font-size:11.5px;font-weight:800;background:#fff;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;color:#475569;">解除</button>
+    </div>
+    <div class="note">グループは作りません。選んだ人それぞれに<b>1対1のDM</b>として届きます（宛先どうしはお互いを見られません）。</div>
+    <div class="chips" id="bd-chips"></div>
+    <div class="body" id="bd-list"></div>
+    <div class="compose">
+      <textarea id="bd-text" placeholder="送る内容を入力 (1000字まで)" oninput="bulkCount()"></textarea>
+      <div class="cbar">
+        <label><input type="checkbox" id="bd-urgent"> 🚨 至急として送る（相手の画面に強制表示＋通知）</label>
+        <span class="cnt" id="bd-cnt">0 / 1000</span>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="cancel" type="button" onclick="closeBulkDm()">やめる</button>
+      <button class="send" type="button" id="bd-send" onclick="bulkSend()" disabled>0人に送る</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -2768,6 +2828,138 @@ async function loadAllMembers() {
   } catch (e) {}
 }
 
+/* ===== 📨 複数の人へまとめてDM (2026-09-03) =====
+   ⚠️「そのつどグループを作ると使い捨てグループが増える」ため、**グループは作らない**。
+      選んだ人それぞれに 1対1のDM として送る(受け手には普通のDM。宛先どうしは互いを知らない)。
+   ⚠️送信は socket ではなく HTTP(/api/chat/dm/bulk)。接続が切れていても黙って消えないように。 */
+let bulkSel = new Set();
+const BULK_LAST_KEY = 'bulkdm_last_uids';
+
+function openBulkDm() {
+  bulkSel = new Set();
+  $('bd-q').value = '';
+  $('bd-text').value = '';
+  $('bd-urgent').checked = false;
+  let last = [];
+  try { last = JSON.parse(localStorage.getItem(BULK_LAST_KEY) || '[]'); } catch (e) {}
+  const lb = $('bd-last');
+  if (last.length) { lb.style.display = ''; lb.textContent = '前回の宛先 (' + last.length + '人)'; }
+  else lb.style.display = 'none';
+  $('bulkdm-modal').classList.add('show');
+  renderBulkList();
+  bulkCount();
+}
+function closeBulkDm() { $('bulkdm-modal').classList.remove('show'); }
+function bulkClearAll() { bulkSel.clear(); renderBulkList(); }
+function bulkUseLast() {
+  let last = [];
+  try { last = JSON.parse(localStorage.getItem(BULK_LAST_KEY) || '[]'); } catch (e) {}
+  last.forEach(u => { if (allMembersById.has(u) && u !== me.uid) bulkSel.add(u); });
+  renderBulkList();
+}
+function bulkToggle(uid) {
+  if (uid === me.uid) return;
+  if (bulkSel.has(uid)) bulkSel.delete(uid); else bulkSel.add(uid);
+  renderBulkList();
+}
+function bulkToggleCo(co) {
+  const ids = bulkRoster().filter(m => (m.dm_group || 'その他') === co).map(m => m.id);
+  const allOn = ids.length > 0 && ids.every(id => bulkSel.has(id));
+  ids.forEach(id => { if (allOn) bulkSel.delete(id); else bulkSel.add(id); });
+  renderBulkList();
+}
+// 宛先の母集団: 全登録メンバー (自分とbotは除く)。検索語で絞る。
+function bulkRoster() {
+  const q = ($('bd-q').value || '').trim();
+  const out = [];
+  for (const [uid, m] of allMembersById) {
+    if (uid === me.uid || isBot(uid)) continue;
+    if (q && (m.display_name || '').indexOf(q) < 0 && (m.dm_group || '').indexOf(q) < 0 && (m.job_role || '').indexOf(q) < 0) continue;
+    out.push(m);
+  }
+  return out;
+}
+function renderBulkList() {
+  const rows = bulkRoster();
+  // 営業所ごとにまとめる (拠点単位で選べると「全員に配る」が速い)
+  const byCo = new Map();
+  rows.forEach(m => {
+    const co = m.dm_group || 'その他';
+    if (!byCo.has(co)) byCo.set(co, []);
+    byCo.get(co).push(m);
+  });
+  const html = [];
+  for (const [co, list] of byCo) {
+    const onAll = list.every(m => bulkSel.has(m.id));
+    html.push('<div class="co-head"><span class="co-nm">' + escapeHtml(co) + ' (' + list.length + ')</span>'
+      + '<button type="button" onclick="bulkToggleCo(' + JSON.stringify(co).replace(/"/g, '&quot;') + ')">'
+      + (onAll ? 'この拠点を解除' : 'この拠点を全員') + '</button></div>');
+    list.forEach(m => {
+      const on = bulkSel.has(m.id);
+      const av = m.avatar_url
+        ? '<span class="av"><img src="' + escapeHtml(m.avatar_url) + '" alt=""></span>'
+        : '<span class="av">' + escapeHtml(avatarInitial(m.display_name)) + '</span>';
+      html.push('<div class="mp-row' + (on ? ' checked' : '') + '" onclick="bulkToggle(' + JSON.stringify(m.id).replace(/"/g, '&quot;') + ')">'
+        + av
+        + '<div class="info"><div class="nm">' + escapeHtml(m.display_name || '')
+        + (isPresent(m.id) ? ' <span style="color:#16a34a;font-size:11px;">●オンライン</span>' : '') + '</div>'
+        + '<div class="co">' + escapeHtml(m.job_role || '') + '</div></div>'
+        + '<div class="actions"><span class="chk"></span></div>'
+        + '</div>');
+    });
+  }
+  $('bd-list').innerHTML = html.join('') || '<div class="empty" style="padding:24px;text-align:center;color:#94a3b8;">該当する人がいません</div>';
+  // 選択中チップ (検索で隠れている人も残っていることが分かるように)
+  const chips = [];
+  bulkSel.forEach(uid => {
+    const m = allMembersById.get(uid);
+    chips.push('<span class="chip" onclick="bulkToggle(' + JSON.stringify(uid).replace(/"/g, '&quot;') + ')">'
+      + escapeHtml((m && m.display_name) || uid) + '</span>');
+  });
+  $('bd-chips').innerHTML = chips.join('');
+  $('bd-count').textContent = bulkSel.size + '人';
+  bulkCount();
+}
+// 字数と送信ボタンの状態。⚠️DMは1000字を超えるとサーバーが切るので、超えたら送らせない。
+function bulkCount() {
+  const n = ($('bd-text').value || '').trim().length;
+  const el = $('bd-cnt');
+  el.textContent = n + ' / 1000';
+  el.classList.toggle('over', n > 1000);
+  const btn = $('bd-send');
+  btn.textContent = bulkSel.size ? bulkSel.size + '人に送る' : '0人に送る';
+  btn.disabled = !(bulkSel.size > 0 && n > 0 && n <= 1000);
+}
+async function bulkSend() {
+  const to = Array.from(bulkSel);
+  const content = ($('bd-text').value || '').trim();
+  const urgent = $('bd-urgent').checked;
+  if (!to.length || !content) return;
+  if (content.length > 1000) { showToastMsg('本文が1000字を超えています。分けて送ってください'); return; }
+  const names = to.map(u => (allMembersById.get(u) || {}).display_name || u);
+  const preview = names.slice(0, 8).join('、') + (names.length > 8 ? ` ほか${names.length - 8}人` : '');
+  if (!confirm(`${to.length}人に${urgent ? '【至急】' : ''}DMを送ります。よろしいですか？\n\n${preview}`)) return;
+  const btn = $('bd-send');
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    const r = await api('/api/chat/dm/bulk', { method: 'POST', body: { to, content, urgent } });
+    if (!r || !r.success) { showToastMsg((r && r.msg) || '送信に失敗しました'); btn.disabled = false; bulkCount(); return; }
+    try { localStorage.setItem(BULK_LAST_KEY, JSON.stringify(to)); } catch (e) {}
+    const ng = (r.results || []).filter(x => !x.ok);
+    closeBulkDm();
+    if (ng.length) {
+      showToastMsg(`✓ ${r.sent}人に送信 / ${ng.length}人に届きませんでした`);
+      alert('届かなかった相手:\n' + ng.map(x => '・' + (x.name || x.uid) + '（' + x.reason + '）').join('\n'));
+    } else {
+      showToastMsg(`✓ ${r.sent}人にDMを送りました`);
+    }
+    try { renderGroupList(); } catch (e) {}   // 送った相手がDM一覧の上に来るよう描き直す
+  } catch (e) {
+    showToastMsg('通信エラー。送信できませんでした');
+    btn.disabled = false; bulkCount();
+  }
+}
+
 // メンバー行タップ: グループモード = チェックON/OFF / DMモード = DM切替
 function onMemberClick(uid) {
   if (uid === me.uid) return;
@@ -2943,22 +3135,31 @@ function mpDmPeer(uid) {
   closeMembersModal();
   selectDmPeer(uid);
 }
-function mpSendToSelected() {
-  const n = selectedPeers.size;
-  if (n === 0) return;
-  const msg = prompt(`${n}人にDMで送信するメッセージを入力してください`, '');
+/* グループのメンバー一覧から選んだ人へ個別DM。
+   ⚠️2026-09-03: socket を人数分 emit する作りをやめ、まとめてHTTPで送る(/api/chat/dm/bulk)。
+      接続が切れていると黙って落ちていた(2026-08-26に切断チェックを足したが、送信中に切れると同じ)。
+      サーバーが**誰に届いて誰に届かなかったか**を返すので、そのまま出す。 */
+async function mpSendToSelected() {
+  const to = Array.from(selectedPeers).filter(uid => uid !== me.uid);
+  if (!to.length) return;
+  const msg = prompt(`${to.length}人にDMで送信するメッセージを入力してください`, '');
   if (!msg || !msg.trim()) return;
-  if (n >= 5 && !confirm(n + '人にDMを送信します。よろしいですか？')) return;
-  // ⚠️2026-08-26: 接続が切れていても「✓ ○人に送信しました」と出ていた。
-  if (!socket || socket.disconnected) { showToastMsg('接続が切れています。画面を再読み込みしてから、もう一度送信してください'); return; }
-  let sent = 0;
-  selectedPeers.forEach(uid => {
-    if (uid === me.uid) return;
-    socket.emit('chat:dm', { to: uid, content: msg.trim() });
-    sent++;
-  });
-  showToastMsg(`✓ ${sent}人にDMで送信しました`);
-  closeMembersModal();
+  const text = msg.trim();
+  if (text.length > 1000) { showToastMsg(`本文が長すぎます (${text.length}字 / 上限1000字)。分けて送ってください`); return; }
+  if (to.length >= 5 && !confirm(to.length + '人にDMを送信します。よろしいですか？')) return;
+  const btn = $('mp-send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
+  try {
+    const r = await api('/api/chat/dm/bulk', { method: 'POST', body: { to, content: text } });
+    if (!r || !r.success) { showToastMsg((r && r.msg) || '送信に失敗しました'); updateMpCount(); return; }
+    const ng = (r.results || []).filter(x => !x.ok);
+    closeMembersModal();
+    showToastMsg(ng.length ? `✓ ${r.sent}人に送信 / ${ng.length}人に届きませんでした` : `✓ ${r.sent}人にDMで送信しました`);
+    if (ng.length) alert('届かなかった相手:\n' + ng.map(x => '・' + (x.name || x.uid) + '（' + x.reason + '）').join('\n'));
+  } catch (e) {
+    showToastMsg('通信エラー。送信できませんでした');
+    updateMpCount();
+  }
 }
 
 function toggleCollapse(gid) {
