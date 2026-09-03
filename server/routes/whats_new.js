@@ -82,7 +82,7 @@ router.get('/public', (req, res) => {
       items.push({ icon: a.level === 'urgent' ? '🚨' : '📢', label: '通達', text: a.title || '', summary: null, thumb: null, time: a.created_at });
     });
     db.prepare(`SELECT content, image_url, created_at FROM board_posts
-      WHERE deleted_at IS NULL AND (circle_id IS NULL OR circle_id = '')
+      WHERE deleted_at IS NULL
         AND created_at >= datetime('now','-30 days')
       ORDER BY created_at DESC LIMIT 10`).all().forEach(b => {
       items.push({ icon: '📋', label: '掲示板', text: b.content || '', summary: null, thumb: thumbFor(b.image_url), time: b.created_at });
@@ -114,7 +114,7 @@ router.get('/', authUser, (req, res) => {
   //   = 告知 / 掲示板 / 承認済みの事故報告 / 新機能のお知らせ。
   //   外したもの: ひろばの投稿(食事が大半を占め他が埋もれる。ひろば側で見る)、
   //   サークル、業務週報の提出。⚠️運転アラートは従来どおり残す(管理職のみ表示・社長 2026-07-28)。
-  // ⭐2026-07-31 追加(社長指示): サークルの活動報告(board_posts.circle_id 付き)はトップに出さない。
+  // ⭐2026-08-06 (社長): サークルの活動報告も What's new に出す(7/31の非公開化を撤回)。
   //   サークルは任意参加のため全員のトップに流すと通達/掲示が埋もれる。投稿はサークル内に限定する。
 
 
@@ -124,7 +124,6 @@ router.get('/', authUser, (req, res) => {
       SELECT id, author_id, content, image_url, created_at
       FROM board_posts
       WHERE deleted_at IS NULL
-        AND (circle_id IS NULL OR circle_id = '')
         AND created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at DESC LIMIT 5
     `).all(days);
@@ -250,14 +249,29 @@ router.get('/', authUser, (req, res) => {
     }
   } catch (e) {}
 
-  // 時系列降順で並べて limit
+  // 時系列降順で並べる
   events.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  /* ⭐⭐2026-08-27 社長「既読をしない限りバッジを出し続けて。埋もれるので確認を必ずさせたい」。
+     ⚠️⚠️これまでは **画面に出す ぶんだけ** 未読を数えていた(先に limit で切ってから判定していた)。
+        トップは5件しか出さないので、未読が10件あっても「5件の未読」としか出ず、
+        しかも6件目以降は「すべて既読」でも消えない=バッジが下がらない、が起きる。
+     → **切る前に全部の未読を数え**、件数と未読キーを別に返す。画面に出す件数とは切り離す。 */
+  const done = readKeys(db, req.uid, events.map(e => e.key).filter(Boolean));
+  events.forEach(e => { e.unread = !!e.key && !done.has(e.key); });
   const out = events.slice(0, limit);
-  // 未読判定 (読んだものだけ既読になる)
-  const done = readKeys(db, req.uid, out.map(e => e.key).filter(Boolean));
-  out.forEach(e => { e.unread = !!e.key && !done.has(e.key); });
+  const isAlert = (e) => e.type === 'alert';
+  const newsUnread = events.filter(e => e.unread && !isAlert(e));
+  const alertUnread = events.filter(e => e.unread && isAlert(e));
   res.set('Cache-Control', 'no-store');
-  res.json({ success: true, events: out, unread: out.filter(e => e.unread).length });
+  res.json({
+    success: true,
+    events: out,
+    unread: out.filter(e => e.unread).length,        // 旧クライアント互換 (画面に出す ぶんの未読)
+    unread_total: newsUnread.length,                 // お知らせの未読 (表示件数と無関係)
+    alert_unread_total: alertUnread.length,          // 運転アラートの未読
+    unread_keys: newsUnread.map(e => e.key),         // 「すべて既読」で消す対象 (画面外も含む)
+    alert_unread_keys: alertUnread.map(e => e.key),
+  });
 });
 
 // ===== What's new「新機能お知らせ」= 管理画面から編集可能 (2026-07-03) =====
@@ -268,7 +282,6 @@ const DEFAULT_FEATURES = [
   { icon: '📷', title: '血圧を写真でAI入力', summary: '血圧計を撮るだけ。健康点検の血圧がAIで自動入力に', link: '/self-check.html' },
   { icon: '🩸', title: '体調セルフチェック', summary: '毎日の体調と血圧を、トップからすぐ記録できます', link: '/self-check.html' },
   { icon: '🍱', title: '食事をAIが栄養分析', summary: '食事の写真を投稿すると、AIが栄養バランスをチェック', link: '/plaza.html?tab=食事' },
-  { icon: '🎤', title: '声でコメント', summary: 'コメント欄の🎤を押すと、話した声がそのまま文字に', link: '/bdiary.html' },
   { icon: '🦉', title: 'まとめる君', summary: '走り書きの報告をAIが5W1Hにきれいに整形', link: '/matomeru.html' },
 ];
 function loadFeatures(db) {

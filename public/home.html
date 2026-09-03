@@ -54,6 +54,12 @@
     display: block; font-size: 22px; font-weight: 700; letter-spacing: 0.2px; line-height: 1.0;
     font-family: "Helvetica Neue", Helvetica, Arial, "Nimbus Sans", "Liberation Sans", sans-serif !important;
   }
+  /* ⭐2026-08-31 社長決定: パソコン版のタイトルを「CoWell for ESG」へ。
+     マーク(CW)と COWELL の字形は現行のまま、for ESG を添えるだけ (ロゴ案A・縦罫なし)。
+     ⚠️ 緑は反転用の #34D399 (地の青に載せるため。白地用の #05A66B は沈む)。 */
+  header .ttl .ttl-esg { margin-left: 11px; font-size: 0.72em; letter-spacing: 0.2px; white-space: nowrap; }
+  header .ttl .ttl-esg .f { color: rgba(255,255,255,0.72); font-weight: 500; margin-right: 5px; }
+  header .ttl .ttl-esg .g { color: #34d399; font-weight: 800; }
   header .right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
   header .name {
     font-size: 12px; padding: 6px 12px;
@@ -117,9 +123,93 @@
   .login-card .full-link:hover { color: #475569; text-decoration: underline; }
 
   /* === メインアプリ === */
-  #app { display: none; max-width: 1080px; margin: 0 auto; padding: 0 18px 80px; }
+  #app { display: none; max-width: 1080px; margin: 0 auto; padding: 0 18px 80px; position: relative; }
   #app.show { display: block; }
 
+  /* ⭐⭐2026-08-29 社長指示: アバター・名前・出退勤をタイトルバーへ。
+     ⚠️ヒーロー用の色は濃い文字なので、バーの中だけ白文字に上書きする。
+     ⚠️バーは sticky なので、中身を増やしても高さが伸びすぎないように詰める。 */
+  header .hd-me { flex: 1 1 auto; min-width: 0; display: flex; justify-content: flex-end;
+    margin-right: 10px; }
+  header .hd-me .greet { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  header .hd-me .greet-ava, header .hd-me .greet-ava-empty {
+    width: 38px; height: 38px; border-radius: 50%; object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.75); background: rgba(255,255,255,0.2);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #fff; font-size: 17px; }
+  header .hd-me .greet-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  header .hd-me .greet-name { font-size: 12px; color: rgba(255,255,255,0.9); }
+  header .hd-me .greet-name strong { font-size: 15px; font-weight: 800; color: #fff;
+    letter-spacing: 0.2px; line-height: 1.15; }
+  header .hd-me .greet-nick { font-size: 11px; color: rgba(255,255,255,0.8); }
+  header .hd-me .greet-actions { display: flex; align-items: center; gap: 5px; margin: 0; flex-wrap: nowrap; }
+  header .hd-me .greet-mypage, header .hd-me .greet-search {
+    background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
+    color: #fff; border-radius: 12px; padding: 3px 9px; font-size: 11px; font-weight: 700;
+    text-decoration: none; white-space: nowrap; }
+  header .hd-me .greet-sc { display: inline-flex; border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.35); }
+  header .hd-me .greet-sc .sc-seg { background: rgba(255,255,255,0.18); color: #fff;
+    border: 0; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  header .hd-me .greet-sc .sc-seg.done { background: rgba(220,252,231,0.9); color: #15803d; }
+  header .hd-me .greet-sc .sc-seg + .sc-seg { box-shadow: inset 1px 0 0 rgba(255,255,255,.5); }
+  /* タブレット版ボタンもバーへ */
+  header .tablet-btn { background: rgba(255,255,255,0.18) !important; border-color: rgba(255,255,255,0.35) !important;
+    color: #fff !important; box-shadow: none !important; padding: 4px 8px !important; border-radius: 12px !important; }
+  header .tablet-btn span:first-child { font-size: 17px !important; }
+  header .tablet-btn span:last-child { font-size: 9px !important; }
+  /* ヒーローは畳む(中身はバーへ移した) */
+  .hero { display: none !important; }
+  @media (max-width: 820px) {
+    /* 狭い画面では名前と補助ボタンを省いて アバターと出退勤だけ残す */
+    header .hd-me .greet-text .greet-name { display: none; }
+    header .hd-me .greet-mypage, header .hd-me .greet-search { display: none; }
+  }
+  /* ⭐2026-08-29 社長指示: ロゴの右に日付・時刻・天気(タブレットの待ち受けと同じ)。
+     ⚠️バーの高さを変えないよう、文字は小さめ。⚠️狭い画面では順に消す。 */
+  header .hd-clock { flex: 0 0 auto; display: flex; align-items: baseline; gap: 7px;
+    margin-left: 14px; color: #fff; white-space: nowrap; }
+  header .hd-clock .hc-date { font-size: 13px; font-weight: 700; opacity: .92; }
+  header .hd-clock .hc-time { font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums;
+    letter-spacing: .5px; }
+  header .hd-wx { flex: 0 0 auto; display: flex; align-items: center; gap: 5px;
+    margin-left: 12px; color: #fff; white-space: nowrap; }
+  header .hd-wx:empty { display: none; }
+  header .hd-wx .hw-ic { font-size: 20px; line-height: 1; }
+  header .hd-wx .hw-t { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  header .hd-wx .hw-sub { font-size: 11px; font-weight: 700; opacity: .88; }
+  @media (max-width: 1100px) { header .hd-wx .hw-sub { display: none; } }
+  @media (max-width: 980px) { header .hd-wx { display: none; } }
+  @media (max-width: 820px) { header .hd-clock .hc-date { display: none; } }
+  @media (max-width: 640px) { header .hd-clock { display: none; } }
+
+  /* ⭐2026-08-30 社長指示: パソコン版をスマホで開くとタイトルバーが重なる(iPhone SE)。
+     ⭐社長「2行目のアイコンを小さくすれば1行に並ぶのでは」→ ボタンを小さくして【1行】に収める。
+     ⭐アバターと出退勤は【ロゴのすぐ右】に置く(右端に離さない)。
+     ⚠️⚠️この指定は header の基本指定より【後ろ】に置くこと。前に置くと後勝ちで負ける(2026-08-30に実際に踏んだ)。
+     ⚠️入りきらない端末では折り返す(重ねない)ように flex-wrap は残す。 */
+  @media (max-width: 640px) {
+    header { flex-wrap: wrap; row-gap: 6px; gap: 6px; padding: 8px 10px; }
+    header .ttl-wrap { display: none; }            /* ワードマークは出さない(マークだけで分かる) */
+    header .logo { width: 30px; height: 30px; }
+    header .hd-me { flex: 1 1 auto; min-width: 0; margin-right: 0; justify-content: flex-start; }
+    header .hd-me .greet { gap: 6px; }
+    header .hd-me .greet-ava, header .hd-me .greet-ava-empty { width: 26px; height: 26px; font-size: 13px; border-width: 1.5px; }
+    header .hd-me .greet-sc .sc-seg { padding: 2px 7px; font-size: 10.5px; }
+    header .right { gap: 4px; flex-shrink: 0; }
+    /* タブレット・スマホ版は文字を外してアイコンだけの小さなボタンに */
+    header .tablet-btn { width: 28px !important; height: 28px !important; padding: 0 !important;
+      border-radius: 10px !important; align-items: center !important; justify-content: center !important; }
+    header .tablet-btn span:first-child { font-size: 15px !important; }
+    header .tablet-btn span:last-child { display: none !important; }
+    header #hd-bell-btn, header #hd-admin-btn { width: 28px; height: 28px; font-size: 14px; border-radius: 10px; }
+    header #hd-logout-btn { padding: 2px 6px; }
+    header #hd-logout-btn svg { width: 16px; height: 16px; }
+  }
+  /* さらに狭い端末(iPhone SE 320px)では出退勤の文字を省いて印だけにする */
+  @media (max-width: 360px) {
+    header .hd-me .greet-sc .sc-seg .g-long { display: none; }
+  }
   /* ヒーロー(挨拶+お知らせ帯) */
   .hero {
     margin: 18px 4px 14px; padding: 18px 22px;
@@ -153,15 +243,40 @@
     transition: background 0.1s;
   }
   .hero .greet-search:hover { background: #e2e8f0; }
-  /* 🩸 体調チェック状態チップ (検索の横・完了=緑✅/未実施=琥珀🩸) */
-  .hero .greet-hc {
-    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800;
-    white-space: nowrap; text-decoration: none; line-height: 1.3;
-    border-radius: 999px; padding: 3px 11px; transition: transform 0.1s;
-    background: #fef3c7; color: #b45309; border: 1px solid #fcd34d;
+  /* ☀️出勤 / 🌙退勤 のセルフチェック (2026-08-10 社長指示)。
+     ⭐マイページ・検索と同じ行に畳み込む。1つの丸いチップを2つに割った形にして
+       「今日やる2つ」が一組だと分かるようにした(別々のチップだと関係が読めない)。
+     ⭐未実施=琥珀 / 済=緑＋✓。押すとその場でモーダルが開く。
+     ⚠️出退勤の【打刻】ではない。打刻は2026-05-25に完全廃止されている。 */
+  .hero .greet-sc {
+    display: inline-flex; align-items: stretch; border-radius: 999px; overflow: hidden;
+    line-height: 1.3; white-space: nowrap; box-shadow: 0 1px 3px rgba(15,23,42,.10);
   }
-  .hero .greet-hc:hover { transform: translateY(-1px); }
-  .hero .greet-hc.done { background: #dcfce7; color: #15803d; border-color: #86efac; }
+  .hero .greet-sc .sc-seg {
+    display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 11px;
+    font-weight: 800; border: none; padding: 4px 11px; cursor: pointer;
+    background: #fef3c7; color: #b45309; transition: filter .1s;
+  }
+  .hero .greet-sc .sc-seg + .sc-seg { box-shadow: inset 1px 0 0 rgba(255,255,255,.9); }
+  .hero .greet-sc .sc-seg:hover { filter: brightness(.95); }
+  .hero .greet-sc .sc-seg.done { background: #dcfce7; color: #15803d; }
+  .hero .greet-sc .sc-mk { font-size: 10px; }
+  /* 未実施の「未」バッジ。⭐色だけだと気づかない人がいるので、文字と点滅で見落としを防ぐ(2026-08-10 社長指示)。
+     ⚠️やり過ぎると一日中うるさいので、退勤の点滅は夕方(15時以降)に入ってから。
+     ⚠️動きが苦手な人の設定(prefers-reduced-motion)では点滅させない。色と「未」の文字だけで伝える。 */
+  .hero .greet-sc .sc-mk.na {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
+    background: #dc2626; color: #fff; font-size: 9.5px; font-weight: 900; letter-spacing: 0;
+  }
+  .hero .greet-sc .sc-mk.na.blink { animation: sc-blink 1.15s ease-in-out infinite; }
+  @keyframes sc-blink {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220,38,38,.55); }
+    50%      { opacity: .45; box-shadow: 0 0 0 4px rgba(220,38,38,0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero .greet-sc .sc-mk.na.blink { animation: none; }
+  }
   /* マイページと検索を同じ表示幅に揃える */
   .hero .greet-mypage, .hero .greet-search {
     display: inline-flex; align-items: center; justify-content: center;
@@ -174,9 +289,9 @@
     .hero .greet-mypage, .hero .greet-search { min-width: 0; }
     .hero .greet-mypage,
     .hero .greet-search,
-    .hero .greet-hc { font-size: 10.5px; padding: 4px 9px; min-width: 0; }
+    .hero .greet-sc .sc-seg { font-size: 10.5px; padding: 4px 8px; }
     .hero .greet-mypage .g-long,
-    .hero .greet-hc .g-long { display: none; }  /* 「マイページ ›」→「マイページ」/「体調チェック」→「体調」 */
+    .hero .greet-sc .g-long { display: none; }  /* 「マイページ ›」→「マイページ」/「☀️出勤」→「☀️」 */
   }
   .hero .greet-ava-link {
     display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
@@ -217,12 +332,13 @@
     background: linear-gradient(135deg, #fbbf24, #f59e0b);
     color: #fff; border: none; border-radius: 16px;
     cursor: pointer; flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(245,158,11,0.35);
+    /* ⭐タブレットと同じ「押せる」意匠: 下に硬い影 → 押すと沈む (2026-08-26) */
+    box-shadow: 0 4px 0 #b45309;
     text-decoration: none; gap: 1px;
-    transition: transform 0.1s, box-shadow 0.15s;
+    transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
   }
-  .hero .timecard-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(245,158,11,0.45); }
-  .hero .timecard-btn:active { transform: translateY(0); }
+  .hero .timecard-btn:hover { filter: brightness(1.06); }
+  .hero .timecard-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b45309; }
   .hero .timecard-btn .ic { font-size: 24px; line-height: 1; }
   .hero .timecard-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
   .hero .punchout-btn {
@@ -231,12 +347,12 @@
     background: linear-gradient(135deg, #f472b6, #db2777);
     color: #fff; border: none; border-radius: 16px;
     cursor: pointer; flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(219,39,119,0.35);
+    box-shadow: 0 4px 0 #9d174d;
     text-decoration: none; gap: 1px;
-    transition: transform 0.1s, box-shadow 0.15s;
+    transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
   }
-  .hero .punchout-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(219,39,119,0.45); }
-  .hero .punchout-btn:active { transform: translateY(0); }
+  .hero .punchout-btn:hover { filter: brightness(1.06); }
+  .hero .punchout-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #9d174d; }
   .hero .punchout-btn .ic { font-size: 22px; line-height: 1; }
   .hero .punchout-btn .lbl { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; text-align: center; line-height: 1.1; }
   .hero .mypage-btn {
@@ -245,12 +361,12 @@
     background: linear-gradient(135deg, #94a3b8, #475569);
     color: #fff; border: none; border-radius: 16px;
     cursor: pointer; flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(71,85,105,0.30);
+    box-shadow: 0 4px 0 #334155;
     text-decoration: none; gap: 1px;
-    transition: transform 0.1s, box-shadow 0.15s;
+    transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
   }
-  .hero .mypage-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(71,85,105,0.40); }
-  .hero .mypage-btn:active { transform: translateY(0); }
+  .hero .mypage-btn:hover { filter: brightness(1.06); }
+  .hero .mypage-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #334155; }
   .hero .mypage-btn .ic { font-size: 22px; line-height: 1; }
   .hero .mypage-btn .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; line-height: 1.1; text-align: center; }
   .hero .mypage-btn .ava {
@@ -271,6 +387,9 @@
   /* 今日のひとこと: 画面表示は廃止し音声読み上げへ (2026-07-29)。関連CSSも削除 */
 
   /* お知らせ (旧 What's new) — 2026-07-28に一覧+既読/未読へ一新 */
+  /* ⭐⭐2026-08-27 社長「お知らせと運転アラートの縦幅を 営業所別とそろえて」。
+     余白・角丸・影を 営業所別(.branch-strip)と同じ値にし、**既定では畳んで見出しの一行だけ**にする。
+     ⚠️件数は見出しのバッジで見えるので、畳んでいても見落とさない。 */
   .whats-new {
     margin: 12px 4px 0;
     background: #fdf6e3;
@@ -278,9 +397,9 @@
     border-radius: 14px;
     display: flex; flex-direction: column; align-items: center;
     gap: 5px;
-    padding: 9px 14px 11px;
+    padding: 10px 14px 12px;
     overflow: hidden;
-    box-shadow: none;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.05);
   }
   .whats-new .wn-label {
     flex-shrink: 0;
@@ -321,12 +440,21 @@
   .whats-new .wn-empty { width: 100%; padding: 10px 2px; font-size: 12.5px; color: #a08b5f; }
 
   /* ===== 2026-07-17 お知らせカード統一デザイン + 均等マージン (What's new / 営業所別 対応リスト) ===== */
-  .whats-new { margin: 14px 4px 0; background: #fdf7e8; border-radius: 16px; align-items: flex-start; gap: 9px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
-  .whats-new .wn-label { font-size: 12px; padding: 4px 13px; }
+  /* ⚠2026-08-27: ここが後勝ちで効くので、営業所別と同じ余白・角丸・影に そろえるのはこの行 */
+  .whats-new { margin: 12px 4px 0; background: #fdf7e8; border-radius: 14px; align-items: flex-start; gap: 9px; padding: 10px 14px 12px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+  .whats-new .wn-label { font-size: 11.5px; padding: 3px 11px; }
   /* ===== 2026-07-28 運転アラートを「お知らせ」から格上げ (お知らせの直下に専用枠・管理職のみ) ===== */
-  .drive-alerts { margin: 10px 4px 0; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(159,18,57,0.07); }
+  .drive-alerts { margin: 12px 4px 0; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 14px; padding: 10px 14px 12px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+  /* 畳んだとき=見出しの一行だけ(営業所別と同じ作り) */
+  .whats-new.wn-collapsed .wn-list, .drive-alerts.da-collapsed .da-list { display: none; }
+  .whats-new.wn-collapsed, .drive-alerts.da-collapsed { padding-bottom: 8px; }
+  .whats-new .wn-head, .drive-alerts .da-head { cursor: pointer; user-select: none; -webkit-user-select: none; }
+  /* ⚠帯の高さを1pxまでそろえる: 見出しの行の高さを固定する(中の飾りの大きさに左右されない) */
+  .whats-new .wn-head, .drive-alerts .da-head, .branch-strip .bs-head { min-height: 29px; }
+  .wn-arrow, .da-arrow { flex-shrink: 0; margin-left: 8px; font-size: 13px; line-height: 1; color: #94a3b8; transition: transform 0.2s ease; }
+  .wn-collapsed .wn-arrow, .da-collapsed .da-arrow { transform: rotate(-90deg); }
   .drive-alerts .da-head { display: flex; align-items: center; gap: 8px; width: 100%; }
-  .drive-alerts .da-label { flex-shrink: 0; background: #e11d48; color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; padding: 4px 13px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .drive-alerts .da-label { flex-shrink: 0; background: #e11d48; color: #fff; font-size: 11.5px; font-weight: 800; letter-spacing: 0.4px; padding: 3px 11px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
   .drive-alerts .da-count { background: #9f1239; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
   .drive-alerts .da-more { margin-left: auto; font-size: 11.5px; color: #9f1239; text-decoration: none; font-weight: 700; }
   .drive-alerts .da-list { width: 100%; display: flex; flex-direction: column; margin-top: 3px; }
@@ -345,69 +473,195 @@
   .drive-alerts.is-clear .da-label { background: #059669; }
   .drive-alerts.is-clear .da-more { color: #047857; }
   .drive-alerts.is-clear .da-empty { color: #047857; }
-  .branch-strip { position: relative; margin: 14px 4px 0; background: #fdf7e8; border: 1px solid #ecdfc0; border-radius: 16px; padding: 12px 15px 14px; box-shadow: 0 3px 10px rgba(120,83,7,0.06); }
-  /* bs-title-row: タイトルと「一覧を見る ›」を同じ行に (お知らせ/運転アラートと同じ形 2026-08-02) */
-  .branch-strip .bs-label { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; color: #fff; background: #0f766e; padding: 4px 13px; border-radius: 999px; }
-  .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; flex-wrap: nowrap; margin-bottom: 10px; }
-  .branch-strip .bs-total { font-size: 12px; font-weight: 800; color: #fff; background: #dc2626; border-radius: 999px; padding: 2px 11px; }
-  .branch-strip .bs-total.zero { background: #0f766e; }
-  /* bs-more-flush: 開閉の▾を先に置き、「一覧を見る ›」を右端に揃える (2026-08-02) */
-  .branch-strip .bs-more { margin-left: 10px; flex-shrink: 0; font-size: 11.5px; color: #0f766e; text-decoration: none; font-weight: 800; }
-  .branch-strip .bs-grid { display: flex; gap: 8px; flex-wrap: wrap; }
-  .branch-strip .bs-chip { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; background: #fffdf7; border: 1px solid #e6d9ba; border-radius: 12px; padding: 8px 12px; color: #3a2c10; font-size: 14px; font-weight: 700; }
-  .branch-strip .bs-chip.has { background: #fff4f2; border-color: #f6c6bd; }
-  .branch-strip .bs-chip .bs-b { min-width: 20px; height: 20px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; padding: 0 6px; }
-  .branch-strip .bs-chip .bs-b.n { background: #dc2626; color: #fff; }
-  .branch-strip .bs-chip .bs-b.ok { color: #0f9d58; font-size: 14px; }
-  .branch-strip .bs-groups { display: flex; gap: 12px; align-items: stretch; }
-  .branch-strip .bs-group { min-width: 0; margin-top: 2px; border-radius: 12px; padding: 10px 12px 12px; }
-  /* スタンダード運輸=残り幅いっぱい / スズエ=内容幅に収める(分割比を自動最適化) */
-  .branch-strip .bs-g-std { flex: 1 1 auto; }
-  .branch-strip .bs-g-suzue { flex: 0 0 auto; }
-  /* スタンダード運輸の営業所は改行せず1行(はみ出しは横スクロール) */
-  .branch-strip .bs-g-std .bs-grid { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
-  .branch-strip .bs-g-std .bs-chip { flex: 0 0 auto; }
-  .branch-strip .bs-gtitle { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 12.5px; font-weight: 800; }
-  .branch-strip .bs-gtitle::before { content: ''; width: 4px; height: 13px; border-radius: 2px; }
-  .branch-strip .bs-gcount { min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; padding: 0 6px; background: #dc2626; color: #fff; }
-  /* スタンダード運輸(茨運) = ティール系 */
-  .branch-strip .bs-g-std { background: #ecf7f5; border: 1px solid #cfe9e3; }
-  .branch-strip .bs-g-std .bs-gtitle { color: #0b6b62; }
-  .branch-strip .bs-g-std .bs-gtitle::before { background: #0f766e; }
-  .branch-strip .bs-g-std .bs-gcount.ok { background: #0f766e; }
-  /* スズエ電機 = インディゴ系 */
-  .branch-strip .bs-g-suzue { background: #eef0fb; border: 1px solid #d3d8f3; }
-  .branch-strip .bs-g-suzue .bs-gtitle { color: #3f3fa8; }
-  .branch-strip .bs-g-suzue .bs-gtitle::before { background: #4f46e5; }
-  .branch-strip .bs-g-suzue .bs-gcount.ok { background: #4f46e5; }
-  /* 📱 狭幅(iPhone SE=375px 等 〜480px)は2社の横並びをやめて縦積み＋2列グリッド (2026-08-02 bs-narrow-stack) */
-  @media (max-width: 480px) {
-    .branch-strip { padding: 12px 15px 14px; }
-    .branch-strip .bs-label { font-size: 11.5px; padding: 4px 10px; letter-spacing: 0; }
-    .branch-strip .bs-groups { flex-direction: column; gap: 10px; }
-    .branch-strip .bs-g-std,
-    .branch-strip .bs-g-suzue { flex: 1 1 auto; width: 100%; }
-    .branch-strip .bs-grid,
-    .branch-strip .bs-g-std .bs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex-wrap: wrap; overflow-x: visible; }
-    .branch-strip .bs-chip { justify-content: space-between; min-width: 0; padding: 8px 10px; font-size: 13.5px; }
-    .branch-strip .bs-g-std .bs-chip { flex: 1 1 auto; }
-  }
-  /* 🗂 折り畳み (2026-08-02 bs-collapsed): 見出し/サマリー行タップで開閉。狭幅は既定で畳む */
-  .branch-strip .bs-label,
-  .branch-strip .bs-head { cursor: pointer; user-select: none; }
-  .branch-strip .bs-arrow { flex-shrink: 0; margin-left: auto; font-size: 13px; color: #0f766e; line-height: 1; transition: transform 0.2s ease; }
+  /* ===== 🏢 営業所別 (2026-08-26 改3) =====
+     ⭐社長指示: 大きすぎたので控えめに。営業所を並べ、1マスに「未対応バッジ」と「その下に健康チェック実施率%」。
+     4列で折り返す(拠点8つ=2段)。⚠️旧 branch-tasks.html は重複のため廃止(2026-08-26)＝ここが唯一の画面。
+     ⚠️実施率は services/health_daily.js の集計をそのまま使う(日次サマリーと数字を必ず一致させる)。 */
+  .branch-strip { margin: 12px 4px 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 10px 14px 12px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+  .branch-strip .bs-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+  .branch-strip .bs-label { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+    font-size: 11.5px; font-weight: 800; letter-spacing: 0.3px; color: #fff; background: #0f766e; padding: 3px 11px; border-radius: 999px; }
+  .branch-strip .bs-sendall { flex-shrink: 0; margin-left: 4px; border: 1px solid #99f6e4; background: #f0fdfa; color: #0f766e;
+    font-family: inherit; font-size: 11.5px; font-weight: 800; padding: 5px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 2px 0 #cbd5e1; }
+  .branch-strip .bs-sendall:hover:not(:disabled) { background: #ccfbf1; }
+  .branch-strip .bs-sendall:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 0 0 #cbd5e1; }
+  .branch-strip .bs-sendall:disabled { cursor: default; opacity: .8; box-shadow: none; }
+  .branch-strip .bs-sendall.done { background: #eaf6ef; border-color: #bbf7d0; color: #0f9d58; }
+  /* 折りたたみ (2026-08-26): 既定は畳む。畳んだままでも合計と全体の実施率は見出しに出す */
+  .branch-strip .bs-head { cursor: pointer; user-select: none; -webkit-user-select: none; border-radius: 10px; transition: background 0.12s; }
+  .branch-strip .bs-head:hover { background: rgba(13,148,136,0.10); }
+  .branch-strip .bs-sum { flex-shrink: 0; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+  /* ⭐2026-08-26 社長指示: 合計もはっきり見せる(拠点ごとのバッジと同じ赤) */
+  .branch-strip .bs-sum.n { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; padding: 5px 14px;
+    box-shadow: 0 3px 8px rgba(220,38,38,0.35); }
+  .branch-strip .bs-sum.n b { font-size: 17px; font-weight: 900; margin-left: 3px; }
+  .branch-strip .bs-sum.ok { background: #eaf6ef; color: #0f9d58; }
+  .branch-strip .bs-sum.rate { background: #f1f5f9; color: #475569; }
+  .branch-strip .bs-arrow { margin-left: auto; flex-shrink: 0; font-size: 13px; color: #94a3b8; line-height: 1; transition: transform 0.2s ease; }
   .branch-strip.bs-collapsed .bs-arrow { transform: rotate(-90deg); }
-  .branch-strip.bs-collapsed .bs-groups { display: none; }
-  .branch-strip.bs-collapsed { padding-bottom: 11px; }
+  .branch-strip.bs-collapsed .bs-row { display: none; }
   .branch-strip.bs-collapsed .bs-head { margin-bottom: 0; }
-  /* 折り畳み中も会社ごとの未対応数を出す(見落とし防止 2026-08-02) */
-  .branch-strip .bs-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 11px; }
-  .branch-strip.bs-collapsed .bs-summary { margin-bottom: 0; }
-  .branch-strip .bs-sum { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: #fff; border: 1px solid #e2e8f0; color: #475569; }
-  .branch-strip .bs-sum-std { background: #ecf7f5; border-color: #cfe9e3; color: #0b6b62; }
-  .branch-strip .bs-sum-suzue { background: #eef0fb; border-color: #d3d8f3; color: #3f3fa8; }
-  .branch-strip .bs-sum b { min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 0 5px; background: #dc2626; color: #fff; }
-  .branch-strip .bs-sum i { font-style: normal; color: #0f9d58; font-size: 13px; }
+  .branch-strip.bs-collapsed { padding-bottom: 8px; }
+  /* 畳んでいるのが既定なので、開いたときは旧一覧画面と同じ中身を大きめに見せる
+     ⭐2026-08-26 社長指示: 拠点名・未対応の内訳(体調チェック/帰りの承認)・実施率(人数つき) */
+  .branch-strip .bs-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .branch-strip .bs-cell { display: block; text-decoration: none; min-width: 0;
+    padding: 10px 12px 11px; border-radius: 12px; background: #f8fafc; border: 1px solid #eef2f7; border-left: 4px solid #16a34a; }
+  .branch-strip .bs-cell.has { background: #fff6f5; border-color: #f9d6cf; border-left-color: #dc2626; }
+  .branch-strip .bs-l1 { display: flex; align-items: baseline; gap: 8px; }
+  .branch-strip .bs-cn { font-size: 14px; font-weight: 900; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ⭐2026-08-26 社長指示: 未対応の数だけもっと目立たせる → 赤いバッジにする */
+  .branch-strip .bs-tot { margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 40px; height: 30px; padding: 0 11px; border-radius: 999px;
+    font-size: 20px; font-weight: 900; line-height: 1; color: #0f9d58; background: #eaf6ef; }
+  .branch-strip .bs-cell.has .bs-tot { color: #fff; background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 3px 8px rgba(220,38,38,0.35); }
+  .branch-strip .bs-l2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .branch-strip .bs-chip { font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 3px 9px; background: #f1f5f9; color: #64748b; white-space: nowrap; }
+  .branch-strip .bs-chip.red { background: #fee2e2; color: #b91c1c; }
+  .branch-strip .bs-chip.amber { background: #ffedd5; color: #b45309; }
+  .branch-strip .bs-chip.ok { background: #eaf6ef; color: #0f9d58; }
+  .branch-strip .bs-r { margin-left: auto; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .branch-strip .bs-r .num { font-size: 14px; }
+  .branch-strip .bs-r .of { font-weight: 700; color: #94a3b8; font-size: 11px; margin-left: 3px; }
+  .branch-strip .bs-r.g { color: #0f9d58; }
+  .branch-strip .bs-r.y { color: #b45309; }
+  .branch-strip .bs-r.r { color: #dc2626; }
+  .branch-strip .bs-r.n { color: #cbd5e1; }
+  .branch-strip .bs-send { flex-shrink: 0; margin-left: 8px; border: 1px solid #99f6e4; background: #fff; color: #0f766e;
+    font-family: inherit; font-size: 11.5px; font-weight: 800; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    box-shadow: 0 2px 0 #cbd5e1; }
+  .branch-strip .bs-send:hover:not(:disabled) { background: #f0fdfa; }
+  .branch-strip .bs-send:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 0 0 #cbd5e1; }
+  .branch-strip .bs-send:disabled { cursor: default; opacity: .8; box-shadow: none; }
+  .branch-strip .bs-send.done { background: #eaf6ef; border-color: #bbf7d0; color: #0f9d58; }
+  @media (max-width: 720px) {
+    .branch-strip { padding: 9px 12px 10px; }
+    .branch-strip .bs-head { flex-wrap: wrap; row-gap: 6px; }   /* 375pxで「一覧を見る」がはみ出さないように */
+    .branch-strip .bs-row { grid-template-columns: minmax(0, 1fr); }
+  }
+  /* ⭐⭐2026-08-27 社長「営業所別とオンラインを一行に」→ さらに「改行されてしまう」。
+     ⚠️⚠️inline-block を横に2つ並べる方式は、要素のあいだの【空白文字】のぶんだけ幅を食うため、
+       中身が増えたり 文字サイズを上げたりすると あっさり折り返す(実際に折り返した)。
+     ⭐JSで2つを1枚の行(.strip-row)に包み、flex で並べる。折り返しの指定を入れていないので
+       どんな中身でも 絶対に1行に収まる。オンラインは中身が少ないので 幅を固定し、
+       営業所別が残りを取る。⚠️狭い画面(≤900px)は 従来どおり 上下に積む。 */
+  .strip-row { margin: 0 4px; }
+  @media (min-width: 901px) {
+    .strip-row { display: flex; align-items: flex-start; gap: 8px; }
+    .strip-row > #branch-tasks-strip.branch-strip {
+      flex: 1 1 auto; min-width: 0; width: auto; margin: 12px 0 0;
+    }
+    .strip-row > #online-strip.onl-strip {
+      flex: 0 0 300px; width: 300px; margin: 12px 0 0; min-height: 49px;
+    }
+    /* 営業所別が出ない人(管理職以外)は オンラインが横いっぱいを使う */
+    .strip-row.solo > #online-strip.onl-strip { flex: 1 1 auto; width: auto; }
+  }
+  /* ⭐⭐2026-08-29 社長指示: お知らせ・運転アラート・営業所別・オンラインを【1枚の背景】に。
+     ⚠️中の帯は人によって出ない(管理職のみ 等)ので、枠と角丸は【外側の1枚だけ】が持つ。
+     ⚠️中身の白背景・枠・影・余白は全部消して、境目に細い線を1本だけ引く。 */
+  .top-panel { margin: 12px 4px 20px; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 14px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); overflow: hidden; }
+  .top-panel > * { background: transparent !important; border: 0 !important;
+    border-radius: 0 !important; box-shadow: none !important; margin: 0 !important;
+    width: auto !important; }
+  /* 中の帯の内側の余白はそろえる */
+  .top-panel > .whats-new, .top-panel > .drive-alerts { padding: 9px 12px 10px !important; }
+  .top-panel .strip-row, .top-panel > .strip-row > * { background: transparent !important; border: 0 !important;
+    border-radius: 0 !important; box-shadow: none !important; margin: 0 !important; }
+  @media (min-width: 901px) {
+    /* 営業所別とオンラインは1行のまま。あいだは線で区切る */
+    .top-panel > .strip-row { gap: 0 !important; }
+  }
+  @media (max-width: 900px) {
+  }
+  /* 空の入れ物(表示されていない帯)は線が二重に出ないよう畳む */
+  .top-panel > div:empty { display: none !important; }
+  /* ⭐2026-08-29 社長指示: 3つの見出しは塗りつぶしをやめ、強調した文字だけにする。
+     ⚠️色は今までの塗りの色をそのまま文字色へ移す(赤=お知らせ／臙脂=アラート／緑=営業所別)。 */
+  .whats-new .wn-label, .drive-alerts .da-label, .branch-strip .bs-label {
+    background: none !important; padding: 0 !important; border-radius: 0 !important;
+    font-size: 14px !important; font-weight: 800 !important; letter-spacing: 0.2px !important; }
+  .whats-new .wn-label { color: #b91c1c !important; }
+  .drive-alerts .da-label { color: #be123c !important; }
+  .drive-alerts.is-clear .da-label { color: #047857 !important; }
+  .branch-strip .bs-label { color: #0f766e !important; }
+  /* ⭐2026-08-29 社長指示: お知らせ・運転アラートは【つねに開いたまま】。
+     「一覧を見る」と開閉の矢印も出さない。
+     ⚠️畳むクラス(wn-collapsed / da-collapsed)は他の処理が付け外しするので、
+       ここで見た目だけ無効化する(処理を消して回ると取りこぼす)。 */
+  .whats-new.wn-collapsed .wn-list, .drive-alerts.da-collapsed .da-list { display: block !important; }
+  .whats-new .wn-more, .drive-alerts .da-more,
+  .whats-new .wn-arrow, .drive-alerts .da-arrow { display: none !important; }
+  .whats-new .wn-head, .drive-alerts .da-head { cursor: default !important; }
+  /* 「すべて既読」が右端に来るように */
+  .whats-new .wn-readall { margin-left: auto; }
+  /* ⭐2026-08-29 社長指示: お知らせ・運転アラートの【行間隔をそろえる】。
+     ⚠️1枚(.top-panel)の中では、外の余白・見出しの高さ・見出しと中身のすきま を同じ値にする。 */
+  .top-panel > .whats-new, .top-panel > .drive-alerts { padding: 10px 14px 10px !important; }
+  .top-panel .wn-head, .top-panel .da-head { min-height: 26px !important; margin: 0 !important; }
+  .top-panel .wn-list, .top-panel .da-list { margin: 4px 0 0 !important; gap: 4px; }
+  .top-panel .wn-list > *, .top-panel .da-list > * { margin: 0 !important; }
+  /* ⭐2026-08-29 空のときの文の余白もそろえる(見出しとのすきまが違って見えた) */
+  .top-panel .wn-empty, .top-panel .da-empty { padding: 0 2px !important; line-height: 1.7 !important; }
+
+  /* ⭐2026-08-29 見出しの高さをそろえる。
+     ⚠️「すべて既読」ボタンが入るお知らせの見出しだけ背が高く、下の文とのすきまが違って見えた。 */
+  .top-panel .wn-head, .top-panel .da-head, .top-panel .bs-head {
+    min-height: 30px !important; max-height: 30px !important; align-items: center !important; }
+  .top-panel .wn-readall { padding: 2px 9px !important; font-size: 11px !important;
+    line-height: 1.4 !important; }
+  .top-panel .wn-list, .top-panel .da-list { margin: 5px 0 0 !important; }
+  .top-panel > .whats-new { gap: 0 !important; }   /* ⚠️この9pxが行間の差の正体 */
+  /* ⭐2026-08-30 社長指示: 告知など未読の行だけ地の色(クリーム)が違って見えたので、
+     お知らせボードの背景と同じにする。⚠️未読の目印は NEW バッジで残る。 */
+  .top-panel .wn-li.is-unread { background: transparent !important; }
+  /* ⭐2026-08-30 社長指示: 未読の行には NEW が付くので、見出しの「◯件の未読」は出さない。
+     ⚠️数え方(未読の総数)はそのまま=開いたまま出す判定と「すべて既読」の出し分けに使っている。 */
+  .whats-new .wn-new-count { display: none !important; }
+  /* ===== 🟢 オンラインの人 (2026-08-26) ===== */
+  .onl-strip { display: flex; align-items: center; gap: 9px; width: calc(100% - 8px); margin: 10px 4px 0;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 9px 14px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.05); font-family: inherit; text-align: left; }
+  .onl-strip:hover { background: #f0fdfa; }
+  .onl-strip .onl-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; flex-shrink: 0;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.20); }
+  .onl-strip .onl-name { font-size: 13px; font-weight: 900; color: #0f172a; letter-spacing: .3px; }
+  .onl-strip .onl-num { font-size: 20px; font-weight: 900; color: #059669; line-height: 1; }
+  .onl-strip .onl-unit { font-size: 12px; font-weight: 800; color: #059669; margin-left: -2px; }
+  .onl-strip .onl-go { margin-left: auto; font-size: 11.5px; font-weight: 800; color: #0f766e; white-space: nowrap; }
+  .onl-back { display: none; position: fixed; inset: 0; z-index: 100000; background: rgba(15,23,42,0.45);
+    align-items: center; justify-content: center; padding: 18px; }
+  .onl-back.open { display: flex; }
+  .onl-sheet { background: #fff; width: 100%; max-width: 560px; max-height: 80vh; display: flex; flex-direction: column;
+    border-radius: 18px; box-shadow: 0 24px 70px rgba(15,23,42,0.35); overflow: hidden; }
+  .onl-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
+  .onl-ttl { font-size: 15px; font-weight: 900; color: #0f172a; }
+  .onl-cnt { font-size: 12px; font-weight: 800; color: #047857; background: #eaf6ef; border-radius: 999px; padding: 3px 10px; }
+  .onl-close { margin-left: auto; border: none; background: #eef2f7; color: #475569; width: 32px; height: 32px;
+    border-radius: 50%; font-size: 15px; font-weight: 800; cursor: pointer; }
+  .onl-body { overflow-y: auto; padding: 8px 10px 14px; -webkit-overflow-scrolling: touch; }
+  .onl-grp { font-size: 11px; font-weight: 800; color: #94a3b8; padding: 10px 6px 4px; }
+  .onl-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: 12px;
+    flex-wrap: wrap; row-gap: 6px; }
+  /* 氏名と拠点はひとまとまり。⚠️名前は最後まで削らない(点呼の札が付く人ほど誰か分かる必要がある) */
+  .onl-who { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; flex: 1 1 auto; }
+  /* 札とボタン。1行に入らなければ丸ごと次の行へ回る(右寄せのまま) */
+  .onl-act { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; margin-left: auto; }
+  .onl-row + .onl-row { border-top: 1px solid #f1f5f9; }
+  .onl-row .av { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: #e2e8f0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #475569; }
+  .onl-row .nm { font-size: 14px; font-weight: 800; color: #0f172a; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+  .onl-row .co { font-size: 11px; font-weight: 700; color: #94a3b8; white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .onl-row .tag { font-size: 10.5px; font-weight: 800; color: #0369a1; background: #e0f2fe; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+  .onl-row .dm { flex-shrink: 0; text-decoration: none; font-size: 11.5px; font-weight: 800;
+    color: #0f766e; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 999px; padding: 5px 12px; }
+  .onl-row.away .av, .onl-row.away .nm { opacity: .55; }
+  .onl-empty { padding: 26px 6px; text-align: center; color: #94a3b8; font-size: 13px; }
+
   /* 🆕 新機能のお知らせ — 一行カードを下から押上げて循環 (2026-05-25) */
   .new-features { position: relative; margin: 14px 4px 0; padding: 14px 12px 10px;
     background: linear-gradient(135deg,#fffbeb,#fef3c7); border: 1.5px solid #fcd34d; border-radius: 16px;
@@ -435,63 +689,51 @@
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
   /* コンパクトカード (説明文なし・2-3列表示) */
+  /* ===== カード(ボタン) — タブレットの押せる意匠をPCにも (2026-08-26 社長指示) =====
+     ⭐tablet-home.html と同じ「べた塗り＋白文字＋下に硬い影＋押すと沈む」。
+     ⚠️白文字が薄い色に乗ると読めないので、明るい方(--c1)は必ず --c2 側へ寄せて暗くする。
+     ⚠️配色(--c1/--c2)はセクションごとの既存指定をそのまま使う=色は変えていない。 */
   .card {
     --c1: #14b8a6; --c2: #0d9488;
     position: relative; overflow: hidden;
-    background:
-      linear-gradient(180deg,
-        color-mix(in srgb, var(--c1) 14%, #fff) 0%,
-        color-mix(in srgb, var(--c2) 8%, #fff) 100%);
-    border: 1px solid color-mix(in srgb, var(--c2) 22%, #fff);
-    border-radius: 20px;
-    padding: 12px 8px 10px;
-    cursor: pointer; text-decoration: none; color: inherit;
+    /* ⚠️2026-08-26 社長「濃すぎる」→ 各色に白を16〜18%混ぜて一段やわらかく(白文字は維持) */
+    background: linear-gradient(135deg,
+      color-mix(in srgb, color-mix(in srgb, var(--c1) 35%, var(--c2)) 82%, #fff),
+      color-mix(in srgb, var(--c2) 84%, #fff));
+    border: none; border-radius: 18px;
+    padding: 13px 8px 12px;
+    cursor: pointer; text-decoration: none; color: #fff;
     display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-    box-shadow: 0 2px 6px rgba(15,23,42,0.04);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    min-height: 74px;
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--c2) 80%, #000);
+    transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+    min-height: 78px;
   }
-  .card:before {
-    content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 3px;
-    border-radius: 0 0 3px 3px;
-    background: linear-gradient(90deg, var(--c1), var(--c2));
-    opacity: 0.75;
-  }
-  .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 18px rgba(15,23,42,0.10);
-    border-color: color-mix(in srgb, var(--c2) 45%, #fff);
-    background:
-      linear-gradient(180deg,
-        color-mix(in srgb, var(--c1) 20%, #fff) 0%,
-        color-mix(in srgb, var(--c2) 12%, #fff) 100%);
-  }
+  .card:hover { filter: brightness(1.07); }
+  .card:active { transform: translateY(4px); box-shadow: 0 1px 0 color-mix(in srgb, var(--c2) 80%, #000); }
   .card .icon-pill {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; border-radius: 14px;
-    font-size: 18px; line-height: 1;
-    background: linear-gradient(135deg, var(--c1), var(--c2));
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.10);
-    margin-bottom: 5px;
+    width: 34px; height: 34px; border-radius: 12px;
+    font-size: 24px; line-height: 1;
+    background: transparent; color: #fff; box-shadow: none;
+    margin-bottom: 3px;
   }
-  .card .icon-pill.img { background: #fff; padding: 0; overflow: hidden; }
+  .card .icon-pill.img { background: #fff; padding: 0; overflow: hidden; border-radius: 50%; }
   .card .icon-pill.img img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-  .card .label { font-size: 12px; font-weight: 800; color: #0f172a; letter-spacing: 0.2px; line-height: 1.25; }
+  .card .label { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: 0.2px; line-height: 1.25; text-shadow: 0 1px 3px rgba(0,0,0,0.34); }
   .card .desc { display: none; }
   .card .badge {
     position: absolute; top: 10px; right: 10px;
     background: linear-gradient(135deg, #ef4444, #dc2626);
     color: #fff; font-size: 13px; font-weight: 800;
     padding: 4px 12px; border-radius: 14px;
-    box-shadow: 0 4px 12px rgba(220,38,38,0.40);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 4px 12px rgba(220,38,38,0.40);
     z-index: 2;
     min-width: 24px; text-align: center;
     animation: badgePulse 2.2s ease-in-out infinite;
   }
   @keyframes badgePulse {
-    0%, 100% { box-shadow: 0 4px 12px rgba(220,38,38,0.40); }
-    50% { box-shadow: 0 4px 12px rgba(220,38,38,0.55), 0 0 0 4px rgba(220,38,38,0.15); }
+    0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 4px 12px rgba(220,38,38,0.40); }
+    50% { box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 4px 12px rgba(220,38,38,0.55), 0 0 0 6px rgba(220,38,38,0.18); }
   }
 
   /* 準備中バッジ (カード中央に重ねて表示) */
@@ -505,6 +747,11 @@
     border: 2px solid rgba(255,255,255,0.7);
     white-space: nowrap;
   }
+  /* To Do カードの「声でメモ」(2026-08-28) */
+  .card .cardmic { position: absolute; right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255,255,255,0.92); color: #dc2626; font-size: 14px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .card .cardmic:active { transform: scale(0.9); }
   .card-prep { opacity: 0.7; }
   .card-prep:hover { opacity: 0.85; }
   /* テスト運用中バッジ (アクティブだが検証段階) */
@@ -564,12 +811,6 @@
   .card.takara     { --c1: #f87171; --c2: #1e40af; }
   .card.safety     { --c1: #fca5a5; --c2: #dc2626; }  /* 安全衛生委員会 月報 (🚨Report赤系) */
   .card.matomeru   { --c1: #5eead4; --c2: #0f766e; }  /* まとめる君: ティール (Communication青系・🦉ブランド色) */
-  /* 元祖Ｂさんの愛の日記: 横並び・大アバター・全幅(sec-commの色上書きに勝つ詳細度) */
-  .grid.sec-comm .card.bdiary { --c1: #fda4af; --c2: #e11d48; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; gap: 10px; padding: 8px 12px; }
-  .card.bdiary .bd-ava { width: 58px; height: 58px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.18)); }
-  .card.bdiary .bd-txt { min-width: 0; }
-  .card.bdiary .bd-txt .label { font-size: 16px; }
-  .card.bdiary .bd-sub { font-size: 12px; color: #9f1239; margin-top: 3px; font-weight: 700; }
 
   /* 推進メンバー専用 */
   #promoter-section .grid { gap: 12px; }
@@ -585,21 +826,35 @@
   .card.p-wifi       { --c1: #67e8f9; --c2: #0e7490; }  /* Wi-Fi設定: シアン */
   .card.p-warehouse  { --c1: #93c5fd; --c2: #1d4ed8; }
 
-  /* ── 各メニュー(セクション)ごとにカード配色を統一 (sec-titleの色に合わせる) ── */
-  /* 個別 .card.xxx より詳細度が高い(.grid.sec-x .card = クラス3つ)ので確実に上書き */
-  .grid.sec-msg      .card { --c1: #2dd4bf; --c2: #0f766e; }  /* ✉️ Message: teal */
-  .grid.sec-comm     .card { --c1: #60a5fa; --c2: #0369a1; }  /* 💬 Communication: blue */
-  .grid.sec-report   .card { --c1: #f87171; --c2: #b91c1c; }  /* 🚨 Report: red */
-  .grid.sec-report   .card.heat { --c1: #fb923c; --c2: #ea580c; }  /* 🥵 熱中症対策: orange */
-  .grid.sec-appl     .card { --c1: #94a3b8; --c2: #334155; }  /* 📝 Application: slate */
-  .grid.sec-health   .card { --c1: #6ee7b7; --c2: #047857; }  /* 🏥 Health: green */
-  .grid.sec-consult  .card { --c1: #fb7185; --c2: #be123c; }  /* 🆘 Consult: rose */
-  .grid.sec-meeting  .card { --c1: #a78bfa; --c2: #5b21b6; }  /* 📅 Meeting: violet */
-  .grid.sec-welfare  .card { --c1: #fcd34d; --c2: #b45309; }  /* 🎁 Welfare & Help: amber */
-  .grid.sec-promoter .card { --c1: #c084fc; --c2: #5b21b6; }  /* 🩺 推進: purple */
-  .grid.sec-info     .card { --c1: #22d3ee; --c2: #0891b2; }  /* ℹ️ Information: cyan */
-  .grid.sec-logihub  .card { --c1: #5eead4; --c2: #0f766e; }  /* 🚛 LogiHub: teal */
+  /* ── ESG のジャンルで色分け (2026-08-29 社長指示) ──
+     E=環境(緑) / S=社会(青) / G=ガバナンス(紫紺)。
+     ⚠️個別 .card.xxx より詳細度が高い(.grid.sec-x .card = クラス3つ)ので確実に上書きされる。
+     ⚠️🚨事故・破損だけは赤のまま(危険の知らせを埋もれさせない)。 */
+  /* E: 環境 */
+  .grid.sec-env      .card { --c1: #6ee7b7; --c2: #047857; }
+  /* S: 社会 — 健康・人・くらしに関わるもの */
+  .grid.sec-health   .card,
+  .grid.sec-msg      .card,
+  .grid.sec-comm     .card,
+  .grid.sec-consult  .card,
+  .grid.sec-welfare  .card,
+  .grid.sec-info     .card,
+  .grid.sec-promoter .card { --c1: #60a5fa; --c2: #0369a1; }
+  /* G: ガバナンス — 記録・承認・運営の仕組み */
+  .grid.sec-report   .card,
+  .grid.sec-appl     .card,
+  .grid.sec-meeting  .card,
+  .grid.sec-logihub  .card { --c1: #a5b4fc; --c2: #4338ca; }
+  /* 例外 */
+  .grid.sec-report   .card.accident[href*="accident"] { --c1: #f87171; --c2: #b91c1c; }  /* 🚨事故・破損は赤のまま */
+  .grid.sec-report   .card.heat { --c1: #fb923c; --c2: #ea580c; }  /* 🥵熱中症対策 */
 
+  /* ⭐2026-08-29 社長指示: ESGのジャンルごとに並べ、背景をうっすら変えて区切りを見せる。
+     ⚠️濃くすると見出しボタンの色が沈むので、ごく薄い色にとどめる。 */
+  .esg-zone { border-radius: 20px; padding: 6px 8px 10px; margin: 0 0 14px; }
+  .esg-zone.esg-s { background: rgba(56,189,248,0.09); }
+  .esg-zone.esg-g { background: rgba(129,140,248,0.10); }
+  .esg-zone.esg-e { background: rgba(16,185,129,0.10); }
   /* notice 帯 */
   .notice {
     margin: 0 4px 16px; padding: 11px 16px;
@@ -637,6 +892,7 @@
     header { padding: 12px 12px; gap: 2px; }
     header .logo { width: 42px; height: 42px; }
     header .ttl { font-size: 18px; }
+    header .ttl .ttl-esg { display: none; }   /* 幅が足りないので for ESG は省く (2026-08-31) */
     header .name { display: none; }
     header button { font-size: 11px; padding: 4px 9px; border-radius: 8px; }
     header .right { gap: 6px; }
@@ -663,22 +919,17 @@
     /* スマホは 2 列・余白広めで見やすく (2026-06-30 視認性改善) */
     .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .card { padding: 16px 12px 14px; min-height: 96px; border-radius: 16px; }
-    .card .icon-pill { width: 40px; height: 40px; font-size: 21px; border-radius: 13px; margin-bottom: 7px; }
-    .card .label { font-size: 14.5px; line-height: 1.3; word-break: break-word; }
+    .card .icon-pill { width: 40px; height: 40px; font-size: 28px; border-radius: 13px; margin-bottom: 5px; }
+    .card .label { font-size: 15.5px; font-weight: 900; line-height: 1.3; word-break: break-word; }
     .card .desc { display: none; }
-    /* Bさん専用カードもモバイルは縦並びコンパクトにして3列に揃える (横並び大アバターは崩れるため) */
-    .grid.sec-comm .card.bdiary { flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; gap: 4px; padding: 16px 12px 14px; }
-    .card.bdiary .bd-ava { width: 40px; height: 40px; margin-bottom: 3px; }
-    .card.bdiary .bd-txt .label { font-size: 14.5px; line-height: 1.3; }
-    .card.bdiary .bd-sub { display: none; }
     .sec-title { margin-top: 24px; }
   }
   /* iPhone SE 等の狭いスマホ向け微調整 (2列は維持) */
   @media (max-width: 400px) {
     .grid { gap: 10px; }
     .card { padding: 13px 9px 11px; min-height: 88px; }
-    .card .icon-pill { width: 36px; height: 36px; font-size: 19px; }
-    .card .label { font-size: 13.5px; }
+    .card .icon-pill { width: 36px; height: 36px; font-size: 25px; }
+    .card .label { font-size: 14.5px; font-weight: 900; }
     .hero { padding: 12px 12px; gap: 6px; }
     .hero .ic { font-size: 26px; }
     .hero .greet { font-size: 13px; }
@@ -711,28 +962,21 @@
     #app { padding: 0 22px 90px; }
     .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .card { padding: 20px 14px 18px; min-height: 116px; border-radius: 18px; }
-    .card .icon-pill { width: 48px; height: 48px; font-size: 25px; border-radius: 16px; margin-bottom: 10px; }
-    .card .label { font-size: 16.5px; line-height: 1.3; }
+    .card .icon-pill { width: 48px; height: 48px; font-size: 34px; border-radius: 16px; margin-bottom: 7px; }
+    .card .label { font-size: 17.5px; font-weight: 900; line-height: 1.3; }
     .sec-title { margin-top: 26px; }
     .sec-title .lbl { font-size: 21px; }
-    .field-daily-check { padding: 18px 20px; }
-    .field-daily-check .fdc-icon { font-size: 36px; }
-    .field-daily-check .fdc-state { font-size: 20px; }
-    .field-daily-check .fdc-sub { font-size: 14px; }
-    .field-daily-check .fdc-cta { font-size: 16px; padding: 11px 22px; }
-    .whats-new { padding: 13px 15px 15px; }   /* 一覧リンクの右端を運転アラート/対応リストと揃える (2026-08-02) */
-    .whats-new .wn-label { font-size: 13px; padding: 3px 13px; }
+    .whats-new { padding: 10px 14px 12px; }   /* ⚠2026-08-27: 営業所別と同じ余白にそろえた(帯の高さを合わせるため) */
+    .whats-new .wn-label { font-size: 11.5px; padding: 3px 11px; }   /* ⚠2026-08-27: 3つの帯の高さをそろえるため 営業所別と同じ大きさに */
     .field-other-head { font-size: 17px; padding: 14px 18px; }
-    /* Bさん専用カードもタブレットは縦並びに揃える (3列セルで崩れないよう) */
-    .grid.sec-comm .card.bdiary { flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; gap: 5px; padding: 20px 14px 18px; }
-    .card.bdiary .bd-ava { width: 48px; height: 48px; margin-bottom: 3px; }
-    .card.bdiary .bd-sub { display: none; }
-    .card.bdiary .bd-txt .label { font-size: 16.5px; line-height: 1.3; }
   }
 
   /* ── カテゴリー折りたたみ (アコーディオン) 2026-07-02 ── */
   .sec-title.acc { cursor: pointer; user-select: none; -webkit-user-select: none; align-items: center; transition: background 0.12s; }
-  .sec-title.acc:hover { background: rgba(13,148,136,0.06); border-radius: 0 12px 12px 0; }
+  /* ⭐2026-08-26 社長指示: 見出しに乗せたときの色が薄い → 一段濃く */
+  /* ⚠️2026-08-27 見出しをボタン意匠にしたので、hover は background を上書きせず明るさだけ変える
+     (短縮の background: を書くと せっかくの塗りが消える) */
+  .sec-title.acc:hover { filter: brightness(1.07); }
   .sec-title.acc .sec-arrow {
     margin-left: auto; flex-shrink: 0; padding-left: 10px;
     font-size: 14px; color: #94a3b8; line-height: 1;
@@ -743,17 +987,129 @@
     flex-shrink: 0; margin-left: 8px;
     background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff;
     font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(220,38,38,0.35); display: none;
+    /* ⚠️べた塗りの見出しに乗るので白フチを足さないと沈む(カードのバッジと同じ) */
+    box-shadow: 0 2px 6px rgba(220,38,38,0.35), 0 0 0 2px rgba(255,255,255,0.9); display: none;
     min-width: 22px; text-align: center;
   }
   /* バッジがある時は矢印の直前に寄せる (矢印の margin-left:auto が両方を右へ押し出す) */
+  /* ⭐⭐2026-08-27 社長「各メニュータイトルもボタンデザインにしては」。
+     カード(.card)と同じ【べた塗り＋白文字＋下に硬い影＋押すと沈む】を見出しにも当てる。
+     ⚠️色は増やしていない = 各見出しがもともと持っている inline 指定をそのまま使う。
+        --c1 = 見出しの border-left-color / --c2 = .lbl の color(濃い側)。
+        この2つを setupHomeAccordion() が読んで CSS変数へ写す。
+     ⚠️.lbl / .desc の色は inline 指定なので !important でないと勝てない。
+     ⚠️縦に伸びると「スクロールなしで1画面」が壊れるので、上下の margin を padding のぶん削って相殺する。 */
+  .sec-title.acc {
+    --c1: #14b8a6; --c2: #0d9488;
+    border-left: 0; padding: 7px 14px; border-radius: 14px;
+    margin: 14px 4px 14px;
+    background: linear-gradient(135deg,
+      color-mix(in srgb, color-mix(in srgb, var(--c1) 35%, var(--c2)) 82%, #fff),
+      color-mix(in srgb, var(--c2) 84%, #fff));
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--c2) 80%, #000), 0 7px 16px rgba(15,23,42,0.14);
+    transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s;
+  }
+  /* ⚠️2026-08-27 ボタンの高さは【文字ブロックの高さ】で決まる。絵アイコン(27px)のある見出しと
+     絵文字だけの見出しで高さが変わらないよう、最低の高さをそろえておく。
+     ⭐これで文字を小さくしても2行にしても ボタンの大きさは他と同じままになる。 */
+  .sec-title.acc .lbl { color: #fff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.34);
+    display: inline-flex; align-items: center; min-height: 27px; }
+  /* ⭐2026-08-27 社長指示: 推進メンバーの見出しだけ肩書きが長い(「推進メンバー / 管理職 専用」)。
+     「/」で改行して2行にし、そのぶん文字を小さくして 他のボタンと同じ大きさに収める。 */
+  .sec-title.acc #promoter-title { font-size: 13px; line-height: 1.04; }
+  .sec-title.acc .desc { color: rgba(255,255,255,0.86) !important; }
+  .sec-title.acc .sec-arrow { color: rgba(255,255,255,0.92); }
+  /* ⚠️カテゴリの絵アイコンは色地に沈むので白丸に乗せる(カードの画像アイコンと同じ) */
+  .sec-title.acc .lbl img { background: #fff; border-radius: 50%; padding: 2px; box-sizing: border-box; }
+  .sec-title.acc:active { transform: translateY(3px);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--c2) 80%, #000), 0 3px 8px rgba(15,23,42,0.12); }
+  /* 開いている見出しは押し込んだ形にして「いまここを開いている」を示す */
+  .sec-title.acc:not(.collapsed) { transform: translateY(3px);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--c2) 80%, #000), 0 3px 8px rgba(15,23,42,0.12); }
   .grid.acc-collapsed { display: none !important; }
+  /* ⭐⭐2026-08-27 社長「折りたたみがあるので、スクロールせずに1画面へ収めたい」。
+     畳んでいる見出しは【2列】に並べる。畳んだ中身(.grid)は display:none なので、
+     見出しを inline-flex にするだけで 横に2つずつ 流れる(DOMは触らない)。
+     ⚠️開いた見出しは 従来どおり全幅(すぐ下にカードが続くため)。
+     ⚠️狭い画面(≤900px)は1列のまま。⚠️文字サイズを上げても割合指定なので崩れない。 */
+  @media (min-width: 901px) {
+    /* ⚠️2026-08-27: 開いた見出しも【同じ形のまま】にする。開いたときだけ全幅に戻ると
+       見出しの位置が動いてしまう(ボタンは浮かせているので 流れは変えなくてよい)。 */
+    .sec-title.acc {
+      display: inline-flex; vertical-align: top; box-sizing: border-box;
+      /* ⚠️左右の margin(4px×2)と 行間の空白ぶんを引かないと 2つ目が 下へ落ちる */
+      width: calc(50% - 15px); margin: 5px 4px 6px;
+    }
+  }
+  /* 広い画面は3列(1280px以上)。⚠️幅が足りないと見出しが2行になるので、そのときは英字の説明を隠す */
+  @media (min-width: 1280px) {
+    .sec-title.acc { width: calc(33.333% - 15px); }
+    .sec-title.acc .desc { display: none; }
+  }
+  /* ⭐⭐⭐2026-08-27 社長「タップする見出しの位置をずらさずに展開。下に伸ばすと その場で
+     選べないので【上に展開】して」。→ ボタンの一覧を【浮かせて】出す(流れに入れない)。
+     ・見出しは1ミリも動かない。ページの高さも変わらない＝どこを開いてもスクロールが要らない。
+     ・一覧の【下端を見出しの行に合わせる】ので、上へ伸びる。上に入りきらないときだけ下へずらす。
+     ・位置は JS(positionSecPop)が測って決める。⚠️CSSだけでは 見出しの座標が取れない。
+     ⚠️狭い画面(≤900px)では 浮かせない(従来どおり 見出しの下に積む)。 */
+  .grid.sec-pop {
+    position: absolute; z-index: 40; margin: 0; gap: 6px; padding: 10px;
+    background: rgba(255,255,255,0.97);
+    border: 1px solid #d7e5e3; border-radius: 14px;
+    box-shadow: 0 18px 44px rgba(15,23,42,0.22);
+    grid-auto-flow: column; grid-template-rows: repeat(6, auto);
+    grid-template-columns: none; grid-auto-columns: 268px; justify-content: start;
+  }
+  .grid.sec-pop .card {
+    flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px;
+    text-align: left; min-height: 0; padding: 8px 12px; border-radius: 12px;
+  }
+  .grid.sec-pop .card .icon-pill { width: 24px; height: 24px; font-size: 18px; margin: 0; flex: 0 0 24px; }
+  .grid.sec-pop .card .label { font-size: 13px; line-height: 1.25; }
+  .grid.sec-pop .card .desc { display: none; }
+  .grid.sec-pop .card .badge { top: 6px; right: 8px; font-size: 11px; padding: 1px 7px; }
+  .grid.sec-pop .grp-sub { display: none; }
   @media (max-width: 600px) {
     .sec-title.acc .sec-arrow { font-size: 15px; padding-left: 8px; }
+    /* ⚠️2026-08-27 ボタンの中に英字の副題まで入れると スマホでは名前が2行に折り返す
+       (「福利厚生・サポ/ート」)。3列のときと同じで、狭い画面では副題を隠す。 */
+    .sec-title.acc .desc { display: none; }
+    .sec-title.acc { padding: 8px 12px; margin: 10px 4px 10px; }
+  }
+
+  /* ⭐2026-08-30 社長指示: 見出しをタップして開く詳細メニューが大きすぎる。
+     見出しのボタン(約46px)に合わせて【アイコン＋名前の1行】の小さな札にそろえる。
+     ⚠️パソコンで浮かせて出す一覧(.sec-pop)は すでに同じ形なので触らない。
+     ⚠️この指定は 900px以下の .card の指定より【後ろ】に置くこと(後勝ちのため)。 */
+  @media (max-width: 900px) {
+    .grid:not(.sec-pop) { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    /* ⭐2026-08-30 社長指示: 見出し(親)と同じ配色だと開いたときに見分けにくい。
+       中の項目は【白地＋左に色の帯】にして、親のべた塗りと はっきり分ける。
+       ⚠️色そのものは変えず、カテゴリの色は左の帯とアイコンの下地で残す。 */
+    .grid:not(.sec-pop) { background: rgba(255,255,255,0.55); border: 1px solid rgba(148,163,184,0.35);
+      border-radius: 14px; padding: 8px; }
+    .grid:not(.sec-pop) .card {
+      flex-direction: row; align-items: center; justify-content: flex-start; gap: 9px;
+      text-align: left; min-height: 46px; padding: 8px 11px; border-radius: 12px;
+      background: #fff;
+      border: 1px solid color-mix(in srgb, var(--c2) 26%, #fff);
+      border-left: 4px solid var(--c2);
+      box-shadow: 0 2px 0 color-mix(in srgb, var(--c2) 20%, #fff); }
+    .grid:not(.sec-pop) .card:active { transform: translateY(2px); box-shadow: 0 0 0 color-mix(in srgb, var(--c2) 20%, #fff); }
+    .grid:not(.sec-pop) .card .label { color: #17313a; text-shadow: none; font-weight: 800; }
+    .grid:not(.sec-pop) .card .icon-pill { background: color-mix(in srgb, var(--c2) 12%, #fff); border-radius: 9px; }
+    .grid:not(.sec-pop) .card .icon-pill { width: 24px; height: 24px; font-size: 16px; margin: 0; flex: 0 0 24px; }
+    .grid:not(.sec-pop) .card .label { font-size: 12.5px; line-height: 1.2; }
+    .grid:not(.sec-pop) .card .desc { display: none; }
+    .grid:not(.sec-pop) .card .badge { top: 5px; right: 7px; font-size: 10px; padding: 0 6px; }
+    .grid:not(.sec-pop) .card .cardmic { width: 22px; height: 22px; right: 4px; bottom: 4px; }
+    .grid:not(.sec-pop) .grp-sub { display: none; }
   }
 </style>
 <script src="/version-check.js" defer></script>
-<script src="/global-notif.js?v=20260806-firstalert" defer></script>
+<script src="/global-notif.js?v=20260830-opspop" defer></script>
+<!-- 📹 遠隔点呼の通話を受ける。⚠️これが無いと「呼べるのに受けられない」状態になる(2026-08-31) -->
+<script src="/ops-call.js?v=20260831a" defer></script>
 <script src="/fukuri-hint.js?v=2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -795,10 +1151,17 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <img src="/assets/brand/cowell-mark-white.svg?v=1" alt="CoWell">
   </div>
   <div class="ttl-wrap">
-    <div class="ttl">CoWell</div>
+    <div class="ttl">CoWell<span class="ttl-esg"><span class="f">for</span><span class="g">ESG</span></span></div>
   </div>
+  <div class="hd-clock" id="hd-clock"></div>
+  <div class="hd-wx" id="hd-wx"></div>
+  <div class="hd-me" id="hd-me"></div>
   <div class="right">
-    <span class="name" id="hd-name"></span>
+    <span class="name" id="hd-name" style="display:none;"></span>
+    <a href="/tablet-home.html" class="tablet-btn" title="タブレット・スマホ版に切り替え（このアカウントのまま）" aria-label="タブレット・スマホ版に切り替え" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:8px 10px;text-decoration:none;color:#0f766e;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;cursor:pointer;">
+      <span style="font-size:24px;line-height:1;">📱</span>
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.2px;line-height:1.2;text-align:center;">タブレット<br>・スマホ版</span>
+    </a>
     <button id="hd-simple-btn" onclick="switchToSimpleView()" title="かんたん表示に切り替える" style="display:none;background:#ecfdf5;color:#065f46;border:1.5px solid #a7f3d0;border-radius:14px;padding:7px 12px;font-size:13px;font-weight:800;cursor:pointer;">📱 かんたん表示</button>
     <!-- 文字サイズ切替は下部スクリプトで生成 (言語切替フローティングは廃止) -->
     <button id="hd-bell-btn" onclick="toggleHeaderChime()" title="着信音 ON/OFF" aria-label="着信音切替" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:14px;width:34px;height:34px;font-size:18px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">🔔</button>
@@ -814,21 +1177,12 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     <div id="push-cta-msg" style="color:#78350f; margin-bottom:8px;"><b>呼び出し・メッセージ・通達</b>が、CoWellの画面を開いていなくても届きます。<br><span style="font-size:12px;color:#92400e;">オンにしないと、呼ばれても気づけません。</span></div>
     <div>
       <button id="push-cta-btn" onclick="doEnablePush()" style="padding:9px 14px; border:none; border-radius:12px; background:#f59e0b; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">通知をオンにする</button>
+      <a href="/notif-check.html" style="padding:9px 14px; border-radius:12px; background:#fff; border:1px solid #fcd34d; color:#92400e; font-weight:700; font-size:13px; text-decoration:none;">出るか試す</a>
       <button onclick="dismissPushCta()" style="padding:9px 12px; border:none; border-radius:12px; background:transparent; color:#92400e; font-size:12px; cursor:pointer;">後で</button>
     </div>
   </div>
   <!-- ━━━ 現場一般社員トップ刷新 (2026-06-30) ━━━ -->
   <style id="field-top-css">
-  .field-daily-check{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fee2e2,#fecaca);border:1.5px solid #fca5a5;border-radius:16px;padding:14px 16px;margin:6px 0 14px;text-decoration:none;box-shadow:0 3px 10px rgba(220,38,38,0.12);}
-  .field-daily-check .fdc-icon{font-size:30px;line-height:1;flex-shrink:0;}
-  .field-daily-check .fdc-text{display:flex;flex-direction:column;flex:1;min-width:0;}
-  .field-daily-check .fdc-state{font-size:17px;font-weight:800;color:#b91c1c;}
-  .field-daily-check .fdc-sub{font-size:12.5px;color:#7f1d1d;opacity:.85;margin-top:2px;}
-  .field-daily-check .fdc-cta{flex-shrink:0;background:#dc2626;color:#fff;font-weight:800;font-size:14px;border-radius:999px;padding:8px 16px;white-space:nowrap;}
-  .field-daily-check.done{background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-color:#86efac;box-shadow:0 3px 10px rgba(22,163,74,0.12);}
-  .field-daily-check.done .fdc-state{color:#15803d;}
-  .field-daily-check.done .fdc-sub{color:#166534;}
-  .field-daily-check.done .fdc-cta{background:#16a34a;}
   .field-other{margin:18px 0 6px;}
   .field-other-head{width:100%;text-align:left;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:14px;padding:12px 16px;font-size:15px;font-weight:700;color:#475569;cursor:pointer;}
   .field-other-body{margin-top:4px;}
@@ -841,10 +1195,6 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     </div>
     <!-- 出退勤打刻UIは廃止 (2026-05-25 完全削除) -->
     <!-- タブレットキオスク (事務所設置タブレット用) -->
-    <a href="/tablet-home.html" class="tablet-btn" title="タブレット・スマホ版に切り替え（このアカウントのまま）" aria-label="タブレット・スマホ版に切り替え" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:8px 10px;text-decoration:none;color:#0f766e;box-shadow:0 2px 6px rgba(15,23,42,0.06);flex-shrink:0;cursor:pointer;">
-      <span style="font-size:24px;line-height:1;">📱</span>
-      <span style="font-size:10px;font-weight:700;letter-spacing:0.2px;line-height:1.2;text-align:center;">タブレット<br>・スマホ版</span>
-    </a>
   </div>
 
   <!-- ━━━ 📢 通達 (トップに格上げ・未読があるときだけ表示。確認済みで自動的に消える) ━━━ -->
@@ -874,11 +1224,12 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   <!-- ━━━ 🆕 新着情報 (告知/掲示板/承認済み事故報告/新機能の4種・7日以内。⭐未読だけを一覧・読んだら消える) ━━━ -->
   <div id="whats-new" class="whats-new" style="display:none;">
     <div class="wn-head">
-      <span class="wn-label">お知らせ</span>
+      <span class="wn-label">📢 お知らせ</span>
       <span class="wn-new-count" id="wn-new-count" style="display:none;">0</span>
       <span class="wn-gap"></span>
       <button type="button" class="wn-readall" id="wn-readall" style="display:none;" onclick="wnReadAll()">すべて既読</button>
       <a class="wn-more" id="wn-more" href="/announcements.html" title="お知らせ一覧">一覧を見る ›</a>
+      <span class="wn-arrow">▾</span>
     </div>
     <div class="wn-list" id="wn-list"></div>
   </div>
@@ -889,23 +1240,33 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <span class="da-label">⚠️ 本日の運転アラート</span>
       <span class="da-count" id="da-count" style="display:none;">0</span>
       <a class="da-more" href="/alerts.html" title="アラート一覧">一覧を見る ›</a>
+      <span class="da-arrow">▾</span>
     </div>
     <div class="da-list" id="da-list"></div>
   </div>
 
-  <!-- ━━━ 🩸 今日の体調チェック (現場一般社員のトップ・JSで表示/状態切替) ━━━ -->
-  <a id="field-daily-check" href="/self-check.html" class="field-daily-check" style="display:none;">
-    <span class="fdc-icon">🩸</span>
-    <span class="fdc-text">
-      <span class="fdc-state">今日の体調セルフチェック</span>
-      <span class="fdc-sub">まだ今日の記録がありません。タップで記録 →</span>
-    </span>
-    <span class="fdc-cta">記録する</span>
-  </a>
-
   <!-- 🏢 管轄拠点の確認メッセージ (健康推進メンバー/拠点責任者/運行管理者のみ) -->
   <div id="jurisdiction-msg" style="display:none;"></div>
   <div id="branch-tasks-strip" style="display:none;"></div>
+  <!-- 🟢 オンライン (2026-08-26 社長指示でメニュー内カードからトップの一段へ格上げ) -->
+  <button type="button" id="online-strip" class="onl-strip" style="display:none;" onclick="openOnlinePanel()">
+    <span class="onl-dot"></span>
+    <span class="onl-name">オンライン</span>
+    <span class="onl-num" id="onl-num">0</span><span class="onl-unit">人</span>
+    <span class="onl-go">一覧を見る ›</span>
+  </button>
+
+  <!-- 🟢 オンラインの人 一覧 (トップのカードから開く。チャット画面へ行かなくても在席が分かる) -->
+  <div id="online-modal" class="onl-back" onclick="if(event.target===this)closeOnlinePanel()">
+    <div class="onl-sheet">
+      <div class="onl-head">
+        <span class="onl-ttl">🟢 オンライン</span>
+        <span class="onl-cnt" id="onl-count"></span>
+        <button type="button" class="onl-close" onclick="closeOnlinePanel()" aria-label="閉じる">✕</button>
+      </div>
+      <div class="onl-body" id="onl-body"></div>
+    </div>
+  </div>
 
   <!-- ✅ やること: いま対応が必要なことを集約 (件数付き・0件なら非表示) -->
   <!-- 背景を白パネル化してトップページ(淡いグラデ)から浮かせ「まとまり感」を出す -->
@@ -919,9 +1280,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
 
 
   <!-- ⭐ 主役カード: 今日の一歩、明日の自分 (最上段) -->
-  <!-- ✉️ メッセージ: 連絡手段 (社内チャット + 会社メール) -->
-  <div class="sec-title" style="border-left-color:#0d9488;">
-    <span class="lbl" style="color:#0f766e;"><img src="/icons/cat/message.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> メッセージ・相談</span>
+    <div class="esg-zone esg-s" aria-label="社会 (Social)">
+<!-- ✉️ メッセージ: 連絡手段 (社内チャット + 会社メール) -->
+  <div class="sec-title" style="border-left-color:#38bdf8;">
+    <span class="lbl" style="color:#0369a1;"><img src="/icons/cat/message.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> メッセージ・相談</span>
     <span class="desc">Message</span>
   </div>
   <div class="grid sec-msg">
@@ -954,44 +1316,8 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     </a>
   </div>
 
-  <!-- 📅 Meeting: 予定・会議 -->
-  <div class="sec-title" style="border-left-color:#7c3aed;">
-    <span class="lbl" style="color:#5b21b6;"><img src="/icons/cat/meeting.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 予定・会議</span>
-    <span class="desc">Meeting</span>
-  </div>
-  <div class="grid sec-meeting">
-    <a class="card meeting" href="/meeting">
-      <div class="icon-pill">🎙</div>
-      <div class="label">ミーティング</div>
-      <div class="desc">3部屋から選んでビデオ会議。退室時にAIが議事録を自動生成。</div>
-    </a>
-    <a class="card poll" href="/poll.html">
-      <span class="badge" id="b-poll" style="display:none;">0</span>
-      <div class="icon-pill">📅</div>
-      <div class="label">日程調整</div>
-      <div class="desc">候補日時を出して、出席者が ○△× で回答。最適日が一目で分かる。</div>
-    </a>
-    <a class="card boshu" href="/boshu.html">
-      <span class="badge" id="b-boshu" style="display:none;">0</span>
-      <div class="icon-pill">📋</div>
-      <div class="label">スポット募集</div>
-      <div class="desc">登録外の社員・社外の方にも、ログイン不要で参加可否を募集。親睦会などの出欠集計に。</div>
-    </a>
-    <a class="card meeting" href="/calendar.html" id="card-shared-cal" style="display:none;">
-      <div class="icon-pill">🗓</div>
-      <div class="label">カレンダー</div>
-      <div class="desc">🙋マイ＝自分の予定とTo Do／👥共有＝みんなの予定。会議・来客・出張・外出・社内行事などを登録。</div>
-    </a>
-    <a class="card meeting" href="/todo.html" id="card-todo" style="display:none;">
-      <span class="badge" id="b-todo" style="display:none;">0</span>
-      <div class="icon-pill">📝</div>
-      <div class="label">To Do</div>
-      <div class="desc">自分だけのやることリスト。期限をつけて登録し、終わったらチェック。他の人には見えません。</div>
-    </a>
-  </div>
-
-  <!-- 💬 Communication: 社内のつながり -->
-  <div class="sec-title" style="border-left-color:#0284c7;">
+<!-- 💬 Communication: 社内のつながり -->
+  <div class="sec-title" style="border-left-color:#38bdf8;">
     <span class="lbl" style="color:#0369a1;"><img src="/icons/cat/comm.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 連絡・つながり</span>
     <span class="desc">Communication</span>
   </div>
@@ -1030,83 +1356,11 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <div class="label">まとめる君</div>
       <div class="desc">走り書きの報告メモをAIが5W1Hに整形。週報モードも。事故・トラブル報告の下書きに。</div>
     </a>
-    <a class="card bdiary" href="/bdiary.html">
-      <span class="badge" id="b-bdiary" style="display:none;">0</span>
-      <img class="bd-ava" src="/assets/bsan_avatar_t.png" alt="Bさん">
-      <div class="bd-txt">
-        <div class="label">Bさん専用</div>
-        <div class="bd-sub">これまでの日記と、みんなのメッセージ 🌸</div>
-      </div>
-    </a>
   </div>
 
-  <!-- 🚨 Report: 報告・記録 -->
-  <div class="sec-title" style="border-left-color:#dc2626;">
-    <span class="lbl" style="color:#b91c1c;"><img src="/icons/cat/report.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 報告・通達・記録</span>
-    <span class="desc">Report</span>
-  </div>
-  <div class="grid sec-report">
-    <a class="card announce" href="/announcements.html">
-      <span class="badge" id="b-announce-card" style="display:none;">0</span>
-      <div class="icon-pill">📢</div>
-      <div class="label">通達</div>
-      <div class="desc">管理部からの正式な通達。重要事項は要確認。</div>
-    </a>
-    <a class="card accident" href="/accident-first.html">
-      <div class="icon-pill">🚨</div>
-      <div class="label">事故の一報</div>
-      <div class="desc">事故が起きたら、まずこれ。管理者の画面で警報が鳴ります（報告書は後日でOK）。</div>
-    </a>
-    <a class="card accident" href="/accident.html">
-      <div class="icon-pill">📝</div>
-      <div class="label">事故報告</div>
-      <div class="desc">製品事故・車両事故の報告書を作成・管理。</div>
-    </a>
-    <a class="card safety" href="/safety-report.html">
-      <div class="icon-pill">🦺</div>
-      <div class="label">安全衛生委員会 月報</div>
-      <div class="desc">安全衛生ニュース・ヒヤリハット分析などの月報PDFを掲示。</div>
-    </a>
-    <a class="card safety" href="/safe-driving.html">
-      <div class="icon-pill">🚚</div>
-      <div class="label">安全運転レポート</div>
-      <div class="desc">デジタコの日次集計。安全運転ランキング・達成率・違反指導を自動表示。</div>
-    </a>
-    <a class="card accident" href="/weekly-report.html" id="card-weekly" style="display:none;">
-      <div class="icon-pill">📊</div>
-      <div class="label">業務週報</div>
-      <div class="desc">営業所責任者向け週次レポート。稼働率・実車率・事故/クレーム・拘束時間・健診フォローを自動集計。</div>
-    </a>
-    <a class="card accident" href="/alerts.html" id="card-alerts" style="display:none;">
-      <div class="icon-pill">⚠️</div>
-      <div class="label">運転アラート</div>
-      <div class="desc">ITPの違反通知（速度超過・急加速・長時間運転 等）を一覧・集計。管理職のみ。</div>
-    </a>
-  </div>
-
-  <!-- 📝 Application: 各種承認申請 (現場の一般社員には非表示) -->
-  <div class="sec-title" id="appl-sec-title" style="border-left-color:#475569;">
-    <span class="lbl" style="color:#334155;"><img src="/icons/cat/apply.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 申請・承認</span>
-    <span class="desc">Application</span>
-  </div>
-  <div class="grid sec-appl" id="appl-grid">
-    <a class="card appl" href="/expense.html">
-      <span class="badge" id="b-expense" style="display:none;">0</span>
-      <div class="icon-pill">💰</div>
-      <div class="label">経費精算</div>
-      <div class="desc">立替経費の精算申請。領収書を撮ればAIが自動入力。</div>
-    </a>
-    <a class="card appl" href="/approval.html">
-      <span class="badge" id="b-approval" style="display:none;">0</span>
-      <div class="icon-pill">📑</div>
-      <div class="label">申請・承認</div>
-      <div class="desc">稟議・物品購入・出張・車両・休暇など各種申請と決裁。決裁基準に沿って自動で承認ルート判定。</div>
-    </a>
-  </div>
-
-  <!-- 🏥 Health: 健康・食事 -->
-  <div class="sec-title" style="border-left-color:#10b981;">
-    <span class="lbl" style="color:#047857;"><img src="/icons/cat/health.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 健康</span>
+<!-- 🏥 Health: 健康・食事 -->
+  <div class="sec-title" style="border-left-color:#38bdf8;">
+    <span class="lbl" style="color:#0369a1;"><img src="/icons/cat/health.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 健康</span>
     <span class="desc">Health</span>
   </div>
   <div class="grid sec-health">
@@ -1168,24 +1422,9 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     </a>
   </div>
 
-  <!-- ℹ️ Information: お役立ち情報 -->
-  <div class="sec-title" style="border-left-color:#0891b2;">
-    <span class="lbl" style="color:#0e7490;"><img src="/icons/cat/info.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> お役立ち情報</span>
-    <span class="desc">Information</span>
-  </div>
-  <div class="grid sec-info">
-    <a class="card info" href="/heat-guide/index.html?v=2#about">
-      <div class="icon-pill">🌡️</div>
-      <div class="label">熱中症 完全ガイド</div>
-      <div class="desc">症状の見分け・予防・応急処置（紙芝居）・職場の対策まで、ひとまとめ。</div>
-    </a>
-  </div>
-
-  <!-- 🆘 Consult は ✉️ Message & Consult に統合 (2026-06-25) -->
-
-  <!-- 🎁 Welfare & Help: 福利厚生・サポート -->
-  <div class="sec-title" style="border-left-color:#f59e0b;">
-    <span class="lbl" style="color:#b45309;"><img src="/icons/cat/welfare.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 福利厚生・サポート</span>
+<!-- 🎁 Welfare & Help: 福利厚生・サポート -->
+  <div class="sec-title" style="border-left-color:#38bdf8;">
+    <span class="lbl" style="color:#0369a1;"><img src="/icons/cat/welfare.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 福利厚生・サポート</span>
     <span class="desc">Welfare &amp; Help</span>
   </div>
   <div class="grid sec-welfare">
@@ -1206,10 +1445,23 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
     </a>
   </div>
 
-  <!-- 推進メンバー専用 -->
+<!-- ℹ️ Information: お役立ち情報 -->
+  <div class="sec-title" style="border-left-color:#38bdf8;">
+    <span class="lbl" style="color:#0369a1;"><img src="/icons/cat/info.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> お役立ち情報</span>
+    <span class="desc">Information</span>
+  </div>
+  <div class="grid sec-info">
+    <a class="card info" href="/heat-guide/index.html?v=2#about">
+      <div class="icon-pill">🌡️</div>
+      <div class="label">熱中症 完全ガイド</div>
+      <div class="desc">症状の見分け・予防・応急処置（紙芝居）・職場の対策まで、ひとまとめ。</div>
+    </a>
+  </div>
+
+<!-- 推進メンバー専用 -->
   <section id="promoter-section" style="display:none;">
-    <div class="sec-title" style="border-left-color:#7c3aed;">
-      <span class="lbl" id="promoter-title" style="color:#5b21b6;">🩺 推進メンバー専用</span>
+    <div class="sec-title" style="border-left-color:#38bdf8;">
+      <span class="lbl" id="promoter-title" style="color:#0369a1;">🩺 推進メンバー専用</span>
       <span class="desc">推進メンバー・管理職のみに表示</span>
     </div>
     <div class="grid sec-promoter">
@@ -1224,17 +1476,26 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <div class="label">点呼管理 <span id="tenkomgr-badge" style="display:none;background:#dc2626;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:1px 7px;margin-left:4px;">0</span></div>
         <div class="desc">点呼・自己チェックの<b>不調/高血圧を1表で一括管理</b>。中🟡はチャット通知せずここに集約（未確認バッジ）。確認/対応の一括処理＋累計（実施率推移・頻発者）。指導履歴・乗務禁止もここ。</div>
       </a>
-      <a class="card p-wifi" href="/branch-wifi.html">
-        <div class="icon-pill">📶</div>
-        <div class="label">営業所Wi-Fi設定</div>
-        <div class="desc">事務所タブレットに表示するWi-FiのSSID/パスワードを設定。個人スマホからの接続QRも自動生成。</div>
-      </a>
+      <!-- ⛔2026-08-31 社長「営業所Wi-Fi設定はいらない。各自設定できている」→ 入口を撤去。
+           ⚠️表示側(共有タブレットのWi-Fiパネル)は 2026-06-30 に廃止済みで、設定しても出す先が無かった。
+           ⚠️/api/branch-wifi/qr は【QR画像を作る共通の口】として tablet-home / tablet / tablet-qr が
+             今も使っている。ルートごと消さないこと。 -->
 
       <div class="grp-sub" style="grid-column:1/-1;font-weight:800;font-size:14px;color:#047857;margin:12px 2px 0;padding-top:10px;border-top:1px dashed #d1fae5;">🩺 健康推進</div>
       <a id="p-card-hcboard" class="card p-rollcall" href="/health-check-board.html" style="display:none;">
         <div class="icon-pill">🩺</div>
         <div class="label">健康点検ボード</div>
         <div class="desc">拠点の毎日の健康点検（点呼＋自己チェック）の<b>実施状況・未実施者</b>・血圧/不調・項目別傾向を一覧。施策立案と業務管理に。</div>
+      </a>
+      <a id="p-card-envadmin" class="card p-rollcall" href="/env-admin.html" style="display:none;">
+        <div class="icon-pill">🌱</div>
+        <div class="label">CO₂排出量の更新</div>
+        <div class="desc">Boxの月次ファイル（Scope123）を<b>そのまま読み込んで</b>更新。読み取った内容を確かめてから保存します。タブレットの表示に反映されます。</div>
+      </a>
+      <a id="p-card-kadai" class="card p-rollcall" href="/health-kadai.html" style="display:none;">
+        <div class="icon-pill">📋</div>
+        <div class="label">健康課題の集計</div>
+        <div class="desc">健康チェックの記録を<b>期間でまとめた表</b>。全体・年代別・男女別・職種別・役職別。帝京大へお出しする集計の元データをそのまま見られます。</div>
       </a>
       <a id="p-card-careboard" class="card p-rollcall" href="/care-board.html" style="display:none;">
         <div class="icon-pill">🫶</div>
@@ -1291,31 +1552,163 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       </a>
     </div>
   </section>
+  </div>
 
-  <!-- LogiHub 入口 (詳細は /logihub.html に集約) -->
-  <section id="logistics-section" style="display:none;">
-    <div class="sec-title" style="border-left-color:#0d9488;">
-      <span class="lbl" style="color:#0f766e;">🚛 LogiHub</span>
-      <span class="desc">物流オペレーションは別ハブに集約</span>
-    </div>
-    <div class="grid sec-logihub">
-      <a id="p-card-logihub-entry" class="card logihub-entry" href="/logihub.html">
-        <div class="icon-pill" style="background:#fff;padding:0;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 12px rgba(13,148,136,0.18);">
-          <img src="/img/logihub-icon-192.png?v=1" alt="LogiHub" style="width:100%;height:100%;object-fit:cover;display:block;">
-        </div>
-        <div class="label">LogiHub を開く</div>
-        <div class="desc">配車 (WMS取込→AI骨組み→ガント→地図) と 現場端末 (bc-scan 倉庫モニター / 商品マスタ登録) を束ねた物流現場の本拠地。</div>
-      </a>
-      <a class="card kbc-entry" href="/kbc.html">
-        <div class="icon-pill">📦</div>
-        <div class="label">関東BC管理</div>
-        <div class="desc">日報・事故報告・クレーム・改善施策。旧 Safety Navi (CoLink) から統合移行済み。</div>
-      </a>
-    </div>
-  </section>
+  <div class="esg-zone esg-g" aria-label="ガバナンス (Governance)">
+<!-- 📅 Meeting: 予定・会議・To Do -->
+  <div class="sec-title" style="border-left-color:#818cf8;">
+    <span class="lbl" style="color:#4338ca;"><img src="/icons/cat/meeting.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 予定・会議・To Do</span>
+    <span class="desc">Meeting</span>
+  </div>
+  <div class="grid sec-meeting">
+    <a class="card meeting" href="/meeting">
+      <div class="icon-pill">🎙</div>
+      <div class="label">ミーティング</div>
+      <div class="desc">3部屋から選んでビデオ会議。退室時にAIが議事録を自動生成。</div>
+    </a>
+    <a class="card poll" href="/poll.html">
+      <span class="badge" id="b-poll" style="display:none;">0</span>
+      <div class="icon-pill">📅</div>
+      <div class="label">日程調整</div>
+      <div class="desc">候補日時を出して、出席者が ○△× で回答。最適日が一目で分かる。</div>
+    </a>
+    <a class="card boshu" href="/boshu.html">
+      <span class="badge" id="b-boshu" style="display:none;">0</span>
+      <div class="icon-pill">📋</div>
+      <div class="label">スポット募集</div>
+      <div class="desc">登録外の社員・社外の方にも、ログイン不要で参加可否を募集。親睦会などの出欠集計に。</div>
+    </a>
+    <a class="card meeting" href="/calendar.html" id="card-shared-cal" style="display:none;">
+      <div class="icon-pill">🗓</div>
+      <div class="label">カレンダー</div>
+      <div class="desc">🙋マイ＝自分の予定とTo Do／👥共有＝みんなの予定。会議・来客・出張・外出・社内行事などを登録。</div>
+    </a>
+    <a class="card meeting" href="/todo.html" id="card-todo" style="display:none;">
+      <span class="badge" id="b-todo" style="display:none;">0</span>
+      <span class="cardmic" id="todo-mic" title="声でメモ" onclick="todoVoice(event)">🎤</span>
+      <div class="icon-pill">📝</div>
+      <div class="label">To Do</div>
+      <div class="desc">自分だけのやることリスト。期限をつけて登録し、終わったらチェック。他の人には見えません。</div>
+    </a>
+  </div>
+
+<!-- 🚨 Report: 報告・記録 -->
+  <div class="sec-title" style="border-left-color:#818cf8;">
+    <span class="lbl" style="color:#4338ca;"><img src="/icons/cat/report.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 報告・通達・記録</span>
+    <span class="desc">Report</span>
+  </div>
+  <div class="grid sec-report">
+    <!-- 2026-08-29 LogiHubの節を畳んだので、行き場のなくなった関東BC管理をここへ (adminのみ) -->
+    <a id="p-card-kbc" class="card kbc-entry" href="/kbc.html" style="display:none;">
+      <div class="icon-pill">📦</div>
+      <div class="label">関東BC管理</div>
+      <div class="desc">日報・事故報告・クレーム・改善施策。旧 Safety Navi (CoLink) から統合移行済み。</div>
+    </a>
+    <a class="card announce" href="/announcements.html">
+      <span class="badge" id="b-announce-card" style="display:none;">0</span>
+      <div class="icon-pill">📢</div>
+      <div class="label">通達</div>
+      <div class="desc">管理部からの正式な通達。重要事項は要確認。</div>
+    </a>
+    <a class="card accident" href="/accident-first.html">
+      <div class="icon-pill">🚨</div>
+      <div class="label">事故の一報</div>
+      <div class="desc">事故が起きたら、まずこれ。管理者の画面で警報が鳴ります（報告書は後日でOK）。</div>
+    </a>
+    <a class="card accident" href="/accident.html">
+      <div class="icon-pill">📝</div>
+      <div class="label">事故報告</div>
+      <div class="desc">製品事故・車両事故の報告書を作成・管理。</div>
+    </a>
+    <a class="card safety" href="/safety-report.html">
+      <div class="icon-pill">🦺</div>
+      <div class="label">安全衛生委員会 月報</div>
+      <div class="desc">安全衛生ニュース・ヒヤリハット分析などの月報PDFを掲示。</div>
+    </a>
+    <a class="card safety" href="/safe-driving.html">
+      <div class="icon-pill">🚚</div>
+      <div class="label">安全運転レポート</div>
+      <div class="desc">デジタコの日次集計。安全運転ランキング・達成率・違反指導を自動表示。</div>
+    </a>
+    <a class="card accident" href="/weekly-report.html" id="card-weekly" style="display:none;">
+      <div class="icon-pill">📊</div>
+      <div class="label">業務週報</div>
+      <div class="desc">営業所責任者向け週次レポート。稼働率・実車率・事故/クレーム・拘束時間・健診フォローを自動集計。</div>
+    </a>
+    <a class="card accident" href="/alerts.html" id="card-alerts" style="display:none;">
+      <div class="icon-pill">⚠️</div>
+      <div class="label">運転アラート</div>
+      <div class="desc">ITPの違反通知（速度超過・急加速・長時間運転 等）を一覧・集計。管理職のみ。</div>
+    </a>
+  </div>
+
+<!-- 📝 Application: 各種承認申請 (現場の一般社員には非表示) -->
+  <div class="sec-title" id="appl-sec-title" style="border-left-color:#818cf8;">
+    <span class="lbl" style="color:#4338ca;"><img src="/icons/cat/apply.png?v=1" style="width:27px;height:27px;object-fit:contain;vertical-align:middle;margin-right:4px;"> 申請・承認</span>
+    <span class="desc">Application</span>
+  </div>
+  <div class="grid sec-appl" id="appl-grid">
+    <a class="card appl" href="/expense.html">
+      <span class="badge" id="b-expense" style="display:none;">0</span>
+      <div class="icon-pill">💰</div>
+      <div class="label">経費精算</div>
+      <div class="desc">立替経費の精算申請。領収書を撮ればAIが自動入力。</div>
+    </a>
+    <a class="card appl" href="/approval.html">
+      <span class="badge" id="b-approval" style="display:none;">0</span>
+      <div class="icon-pill">📑</div>
+      <div class="label">申請・承認</div>
+      <div class="desc">稟議・物品購入・出張・車両・休暇など各種申請と決裁。決裁基準に沿って自動で承認ルート判定。</div>
+    </a>
+  </div>
+  </div>
+
+  <div class="esg-zone esg-e" aria-label="環境 (Environment)">
+<!-- 🌱 Environment: 環境 (2026-08-29) -->
+  <div class="sec-title" style="border-left-color:#10b981;">
+    <span class="lbl" style="color:#047857;">🌱 環境</span>
+    <span class="desc">Environment</span>
+  </div>
+  <div class="grid sec-env">
+    <a class="card env" href="/env.html">
+      <div class="icon-pill">🌱</div>
+      <div class="label">CO₂排出量</div>
+      <div class="desc">今年度の<b>月別の実績と前年同期比</b>、営業所別、SBTiの削減目標、傭車ぶん（Scope3）まで。数字は月ごとに更新しています。</div>
+    </a>
+    <a class="card env" href="https://stdun.biz-terrace.org/ghg.html" target="_blank" rel="noopener">
+      <div class="icon-pill">📄</div>
+      <div class="label">対外公表ページ（案）</div>
+      <div class="desc">ホームページに載せる<b>温室効果ガスの公表</b>の下書き。SBTiの目標・実績の推移・再エネ100％・Scope3をまとめてあります。</div>
+    </a>
+  </div>
+  </div>
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <!-- 🆘 Consult は ✉️ Message & Consult に統合 (2026-06-25) -->
+
+  
+
+  
+
 
   <div class="footer">
     <!-- 2026-07-21 「📜 自分のログ」導線を撤去 (/api/chat/history の情報漏えい対応。ページ自体は /mylog に残存) -->
+    <!-- 2026-08-25 「Bさん専用」カードを連絡・つながりから撤去し、ここへ。追悼の場なので新着バッジも出さない -->
+    <a id="foot-logihub" href="/logihub.html" style="display:none;">🚛 LogiHub</a>
+    <a href="/bdiary.html">💌 元祖Ｂさんの愛の日記</a>
     <a href="/security.html">🔒 セキュリティ</a>
     <a href="/about-cowell.html">ℹ️ CoWellについて</a>
   </div>
@@ -1463,7 +1856,10 @@ function fmtHM(s) {
 }
 
 // 退勤打刻 → CoHubを閉じる
+var _kikoGateSkipped = false;   // 「あとで」を選んだ後にゲートを繰り返さないための印
 async function punchOutAndClose() {
+  // 帰る前のチェック(体調と昼ごはん)が未提出なら、退勤打刻の前に一度だけ声をかける。
+  // ⚠️強制はしない。キャンセルすればそのまま退勤できる(義務にすると打刻自体を避ける人が出る)。
   if (!confirm('退勤打刻してCoWellを閉じますか？\n（閉じた時刻が退勤時刻として記録されます）')) return;
   const btn = document.getElementById('hero-punchout-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
@@ -1638,6 +2034,9 @@ function wnClick(ev, key, isAlert) {
   wnMarkRead([key]);
   const li = ev && ev.currentTarget;
   bumpCount(isAlert ? 'da-count' : 'wn-new-count', -1);
+  // ⚠️控えの未読数も一緒に減らす(画面外の未読が残っているかの判断に使う)
+  if (isAlert) { _daUnreadN = Math.max(0, _daUnreadN - 1); _daUnreadKeys = _daUnreadKeys.filter(function (k) { return k !== key; }); }
+  else { _wnUnreadN = Math.max(0, _wnUnreadN - 1); _wnUnreadKeys = _wnUnreadKeys.filter(function (k) { return k !== key; }); }
   // ⭐既読にした項目はトップから消す (社長 2026-07-28「既読にしたらトップ画面には表示しない」)。
   //   ⚠️運転アラートは「本日分の一覧」なので消さず NEW バッジだけ落とす。
   if (li && !isAlert) wnDropItem(li, key);
@@ -1649,7 +2048,9 @@ function wnDropItem(li, key) {
   if (!key) { const b = li.querySelector('.li-new'); if (b) b.remove(); return; }   // キー無し=既読にできない項目は残す
   _wnEvents = _wnEvents.filter(function (e) { return e.key !== key; });
   li.remove();
-  if (!_wnEvents.length) wnShowEmpty();
+  // ⚠️並べていた5件を読み切っても、画面に出ていない未読が残っていることがある。
+  //   そこで「ありません」に切り替えず、次の未読を読み直して出す(でないとバッジだけ残って中身が空になる)。
+  if (!_wnEvents.length) { if (_wnUnreadN > 0) loadWhatsNew(); else wnShowEmpty(); }
 }
 function wnShowEmpty() {
   const list = document.getElementById('wn-list');
@@ -1658,6 +2059,9 @@ function wnShowEmpty() {
   if (cnt) { cnt.dataset.n = 0; cnt.style.display = 'none'; }
   const ra = document.getElementById('wn-readall');
   if (ra) ra.style.display = 'none';
+  _wnUnreadN = 0; _wnUnreadKeys = [];
+  const box = document.getElementById('whats-new');
+  if (box) box.classList.add('wn-collapsed');   // 未読ゼロ=畳んで一行に戻す
 }
 function bumpCount(id, d) {
   const c = document.getElementById(id);
@@ -1668,14 +2072,27 @@ function bumpCount(id, d) {
   else { c.style.display = 'none'; }
 }
 function wnBumpCount(d) { bumpCount('wn-new-count', d); }
+/* ⭐⭐2026-08-27 社長「既読をしない限りバッジを出し続けて。埋もれるので確認を必ずさせたい」。
+   ・未読の件数は【画面に出している5件】ではなく サーバーが数えた総数を出す。
+   ・未読が1件でもあれば 帯を【開いた状態】で出す(畳んだままだと中身が見えず埋もれる)。
+   ・「すべて既読」は 画面に出ていない未読も含めて消す(でないとバッジが下がりきらない)。
+   ⚠️未読が0のときだけ畳む。読み終わるまでは トップに来るたび また開く。 */
+var _wnUnreadN = 0, _daUnreadN = 0, _wnUnreadKeys = [], _daUnreadKeys = [];
+function stripOpenIfUnread(id, cls, n) {
+  var box = document.getElementById(id);
+  if (box && n > 0) box.classList.remove(cls);   // ⚠️0のときに畳み直すのは「ありません」表示のときだけ
+}
 async function wnReadAll() {
-  const keys = _wnEvents.concat(_wnAlerts).filter(function (e) { return e.unread && e.key; }).map(function (e) { return e.key; });
+  // ⚠️画面に出ている ぶんだけ既読にすると、6件目以降が残ってバッジが下がらない
+  var keys = _wnUnreadKeys.concat(_daUnreadKeys);
+  var shown = _wnEvents.concat(_wnAlerts).filter(function (e) { return e.unread && e.key; }).map(function (e) { return e.key; });
+  shown.forEach(function (k) { if (keys.indexOf(k) < 0) keys.push(k); });   // 新機能のお知らせは画面側にしか無い
   await wnMarkRead(keys);
   loadWhatsNew();
 }
 // ⭐2026-07-28 運転アラートを「お知らせ」から格上げ: お知らせ直下の専用枠に出す (社長指示)
 //   サーバー側で管理職のみに返しているので、一般社員は空=枠ごと非表示。
-var _wnAlerts = [];
+var _wnAlerts = [], _wnAlertTotal = 0;
 const DA_SHOW = 5;
 // ⭐当日分だけ出す (社長指示 2026-07-28。前日以前は「アラート一覧」で見る)
 function isTodayJst(iso) {
@@ -1685,8 +2102,10 @@ function isTodayJst(iso) {
   const n = new Date();
   return t.getFullYear() === n.getFullYear() && t.getMonth() === n.getMonth() && t.getDate() === n.getDate();
 }
-function renderDriveAlerts(alerts) {
-  _wnAlerts = (alerts || []).filter(function (a) { return isTodayJst(a.created_at); }).slice(0, DA_SHOW);
+function renderDriveAlerts(alerts, unreadTotal) {
+  /* ⭐2026-08-27 社長「既読をしない限り出し続けて」。当日分だけだと **読まないまま日付が変わると消える**。
+     → 「当日分」または「未読」を出す(未読は7日以内=サーバーの取得範囲まで持ち越す)。 */
+  _wnAlerts = (alerts || []).filter(function (a) { return isTodayJst(a.created_at) || a.unread; }).slice(0, DA_SHOW);
   const box = document.getElementById('drive-alerts'), list = document.getElementById('da-list');
   if (!box || !list) return 0;
   // アラートが1件も無い日も「ありません」と出す (社長 2026-07-28。枠ごと消えると"見落とし"と区別できないため)。
@@ -1701,10 +2120,19 @@ function renderDriveAlerts(alerts) {
     list.innerHTML = '<div class="da-empty">✅ 本日の運転アラートはありません</div>';
     const c0 = document.getElementById('da-count');
     if (c0) { c0.dataset.n = 0; c0.style.display = 'none'; }
+    _daUnreadN = 0; _daUnreadKeys = [];
+    box.classList.add('da-collapsed');   // 0件=畳んで一行に戻す
     return 0;
   }
   box.style.display = '';
   box.classList.remove('is-clear');
+  /* ⚠️2026-08-27 未読は日付をまたいでも残すようにしたので、当日以外が混ざる日がある。
+     「本日の」と書いたまま前日のアラートを並べると食い違うため、見出しを言い換える。 */
+  const lab = box.querySelector('.da-label');
+  if (lab) {
+    const allToday = _wnAlerts.every(function (a) { return isTodayJst(a.created_at); });
+    lab.textContent = allToday ? '⚠️ 本日の運転アラート' : '⚠️ 運転アラート (未読あり)';
+  }
   let unread = 0;
   list.innerHTML = _wnAlerts.map(function (ev) {
     if (ev.unread) unread++;
@@ -1720,9 +2148,13 @@ function renderDriveAlerts(alerts) {
       + '</span>'
       + '</a>';
   }).join('');
+  // ⚠️バッジは【画面に出した5件】ではなく サーバーが数えた未読の総数を出す
+  const total = (typeof unreadTotal === 'number' && unreadTotal >= unread) ? unreadTotal : unread;
   const c = document.getElementById('da-count');
-  if (c) { c.dataset.n = 0; bumpCount('da-count', unread); }
-  return unread;
+  if (c) { c.dataset.n = 0; bumpCount('da-count', total); }
+  _daUnreadN = total;
+  stripOpenIfUnread('drive-alerts', 'da-collapsed', total);   // 未読があるうちは開いて見せる
+  return total;
 }
 // アプリ復帰・タブ再表示で読み直す (常駐PWA対策)。
 // 開きっぱなしだと 日付をまたいでも前日のアラートが残る / 新着アラートが出ない ため。
@@ -1742,22 +2174,29 @@ async function loadWhatsNew() {
   wireWhatsNewRefresh();
   let events = [];
   try {
-    const r = await api('/api/whats-new?limit=14');
-    if (r && r.success && Array.isArray(r.events)) events = r.events;
+    const r = await api('/api/whats-new?limit=20');
+    if (r && r.success && Array.isArray(r.events)) {
+      events = r.events;
+      _wnUnreadN = (typeof r.unread_total === 'number') ? r.unread_total : 0;
+      _wnUnreadKeys = Array.isArray(r.unread_keys) ? r.unread_keys : [];
+      _daUnreadKeys = Array.isArray(r.alert_unread_keys) ? r.alert_unread_keys : [];
+      _wnAlertTotal = (typeof r.alert_unread_total === 'number') ? r.alert_unread_total : 0;
+    }
   } catch (e) { /* 取得失敗は黙って無視 */ }
   // 運転アラートは「お知らせ」の枠を使わず専用枠へ (お知らせが埋もれない・アラートも見落とさない)
   const alertEvents = events.filter(function (e) { return e.type === 'alert'; });
   events = events.filter(function (e) { return e.type !== 'alert'; });
-  const alertUnread = renderDriveAlerts(alertEvents);   // お知らせが空でも描画されるよう先に処理
+  const alertUnread = renderDriveAlerts(alertEvents, _wnAlertTotal);   // お知らせが空でも描画されるよう先に処理
   // ⭐既読は出さない (社長 2026-07-28「既読にしたらトップ画面には表示しない」)。
   //   既読/未読は**ユーザーごと**にサーバー(whatsnew_reads)が持つので、PCで読めばスマホからも消える。
   //   読み逃した過去分は 掲示板/通達 の各一覧で見られる。
   events = events.filter(function (e) { return e.unread; });
   // 実イベント + 新機能のお知らせ(管理画面で編集可) を1本の「お知らせ」に統合
-  let features = null;
+  let features = null, featUnreadTotal = 0;
   try {
     const rf = await api('/api/whats-new/features');
     if (rf && rf.success && Array.isArray(rf.items)) {
+      featUnreadTotal = (typeof rf.unread === 'number') ? rf.unread : 0;
       // ⚠️ items.length のガードを外した: 全部既読なら**空配列のまま**使う
       //    (空だと既定リストへ落ちる作りだと、既読にした新機能が既定から復活してしまう)
       features = rf.items.filter(function (x) { return x.unread; }).map(function (x) {
@@ -1782,9 +2221,12 @@ async function loadWhatsNew() {
   let unread = 0;
   list.innerHTML = _wnEvents.map(function (ev, i) {
     if (ev.unread) unread++;
+    /* ⭐2026-08-30 社長指示: 見出しの「📢 お知らせ」と重なるので、告知の📢は行には出さない。
+       ⭐マークの枠(22px)ごと外して、告知の文字は左端から始める。 */
+    const li_icon = (ev.icon === '📢') ? '' : (ev.icon || '📌');
     const thumb = ev.thumb
       ? '<img class="li-thumb" src="' + escapeHtml(ev.thumb) + '" alt="" onerror="this.remove()">'
-      : '<span class="li-ic">' + (ev.icon || '📌') + '</span>';
+      : (li_icon ? '<span class="li-ic">' + li_icon + '</span>' : '');
     return '<a class="wn-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(ev.link || '#') + '"'
       + ' onclick="return wnClick(event, ' + JSON.stringify(ev.key || '').replace(/"/g, '&quot;') + ')">'
       + thumb
@@ -1799,10 +2241,15 @@ async function loadWhatsNew() {
       + '</a>';
   }).join('');
 
+  /* ⚠️バッジは【画面に出した5件】ではなく、お知らせの未読総数 + 新機能の未読総数。
+     画面に出ていない ぶんも数えるので、5件しか並んでいなくても「9件の未読」と出る(一覧へ誘導するため)。 */
+  const newsTotal = Math.max(unread, _wnUnreadN + featUnreadTotal);
   const cnt = document.getElementById('wn-new-count');
-  if (cnt) { cnt.dataset.n = 0; wnBumpCount(unread); }
+  if (cnt) { cnt.dataset.n = 0; wnBumpCount(newsTotal); }
+  _wnUnreadN = newsTotal;
+  stripOpenIfUnread('whats-new', 'wn-collapsed', newsTotal);   // 未読があるうちは開いて見せる
   const ra = document.getElementById('wn-readall');
-  if (ra) ra.style.display = (unread + alertUnread) > 0 ? '' : 'none';   // 運転アラート枠の未読も対象
+  if (ra) ra.style.display = (newsTotal + alertUnread) > 0 ? '' : 'none';   // 運転アラート枠の未読も対象
 }
 // (今日のひとこと + NEWS の連結 linkMsgNews は 2026-07-29 のひとこと音声化に伴い廃止)
 // 🆕 新機能のお知らせ: 一行カードを下から押上げて循環 (3件以上のとき)
@@ -1811,8 +2258,6 @@ function renderNewFeatures(isManager) {
   if (!box || !list) return;
   const items = [];
   // ★本日の新機能 (全員向け・最新を先頭に)
-  items.push({ ic: '💌', t: '元祖Ｂさんの愛の日記', d: 'Bさんの日々のひとこと。いいねやコメントで、みんなで応援しよう', href: '/bdiary.html' });
-  items.push({ ic: '🎤', t: '声でコメント', d: 'コメント欄の🎤を押して話すと、そのまま文字になります（片手でもラクラク）', href: '/bdiary.html' });
   items.push({ ic: '📋', t: 'スポット募集', d: '登録外の社員・社外の方にもログイン不要で参加可否を募集。親睦会の出欠集計に', href: '/boshu.html' });
   items.push({ ic: '🗳️', t: '投票したろう', d: '選択肢を出して対象者が投票。アンケートや多数決の集計が一目で分かる', href: '/vote.html' });
   items.push({ ic: '🏁', t: '決選投票', d: '投票で票が割れたら、上位候補だけでもう一度「決選投票」ができます', href: '/vote.html' });
@@ -1855,10 +2300,11 @@ function _isStandalone() { try { return window.matchMedia('(display-mode: standa
 function maybeOfferPush() {
   try {
     if (localStorage.getItem('cohub_kiosk') === '1') return;        // 共用端末は対象外
-    // 「後で」は7日で復活させる (2026-08-04)。永久に消えると、呼んでも気づかない人が残り続ける。
+    // 「後で」は翌日に復活させる (2026-08-10 社長指示で7日→1日)。
+    // ⚠️呼ばれても気づけない状態を1週間放置しない。実測で事務25名中13名が未設定だった。
     var _dz = localStorage.getItem('push_cta_dismissed');
     if (_dz === '1') { try { localStorage.setItem('push_cta_dismissed', String(Date.now())); } catch (e) {} return; }
-    if (_dz && (Date.now() - parseInt(_dz, 10)) < 7 * 86400000) return;
+    if (_dz && (Date.now() - parseInt(_dz, 10)) < 86400000) return;
     var cta = document.getElementById('push-cta');
     var msg = document.getElementById('push-cta-msg');
     var btn = document.getElementById('push-cta-btn');
@@ -1889,6 +2335,76 @@ function maybeOfferPush() {
     cta.style.display = '';
   } catch (e) {}
 }
+/* ⭐通知をオンにする案内トースト (2026-08-10 社長指示)。
+   ⭐バナーは見落とされる。ログインから少し置いて、画面の下から1回だけ声をかける。
+   ⚠️1日1回まで。毎回出すと読まれなくなる。
+   ⚠️共用端末(kiosk)では出さない。localStorageが全員共通なので日付キーに本人のIDを混ぜる。 */
+function maybeToastPushCta() {
+  try {
+    if (localStorage.getItem('cohub_kiosk') === '1') return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') return;   // 済んでいる人には出さない
+    var me = {}; try { me = JSON.parse(localStorage.getItem('cohub_user') || '{}'); } catch (e) {}
+    var key = 'push_toast_' + (me.uid || '') + '_' + new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:99998;'
+      + 'background:#fffbeb;border:1.5px solid #f59e0b;border-radius:16px;padding:14px 16px;'
+      + 'box-shadow:0 10px 30px rgba(15,23,42,.22);max-width:min(92vw,460px);font-size:13.5px;color:#7c2d12;line-height:1.7';
+    el.innerHTML = '<div style="font-weight:900;font-size:15px;color:#92400e;margin-bottom:4px">🔔 通知がオフです</div>'
+      + 'このままだと、<b>呼ばれても気づけません</b>。オンにすると、ほかの作業をしていても画面の隅でお知らせします。'
+      + '<div style="font-size:12px;color:#a16207;margin-top:3px">音は鳴りません。</div>'
+      + '<div style="display:flex;gap:8px;margin-top:11px">'
+      +   '<button type="button" id="ptoast-on" style="flex:1;border:none;border-radius:12px;padding:10px;background:#f59e0b;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer">通知をオンにする</button>'
+      +   '<button type="button" id="ptoast-later" style="border:none;border-radius:12px;padding:10px 14px;background:#fff;border:1px solid #fcd34d;color:#92400e;font-weight:700;font-size:13px;cursor:pointer">あとで</button>'
+      + '</div>';
+    document.body.appendChild(el);
+    document.getElementById('ptoast-on').onclick = function () { el.remove(); doEnablePush(); };
+    document.getElementById('ptoast-later').onclick = function () { el.remove(); };
+    setTimeout(function () { try { el.remove(); } catch (e) {} }, 30000);
+  } catch (e) {}
+}
+
+/* ⭐通知テストのお願い (2026-08-10 社長指示)。
+   ⭐まず【誰が通知を出せる状態なのか】を実測してから対策を決める。事務系だけに出す
+     (現場はタブレット運用なので当面対象外)。
+   ⚠️共用端末では出さない。済んだ人には二度と出さない(確認ページで答えると印が付く)。 */
+async function maybeAskNotifTest(me) {
+  try {
+    if (localStorage.getItem('cohub_kiosk') === '1') return;
+    if (localStorage.getItem('notif_test_done') === '1') return;
+    var office = me && (me.employee_type === 'office' || me.employee_type === 'admin'
+      || me.job_role === 'manager' || me.job_role === 'executive');
+    if (!office) return;
+    /* ⚠️端末のlocalStorageだけで判定すると、同じ人がChromeとEdge、自席と共用PCで
+       何度も同じお願いを見る。答えたかどうかはサーバーが持っている方を正とする。
+       ⚠️取れないときは出す(お願いを見せる方に倒す。押し付けにはならない)。 */
+    try {
+      var mine = await api('/api/notif-diag/mine');
+      if (mine && mine.success && mine.done) {
+        try { localStorage.setItem('notif_test_done', '1'); } catch (e) {}
+        return;
+      }
+    } catch (e) {}
+    var el = document.createElement('div');
+    el.id = 'notif-test-cta';
+    el.style.cssText = 'margin:10px 12px;padding:13px 15px;background:#eff6ff;border:1.5px solid #93c5fd;'
+      + 'border-radius:16px;font-size:13.5px;color:#1e3a8a;line-height:1.75';
+    el.innerHTML = '<div style="font-weight:900;font-size:15px;margin-bottom:3px">🔔 通知のテストにご協力ください（1分）</div>'
+      + '呼ばれた時に気づけるかを、全員ぶん確かめています。<b>音は鳴りません。</b>'
+      + '<div style="display:flex;gap:8px;margin-top:11px">'
+      +   '<a href="/notif-check.html" style="flex:1;text-align:center;border-radius:12px;padding:10px;background:#2563eb;color:#fff;font-weight:800;text-decoration:none">テストする</a>'
+      +   '<button type="button" id="ntest-later" style="border:none;border-radius:12px;padding:10px 14px;background:#fff;border:1px solid #93c5fd;color:#1e40af;font-weight:700;cursor:pointer">あとで</button>'
+      + '</div>';
+    var app = document.getElementById('app');
+    var anchor = document.getElementById('push-cta');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else if (app) app.insertBefore(el, app.firstChild);
+    document.getElementById('ntest-later').onclick = function () { el.remove(); };
+  } catch (e) {}
+}
+
 // 許可済みの端末で、購読をサーバーに登録し直す(画面には何も出さない)。
 // 1日1回だけ試す。失敗しても黙る(呼び出しの導線を邪魔しない)。
 async function ensurePushSubscribed() {
@@ -1974,7 +2490,11 @@ function canUseDetail(u){
   return u.employee_type==='office' || u.employee_type==='admin' || u.role==='admin'
       || u.job_role==='executive' || u.job_role==='manager'
       || !!u.is_manager || !!u.is_ops_manager || !!u.is_branch_head
-      || !!u.is_field_promoter || !!u.is_warehouse_promoter;
+      || !!u.is_field_promoter || !!u.is_warehouse_promoter
+      // ⭐「詳細画面を使ってよい」だけの権限 (2026-08-10 社長指示)。倉庫責任者など、
+      //   他人の体調・血圧が見える権限は付けずに詳細画面だけ許したい人のため。
+      //   ⚠️これ自体は何の閲覧権限も与えない。付けても見えるものは増えない。
+      || !!u.can_use_detail;
 }
 async function init() {
   if (!token) { showLogin(); return; }
@@ -2000,6 +2520,9 @@ async function init() {
   if (!canUseDetail(me)) { location.replace('/tablet-home.html'); return; }
   showApp();
   maybeOfferPush();
+  try { maybeAskNotifTest(me); } catch (e) {}
+  // ⭐バナーを見落とす人向けに、少し置いてから下からも声をかける (2026-08-10 社長指示)
+  setTimeout(function () { try { maybeToastPushCta(); } catch (e) {} }, 3500);
   maybeShowAgenda();   // 本日の会議 議題(対象=管理職+推進)のログイン時モーダル
   // 新機能のお知らせは「新着情報」(loadWhatsNew)に統合済み (旧 renderNewFeatures は廃止)
   if (me.is_manager) {
@@ -2036,12 +2559,21 @@ async function init() {
     +   '<span class="greet-actions">'
     +     '<a href="/mypage.html" class="greet-mypage">' + mypageLbl + '<span class="g-long"> ›</span></a>'
     +     '<button type="button" class="greet-search" onclick="openSearch()">🔍 検索</button>'
-    +     '<a href="/self-check.html" id="hc-chip" class="greet-hc" style="display:none;" title="体調チェック"></a>'
+    +     '<span class="greet-sc" id="sc-chip" style="display:none;">'
+    +       '<button type="button" class="sc-seg" id="sc-seg-in" onclick="openMorningCheckModal()">'
+    +         '☀️<span class="g-long">出勤</span><span class="sc-mk" id="sc-mk-in"></span></button>'
+    +       '<button type="button" class="sc-seg" id="sc-seg-out" onclick="openKikoModal()">'
+    +         '🌙<span class="g-long">退勤</span><span class="sc-mk" id="sc-mk-out"></span></button>'
+    +     '</span>'
     +   '</span>'
     + '</span>';
 
   // 出退勤打刻UIは廃止 (2026-05-25 完全削除)
-  $('greet').innerHTML = greetHtml;
+  try { startHeaderClock(); loadHeaderWeather(me.company_code); } catch (e) {}
+  // ⭐2026-08-29: 名乗り(アバター・名前・出退勤)はタイトルバーへ出す
+  var _hdMe = document.getElementById('hd-me');
+  if (_hdMe) { _hdMe.innerHTML = '<div class="greet" id="greet">' + greetHtml + '</div>'; }
+  else { $('greet').innerHTML = greetHtml; }
 
 
   // 今日のひとこと (AIメッセージ)
@@ -2050,6 +2582,9 @@ async function init() {
   loadWhatsNew();
   // 今日の体調チェック トップカード (全ユーザー・旧「体調・血圧チェック」ボタンの置き換え)
   try { setupDailyCheckCard(); } catch (e) { console.warn('[dailycheck]', e); }
+  // ⭐出勤時のセルフチェックを必須にする(2026-08-09 社長指示)。未実施なら閉じられない画面で塞ぐ。
+  try { forceMorningCheckGate(me); } catch (e) { console.warn('[selfcheck-gate]', e); }
+
   // 運行管理者からの指導(本人の承諾待ち)を最上部に出す
   try { loadHomeGuidance(); } catch (e) { console.warn('[guidance]', e); }
   // ✅ やること(対応が必要なこと)を集約表示
@@ -2101,6 +2636,9 @@ async function init() {
       $('promoter-title').textContent = '🩺 推進メンバー / 管理職 専用';
     } else if (isGuest) {
       $('promoter-title').textContent = '🎓 研究閲覧 (' + escapeHtml(me.guest_org || '外部') + ') — 参照のみ・氏名は匿名';
+    } else if ((isPromoter || isWarehousePromoter) && me.name_masked) {
+      // 社外の推進メンバー(NPO等): 権限は推進メンバーと同じ・社員の氏名はニックネーム表示
+      $('promoter-title').textContent = '🩺 推進メンバー専用 (' + escapeHtml(me.guest_org || '社外') + ') — 氏名はニックネーム表示';
     } else if (isPromoter || isWarehousePromoter) {
       $('promoter-title').textContent = '🩺 推進メンバー専用';
     } else if (isOpsManager || isBranchHead) {
@@ -2108,12 +2646,19 @@ async function init() {
     } else {
       $('promoter-title').textContent = '🩺 健康管理 専用';
     }
+    /* ⭐2026-08-27 社長指示: 見出しをボタンにしたので、長い肩書きは「/」「—」の位置で2行に折る
+       (そのままだと ボタンの中で不自然なところで折り返す)。⚠️innerHTML なので escapeHtml を通す。 */
+    var _pt = $('promoter-title');
+    if (_pt) _pt.innerHTML = escapeHtml(_pt.textContent).replace(' / ', ' /<br>').replace(' — ', '<br>');
     // 点呼・朝礼: 点呼者・管理者に表示
     if (isTenkoOp) { const t = $('p-card-tenko'); if (t) t.style.display = ''; }
     // 健康点検ボード: 推進メンバー・管理職 (canViewBoard相当) + 研究閲覧のゲスト
     if (isListeningRecorder || isAdmin || isTenkoOp || me.is_manager || me.employee_type === 'admin') {
       const hb = $('p-card-hcboard'); if (hb) hb.style.display = '';
       const cb = $('p-card-careboard'); if (cb) cb.style.display = '';
+      const kd = $('p-card-kadai'); if (kd) kd.style.display = '';
+      // CO₂排出量の更新は管理者のみ (月次で須貝さんが入れ替える)
+      if (isAdmin || me.employee_type === 'admin') { const ev = $('p-card-envadmin'); if (ev) ev.style.display = ''; }
       // 点呼管理(一括モーダル): 同じ権限で表示。未確認件数をバッジ表示
       const tm = $('p-card-tenkomgr'); if (tm) tm.style.display = '';
       api('/api/tenko/manage').then(function (r) {
@@ -2136,7 +2681,8 @@ async function init() {
       if (c) c.style.display = '';
     }
     // 現場登録(顔写真・初期PIN): 推進メンバー(現場/倉庫)・管理職・admin
-    if (isPromoter || isWarehousePromoter || me.employee_type === 'admin' || isAdmin) {
+    // 社外の推進メンバー(name_masked)には出さない。顔写真の撮影と初期PIN発行=社員の登録そのものなので。
+    if ((isPromoter || isWarehousePromoter || me.employee_type === 'admin' || isAdmin) && !me.name_masked) {
       const cf = $('p-card-field-enroll');
       if (cf) cf.style.display = '';
     }
@@ -2149,8 +2695,8 @@ async function init() {
     } catch (e) {}
     // LogiHub: システムadminのみ
     if (isAdmin) {
-      const sec = $('logistics-section');
-      if (sec) sec.style.display = '';
+      const fl = $('foot-logihub'); if (fl) fl.style.display = '';
+      const kb = $('p-card-kbc'); if (kb) kb.style.display = '';
     }
   }
   // カテゴリー折りたたみ (アコーディオン): 現場一般社員は専用トップ(setupFieldStaffTop)を使うため除外
@@ -2163,36 +2709,167 @@ async function init() {
 // ━━━ 今日の体調チェック トップカード (全ユーザー共通): 旧「体調・血圧チェック」ボタンを置き換え ━━━
 // カード状態を当日の my-today で更新。done=済/未=初期表示。★未のelseブランチが要:
 // これが無いと、常駐PWAが日付をまたいだ時に前日の「記録済み」表示が残り、毎日リセットされない。
+/* ☀️出勤 / 🌙退勤 の状態をタイトルバーのチップに反映する (2026-08-10)。
+   ⚠️済んでもチップは消さない。押せばやり直せる方が現場に優しい(旧1枚バナーは済むと消えていた)。 */
 function refreshDailyCheckCard() {
-  var top = document.getElementById('field-daily-check');
-  if (!top) return;
-  api('/api/tenko/my-today').then(function (r) {
-    var st = top.querySelector('.fdc-state');
-    var sub = top.querySelector('.fdc-sub');
-    var cta = top.querySelector('.fdc-cta');
-    var done = !!(r && r.success && r.done);
-    // 検索の横の体調チェック状態チップ (完了=緑✅済 / 未実施=琥珀🩸)
-    var chip = document.getElementById('hc-chip');
-    if (chip) {
-      chip.style.display = 'inline-flex';
-      if (done) { chip.classList.add('done'); chip.innerHTML = '✅ 体調<span class="g-long">チェック</span>済'; }
-      else { chip.classList.remove('done'); chip.innerHTML = '🩸 体調<span class="g-long">チェック</span>'; }
-    }
-    if (done) {
-      // 完了したらバナーは消す (通達バナーと同じ挙動)。翌日=未実施に戻ると再表示。
-      top.style.display = 'none';
-    } else {
-      top.style.display = '';
-      top.classList.remove('done');
-      if (st) st.textContent = '今日の体調セルフチェック';
-      if (sub) sub.textContent = 'まだ今日の記録がありません。タップで記録 →';
-      if (cta) cta.textContent = '記録する';
-    }
+  var chip = document.getElementById('sc-chip');
+  if (!chip) return;
+  Promise.all([
+    api('/api/tenko/my-today').catch(function () { return null; }),
+    api('/api/tenko/kiko/mine').catch(function () { return null; })
+  ]).then(function (res) {
+    var inDone = !!(res[0] && res[0].success && res[0].done);
+    var outDone = !!(res[1] && res[1].success && res[1].done);
+    chip.style.display = 'inline-flex';
+    // ⭐未実施は赤い「未」バッジ。出勤はいつでも点滅、退勤は夕方(15時以降)から点滅させる
+    //   (朝から退勤が点滅していると、その日ずっと点滅していることになり効かなくなる)。
+    var evening = new Date().getHours() >= 15;
+    var set = function (segId, mkId, done, label, blink) {
+      var b = document.getElementById(segId), m = document.getElementById(mkId);
+      if (!b || !m) return;
+      b.classList.toggle('done', done);
+      m.textContent = done ? '✓' : '未';
+      m.className = 'sc-mk' + (done ? '' : (blink ? ' na blink' : ' na'));
+      b.title = label + 'のセルフチェック' + (done ? '（済んでいます。押すとやり直せます）' : '（まだです。押すと開きます）');
+    };
+    set('sc-seg-in', 'sc-mk-in', inDone, '出勤', true);
+    set('sc-seg-out', 'sc-mk-out', outDone, '退勤', evening);
   }).catch(function () {});
 }
+
+/* ===== 出勤/退勤のセルフチェック 強制ゲート (2026-08-09 社長指示) =====
+   ⭐出勤=ログイン直後 / 退勤=退勤打刻の直前。どちらも閉じるボタンの無い画面で必ず答えてもらう。
+   ⚠️状態が取れないときは絶対に塞がない(画面が使えない・退勤打刻できない事故を作らない)。
+   ⚠️社外ゲストは対象外。
+   ⚠️退勤側は簡単版(tablet-home)の1問1画面を使い回す。設問を二重に持たないこと。 */
+function showForceGate(icon, title, sub, btnLabel, href, laterLabel, laterFn) {
+  var el = document.getElementById('force-gate');
+  if (!el) { el = document.createElement('div'); el.id = 'force-gate'; document.body.appendChild(el); }
+  el.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.74);display:flex;align-items:center;justify-content:center;padding:20px');
+  el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:460px;width:100%;padding:30px 26px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.32)">'
+    + '<div style="font-size:56px;line-height:1;margin-bottom:14px">' + icon + '</div>'
+    + '<div style="font-size:21px;font-weight:900;color:#0f172a;margin-bottom:8px">' + title + '</div>'
+    + '<div style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:22px">' + sub + '</div>'
+    + '<button type="button" id="force-gate-go" style="width:100%;border:none;border-radius:16px;padding:16px;font-size:18px;font-weight:900;color:#fff;background:#0f766e;cursor:pointer;box-shadow:0 4px 0 #0b5c55">' + btnLabel + '</button>'
+    + (laterLabel ? '<button type="button" id="force-gate-later" style="margin-top:14px;border:none;background:none;color:#64748b;font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer;padding:6px 12px">' + laterLabel + '</button>' : '')
+    + '</div>';
+  // ⚠️背景クリック・Escでは閉じない。閉じられるのは「あとで」を渡したときだけ(社長指示で逃げ道を残す)。
+  var go = document.getElementById('force-gate-go');
+  if (go) go.onclick = function () { location.href = href; };
+  var later = document.getElementById('force-gate-later');
+  if (later) later.onclick = function () { closeForceGate(); if (typeof laterFn === 'function') laterFn(); };
+}
+function closeForceGate() {
+  var el = document.getElementById('force-gate');
+  if (el) el.remove();
+}
+/* ===== 朝のセルフチェック: ログイン後にモーダルで出す (2026-08-09 社長指示) =====
+   ⭐別ページへ飛ばさず、トップに重ねて出す。設問は self-check.html を iframe で
+     読み込んで使い回す(⚠️モーダル側に設問を作り直さないこと)。
+   ⭐「あとで行う」の逃げ道は残す(社長指示)。ただし逃げっぱなしにはせず30分後にまた出す。
+   ⚠️先送りの記録は【ユーザーIDと当日の日付】をキーにする。共用端末で localStorage を
+     共有するため、キーを共通にすると一人が押しただけで全員に出なくなる。 */
+var _selfCheckMe = null;
+function selfCheckPostponeKey() {
+  var d = new Date();
+  return 'cohub_selfcheck_postpone_' + ((_selfCheckMe && _selfCheckMe.id) || '') + '_'
+    + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+function selfCheckPostponed() {
+  try { return parseInt(localStorage.getItem(selfCheckPostponeKey()) || '0', 10) > Date.now(); }
+  catch (e) { return false; }
+}
+function postponeMorningCheck() {
+  try { localStorage.setItem(selfCheckPostponeKey(), String(Date.now() + 30 * 60 * 1000)); } catch (e) {}
+  closeMorningCheckModal();
+  setTimeout(function () { try { forceMorningCheckGate(_selfCheckMe); } catch (e) {} }, 30 * 60 * 1000);
+}
+function openMorningCheckModal() {
+  if (document.getElementById('morning-check-modal')) return;
+  var el = document.createElement('div');
+  el.id = 'morning-check-modal';
+  el.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.74);display:flex;align-items:center;justify-content:center;padding:16px');
+  el.innerHTML = '<div style="background:#f1f5f9;border-radius:20px;width:100%;max-width:600px;height:min(92vh,900px);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.32);display:flex;flex-direction:column">'
+    + '<iframe id="morning-check-frame" src="/self-check.html?modal=1" style="flex:1;width:100%;border:none"></iframe>'
+    + '<div id="morning-check-fallback" style="display:none;padding:8px 12px;text-align:center;background:#fffbeb;border-top:1px solid #fde68a;font-size:12px;color:#b45309">読み込めませんでした。通信をご確認ください。</div>'
+    + '<div style="padding:9px;text-align:center;background:#fff;border-top:1px solid #e2e8f0">'
+    +   '<button type="button" onclick="postponeMorningCheck()" style="border:none;background:none;color:#64748b;font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer;padding:6px 12px">あとで行う</button>'
+    + '</div></div>';
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  var loaded = false;
+  var fr = document.getElementById('morning-check-frame');
+  if (fr) fr.addEventListener('load', function () {
+    loaded = true;
+    guardModalFrame(fr, '/self-check.html', closeMorningCheckModal);
+  });
+  setTimeout(function () {
+    if (!loaded) { var fb = document.getElementById('morning-check-fallback'); if (fb) fb.style.display = ''; }
+  }, 8000);
+}
+/* ⚠️⚠️安全網: モーダルの iframe が本来の画面から離れたら、モーダルを閉じて
+   本画面(全画面)で続きを開く。これが無いと、モーダルの中にアプリが二重で入り、
+   ログインが切れていると入れ子のログイン画面が出て二重ログインになる(2026-08-24 社長報告)。 */
+function guardModalFrame(fr, expectPath, closeFn) {
+  var href = '', path = '';
+  try { href = fr.contentWindow.location.href; path = fr.contentWindow.location.pathname || ''; } catch (e) { return; }
+  if (!path || path === 'blank' || path === expectPath) return;
+  try { closeFn(); } catch (e) {}
+  location.href = href;
+}
+function closeMorningCheckModal() {
+  var el = document.getElementById('morning-check-modal');
+  if (el) el.remove();
+  document.body.style.overflow = '';
+  try { refreshDailyCheckCard(); } catch (e) {}
+}
+window.addEventListener('message', function (ev) {
+  if (ev.origin !== location.origin) return;
+  var d = ev.data || {};
+  if (d && d.cohub === 'selfcheck-done') {
+    closeMorningCheckModal();
+    if (d.goTrend) location.href = '/bp-trend.html';   // 血圧を入れた人はそのまま推移へ
+  }
+  if (d && d.cohub === 'kiko-done') closeKikoModal();
+  // 体調チェックの中から別の画面(ログインを含む)へ行くときは、モーダルを閉じて本画面で開く
+  if (d && d.cohub === 'selfcheck-leave') { closeMorningCheckModal(); location.href = (d.url || '/'); }
+});
+/* 🌙退勤のセルフチェック: 簡単版(tablet-home)の1問1画面を iframe で読み込んで使い回す。
+   ⚠️設問をこちらに作り直さないこと。embed=1 で socket も葵の挨拶も動かない作りにしてある。 */
+function openKikoModal() {
+  if (document.getElementById('kiko-modal')) return;
+  var el = document.createElement('div');
+  el.id = 'kiko-modal';
+  el.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.74);display:flex;align-items:center;justify-content:center;padding:16px');
+  el.innerHTML = '<div style="background:#f1f5f9;border-radius:20px;width:100%;max-width:640px;height:min(92vh,900px);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.32);display:flex;flex-direction:column">'
+    + '<iframe id="kiko-frame" src="/tablet-home.html?kiko=1&embed=1" style="flex:1;width:100%;border:none"></iframe>'
+    + '<div style="padding:9px;text-align:center;background:#fff;border-top:1px solid #e2e8f0">'
+    +   '<button type="button" onclick="closeKikoModal()" style="border:none;background:none;color:#64748b;font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer;padding:6px 12px">あとで行う</button>'
+    + '</div></div>';
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  var kf = document.getElementById('kiko-frame');
+  if (kf) kf.addEventListener('load', function () { guardModalFrame(kf, '/tablet-home.html', closeKikoModal); });
+}
+function closeKikoModal() {
+  var el = document.getElementById('kiko-modal');
+  if (el) el.remove();
+  document.body.style.overflow = '';
+  try { refreshDailyCheckCard(); } catch (e) {}
+}
+async function forceMorningCheckGate(me) {
+  if (me) _selfCheckMe = me;
+  if (_selfCheckMe && _selfCheckMe.is_guest_reviewer) return;
+  if (selfCheckPostponed()) return;
+  try {
+    const r = await api('/api/tenko/my-today');
+    if (r && r.success && !r.done) openMorningCheckModal();
+  } catch (e) { /* 状態が取れないときは塞がない */ }
+}
+
 var _dailyCheckWired = false;
 function setupDailyCheckCard() {
-  var top = document.getElementById('field-daily-check');
+  var top = document.getElementById('sc-chip');
   if (top) {
     // 表示可否は refreshDailyCheckCard が当日状態で決める(完了=非表示/未実施=表示)。ここでは出さない(ちらつき防止)。
     refreshDailyCheckCard();
@@ -2246,87 +2923,98 @@ function loadJurisdictionMsg() {
   el.style.display = '';
 }
 
-function shortCoName(n) {
-  n = String(n || '');
-  var m = n.match(/[（(]([^）)]+)[）)]/);
-  if (m) return m[1];
-  if (n.indexOf(' ') >= 0) { var p = n.split(' '); return p[p.length - 1]; }
-  return n;
-}
+// 🏢 営業所別 (トップの1行)。⭐2026-08-26: 拠点ごとに「未対応バッジ + その下に当日の健康チェック実施率」。
+//  ⚠️実施率の分母(対象者)と実施判定は services/health_daily.js が唯一の正。ここで数え直さず
+//     /api/tenko/daily-report の stats.byCo(拠点別の対象/実施)をそのまま使う(日次サマリーと必ず一致させる)。
 async function loadBranchTasksStrip() {
   var el = $('branch-tasks-strip'); if (!el) return;
   var isHQv = (me.role === 'admin' || me.employee_type === 'admin');
   if (!(isHQv || me.is_branch_head || me.is_ops_manager)) { el.style.display = 'none'; return; }
   try {
-    var r = await fetch('/api/branch-tasks/board', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('cohub_token') || '') } });
-    var d = await r.json();
+    var res = await Promise.all([
+      api('/api/branch-tasks/board'),
+      // 実施率は取れなくても帯は出す(権限や集計エラーで落とさない)
+      api('/api/tenko/daily-report').catch(function () { return null; })
+    ]);
+    var d = res[0], hd = res[1];
     if (!d || !d.success || !d.rows || !d.rows.length) { el.style.display = 'none'; return; }
-    // 会社ごとにグループ化: スズエ電機(SUZUE*) / スタンダード運輸(茨運)(SU_*・IBA_*)
-    function chipHtml(x) {
-      var has = x.total > 0;
-      var badge = has ? '<span class="bs-b n">' + x.total + '</span>' : '<span class="bs-b ok">✓</span>';
-      return '<a class="bs-chip' + (has ? ' has' : '') + '" href="/branch-tasks.html">' + escapeHtml(shortCoName(x.name)) + badge + '</a>';
-    }
-    var GROUPS = [
-      { title: 'スタンダード運輸（茨運）', cls: 'bs-g-std',   match: function (c) { return c.indexOf('SUZUE') !== 0; } },
-      { title: 'スズエ電機',             cls: 'bs-g-suzue', match: function (c) { return c.indexOf('SUZUE') === 0; } }
-    ];
-    var sums = [];
-    var body = GROUPS.map(function (g) {
-      var rows = d.rows.filter(function (x) { return g.match(String(x.code || '')); });
-      if (!rows.length) return '';
-      var gt = rows.reduce(function (s, x) { return s + (x.total || 0); }, 0);
-      var count = gt > 0 ? '<span class="bs-gcount">' + gt + '</span>' : '<span class="bs-gcount ok">✓</span>';
-      // 折り畳み時に出す会社別サマリー(見落とし防止)
-      sums.push('<span class="bs-sum ' + g.cls.replace('bs-g-', 'bs-sum-') + '">' + escapeHtml(g.title)
-        + (gt > 0 ? '<b>' + gt + '</b>' : '<i>✓</i>') + '</span>');
-      return '<div class="bs-group ' + g.cls + '"><div class="bs-gtitle">' + escapeHtml(g.title) + count + '</div>'
-        + '<div class="bs-grid">' + rows.map(chipHtml).join('') + '</div></div>';
+    var byCo = (hd && hd.success && hd.stats && hd.stats.byCo) ? hd.stats.byCo : {};
+    var cells = d.rows.map(function (x) {
+      var has = (x.total || 0) > 0;
+      var c = byCo[x.code];
+      var rate = (c && c.total) ? Math.round(c.done * 100 / c.total) : null;
+      var rcls = rate === null ? 'n' : (rate >= 80 ? 'g' : (rate >= 50 ? 'y' : 'r'));
+      // 未対応の内訳は旧一覧画面と同じ切り口
+      var chips = '';
+      if ((x.tenko_unhandled || 0) > 0) chips += '<span class="bs-chip red">🔴 体調チェック ' + x.tenko_unhandled + '</span>';
+      if ((x.kiko_pending || 0) > 0) chips += '<span class="bs-chip amber">🟠 帰りの承認 ' + x.kiko_pending + '</span>';
+      if (!has) chips += '<span class="bs-chip ok">✅ 対応済み</span>';
+      var rateHtml = '<span class="bs-r ' + rcls + '">実施率 <span class="num">'
+        + (rate === null ? '—' : rate + '%') + '</span>'
+        + (c && c.total ? '<span class="of">' + c.done + '/' + c.total + '名</span>' : '') + '</span>';
+      // ⚠️2026-08-26 社長指示: タップして同じ詳細ページへ飛ぶのをやめ(重複)、代わりにここから配信する
+      var send = (d.hq && has)
+        ? '<button type="button" class="bs-send" data-code="' + escapeHtml(x.code) + '" data-name="' + escapeHtml(x.name) + '">📣 配信</button>'
+        : '';
+      return '<div class="bs-cell' + (has ? ' has' : '') + '">'
+        + '<span class="bs-l1"><span class="bs-cn">' + escapeHtml(x.name) + '</span>'
+        + '<span class="bs-tot">' + (x.total || 0) + '</span></span>'
+        + '<span class="bs-l2">' + chips + rateHtml + send + '</span></div>';
     }).join('');
+    // 畳んだときにも要点が見えるよう、全拠点の合計と全体の実施率を見出しに出す
     var grand = d.grand_total || 0;
-    el.className = 'branch-strip';
-    el.innerHTML = '<div class="bs-head">'
-      + '<span class="bs-label">🏢 営業所別 対応リスト</span>'
-      + '<span class="bs-arrow">▾</span><a class="bs-more" href="/branch-tasks.html">一覧を見る ›</a></div>'
-      + '<div class="bs-summary">'
-      +   (grand > 0 ? '<span class="bs-total">未対応 ' + grand + '</span>' : '<span class="bs-total zero">全拠点 対応済み</span>')
-      +   sums.join('') + '</div>'
-      + '<div class="bs-groups">' + body + '</div>';
-    el.style.display = '';
-    setupBranchStripAccordion(el);
-  } catch (e) { el.style.display = 'none'; }
-}
-// 🗂 営業所別 対応リストの折り畳み (狭幅=既定で畳む・本人の開閉はlocalStorageに記憶)
-function setupBranchStripAccordion(el) {
-  var KEY = 'cohub_home_acc_branchstrip';
-  var narrow = false;
-  try { narrow = window.matchMedia('(max-width: 480px)').matches; } catch (e) {}
-  var saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) {}
-  setBranchStripOpen(el, (saved === null) ? !narrow : (saved === '1'));
-  var toggle = function (ev) {
-    if (ev && ev.target && ev.target.closest && ev.target.closest('.bs-more')) return; // 「一覧を見る」は素通し
-    var willOpen = el.classList.contains('bs-collapsed');
-    setBranchStripOpen(el, willOpen);
-    try { localStorage.setItem(KEY, willOpen ? '1' : '0'); } catch (e) {}
-  };
-  ['.bs-head', '.bs-summary'].forEach(function (sel) {
-    var n = el.querySelector(sel);
-    if (!n) return;
-    n.setAttribute('role', 'button');
-    n.setAttribute('tabindex', '0');
-    n.addEventListener('click', toggle);
-    n.addEventListener('keydown', function (ev) {
+    var sum = { total: 0, done: 0 };
+    d.rows.forEach(function (x) { var c = byCo[x.code]; if (c && c.total) { sum.total += c.total; sum.done += c.done; } });
+    var allRate = sum.total ? Math.round(sum.done * 100 / sum.total) : null;
+    var sumHtml = (grand > 0 ? '<span class="bs-sum n">未対応 <b>' + grand + '</b></span>' : '<span class="bs-sum ok">✅ 未対応なし</span>')
+      + (allRate === null ? '' : '<span class="bs-sum rate">実施率 ' + allRate + '%</span>');
+    el.className = 'branch-strip bs-collapsed';
+    el.innerHTML = '<div class="bs-head" role="button" tabindex="0"><span class="bs-label">🏢 営業所別</span>'
+      + sumHtml
+      + '<span class="bs-arrow">▾</span>'
+      + (d.hq && grand > 0 ? '<button type="button" class="bs-sendall">📣 全拠点へ配信</button>' : '')
+      + '</div>'
+      + '<div class="bs-row">' + cells + '</div>';
+    // ⭐カテゴリと同じで、開くのはその場かぎり(トップに戻れば必ず畳んだ状態から)
+    var head = el.querySelector('.bs-head');
+    var toggle = function (ev) {
+      if (ev && ev.target && ev.target.closest && ev.target.closest('.bs-sendall')) return;  // 配信ボタンでは開閉しない
+      el.classList.toggle('bs-collapsed');
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(ev); }
     });
-  });
+    var all = el.querySelector('.bs-sendall');
+    if (all) all.addEventListener('click', function () { sendBranchTask(all, true); });
+    var row = el.querySelector('.bs-row');
+    if (row) row.addEventListener('click', function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('.bs-send') : null;
+      if (btn) sendBranchTask(btn);
+    });
+    el.style.display = '';
+  } catch (e) { el.style.display = 'none'; }
 }
-function setBranchStripOpen(el, open) {
-  if (open) el.classList.remove('bs-collapsed');
-  else el.classList.add('bs-collapsed');
-  var head = el.querySelector('.bs-head');
-  if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
+// 「本日のやること」を管理職グループへ配信 (本社ADMINのみ)。all=未対応のある全拠点ぶんを1通で。
+// ⚠️旧 branch-tasks.html は廃止したので、配信の入口はこのトップ画面だけ。文面はサーバー側(routes/branch_tasks.js)が作る。
+async function sendBranchTask(btn, all) {
+  var code = all ? '' : btn.getAttribute('data-code');
+  var name = all ? '未対応のある全拠点' : btn.getAttribute('data-name');
+  var back = all ? '📣 全拠点へ配信' : '📣 配信';
+  if (!confirm('「管理職」グループへ、' + name + ' の「本日のやること」を配信します。よろしいですか？')) return;
+  btn.disabled = true; btn.textContent = '送信中…';
+  try {
+    var r = await api('/api/branch-tasks/notify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(all ? { all: true } : { code: code })
+    });
+    if (r && r.success && r.count) { btn.textContent = '✓ 配信しました'; btn.classList.add('done'); }
+    else { btn.disabled = false; btn.textContent = back; alert((r && r.msg) || '配信対象がありませんでした'); }
+  } catch (e) {
+    btn.disabled = false; btn.textContent = back; alert('配信に失敗しました: ' + e.message);
+  }
 }
+
 // ===== ✅ やること (対応が必要なことを件数付きで集約) =====
 function scrollToBanner(e) {
   if (e) e.preventDefault();
@@ -2340,6 +3028,11 @@ async function loadTaskList() {
     api('/api/tenko/manage').then(function (r) { if (r && r.success && r.unhandled > 0) tasks.push({ count: r.unhandled, label: '未確認の点呼・体調不調', icon: '🩺', href: '/tenko-manage.html', tone: 'red', pr: 0 }); }).catch(function () {}),
     api('/api/tenko/kiko').then(function (r) { if (r && r.success) { var n = (r.items || []).filter(function (x) { return !x.approved_at; }).length; if (n > 0) tasks.push({ count: n, label: '帰庫点呼の承認待ち', icon: '🚚', href: '/tenko-manage.html', tone: 'amber', pr: 1 }); } }).catch(function () {}),
     api('/api/guidance/mine').then(function (r) { if (r && r.success && r.pending_count > 0) tasks.push({ count: r.pending_count, label: '運行管理者からの指導を承諾', icon: '🚦', href: '#home-guidance-banner', tone: 'red', pr: 0 }); }).catch(function () {}),
+    // 帰る前のチェック(体調と昼ごはん)。⭐倉庫・事務はタブレット画面を普段開かないため、
+    //   PCのトップにも出さないと届かない(2026-08-09)。⚠️朝から出すと邪魔なので15時以降だけ。
+    (new Date().getHours() >= 15
+      ? api('/api/tenko/kiko/mine').then(function (r) { if (r && r.success && !r.done) tasks.push({ count: 1, label: '帰る前のチェック（体調と昼ごはん）', icon: '🌙', href: '/tablet-home.html?kiko=1', tone: 'teal', pr: 1 }); }).catch(function () {})
+      : Promise.resolve()),
     api('/api/approval/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '承認待ちの申請', icon: '📑', href: '/approval.html', tone: 'teal', pr: 2 }); }).catch(function () {}),
     api('/api/expense/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '経費精算の承認待ち', icon: '💰', href: '/expense.html', tone: 'teal', pr: 2 }); }).catch(function () {}),
     api('/api/ops/pending-count').then(function (r) { if (r && r.count > 0) tasks.push({ count: r.count, label: '業務連絡・現場ポストの未確認', icon: '📣', href: '/ops.html', tone: 'blue', pr: 3 }); }).catch(function () {}),
@@ -2374,7 +3067,7 @@ async function loadHomeGuidance() {
   if (!el) {
     el = document.createElement('div');
     el.id = 'home-guidance-banner';
-    var anchor = document.getElementById('field-daily-check');
+    var anchor = document.getElementById('jurisdiction-msg');
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor);
     else { var app = document.getElementById('app'); if (app) app.insertBefore(el, app.firstChild); }
   }
@@ -2412,7 +3105,7 @@ function switchToSimpleView() {
 // ━━━ 現場一般社員トップ刷新 (2026-06-30): 連絡→交流→報告→健康に並べ替え・低使用を「その他」に集約 ━━━
 function setupFieldStaffTop() {
   // セクション並べ替え (連絡→交流→報告→健康) + 低使用は「その他」に折り畳み
-  var top = document.getElementById('field-daily-check');
+  var top = document.getElementById('jurisdiction-msg');
   function pair(sel) {
     var g = document.querySelector(sel);
     if (!g) return null;
@@ -2468,14 +3161,14 @@ function setupFieldStaffTop() {
 }
 
 // ━━━ カテゴリー折りたたみ (アコーディオン) 2026-07-02 ━━━
-// 各セクション見出し(.sec-title)をタップで開閉。開閉状態は端末ごとに記憶。
+// 各セクション見出し(.sec-title)をタップで開閉。
+// ⭐2026-08-26 社長指示: **トップに戻るたび必ず全カテゴリを畳んだ状態から始める**。
+//   開閉は端末に記憶しない(前回開いたままだと画面が長くなり、目的のカテゴリを探しにくいため)。
 // 折りたたみ中の見出しには、そのカテゴリ内の未読バッジ合計を表示して見落としを防ぐ。
 function setupHomeAccordion() {
   const app = document.getElementById('app');
   if (!app) return;
-  // 既定は全カテゴリを畳む (メッセージ・健康も他と同様に折りたたむ 2026-07-09)。
-  // ユーザーが自分で開いた履歴(localStorage)がある場合はその選択を優先。
-  const DEFAULT_OPEN = {};
+  // 全カテゴリを畳んだ状態で開始する (メッセージ・健康も同じ 2026-07-09)。
   const titles = Array.prototype.slice.call(app.querySelectorAll('.sec-title'));
   titles.forEach(function (title) {
     if (title.classList.contains('acc')) return; // idempotent
@@ -2486,6 +3179,13 @@ function setupHomeAccordion() {
     grid.classList.forEach(function (c) { if (c.indexOf('sec-') === 0) key = c; });
     if (!key) return;
     title.classList.add('acc');
+    /* ⭐2026-08-27 見出しをボタン意匠で塗るための配色。もともと inline で書いてある
+       枠線の色(薄い側)と文字の色(濃い側)をそのまま CSS変数へ写すだけ = 色は変えていない。 */
+    var _c1 = title.style.borderLeftColor || '';
+    var _lblEl = title.querySelector('.lbl');
+    var _c2 = (_lblEl && _lblEl.style.color) || _c1;
+    if (_c1) title.style.setProperty('--c1', _c1);
+    if (_c2) title.style.setProperty('--c2', _c2);
     title.setAttribute('role', 'button');
     title.setAttribute('tabindex', '0');
     const badge = document.createElement('span');
@@ -2498,17 +3198,24 @@ function setupHomeAccordion() {
     title._accGrid = grid;
     title._accBadge = badge;
     title._accArrow = arrow;
-    // 初期状態 (保存値 > 既定)
-    let open;
-    try {
-      const saved = localStorage.getItem('cohub_home_acc_' + key);
-      open = (saved === null) ? !!DEFAULT_OPEN[key] : (saved === '1');
-    } catch (e) { open = !!DEFAULT_OPEN[key]; }
-    setSecOpen(title, open);
+    // ⚠️初期状態は常に「畳む」。保存値は見に行かない(この画面を開き直したら必ず畳んだ状態)。
+    setSecOpen(title, false);
     const toggle = function () {
       const willOpen = grid.classList.contains('acc-collapsed'); // 現在畳→開く
-      setSecOpen(title, willOpen);
-      try { localStorage.setItem('cohub_home_acc_' + key, willOpen ? '1' : '0'); } catch (e) {}
+      /* ⭐⭐2026-08-27 社長指示: **開くのは1つだけ**。別のカテゴリを開いたら、
+         それまで開いていたカテゴリは畳む(開きっぱなしが重なると画面が長くなり、
+         目的の場所を見失う)。⚠️上のカテゴリが閉じるとページの高さが変わって
+         押した見出しが飛ぶので、見出しの位置がずれないよう ずれた分だけ戻す。 */
+      if (willOpen) {
+        const before = title.getBoundingClientRect().top;
+        document.querySelectorAll('.sec-title.acc').forEach(function (t) {
+          if (t === title || !t._accGrid) return;
+          if (!t._accGrid.classList.contains('acc-collapsed')) setSecOpen(t, false);
+        });
+        const after = title.getBoundingClientRect().top;
+        if (after !== before) window.scrollBy(0, after - before);
+      }
+      setSecOpen(title, willOpen);   // ⚠️開いた状態は保存しない(次に来たときはまた畳む)
     };
     title.addEventListener('click', toggle);
     title.addEventListener('keydown', function (e) {
@@ -2516,13 +3223,225 @@ function setupHomeAccordion() {
     });
   });
   updateSectionBadges();
+  bindSecPopOutside();
+  setupStripFold();
+  setupStripRow();
+  try { mergeTopPanel(); } catch (e) {}
+  // ⚠️ブラウザの「戻る」で復元(bfcache)されるとJSが走り直さず開いたままになるので、ここで畳み直す
+  if (!setupHomeAccordion._psBound) {
+    setupHomeAccordion._psBound = true;
+    window.addEventListener('pageshow', function (e) {
+      if (!e || !e.persisted) return;
+      document.querySelectorAll('.sec-title.acc').forEach(function (t) { setSecOpen(t, false); });
+      var bs = document.getElementById('branch-tasks-strip');
+      if (bs && bs.classList.contains('branch-strip')) bs.classList.add('bs-collapsed');
+      // ⚠️2026-08-27 未読が残っている帯は畳まない(畳むと また埋もれる)
+      var wnB = document.getElementById('whats-new'); if (wnB && !_wnUnreadN) wnB.classList.add('wn-collapsed');
+      var daB = document.getElementById('drive-alerts'); if (daB && !_daUnreadN) daB.classList.add('da-collapsed');
+    });
+  }
+}
+/* ⭐⭐2026-08-27 社長「お知らせと運転アラートの縦幅を 営業所別とそろえて」。
+   3つの帯を同じ作りにする＝既定は畳み、見出しを押すと開く。
+   ⚠️開いた状態は覚えない(営業所別・カテゴリと同じで、トップに来るたび畳んだ状態から)。
+   ⚠️「一覧を見る」「すべて既読」を押したときは 開閉させない。 */
+/* ⭐⭐2026-08-27 社長「営業所別の右にオンライン、一行に」。
+   ⚠️並べるのに inline-block を使うと 要素間の空白のぶんで折り返すので、flex の行に包む。
+   ⚠️営業所別は管理職以外には出ない。そのときは オンラインが横いっぱいを使う(solo)。 */
+function setupStripRow() {
+  var bs = document.getElementById('branch-tasks-strip');
+  var ol = document.getElementById('online-strip');
+  if (!bs || !ol || bs._rowWrapped) return;
+  if (bs.parentNode !== ol.parentNode) return;
+  var row = document.createElement('div');
+  row.className = 'strip-row';
+  bs.parentNode.insertBefore(row, bs);
+  row.appendChild(bs);
+  row.appendChild(ol);
+  bs._rowWrapped = true;
+  var sync = function () {
+    var hidden = (bs.style.display === 'none') || (getComputedStyle(bs).display === 'none');
+    row.classList.toggle('solo', hidden);
+  };
+  sync();
+  try {
+    new MutationObserver(sync).observe(bs, { attributes: true, attributeFilter: ['style', 'class'] });
+  } catch (e) { setTimeout(sync, 2000); setTimeout(sync, 5000); }
+  try { mergeTopPanel(); } catch (e) {}
+}
+/* ⭐2026-08-29 社長指示: 上の4つの帯を1枚の背景にまとめる。
+   ⚠️.strip-row は setupStripRow が作るので、そのあとに呼ぶこと。
+   ⚠️何度呼ばれても同じ結果になるようにしてある(idempotent)。 */
+function mergeTopPanel() {
+  var wn = document.getElementById('whats-new');
+  var first = wn || document.getElementById('drive-alerts');
+  if (!first || !first.parentNode) return;
+  var panel = document.getElementById('top-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'top-panel'; panel.className = 'top-panel';
+    first.parentNode.insertBefore(panel, first);
+  }
+  ['whats-new', 'drive-alerts', 'jurisdiction-msg'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el && el.parentNode !== panel) panel.appendChild(el);
+  });
+  var row = document.querySelector('.strip-row');
+  if (row && row.parentNode !== panel) panel.appendChild(row);
+  else if (!row) {
+    ['branch-tasks-strip', 'online-strip'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.parentNode !== panel) panel.appendChild(el);
+    });
+  }
+}
+/* ⭐2026-08-29 タイトルバーの日付・時刻・天気。タブレットの待ち受けと同じ作り。
+   ⚠️天気は /api/weather (Open-Meteo・サーバーで30分キャッシュ)。拠点は自分の company_code。 */
+function startHeaderClock() {
+  var el = document.getElementById('hd-clock'); if (!el) return;
+  function tick() {
+    var d = new Date();
+    var w = ['日','月','火','水','木','金','土'][d.getDay()];
+    var hh = ('0' + d.getHours()).slice(-2), mm = ('0' + d.getMinutes()).slice(-2);
+    el.innerHTML = '<span class="hc-date">' + (d.getMonth()+1) + '月' + d.getDate() + '日（' + w + '）</span>'
+      + '<span class="hc-time">' + hh + ':' + mm + '</span>';
+  }
+  tick();
+  if (window._hdClockTimer) clearInterval(window._hdClockTimer);
+  window._hdClockTimer = setInterval(tick, 30000);
+}
+function loadHeaderWeather(co) {
+  /* ⭐2026-08-29 社長指示: 端末の位置(GPS)で拾って、その地名を出す。
+     ⚠️まず拠点の天気をすぐ出し、位置が取れたら【あとから上書き】する(待たせない・捨てない)。
+     ⚠️IPからの推定はやめた(プロバイダの登録地が出て虎ノ門になった)。 */
+  var el = document.getElementById('hd-wx'); if (!el) return;
+  /* ⚠️⚠️2026-08-30: 天気はタイトルバーが狭いと隠している(980px以下)。
+     隠れているのに位置情報を聞きに行っていたので、スマホでは【見えない機能のために許可を求める】
+     状態だった。出していない時は何もしない。 */
+  if (el.offsetParent === null) return;
+  var _wxFetch = function (q) {
+    fetch('/api/weather?' + q)
+      .then(function (x) { return x.json(); })
+      .then(function (d) {
+        if (!d || d.success === false || d.temp == null) { el.innerHTML = ''; return; }
+        el.innerHTML = '<span class="hw-ic">' + d.icon + '</span>'
+          + '<span class="hw-t">' + d.temp + '°</span>'
+          + '<span class="hw-sub">↑' + d.hi + '° ↓' + d.lo + '°　' + escapeHtml(d.place || '') + '</span>';
+      }).catch(function () {});
+  };
+  var _wxGeoErr = function (e, loud) {
+    try { console.warn('[weather] 位置情報が取れません', e && e.code, e && e.message); } catch (x) {}
+    if (!loud) return;
+    var msg = (e && e.code === 1) ? '位置情報がブロックされています'
+      : (e && e.code === 3) ? '位置情報の取得に時間がかかっています'
+      : '位置情報が取れませんでした（端末の設定をご確認ください）';
+    var sub = el.querySelector('.hw-sub');
+    if (sub) sub.textContent = msg;
+  };
+  var _wxGeo = function (loud) {
+    if (!navigator.geolocation) { _wxGeoErr(null, loud); return; }
+    try {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        _wxFetch('lat=' + pos.coords.latitude.toFixed(3) + '&lon=' + pos.coords.longitude.toFixed(3));
+      }, function (e) { _wxGeoErr(e, loud); },
+        { timeout: 15000, maximumAge: loud ? 0 : 30 * 60 * 1000, enableHighAccuracy: false });
+    } catch (e) { _wxGeoErr(e, loud); }
+  };
+  el.style.cursor = 'pointer';
+  el.title = '押すと現在地の天気にします（位置情報の許可を求めます）';
+  el.onclick = function () { _wxGeo(true); };
+  _wxFetch('loc=' + encodeURIComponent(co || ''));   // まず拠点の天気を出す
+  /* ⭐⭐2026-08-30 社長「ログインのたび位置情報の許可を何度も聞かれる」。
+     ⚠️⚠️原因は、開くたびに無条件で getCurrentPosition を呼んでいたこと。
+       許可も拒否も選ばずに閉じる(×やEsc)と ブラウザは「未決定」のままなので、毎回また聞いてくる。
+     → **すでに許可済みのときだけ**自動で取りに行く。未決定・拒否のときは聞かない
+       (拠点の天気のまま。現在地にしたい人は天気の欄を押す=そのときだけ許可を聞く)。
+     ⚠️Permissions API が無い端末では自動取得しない(聞かないほうを既定にする)。 */
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(function (st) { if (st && st.state === 'granted') _wxGeo(false); })
+        .catch(function () {});
+    }
+  } catch (e) {}
+}
+function setupStripFold() {
+  [['whats-new', '.wn-head', 'wn-collapsed'], ['drive-alerts', '.da-head', 'da-collapsed']].forEach(function (x) {
+    var box = document.getElementById(x[0]);
+    if (!box || box._foldBound) return;
+    var head = box.querySelector(x[1]);
+    if (!head) return;
+    box._foldBound = true;
+    head.setAttribute('role', 'button');
+    head.setAttribute('tabindex', '0');
+    var toggle = function (ev) {
+      if (ev && ev.target && ev.target.closest && ev.target.closest('a,button')) return;
+      box.classList.toggle(x[2]);
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(ev); }
+    });
+  });
 }
 function setSecOpen(title, open) {
   const grid = title._accGrid;
   if (!grid) return;
   if (open) { grid.classList.remove('acc-collapsed'); title.classList.remove('collapsed'); }
   else { grid.classList.add('acc-collapsed'); title.classList.add('collapsed'); }
+  /* ⭐⭐2026-08-27 社長指示: 開いたカテゴリは【見出しの右横】にボタンを並べる。
+     そのために見出しと中身を1枚の行に包む。⚠️畳むときは必ず ほどいて元の並びへ戻す
+     (包んだままだと 3列の流し込みが崩れる)。 */
+  if (open) positionSecPop(title); else clearSecPop(title);
   updateOneSectionBadge(title);
+}
+/* ⭐⭐見出しを動かさずに ボタンの一覧を浮かせて出す。
+   ⚠️一覧の【下端】を見出しの行に合わせる＝上へ伸びる(社長「上に展開して」)。
+   ⚠️上が足りないときだけ 下へずらす(画面の外に出さない)。
+   ⚠️右がはみ出すときは 内側へ寄せる。⚠️狭い画面では何もしない(従来どおり下に積む)。 */
+function positionSecPop(title) {
+  const grid = title._accGrid;
+  if (!grid) return;
+  const app = document.getElementById('app');
+  if (!app || window.innerWidth < 901) { grid.classList.remove('sec-pop'); return; }
+  grid.classList.add('sec-pop');
+  grid.style.left = '0px';
+  grid.style.top = '0px';
+  const gw = grid.offsetWidth, gh = grid.offsetHeight;
+  const inner = app.clientWidth - 36;                 // 左右の余白ぶん
+  let left = title.offsetLeft + title.offsetWidth + 10;
+  if (left + gw > inner) left = Math.max(18, inner - gw + 18);
+  let top = title.offsetTop + title.offsetHeight - gh;   // ⭐下端を見出しの行にそろえる=上へ伸びる
+  /* ⚠️上に入りきらないとき(枚数の多い健康など)は、頭を見出しにそろえて下へ出す。
+     0で止めるとページの一番上=挨拶の帯まで覆ってしまい、どの見出しを開いたのか分からなくなる。 */
+  if (top < 0) top = title.offsetTop;
+  grid.style.left = left + 'px';
+  grid.style.top = top + 'px';
+}
+function clearSecPop(title) {
+  const grid = title._accGrid;
+  if (!grid) return;
+  grid.classList.remove('sec-pop');
+  grid.style.left = '';
+  grid.style.top = '';
+}
+/* 浮かせた一覧は 中身の上に重なるので、外を押したら閉じる。⚠️見出しと一覧の中は素通り */
+function bindSecPopOutside() {
+  if (bindSecPopOutside._done) return;
+  bindSecPopOutside._done = true;
+  document.addEventListener('click', function (e) {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.grid.sec-pop') || t.closest('.sec-title.acc')) return;
+    document.querySelectorAll('.sec-title.acc').forEach(function (x) {
+      if (!x.classList.contains('collapsed')) setSecOpen(x, false);
+    });
+  });
+  window.addEventListener('resize', function () {
+    document.querySelectorAll('.sec-title.acc').forEach(function (x) {
+      if (!x.classList.contains('collapsed')) positionSecPop(x);
+    });
+  });
 }
 function updateOneSectionBadge(title) {
   const grid = title._accGrid, badge = title._accBadge, arrow = title._accArrow;
@@ -2548,6 +3467,113 @@ function updateOneSectionBadge(title) {
 function updateSectionBadges() {
   document.querySelectorAll('.sec-title.acc').forEach(function (t) { updateOneSectionBadge(t); });
 }
+
+// ===== 🟢 オンラインの人 (2026-08-26 社長指示) =====
+// 在席は server/index.js の presence(メモリ)が正。/api/online-users は uid だけ返すので
+// 氏名・拠点・アバターは /api/members と突き合わせる。⚠️数え方を自前で作らない(チャットと同じ土俵)。
+var _onlMembers = null;
+async function refreshOnlineBadge() {
+  try {
+    var r = await api('/api/online-users');
+    if (!r || !r.success) return null;
+    var n = (r.online || []).length;
+    var strip = $('online-strip'), num = $('onl-num');
+    if (num) num.textContent = String(n);
+    if (strip) strip.style.display = 'flex';   // 0人でも枠は出す(見に行けることが分かる)
+    return r;
+  } catch (e) { return null; }
+}
+var _onlTenko = null;
+/* 📞 点呼を頼む (2026-08-29 社長指示)。
+   出社したが そばに点呼をする人がいないとき、オンラインの責任者を名指しで呼ぶ。
+   ⚠️一斉には鳴らさない(押した相手だけ)。⚠️相手の画面には自分の今朝の記録が出る。 */
+async function opsTenkoCall(uid, btn) {
+  if (!confirm('この方に 点呼（健康チェック）を お願いします。呼び出してよろしいですか？')) return;
+  btn.disabled = true; btn.textContent = '呼んでいます…';
+  var j = null;
+  try { j = await api('/api/ops-sup/call', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: uid }) }); } catch (e) {}
+  if (!j || !j.success) { btn.disabled = false; btn.textContent = '点呼'; alert((j && j.msg) || '呼び出せませんでした'); return; }
+  /* ⚠️呼んだ直後だけ自動で出る(ops-call.js が読む印)。勝手にカメラを開かないための約束。 */
+  try { if (window.opsCallExpect) window.opsCallExpect();
+        else localStorage.setItem('cw_ops_wait', String(Date.now())); } catch (e) {}
+  btn.textContent = '呼びました';
+  btn.style.background = '#166534';
+  try {
+    var _n = document.getElementById('opsCallHint');
+    if (!_n) {
+      _n = document.createElement('div'); _n.id = 'opsCallHint';
+      _n.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:99998;'
+        + 'background:#0f766e;color:#fff;font-weight:800;font-size:14px;padding:12px 18px;border-radius:12px;'
+        + 'box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:92vw;text-align:center';
+      document.body.appendChild(_n);
+    }
+    _n.textContent = '呼び出しました。相手が通話を始めると、この画面に通話の窓が出ます。'
+      + 'このページを開いたままお待ちください。';
+    setTimeout(function(){ try { if (_n && _n.parentNode) _n.parentNode.removeChild(_n); } catch (e) {} }, 12000);
+  } catch (e) {}
+}
+async function openOnlinePanel() {
+  var m = $('online-modal'); if (!m) return;
+  m.classList.add('open');
+  $('onl-body').innerHTML = '<div class="onl-empty">読み込み中…</div>';
+  var res = await Promise.all([
+    api('/api/online-users'),
+    _onlMembers ? Promise.resolve(_onlMembers) : api('/api/members'),
+    /* ⭐点呼(健康チェックの立会い)を頼める人。出社して誰もいないときにここから呼ぶ */
+    _onlTenko ? Promise.resolve(_onlTenko) : api('/api/ops-sup/members')
+  ]);
+  var on = res[0], mem = res[1];
+  if (res[2] && res[2].success) _onlTenko = res[2];
+  var canTenko = {};
+  ((_onlTenko && _onlTenko.items) || []).forEach(function (x) { canTenko[x.id] = 1; });
+  if (mem && mem.success) _onlMembers = mem;
+  if (!on || !on.success) { $('onl-body').innerHTML = '<div class="onl-empty">取得できませんでした</div>'; return; }
+  var byId = {};
+  ((mem && mem.items) || []).forEach(function (u) { byId[u.id] = u; });
+  var chatting = {}; (on.chatting || []).forEach(function (u) { chatting[u] = 1; });
+  /* ⚠️⚠️2026-08-30 社長「スマホとPCでログイン数が違う」の正体:
+     帯の数字は【自分を含む】のに、この一覧は自分を外していて 1人ずれていた。
+     → 一覧にも自分を出し(「あなた」の札を付ける)、数字と中身を必ず一致させる。 */
+  var onlineIds = (on.online || []).slice();
+  var awayIds = (on.away || []).slice();
+  $('onl-count').textContent = onlineIds.length + '人';
+  function rowHtml(uid, away) {
+    var u = byId[uid];
+    if (!u) return '';   // 名簿に無い(bot・退職など)は出さない
+    var av = u.avatar
+      ? '<img class="av" src="' + escapeHtml(u.avatar) + '" alt="">'
+      : '<span class="av">' + escapeHtml(String(u.name || '?').slice(0, 1)) + '</span>';
+    var isMe = !!(me && uid === me.uid);
+    /* ⚠️2026-08-31 社長「点呼のバッジが付いている人の名前が消える」。
+       名前・札・ボタンを1行に詰めていたため、ボタンが増えた行で名前が削られていた。
+       → 札とボタンを .onl-act にまとめ、入りきらないときは【次の行へ回す】(名前は必ず出す)。 */
+    return '<div class="onl-row' + (away ? ' away' : '') + '">' + av
+      + '<span class="onl-who"><span class="nm">' + escapeHtml(u.name || '') + '</span>'
+      +   '<span class="co">' + escapeHtml(coName(u.company)) + '</span></span>'
+      + '<span class="onl-act">'
+      +   (isMe ? '<span class="tag" style="background:#e0f2fe;color:#0369a1;">あなた</span>' : '')
+      +   (away ? '<span class="tag" style="background:#f1f5f9;color:#64748b;">退席中</span>'
+               : (chatting[uid] ? '<span class="tag">💬 チャット中</span>' : ''))
+      +   (!isMe && canTenko[uid] ? '<button class="dm tenko" onclick="opsTenkoCall(\'' + uid + '\',this)">点呼</button>' : '')
+      +   (isMe ? '' : '<a class="dm" href="/chat?dm=' + encodeURIComponent(uid) + '">DM</a>')
+      + '</span>'
+      + '</div>';
+  }
+  function sortByName(a, b) {
+    var an = (byId[a] && byId[a].name) || '', bn = (byId[b] && byId[b].name) || '';
+    return an.localeCompare(bn, 'ja');
+  }
+  var html = '';
+  if (!onlineIds.length) html += '<div class="onl-empty">いまオンラインの人はいません</div>';
+  else html += onlineIds.sort(sortByName).map(function (u) { return rowHtml(u, false); }).join('');
+  if (awayIds.length) {
+    html += '<div class="onl-grp">離席中 (' + awayIds.length + '人)</div>'
+      + awayIds.sort(sortByName).map(function (u) { return rowHtml(u, true); }).join('');
+  }
+  $('onl-body').innerHTML = html;
+}
+function closeOnlinePanel() { var m = $('online-modal'); if (m) m.classList.remove('open'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOnlinePanel(); });
 
 async function fetchBadges() {
   // 掲示板 (board): 新着投稿数
@@ -2628,16 +3654,6 @@ async function fetchBadges() {
       $('b-boshu').style.display = 'none';
     }
   } catch(e) {}
-  // 元祖Ｂさんの愛の日記 (新着投稿数)
-  try {
-    const bd = await api('/api/bdiary/unread-count');
-    if (bd && bd.success && bd.count > 0) {
-      $('b-bdiary').textContent = bd.count;
-      $('b-bdiary').style.display = '';
-    } else if ($('b-bdiary')) {
-      $('b-bdiary').style.display = 'none';
-    }
-  } catch(e) {}
   // 投票したろう (未投票数)
   try {
     const vt = await api('/api/vote/unread-count');
@@ -2698,6 +3714,8 @@ async function fetchBadges() {
       $('b-expense').style.display = 'none';
     }
   } catch(e) {}
+  // 🟢 いまオンラインの人数 (メッセージのカードに緑バッジで出す)
+  try { await refreshOnlineBadge(); } catch (e) {}
   // 折りたたみ中セクションの見出しバッジ(未読合計)を更新
   try { updateSectionBadges(); } catch (e) {}
 }
@@ -2738,7 +3756,26 @@ async function login() {
   init();
 }
 
-function logout() {
+/* ⭐ログアウト＝帰る、とみなして退勤のセルフチェックを促す (2026-08-10 社長指示)。
+   ⚠️状態が取れないときは黙って通す(ログアウトできない事故を作らない)。
+   ⚠️朝いちのログアウトで出さないよう12時以降に限る。
+   ⚠️止めはしない。「あとで（このままログアウト）」で抜けられる。 */
+async function kikoWarnBeforeLogout() {
+  try {
+    if (new Date().getHours() < 12) return true;
+    var r = await api('/api/tenko/kiko/mine');
+    if (!r || !r.success || r.done) return true;
+  } catch (e) { return true; }
+  return new Promise(function (resolve) {
+    showForceGate('🌙', '退勤のセルフチェックがまだです',
+      'お疲れさまでした。<br>帰る前に体調と昼ごはんを1分ほどで。', 'いま答える', 'javascript:void(0)',
+      'あとで（このままログアウト）', function () { resolve(true); });
+    var go = document.getElementById('force-gate-go');
+    if (go) go.onclick = function () { closeForceGate(); openKikoModal(); resolve(false); };
+  });
+}
+async function logout() {
+  if (!(await kikoWarnBeforeLogout())) return;
   // 共用タブレット(キオスク)はヘッダーのログアウトで個人データ全消去→名簿(/tablet)へ。フロートの鍵ボタンは詳細ページでは非表示。
   if (window.cohubKioskLogout) {
     if (!confirm('ログアウトして名簿に戻りますか？（この端末の下書きなど個人データは消去されます）')) return;
@@ -2775,6 +3812,11 @@ function canUseTodo(u) {
       || u.job_role === 'executive' || u.job_role === 'manager'
       || !!u.is_manager || !!u.is_ops_manager || !!u.is_branch_head;
 }
+// To Do カードのマイクを押したときは、録音を始めた状態で To Do 画面を開く
+function todoVoice(e) {
+  try { e.preventDefault(); e.stopPropagation(); } catch (x) {}
+  location.href = '/todo.html?voice=1';
+}
 async function loadTodos() {
   const card = $('card-todo'); if (!card) return;
   if (!canUseTodo(me)) { card.style.display = 'none'; return; }
@@ -2788,6 +3830,16 @@ async function loadTodos() {
   bdg.style.display = open > 0 ? '' : 'none';
 }
 
+/* 📞 オンライン一覧の「点呼」。DMの左に並べる小さなボタン (2026-08-29) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '.onl-row .dm.tenko{border:1px solid #ea580c;font-family:inherit;cursor:pointer;background:#ea580c;color:#fff}'
+    + '.onl-row .dm.tenko:hover{background:#c2410c;border-color:#c2410c}'
+    + '.onl-row .dm.tenko:disabled{opacity:.7;cursor:default}'
+    /* ⚠️.dm は margin-left:auto。2つ並ぶと間が開くので、後ろのDMだけ固定の間隔にする */
+    + '.onl-row .dm.tenko ~ .dm{margin-left:6px}';
+  document.head.appendChild(st);
+})();
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
 $('login-btn').addEventListener('click', login);
@@ -2943,6 +3995,14 @@ function hShowToast(msg) {
         // チャイム + トースト + バッジ増分
         hPlayDmChime();
         hShowToast('💬 メッセージ: ' + (p.content || '').slice(0, 40));
+        // ⭐別のアプリで作業中でも気づけるよう、音を鳴らさないOS通知を出す (2026-08-10 社長指示)。
+        //   ⚠️実体は global-notif.js の osNotify。ここで作り直さないこと。
+        try {
+          if (window.cohubOSNotif) {
+            window.cohubOSNotif('💬 ' + ((p.from_name || '').trim() || 'メッセージ'),
+              (p.content || '') || '📎 添付', { tag: 'cohub-dm-' + (p.from || ''), url: '/chat-simple.html' });
+          }
+        } catch (e) {}
         hBumpChatBadge();
       });
       socket.on('group:msg', (p) => {
@@ -2979,6 +4039,17 @@ function hShowToast(msg) {
              box-shadow:0 2px 8px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; }
   .hmodal-x:hover{ background:#fff; }
   .hmodal iframe{ width:100%; height:100%; border:none; display:block; }
+
+  /* ⚠️⚠️2026-08-31 社長「未対応が2桁になるとオンラインの人数が改行される」の正体:
+     1画面化(2026-08-29)で見出しの高さを 30px に【固定】したが、狭い画面では中身が折り返すので
+     はみ出した「📣 全拠点へ配信」が下のオンラインの帯に**重なって**いた(改行して見えていた)。
+     → 狭い画面(≤900px)では高さの固定を外す。ここは帯が縦に積むので、高さをそろえる必要がない。 */
+  @media (max-width: 900px) {
+    .top-panel .wn-head, .top-panel .da-head, .top-panel .bs-head {
+      max-height: none !important; height: auto !important; align-items: center !important; }
+    .branch-strip .bs-head { flex-wrap: wrap; row-gap: 6px; }
+    .branch-strip .bs-arrow { margin-left: auto; }
+  }
 </style>
 <div id="heat-modal" class="hmodal" onclick="if(event.target===this) closeHeatModal()">
   <div class="hmodal-box">
