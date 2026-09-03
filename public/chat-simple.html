@@ -1071,9 +1071,19 @@
   #bulkdm-modal .mp-row.checked { background: rgba(124,58,237,0.08); }
   #bulkdm-modal .mp-row.checked .chk { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
   #bulkdm-modal .note { font-size: 11.5px; color: #475569; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 7px 10px; margin: 8px 14px 0; line-height: 1.6; }
-  /* 一覧の上の入口ボタン */
-  #bulk-dm-btn { display: block; width: calc(100% - 20px); margin: 8px 10px 4px; padding: 10px; border: none; border-radius: 14px; cursor: pointer;
-    background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-size: 13px; font-weight: 800; box-shadow: 0 3px 10px rgba(79,70,229,0.25); }
+  /* 一覧の足元の入口ボタン (控えめな白地＋枠線)。#group-list が flex:1 なので常に一番下に出る */
+  #side-foot { flex-shrink: 0; padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid #e2e8f0; background: #fff; }
+  #bulk-dm-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  #bulk-dm-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+  #bulk-dm-btn:active { background: #f1f5f9; }
+  #bulk-dm-btn .ic { font-size: 17px; color: #475569; flex-shrink: 0; }
+  #bulk-dm-btn .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  #bulk-dm-btn .t1 { font-size: 13px; font-weight: 800; color: #334155; }
+  #bulk-dm-btn .t2 { font-size: 10.5px; font-weight: 600; color: #94a3b8; }
 
   /* (旧入力ボタンCSSは下方に統合済) */
 
@@ -1424,8 +1434,14 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
 <main>
   <aside id="side">
     <h2 id="side-head" onclick="toggleSide()">グループ <span class="cnt-num" id="grp-count"></span></h2>
-    <button type="button" id="bulk-dm-btn" onclick="openBulkDm()" title="グループを作らずに、選んだ人それぞれへ個別のDMを送ります">📨 複数の人へまとめてDM</button>
     <div id="group-list"><div class="empty">読み込み中...</div></div>
+    <!-- ✉ まとめてメール: 一覧の足元に固定。グループを作らず、選んだ人それぞれへ個別に送る -->
+    <div id="side-foot">
+      <button type="button" id="bulk-dm-btn" onclick="openBulkDm()" title="グループを作らずに、選んだ人それぞれへ個別のメッセージを送ります">
+        <span class="ic">✉</span>
+        <span class="tx"><span class="t1">まとめてメール</span><span class="t2">複数の人に同じ内容を送る</span></span>
+      </button>
+    </div>
   </aside>
 
   <section id="panel">
@@ -1516,12 +1532,12 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
 </main>
 </div>
 
-<!-- 📨 複数の人へまとめてDM (2026-09-03)。グループは作らず、相手ごとに1対1のDMとして送る -->
+<!-- ✉ まとめてメール (2026-09-03)。グループは作らず、相手ごとに1対1のDMとして送る -->
 <div id="bulkdm-modal">
   <div class="sheet">
     <div class="head">
       <button class="back" type="button" onclick="closeBulkDm()" title="戻る" aria-label="戻る">←</button>
-      <div class="ttl">📨 複数の人へまとめてDM</div>
+      <div class="ttl">✉ まとめてメール</div>
       <span class="cnt" id="bd-count">0人</span>
     </div>
     <div class="search">
@@ -1529,7 +1545,7 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <button type="button" class="chip-btn" id="bd-last" onclick="bulkUseLast()" style="display:none;padding:8px 12px;font-size:11.5px;font-weight:800;background:#fff;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;color:#475569;white-space:nowrap;">前回の宛先</button>
       <button type="button" onclick="bulkClearAll()" style="padding:8px 12px;font-size:11.5px;font-weight:800;background:#fff;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;color:#475569;">解除</button>
     </div>
-    <div class="note">グループは作りません。選んだ人それぞれに<b>1対1のDM</b>として届きます（宛先どうしはお互いを見られません）。</div>
+    <div class="note">グループは作りません。選んだ人それぞれに<b>個人宛のメッセージ（DM）</b>として届きます（宛先どうしはお互いを見られません）。</div>
     <div class="chips" id="bd-chips"></div>
     <div class="body" id="bd-list"></div>
     <div class="compose">
