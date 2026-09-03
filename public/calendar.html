@@ -45,6 +45,7 @@
   .lv-ev:active { background: #f1f5f9; }
   .lv-ev .bar { width: 4px; align-self: stretch; border-radius: 3px; flex-shrink: 0; min-height: 34px; }
   .lv-ev .lv-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+  .lv-ev .lv-nm { font-size: 12px; font-weight: 800; color: #0f766e; margin-right: 6px; }
   .lv-ev .lv-body { flex: 1; min-width: 0; }
   .lv-ev .lv-ttl { font-size: 14px; font-weight: 600; color: #1e293b; }
   .lv-ev .lv-meta { font-size: 12px; color: #64748b; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -88,6 +89,9 @@
   .chip { display: block; font-size: 11px; line-height: 1.3; padding: 2px 5px; border-radius: 8px; margin: 2px 0; color: #fff; white-space: normal; overflow-wrap: anywhere; word-break: break-word; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,.35); font-weight: 600; }
   .chip .t { opacity: .85; font-variant-numeric: tabular-nums; margin-right: 3px; }
   .chip-ava { width: 14px; height: 14px; border-radius: 50%; object-fit: cover; vertical-align: -2px; margin-right: 3px; background: #fff; border: 1px solid rgba(255,255,255,.6); }
+  /* アバターの右に出す作成者名 (グリッドは狭いので姓のみ。フルネームは title と詳細で出す) */
+  .chip-nm { font-weight: 800; opacity: .95; margin-right: 4px; }
+  .cells.tw .chip-nm { margin-right: 5px; }
   .more { font-size: 10px; color: #64748b; padding: 1px 4px; }
 
   /* ホバーポップアップ (PCのみ) — 少し拡大表示 + ふわっと出現 */
@@ -403,7 +407,7 @@ async function load(){
     start_at: (m.starts_at || '').replace('T', ' '), end_at: null, all_day: 0,
     location: m.location || null, duration_minutes: m.duration_minutes || 30,
     organizer_id: m.organizer_id || '',
-    created_by_name: m.organizer_name || '', created_by_avatar: m.organizer_avatar || ''
+    created_by_name: m.organizer_name || '', created_by_display: m.organizer_name || '', created_by_avatar: m.organizer_avatar || ''
   }));
   // 📝 期限つきのToDoを「その日の予定」として合流(Google ToDoリストと同じ考え方)。
   //    サーバーは本人のToDoしか返さない=共有カレンダーでも他人には見えない。
@@ -461,12 +465,24 @@ function startOfWeek(d){ const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x
 let twStart = startOfWeek(new Date());  // 2週表示の開始(週頭=日曜)
 function setView(mode){ viewMode = mode; load(); }
 
+/* ⭐予定を出すときは、アバターの右に作成者名を出す (社長指示 2026-09-03)。
+   ⚠️月グリッドのマスは狭いので**姓だけ**。フルネームは title 属性・ホバー・詳細で出す。
+   ⚠️名前は作成時に控えた `created_by_name` ではなく、サーバーが join した現在の表示名
+     (`created_by_display`) を優先する(改姓・表記変更に追従させるため)。 */
+function ownerName(e){ return e.created_by_display || e.created_by_name || ''; }
+function nameChip(e){
+  const full = ownerName(e);
+  if (!full) return '';
+  const sei = full.split(/[\s\u3000]+/)[0] || full;
+  return `<span class="chip-nm" title="${esc(full)}">${esc(sei)}</span>`;
+}
 // 予定チップのHTML (グリッド/2週 共通)
 function chipHtml(e){
   const handlers = `onclick="event.stopPropagation();openItem('${e.id}')" onmouseenter="showPop(event,'${e.id}')" onmousemove="movePop(event)" onmouseleave="hidePop()"`;
   if (e.kind === 'meeting') {
     const t = timeOf(e.start_at) ? `<span class="t">${timeOf(e.start_at)}</span>` : '';
-    return `<span class="chip" style="background:${CATS.meeting.color}" ${handlers}>🎙${t}${esc(e.title)}</span>`;
+    const mava = e.created_by_avatar ? `<img class="chip-ava" src="${esc(e.created_by_avatar)}" alt="">` : '';
+    return `<span class="chip" style="background:${CATS.meeting.color}" ${handlers}>${mava}${nameChip(e)}🎙${t}${esc(e.title)}</span>`;
   }
   if (e.kind === 'todo') {
     const st = e.done ? 'text-decoration:line-through;opacity:.55;' : '';
@@ -476,7 +492,7 @@ function chipHtml(e){
   const t = (!e.all_day && timeOf(e.start_at)) ? `<span class="t">${timeOf(e.start_at)}</span>` : '';
   const ava = e.created_by_avatar ? `<img class="chip-ava" src="${esc(e.created_by_avatar)}" alt="">` : '';
   const sc = e.scope === 'personal' ? '👤' : '';   // 自分の予定マーク (共有は無印)
-  return `<span class="chip" style="background:${c.color}" ${handlers}>${ava}${sc}${t}${esc(e.title)}</span>`;
+  return `<span class="chip" style="background:${c.color}" ${handlers}>${ava}${sc}${nameChip(e)}${t}${esc(e.title)}</span>`;
 }
 
 const TODO_COLOR = '#7c3aed';   // To Do は予定と区別できる紫
@@ -591,13 +607,13 @@ function renderList(){
       const c = isMtg ? CATS.meeting : (CATS[e.category] || CATS.other);
       const when = e.all_day ? '終日' : (timeOf(e.start_at) || '');
       const catLabel = isMtg ? '' : c.label;
-      const meta = [when, catLabel, e.location, e.created_by_name].filter(Boolean).join(' ・ ');
+      const meta = [when, catLabel, e.location].filter(Boolean).join(' ・ ');   // 名前はタイトル横に出すのでメタから外す
       const ava = e.created_by_avatar ? `<img class="lv-ava" src="${esc(e.created_by_avatar)}" alt="">` : `<div class="lv-ava">${isMtg ? '🎙' : ''}</div>`;
       const label = isMtg ? '会議予約' : (e.scope === 'personal' ? '自分の予定' : '共有予定');
       const labelColor = isMtg ? CATS.meeting.color : (e.scope === 'personal' ? '#64748b' : '#0f766e');
       return `<div class="lv-ev" onclick="openItem('${e.id}')">
         <span class="bar" style="background:${c.color}"></span>${ava}
-        <div class="lv-body"><div class="lv-ttl">${isMtg ? '🎙 ' : ''}${esc(e.title)}</div><div class="lv-meta">${esc(meta)}</div></div>
+        <div class="lv-body"><div class="lv-ttl">${isMtg ? '🎙 ' : ''}<span class="lv-nm">${esc(ownerName(e))}</span>${esc(e.title)}</div><div class="lv-meta">${esc(meta)}</div></div>
         <span class="lv-cat" style="background:${labelColor}">${label}</span>
       </div>`;
     }).join('');

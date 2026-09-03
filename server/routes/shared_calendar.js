@@ -51,8 +51,9 @@ router.get('/', authUser, (req, res) => {
   const isMgr = !!me.is_manager;
   const from = (req.query.from || '').slice(0, 10);
   const to = (req.query.to || '').slice(0, 10);
-  // 作成者の現在のアバターを join で同梱 (created_by_avatar)
-  let sql = `SELECT sce.*, u.avatar_url AS created_by_avatar
+  // 作成者の現在のアバターと表示名を join で同梱 (created_by_avatar / created_by_display)
+  // ⚠️ sce.created_by_name は作成時に控えた値なので、改名すると古いままになる。画面は display を優先する。
+  let sql = `SELECT sce.*, u.avatar_url AS created_by_avatar, u.display_name AS created_by_display
     FROM shared_calendar_events sce
     LEFT JOIN users u ON u.id = sce.created_by
     WHERE sce.deleted_at IS NULL`;
