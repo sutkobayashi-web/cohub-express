@@ -477,6 +477,9 @@
   .drive-alerts .da-hist.lv3 { background: #e11d48; color: #fff; border-color: #e11d48; }
   /* 対応済みバッジ (車両ナンバーの左)。内容の記録が無いものはこれだけで済ませる */
   .drive-alerts .da-done { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 0 7px; margin: 0 4px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; vertical-align: middle; white-space: nowrap; }
+  /* 対応記録(内容)が無いものは琥珀色にして「記録なし」を出す。行をタップすると記録画面が開く */
+  .drive-alerts .da-done.nolog { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+  .drive-alerts .da-done .nl { font-weight: 800; opacity: 0.95; }
   .drive-alerts .da-resp { padding: 0 2px 9px 34px; font-size: 12px; line-height: 1.6; color: #047857; display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
   .drive-alerts .da-resp.todo { color: #9f1239; font-weight: 700; }
   .drive-alerts .da-resp .da-rtxt { flex: 1; min-width: 140px; }
@@ -2127,7 +2130,10 @@ function daHistBadge(a) {
 function daDoneBadge(a) {
   if (!a || !a.handled || a.resp_count) return '';   // 内容がある時は下の行に対応者が出るので重複させない
   var who = a.handled_by_name || '';
-  return '<span class="da-done" title="対応済み">' + (who ? escapeHtml(who) + ' ' : '') + '対応済</span>';
+  /* ⚠️「対応記録(内容)の有無」は消さない。記録が無いものは琥珀色＋「記録なし」で分かるようにする
+     (行をタップすると記録画面が直接開く)。 */
+  return '<span class="da-done nolog" title="対応済み・内容の記録がありません（タップで記録）">'
+    + (who ? escapeHtml(who) + ' ' : '') + '対応済<span class="nl">・記録なし</span></span>';
 }
 /* ⭐対応の記録をトップに出す。未対応は「対応を記録」へ直行 (/alerts.html?respond=ID)。 */
 function daRespHtml(a) {
@@ -2184,8 +2190,10 @@ function renderDriveAlerts(alerts, unreadTotal) {
         + daDoneBadge(a)
         + (a.where ? '（' + escapeHtml(a.where) + '）' : '')
       : escapeHtml(ev.summary || '');
+    // 対応済みだが内容の記録が無い行は、タップでそのまま記録画面へ (トップからの入口を残す)
+    var href = (a && a.handled && !a.resp_count) ? ('/alerts.html?respond=' + a.id) : (ev.link || '/alerts.html');
     return '<div class="da-item">'
-      + '<a class="da-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(ev.link || '/alerts.html') + '"'
+      + '<a class="da-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(href) + '"'
       + ' onclick="return wnClick(event, ' + JSON.stringify(ev.key || '').replace(/"/g, '&quot;') + ', true)">'
       + '<span class="li-ic">' + (ev.icon || '⚠️') + '</span>'
       + '<span class="li-body">'
