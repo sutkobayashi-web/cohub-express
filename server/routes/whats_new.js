@@ -229,21 +229,53 @@ router.get('/', authUser, (req, res) => {
   try {
     const mgrA = db.prepare('SELECT is_manager FROM users WHERE id = ?').get(req.uid);
     if (mgrA && mgrA.is_manager) {
-      const rows = db.prepare(`SELECT id, vehicle_name, vehicle_number, driver_name, notice, handled,
+      /* ⭐2026-09-03 トップに「誰がどう対応したか」を出す。
+         これまでは【未対応】の有無しか分からず、対応済みでも“誰が何をしたか”が見えなかった。
+         あわせて乗務員の**発布歴(通算回数)**をバッジ用に返す(名前の横に出す)。 */
+      const NMW = (c) => `REPLACE(REPLACE(${c},' ',''),'　','')`;
+      const rows = db.prepare(`SELECT id, vehicle_name, vehicle_number, driver_name, notice, handled, handled_by_name,
+          (SELECT COUNT(*) FROM driving_alerts d2 WHERE ${NMW('d2.driver_name')} = ${NMW('da.driver_name')}) AS driver_total,
+          (SELECT COUNT(*) FROM driving_alert_responses r WHERE r.alert_id = da.id AND r.deleted_at IS NULL) AS resp_count,
+          (SELECT r2.responder_name FROM driving_alert_responses r2 WHERE r2.alert_id = da.id AND r2.deleted_at IS NULL ORDER BY r2.id DESC LIMIT 1) AS resp_by,
+          (SELECT r3.method FROM driving_alert_responses r3 WHERE r3.alert_id = da.id AND r3.deleted_at IS NULL ORDER BY r3.id DESC LIMIT 1) AS resp_method,
+          (SELECT r4.contacted FROM driving_alert_responses r4 WHERE r4.alert_id = da.id AND r4.deleted_at IS NULL ORDER BY r4.id DESC LIMIT 1) AS resp_contacted,
+          (SELECT r5.content FROM driving_alert_responses r5 WHERE r5.alert_id = da.id AND r5.deleted_at IS NULL ORDER BY r5.id DESC LIMIT 1) AS resp_content,
           datetime(received_at, '-9 hours') AS received_at_utc
-        FROM driving_alerts
+        FROM driving_alerts da
         WHERE received_at >= datetime('now', '-' || ? || ' days')
         ORDER BY received_at DESC LIMIT 5`).all(days);
       for (const r of rows) {
         const where = r.vehicle_name || r.vehicle_number || '';
+        // 対応の一行 (トップ・テロップ用のテキスト)
+        const respLine = r.resp_count
+          ? '✅ ' + [r.resp_by, r.resp_method].filter(Boolean).join('／')
+            + (r.resp_contacted === 1 ? '・本人に連絡' : (r.resp_contacted === 0 ? '・本人と連絡つかず' : ''))
+            + (r.resp_content ? '「' + String(r.resp_content).slice(0, 40) + '」' : '')
+          : (r.handled ? '✅ 対応済み' + (r.handled_by_name ? '（' + r.handled_by_name + '）' : '') + '・内容未記録' : '');
         events.push({
           key: 'alert:' + r.id,
           type: 'alert', icon: '⚠️', label: '運転アラート',
-          summary: (r.handled ? '' : '【未対応】') + [r.driver_name, r.notice].filter(Boolean).join('・') + (where ? `（${where}）` : ''),
+          summary: (r.handled ? '' : '【未対応】') + [r.driver_name, r.notice].filter(Boolean).join('・') + (where ? `（${where}）` : '')
+            + (respLine ? ' ' + respLine : ''),
           link: '/alerts.html',
           author: null,
           thumb: null,
           created_at: r.received_at_utc,
+          // 構造化 (home.html が名前バッジ・対応欄を組み立てるのに使う)
+          alert: {
+            id: r.id,
+            driver_name: r.driver_name || '',
+            notice: r.notice || '',
+            where,
+            handled: r.handled ? 1 : 0,
+            handled_by_name: r.handled_by_name || '',
+            driver_total: r.driver_total || 0,
+            resp_count: r.resp_count || 0,
+            resp_by: r.resp_by || '',
+            resp_method: r.resp_method || '',
+            resp_contacted: (r.resp_contacted === 1 || r.resp_contacted === 0) ? r.resp_contacted : null,
+            resp_content: r.resp_content || '',
+          },
         });
       }
     }

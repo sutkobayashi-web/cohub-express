@@ -469,6 +469,17 @@
   .drive-alerts .da-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: #881337; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .drive-alerts .da-li.is-unread .li-text { color: #4c0519; }
   .drive-alerts .da-empty { width: 100%; padding: 8px 2px 2px; font-size: 12.5px; font-weight: 700; color: #9f1239; opacity: 0.85; }
+  /* ⭐2026-09-03 「誰がどう対応したか」と 乗務員の発布歴バッジ をトップに出す */
+  .drive-alerts .da-item { border-top: 1px solid #fecdd3; }
+  .drive-alerts .da-item:first-child { border-top: none; }
+  .drive-alerts .da-item .da-li { border-top: none; }
+  .drive-alerts .da-hist { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 0 7px; margin-left: 5px; background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; vertical-align: middle; white-space: nowrap; }
+  .drive-alerts .da-hist.lv3 { background: #e11d48; color: #fff; border-color: #e11d48; }
+  .drive-alerts .da-resp { padding: 0 2px 9px 34px; font-size: 12px; line-height: 1.6; color: #047857; display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .drive-alerts .da-resp.todo { color: #9f1239; font-weight: 700; }
+  .drive-alerts .da-resp .da-rtxt { flex: 1; min-width: 140px; }
+  .drive-alerts .da-rbtn { flex-shrink: 0; background: #e11d48; color: #fff; text-decoration: none; font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
+  .drive-alerts .da-rbtn.sub { background: #fff; color: #9f1239; border: 1px solid #fecdd3; font-weight: 700; }
   .drive-alerts.is-clear { background: #f7fbf8; border-color: #d7ead9; box-shadow: 0 3px 10px rgba(6,95,70,0.05); }
   .drive-alerts.is-clear .da-label { background: #059669; }
   .drive-alerts.is-clear .da-more { color: #047857; }
@@ -2102,6 +2113,32 @@ function isTodayJst(iso) {
   const n = new Date();
   return t.getFullYear() === n.getFullYear() && t.getMonth() === n.getMonth() && t.getDate() === n.getDate();
 }
+/* ⭐2026-09-03 乗務員名の横に「発布歴」バッジ。通算回数(サーバー集計)をそのまま出す。 */
+function daHistBadge(a) {
+  var n = (a && a.driver_total) || 0;
+  if (!n || !a.driver_name) return '';
+  return '<span class="da-hist' + (n >= 5 ? ' lv3' : '') + '" title="運転アラートの発布 通算' + n + '回">発布 ' + n + '回</span>';
+}
+/* ⭐対応の記録をトップに出す。未対応は「対応を記録」へ直行 (/alerts.html?respond=ID)。
+   ⚠️フラグだけ立てて内容が無いものは、そうと分かるように出す(お見合いを見つけるため)。 */
+function daRespHtml(a) {
+  if (!a) return '';
+  var btn = '<a class="da-rbtn" href="/alerts.html?respond=' + a.id + '">対応を記録</a>';
+  if (!a.handled) {
+    return '<div class="da-resp todo"><span class="da-rtxt">未対応 — 当事者へ連絡し、内容を残してください</span>' + btn + '</div>';
+  }
+  if (!a.resp_count) {
+    return '<div class="da-resp todo"><span class="da-rtxt">⚠️ 対応済みですが内容が未記録'
+      + (a.handled_by_name ? '（' + escapeHtml(a.handled_by_name) + 'さんが解除）' : '') + '</span>'
+      + '<a class="da-rbtn" href="/alerts.html?respond=' + a.id + '">内容を記録</a></div>';
+  }
+  var line = '✅ ' + escapeHtml(a.resp_by || '') + (a.resp_method ? '／' + escapeHtml(a.resp_method) : '')
+    + (a.resp_contacted === 1 ? '・本人に連絡' : (a.resp_contacted === 0 ? '・本人と連絡つかず' : ''))
+    + (a.resp_count > 1 ? ' 他' + (a.resp_count - 1) + '件' : '')
+    + (a.resp_content ? '<br>' + escapeHtml(a.resp_content) : '');
+  return '<div class="da-resp"><span class="da-rtxt">' + line + '</span>'
+    + '<a class="da-rbtn sub" href="/alerts.html?respond=' + a.id + '">＋追記</a></div>';
+}
 function renderDriveAlerts(alerts, unreadTotal) {
   /* ⭐2026-08-27 社長「既読をしない限り出し続けて」。当日分だけだと **読まないまま日付が変わると消える**。
      → 「当日分」または「未読」を出す(未読は7日以内=サーバーの取得範囲まで持ち越す)。 */
@@ -2136,7 +2173,13 @@ function renderDriveAlerts(alerts, unreadTotal) {
   let unread = 0;
   list.innerHTML = _wnAlerts.map(function (ev) {
     if (ev.unread) unread++;
-    return '<a class="da-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(ev.link || '/alerts.html') + '"'
+    var a = ev.alert || null;   // サーバー(whats_new.js)が返す構造化データ。無ければ従来どおり summary
+    var text = a
+      ? escapeHtml(a.driver_name || '') + daHistBadge(a) + '　' + escapeHtml(a.notice || '')
+        + (a.where ? '（' + escapeHtml(a.where) + '）' : '')
+      : escapeHtml(ev.summary || '');
+    return '<div class="da-item">'
+      + '<a class="da-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(ev.link || '/alerts.html') + '"'
       + ' onclick="return wnClick(event, ' + JSON.stringify(ev.key || '').replace(/"/g, '&quot;') + ', true)">'
       + '<span class="li-ic">' + (ev.icon || '⚠️') + '</span>'
       + '<span class="li-body">'
@@ -2144,9 +2187,11 @@ function renderDriveAlerts(alerts, unreadTotal) {
       +     (ev.created_at ? '<span class="li-time">' + escapeHtml(postTime(ev.created_at)) + '</span>' : '')
       +     (ev.unread ? '<span class="li-new">NEW</span>' : '')
       +   '</span>'
-      +   (ev.summary ? '<span class="li-text">' + escapeHtml(ev.summary) + '</span>' : '')
+      +   (text ? '<span class="li-text">' + text + '</span>' : '')
       + '</span>'
-      + '</a>';
+      + '</a>'
+      + daRespHtml(a)
+      + '</div>';
   }).join('');
   // ⚠️バッジは【画面に出した5件】ではなく サーバーが数えた未読の総数を出す
   const total = (typeof unreadTotal === 'number' && unreadTotal >= unread) ? unreadTotal : unread;

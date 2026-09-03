@@ -30,10 +30,11 @@
   .filters select, .filters input { padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; }
   .filters input { flex: 1; min-width: 120px; }
 
-  .alert-row { display: flex; align-items: center; gap: 10px; padding: 11px 8px; border-bottom: 1px solid #f1f5f9; border-radius: 12px; }
-  .alert-row:last-child { border-bottom: none; }
-  .alert-row.unhandled { background: #fef2f2; border-left: 4px solid #dc2626; }
-  .alert-row.done { opacity: .62; }
+  .alert-card { border-bottom: 1px solid #f1f5f9; border-radius: 12px; padding: 3px 0; margin-bottom: 2px; }
+  .alert-card:last-child { border-bottom: none; }
+  .alert-card.unhandled { background: #fef2f2; border-left: 4px solid #dc2626; }
+  .alert-card.done { opacity: .72; }
+  .alert-row { display: flex; align-items: center; gap: 10px; padding: 9px 8px 6px; }
   .alert-row .tag { flex-shrink: 0; font-size: 12px; font-weight: 800; color: #fff; padding: 4px 10px; border-radius: 12px; white-space: nowrap; min-width: 96px; text-align: center; }
   .alert-row .drv-av { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #475569; font-size: 17px; border: 1px solid #cbd5e1; overflow: hidden; }
   .alert-row .info { flex: 1; min-width: 0; }
@@ -53,6 +54,54 @@
   .ingest .ib { margin: 0 14px 14px; }
   .ingest button { background: #b91c1c; color: #fff; border: none; border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 8px; }
   .ingest .st { font-size: 12px; margin-left: 8px; }
+  /* ⚠️375px幅では 種別タグ+顔+ボタン で氏名欄が潰れる → 氏名/日時を次の行へ回す */
+  @media (max-width: 480px) {
+    .alert-row { flex-wrap: wrap; gap: 8px; }
+    .alert-row .tag { min-width: 0; font-size: 11.5px; padding: 4px 9px; }
+    .alert-row .drv-av { width: 32px; height: 32px; font-size: 15px; }
+    .alert-row .hwrap { margin-left: auto; }
+    .alert-row .info { flex-basis: 100%; order: 9; }
+    .filters input[type="text"] { min-width: 100%; }
+  }
+
+  /* ⭐発布歴バッジ (乗務員名の横)。回数が増えるほど濃くする */
+  .hist { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; margin-left: 6px; cursor: pointer; border: 1px solid transparent; vertical-align: middle; }
+  .hist.lv1 { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+  .hist.lv2 { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+  .hist.lv3 { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .hist.lv4 { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+
+  /* 対応記録 */
+  .resp { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 3px; }
+  .resp:empty { display: none; }
+  .alert-row .who .veh { color: #64748b; }
+  .resp .r-li { font-size: 12px; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 4px 9px; line-height: 1.5; }
+  .resp .r-li .r-when { color: #047857; opacity: .8; font-weight: 700; margin-right: 5px; font-variant-numeric: tabular-nums; }
+  .resp .r-li .r-who { font-weight: 800; }
+  .resp .r-li .r-ng { color: #b45309; font-weight: 700; }
+  .resp .r-li .r-del { float: right; border: none; background: none; color: #94a3b8; font-size: 11px; cursor: pointer; padding: 0 0 0 6px; }
+  .resp .r-none { font-size: 12px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 4px 9px; font-weight: 700; }
+  .hbtn.undo { background: none; color: #94a3b8; font-size: 11px; font-weight: 600; padding: 4px 6px; text-decoration: underline; }
+
+  /* 対応入力シート */
+  .rs-back { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: none; align-items: flex-end; justify-content: center; z-index: 60; }
+  .rs-back.on { display: flex; }
+  .rs { background: #fff; width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 16px 16px 20px; max-height: 92vh; overflow-y: auto; }
+  @media (min-width: 600px) { .rs-back { align-items: center; } .rs { border-radius: 18px; } }
+  .rs h3 { margin: 0 0 4px; font-size: 15px; }
+  .rs .rs-sub { font-size: 12.5px; color: #64748b; margin-bottom: 10px; line-height: 1.6; }
+  .rs .rs-lbl { font-size: 12.5px; font-weight: 800; color: #334155; margin: 12px 0 6px; }
+  .rs .opt { display: flex; gap: 7px; flex-wrap: wrap; }
+  .rs .opt button { border: 1px solid #cbd5e1; background: #fff; color: #334155; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .rs .opt button.sel { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+  .rs .opt.tmpl button { font-size: 12px; padding: 6px 11px; font-weight: 600; }
+  .rs textarea { width: 100%; min-height: 78px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; font-family: inherit; margin-top: 6px; }
+  .rs .rs-hist { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 11px; font-size: 12px; color: #475569; line-height: 1.7; margin-top: 10px; }
+  .rs .rs-act { display: flex; gap: 8px; margin-top: 16px; }
+  .rs .rs-act button { flex: 1; border: none; border-radius: 13px; padding: 13px; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .rs .rs-save { background: #b91c1c; color: #fff; }
+  .rs .rs-cancel { background: #f1f5f9; color: #475569; flex: 0 0 34%; }
+  .rs .rs-err { color: #dc2626; font-size: 12.5px; font-weight: 700; margin-top: 8px; min-height: 16px; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,8 +135,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
         <option value="90">直近90日</option>
       </select>
     </div>
-    <div class="sum-total">期間合計 <b id="sum-total">0</b> 件</div>
+    <div class="sum-total">期間合計 <b id="sum-total">0</b> 件<span id="sum-rec" style="margin-left:10px;"></span></div>
     <div class="chips" id="sum-chips"></div>
+    <div class="sum-head" style="margin:12px 0 6px;"><span class="ttl" style="font-size:13px;">🔁 乗務員別の発布回数（期間内・多い順）</span></div>
+    <div class="chips" id="sum-drivers"></div>
   </div>
 
   <!-- 絞り込み -->
@@ -122,6 +173,31 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
   </div>
 </div>
 
+<!-- ⭐対応記録シート (2026-09-03): 誰が・どうやって・何をしたかを残す -->
+<div class="rs-back" id="rs-back" onclick="if(event.target===this)closeResp()">
+  <div class="rs">
+    <h3 id="rs-ttl">対応を記録</h3>
+    <div class="rs-sub" id="rs-sub"></div>
+
+    <div class="rs-lbl">① どうやって対応しましたか</div>
+    <div class="opt" id="rs-method"></div>
+
+    <div class="rs-lbl">② 本人に伝わりましたか</div>
+    <div class="opt" id="rs-contact"></div>
+
+    <div class="rs-lbl">③ 内容（何を伝えたか・任意）</div>
+    <div class="opt tmpl" id="rs-tmpl"></div>
+    <textarea id="rs-content" placeholder="例）本人へ電話。急加速の状況を確認し、余裕を持った発進を指示。明日の点呼で再確認する。"></textarea>
+
+    <div class="rs-hist" id="rs-hist"></div>
+    <div class="rs-err" id="rs-err"></div>
+    <div class="rs-act">
+      <button class="rs-cancel" onclick="closeResp()">やめる</button>
+      <button class="rs-save" id="rs-save" onclick="saveResp()">記録して対応済みにする</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const token = localStorage.getItem('cohub_token') || '';
 let me = null, _t = null;
@@ -153,7 +229,10 @@ async function init(){
   me = j.user;
   if (!me.is_manager) { showDenied(); return; }
   document.getElementById('app').classList.remove('hide');
-  reload();
+  await reload();
+  // トップページの「対応を記録」から来たとき (/alerts.html?respond=123) は そのまま入力シートを開く
+  const m = location.search.match(/[?&]respond=(\d+)/);
+  if (m) openResp(parseInt(m[1], 10));
 }
 function debounceReload(){ clearTimeout(_t); _t = setTimeout(reload, 400); }
 
@@ -168,6 +247,16 @@ async function reload(){
     document.getElementById('sum-total').textContent = s.total || 0;
     document.getElementById('sum-chips').innerHTML = (s.by_type || []).map(t =>
       `<span class="chip" style="background:${tagColor(t.notice)};color:#fff;">${esc(t.notice||'(不明)')} ${t.n}</span>`).join('') || '<span style="font-size:12px;color:#94a3b8;">この期間のアラートはありません</span>';
+    // ⭐フラグだけで終わっていないか (対応内容が残っている件数)
+    const recEl = document.getElementById('sum-rec');
+    if (recEl) {
+      const tot = s.total || 0, rn = s.recorded_n || 0;
+      recEl.innerHTML = tot ? `対応内容の記録 <b style="font-size:16px;color:${rn >= tot ? '#047857' : '#b45309'};">${rn}</b> / ${tot} 件` : '';
+    }
+    // ⭐乗務員別の発布回数 (クリックでその人だけに絞る)
+    document.getElementById('sum-drivers').innerHTML = (s.by_driver || []).map(t =>
+      `<span class="chip hist ${histLv(t.n)}" style="margin:0;" onclick="filterDriver(${jq(t.driver_name)})">${esc(t.driver_name||'(不明)')} ${t.n}回</span>`
+    ).join('') || '<span style="font-size:12px;color:#94a3b8;">—</span>';
   } catch(e){ return; }
   // 一覧
   const box = document.getElementById('list');
@@ -177,18 +266,134 @@ async function reload(){
   box.innerHTML = al.map(a => {
     const handled = !!a.handled;
     const btn = handled
-      ? `<button class="hbtn done" onclick="setHandled(${a.id},0,this)">✓ 対応済み${a.handled_by_name ? `<span class="by">${esc(a.handled_by_name)}</span>` : ''}</button>`
-      : `<button class="hbtn todo" onclick="setHandled(${a.id},1,this)">未対応</button>`;
-    return `<div class="alert-row ${handled ? 'done' : 'unhandled'}" id="ar-${a.id}">
-      <span class="tag" style="background:${tagColor(a.notice)};">${esc(a.notice||'通知')}</span>
-      ${a.driver_avatar ? `<img class="drv-av" src="${esc(a.driver_avatar)}" alt="">` : `<span class="drv-av">${esc((a.driver_name||'').trim().charAt(0)||'👤')}</span>`}
-      <div class="info">
-        <div class="when">${esc(a.occurred_at||'')}</div>
-        <div class="who">${esc(a.driver_name||'')}（${esc(a.vehicle_name||a.vehicle_number||'')}）</div>
+      ? `<button class="hbtn done" onclick="openResp(${a.id})">✓ 対応済み<span class="by">＋追記する</span></button>`
+        + `<br><button class="hbtn undo" onclick="setHandled(${a.id},0,this)">未対応に戻す</button>`
+      : `<button class="hbtn todo" onclick="openResp(${a.id})">対応を記録</button>`;
+    return `<div class="alert-card ${handled ? 'done' : 'unhandled'}" id="ar-${a.id}">
+      <div class="alert-row">
+        <span class="tag" style="background:${tagColor(a.notice)};">${esc(a.notice||'通知')}</span>
+        ${a.driver_avatar ? `<img class="drv-av" src="${esc(a.driver_avatar)}" alt="">` : `<span class="drv-av">${esc((a.driver_name||'').trim().charAt(0)||'👤')}</span>`}
+        <div class="info">
+          <div class="when">${esc(a.occurred_at||'')}</div>
+          <div class="who">${esc(a.driver_name||'')}${histBadge(a)}<span class="veh">（${esc(a.vehicle_name||a.vehicle_number||'')}）</span></div>
+        </div>
+        <div class="hwrap">${btn}</div>
       </div>
-      <div class="hwrap">${btn}</div>
+      <div class="resp">${respHtml(a)}</div>
     </div>`;
   }).join('');
+}
+
+// ⭐発布歴バッジ (乗務員名の横)。通算回数で色を変える
+// ⚠️ onclick="..." の中に JSON.stringify の二重引用符をそのまま置くと属性が壊れる
+function jq(v){ return JSON.stringify(v == null ? '' : v).replace(/"/g, '&quot;'); }
+function histLv(n){ return n >= 10 ? 'lv4' : (n >= 5 ? 'lv3' : (n >= 2 ? 'lv2' : 'lv1')); }
+function histBadge(a){
+  const n = a.driver_total || 0;
+  if (!n || !a.driver_name) return '';
+  const recent = a.driver_recent || 0;
+  return `<span class="hist ${histLv(n)}" title="通算${n}回（直近90日 ${recent}回）／クリックでこの乗務員だけ表示"`
+    + ` onclick="filterDriver(${jq(a.driver_name)})">発布 ${n}回</span>`;
+}
+function filterDriver(name){
+  const q = document.getElementById('f-q');
+  q.value = (q.value === name) ? '' : name;   // もう一度押したら解除
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  reload();
+}
+// 対応記録の表示 (複数人が対応した場合はすべて並べる=お見合い/重複連絡が見える)
+function contactLabel(c){ return c === 1 ? '・本人に連絡' : (c === 0 ? '<span class="r-ng">・本人と連絡つかず</span>' : ''); }
+function shortWhen(t){ return String(t || '').replace(/^\d{4}[-/]/, '').slice(0, 11); }
+function respHtml(a){
+  const rs = a.responses || [];
+  if (!rs.length) {
+    if (!a.handled) return '';
+    return '<div class="r-none">⚠️ 対応済みですが内容が記録されていません'
+      + (a.handled_by_name ? '（' + esc(a.handled_by_name) + 'さんが解除）' : '') + '</div>';
+  }
+  return rs.map(r =>
+    `<div class="r-li">`
+    + (r.responder_id === (me && me.id) ? `<button class="r-del" title="この記録を取り消す" onclick="delResp(${a.id},${r.id})">取消</button>` : '')
+    + `<span class="r-when">${esc(shortWhen(r.created_at))}</span>`
+    + `<span class="r-who">${esc(r.responder_name || '')}</span>／${esc(r.method || '')}${contactLabel(r.contacted)}`
+    + (r.content ? `<br>${esc(r.content)}` : '')
+    + `</div>`).join('');
+}
+
+// ===== 対応記録シート =====
+const RS_METHODS = ['電話', '対面で指導', '無線', 'CoWellで連絡', '帰庫点呼で指導', 'その他'];
+const RS_CONTACT = [['本人と話せた', 1], ['本人と連絡つかず', 0], ['該当なし', null]];
+const RS_TMPL = [
+  '本人へ連絡し、発生時の状況を確認。',
+  '安全運転を指導し、本人も了解。',
+  '本人不在のため伝言を残した。',
+  '帰庫後に対面で確認する。',
+  '機器の誤検知と確認（違反なし）。',
+];
+let _rsId = null, _rsMethod = '', _rsContact;   // _rsContact: 未選択=undefined / 1=話せた / 0=つかず / null=該当なし
+function rsPaint(){
+  document.getElementById('rs-method').innerHTML = RS_METHODS.map(m =>
+    `<button class="${_rsMethod === m ? 'sel' : ''}" onclick="rsPick('m',${jq(m)})">${esc(m)}</button>`).join('');
+  document.getElementById('rs-contact').innerHTML = RS_CONTACT.map(c =>
+    `<button class="${_rsContact === c[1] ? 'sel' : ''}" onclick="rsPick('c',${c[1] === null ? 'null' : c[1]})">${esc(c[0])}</button>`).join('');
+  document.getElementById('rs-tmpl').innerHTML = RS_TMPL.map(t =>
+    `<button onclick="rsTmpl(${jq(t)})">＋ ${esc(t)}</button>`).join('');
+}
+function rsPick(kind, v){ if (kind === 'm') _rsMethod = v; else _rsContact = v; rsPaint(); }
+function rsTmpl(t){
+  const ta = document.getElementById('rs-content');
+  ta.value = (ta.value ? ta.value.replace(/\s*$/, '') + ' ' : '') + t;
+  ta.focus();
+}
+async function openResp(id){
+  _rsId = id; _rsMethod = ''; _rsContact = undefined;
+  document.getElementById('rs-content').value = '';
+  document.getElementById('rs-err').textContent = '';
+  document.getElementById('rs-sub').textContent = '読み込み中…';
+  document.getElementById('rs-hist').textContent = '';
+  rsPaint();
+  document.getElementById('rs-back').classList.add('on');
+  let j; try { j = await api('/api/alert/' + id + '/responses'); } catch(e){ return; }
+  if (!j || !j.success) { document.getElementById('rs-err').textContent = '読み込みに失敗しました'; return; }
+  const a = j.alert || {};
+  document.getElementById('rs-ttl').textContent = (a.handled ? '対応を追記' : '対応を記録');
+  document.getElementById('rs-sub').innerHTML =
+    `<b>${esc(a.driver_name || '')}</b>（${esc(a.vehicle_name || a.vehicle_number || '')}）<br>`
+    + `${esc(a.occurred_at || '')}　<b style="color:#b91c1c;">${esc(a.notice || '')}</b>`;
+  const rs = j.responses || [];
+  const hist = j.history || [];
+  document.getElementById('rs-hist').innerHTML =
+    `🔁 この乗務員の発布歴 <b>通算 ${j.driver_total || 0}回</b>`
+    + (hist.length ? '<br>' + hist.slice(0, 5).map(h => `・${esc(shortWhen(h.occurred_at))} ${esc(h.notice || '')}`).join('<br>') : '')
+    + (rs.length ? '<br><br>📝 このアラートの対応記録<br>' + rs.map(r =>
+        `・${esc(shortWhen(r.created_at))} ${esc(r.responder_name || '')}／${esc(r.method || '')}`
+        + (r.content ? '「' + esc(r.content) + '」' : '')).join('<br>') : '');
+  document.getElementById('rs-save').textContent = a.handled ? '追記する' : '記録して対応済みにする';
+}
+function closeResp(){ document.getElementById('rs-back').classList.remove('on'); _rsId = null; }
+async function saveResp(){
+  if (!_rsId) return;
+  const err = document.getElementById('rs-err');
+  if (!_rsMethod) { err.textContent = '「どうやって対応したか」を選んでください'; return; }
+  const btn = document.getElementById('rs-save');
+  btn.disabled = true; btn.style.opacity = '.5';
+  try {
+    const j = await api('/api/alert/' + _rsId + '/respond', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: _rsMethod, contacted: (_rsContact === undefined ? null : _rsContact), content: document.getElementById('rs-content').value.trim() })
+    });
+    if (j && j.success) {
+      // この端末のループ警報も即停止 (global-notif.js)
+      if (window.cohubAlertHandled) window.cohubAlertHandled(_rsId);
+      closeResp();
+      reload();
+    } else { err.textContent = (j && j.msg) || '記録に失敗しました'; }
+  } catch(e){ err.textContent = '通信エラー'; }
+  btn.disabled = false; btn.style.opacity = '1';
+}
+async function delResp(id, rid){
+  if (!confirm('この対応記録を取り消しますか？')) return;
+  try { const j = await api('/api/alert/' + id + '/respond/' + rid, { method: 'DELETE' }); if (j && j.success) reload(); } catch(e){}
 }
 
 // 対応/未対応 切替。対応済みにすると警報ループが止まる
