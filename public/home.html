@@ -458,7 +458,7 @@
   .drive-alerts .da-count { background: #9f1239; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
   .drive-alerts .da-more { margin-left: auto; font-size: 11.5px; color: #9f1239; text-decoration: none; font-weight: 700; }
   .drive-alerts .da-list { width: 100%; display: flex; flex-direction: column; margin-top: 3px; }
-  .drive-alerts .da-li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid #fecdd3; text-decoration: none; color: #4c0519; cursor: pointer; }
+  .drive-alerts .da-li { display: flex; align-items: center; gap: 10px; padding: 11px 2px 10px; border-top: 1px solid #fecdd3; text-decoration: none; color: #4c0519; cursor: pointer; }
   .drive-alerts .da-li:first-child { border-top: none; }
   .drive-alerts .da-li:active { background: #ffe4e6; }
   .drive-alerts .da-li .li-ic { font-size: 17px; flex: 0 0 auto; width: 22px; text-align: center; }
@@ -467,12 +467,12 @@
   .drive-alerts .da-li .li-time { color: #9f1239; opacity: 0.75; font-size: 11px; }
   .drive-alerts .da-li .li-new { background: #e11d48; color: #fff; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1px 6px; }
   /* ⚠️1件=1行。はみ出す分は本文側だけ「…」で切り、右端の対応バッジは残す (2026-09-03) */
-  .drive-alerts .da-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: #881337; display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .drive-alerts .da-li .li-text { font-size: 13.5px; font-weight: 600; line-height: 1.6; color: #881337; display: flex; align-items: center; gap: 12px; min-width: 0; overflow: hidden; white-space: nowrap; }
   .drive-alerts .da-li .li-text .tx { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 削る順番: 車両ナンバー(vh) → 通知内容(nt)。氏名(nm)と対応バッジ(da-done)は削らない */
   .drive-alerts .da-li .li-text .nm { flex: 0 0 auto; white-space: nowrap; }
   /* ⚠️min-width は付けない。付けると狭い画面で**行末のボタンが切れる**(ボタンは必ず見せる) */
-  .drive-alerts .da-li .li-text .nt { flex: 0 1 auto; min-width: 0; margin-left: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drive-alerts .da-li .li-text .nt { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .drive-alerts .da-li .li-text .vh { flex: 0 6 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .drive-alerts .da-li .li-text .da-done { flex: 0 0 auto; }
   .drive-alerts .da-li.is-unread .li-text { color: #4c0519; }
@@ -481,10 +481,10 @@
   .drive-alerts .da-item { border-top: 1px solid #fecdd3; }
   .drive-alerts .da-item:first-child { border-top: none; }
   .drive-alerts .da-item .da-li { border-top: none; }
-  .drive-alerts .da-hist { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 0 7px; margin-left: 5px; background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; vertical-align: middle; white-space: nowrap; }
+  .drive-alerts .da-hist { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 1px 9px; margin-left: 9px; background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; vertical-align: middle; white-space: nowrap; }
   .drive-alerts .da-hist.lv3 { background: #e11d48; color: #fff; border-color: #e11d48; }
   /* 対応済みバッジ (車両ナンバーの左)。内容の記録が無いものはこれだけで済ませる */
-  .drive-alerts .da-done { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 0 6px; margin: 0 0 0 4px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; vertical-align: middle; white-space: nowrap; }
+  .drive-alerts .da-done { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1px 7px; margin: 0; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; vertical-align: middle; white-space: nowrap; }
   /* 対応記録(内容)が無いものは**赤**にして「記録なし」を出す。行をタップすると記録画面が開く */
   .drive-alerts .da-done.nolog { background: #dc2626; color: #fff; border-color: #dc2626; }
   .drive-alerts .da-done .nl { font-weight: 800; opacity: 0.95; }
@@ -502,9 +502,16 @@
     background: #f7fbf8; border: 1px solid #d7ead9; border-radius: 10px; padding: 6px 10px; }
   /* 行末に置くボタン類 (未記録バッジと同じ位置に並ぶ)。⭐右端に寄せる (2026-09-03) */
   .drive-alerts .da-li .li-text .da-rtog,
-  .drive-alerts .da-li .li-text .da-rbtn { flex: 0 0 auto; margin-left: 5px; }
+  .drive-alerts .da-li .li-text .da-rbtn { flex: 0 0 auto; margin-left: 0; }
   .drive-alerts .da-li .li-text .da-done,
   .drive-alerts .da-li .li-text .da-rtog { margin-left: auto; }
+  /* ⚠️スマホ幅は間隔を詰める。広げたままだと通知内容が「…」だけになる */
+  @media (max-width: 480px) {
+    .drive-alerts .da-li .li-text { gap: 6px; }
+    .drive-alerts .da-hist { margin-left: 6px; }
+    /* スマホでは車両ナンバーを省いて「何のアラートか」を残す(どちらも入らないため) */
+    .drive-alerts .da-li .li-text .vh { display: none; }
+  }
   .drive-alerts .da-li .li-text .da-rtog { padding: 2px 9px; font-size: 10.5px; }
   .drive-alerts .da-li .li-text .da-rbtn.sub { padding: 2px 9px; font-size: 10.5px; }
   .drive-alerts.is-clear { background: #f7fbf8; border-color: #d7ead9; box-shadow: 0 3px 10px rgba(6,95,70,0.05); }
