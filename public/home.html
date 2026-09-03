@@ -477,8 +477,8 @@
   .drive-alerts .da-hist.lv3 { background: #e11d48; color: #fff; border-color: #e11d48; }
   /* 対応済みバッジ (車両ナンバーの左)。内容の記録が無いものはこれだけで済ませる */
   .drive-alerts .da-done { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 0 7px; margin: 0 4px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; vertical-align: middle; white-space: nowrap; }
-  /* 対応記録(内容)が無いものは琥珀色にして「記録なし」を出す。行をタップすると記録画面が開く */
-  .drive-alerts .da-done.nolog { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+  /* 対応記録(内容)が無いものは**赤**にして「記録なし」を出す。行をタップすると記録画面が開く */
+  .drive-alerts .da-done.nolog { background: #dc2626; color: #fff; border-color: #dc2626; }
   .drive-alerts .da-done .nl { font-weight: 800; opacity: 0.95; }
   .drive-alerts .da-resp { padding: 0 2px 9px 34px; font-size: 12px; line-height: 1.6; color: #047857; display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
   .drive-alerts .da-resp.todo { color: #9f1239; font-weight: 700; }
@@ -2187,8 +2187,8 @@ function renderDriveAlerts(alerts, unreadTotal) {
     var a = ev.alert || null;   // サーバー(whats_new.js)が返す構造化データ。無ければ従来どおり summary
     var text = a
       ? escapeHtml(a.driver_name || '') + daHistBadge(a) + '　' + escapeHtml(a.notice || '')
-        + daDoneBadge(a)
         + (a.where ? '（' + escapeHtml(a.where) + '）' : '')
+        + daDoneBadge(a)               // ⭐ナンバーの右 (2026-09-03 入れ替え)
       : escapeHtml(ev.summary || '');
     // 対応済みだが内容の記録が無い行は、タップでそのまま記録画面へ (トップからの入口を残す)
     var href = (a && a.handled && !a.resp_count) ? ('/alerts.html?respond=' + a.id) : (ev.link || '/alerts.html');
