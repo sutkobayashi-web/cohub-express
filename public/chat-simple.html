@@ -9,7 +9,11 @@
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; background: #f1f5f9; color: #0f172a; overscroll-behavior-x: none; overflow-x: hidden; }
-  body { display: flex; flex-direction: column; height: 100dvh; touch-action: pan-y; }
+  /* ⚠️⚠️高さは 100dvh を直接使わない。文字サイズ「大」以上のとき font-zoom.js が html に zoom を
+     掛けるが、100dvh はその zoom の前に解決されてから z 倍されるため、画面より縦に長い箱になり、
+     一番下の入力欄が画面の外へ出て触れなくなる (2026-08-17 伊呂原さん「文字入力ができない」の原因)。
+     --vh100 は font-zoom.js が zoom を打ち消して配る実効の画面高さ。読み込み前は 100dvh に戻る。 */
+  body { display: flex; flex-direction: column; height: var(--vh100, 100dvh); touch-action: pan-y; }
   /* iOS edge-swipe 戻る防止は CSS + font-zoom.js の JS handler で対応 (オーバーレイは送信ボタンを覆うため撤去) */
   header { background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   header h1 { margin: 0; font-size: 16px; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1238,14 +1242,24 @@
     background: #fff; border-color: #0d9488;
     box-shadow: 0 0 0 3px rgba(13,148,136,0.15);
   }
-  /* 入力欄左の📎ボタンと送信ボタンを同じ40x40の円形で統一 */
-  #input .attach-btn,
-  #input #send-btn {
+  /* 入力欄左の📎ボタンは40x40の円形のまま */
+  #input .attach-btn {
     flex-shrink: 0;
     width: 40px; height: 40px; border-radius: 50%;
     padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 18px; line-height: 1;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
+    box-sizing: border-box;
+  }
+  /* ⭐2026-08-22 社長指示: 送信は『通常送信』の文字にして、至急と並べて**大きく**。
+     ⚠️2つとも同じ高さ・同じ形にする(片方だけ目立つと押し間違える)。 */
+  #input #send-btn {
+    flex-shrink: 0;
+    height: 48px; min-width: 104px; padding: 0 18px; border-radius: 24px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; line-height: 1; letter-spacing: .03em;
     cursor: pointer;
     transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
     box-sizing: border-box;
@@ -1263,6 +1277,57 @@
   }
   #input #send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(13,148,136,0.40); }
   #input #send-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+  /* ⭐至急ボタン。送信の右に置き、入力欄はその分だけ短くなる(社長「入力欄はそこまで横長でなくても良い」) */
+  #input #urgent-btn {
+    flex-shrink: 0; height: 48px; min-width: 88px; padding: 0 20px; border-radius: 24px; border: none;
+    background: linear-gradient(135deg,#e11d48,#f43f5e); color: #fff; font-size: 17px; font-weight: 900;
+    letter-spacing: .06em; cursor: pointer; box-shadow: 0 3px 10px rgba(225,29,72,.30);
+  }
+  #input #urgent-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(225,29,72,.40); }
+  #input #urgent-btn:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+  /* ⭐2026-08-26 社長指示: スマホでは入力欄が一文字分まで潰れて打てない
+     (📎😊＋『通常送信』『至急』で横幅を使い切るため。文字サイズ「大/特大」だとさらに酷い)。
+     → 入力欄を1行目に全幅で置き、📎😊と『通常送信』『至急』は2行目へ回して2段にする。
+     ⚠️PC(721px以上)は従来どおり一段のまま。⚠️ボタンの機能・順番・文言は変えない。 */
+  @media (max-width: 720px) {
+    #input {
+      flex-wrap: wrap; align-items: center; row-gap: 8px;
+      /* ⚠️文字サイズはCSS zoomで掛かるが @media は zoom を見ない(393px端末の特大は実質約298px
+         なのに @media では393pxのまま)。実寸で効かせるため入力欄自身をコンテナにする。 */
+      container-type: inline-size;
+    }
+    #input textarea { order: 1; flex: 1 0 100%; width: 100%; }
+    #input .attach-btn, #input #btn-matomeru { order: 2; }
+    #input #send-btn { order: 3; margin-left: auto; min-width: 92px; padding: 0 14px; }
+    #input #urgent-btn { order: 3; min-width: 76px; padding: 0 14px; }
+    /* 2行目が3行に割れないよう、実寸が狭いときは送信2つを詰める */
+    @container (max-width: 340px) {
+      #input #send-btn { min-width: 0; padding: 0 10px; font-size: 15px; }
+      #input #urgent-btn { min-width: 0; padding: 0 10px; }
+    }
+    /* さらに狭いとき(特大×小型端末)。📎などを一回り小さくして2行に収める */
+    @container (max-width: 290px) {
+      #input .attach-btn { width: 36px; height: 36px; font-size: 16px; }
+      #input #btn-matomeru { width: 32px !important; height: 32px !important; }
+      #input #send-btn, #input #urgent-btn { height: 44px; padding: 0 8px; }
+      #input #send-btn { font-size: 14px; }
+      #input #urgent-btn { font-size: 15px; }
+    }
+  }
+  /* 🚨至急DMの強制ポップアップ(受信側)。⚠️本文を出すだけ=返信は通常のDMで */
+  .ug-back{position:fixed;inset:0;z-index:100001;background:rgba(8,20,40,.55);display:flex;align-items:center;justify-content:center;padding:20px}
+  .ug-card{background:#fff;border-radius:20px;max-width:560px;width:100%;padding:22px 24px;box-shadow:0 24px 70px rgba(0,0,0,.42);border-top:8px solid #e11d48}
+  .ug-h{font-size:19px;font-weight:800;color:#9f1239;margin-bottom:10px}
+  .ug-b{font-size:18px;font-weight:600;color:#1f2937;line-height:1.65;white-space:pre-wrap;word-break:break-word;
+        background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:14px 16px;max-height:46vh;overflow:auto}
+  .ug-btns{display:flex;gap:10px;margin-top:16px}
+  .ug-btns button{flex:1 1 0;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:800;cursor:pointer}
+  .ug-open{background:#0d9488;color:#fff}
+  .ug-close{background:#eef2f7;color:#334155}
+  /* 至急で送ったDMの目印。⚠️本文の後ろに小さく置く(流れを追うときの手掛かり) */
+  .bub .ug-tag{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;vertical-align:middle;
+    min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#e11d48;color:#fff;
+    font-size:12px;font-weight:900;letter-spacing:.04em}
 
   /* スマホ用: 一覧↔チャットの全画面切替 (Teamsモバイル方式) */
   @media (max-width: 720px) {
@@ -1291,13 +1356,13 @@
   #login-screen.show { display: flex; }
   .login-card { background: #fff; padding: 24px; border-radius: 14px; text-align: center; max-width: 320px; }
 </style>
-<script src="/font-zoom.js?v=20260728d" defer></script>
+<script src="/font-zoom.js?v=20260817a" defer></script>
 <script src="/version-check.js" defer></script>
 <script src="/unify-header.js" defer></script>
 <!-- 運転アラート/事故一報を受信するため global-notif.js を読み込む。ただし chat は自前socketを
      張るので __cohubNoGnSocket で gn の2本目socketを抑止し、cohubWireAlerts で相乗りさせる(2026-06-11)。 -->
 <script>window.__cohubNoGnSocket = true;</script>
-<script src="/global-notif.js?v=20260806-firstalert" defer></script>
+<script src="/global-notif.js?v=20260830-opspop" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
@@ -1387,7 +1452,10 @@ code,pre,kbd,samp,tt{font-family:ui-monospace,Consolas,"SF Mono","Courier New",m
       <button type="button" id="btn-matomeru" onclick="openMatomeru()" title="まとめる君: 報告をAIで5W1Hに整える" style="display:none;border:1px solid #cbd5e1;border-radius:50%;width:34px;height:34px;flex-shrink:0;padding:0;overflow:hidden;background:#fff;cursor:pointer;"><img src="/assets/matomeru-owl.png" alt="まとめる君" style="width:100%;height:100%;object-fit:cover;"></button>
       <button class="attach-btn" type="button" id="btn-emoji" title="絵文字" disabled>😊</button>
       <textarea id="input-text" rows="1" placeholder="メッセージを入力" disabled></textarea>
-      <button id="send-btn" disabled title="送信 (Enter)">➤</button>
+      <button id="send-btn" disabled title="通常送信 (Enter)">通常送信</button>
+      <!-- ⭐至急 (2026-08-22 社長指示): 押すと相手の画面に強制ポップアップで本文を出す。
+           個人宛のときだけ出す。返信は通常のDMで行う=ポップアップ側に返信欄は置かない。 -->
+      <button id="urgent-btn" type="button" disabled title="至急: 相手の画面にすぐ出します" style="display:none;">至急</button>
       <div id="emoji-panel" aria-hidden="true"></div>
     </div>
 
@@ -1751,8 +1819,10 @@ function showSummonAlert(name, fromId) {
   ov.style.display = 'flex';
   ov.querySelector('#summon-open').onclick = () => { ov.style.display = 'none'; try { selectDmPeer(fromId); } catch (e) {} };
   ov.querySelector('#summon-close').onclick = () => { ov.style.display = 'none'; };
-  clearTimeout(window._summonTimer);
-  window._summonTimer = setTimeout(() => { if (ov) ov.style.display = 'none'; }, 12000);
+  /* ⭐2026-08-27 社長指示: **自動で消さない**。押して消す(「チャットを開く」か「閉じる」)。
+     12秒で勝手に引っ込むと、席を外していた人は呼ばれたこと自体に気づけなかった。
+     ⚠️他ページ(global-notif.js)の札は元から消えない作りなので、これで挙動がそろう。
+     ⚠️背景タップで閉じるのは入れない([[feedback_modal_bgclick_close]]・指のずれで誤爆する)。 */
 }
 
 // 呼出を送る (送信側)
@@ -1886,7 +1956,8 @@ function fireOSNotif(title, body, onClick) {
   if (Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   try {
-    const n = new Notification(title, { body: (body || '').slice(0, 120), tag: 'cohub-chat-' + Date.now(), icon: '/assets/office_bg.png' });
+    // ⚠️silent:true — Windowsの通知音を鳴らさない(社長指示)。着信音は playChatChime が別に鳴らす
+    const n = new Notification(title, { body: (body || '').slice(0, 120), tag: 'cohub-chat-' + Date.now(), icon: '/assets/office_bg.png', silent: true });
     n.onclick = () => { try { window.focus(); } catch (e) {} if (onClick) onClick(); n.close(); };
     setTimeout(() => { try { n.close(); } catch (e) {} }, 8000);
   } catch (e) {}
@@ -2098,7 +2169,20 @@ async function init() {
   }
   // 横断検索からのDM直接オープン (?dm=<uid>)
   const dmId = params.get('dm');
-  if (dmId) { try { selectDmPeer(dmId); } catch (e) {} }
+  if (dmId) {
+    /* ⭐?call=video|voice が付いていたら、相手を開いたあとそのまま通話に入る
+       (統括の呼出モーダルからワンタップで話せるようにするため)。
+       ⚠️相手の選択が終わるのを待たないと currentDmPeer が空で startCall が弾かれる。 */
+    const _wantCall = params.get('call');
+    try {
+      const _sel = selectDmPeer(dmId);
+      if (_wantCall === 'video' || _wantCall === 'voice') {
+        Promise.resolve(_sel).then(function () {
+          setTimeout(function () { try { startCall(_wantCall); } catch (e) {} }, 800);
+        });
+      }
+    } catch (e) {}
+  }
   // 🔗 メッセージリンク (?msg=) があれば、ルーム表示後にそのメッセージへスクロール
   const mp = parseInt(params.get('msg'));
   if (mp) _pendingScrollMsg = mp;
@@ -2710,7 +2794,7 @@ function updateSelectionUI() {
     : 'チェックなし → グループ全員へ送信 / チェックあり → 選択した人へ個別DM';
   // 送信ボタン表記
   if (currentMode === 'group') {
-    $('send-btn').textContent = n > 0 ? `📨 送信(${n})` : '送信';
+    $('send-btn').textContent = n > 0 ? `📨 送信(${n})` : '通常送信';
     $('input-text').placeholder = n > 0
       ? `${n}人にDMで送信 (Enter=送信)`
       : 'グループ全員へ送信 (Enter=送信、Shift+Enter=改行)';
@@ -2865,6 +2949,8 @@ function mpSendToSelected() {
   const msg = prompt(`${n}人にDMで送信するメッセージを入力してください`, '');
   if (!msg || !msg.trim()) return;
   if (n >= 5 && !confirm(n + '人にDMを送信します。よろしいですか？')) return;
+  // ⚠️2026-08-26: 接続が切れていても「✓ ○人に送信しました」と出ていた。
+  if (!socket || socket.disconnected) { showToastMsg('接続が切れています。画面を再読み込みしてから、もう一度送信してください'); return; }
   let sent = 0;
   selectedPeers.forEach(uid => {
     if (uid === me.uid) return;
@@ -3124,7 +3210,9 @@ function renderMessages() {
 
     // バブル本文 + 添付
     const attach = m.attach_url ? `<a class="attach-link" href="${escapeHtml(m.attach_url)}" target="_blank">📎 ${escapeHtml(m.attach_name || 'attach')}</a>` : '';
-    const bubble = `<div class="bub${consultTierClass(m.content)}">${linkify(m.content || '')}${attach}</div>`;
+    // ⭐至急で送ったDMは、あとから見返しても分かるよう末尾に「急」を付ける (2026-08-22 社長指示)
+    const ugTag = m.urgent ? '<span class="ug-tag" title="至急として送信">急</span>' : '';
+    const bubble = `<div class="bub${consultTierClass(m.content)}">${linkify(m.content || '')}${attach}${ugTag}</div>`;
 
     // 自分の連続でないメッセージは右下に時刻 + 既読/未読
     let tsBottom = '';
@@ -3142,8 +3230,10 @@ function renderMessages() {
             : '<span class="unread-mark">未読</span>';
         }
       } else {
-        // 楽観的pendingメッセージ (送信中)
-        readMark = '<span class="unread-mark">送信中…</span>';
+        // 楽観的pendingメッセージ (送信中 / 8秒で控えが返らなければ失敗表示)
+        readMark = m.send_failed
+          ? '<span class="unread-mark" style="color:#dc2626;font-weight:700;">✕ 送れませんでした</span>'
+          : '<span class="unread-mark">送信中…</span>';
       }
       tsBottom = `<div class="ts">${readMark}<span>${fmtTime(m.created_at)}</span></div>`;
     }
@@ -3284,12 +3374,16 @@ async function msgTranslate(id) {
     ph.textContent = '🌐 ' + ((r && r.translation) || '(訳出なし)');
   } catch (e) { ph.textContent = '🌐 翻訳に失敗しました'; }
 }
+// 引用返信。⭐2026-08-26 社長指示: 引用が長いと自分の返事が一番下に埋もれて見落とすため、
+//   メール(mail.html の返信)と同じ『返事が上・引用は下』の順に変更。カーソルも返事の位置に置く。
 function msgQuoteReply(id) {
   const m = findCurMsg(id); if (!m) return;
   const inp = $('input-text'); if (!inp) return;
   const quote = String(m.content || '').split('\n').map(l => '> ' + l).join('\n');
-  inp.value = (quote ? quote + '\n' : '') + '⇒ ' + (inp.value || '');
+  const head = '⇒ ' + (inp.value || '');            // 書きかけの本文は残す
+  inp.value = head + (quote ? '\n\n─── 引用 ───\n' + quote : '');
   inp.focus();
+  try { inp.setSelectionRange(head.length, head.length); } catch (e) {}
   try { inp.dispatchEvent(new Event('input')); } catch (e) {}
 }
 function msgCopy(id) {
@@ -3367,12 +3461,38 @@ function doForward(type, id) {
   if (!_fwdContent && !_fwdAttach) return;
   const payload = { content: _fwdContent };
   if (_fwdAttach) payload.attach = { url: _fwdAttach.url, name: _fwdAttach.name, size: _fwdAttach.size, type: _fwdAttach.type };
+  // ⚠️2026-08-26: 接続が切れていても「↪ 転送しました」と出て、実際には誰にも届いていなかった。
+  if (!socket || socket.disconnected) { showToastMsg('接続が切れています。画面を再読み込みしてから、もう一度転送してください'); return; }
   if (type === 'group') socket.emit('chat:group', Object.assign({ group_id: id }, payload));
   else socket.emit('chat:dm', Object.assign({ to: id }, payload));
   showToastMsg('↪ 転送しました');
   closeForwardPicker();
 }
 
+/* ⭐⚠️2026-08-26: 送信の「行きっぱなし」を検知する見張り。
+   socket.emit は届いたかを確かめないので、押した瞬間に接続が落ちていると
+   本文はどこにも残らず、画面には「送信中…」が出たままになる (社長PC 2026-08-26)。
+   サーバの控え (dm:msg / group:msg) で pending が置き換わらなければ、
+   8秒で「✕ 送れませんでした」に変え、本文を入力欄へ戻して知らせる。 */
+const _sendWatch = new Map(); // pending_id → timer
+function watchPendingSend(pid, text) {
+  if (!pid || _sendWatch.has(pid)) return;
+  const timer = setTimeout(() => {
+    _sendWatch.delete(pid);
+    let found = null;
+    for (const arr of messageCache.values()) {
+      const x = arr.find(v => v && v.id === pid);
+      if (x) { found = x; break; }
+    }
+    if (!found) return;   // 控えが返って置き換わっていれば何もしない
+    found.send_failed = true;
+    try { renderMessages(); } catch (e) {}
+    const inp = $('input-text');
+    if (inp && !inp.value.trim() && text) { inp.value = text; autoGrowInput(inp); saveDraft(); }
+    showToastMsg('送れませんでした。接続を確かめて、もう一度送信してください');
+  }, 8000);
+  _sendWatch.set(pid, timer);
+}
 function appendMessage(m, key) {
   const k = key || ctxKey();
   if (!k) return;
@@ -3401,6 +3521,26 @@ function appendMessage(m, key) {
   }, 30000);
 })();
 
+/* 接続が切れている間だけ出す赤い帯 (HTMLには置かず、必要になったら作る) */
+function setConnBar(show) {
+  let el = document.getElementById('conn-bar');
+  if (!el) {
+    if (!show) return;
+    el = document.createElement('div');
+    el.id = 'conn-bar';
+    el.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;background:#dc2626;color:#fff;'
+      + 'font-weight:700;text-align:center;padding:6px 10px;font-size:14px;letter-spacing:.02em;';
+    el.textContent = '⚠ 接続が切れています。つなぎ直しています…（このあいだは送信できません）';
+    document.body.appendChild(el);
+  }
+  el.style.display = show ? '' : 'none';
+}
+/* 画面を前面に戻したら、切れていればその場で繋ぎ直す。
+   (Chromeの間引きで再接続が最大1分後になることがあり、戻ってすぐ送ると消えるため) */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  try { if (socket && socket.disconnected) socket.connect(); } catch (e) {}
+});
 function setupSocket() {
   socket = io({ auth: { token } });
   // 運転アラート/事故 一報を相乗り受信 (global-notif.js)。自前socketに乗せ2本目を作らない。
@@ -3410,8 +3550,18 @@ function setupSocket() {
   })();
   socket.on('connect', () => {
     console.log('socket connected');
+    setConnBar(false);
+    try { $('send-btn').disabled = !(($('input-text').value || '').trim()); } catch (e) {}
     // 再接続時のオンライン一覧再取得
     loadOnlineUsers().then(() => { try { renderGroupList(); } catch (e) {} });
+  });
+  /* ⚠️⚠️2026-08-27: 背面タブに置いたままだとChromeがタイマーを大きく間引くため、
+     socket.io の応答(pong)が返らずサーバ側が40秒で切断し、次の起床で再接続する、を
+     延々くり返す(社長PCで43秒周期を実測)。この切れている間に送信を押すと、本文は
+     どこにも残らないまま消える。切断中はそれと分かるようにし、送信も止める。 */
+  socket.on('disconnect', () => {
+    setConnBar(true);
+    try { $('send-btn').disabled = true; } catch (e) {}
   });
   // 別端末で同種別ログイン → 旧セッションキック
   socket.on('session:kicked', (d) => {
@@ -3431,7 +3581,12 @@ function setupSocket() {
   });
 
   // 在席状態
-  socket.on('user:login', (d) => { if (d && d.uid) setUserOnline(d.uid, true); });
+  socket.on('user:login', (d) => {
+    if (!d || !d.uid) return;
+    setUserOnline(d.uid, true);
+    // 👋 ぽわーん (global-notif.js が公開。自前socketなので二重発火はしない)
+    if (!me || d.uid !== me.uid) { try { window.cohubPlayLoginPowan && window.cohubPlayLoginPowan(false, d.name, d.avatar); } catch (e) {} }
+  });
   socket.on('user:logout', (d) => { if (d && d.uid) setUserOnline(d.uid, false); });
   // 💬 チャット中の増減 (相手は伏せる)
   socket.on('presence:chat', (d) => {
@@ -3484,6 +3639,8 @@ function setupSocket() {
   // DMメッセージ受信
   socket.on('dm:msg', (payload) => {
     if (!payload) return;
+    // 🚨至急DM: 相手が気づかないことがあるので**画面をふさいで**本文を出す(2026-08-22 社長指示)
+    if (payload.urgent && payload.from !== me.uid) { try { showUrgentDm(payload); } catch (e) {} }
     const peerId = payload.from === me.uid ? payload.to : payload.from;
     if (!peerId) return;
     // AIボットとのDMはチャット一覧に表示しない (kept silent)
@@ -3701,7 +3858,23 @@ function setupSocket() {
   });
 }
 
-function send() {
+/* 🚨至急DMの強制ポップアップ。⚠️**本文を出すだけ**(返信は通常のDMで行う=社長指示)。
+   ⚠️画面のどこに居ても出す。閉じるまで裏の操作をふさぐ=気づかないを無くすのが目的。 */
+function showUrgentDm(p) {
+  const old = document.getElementById('ug-box'); if (old) old.remove();
+  const b = document.createElement('div'); b.id = 'ug-box'; b.className = 'ug-back';
+  const who = (p.from_name || '').trim() || 'どなたか';
+  b.innerHTML = '<div class="ug-card"><div class="ug-h">🚨 至急 — ' + escapeHtml(who) + 'さんから</div>'
+    + '<div class="ug-b">' + escapeHtml(String(p.content || '')) + '</div>'
+    + '<div class="ug-btns"><button class="ug-open" id="ug-open">チャットを開いて返信</button>'
+    + '<button class="ug-close" id="ug-close">閉じる</button></div></div>';
+  document.body.appendChild(b);
+  try { playChatChime(); } catch (e) {}
+  const close = () => { const x = document.getElementById('ug-box'); if (x) x.remove(); };
+  b.querySelector('#ug-close').onclick = close;
+  b.querySelector('#ug-open').onclick = () => { close(); try { selectDmPeer(p.from); } catch (e) {} };
+}
+function send(urgent) {
   const t = $('input-text').value.trim();
   if (!t || !socket) return;
   // 送信したらtyping停止信号
@@ -3734,7 +3907,8 @@ function send() {
   if (currentMode === 'group' && currentGid) {
     socket.emit('chat:group', { group_id: currentGid, content: t });
   } else if (currentMode === 'dm' && currentDmPeer) {
-    socket.emit('chat:dm', { to: currentDmPeer.id, content: t });
+    socket.emit('chat:dm', { to: currentDmPeer.id, content: t, urgent: !!urgent });
+    if (urgent) showToastMsg('🚨 至急で送りました（相手の画面にすぐ出ます）');
   } else {
     return;
   }
@@ -3744,6 +3918,7 @@ function send() {
   saveDraft();
   appendMessage({
     id: 'pending_' + Date.now(),
+    urgent: !!urgent,
     sender_id: me.uid,
     sender_name: me.display_name,
     sender_avatar: me.avatar_url || '',
@@ -3858,6 +4033,26 @@ function restoreDraft() {
 }
 // ★ window.send は後で添付対応版に差し替えられるため、毎回動的に呼ぶ
 $('send-btn').addEventListener('click', () => window.send());
+/* ⭐至急ボタン。個人宛(DM)のときだけ出す。押す前に一度だけ確認する
+   (相手の画面をふさぐので、うっかり連打されないように)。 */
+try {
+  $('urgent-btn').addEventListener('click', () => {
+    const t = ($('input-text').value || '').trim();
+    if (!t) return;
+    if (!confirm('至急として送ります。\n相手の画面に すぐポップアップで表示されます。よろしいですか？')) return;
+    window.send(true);
+  });
+} catch (e) {}
+/* 送信ボタンの状態に合わせて至急も切り替える。⚠️1か所で完結させる=書き忘れを防ぐ */
+function syncUrgentBtn() {
+  const u = document.getElementById('urgent-btn'); if (!u) return;
+  const isDm = (currentMode === 'dm' && currentDmPeer && !isBot(currentDmPeer.id));
+  u.style.display = isDm ? '' : 'none';
+  // ⚠️至急は**本文が要る**(相手の画面に文字を出すため)。添付だけのときは通常送信のみ有効。
+  //   ⚠️送信ボタンの状態をそのまま真似ると、添付だけで至急が押せてしまい、押しても何も起きなかった。
+  u.disabled = !isDm || !(($('input-text').value || '').trim());
+}
+setInterval(syncUrgentBtn, 400);
 $('input-text').addEventListener('keydown', e => {
   // 日本語IME変換確定中のEnterは送信扱いにしない (Android/IME対策)
   if (e.isComposing || e.keyCode === 229) return;
@@ -4108,7 +4303,14 @@ async function checkSafetyBeforeSend(text) {
   // bot 宛 DM は対象外 (既存のL1拒否応答に任せる)
   if (currentMode === 'dm' && currentDmPeer && /^bot_/.test(currentDmPeer.id)) return { ok: true };
   try {
-    const r = await api('/api/safety/check-message', { method: 'POST', body: { text } });
+    // ⚠️⚠️2026-08-26: ここには時間切れが無く、通信がぶら下がると await が永久に戻らない。
+    //   すると呼び出し元 window.send の _sendBusy が true のまま残り、以後この画面では
+    //   何度押しても警告すら出さずに送れなくなる (社長PCで発生・再読み込みするまで復旧しない)。
+    //   5秒で打ち切り、チェック結果が取れなければ通常送信に倒す (従来からフェイルオープン)。
+    const r = await Promise.race([
+      api('/api/safety/check-message', { method: 'POST', body: { text } }),
+      new Promise((res) => setTimeout(() => res(null), 5000)),
+    ]);
     if (!r || !r.success || !r.hit) return { ok: true };
     return await new Promise((resolve) => {
       const w = r.warning || {};
@@ -4138,15 +4340,24 @@ async function checkSafetyBeforeSend(text) {
 
 // 再入ガード: 安全チェック(await fetch)の遅延中にEnterを連打しても二重送信しない (2026-05-29 再発修正)
 let _sendBusy = false;
-window.send = async function() {
+/* ⚠️⚠️2026-08-26: この添付対応版は urgent を受け取っておらず、至急ボタン(window.send(true))で
+   送ってもふつうのDMになっていた。導入以降 messages.urgent=1 の記録がゼロだったのが証拠。 */
+window.send = async function(urgent) {
   if (_sendBusy) return;  // 送信処理中(安全チェック待ち含む)は無視 → 連打しても1回だけ
   const inputEl = $('input-text');
   const t = inputEl.value.trim();
   if (!t && !pendingAttach) return;
-  if (!socket) return;
+  // ⚠️2026-08-18: ここは以前 `if (!socket) return;` と黙って戻っていた。
+  //   接続が切れていると押しても何も起きず、本文が入力欄に残るだけ →
+  //   本人には「送ったのに下書きのまま」に見えて、送れていないことに気づけない。
+  if (!socket || socket.disconnected) {
+    showToastMsg('接続が切れています。画面を再読み込みしてから、もう一度送信してください', true);
+    saveDraft();   // 本文は入力欄に残したまま下書きへ退避
+    return;
+  }
   // 宛先が無ければ何もしない
   const hasTarget = (currentMode === 'group' && (currentGid || selectedPeers.size > 0)) || (currentMode === 'dm' && currentDmPeer);
-  if (!hasTarget) return;
+  if (!hasTarget) { showToastMsg('送信先が選ばれていません。相手かグループを選んでください', true); saveDraft(); return; }
   _sendBusy = true;
   // ★ 入力欄を即クリア (安全チェックのネット往復で反応が鈍くても空にして誤連打を防ぐ)
   inputEl.value = '';
@@ -4163,6 +4374,13 @@ window.send = async function() {
       saveDraft();  // 書き直し → 下書きを復元保存
       return;
     }
+    // ⚠️安全チェックの往復中に接続が切れることがある。切れたまま emit すると
+    //   本文だけ消えて相手に届かないので、入力欄へ戻して知らせる。
+    if (socket.disconnected) {
+      inputEl.value = t; autoGrowInput(inputEl); saveDraft();
+      showToastMsg('接続が切れています。画面を再読み込みしてから、もう一度送信してください', true);
+      return;
+    }
     const attach = pendingAttach;
     if (currentMode === 'group' && selectedPeers.size > 0) {
       if (selectedPeers.size >= 5 && !confirm(selectedPeers.size + '人にDMを送信します。よろしいですか？')) { inputEl.value = t; autoGrowInput(inputEl); saveDraft(); return; }
@@ -4175,10 +4393,16 @@ window.send = async function() {
       showToastMsg(`✓ ${sent}人にDMで送信しました`);
     } else if (currentMode === 'group' && currentGid) {
       socket.emit('chat:group', { group_id: currentGid, content: t, attach });
-      appendMessage(buildLocalMsg(t, attach));
+      const lmG = buildLocalMsg(t, attach);
+      appendMessage(lmG);
+      watchPendingSend(lmG.id, t);
     } else if (currentMode === 'dm' && currentDmPeer) {
-      socket.emit('chat:dm', { to: currentDmPeer.id, content: t, attach });
-      appendMessage(buildLocalMsg(t, attach));
+      socket.emit('chat:dm', { to: currentDmPeer.id, content: t, attach, urgent: !!urgent });
+      const lmD = buildLocalMsg(t, attach);
+      lmD.urgent = !!urgent;
+      appendMessage(lmD);
+      watchPendingSend(lmD.id, t);
+      if (urgent) showToastMsg('🚨 至急で送りました（相手の画面にすぐ出ます）');
     } else {
       inputEl.value = t;  // 想定外: 復元
       autoGrowInput(inputEl); saveDraft();
@@ -4431,6 +4655,14 @@ function toggleCamera() {
 function attachCallHandlers() {
   if (!socket) return;
   socket.on('call:invite', (payload) => {
+    /* ⚠️⚠️2026-08-31。遠隔点呼の呼び出しは点呼の画面が受ける。ここで拾うと
+       チャットの着信画面が先に出て、点呼側が出られなくなる(実際に起きた)。 */
+    if (payload && payload.purpose === 'ops') return;
+    /* ↓は上の purpose が付く前の呼び出しにも効かせるための保険(点呼が呼んでいる間は出さない) */
+    try {
+      var _ow = parseInt(localStorage.getItem('cw_ops_wait') || '0', 10);
+      if (_ow && (Date.now() - _ow) < 10 * 60 * 1000) return;
+    } catch (e) {}
     if (pc || pendingIncoming) {
       // 既に通話中/着信中: 自動拒否
       socket.emit('call:reject', { to: payload.from, reason: 'busy' });
@@ -4524,7 +4756,8 @@ if ('serviceWorker' in navigator) {
 </div>
 <script src="/overlay-history.js?v=3"></script>
   <script src="/translate.js?v=20260622f" defer></script>
-  <script src="/voice-input.js" defer></script>
+  <!-- ⚠️2026-08-22 社長指示: 音声入力は誰も使っていないため撤去 (voice-input.js を読み込まない)。
+       ⚠️このスクリプトは「送信」ボタンを見つけて🎤を自動で差し込む作りなので、読み込みを外せば🎤も消える。 -->
 <script src="/kiosk-guard.js?v=20260703-idle3" defer></script>
 </body>
 </html>
