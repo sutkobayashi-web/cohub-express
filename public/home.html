@@ -458,7 +458,7 @@
   .drive-alerts .da-count { background: #9f1239; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
   .drive-alerts .da-more { margin-left: auto; font-size: 11.5px; color: #9f1239; text-decoration: none; font-weight: 700; }
   .drive-alerts .da-list { width: 100%; display: flex; flex-direction: column; margin-top: 3px; }
-  .drive-alerts .da-li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid #fecdd3; text-decoration: none; color: #4c0519; }
+  .drive-alerts .da-li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid #fecdd3; text-decoration: none; color: #4c0519; cursor: pointer; }
   .drive-alerts .da-li:first-child { border-top: none; }
   .drive-alerts .da-li:active { background: #ffe4e6; }
   .drive-alerts .da-li .li-ic { font-size: 17px; flex: 0 0 auto; width: 22px; text-align: center; }
@@ -471,6 +471,7 @@
   .drive-alerts .da-li .li-text .tx { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 削る順番: 車両ナンバー(vh) → 通知内容(nt)。氏名(nm)と対応バッジ(da-done)は削らない */
   .drive-alerts .da-li .li-text .nm { flex: 0 0 auto; white-space: nowrap; }
+  /* ⚠️min-width は付けない。付けると狭い画面で**行末のボタンが切れる**(ボタンは必ず見せる) */
   .drive-alerts .da-li .li-text .nt { flex: 0 1 auto; min-width: 0; margin-left: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .drive-alerts .da-li .li-text .vh { flex: 0 6 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .drive-alerts .da-li .li-text .da-done { flex: 0 0 auto; }
@@ -497,8 +498,13 @@
     padding: 3px 11px; font-size: 11.5px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
   .drive-alerts .da-rtog:active { background: #d1fae5; }
   .drive-alerts .da-rtog .cr { font-size: 9px; opacity: 0.8; }
-  .drive-alerts .da-rdetail { flex-basis: 100%; margin-top: 4px; font-size: 12px; line-height: 1.6; color: #047857; white-space: normal;
+  .drive-alerts .da-rdetail { margin: 0 4px 9px 34px; font-size: 12px; line-height: 1.6; color: #047857; white-space: normal;
     background: #f7fbf8; border: 1px solid #d7ead9; border-radius: 10px; padding: 6px 10px; }
+  /* 行末に置くボタン類 (未記録バッジと同じ位置に並ぶ) */
+  .drive-alerts .da-li .li-text .da-rtog,
+  .drive-alerts .da-li .li-text .da-rbtn { flex: 0 0 auto; margin-left: 5px; }
+  .drive-alerts .da-li .li-text .da-rtog { padding: 2px 9px; font-size: 10.5px; }
+  .drive-alerts .da-li .li-text .da-rbtn.sub { padding: 2px 9px; font-size: 10.5px; }
   .drive-alerts.is-clear { background: #f7fbf8; border-color: #d7ead9; box-shadow: 0 3px 10px rgba(6,95,70,0.05); }
   .drive-alerts.is-clear .da-label { background: #059669; }
   .drive-alerts.is-clear .da-more { color: #047857; }
@@ -2159,18 +2165,25 @@ function daRespHtml(a) {
     return '<div class="da-resp todo"><span class="da-rtxt">未対応 — 当事者へ連絡を</span>' + btn + '</div>';
   }
   if (!a.resp_count) return '';   // 対応済み(内容なし) = 上のバッジだけ
-  /* ⭐既定は畳んで「指導記録済」の1行だけ。押すと対応者・方法・内容が開く (社長指示 2026-09-03)。
-     ⚠️アラートが数件並ぶトップで内容を出しっぱなしにすると縦に伸びて読みにくいため。 */
+  /* ⭐既定は畳む。開くボタン(「指導記録済」)と「追記」は**行末**に出しているので、
+     ここには開いたときの中身だけを置く (社長指示 2026-09-03)。 */
   var line = escapeHtml(a.resp_by || '') + (a.resp_method ? '／' + escapeHtml(a.resp_method) : '')
     + (a.resp_contacted === 1 ? '・本人に連絡' : (a.resp_contacted === 0 ? '・本人と連絡つかず' : ''))
     + (a.resp_count > 1 ? ' 他' + (a.resp_count - 1) + '件' : '')
     + (a.resp_content ? '<br>' + escapeHtml(a.resp_content) : '');
-  return '<div class="da-resp">'
-    + '<button type="button" class="da-rtog" onclick="daToggleResp(' + a.id + ', this)">'
-    +   '✅ 指導記録済<span class="cr">▼</span></button>'
-    + '<a class="da-rbtn sub" href="/alerts.html?respond=' + a.id + '">＋追記</a>'
-    + '<div class="da-rdetail" id="da-rd-' + a.id + '" hidden>' + line + '</div>'
-    + '</div>';
+  return '<div class="da-rdetail" id="da-rd-' + a.id + '" hidden>' + line + '</div>';
+}
+/* ⭐記録があるアラートの行末: 「指導記録済」(開閉) と「追記」。未記録の赤バッジと同じ位置に出す。
+   ⚠️行そのものもタップで開くので、ここは stopPropagation して行の遷移を止める。 */
+function daRecChips(a) {
+  return '<button type="button" class="da-rtog" onclick="event.stopPropagation();daToggleResp(' + a.id + ', this)">'
+    + '✅ 記録済<span class="cr">▼</span></button>'
+    + '<a class="da-rbtn sub" href="/alerts.html?respond=' + a.id + '" onclick="event.stopPropagation()">＋追記</a>';
+}
+// 行のタップ = 既読にして移動 (<a>をやめたので遷移は自前でやる)
+function daRowGo(ev, key, href) {
+  try { wnClick(ev, key, true); } catch (e) {}
+  if (href) location.href = href;
 }
 // 「指導記録済」の開閉 (トップに出している数件ぶんだけ。開いた状態は保存しない)
 function daToggleResp(id, btn) {
@@ -2222,21 +2235,25 @@ function renderDriveAlerts(alerts, unreadTotal) {
         + '<span class="nt">' + escapeHtml(a.notice || '') + '</span>'
         + (a.where ? '<span class="vh">（' + escapeHtml(a.where) + '）</span>' : '')
       : '<span class="tx">' + escapeHtml(ev.summary || '') + '</span>';
-    var doneBadge = a ? daDoneBadge(a) : '';   // ⭐ナンバーの右 (2026-09-03 入れ替え)
+    /* ⭐行末(ナンバーの右)に置くもの。未記録=赤バッジ / 記録あり=「指導記録済」＋「追記」を**同じ位置**に。 */
+    var trail = a ? (a.handled && a.resp_count ? daRecChips(a) : daDoneBadge(a)) : '';
     // 対応済みだが内容の記録が無い行は、タップでそのまま記録画面へ (トップからの入口を残す)
     var href = (a && a.handled && !a.resp_count) ? ('/alerts.html?respond=' + a.id) : (ev.link || '/alerts.html');
+    var keyJson = JSON.stringify(ev.key || '').replace(/"/g, '&quot;');
+    /* ⚠️行は <a> ではなく div + onclick。行末に「指導記録済」ボタンと「追記」リンクを置くため
+         (<a>の中に<button>や<a>は入れられない=ブラウザが勝手に外へ出してレイアウトが崩れる)。 */
     return '<div class="da-item">'
-      + '<a class="da-li' + (ev.unread ? ' is-unread' : '') + '" href="' + escapeHtml(href) + '"'
-      + ' onclick="return wnClick(event, ' + JSON.stringify(ev.key || '').replace(/"/g, '&quot;') + ', true)">'
+      + '<div class="da-li' + (ev.unread ? ' is-unread' : '') + '" role="link" tabindex="0"'
+      + ' onclick="daRowGo(event, ' + keyJson + ', ' + JSON.stringify(href).replace(/"/g, '&quot;') + ')">'
       + '<span class="li-ic">' + (ev.icon || '⚠️') + '</span>'
       + '<span class="li-body">'
       +   '<span class="li-l1">'
       +     (ev.created_at ? '<span class="li-time">' + escapeHtml(postTime(ev.created_at)) + '</span>' : '')
       +     (ev.unread ? '<span class="li-new">NEW</span>' : '')
       +   '</span>'
-      +   (text ? '<span class="li-text">' + text + doneBadge + '</span>' : '')
+      +   (text ? '<span class="li-text">' + text + trail + '</span>' : '')
       + '</span>'
-      + '</a>'
+      + '</div>'
       + daRespHtml(a)
       + '</div>';
   }).join('');
