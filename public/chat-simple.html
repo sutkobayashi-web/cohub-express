@@ -1055,9 +1055,12 @@
   #bulkdm-modal .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px 0; }
   #bulkdm-modal .chips .chip { background: #ede9fe; color: #4c1d95; border: 1px solid #ddd6fe; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
   #bulkdm-modal .chips .chip:after { content: ' ×'; opacity: .6; }
-  #bulkdm-modal .co-head { display: flex; align-items: center; gap: 8px; padding: 9px 16px 5px; background: #f8fafc; border-top: 1px solid #eef2f7; position: sticky; top: 0; z-index: 1; }
-  #bulkdm-modal .co-head .co-nm { font-size: 12px; font-weight: 800; color: #334155; flex: 1; }
-  #bulkdm-modal .co-head button { padding: 4px 10px; font-size: 11px; font-weight: 800; background: #fff; border: 1px solid #cbd5e1; border-radius: 999px; cursor: pointer; color: #475569; }
+  #bulkdm-modal .co-head { display: flex; align-items: center; gap: 8px; padding: 11px 16px; background: #f8fafc; border-top: 1px solid #eef2f7; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  #bulkdm-modal .co-head:hover { background: #f1f5f9; }
+  #bulkdm-modal .co-head .caret { font-size: 11px; color: #64748b; width: 12px; flex-shrink: 0; }
+  #bulkdm-modal .co-head .co-nm { font-size: 12.5px; font-weight: 800; color: #334155; flex: 1; min-width: 0; }
+  #bulkdm-modal .co-head .co-sel { background: #7c3aed; color: #fff; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 1px 8px; flex-shrink: 0; }
+  #bulkdm-modal .co-head button { padding: 4px 10px; font-size: 11px; font-weight: 800; background: #fff; border: 1px solid #cbd5e1; border-radius: 999px; cursor: pointer; color: #475569; flex-shrink: 0; }
   #bulkdm-modal .compose { padding: 10px 14px; border-top: 1px solid #e2e8f0; background: #fff; flex-shrink: 0; }
   #bulkdm-modal .compose textarea { width: 100%; min-height: 76px; max-height: 30vh; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; font-family: inherit; resize: vertical; }
   #bulkdm-modal .compose .cbar { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: #64748b; flex-wrap: wrap; }
@@ -2833,10 +2836,12 @@ async function loadAllMembers() {
       選んだ人それぞれに 1対1のDM として送る(受け手には普通のDM。宛先どうしは互いを知らない)。
    ⚠️送信は socket ではなく HTTP(/api/chat/dm/bulk)。接続が切れていても黙って消えないように。 */
 let bulkSel = new Set();
+let bulkOpenCo = new Set();   // 開いている営業所。既定は全部たたむ(拠点が多いので一覧が長くなる)
 const BULK_LAST_KEY = 'bulkdm_last_uids';
 
 function openBulkDm() {
   bulkSel = new Set();
+  bulkOpenCo = new Set();
   $('bd-q').value = '';
   $('bd-text').value = '';
   $('bd-urgent').checked = false;
@@ -2854,7 +2859,16 @@ function bulkClearAll() { bulkSel.clear(); renderBulkList(); }
 function bulkUseLast() {
   let last = [];
   try { last = JSON.parse(localStorage.getItem(BULK_LAST_KEY) || '[]'); } catch (e) {}
-  last.forEach(u => { if (allMembersById.has(u) && u !== me.uid) bulkSel.add(u); });
+  last.forEach(u => {
+    if (!allMembersById.has(u) || u === me.uid) return;
+    bulkSel.add(u);
+    bulkOpenCo.add((allMembersById.get(u) || {}).dm_group || 'その他');   // 選ばれた人が見えるように開く
+  });
+  renderBulkList();
+}
+// 営業所の開閉 (⚠️「この拠点を全員」ボタンは stopPropagation して開閉させない)
+function bulkToggleCoOpen(co) {
+  if (bulkOpenCo.has(co)) bulkOpenCo.delete(co); else bulkOpenCo.add(co);
   renderBulkList();
 }
 function bulkToggle(uid) {
@@ -2866,6 +2880,7 @@ function bulkToggleCo(co) {
   const ids = bulkRoster().filter(m => (m.dm_group || 'その他') === co).map(m => m.id);
   const allOn = ids.length > 0 && ids.every(id => bulkSel.has(id));
   ids.forEach(id => { if (allOn) bulkSel.delete(id); else bulkSel.add(id); });
+  if (!allOn) bulkOpenCo.add(co);   // 誰を選んだのか確認できるように開く
   renderBulkList();
 }
 // 宛先の母集団: 全登録メンバー (自分とbotは除く)。検索語で絞る。
@@ -2889,11 +2904,19 @@ function renderBulkList() {
     byCo.get(co).push(m);
   });
   const html = [];
+  const searching = !!($('bd-q').value || '').trim();   // 検索中は畳まない(絞り込んだ結果が見えないと選べない)
   for (const [co, list] of byCo) {
     const onAll = list.every(m => bulkSel.has(m.id));
-    html.push('<div class="co-head"><span class="co-nm">' + escapeHtml(co) + ' (' + list.length + ')</span>'
-      + '<button type="button" onclick="bulkToggleCo(' + JSON.stringify(co).replace(/"/g, '&quot;') + ')">'
+    const nSel = list.filter(m => bulkSel.has(m.id)).length;
+    const open = searching || bulkOpenCo.has(co);
+    const coJson = JSON.stringify(co).replace(/"/g, '&quot;');
+    html.push('<div class="co-head" onclick="bulkToggleCoOpen(' + coJson + ')">'
+      + '<span class="caret">' + (open ? '▼' : '▶') + '</span>'
+      + '<span class="co-nm">' + escapeHtml(co) + ' (' + list.length + ')</span>'
+      + (nSel ? '<span class="co-sel">' + nSel + '人選択</span>' : '')
+      + '<button type="button" onclick="event.stopPropagation();bulkToggleCo(' + coJson + ')">'
       + (onAll ? 'この拠点を解除' : 'この拠点を全員') + '</button></div>');
+    if (!open) continue;
     list.forEach(m => {
       const on = bulkSel.has(m.id);
       const av = m.avatar_url
